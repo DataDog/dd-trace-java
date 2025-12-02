@@ -1,5 +1,6 @@
 include:
-  - local: ".gitlab/one-pipeline.locked.yml"
+  # - local: ".gitlab/one-pipeline.locked.yml"
+  - remote: "https://gitlab-templates.ddbuild.io/libdatadog/include-wip/mhlidd/verify_alias_key_documented/one-pipeline.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -1002,3 +1003,8 @@ update_central_configurations_version_range_v2:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
+
+verify_valid_v2_local_file:
+  extends: .verify_valid_v2_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json" # must be set in implementing library e.g. "tracer/build/artifacts/supported_configurations.json"
