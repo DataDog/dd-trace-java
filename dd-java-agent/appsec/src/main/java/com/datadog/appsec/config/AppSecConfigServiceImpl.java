@@ -379,30 +379,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   /**
-   * Subscribes to Supply Chain Analysis (SCA) configuration from Remote Config. Receives
+   * Subscribes to SCA configuration from Remote Config. Receives
    * instrumentation targets for vulnerability detection in third-party dependencies.
    *
-   * <p><b>POC/TEMPORARY (APPSEC-57815)</b>: For POC testing, configs can be served from a debugging
-   * endpoint by setting: {@code -Ddd.rc.debugging.url=http://agent:8126/api/unstable/remote-config/debugging/configs}
-   *
-   * <p>The config key should use prefix {@code SCA_} to differentiate from other products sharing
-   * the debugging endpoint: {@code datadog/2/ASM_SCA/SCA_{service_id}/config}
-   *
-   * <p>Example POC config:
-   * <pre>{@code
-   * {
-   *   "enabled": true,
-   *   "instrumentation_targets": [
-   *     {
-   *       "class_name": "com/fasterxml/jackson/databind/ObjectMapper",
-   *       "method_name": "readValue"
-   *     }
-   *   ]
-   * }
-   * }</pre>
-   *
-   * <p>TODO(APPSEC-57815): Remove debugging URL support once backend properly implements
-   * product-specific routing: {@code GET /api/unstable/remote-config/{product}/configs/{id}}
+   * <p>TODO: Remove debugging URL support once backend properly implements
    */
   private void subscribeSCA() {
     if (subscribedToSCA.compareAndSet(false, true)) {
@@ -417,18 +397,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
               triggerSCAInstrumentationUpdate(null);
             } else {
               log.debug(
-                  "Received SCA config update for key: {} - enabled: {}, targets: {}",
+                  "Received SCA config update for key: {} - vulnerabilities: {}",
                   configKey,
-                  newConfig.enabled,
-                  newConfig.instrumentationTargets != null
-                      ? newConfig.instrumentationTargets.size()
-                      : 0);
+                  newConfig.vulnerabilities != null ? newConfig.vulnerabilities.size() : 0);
               currentSCAConfig = newConfig;
               triggerSCAInstrumentationUpdate(newConfig);
             }
           });
       this.configurationPoller.addCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
-      log.info("Successfully subscribed to ASM_SCA Remote Config product");
+      log.info("Successfully subscribed to SCA Remote Config product");
     }
   }
 
@@ -439,7 +416,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.configurationPoller.removeListeners(Product.DEBUG);
       this.configurationPoller.removeCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
       currentSCAConfig = null;
-      log.info("Successfully unsubscribed from ASM_SCA Remote Config product");
+      log.info("Successfully unsubscribed from SCA Remote Config product");
     }
   }
 
