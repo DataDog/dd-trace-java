@@ -108,7 +108,8 @@ class ScaSmokeTest extends AbstractSmokeTest {
     }
 
     and: 'Application signals it is ready for instrumentation'
-    processTestLogLines { it.contains('READY_FOR_INSTRUMENTATION') }
+    def ready = isLogPresent { it.contains('READY_FOR_INSTRUMENTATION') }
+    assert ready, 'Application should signal readiness'
 
     and: 'SCA configuration is sent via Remote Config'
     setRemoteConfig('datadog/2/ASM_SCA/sca_test_config/config', scaConfig)
@@ -126,32 +127,24 @@ class ScaSmokeTest extends AbstractSmokeTest {
     assert testedProcess.alive
 
     when: 'Application invokes the instrumented method'
-    processTestLogLines { it.contains('INVOKING_TARGET_METHOD') }
+    def methodInvoked = isLogPresent { it.contains('INVOKING_TARGET_METHOD') }
+    assert methodInvoked, 'Application should invoke target method'
 
     then: 'SCA detection callback is triggered and logged'
-    def detectionFound = false
-    try {
-      processTestLogLines { String log ->
-        log.contains('[SCA DETECTION] Vulnerable method invoked') &&
-          log.contains('ObjectMapper') &&
-          log.contains('readValue')
-      }
-      detectionFound = true
-    } catch (Exception e) {
-      // Detection may not trigger if instrumentation didn't complete
-      // This is acceptable for a basic smoke test
-      println("Note: SCA detection log not found (instrumentation may not have completed): ${e.message}")
+    def detectionFound = isLogPresent { String log ->
+      log.contains('[SCA DETECTION] Vulnerable method invoked') &&
+      log.contains('ObjectMapper') &&
+      log.contains('readValue')
     }
+    assert detectionFound, 'SCA detection should have been triggered'
 
     and: 'Method invocation completes successfully'
-    processTestLogLines { it.contains('METHOD_INVOCATION_DONE') }
+    def invocationDone = isLogPresent { it.contains('METHOD_INVOCATION_DONE') }
+    assert invocationDone, 'Method invocation should complete'
 
-    and: 'Application finishes without errors'
-    processTestLogLines { it.contains('ScaApplication finished') }
-    assert testedProcess.alive || testedProcess.exitValue() == 0
-
-    // Log whether detection was successful (informational)
-    println("SCA detection triggered: ${detectionFound}")
+    and: 'Process should be running without errors'
+    // Process stays alive until all tests finish
+    assert testedProcess.alive
   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {

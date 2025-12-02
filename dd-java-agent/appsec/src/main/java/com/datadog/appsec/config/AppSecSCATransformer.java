@@ -166,10 +166,10 @@ public class AppSecSCATransformer implements ClassFileTransformer {
       // Load the descriptor
       mv.visitLdcInsn(descriptor);
 
-      // Call the static detection method
+      // Call the static detection method in bootstrap classloader
       mv.visitMethodInsn(
           Opcodes.INVOKESTATIC,
-          "com/datadog/appsec/config/AppSecSCADetector",
+          "datadog/trace/bootstrap/instrumentation/appsec/AppSecSCADetector",
           "onMethodInvocation",
           "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
           false);
