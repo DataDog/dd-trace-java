@@ -72,6 +72,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
+  static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
   // Default value is set to 0, it disables the latency trace interceptor
   static final int DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS = 0;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
@@ -100,6 +101,16 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
+  public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
+  // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
+  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10000; // ms
+  // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
+  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7500; // ms
+
+  static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
+  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
+
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
   static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;
@@ -119,7 +130,7 @@ public final class ConfigDefaults {
   static final float DEFAULT_API_SECURITY_SAMPLE_DELAY = 30.0f;
   static final boolean DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED = true;
   static final int DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT = 300;
-  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE = 0.5D;
+  static final double DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE = 0.5D;
   static final int DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS = 1;
   static final boolean DEFAULT_APPSEC_RASP_ENABLED = true;
   static final boolean DEFAULT_APPSEC_STACK_TRACE_ENABLED = true;
@@ -231,6 +242,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds

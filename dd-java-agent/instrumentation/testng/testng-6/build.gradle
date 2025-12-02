@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

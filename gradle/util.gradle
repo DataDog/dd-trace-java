@@ -1,17 +1,37 @@
-tasks.register("artifacts") {
-  group = "Help"
-  description = "Displays the artifacts associated with each configuration of " + project
-  doFirst {
+abstract class DisplayArtifactsTask extends DefaultTask {
+
+  @Option(option = "configuration", description = "Comma separated list of configuration name (defaults to 'archives,javadocElements,sourcesElements'). Use 'all' to display all configurations.")
+  @Input
+  @Optional
+  abstract Property<String> getConfigurationName()
+
+  DisplayArtifactsTask() {
+    group = "Help"
+    description = "Displays the artifacts associated with each configuration of " + project
+    configurationName.convention("archives,javadocElements,sourcesElements")
+  }
+
+  @TaskAction
+  void displayArtifacts() {
     // This eager access is ok as it is during the task execution phase
-    configurations.each { config ->
-      println "${config}:"
-      config.allArtifacts.getFiles().each { file ->
-        println " " + file
+    def builder = new StringBuilder()
+    def targetConfig = configurationName.map { it.split(",").toList().toSet() }.orNull
+    def configs = targetConfig.contains("all") ? project.configurations : project.configurations.matching { targetConfig.contains(it.name) }
+    configs.each { config ->
+      def outgoingFiles = config.outgoing.artifacts.getFiles()
+      if (!outgoingFiles.isEmpty()) {
+        builder.setLength(0)
+        outgoingFiles.each { file ->
+          def relPath = project.rootDir.toPath().relativize(file.toPath())
+          builder.append(config).append(": ").append(relPath)
+        }
+        logger.quiet(builder.toString())
       }
-      println ' '
     }
   }
 }
+
+tasks.register("artifacts", DisplayArtifactsTask)
 
 /** Find a random, reusable port. */
 ext.randomOpenPort = {

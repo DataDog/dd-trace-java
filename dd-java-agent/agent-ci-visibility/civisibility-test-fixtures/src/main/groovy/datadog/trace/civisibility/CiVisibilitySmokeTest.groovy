@@ -4,6 +4,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
 import spock.lang.Specification
 import spock.util.environment.Jvm
 
@@ -44,8 +46,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, "false")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED, "false")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED, "false")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, "true")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION, JAVAC_PLUGIN_VERSION)
+    argMap.put(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, "false")
     return argMap
   }
 
@@ -53,6 +57,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     Map<String, String> argMap = new HashMap<>(DEFAULT_TRACER_CONFIG)
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL, mockBackendIntakeUrl)
     argMap.put(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL, mockBackendIntakeUrl)
+    argMap.put(TracerConfig.TRACE_AGENT_URL, mockBackendIntakeUrl)
     argMap.putAll(additionalArgs)
 
     if (serviceName != null) {
@@ -83,7 +88,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
 
-    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
+    if (System.getenv("GENERATE_TEST_FIXTURES") != null) {
       def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
       CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet() + additionalDynamicTags, SMOKE_IGNORED_TAGS)
     } else {

@@ -1,4 +1,4 @@
-apply plugin: 'datadog.dependency-locking'
+apply plugin: 'dd-trace-java.dependency-locking'
 
 apply from: "$rootDir/gradle/java_deps.gradle"
 apply from: "$rootDir/gradle/java_no_deps.gradle"

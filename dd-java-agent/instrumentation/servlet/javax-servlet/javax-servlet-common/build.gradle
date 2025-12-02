@@ -13,7 +13,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'

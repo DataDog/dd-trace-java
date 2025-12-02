@@ -1,9 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_LOG_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_METRIC_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_DECORATION_PROBES;
-import static com.datadog.debugger.agent.DebuggerProductChangesListener.MAX_ALLOWED_SPAN_PROBES;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static datadog.remoteconfig.PollingHinterNoop.NOOP;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -19,8 +15,11 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
+import com.datadog.debugger.probe.Where;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -133,6 +132,9 @@ public class DebuggerProductChangesListenerTest {
     MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString());
     LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
     SpanProbe spanProbe = createSpanProbe(UUID.randomUUID().toString());
+    SpanDecorationProbe spanDecorationProbe =
+        createSpanDecorationProbe(UUID.randomUUID().toString());
+    TriggerProbe triggerProbe = createTriggerProbe(UUID.randomUUID().toString());
 
     acceptMetricProbe(listener, metricProbe);
     listener.commit(NOOP);
@@ -146,15 +148,39 @@ public class DebuggerProductChangesListenerTest {
     listener.commit(NOOP);
     assertDefinitions(acceptor.getDefinitions(), metricProbe, logProbe, spanProbe);
 
+    acceptSpanDecorationProbe(listener, spanDecorationProbe);
+    listener.commit(NOOP);
+    assertDefinitions(
+        acceptor.getDefinitions(), metricProbe, logProbe, spanProbe, spanDecorationProbe);
+
+    acceptTriggerProbe(listener, triggerProbe);
+    listener.commit(NOOP);
+    assertDefinitions(
+        acceptor.getDefinitions(),
+        metricProbe,
+        logProbe,
+        spanProbe,
+        spanDecorationProbe,
+        triggerProbe);
+
     removeMetricProbe(listener, metricProbe);
     listener.commit(NOOP);
-    assertDefinitions(acceptor.getDefinitions(), logProbe, spanProbe);
+    assertDefinitions(
+        acceptor.getDefinitions(), logProbe, spanProbe, spanDecorationProbe, triggerProbe);
 
     removeLogProbe(listener, logProbe);
     listener.commit(NOOP);
-    assertDefinitions(acceptor.getDefinitions(), spanProbe);
+    assertDefinitions(acceptor.getDefinitions(), spanProbe, spanDecorationProbe, triggerProbe);
 
     removeSpanProbe(listener, spanProbe);
+    listener.commit(NOOP);
+    assertDefinitions(acceptor.getDefinitions(), spanDecorationProbe, triggerProbe);
+
+    removeSpanDecorationProbe(listener, spanDecorationProbe);
+    listener.commit(NOOP);
+    assertDefinitions(acceptor.getDefinitions(), triggerProbe);
+
+    removeTriggerProbe(listener, triggerProbe);
     listener.commit(NOOP);
     assertTrue(acceptor.getDefinitions().isEmpty());
   }
@@ -170,6 +196,8 @@ public class DebuggerProductChangesListenerTest {
     MetricProbe metricProbe = createMetricProbe("345");
     LogProbe logProbe = createLogProbe("567");
     SpanProbe spanProbe = createSpanProbe("890");
+    SpanDecorationProbe spanDecorationProbe = createSpanDecorationProbe("891");
+    TriggerProbe triggerProbe = createTriggerProbe("892");
 
     Configuration config =
         Configuration.builder()
@@ -177,6 +205,8 @@ public class DebuggerProductChangesListenerTest {
             .add(metricProbe)
             .add(logProbe)
             .add(spanProbe)
+            .add(spanDecorationProbe)
+            .add(triggerProbe)
             .add(new LogProbe.Sampling(3.0))
             .addDenyList(createFilteredList())
             .build();
@@ -185,7 +215,13 @@ public class DebuggerProductChangesListenerTest {
     acceptConfig(listener, config, UUID.randomUUID().toString());
     listener.commit(NOOP);
     assertDefinitions(
-        acceptor.getDefinitions(), logProbeWithSnapshot, metricProbe, logProbe, spanProbe);
+        acceptor.getDefinitions(),
+        logProbeWithSnapshot,
+        metricProbe,
+        logProbe,
+        spanProbe,
+        spanDecorationProbe,
+        triggerProbe);
   }
 
   @Test
@@ -195,74 +231,6 @@ public class DebuggerProductChangesListenerTest {
         new DebuggerProductChangesListener(tracerConfig, acceptor);
     listener.accept(createConfigKey("bad-config-id"), null, NOOP);
     assertNull(acceptor.definitions);
-  }
-
-  @Test
-  public void maxLogProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      LogProbe probe =
-          LogProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptLogProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_LOG_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxMetricProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      MetricProbe probe =
-          MetricProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptMetricProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_METRIC_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxSpanProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      SpanProbe probe =
-          SpanProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptSpanProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_SPAN_PROBES, acceptor.getDefinitions().size());
-  }
-
-  @Test
-  public void maxSpanDecorationProbes() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    for (int i = 0; i < 200; i++) {
-      SpanDecorationProbe probe =
-          SpanDecorationProbe.builder()
-              .probeId(String.valueOf(i), 0)
-              .where("java.lang.String", "concat" + i)
-              .build();
-      acceptSpanDecorationProbe(listener, probe);
-    }
-    listener.commit(NOOP);
-    assertEquals(MAX_ALLOWED_SPAN_DECORATION_PROBES, acceptor.getDefinitions().size());
   }
 
   @Test
@@ -320,6 +288,12 @@ public class DebuggerProductChangesListenerTest {
         .getBytes(StandardCharsets.UTF_8);
   }
 
+  byte[] toContent(TriggerProbe probe) {
+    return DebuggerProductChangesListener.Adapter.TRIGGER_PROBE_JSON_ADAPTER
+        .toJson(probe)
+        .getBytes(StandardCharsets.UTF_8);
+  }
+
   void acceptConfig(
       DebuggerProductChangesListener listener, Configuration config, String configId) {
     assertDoesNotThrow(() -> listener.accept(createConfigKey(configId), toContent(config), NOOP));
@@ -361,8 +335,26 @@ public class DebuggerProductChangesListenerTest {
                 createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
+  void acceptTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
+    assertDoesNotThrow(
+        () ->
+            listener.accept(
+                createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
+  }
+
   void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
     assertDoesNotThrow(() -> listener.remove(createConfigKey("spanProbe_" + probe.getId()), NOOP));
+  }
+
+  void removeSpanDecorationProbe(
+      DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
+    assertDoesNotThrow(
+        () -> listener.remove(createConfigKey("spanDecorationProbe_" + probe.getId()), NOOP));
+  }
+
+  void removeTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
+    assertDoesNotThrow(
+        () -> listener.remove(createConfigKey("triggerProbe_" + probe.getId()), NOOP));
   }
 
   LogProbe createLogProbeWithSnapshot(String id) {
@@ -395,6 +387,18 @@ public class DebuggerProductChangesListenerTest {
         .probeId(id, 0)
         .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
         .build();
+  }
+
+  SpanDecorationProbe createSpanDecorationProbe(String id) {
+    return SpanDecorationProbe.builder()
+        .probeId(id, 0)
+        .where(null, null, null, 1966, "src/main/java/java/lang/String.java")
+        .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
+        .build();
+  }
+
+  TriggerProbe createTriggerProbe(String id) {
+    return new TriggerProbe(new ProbeId(id, 0), Where.of("java.lang.String", "indexOf", null));
   }
 
   Configuration.FilterList createFilteredList() {

@@ -19,7 +19,7 @@ jobs:
           policy: self.update-jmxfetch-submodule.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # 6.0.0
 
       - name: Update Submodule
         run: |
@@ -54,7 +54,8 @@ jobs:
           branch: "${{ steps.define-branch.outputs.branch }}"
           # for scheduled runs, sha is the tip of the default branch
           # for dispatched runs, sha is the tip of the branch it was dispatched on
-          branch-from: "${{ github.sha }}"
+          head-sha: "${{ github.sha }}"
+          create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request

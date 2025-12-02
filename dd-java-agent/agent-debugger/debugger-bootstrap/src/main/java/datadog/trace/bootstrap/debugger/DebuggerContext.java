@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.debugger;
 
+import datadog.instrument.asm.Type;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -100,7 +101,7 @@ public class DebuggerContext {
   public interface CodeOriginRecorder {
     String captureCodeOrigin(boolean entry);
 
-    String captureCodeOrigin(Method method, boolean entry);
+    String captureCodeOrigin(String typeName, String methodName, String descriptor, boolean entry);
   }
 
   private static volatile ProbeResolver probeResolver;
@@ -311,7 +312,11 @@ public class DebuggerContext {
         }
         CapturedContext.Status status =
             context.evaluate(
-                probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
+                probeImplementation,
+                callingClass.getTypeName(),
+                startTimestamp,
+                methodLocation,
+                false);
         needFreeze |= status.shouldFreezeContext();
       }
       // only freeze the context when we have at lest one snapshot probe, and we should send
@@ -343,7 +348,11 @@ public class DebuggerContext {
       }
       CapturedContext.Status status =
           context.evaluate(
-              probeImplementation, callingClass.getTypeName(), startTimestamp, methodLocation);
+              probeImplementation,
+              callingClass.getTypeName(),
+              startTimestamp,
+              methodLocation,
+              true);
       boolean needFreeze = status.shouldFreezeContext();
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
@@ -371,7 +380,7 @@ public class DebuggerContext {
           continue;
         }
         context.evaluate(
-            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, false);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
@@ -395,7 +404,8 @@ public class DebuggerContext {
       if (probeImplementation == null) {
         return;
       }
-      context.evaluate(probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT);
+      context.evaluate(
+          probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, true);
       probeImplementation.commit(context, line);
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
@@ -497,11 +507,27 @@ public class DebuggerContext {
     }
   }
 
+  public static void captureCodeOrigin(
+      String typeName, String methodName, String descriptor, boolean entry) {
+    try {
+      CodeOriginRecorder recorder = codeOriginRecorder;
+      if (recorder != null) {
+        recorder.captureCodeOrigin(typeName, methodName, descriptor, entry);
+      }
+    } catch (Exception ex) {
+      LOGGER.debug("Error in captureCodeOrigin: ", ex);
+    }
+  }
+
   public static void captureCodeOrigin(Method method, boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {
-        recorder.captureCodeOrigin(method, entry);
+        recorder.captureCodeOrigin(
+            method.getDeclaringClass().getName(),
+            method.getName(),
+            Type.getMethodDescriptor(method),
+            entry);
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in captureCodeOrigin: ", ex);

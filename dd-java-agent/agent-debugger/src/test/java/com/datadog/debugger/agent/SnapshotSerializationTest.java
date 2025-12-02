@@ -127,7 +127,8 @@ public class SnapshotSerializationTest {
         new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
         String.class.getTypeName(),
         -1,
-        MethodLocation.EXIT);
+        MethodLocation.EXIT,
+        false);
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);

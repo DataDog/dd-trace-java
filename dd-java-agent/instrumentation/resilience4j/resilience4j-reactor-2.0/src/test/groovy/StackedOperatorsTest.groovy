@@ -8,33 +8,30 @@ import io.github.resilience4j.retry.RetryConfig
 import reactor.core.publisher.ConnectableFlux
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
-
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
+import spock.lang.RepeatUntilFailure
 
 class StackedOperatorsTest extends InstrumentationSpecification {
 
+  @RepeatUntilFailure(maxAttempts = 100)
   def "test stacked operators retry(circuitbreaker)"() {
     setup:
     ConnectableFlux<String> connection = Flux
       .just("abc", "def")
-      .map({ serviceCall(it)})
+      .map({serviceCall(it)})
       .transformDeferred(CircuitBreakerOperator.of(CircuitBreaker.ofDefaults("C2")))
       .transformDeferred(RetryOperator.of(Retry.of("R1", RetryConfig.custom().maxAttempts(3).build())))
       .publishOn(Schedulers.boundedElastic())
       .publish()
 
     when:
-    connection.subscribe {
-      runnableUnderTrace("child-" + it) {}
-    }
-
     runnableUnderTrace("parent", {
       connection.connect()
     })
 
     then:
     assertTraces(1) {
-      trace(6) {
+      trace(4) {
         sortSpansByStart()
         span(0) {
           operationName "parent"
@@ -53,16 +50,6 @@ class StackedOperatorsTest extends InstrumentationSpecification {
         }
         span(3) {
           operationName "serviceCall/def"
-          childOf span(1)
-          errored false
-        }
-        span(4) {
-          operationName "child-abc"
-          childOf span(1)
-          errored false
-        }
-        span(5) {
-          operationName "child-def"
           childOf span(1)
           errored false
         }

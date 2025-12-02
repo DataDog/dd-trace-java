@@ -130,6 +130,21 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF
+import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
+import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
+import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
+import datadog.trace.config.inversion.ConfigHelper
 
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.AgentArgsInjector
@@ -172,6 +187,39 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+  private static final DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING"
+  private static final DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING"
+
+  private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
+  private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"
+
+  private static final DD_METRICS_OTEL_ENABLED_ENV = "DD_METRICS_OTEL_ENABLED"
+  private static final DD_METRICS_OTEL_ENABLED_PROP = "dd.metrics.otel.enabled"
+
+  private static final OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES"
+  private static final OTEL_RESOURCE_ATTRIBUTES_PROP = "otel.resource.attributes"
+
+  private static final OTEL_METRIC_EXPORT_TIMEOUT_ENV = "OTEL_METRIC_EXPORT_TIMEOUT"
+  private static final OTEL_METRIC_EXPORT_TIMEOUT_PROP = "otel.metric.export.timeout"
+  private static final OTEL_METRIC_EXPORT_INTERVAL_ENV = "OTEL_METRIC_EXPORT_INTERVAL"
+  private static final OTEL_METRIC_EXPORT_INTERVAL_PROP = "otel.metric.export.interval"
+
+  private static final OTEL_EXPORTER_OTLP_ENDPOINT_PROP = "otel.exporter.otlp.endpoint"
+  private static final OTEL_EXPORTER_OTLP_HEADERS_PROP = "otel.exporter.otlp.headers"
+  private static final OTEL_EXPORTER_OTLP_PROTOCOL_PROP = "otel.exporter.otlp.protocol"
+  private static final OTEL_EXPORTER_OTLP_TIMEOUT_PROP = "otel.exporter.otlp.timeout"
+
+  private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+  private static final OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP = "otel.exporter.otlp.metrics.endpoint"
+  private static final OTEL_EXPORTER_OTLP_METRICS_HEADERS_ENV = "OTEL_EXPORTER_OTLP_METRICS_HEADERS"
+  private static final OTEL_EXPORTER_OTLP_METRICS_HEADERS_PROP = "otel.exporter.otlp.metrics.headers"
+  private static final OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_ENV = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"
+  private static final OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_PROP = "otel.exporter.otlp.metrics.protocol"
+  private static final OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_ENV = "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT"
+  private static final OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_PROP = "otel.exporter.otlp.metrics.timeout"
+
+  private static final OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_ENV = "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"
+  private static final OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP = "otel.exporter.otlp.metrics.temporality.preference"
 
   def setup() {
     FixedCapturedEnvironment.useFixedEnv([:])
@@ -270,6 +318,18 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
+    prop.setProperty(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    prop.setProperty(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
+    prop.setProperty(METRICS_OTEL_ENABLED, "True")
+    prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
+    prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
+    prop.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4333/v1/metrics")
+    prop.setProperty(OTLP_METRICS_HEADERS, "api-key=key,other-config-value=value")
+    prop.setProperty(OTLP_METRICS_PROTOCOL, "http/protobuf")
+    prop.setProperty(OTLP_METRICS_TIMEOUT, "5000")
+    prop.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "cumulative")
+
     when:
     Config config = Config.get(prop)
 
@@ -363,10 +423,211 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
     config.debuggerExceptionEnabled == true
+    config.xDatadogTagsMaxLength == 128
     config.jdkSocketEnabled == false
 
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+
     config.xDatadogTagsMaxLength == 128
+    config.metricsOtelEnabled
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
+
   }
+
+  def "otel metrics: default values when configured incorrectly"() {
+    setup:
+    def prop = new Properties()
+
+    prop.setProperty(METRICS_OTEL_ENABLED, "youhou")
+    prop.setProperty(METRICS_OTEL_INTERVAL, "-1")
+    prop.setProperty(METRICS_OTEL_TIMEOUT, "invalid")
+    prop.setProperty(OTLP_METRICS_ENDPOINT, "invalid")
+    prop.setProperty(OTLP_METRICS_HEADERS, "11")
+    prop.setProperty(OTLP_METRICS_PROTOCOL, "invalid")
+    prop.setProperty(OTLP_METRICS_TIMEOUT, "-34")
+    prop.setProperty(OTLP_METRICS_TEMPORALITY_PREFERENCE, "invalid")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    !config.metricsOtelEnabled
+    config.metricsOtelInterval == 10000
+    config.metricsOtelTimeout == 7500
+    config.otlpMetricsEndpoint == "invalid"
+    config.otlpMetricsHeaders == [:]
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 7500
+    config.otlpMetricsTemporalityPreference == DELTA
+  }
+
+  def "otel metrics: default values when not set"() {
+    setup:
+    def prop = new Properties()
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    !config.metricsOtelEnabled
+    config.metricsOtelInterval == 10000
+    config.metricsOtelTimeout == 7500
+    config.otlpMetricsEndpoint == "http://localhost:4318/v1/metrics"
+    config.otlpMetricsHeaders == [:]
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 7500
+    config.otlpMetricsTemporalityPreference == DELTA
+  }
+
+
+  def "otel metrics: check syntax for attributes and headers"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(OTLP_METRICS_HEADERS, "api,key=key")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.otlpMetricsHeaders.size() == 0
+  }
+
+  def "otel generic config via system properties - metrics enabled"() {
+    setup:
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty("otel.log.level", "warning")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "warning"
+  }
+
+  def "otel generic config via system properties - trace enabled"() {
+    setup:
+    System.setProperty(DD_TRACE_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty("otel.log.level", "warning")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "warning"
+  }
+
+
+  def "otel generic config via env var - metrics enabled"() {
+    setup:
+    environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "true")
+    environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    environmentVariables.set("OTEL_LOG_LEVEL", "error")
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "error"
+  }
+
+  def "otel generic config via env var - traces enabled"() {
+    setup:
+    environmentVariables.set(DD_TRACE_OTEL_ENABLED_ENV, "true")
+    environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    environmentVariables.set("OTEL_LOG_LEVEL", "error")
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "my=app"
+    config.version == "1.0.0"
+    config.env == "production"
+    config.tags.size() == 3
+    config.tags["message"] == "blahblah"
+    config.tags["env"] == "production"
+    config.tags["version"] == "1.0.0"
+    config.logLevel == "error"
+  }
+
+  def "otel metrics: fallback keys"() {
+    setup:
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL_PROP, "http/json")
+    System.setProperty(OTEL_EXPORTER_OTLP_ENDPOINT_PROP,"http://localhost:4319")
+    System.setProperty(OTEL_EXPORTER_OTLP_HEADERS_PROP,"api-key=key,other-config-value=value")
+    System.setProperty(OTEL_EXPORTER_OTLP_TIMEOUT_PROP,"1000")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.otlpMetricsProtocol == HTTP_JSON
+    config.otlpMetricsEndpoint == "http://localhost:4319/v1/metrics"
+    config.otlpMetricsHeaders.size() == 2
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsTimeout == 1000
+  }
+
+  def "otel metrics: fallback key endpoint"() {
+    setup:
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(OTEL_EXPORTER_OTLP_PROTOCOL_PROP, "http/json")
+    System.setProperty(PREFIX + TRACE_AGENT_URL,"http://192.168.0.3:8126")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.agentHost == "192.168.0.3"
+    config.otlpMetricsProtocol == HTTP_JSON
+    config.otlpMetricsEndpoint == "http://192.168.0.3:4318/v1/metrics"
+  }
+
+  def "otel metrics: fallback key endpoint 2"() {
+    setup:
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
+    System.setProperty(PREFIX + TRACE_AGENT_URL,"'/tmp/ddagent/trace.sock'")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.agentHost == "localhost"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsEndpoint == "http://localhost:4318/v1/metrics"
+  }
+
 
   def "specify overrides via system properties"() {
     setup:
@@ -459,6 +720,19 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
+    System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "True")
+    System.setProperty(OTEL_METRIC_EXPORT_INTERVAL_PROP, "11000")
+    System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT_PROP, "9000")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_PROP, "http://localhost:4333/v1/metrics")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_HEADERS_PROP, "api-key=key,other-config-value=value")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_PROP, "http/protobuf")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_PROP, "5000")
+    System.setProperty(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_PROP, "cumulative")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
+
     when:
     Config config = new Config()
 
@@ -475,8 +749,8 @@ class ConfigTest extends DDSpecification {
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
-    config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [b: "2", c: "3", env: "production", version:"1.0.0"]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, env: "production", version:"1.0.0"]
     config.requestHeaderTags == [e: "five"]
     config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
@@ -516,7 +790,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (RUNTIME_VERSION_TAG): config.getRuntimeVersion(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE, env: "production", version:"1.0.0"]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -550,7 +824,22 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+
     config.xDatadogTagsMaxLength == 128
+
+    config.metricsOtelEnabled
+    config.version == "1.0.0"
+    config.env ==  "production"
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
   }
 
   def "specify overrides via env vars"() {
@@ -569,6 +858,18 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
     environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
+
+    environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "True")
+    environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
+    environmentVariables.set(OTEL_METRIC_EXPORT_INTERVAL_ENV, "11000")
+    environmentVariables.set(OTEL_METRIC_EXPORT_TIMEOUT_ENV, "9000")
+    environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_ENDPOINT_ENV, "http://localhost:4333/v1/metrics")
+    environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_HEADERS_ENV, "api-key=key,other-config-value=value")
+    environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL_ENV, "http/protobuf")
+    environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_TIMEOUT_ENV, "5000")
+    environmentVariables.set(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE_ENV, "cumulative")
 
     when:
     def config = new Config()
@@ -588,8 +889,20 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
-    config.requestHeaderTags == ["*":"http.request.headers."]
-    config.responseHeaderTags == ["*":"http.response.headers."]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+
+    config.requestHeaderTags == ["*": "http.request.headers."]
+    config.responseHeaderTags == ["*": "http.response.headers."]
+    config.metricsOtelEnabled
+    config.metricsOtelInterval == 11000
+    config.metricsOtelTimeout == 9000
+    config.otlpMetricsEndpoint == "http://localhost:4333/v1/metrics"
+    config.otlpMetricsHeaders["api-key"] == "key"
+    config.otlpMetricsHeaders["other-config-value"] == "value"
+    config.otlpMetricsProtocol == HTTP_PROTOBUF
+    config.otlpMetricsTimeout == 5000
+    config.otlpMetricsTemporalityPreference == CUMULATIVE
   }
 
   def "sys props override env vars"() {
@@ -599,6 +912,8 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "false")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
@@ -606,6 +921,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
 
     when:
     def config = new Config()
@@ -618,6 +935,10 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
     config.longRunningTraceFlushInterval == 120
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+    !config.isCloudRequestPayloadTaggingEnabled()
+    config.isCloudResponsePayloadTaggingEnabled()
   }
 
   def "default when configured incorrectly"() {
@@ -772,7 +1093,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six",g: "g"]
+    config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -879,181 +1200,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "what actually wants"
-  }
-
-  def "verify rule config #name"() {
-    setup:
-    environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.trace.test.enabled", "false")
-    System.setProperty("dd.trace.test-prop.enabled", "true")
-    System.setProperty("dd.trace.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isRuleEnabled(name) == enabled
-
-    where:
-    // spotless:off
-    name            | enabled
-    ""              | true
-    "invalid"       | true
-    "test-prop"     | true
-    "Test-Prop"     | true
-    "test-env"      | true
-    "Test-Env"      | true
-    "test"          | false
-    "TEST"          | false
-    "disabled-prop" | false
-    "Disabled-Prop" | false
-    "disabled-env"  | false
-    "Disabled-Env"  | false
-    // spotless:on
-  }
-
-  def "verify integration jmxfetch config"() {
-    setup:
-    environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
-    environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
-    environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
-
-    System.setProperty("dd.jmxfetch.order.enabled", "true")
-    System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
-    System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
-
-    expect:
-    Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "verify integration trace analytics config"() {
-    setup:
-    environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
-    environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
-
-    System.setProperty("dd.order.analytics.enabled", "true")
-    System.setProperty("dd.test-prop.analytics.enabled", "true")
-    System.setProperty("dd.disabled-prop.analytics.enabled", "false")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.enabled", "false")
-    System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
-
-    expect:
-    Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
-
-    where:
-    // spotless:off
-    names                           | defaultEnabled | expected
-    []                              | true           | true
-    []                              | false          | false
-    ["invalid"]                     | true           | true
-    ["invalid"]                     | false          | false
-    ["test-prop"]                   | false          | true
-    ["test-env"]                    | false          | true
-    ["disabled-prop"]               | true           | false
-    ["disabled-env"]                | true           | false
-    ["other", "test-prop"]          | false          | true
-    ["other", "test-env"]           | false          | true
-    ["order"]                       | false          | true
-    ["test-prop", "disabled-prop"]  | false          | true
-    ["disabled-env", "test-env"]    | false          | true
-    ["test-prop", "disabled-prop"]  | true           | false
-    ["disabled-env", "test-env"]    | true           | false
-    ["alias-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "alias-env"]   | false          | true
-    ["alias-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "alias-env"]   | true           | false
-    // spotless:on
-
-    integrationNames = new TreeSet<>(names)
-  }
-
-  def "test getFloatSettingFromEnvironment(#name)"() {
-    setup:
-    environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
-    environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
-    environmentVariables.set("DD_FLOAT_TEST", "0.2")
-
-    System.setProperty("dd.prop.zero.test", "0")
-    System.setProperty("dd.prop.float.test", "0.3")
-    System.setProperty("dd.float.test", "0.4")
-    System.setProperty("dd.garbage.test", "garbage")
-    System.setProperty("dd.negative.test", "-1")
-
-    expect:
-    Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
-
-    where:
-    name              | expected
-    // spotless:off
-    "env.zero.test"   | 0.0
-    "prop.zero.test"  | 0
-    "env.float.test"  | 1.0
-    "prop.float.test" | 0.3
-    "float.test"      | 0.4
-    "negative.test"   | -1.0
-    "garbage.test"    | 10.0
-    "default.test"    | 10.0
-    // spotless:on
-
-    defaultValue = 10.0
-  }
-
-  def "test getDoubleSettingFromEnvironment(#name)"() {
-    setup:
-    environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
-    environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
-    environmentVariables.set("DD_FLOAT_TEST", "0.2")
-
-    System.setProperty("dd.prop.zero.test", "0")
-    System.setProperty("dd.prop.float.test", "0.3")
-    System.setProperty("dd.float.test", "0.4")
-    System.setProperty("dd.garbage.test", "garbage")
-    System.setProperty("dd.negative.test", "-1")
-
-    expect:
-    Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
-
-    where:
-    // spotless:off
-    name              | expected
-    "env.zero.test"   | 0.0
-    "prop.zero.test"  | 0
-    "env.float.test"  | 1.0
-    "prop.float.test" | 0.3
-    "float.test"      | 0.4
-    "negative.test"   | -1.0
-    "garbage.test"    | 10.0
-    "default.test"    | 10.0
-    // spotless:on
-
-    defaultValue = 10.0
   }
 
   def "verify mapping configs on tracer for #mapString"() {
@@ -1219,8 +1365,8 @@ class ConfigTest extends DDSpecification {
     value               | expected // null means default value
     // spotless:off
     "1"                 | [1]
-    "3,13,400-403"      | [3,13,400,401,402,403]
-    "2,10,13-15"        | [2,10,13,14,15]
+    "3,13,400-403"      | [3, 13, 400, 401, 402, 403]
+    "2,10,13-15"        | [2, 10, 13, 14, 15]
     "a"                 | null
     ""                  | null
     "1000"              | null
@@ -1362,46 +1508,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == 'unnamed-java-app'
-  }
-
-  def "get analytics sample rate"() {
-    setup:
-    environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
-    environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
-    // trace prefix form should take precedence over the old non-prefix form
-    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
-    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
-
-    System.setProperty("dd.baz.analytics.sample-rate", "0.7")
-    System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
-    // trace prefix form should take precedence over the old non-prefix form
-    System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
-    System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
-
-    when:
-    String[] array = services.toArray(new String[0])
-    def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
-
-    then:
-    value == expected
-
-    where:
-    // spotless:off
-    services                | expected
-    ["foo"]                 | 0.5f
-    ["baz"]                 | 0.7f
-    ["doesnotexist"]        | 1.0f
-    ["doesnotexist", "foo"] | 0.5f
-    ["doesnotexist", "baz"] | 0.7f
-    ["foo", "bar"]          | 0.5f
-    ["bar", "foo"]          | 0.9f
-    ["baz", "buzz"]         | 0.7f
-    ["buzz", "baz"]         | 0.3f
-    ["foo", "baz"]          | 0.5f
-    ["baz", "foo"]          | 0.7f
-    ["alias-env", "baz"]    | 0.4f
-    ["alias-prop", "foo"]   | 0.2f
-    // spotless:on
   }
 
   def "verify api key loaded from file: #path"() {
@@ -1956,7 +2062,7 @@ class ConfigTest extends DDSpecification {
 
     //verify expected behavior when not enabled under feature flag
     config.logsInjectionEnabled == true
-    config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+    config.globalTags == [env: "test", aKey: "aVal", bKey: "bVal"]
   }
 
   def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
@@ -2025,42 +2131,24 @@ class ConfigTest extends DDSpecification {
     // spotless:on
   }
 
-  // Static methods test:
-  def "configProvider.get* unit test"() {
-    setup:
-    def p = new Properties()
-    p.setProperty("i", "13")
-    p.setProperty("f", "42.42")
-    def configProvider = ConfigProvider.withPropertiesOverride(p)
-
-    expect:
-    configProvider.getDouble("i", 40) == 13
-    configProvider.getDouble("f", 41) == 42.42
-    configProvider.getFloat("i", 40) == 13
-    configProvider.getFloat("f", 41) == 42.42f
-    configProvider.getInteger("b", 61) == 61
-    configProvider.getInteger("i", 61) == 13
-    configProvider.getBoolean("a", true) == true
-  }
-
   def "valueOf positive test"() {
     expect:
     ConfigConverter.valueOf(value, tClass) == expected
 
     where:
     // spotless:off
-    value       | tClass  | expected
-    "true"      | Boolean | true
-    "trUe"      | Boolean | true
-    "false"     | Boolean | false
-    "False"     | Boolean | false
-    "1"         | Boolean | true
-    "0"         | Boolean | false
-    "42.42"     | Float   | 42.42f
-    "42.42"     | Double  | 42.42
-    "44"        | Integer | 44
-    "45"        | Long    | 45
-    "46"        | Short   | 46
+    value   | tClass  | expected
+    "true"  | Boolean | true
+    "trUe"  | Boolean | true
+    "false" | Boolean | false
+    "False" | Boolean | false
+    "1"     | Boolean | true
+    "0"     | Boolean | false
+    "42.42" | Float   | 42.42f
+    "42.42" | Double  | 42.42
+    "44"    | Integer | 44
+    "45"    | Long    | 45
+    "46"    | Short   | 46
     // spotless:on
   }
 
@@ -2663,12 +2751,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "9"           | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "10"          | 10
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "9"                     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "10"                    | 10
+    "450"                   | 450
   }
 
   def "ssi injection enabled"() {
@@ -2714,12 +2802,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "19"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "20"          | 20
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "19"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "20"                    | 20
+    "450"                   | 450
   }
 
   def "partial flush and min spans interaction"() {
@@ -2762,10 +2850,10 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    enablementMode | expectedEnabled | expectedStartDelay             | expectedStartForceFirst
-    "true"         | true            | 1                              | true
-    "false"        | false           | 1                              | true
-    "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
+    enablementMode | expectedEnabled | expectedStartDelay            | expectedStartForceFirst
+    "true"         | true            | 1                             | true
+    "false"        | false           | 1                             | true
+    "auto"         | true            | PROFILING_START_DELAY_DEFAULT | PROFILING_START_FORCE_FIRST_DEFAULT
     // spotless:on
   }
 
@@ -2812,6 +2900,287 @@ class ConfigTest extends DDSpecification {
     "ap1.datadoghq.com" | "https://instrumentation-telemetry-intake.ap1.datadoghq.com/api/v2/apmtelemetry"
     "datadoghq.eu"      | "https://instrumentation-telemetry-intake.datadoghq.eu/api/v2/apmtelemetry"
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
+  }
+
+  def "set cloud payload tagging config"() {
+    setup:
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, reqEnv)
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, respEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    if (expectedReqConfig == null) {
+      // if expected config is null, then the feature should be disabled
+      assert !config.isCloudRequestPayloadTaggingEnabled()
+    } else {
+      assert config.cloudRequestPayloadTagging.toString() == expectedReqConfig
+    }
+
+    if (expectedRespConfig == null) {
+      assert !config.isCloudResponsePayloadTaggingEnabled()
+    } else {
+      assert config.cloudResponsePayloadTagging.toString() == expectedRespConfig
+    }
+
+    where:
+    reqEnv         | respEnv        | expectedReqConfig | expectedRespConfig
+    "all"          | "all"          | '[]'              | '[]'
+    "all,invalid"  | "all,invalid"  | null              | null
+    ""             | ""             | null              | null
+    "invalid"      | "invalid"      | null              | null
+    "\$.a"         | "\$.b"         | '[$[\'a\']]'          | '[$[\'b\']]'
+    "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
+  }
+
+  // Subclass for setting Strictness of ConfigHelper when using fake configs
+  static class ConfigTestWithFakes extends ConfigTest {
+
+    def strictness
+
+    def setup() {
+      strictness = ConfigHelper.get().configInversionStrictFlag()
+      ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+    }
+
+    def cleanup() {
+      ConfigHelper.get().setConfigInversionStrict(strictness)
+    }
+
+
+    def "verify rule config #name"() {
+      setup:
+      environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
+      environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
+      environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
+
+      System.setProperty("dd.trace.test.enabled", "false")
+      System.setProperty("dd.trace.test-prop.enabled", "true")
+      System.setProperty("dd.trace.disabled-prop.enabled", "false")
+
+      expect:
+      Config.get().isRuleEnabled(name) == enabled
+
+      where:
+      // spotless:off
+      name            | enabled
+      ""              | true
+      "invalid"       | true
+      "test-prop"     | true
+      "Test-Prop"     | true
+      "test-env"      | true
+      "Test-Env"      | true
+      "test"          | false
+      "TEST"          | false
+      "disabled-prop" | false
+      "Disabled-Prop" | false
+      "disabled-env"  | false
+      "Disabled-Env"  | false
+      // spotless:on
+    }
+
+    def "verify integration jmxfetch config"() {
+      setup:
+      environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")
+      environmentVariables.set("DD_JMXFETCH_TEST_ENV_ENABLED", "true")
+      environmentVariables.set("DD_JMXFETCH_DISABLED_ENV_ENABLED", "false")
+
+      System.setProperty("dd.jmxfetch.order.enabled", "true")
+      System.setProperty("dd.jmxfetch.test-prop.enabled", "true")
+      System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
+
+      expect:
+      Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+      where:
+      // spotless:off
+      names                          | defaultEnabled | expected
+      []                             | true           | true
+      []                             | false          | false
+      ["invalid"]                    | true           | true
+      ["invalid"]                    | false          | false
+      ["test-prop"]                  | false          | true
+      ["test-env"]                   | false          | true
+      ["disabled-prop"]              | true           | false
+      ["disabled-env"]               | true           | false
+      ["other", "test-prop"]         | false          | true
+      ["other", "test-env"]          | false          | true
+      ["order"]                      | false          | true
+      ["test-prop", "disabled-prop"] | false          | true
+      ["disabled-env", "test-env"]   | false          | true
+      ["test-prop", "disabled-prop"] | true           | false
+      ["disabled-env", "test-env"]   | true           | false
+      // spotless:on
+
+      integrationNames = new TreeSet<>(names)
+    }
+
+    def "verify integration trace analytics config"() {
+      setup:
+      environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
+      environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
+      environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
+      // trace prefix form should take precedence over the old non-prefix form
+      environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
+      environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
+
+      System.setProperty("dd.order.analytics.enabled", "true")
+      System.setProperty("dd.test-prop.analytics.enabled", "true")
+      System.setProperty("dd.disabled-prop.analytics.enabled", "false")
+      // trace prefix form should take precedence over the old non-prefix form
+      System.setProperty("dd.alias-prop.analytics.enabled", "false")
+      System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
+
+      expect:
+      Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
+
+      where:
+      // spotless:off
+      names                           | defaultEnabled | expected
+      []                              | true           | true
+      []                              | false          | false
+      ["invalid"]                     | true           | true
+      ["invalid"]                     | false          | false
+      ["test-prop"]                   | false          | true
+      ["test-env"]                    | false          | true
+      ["disabled-prop"]               | true           | false
+      ["disabled-env"]                | true           | false
+      ["other", "test-prop"]          | false          | true
+      ["other", "test-env"]           | false          | true
+      ["order"]                       | false          | true
+      ["test-prop", "disabled-prop"]  | false          | true
+      ["disabled-env", "test-env"]    | false          | true
+      ["test-prop", "disabled-prop"]  | true           | false
+      ["disabled-env", "test-env"]    | true           | false
+      ["alias-prop", "disabled-prop"] | false          | true
+      ["disabled-env", "alias-env"]   | false          | true
+      ["alias-prop", "disabled-prop"] | true           | false
+      ["disabled-env", "alias-env"]   | true           | false
+      // spotless:on
+
+      integrationNames = new TreeSet<>(names)
+    }
+
+    def "test getFloatSettingFromEnvironment(#name)"() {
+      setup:
+      environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
+      environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
+      environmentVariables.set("DD_FLOAT_TEST", "0.2")
+
+      System.setProperty("dd.prop.zero.test", "0")
+      System.setProperty("dd.prop.float.test", "0.3")
+      System.setProperty("dd.float.test", "0.4")
+      System.setProperty("dd.garbage.test", "garbage")
+      System.setProperty("dd.negative.test", "-1")
+
+      expect:
+      Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
+
+      where:
+      name              | expected
+      // spotless:off
+      "env.zero.test"   | 0.0
+      "prop.zero.test"  | 0
+      "env.float.test"  | 1.0
+      "prop.float.test" | 0.3
+      "float.test"      | 0.4
+      "negative.test"   | -1.0
+      "garbage.test"    | 10.0
+      "default.test"    | 10.0
+      // spotless:on
+
+      defaultValue = 10.0
+    }
+
+    def "test getDoubleSettingFromEnvironment(#name)"() {
+      setup:
+      environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
+      environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
+      environmentVariables.set("DD_FLOAT_TEST", "0.2")
+
+      System.setProperty("dd.prop.zero.test", "0")
+      System.setProperty("dd.prop.float.test", "0.3")
+      System.setProperty("dd.float.test", "0.4")
+      System.setProperty("dd.garbage.test", "garbage")
+      System.setProperty("dd.negative.test", "-1")
+
+      expect:
+      Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
+
+      where:
+      // spotless:off
+      name              | expected
+      "env.zero.test"   | 0.0
+      "prop.zero.test"  | 0
+      "env.float.test"  | 1.0
+      "prop.float.test" | 0.3
+      "float.test"      | 0.4
+      "negative.test"   | -1.0
+      "garbage.test"    | 10.0
+      "default.test"    | 10.0
+      // spotless:on
+
+      defaultValue = 10.0
+    }
+
+    def "get analytics sample rate"() {
+      setup:
+      environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
+      environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+      // trace prefix form should take precedence over the old non-prefix form
+      environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
+      environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
+
+      System.setProperty("dd.baz.analytics.sample-rate", "0.7")
+      System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+      // trace prefix form should take precedence over the old non-prefix form
+      System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
+      System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
+
+      when:
+      String[] array = services.toArray(new String[0])
+      def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
+
+      then:
+      value == expected
+
+      where:
+      // spotless:off
+      services                | expected
+      ["foo"]                 | 0.5f
+      ["baz"]                 | 0.7f
+      ["doesnotexist"]        | 1.0f
+      ["doesnotexist", "foo"] | 0.5f
+      ["doesnotexist", "baz"] | 0.7f
+      ["foo", "bar"]          | 0.5f
+      ["bar", "foo"]          | 0.9f
+      ["baz", "buzz"]         | 0.7f
+      ["buzz", "baz"]         | 0.3f
+      ["foo", "baz"]          | 0.5f
+      ["baz", "foo"]          | 0.7f
+      ["alias-env", "baz"]    | 0.4f
+      ["alias-prop", "foo"]   | 0.2f
+      // spotless:on
+    }
+
+    // Static methods test:
+    def "configProvider.get* unit test"() {
+      setup:
+      def p = new Properties()
+      p.setProperty("i", "13")
+      p.setProperty("f", "42.42")
+      def configProvider = ConfigProvider.withPropertiesOverride(p)
+
+      expect:
+      configProvider.getDouble("i", 40) == 13
+      configProvider.getDouble("f", 41) == 42.42
+      configProvider.getFloat("i", 40) == 13
+      configProvider.getFloat("f", 41) == 42.42f
+      configProvider.getInteger("b", 61) == 61
+      configProvider.getInteger("i", 61) == 13
+      configProvider.getBoolean("a", true) == true
+    }
   }
 
   def "db metadata fetching enabled with sys = #sys env = #env"() {

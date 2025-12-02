@@ -41,7 +41,7 @@ public class TypeConverter {
       if (wrapper instanceof Span) {
         return (Span) wrapper;
       }
-      Span spanWrapper = new OtelSpan(agentSpan, this);
+      OtelSpan spanWrapper = new OtelSpan(agentSpan, this);
       attachableSpanWrapper.attachWrapper(spanWrapper);
       return spanWrapper;
     }

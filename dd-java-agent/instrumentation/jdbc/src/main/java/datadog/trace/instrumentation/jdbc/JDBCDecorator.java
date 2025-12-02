@@ -60,6 +60,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
+      Config.get().isDbmAlwaysAppendSqlComment();
   public static final boolean FETCH_DB_METADATA_ON_CONNECT =
       Config.get().isDbMetadataFetchingOnConnectEnabled();
   private static final boolean FETCH_DB_METADATA_ON_QUERY =
@@ -325,7 +327,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
     AgentSpan instrumentationSpan =
-        AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
+        AgentTracer.get()
+            .singleSpanBuilder("set context_info")
+            .withTag("dd.instrumentation", true)
+            .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     try (AgentScope scope = activateSpan(instrumentationSpan)) {

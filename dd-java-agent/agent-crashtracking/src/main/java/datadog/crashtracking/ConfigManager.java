@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.util.PidHelper;
+import datadog.trace.util.RandomUtils;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -31,20 +32,29 @@ public class ConfigManager {
     final String tags;
     final String processTags;
     final String runtimeId;
+    final String reportUUID;
+    final boolean agentless;
+    final boolean sendToErrorTracking;
 
     StoredConfig(
+        String reportUUID,
         String service,
         String env,
         String version,
         String tags,
         String processTags,
-        String runtimeId) {
+        String runtimeId,
+        boolean agentless,
+        boolean sendToErrorTracking) {
       this.service = service;
       this.env = env;
       this.version = version;
       this.tags = tags;
       this.processTags = processTags;
       this.runtimeId = runtimeId;
+      this.reportUUID = reportUUID;
+      this.agentless = agentless;
+      this.sendToErrorTracking = sendToErrorTracking;
     }
 
     public static class Builder {
@@ -54,6 +64,9 @@ public class ConfigManager {
       String tags;
       String processTags;
       String runtimeId;
+      String reportUUID;
+      boolean agentless;
+      boolean sendToErrorTracking;
 
       public Builder(Config config) {
         // get sane defaults
@@ -61,6 +74,9 @@ public class ConfigManager {
         this.env = config.getEnv();
         this.version = config.getVersion();
         this.runtimeId = config.getRuntimeId();
+        this.reportUUID = RandomUtils.randomUUID().toString();
+        this.agentless = config.isCrashTrackingAgentless();
+        this.sendToErrorTracking = config.isCrashTrackingErrorsIntakeEnabled();
       }
 
       public Builder service(String service) {
@@ -93,8 +109,33 @@ public class ConfigManager {
         return this;
       }
 
+      public Builder sendToErrorTracking(boolean sendToErrorTracking) {
+        this.sendToErrorTracking = sendToErrorTracking;
+        return this;
+      }
+
+      public Builder agentless(boolean agentless) {
+        this.agentless = agentless;
+        return this;
+      }
+
+      // @VisibleForTesting
+      Builder reportUUID(String reportUUID) {
+        this.reportUUID = reportUUID;
+        return this;
+      }
+
       public StoredConfig build() {
-        return new StoredConfig(service, env, version, tags, processTags, runtimeId);
+        return new StoredConfig(
+            reportUUID,
+            service,
+            env,
+            version,
+            tags,
+            processTags,
+            runtimeId,
+            agentless,
+            sendToErrorTracking);
       }
     }
   }
@@ -110,8 +151,10 @@ public class ConfigManager {
     return filename.substring(0, dotIndex);
   }
 
-  private static String getMergedTagsForSerialization(Config config) {
+  // @VisibleForTesting
+  static String getMergedTagsForSerialization(Config config) {
     return config.getMergedCrashTrackingTags().entrySet().stream()
+        .filter(e -> e.getValue() != null)
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.joining(","));
   }
@@ -149,6 +192,8 @@ public class ConfigManager {
       writeEntry(bw, "process_tags", ProcessTags.getTagsForSerialization());
       writeEntry(bw, "runtime_id", wellKnownTags.getRuntimeId());
       writeEntry(bw, "java_home", SystemProperties.get("java.home"));
+      writeEntry(bw, "agentless", Boolean.toString(config.isCrashTrackingAgentless()));
+      writeEntry(bw, "upload_to_et", Boolean.toString(config.isCrashTrackingErrorsIntakeEnabled()));
 
       Runtime.getRuntime()
           .addShutdownHook(
@@ -205,6 +250,12 @@ public class ConfigManager {
             break;
           case "runtime_id":
             cfgBuilder.runtimeId(value);
+            break;
+          case "agentless":
+            cfgBuilder.agentless(Boolean.parseBoolean(value));
+            break;
+          case "upload_to_et":
+            cfgBuilder.sendToErrorTracking(Boolean.parseBoolean(value));
             break;
           default:
             // ignore

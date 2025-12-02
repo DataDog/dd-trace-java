@@ -1,5 +1,13 @@
 package datadog.gradle.plugin.config
 
+import com.github.javaparser.ParserConfiguration
+import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.CompilationUnit
+import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import com.github.javaparser.ast.Modifier
+import com.github.javaparser.ast.body.FieldDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.GradleException
@@ -14,6 +22,7 @@ class ConfigInversionLinter : Plugin<Project> {
     val extension = target.extensions.create("supportedTracerConfigurations", SupportedTracerConfigurations::class.java)
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
+    registerCheckConfigStringsTask(target, extension)
   }
 }
 
@@ -97,9 +106,9 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
       val javaFiles = project.fileTree(project.projectDir) {
         include("**/src/main/java/**/*.java")
         exclude("**/build/**")
-        exclude("internal-api/src/main/java/datadog/trace/api/ConfigHelper.java")
+        exclude("utils/config-utils/src/main/java/datadog/trace/config/inversion/ConfigHelper.java")
         exclude("dd-java-agent/agent-bootstrap/**")
-        exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/BootstrapInitializationTelemetry.java")
+        exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/**")
       }
 
       val pattern = Regex("""EnvironmentVariables\.get\s*\(""")
@@ -120,6 +129,96 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
         throw GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
       } else {
         project.logger.info("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
+      }
+    }
+  }
+}
+
+// Helper functions for checking Config Strings
+private fun normalize(configValue: String) =
+  "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
+
+// Checking "public" "static" "final"
+private fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
+  mods.all { hasModifier(it) }
+
+/** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
+private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register("checkConfigStrings") {
+    group = "verification"
+    description = "Validates that all config definitions in `dd-trace-api/src/main/java/datadog/trace/api/config` exist in `metadata/supported-configurations.json`"
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+    inputs.files(mainSourceSetOutput)
+
+    doLast {
+      val repoRoot: Path = project.rootProject.projectDir.toPath()
+      val configDir = repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config").toFile()
+
+      if (!configDir.exists()) {
+        throw GradleException("Config directory not found: ${configDir.absolutePath}")
+      }
+
+      val urls = mainSourceSetOutput.get().get().files.map { it.toURI().toURL() }.toTypedArray()
+      val (supported, aliasMapping) = URLClassLoader(urls, javaClass.classLoader).use { cl ->
+        val clazz = Class.forName(generatedFile.get(), true, cl)
+        @Suppress("UNCHECKED_CAST")
+        val supportedSet = clazz.getField("SUPPORTED").get(null) as Set<String>
+        @Suppress("UNCHECKED_CAST")
+        val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
+        Pair(supportedSet, aliasMappingMap)
+      }
+
+      var parserConfig = ParserConfiguration()
+      parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
+
+      StaticJavaParser.setConfiguration(parserConfig)
+
+      val violations = buildList {
+        configDir.listFiles()?.forEach { file ->
+          val fileName = file.name
+          val cu: CompilationUnit = StaticJavaParser.parse(file)
+
+          cu.findAll(VariableDeclarator::class.java).forEach { varDecl ->
+            varDecl.parentNode
+              .map { it as? FieldDeclaration }
+              .ifPresent { field ->
+                if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
+                varDecl.typeAsString == "String") {
+
+                val fieldName = varDecl.nameAsString
+                if (fieldName.endsWith("_DEFAULT")) return@ifPresent
+                val init = varDecl.initializer.orElse(null) ?: return@ifPresent
+
+                if (init !is StringLiteralExpr) return@ifPresent
+                val rawValue = init.value
+
+                val normalized = normalize(rawValue)
+                if (normalized !in supported && normalized !in aliasMapping) {
+                  val line = varDecl.range.map { it.begin.line }.orElse(1)
+                  add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
+                      "which is missing from '${extension.jsonFile.get()}'")
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (violations.isNotEmpty()) {
+        logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
+        violations.forEach { logger.lifecycle(it) }
+        throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
+      } else {
+        logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }
     }
   }
