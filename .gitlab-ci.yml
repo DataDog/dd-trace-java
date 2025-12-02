@@ -1,13 +1,11 @@
 include:
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
-  - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic.yml'
-    ref: 'main'
-    # ref: 'sarahchen6/migrate-java-macrobenchmarks'
+    ref: 'sarahchen6/migrate-java-macrobenchmarks'
 
 stages:
   - build
@@ -15,7 +13,7 @@ stages:
   - shared-pipeline
   - benchmarks
   - java-spring-petclinic-tests
-  # - java-spring-petclinic-macrobenchmarks
+  - java-spring-petclinic-macrobenchmarks
   - tests
   - exploration-tests
   - ci-visibility-tests
