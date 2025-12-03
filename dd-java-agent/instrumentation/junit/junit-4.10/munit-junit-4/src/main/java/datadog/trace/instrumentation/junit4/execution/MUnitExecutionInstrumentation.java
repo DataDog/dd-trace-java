@@ -17,7 +17,6 @@ import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.MUnitUtils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -122,9 +121,6 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
     }
 
     @SuppressWarnings("bytebuddy-exception-suppression")
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "result is the return value of the original method")
     @Advice.OnMethodExit
     public static void returnResult(
         @Advice.Enter Future<?> overriddenResult,

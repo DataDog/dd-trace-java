@@ -5,10 +5,12 @@ import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.bootstrap.ContextStore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.testng.ITestResult;
 
 public abstract class TestEventsHandlerHolder {
 
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static volatile TestEventsHandler<TestSuiteDescriptor, ITestResult> TEST_EVENTS_HANDLER;
 
   private static ContextStore<ITestResult, DDTest> TEST_STORE;
