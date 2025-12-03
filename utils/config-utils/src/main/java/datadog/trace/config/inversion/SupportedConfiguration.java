@@ -22,23 +22,23 @@ public class SupportedConfiguration {
     this.propertyKeys = propertyKeys;
   }
 
-  public String getVersion() {
+  public String version() {
     return version;
   }
 
-  public String getType() {
+  public String type() {
     return type;
   }
 
-  public String getDefaultValue() {
+  public String defaultValue() {
     return defaultValue;
   }
 
-  public List<String> getAliases() {
+  public List<String> aliases() {
     return aliases;
   }
 
-  public List<String> getPropertyKeys() {
+  public List<String> propertyKeys() {
     return propertyKeys;
   }
 }

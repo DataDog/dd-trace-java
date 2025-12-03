@@ -105,7 +105,6 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     outFile.parentFile?.mkdirs()
 
     PrintWriter(outFile).use { out ->
-      // NOTE: adjust these if you want to match task's className
       out.println("package $packageName;")
       out.println()
       out.println("import java.util.*;")
