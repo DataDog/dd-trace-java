@@ -288,7 +288,6 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    System.out.println("===> event: " + event);
     JfrStackTrace st = event.stackTrace();
     int stackIndex = convertStackTrace(st);
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
