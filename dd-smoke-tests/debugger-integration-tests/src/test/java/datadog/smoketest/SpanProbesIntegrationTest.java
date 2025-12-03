@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @Override
@@ -40,7 +42,12 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
           assertEquals("Main.fullMethod", decodedSpan.getResource());
           traceReceived.set(true);
         });
-    processRequests(() -> statusResult.get() && traceReceived.get());
+    processRequests(
+        () -> statusResult.get() && traceReceived.get(),
+        () ->
+            String.format(
+                "timeout statusResult=%s traceReceived=%s",
+                statusResult.get(), traceReceived.get()));
   }
 
   @Test
@@ -65,7 +72,12 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
           assertEquals("Main.fullMethod:L88-97", decodedSpan.getResource());
           traceReceived.set(true);
         });
-    processRequests(() -> statusResult.get() && traceReceived.get());
+    processRequests(
+        () -> statusResult.get() && traceReceived.get(),
+        () ->
+            String.format(
+                "timeout statusResult=%s traceReceived=%s",
+                statusResult.get(), traceReceived.get()));
   }
 
   @Test
@@ -98,6 +110,8 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 }

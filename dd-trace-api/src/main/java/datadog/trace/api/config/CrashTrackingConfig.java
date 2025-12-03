@@ -24,6 +24,10 @@ public final class CrashTrackingConfig {
   public static final String CRASH_TRACKING_AGENTLESS = "crashtracking.agentless";
   public static final boolean CRASH_TRACKING_AGENTLESS_DEFAULT = false;
 
+  public static final String CRASH_TRACKING_ERRORS_INTAKE_ENABLED =
+      "crashtracking.errors-intake.enabled";
+  public static final boolean CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT = false;
+
   public static final String CRASH_TRACKING_START_EARLY = "crashtracking.debug.start-force-first";
   public static final boolean CRASH_TRACKING_START_EARLY_DEFAULT = false;
 

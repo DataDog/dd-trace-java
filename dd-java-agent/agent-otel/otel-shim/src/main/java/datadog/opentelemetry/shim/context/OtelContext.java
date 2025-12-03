@@ -80,6 +80,12 @@ public class OtelContext implements Context {
       if (value instanceof OtelBaggage) {
         Baggage baggage = ((OtelBaggage) value).asAgentBaggage();
         return new OtelContext(delegate.with(baggage));
+      } else if (value instanceof io.opentelemetry.api.baggage.Baggage) {
+        Baggage baggage = Baggage.empty();
+        // transfer baggage to our internal container for propagation purposes
+        ((io.opentelemetry.api.baggage.Baggage) value)
+            .forEach((k, b) -> baggage.addItem(k, b.getValue()));
+        return new OtelContext(delegate.with(baggage));
       }
       // fall-through and store as non-datadog baggage
     }

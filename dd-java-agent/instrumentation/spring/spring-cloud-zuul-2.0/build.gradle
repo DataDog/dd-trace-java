@@ -37,7 +37,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
   testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+  testImplementation libs.spock.spring
 
   // These two version sets are compatible together:
   testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE') {

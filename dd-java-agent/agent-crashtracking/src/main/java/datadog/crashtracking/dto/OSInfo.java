@@ -1,6 +1,7 @@
 package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
+import datadog.environment.SystemProperties;
 import java.util.Objects;
 
 public final class OSInfo {
@@ -37,5 +38,13 @@ public final class OSInfo {
   @Override
   public int hashCode() {
     return Objects.hash(architecture, bitness, osType, version);
+  }
+
+  public static OSInfo current() {
+    return new OSInfo(
+        SystemProperties.get("os.arch"),
+        SystemProperties.get("sun.arch.data.model"),
+        SystemProperties.get("os.name"),
+        SemanticVersion.of(SystemProperties.get("os.version")));
   }
 }

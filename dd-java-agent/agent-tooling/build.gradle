@@ -56,8 +56,6 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-crashtracking')
 
-  compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: libs.versions.jnr.posix.get()
-
   testImplementation project(':dd-java-agent:testing')
   testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'

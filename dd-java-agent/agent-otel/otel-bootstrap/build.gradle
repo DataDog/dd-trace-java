@@ -8,7 +8,7 @@ def otelApiVersion = '1.38.0'
 def otelInstrumentationApiVersion = '2.4.0'
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'instrument'
+apply plugin: 'dd-trace-java.instrument'
 
 configurations {
   def ec = register('embeddedClasspath') {

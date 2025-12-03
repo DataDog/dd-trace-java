@@ -15,7 +15,7 @@ class DebuggerConfigBridgeTest extends Specification {
     then:
     !DebuggerConfigBridge.isDynamicInstrumentationEnabled()
     !DebuggerConfigBridge.isExceptionReplayEnabled()
-    DebuggerConfigBridge.isCodeOriginEnabled()
+    !DebuggerConfigBridge.isCodeOriginEnabled()
     !DebuggerConfigBridge.isDistributedDebuggerEnabled()
 
     when:

@@ -22,6 +22,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +79,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator", packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaDecorator",
+      packageName + ".KafkaConsumerInfo",
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
     };
   }
 
@@ -204,7 +207,21 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
    */
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter() {
+    public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
+      // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
+      KafkaConsumerInfo kafkaConsumerInfo =
+          InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+      if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+        Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
+        if (consumerMetadata != null) {
+          String clusterId =
+              InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+          if (clusterId != null) {
+            ClusterIdHolder.set(clusterId);
+          }
+        }
+      }
+
       if (traceConfig().isDataStreamsEnabled()) {
         final AgentSpan span = startSpan(KAFKA_POLL);
         return activateSpan(span);
@@ -227,6 +244,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
         recordsCount = records.count();
       }
+      // Clear cluster ID from Schema Registry instrumentation
+      ClusterIdHolder.clear();
+
       if (scope == null) {
         return;
       }

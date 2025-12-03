@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling;
 
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
-import datadog.trace.util.ClassNameTrie;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;

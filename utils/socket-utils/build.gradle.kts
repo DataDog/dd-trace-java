@@ -16,6 +16,7 @@ extensions.getByName("tracerJava").withGroovyBuilder {
 dependencies {
   implementation(libs.slf4j)
   implementation(project(":internal-api"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(libs.jnr.unixsocket)
   testImplementation(files(sourceSets["main_java17"].output))
 }

@@ -36,7 +36,7 @@ tasks.named("shadowJar", ShadowJar) {
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
-  implementation libs.scala
+  implementation libs.scala213
   implementation libs.groovy
   implementation libs.kotlin
 

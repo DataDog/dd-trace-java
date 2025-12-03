@@ -5,8 +5,8 @@
     "attributes": {
       "repository_url"  : "${tracerEnvironment.repositoryUrl}",
       "commit_message"  : "${tracerEnvironment.commitMessage}",
-      "sha"             : "${tracerEnvironment.sha}"
-      }
+      "sha"             : "${tracerEnvironment.sha}",
+      "branch"          : "${tracerEnvironment.branch}"
     }
   }
 }

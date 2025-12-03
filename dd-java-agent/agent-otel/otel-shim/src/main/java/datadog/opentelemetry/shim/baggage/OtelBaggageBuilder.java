@@ -35,6 +35,6 @@ public class OtelBaggageBuilder implements BaggageBuilder {
 
   @Override
   public Baggage build() {
-    return new OtelBaggage(items);
+    return new OtelBaggage(new HashMap<>(items));
   }
 }

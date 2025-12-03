@@ -1,6 +1,8 @@
 package datadog.crashtracking;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -20,6 +22,8 @@ public class ConfigManagerTest {
     Config config = mock(Config.class);
     when(config.getWellKnownTags())
         .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
+    when(config.isCrashTrackingAgentless()).thenReturn(false);
+    when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
     when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
     File tmpFile = File.createTempFile("ConfigManagerTest", null);
     tmpFile.deleteOnExit();
@@ -35,6 +39,8 @@ public class ConfigManagerTest {
     assertEquals(
         Objects.requireNonNull(ProcessTags.getTagsForSerialization()).toString(),
         deserialized.processTags);
+    assertFalse(deserialized.agentless);
+    assertTrue(deserialized.sendToErrorTracking);
   }
 
   @Test
@@ -48,5 +54,7 @@ public class ConfigManagerTest {
     assertEquals("service", storedConfig.service);
     assertEquals("version", storedConfig.version);
     assertEquals("env", storedConfig.env);
+    assertFalse(storedConfig.agentless);
+    assertFalse(storedConfig.sendToErrorTracking);
   }
 }

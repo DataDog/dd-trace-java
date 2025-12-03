@@ -157,13 +157,14 @@ class AIGuardInternalTests extends DDSpecification {
     Request request = null
     Throwable error = null
     AIGuard.Evaluation eval = null
+    Map<String, Object> receivedMeta = null
     final throwAbortError = suite.blocking && suite.action != ALLOW
     final call = Mock(Call) {
       execute() >> {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -189,11 +190,18 @@ class AIGuardInternalTests extends DDSpecification {
     }
     1 * span.setTag(AIGuardInternal.ACTION_TAG, suite.action)
     1 * span.setTag(AIGuardInternal.REASON_TAG, suite.reason)
-    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, [messages: suite.messages])
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _ as Map) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
     if (throwAbortError) {
       1 * span.addThrowable(_ as AIGuard.AIGuardAbortError)
     }
 
+    receivedMeta.messages == suite.messages
+    if (suite.tags) {
+      receivedMeta.attack_categories == suite.tags
+    }
     assertRequest(request, suite.messages)
     if (throwAbortError) {
       error instanceof AIGuard.AIGuardAbortError
@@ -444,6 +452,14 @@ class AIGuardInternalTests extends DDSpecification {
     0 * span.setTag(AIGuardInternal.TOOL_TAG, _)
   }
 
+  void 'map requires even number of params'() {
+    when:
+    AIGuardInternal.mapOf('1', '2', '3')
+
+    then:
+    thrown(IllegalArgumentException)
+  }
+
   private static assertTelemetry(final String metric, final String...tags) {
     final metrics = WafMetricCollector.get().with {
       prepareMetrics()
@@ -497,14 +513,16 @@ class AIGuardInternalTests extends DDSpecification {
   private static class TestSuite {
     private final AIGuard.Action action
     private final String reason
+    private final List<String> tags
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
+      this.tags = tags
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -512,7 +530,11 @@ class AIGuardInternalTests extends DDSpecification {
     }
 
     static List<TestSuite> build() {
-      def actionValues = [[ALLOW, 'Go ahead'], [DENY, 'Nope'], [ABORT, 'Kill it with fire']]
+      def actionValues = [
+        [ALLOW, 'Go ahead', []],
+        [DENY, 'Nope', ['deny_everything', 'test_deny']],
+        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+      ]
       def blockingValues = [true, false]
       def suiteValues = [
         ['tool call', 'tool', TOOL_CALL],
@@ -521,7 +543,7 @@ class AIGuardInternalTests extends DDSpecification {
       ]
       return combinations([actionValues, blockingValues, suiteValues] as Iterable)
       .collect { action, blocking, suite ->
-        new TestSuite(action[0], action[1], blocking, suite[0], suite[1], suite[2])
+        new TestSuite(action[0], action[1], action[2], blocking, suite[0], suite[1], suite[2])
       }
     }
 

@@ -642,6 +642,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -674,6 +676,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -701,6 +705,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -734,6 +740,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")

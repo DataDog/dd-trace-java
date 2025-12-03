@@ -1,4 +1,5 @@
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -249,6 +250,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
+
+    // verify ClusterIdHolder was properly cleaned up after produce and consume
+    ClusterIdHolder.get() == null
 
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1

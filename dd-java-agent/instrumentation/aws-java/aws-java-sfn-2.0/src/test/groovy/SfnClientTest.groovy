@@ -1,22 +1,20 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
+import java.time.Duration
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sfn.SfnClient
 import software.amazon.awssdk.services.sfn.model.SfnException
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import spock.lang.Shared
-
-import java.time.Duration
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-
 
 abstract class SfnClientTest extends VersionedNamingTestBase {
   @Shared GenericContainer localStack
@@ -115,6 +113,28 @@ abstract class SfnClientTest extends VersionedNamingTestBase {
     input["_datadog"]["x-datadog-trace-id"] != null
     input["_datadog"]["x-datadog-parent-id"] != null
     input["_datadog"]["x-datadog-tags"] != null
+  }
+
+  def "datadog context is not injected when SfnInjectDatadogAttribute is disabled"() {
+    setup:
+    injectSysConfig("sfn.inject.datadog.attribute.enabled", "false")
+
+    when:
+    StartExecutionResponse response = sfnClient.startExecution { builder ->
+      builder.stateMachineArn(testStateMachineARN)
+        .input("{\"key\": \"value\"}")
+        .build()
+    }
+
+    then:
+    def execution = sfnClient.describeExecution { builder ->
+      builder.executionArn(response.executionArn())
+        .build()
+    }
+
+    def input = new JsonSlurper().parseText(execution.input())
+    assert input["key"] == "value"
+    assert input["_datadog"] == null
   }
 
   def "AWS rejects invalid JSON but instrumentation does not error"() {

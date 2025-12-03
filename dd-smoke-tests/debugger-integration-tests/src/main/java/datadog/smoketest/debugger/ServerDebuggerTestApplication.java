@@ -98,6 +98,16 @@ public class ServerDebuggerTestApplication {
     }
   }
 
+  protected void waitForExceptionFingerprint() {
+    System.out.println("waitForExceptionFingerprint");
+    try {
+      TestApplicationHelper.waitForExceptionFingerprint(LOG_FILENAME);
+      System.out.println("fingerprint added!");
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    }
+  }
+
   protected void waitForSpecificLine(String line) {
     System.out.println("waitForSpecificLine...");
     try {
@@ -279,6 +289,11 @@ public class ServerDebuggerTestApplication {
           {
             String className = request.getRequestUrl().queryParameter("classname");
             app.waitForReTransformation(className);
+            break;
+          }
+        case "/app/waitForExceptionFingerprint":
+          {
+            app.waitForExceptionFingerprint();
             break;
           }
         case "/app/waitForSpecificLine":

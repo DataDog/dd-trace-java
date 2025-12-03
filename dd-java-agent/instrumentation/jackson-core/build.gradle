@@ -20,6 +20,7 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 final jacksonVersion = '2.14.0'
+
 dependencies {
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: jacksonVersion)
   compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion)

@@ -65,6 +65,8 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.source.file.tracking.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
+  public static final String THIRD_PARTY_DETECTION_INCLUDES = "third.party.detection.includes";
+  public static final String THIRD_PARTY_DETECTION_EXCLUDES = "third.party.detection.excludes";
   public static final String THIRD_PARTY_SHADING_IDENTIFIERS = "third.party.shading.identifiers";
 
   private DebuggerConfig() {}

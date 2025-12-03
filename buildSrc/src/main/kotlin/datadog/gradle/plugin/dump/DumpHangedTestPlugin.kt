@@ -24,6 +24,7 @@ import javax.inject.Inject
 /**
  * Plugin to collect thread and heap dumps for hanged tests.
  */
+@Suppress("unused")
 class DumpHangedTestPlugin : Plugin<Project> {
   companion object {
     private const val DUMP_FUTURE_KEY = "dumping_future"

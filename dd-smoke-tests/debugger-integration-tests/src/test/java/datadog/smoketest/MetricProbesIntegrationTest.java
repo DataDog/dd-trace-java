@@ -7,12 +7,14 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.MetricProbe;
+import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
   @AfterEach
@@ -109,7 +111,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 
   private void doMethodInvalidMetric(
@@ -140,7 +143,9 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 
   @Test
@@ -213,6 +218,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 }

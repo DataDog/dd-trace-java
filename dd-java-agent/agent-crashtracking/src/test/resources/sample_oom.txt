@@ -1,0 +1,269 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  Internal Error (debug.cpp:271), pid=74045, tid=34819
+#  fatal error: OutOfMemory encountered: Java heap space
+#
+# JRE version: OpenJDK Runtime Environment Zulu21.30+15-CA (21.0.1+12) (build 21.0.1+12-LTS)
+# Java VM: OpenJDK 64-Bit Server VM Zulu21.30+15-CA (21.0.1+12-LTS, mixed mode, sharing, tiered, compressed oops, compressed class ptrs, g1 gc, bsd-aarch64)
+# No core dump will be written. Core dumps have been disabled. To enable core dumping, try "ulimit -c unlimited" before starting Java again
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -Ddd.service=12andrea -Ddd.env=andrea -Ddd.dogstatsd.start-delay=0 -XX:OnError=/var/folders/rr/hft9w7dd6zx84_8p_vszl_ym0000gp/T/dd_crash_uploader.sh -javaagent:./dd-java-agent.jar -Xmx26m -Xms26m -XX:+CrashOnOutOfMemoryError -XX:ErrorFile=/var/folders/rr/hft9w7dd6zx84_8p_vszl_ym0000gp/T/hs_err_pid.log build/libs/spring-petclinic-3.5.0.jar
+
+Host: "MacBookPro18,4" arm64, 10 cores, 64G, Darwin 24.6.0, macOS 15.7.1 (24G231)
+Time: Mon Nov 24 09:43:29 2025 CET elapsed time: 11.468691 seconds (0d 0h 0m 11s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x000000011c35a200):  JavaThread "dd-trace-processor" daemon [_thread_in_vm, id=34819, stack(0x00000001744fc000,0x00000001746ff000) (2060K)]
+
+Stack: [0x00000001744fc000,0x00000001746ff000],  sp=0x00000001746fe440,  free space=2057k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [libjvm.dylib+0xaa5f24]  VMError::report_and_die(int, char const*, char const*, char*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x480  (debug.cpp:271)
+V  [libjvm.dylib+0x314c74]  report_fatal(VMErrorType, char const*, int, char const*, ...)+0x88
+V  [libjvm.dylib+0x315248]  report_java_out_of_memory(char const*)+0xd8
+V  [libjvm.dylib+0x7d9764]  MemAllocator::Allocation::check_out_of_memory()+0x8c
+V  [libjvm.dylib+0x7da2f4]  MemAllocator::allocate() const+0xf4
+V  [libjvm.dylib+0x2c3de4]  CollectedHeap::array_allocate(Klass*, unsigned long, int, bool, JavaThread*)+0x34
+V  [libjvm.dylib+0x8ea9ec]  OptoRuntime::new_array_C(Klass*, int, JavaThread*)+0x68
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+v  ~RuntimeStub::_new_array_Java 0x00000001124cb638
+J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+j  datadog.communication.serialization.FlushingBuffer.<init>(ILdatadog/communication/serialization/ByteBufferConsumer;)V+6
+j  datadog.trace.agent.common.writer.PayloadDispatcherImpl.selectMapper()V+126
+j  datadog.trace.agent.common.writer.PayloadDispatcherImpl.addTrace(Ljava/util/List;)V+1
+j  datadog.trace.agent.common.writer.TraceProcessingWorker$TraceSerializingHandler.onEvent(Ljava/lang/Object;)V+22
+j  datadog.trace.agent.common.writer.TraceProcessingWorker$TraceSerializingHandler.consumeFromPrimaryQueue()V+21
+j  datadog.trace.agent.common.writer.TraceProcessingWorker$TraceSerializingHandler.runDutyCycle()V+12
+j  datadog.trace.agent.common.writer.TraceProcessingWorker$TraceSerializingHandler.run()V+1
+j  java.lang.Thread.runWith(Ljava/lang/Object;Ljava/lang/Runnable;)V+5 java.base@21.0.1
+j  java.lang.Thread.run()V+19 java.base@21.0.1
+v  ~StubRoutines::call_stub 0x00000001123b0140
+--------------------------------------------------------------------------------
+Decoding CodeBlob, name: _new_array_Java, at  [0x00000001124cb600, 0x00000001124cb688]  136 bytes
+[MachCode]
+  0x00000001124cb600: 1f20 03d5 | ff43 00d1 | fd7b 00a9 | e903 0091 | 89cf 01f9 | e003 01aa | e103 022a | e203 1caa
+  0x00000001124cb620: c900 0010 | 8830 95d2 | 483f a0f2 | 2800 c0f2 | ff27 bfa9 | 0001 3fd6 | 1f20 03d5 | 1f00 80f2
+  0x00000001124cb640: 1f00 80f2 | ff43 0091 | 9fcf 01f9 | 9fd3 01f9 | 80fb 41f9 | 9ffb 01f9 | 8a07 40f9 | 8a00 00b5
+  0x00000001124cb660: fd7b 40a9 | ff43 0091 | c003 5fd6 | ec03 1faa | 2af7 ffb0 | 4a01 0291 | fd7b 40a9 | ff43 0091
+  0x00000001124cb680: 4001 1fd6 | 0000 0000
+[/MachCode]
+--------------------------------------------------------------------------------
+
+
+Compiled method (c2)   11471 3896       4       java.nio.ByteBuffer::allocate (20 bytes)
+ total in heap  [0x0000000112ad4e10,0x0000000112ad53d0] = 1472
+ relocation     [0x0000000112ad4f60,0x0000000112ad4f98] = 56
+ main code      [0x0000000112ad4fc0,0x0000000112ad5258] = 664
+ stub code      [0x0000000112ad5258,0x0000000112ad5268] = 16
+ metadata       [0x0000000112ad5268,0x0000000112ad52e8] = 128
+ scopes data    [0x0000000112ad52e8,0x0000000112ad5320] = 56
+ scopes pcs     [0x0000000112ad5320,0x0000000112ad5370] = 80
+ dependencies   [0x0000000112ad5370,0x0000000112ad53a0] = 48
+ handler table  [0x0000000112ad53a0,0x0000000112ad53d0] = 48
+
+[Constant Pool (empty)]
+
+[MachCode]
+[Verified Entry Point]
+  # {method} {0x00000070000c3e90} 'allocate' '(I)Ljava/nio/ByteBuffer;' in 'java/nio/ByteBuffer'
+  # parm0:    c_rarg1   = int
+  #           [sp+0x30]  (sp of caller)
+  0x0000000112ad4fc0: 1f20 03d5 | e953 40d1 | 3f01 00f9 | ffc3 00d1 | fd7b 02a9 | e813 0018 | 8923 40b9 | 1f01 09eb
+  0x0000000112ad4fe0: e112 0054 | ed03 012a | c110 f837 | 93df 40f9 | 8ae7 40f9 | 6be2 0091 | fd03 40b2 | 7f01 0aeb
+  0x0000000112ad5000: 020d 0054 | 8bdf 00f9
+
+  0x0000000112ad5008: ;   {metadata('java/nio/HeapByteBuffer')}
+  0x0000000112ad5008: 6a03 a0d2 | 0a7c 9ef2 | 7d02 00f9 | 6a0a 00b9 | 70c1 80f9 | 7f0e 00b9 | 6a42 0091 | 5f01 00f9
+  0x0000000112ad5028: 5ffd 00a9 | 5ffd 01a9 | bf3a 03d5 | aa7d 4093 | bf01 4471 | 2800 0054 | bf01 4471 | 480c 0054
+  0x0000000112ad5048: 80df 40f9 | 4a5d 0091 | 4bf1 7d92 | 8ce7 40f9 | 0b00 0b8b | 7f01 0ceb | 620b 0054 | 8bdf 00f9
+  0x0000000112ad5068: 70c1 80f9 | 1d00 00f9
+
+  0x0000000112ad5070: ;   {metadata({type array byte})}
+  0x0000000112ad5070: 0e00 a0d2 | 0e58 84f2 | 7001 81f9 | 0e08 00b9 | 4cfd 43d3 | 7041 81f9 | 0a40 0091 | 0d0c 00b9
+  0x0000000112ad5090: 8b09 00d1 | 6821 00f1 | 4300 0054
+
+  0x0000000112ad509c: ;   {runtime_call StubRoutines (final stubs)}
+  0x0000000112ad509c: 6979 e497 | 6b00 1036 | 5f7d 81a8 | 5f7d 81a8 | 4b00 0836 | 5f7d 81a8 | 4b00 0036 | 5f01 00f9
+  0x0000000112ad50bc: bf3a 03d5 | 6d22 00b9 | 0b00 a012 | 6d1e 00b9 | 6b0e 00b9 | bf3b 03d5 | ea03 13aa | eb03 00aa
+  0x0000000112ad50dc: 6b01 0aca | 0cfc 43d3 | ee03 0032 | 6bfd 54d3 | 6c32 00b9 | f403 7cb2 | 6eb6 0039 | 7fba 0039
+  0x0000000112ad50fc: eb00 00b4 | 4afd 49d3 | ab83 bfd2 | 6001 0a8b | 0a00 c039 | 5f09 0071 | 6101 0054 | 7f2a 00b9
+  0x0000000112ad511c: bf3b 03d5 | 740a 00f9 | e003 13aa | fd7b 42a9 | ffc3 0091
+
+  0x0000000112ad5130: ;   {poll_return}
+  0x0000000112ad5130: 882b 42f9 | ff63 28eb | c807 0054 | c003 5fd6 | 8a27 40f9 | 8b2f 40f9 | bf3b 03d5 | 0c00 c039
+  0x0000000112ad5150: 4cfe ff34 | 1f00 0039 | aa01 00b5 | e103 1caa | c900 0010
+
+  0x0000000112ad5164: ;   {runtime_call G1BarrierSetRuntime::write_ref_field_post_entry(unsigned char volatile*, JavaThread*)}
+  0x0000000112ad5164: 0827 85d2 | 2835 a0f2 | 2800 c0f2 | ff27 bfa9 | 0001 3fd6
+
+  0x0000000112ad5178: ;   {other}
+  0x0000000112ad5178: 1f20 03d5 | 1f00 80f2 | 1f00 80f2 | ff43 0091 | e4ff ff17 | 4c21 00d1 | 6a01 0a8b | 4081 1ff8
+  0x0000000112ad5198: 8c27 00f9 | dfff ff17 | e103 00b9
+
+  0x0000000112ad51a4: ;   {metadata('java/nio/HeapByteBuffer')}
+  0x0000000112ad51a4: 017c 9ed2 | 6103 a0f2 | 010e c0f2
+
+  0x0000000112ad51b0: ; ImmutableOopMap {}
+                      ;*new {reexecute=0 rethrow=0 return_oop=1}
+                      ; - java.nio.ByteBuffer::allocate@9 (line 391)
+                      ;   {runtime_call _new_instance_Java}
+  0x0000000112ad51b0: 54e1 e797
+
+  0x0000000112ad51b4: ;   {other}
+  0x0000000112ad51b4: 1f20 03d5 | 9f74 80f2 | 1f00 80f2 | ed03 40b9 | f303 00aa | 9aff ff17 | f303 00f9 | fd03 0d2a
+  0x0000000112ad51d4: ;   {metadata({type array byte})}
+  0x0000000112ad51d4: 0158 84d2 | 0100 a0f2 | 010e c0f2 | e203 0d2a
+
+  0x0000000112ad51e4: ; ImmutableOopMap {[0]=Oop }
+                      ;*newarray {reexecute=0 rethrow=0 return_oop=1}
+                      ; - java.nio.HeapByteBuffer::<init>@6 (line 71)
+                      ; - java.nio.ByteBuffer::allocate@16 (line 391)
+                      ;   {runtime_call _new_array_Java}
+  0x0000000112ad51e4: 07d9 e797
+
+  0x0000000112ad51e8: ;   {other}
+  0x0000000112ad51e8: 1f20 03d5 | 1f7b 80f2 | 1f20 80f2 | ed03 1d2a | f303 40f9 | b0ff ff17 | 4117 8012 | ed03 00b9
+  0x0000000112ad5208: ; ImmutableOopMap {}
+                      ;*ifge {reexecute=1 rethrow=0 return_oop=0}
+                      ; - (reexecute) java.nio.ByteBuffer::allocate@1 (line 389)
+                      ;   {runtime_call UncommonTrapBlob}
+  0x0000000112ad5208: 5e77 e497
+
+  0x0000000112ad520c: ;   {other}
+  0x0000000112ad520c: 1f20 03d5 | 9f7f 80f2 | 1f40 80f2 | e103 00aa | 0200 0014 | e103 00aa | fd7b 42a9 | ffc3 0091
+  0x0000000112ad522c: ;   {runtime_call _rethrow_Java}
+  0x0000000112ad522c: 75f4 e717
+
+  0x0000000112ad5230: ;   {internal_word}
+  0x0000000112ad5230: 08f8 ff10 | 8837 02f9
+
+  0x0000000112ad5238: ;   {runtime_call SafepointBlob}
+  0x0000000112ad5238: b275 e417 | 0830 8bd2 | e847 a2f2 | 2800 c0f2 | 0001 3fd6 | 66ff ff17
+
+  0x0000000112ad5250: ;   {other}
+  0x0000000112ad5250: f801 0000 | 0000 0000
+[Exception Handler]
+  0x0000000112ad5258: ;   {no_reloc}
+  0x0000000112ad5258: 4acf e717
+[Deopt Handler Code]
+  0x0000000112ad525c: 1e00 0010
+
+  0x0000000112ad5260: ;   {runtime_call DeoptimizationBlob}
+  0x0000000112ad5260: 7876 e417 | 0000 0000
+[/MachCode]
+
+
+---------------  P R O C E S S  ---------------
+
+Threads class SMR info:
+_java_thread_list=0x0000600000ea8720, length=35, elements={
+0x000000014280d800, 0x0000000142815200, 0x0000000142815a00, 0x000000011c038600,
+0x000000011c03b000, 0x000000011c03b800, 0x000000013201a600, 0x0000000142816200,
+0x000000013180a400, 0x000000013189be00, 0x00000001008f1c00, 0x00000001319b5200,
+0x00000001319b5a00, 0x00000001319b9600, 0x0000000141a77e00, 0x000000011f80ca00,
+0x0000000131b02a00, 0x000000011c35a200, 0x000000011c359600, 0x0000000141a82a00,
+0x000000011c35c600, 0x0000000141a7ea00, 0x00000001008e0a00, 0x0000000131ce3200,
+0x00000001008e2c00, 0x0000000142bd4a00, 0x0000000131d81200, 0x00000001322fcc00,
+0x0000000131db9a00, 0x0000000100f3e400, 0x000000013214d800, 0x0000000131af6200,
+0x000000011f982a00, 0x000000011c0e4c00, 0x000000011f983200
+}
+
+Java Threads: ( => current thread )
+  0x000000014280d800 JavaThread "main"                              [_thread_in_Java, id=8963, stack(0x000000016fe0c000,0x000000017000f000) (2060K)]
+  0x0000000142815200 JavaThread "Reference Handler"          daemon [_thread_blocked, id=31747, stack(0x0000000170f84000,0x0000000171187000) (2060K)]
+  0x0000000142815a00 JavaThread "Finalizer"                  daemon [_thread_blocked, id=31491, stack(0x0000000171190000,0x0000000171393000) (2060K)]
+  0x000000011c038600 JavaThread "Signal Dispatcher"          daemon [_thread_blocked, id=30979, stack(0x000000017139c000,0x000000017159f000) (2060K)]
+  0x000000011c03b000 JavaThread "Service Thread"             daemon [_thread_in_vm, id=23299, stack(0x00000001715a8000,0x00000001717ab000) (2060K)]
+  0x000000011c03b800 JavaThread "Monitor Deflation Thread"   daemon [_thread_blocked, id=23555, stack(0x00000001717b4000,0x00000001719b7000) (2060K)]
+  0x000000013201a600 JavaThread "C2 CompilerThread0"         daemon [_thread_in_native, id=24067, stack(0x00000001719c0000,0x0000000171bc3000) (2060K)]
+  0x0000000142816200 JavaThread "C1 CompilerThread0"         daemon [_thread_blocked, id=24323, stack(0x0000000171bcc000,0x0000000171dcf000) (2060K)]
+  0x000000013180a400 JavaThread "Common-Cleaner"             daemon [_thread_blocked, id=29955, stack(0x0000000171dd8000,0x0000000171fdb000) (2060K)]
+  0x000000013189be00 JavaThread "dd-task-scheduler"          daemon [_thread_blocked, id=28931, stack(0x00000001723fc000,0x00000001725ff000) (2060K)]
+  0x00000001008f1c00 JavaThread "statsd-aggregator-thread"   daemon [_thread_blocked, id=43011, stack(0x0000000173668000,0x000000017386b000) (2060K)]
+  0x00000001319b5200 JavaThread "StatsD-Processor-1"         daemon [_thread_blocked, id=33027, stack(0x0000000173874000,0x0000000173a77000) (2060K)]
+  0x00000001319b5a00 JavaThread "StatsD-Sender-1"            daemon [_thread_blocked, id=33283, stack(0x0000000173a80000,0x0000000173c83000) (2060K)]
+  0x00000001319b9600 JavaThread "dd-jmx-collector"           daemon [_thread_blocked, id=33539, stack(0x0000000173c8c000,0x0000000173e8f000) (2060K)]
+  0x0000000141a77e00 JavaThread "process reaper"             daemon [_thread_blocked, id=41731, stack(0x0000000173e98000,0x0000000173ecf000) (220K)]
+  0x000000011f80ca00 JavaThread "ForkJoinPool.commonPool-worker-1" daemon [_thread_blocked, id=33795, stack(0x0000000173ed8000,0x00000001740db000) (2060K)]
+  0x0000000131b02a00 JavaThread "dd-trace-monitor"           daemon [_thread_blocked, id=34307, stack(0x00000001742f0000,0x00000001744f3000) (2060K)]
+=>0x000000011c35a200 JavaThread "dd-trace-processor"         daemon [_thread_in_vm, id=34819, stack(0x00000001744fc000,0x00000001746ff000) (2060K)]
+  0x000000011c359600 JavaThread "dd-data-streams-monitor"    daemon [_thread_blocked, id=40451, stack(0x0000000174708000,0x000000017490b000) (2060K)]
+  0x0000000141a82a00 JavaThread "OkHttp ConnectionPool"      daemon [_thread_blocked, id=40195, stack(0x0000000174914000,0x0000000174b17000) (2060K)]
+  0x000000011c35c600 JavaThread "Okio Watchdog"              daemon [_thread_blocked, id=35587, stack(0x0000000174b20000,0x0000000174d23000) (2060K)]
+  0x0000000141a7ea00 JavaThread "dd-debugger-snapshot-serializer" daemon [_thread_blocked, id=39683, stack(0x0000000174d2c000,0x0000000174f2f000) (2060K)]
+  0x00000001008e0a00 JavaThread "dd-remote-config"           daemon [_thread_blocked, id=39171, stack(0x0000000174f38000,0x000000017513b000) (2060K)]
+  0x0000000131ce3200 JavaThread "dd-telemetry"               daemon [_thread_blocked, id=38659, stack(0x0000000175144000,0x0000000175347000) (2060K)]
+  0x00000001008e2c00 JavaThread "Notification Thread"        daemon [_thread_blocked, id=24583, stack(0x0000000171fe4000,0x00000001721e7000) (2060K)]
+  0x0000000142bd4a00 JavaThread "Cleaner-0"                  daemon [_thread_blocked, id=38147, stack(0x0000000175350000,0x0000000175553000) (2060K)]
+  0x0000000131d81200 JavaThread "C2 CompilerThread1"         daemon [_thread_blocked, id=24843, stack(0x00000001721f0000,0x00000001723f3000) (2060K)]
+  0x00000001322fcc00 JavaThread "C2 CompilerThread2"         daemon [_thread_in_native, id=36103, stack(0x000000017555c000,0x000000017575f000) (2060K)]
+  0x0000000131db9a00 JavaThread "Catalina-utility-1"                [_thread_blocked, id=32519, stack(0x0000000175768000,0x000000017596b000) (2060K)]
+  0x0000000100f3e400 JavaThread "Catalina-utility-2"                [_thread_blocked, id=37895, stack(0x0000000175974000,0x0000000175b77000) (2060K)]
+  0x000000013214d800 JavaThread "container-0"                       [_thread_blocked, id=36871, stack(0x0000000175b80000,0x0000000175d83000) (2060K)]
+  0x0000000131af6200 JavaThread "mysql-cj-abandoned-connection-cleanup" daemon [_thread_blocked, id=37123, stack(0x0000000175d8c000,0x0000000175f8f000) (2060K)]
+  0x000000011f982a00 JavaThread "dd-metrics-aggregator"      daemon [_thread_blocked, id=65283, stack(0x0000000175f98000,0x000000017619b000) (2060K)]
+  0x000000011c0e4c00 JavaThread "HikariPool-1:housekeeper"   daemon [_thread_blocked, id=64771, stack(0x00000001761a4000,0x00000001763a7000) (2060K)]
+  0x000000011f983200 JavaThread "HikariPool-1:connection-adder" daemon [_thread_blocked, id=43779, stack(0x00000001763b0000,0x00000001765b3000) (2060K)]
+Total: 35
+
+Other Threads:
+  0x0000000131607380 VMThread "VM Thread"                           [id=19971, stack(0x0000000170c60000,0x0000000170e63000) (2060K)]
+  0x0000000131706180 WatcherThread "VM Periodic Task Thread"        [id=17411, stack(0x0000000170a54000,0x0000000170c57000) (2060K)]
+  0x00000001417082d0 WorkerThread "GC Thread#0"                     [id=12803, stack(0x0000000170018000,0x000000017021b000) (2060K)]
+  0x000000011bf27ef0 WorkerThread "GC Thread#1"                     [id=25091, stack(0x0000000172608000,0x000000017280b000) (2060K)]
+  0x00000001316478c0 WorkerThread "GC Thread#2"                     [id=25347, stack(0x0000000172814000,0x0000000172a17000) (2060K)]
+  0x0000000131647e30 WorkerThread "GC Thread#3"                     [id=25859, stack(0x0000000172a20000,0x0000000172c23000) (2060K)]
+  0x0000000142011fc0 WorkerThread "GC Thread#4"                     [id=28163, stack(0x0000000172c2c000,0x0000000172e2f000) (2060K)]
+  0x0000000142012530 WorkerThread "GC Thread#5"                     [id=26371, stack(0x0000000172e38000,0x000000017303b000) (2060K)]
+  0x0000000142012aa0 WorkerThread "GC Thread#6"                     [id=26627, stack(0x0000000173044000,0x0000000173247000) (2060K)]
+  0x000000013165be50 WorkerThread "GC Thread#7"                     [id=26883, stack(0x0000000173250000,0x0000000173453000) (2060K)]
+  0x000000013165c3c0 WorkerThread "GC Thread#8"                     [id=32771, stack(0x000000017345c000,0x000000017365f000) (2060K)]
+  0x0000000141708c70 ConcurrentGCThread "G1 Main Marker"            [id=13315, stack(0x0000000170224000,0x0000000170427000) (2060K)]
+  0x0000000142004100 WorkerThread "G1 Conc#0"                       [id=14083, stack(0x0000000170430000,0x0000000170633000) (2060K)]
+  0x0000000131693590 WorkerThread "G1 Conc#1"                       [id=34051, stack(0x00000001740e4000,0x00000001742e7000) (2060K)]
+  0x000000011c038200 ConcurrentGCThread "G1 Refine#0"               [id=16387, stack(0x000000017063c000,0x000000017083f000) (2060K)]
+  0x00000001316045c0 ConcurrentGCThread "G1 Service"                [id=16899, stack(0x0000000170848000,0x0000000170a4b000) (2060K)]
+Total: 16
+
+Threads with active compile tasks:
+C2 CompilerThread0    11475 8959       4       java.lang.invoke.InvokerBytecodeGenerator::emitLoadInsn (21 bytes)
+C1 CompilerThread0    11475 8965       3       datadog.trace.agent.core.DDSpan::getTag (7 bytes)
+C2 CompilerThread1    11475 8962       4       java.lang.invoke.InvokerBytecodeGenerator::emitPushArgument (150 bytes)
+C2 CompilerThread2    11475 8885       4       net.bytebuddy.jar.asm.ClassReader::readCode (5117 bytes)
+Total: 4
+
+VM state: not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+Heap address: 0x00000007fe000000, size: 32 MB, Compressed Oops mode: Zero based, Oop shift amount: 3
+
+CDS archive(s) mapped at: [0x0000007000000000-0x0000007000ca4000-0x0000007000ca4000), size 13254656, SharedBaseAddress: 0x0000007000000000, ArchiveRelocationMode: 1.
+Compressed class space mapped at: 0x0000007001000000-0x0000007041000000, reserved size: 1073741824
+Narrow klass base: 0x0000007000000000, Narrow klass shift: 0, Narrow klass range: 0x100000000
+
+GC Precious Log:
+ CardTable entry size: 512
+ Card Set container configuration: InlinePtr #cards 5 size 8 Array Of Cards #cards 12 size 40 Howl #buckets 4 coarsen threshold 1843 Howl Bitmap #cards 512 size 80 coarsen threshold 460 Card regions per heap region 1 cards per card region 2048
+ CPUs: 10 total, 10 available
+ Memory: 65536M
+ Large Page Support: Disabled
+ NUMA Support: Disabled
+ Compressed Oops: Enabled (Zero based)
+ Heap Region Size: 1M
+ Heap Min Capacity: 32M
+ Heap Initial Capacity: 32M
+ Heap Max Capacity: 32M
+ Pre-touch: Disabled
+ Parallel Workers: 9
+ Concurrent Workers: 2
+ Concurrent Refinement Workers: 9
+ Periodic GC: Disabled
+
+vm_info: OpenJDK 64-Bit Server VM (21.0.1+12-LTS) for bsd-aarch64 JRE (21.0.1+12-LTS) (Zulu21.30+15-CA), built on 2023-10-11T21:40:40Z by "zulu_re" with clang Apple LLVM 12.0.0 (clang-1200.0.32.28)
+
+END.

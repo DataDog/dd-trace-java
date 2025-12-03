@@ -1,7 +1,7 @@
 import aQute.bnd.gradle.Bundle
 
 plugins {
-  id 'biz.aQute.bnd.builder' version '6.1.0' apply true
+  id 'biz.aQute.bnd.builder' version '6.4.0' apply true
 }
 
 repositories {
@@ -96,6 +96,10 @@ def subscribingBundle = tasks.register('subscribingBundle', Bundle) {
   manifest {
     attributes('Bundle-Activator': 'datadog.smoketest.osgi.subscribing.Activator')
   }
+}
+
+tasks.named("check") {
+  dependsOn commonBundle, clientBundle, messagingBundle, publishingBundle, subscribingBundle, jarTask
 }
 
 tasks.withType(Test).configureEach {

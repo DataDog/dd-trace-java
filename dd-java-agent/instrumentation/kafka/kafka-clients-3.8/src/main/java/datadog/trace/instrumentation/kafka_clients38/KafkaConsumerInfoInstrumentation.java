@@ -67,7 +67,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator", packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaDecorator",
+      packageName + ".KafkaConsumerInfo",
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
     };
   }
 

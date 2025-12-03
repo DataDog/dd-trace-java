@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import sbt.testing.TaskDef;
+import scala.Option;
 import weaver.Result;
 import weaver.TestOutcome;
 import weaver.framework.RunEvent;
@@ -116,26 +117,44 @@ public class DatadogWeaverReporter {
         startMicros,
         executionHistory);
 
-    if (testOutcome.result() instanceof Result.Ignored) {
-      Result.Ignored result = (Result.Ignored) testOutcome.result();
-      String reason = result.reason().getOrElse(null);
-      TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
-    } else if (testOutcome.result() instanceof Result.Cancelled) {
-      Result.Cancelled result = (Result.Cancelled) testOutcome.result();
-      String reason = result.reason().getOrElse(null);
-      TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
-    } else if (testOutcome.result() instanceof Result.Failure) {
-      Result.Failure result = (Result.Failure) testOutcome.result();
-      Throwable throwable = result.source().getOrElse(null);
-      TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
-    } else if (testOutcome.result() instanceof Result.Failures) {
-      Result.Failures result = (Result.Failures) testOutcome.result();
-      Throwable throwable = result.failures().head().source().getOrElse(null);
-      TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
-    } else if (testOutcome.result() instanceof Result.Exception) {
-      Result.Exception result = (Result.Exception) testOutcome.result();
-      Throwable throwable = result.source();
-      TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+    if (testOutcome.result() != null) {
+      // Failed outcomes
+      if (WeaverUtils.isResultFailure(testOutcome.result())) {
+        Throwable throwable =
+            WeaverUtils.unwrap(
+                WeaverUtils.METHOD_HANDLES.invoke(
+                    WeaverUtils.GET_FAILURE_SOURCE_HANDLE, testOutcome.result()),
+                Throwable.class);
+        TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      } else if (testOutcome.result() instanceof Result.Failures) {
+        Result.Failures result = (Result.Failures) testOutcome.result();
+        Object headFailure = result.failures().head();
+        Throwable throwable =
+            WeaverUtils.unwrap(
+                WeaverUtils.METHOD_HANDLES.invoke(
+                    WeaverUtils.GET_FAILURE_SOURCE_HANDLE, headFailure),
+                Throwable.class);
+        TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+      } else if (testOutcome.result() instanceof Result.Exception) {
+        Result.Exception result = (Result.Exception) testOutcome.result();
+        Throwable throwable = result.source();
+        TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
+
+        // Skipped outcomes
+      } else if (testOutcome.result() instanceof Result.Ignored) {
+        Result.Ignored result = (Result.Ignored) testOutcome.result();
+        String reason =
+            WeaverUtils.unwrap(
+                WeaverUtils.METHOD_HANDLES.invoke(
+                    WeaverUtils.GET_IGNORED_REASON_HANDLE, testOutcome.result()),
+                String.class);
+        TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
+      } else if (WeaverUtils.isResultCancelled(testOutcome.result())) {
+        Option<String> reason =
+            WeaverUtils.METHOD_HANDLES.invoke(
+                WeaverUtils.GET_CANCELLED_REASON_HANDLE, testOutcome.result());
+        TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason.getOrElse(null));
+      }
     }
 
     TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, endMicros, executionHistory);

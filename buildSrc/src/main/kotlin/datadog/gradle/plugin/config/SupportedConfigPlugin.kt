@@ -19,8 +19,8 @@ class SupportedConfigPlugin : Plugin<Project> {
         className.set(extension.className)
       }
 
-    val sourceset = targetProject.extensions.getByType(SourceSetContainer::class.java).named(SourceSet.MAIN_SOURCE_SET_NAME)
-    sourceset.configure {
+    val sourceSet = targetProject.extensions.getByType(SourceSetContainer::class.java).named(SourceSet.MAIN_SOURCE_SET_NAME)
+    sourceSet.configure {
       java.srcDir(generateTask)
     }
 

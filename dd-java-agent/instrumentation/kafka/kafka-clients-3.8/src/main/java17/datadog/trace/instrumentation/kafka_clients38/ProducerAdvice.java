@@ -22,6 +22,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
@@ -39,6 +40,12 @@ public class ProducerAdvice {
       @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
       @Advice.Argument(value = 1, readOnly = false) Callback callback) {
     String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+
+    // Set cluster ID for Schema Registry instrumentation
+    if (clusterId != null) {
+      ClusterIdHolder.set(clusterId);
+    }
+
     final AgentSpan parent = activeSpan();
     final AgentSpan span = startSpan(KAFKA_PRODUCE);
     PRODUCER_DECORATE.afterStart(span);
@@ -106,6 +113,9 @@ public class ProducerAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
       @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+    // Clear cluster ID from Schema Registry instrumentation
+    ClusterIdHolder.clear();
+
     PRODUCER_DECORATE.onError(scope, throwable);
     PRODUCER_DECORATE.beforeFinish(scope);
     scope.close();

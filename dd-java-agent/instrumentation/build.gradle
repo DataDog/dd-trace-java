@@ -10,8 +10,8 @@ tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'instrument'
-  apply plugin: 'muzzle'
+  apply plugin: 'dd-trace-java.instrument'
+  apply plugin: 'dd-trace-java.muzzle'
 
   configurations {
     instrumentPluginClasspath {
@@ -95,7 +95,7 @@ dependencies {
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  apply plugin: 'muzzle'
+  apply plugin: 'dd-trace-java.muzzle'
   tasks.register('muzzleInstrumentationReport') {
     dependsOn(subprojects.collect { p -> p.tasks.matching { it.name == "generateMuzzleReport" } })
     finalizedBy(tasks.named('mergeMuzzleReports'))

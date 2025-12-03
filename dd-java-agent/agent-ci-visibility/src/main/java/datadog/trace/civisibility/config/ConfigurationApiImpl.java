@@ -341,7 +341,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                     tracerEnvironment.getRepositoryUrl(),
                     commitMessage,
                     tracerEnvironment.getConfigurations().getTestBundle(),
-                    commitSha)));
+                    commitSha,
+                    tracerEnvironment.getBranch())));
     String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
     TestManagementTestsDto testManagementTestsDto =
@@ -509,13 +510,15 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     private final String module;
     private final String sha;
+    private final String branch;
 
     private TestManagementDto(
-        String repositoryUrl, String commitMessage, String module, String sha) {
+        String repositoryUrl, String commitMessage, String module, String sha, String branch) {
       this.repositoryUrl = repositoryUrl;
       this.commitMessage = commitMessage;
       this.module = module;
       this.sha = sha;
+      this.branch = branch;
     }
   }
 

@@ -19,6 +19,9 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
   @SuppressWarnings('UnusedPrivateField')
   private final Set<DataStreamsTags> backlogs = []
 
+  @SuppressWarnings('UnusedPrivateField')
+  private final List<StatsBucket.SchemaKey> schemaRegistryUsages = []
+
   private final Set<String> serviceNameOverrides = []
 
   @Override
@@ -31,6 +34,11 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
       if (bucket.backlogs != null) {
         for (Map.Entry<DataStreamsTags, Long> backlog : bucket.backlogs) {
           this.@backlogs.add(backlog.getKey())
+        }
+      }
+      if (bucket.schemaRegistryUsages != null) {
+        for (Map.Entry<StatsBucket.SchemaKey, Long> usage : bucket.schemaRegistryUsages) {
+          this.@schemaRegistryUsages.add(usage.getKey())
         }
       }
     }
@@ -52,10 +60,15 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     Collections.unmodifiableList(new ArrayList<>(this.@backlogs))
   }
 
+  synchronized List<StatsBucket.SchemaKey> getSchemaRegistryUsages() {
+    Collections.unmodifiableList(new ArrayList<>(this.@schemaRegistryUsages))
+  }
+
   synchronized void clear() {
     this.@payloads.clear()
     this.@groups.clear()
     this.@backlogs.clear()
+    this.@schemaRegistryUsages.clear()
   }
 
   void waitForPayloads(int count, long timeout = TimeUnit.SECONDS.toMillis(3)) {
@@ -68,6 +81,10 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
 
   void waitForBacklogs(int count, long timeout = TimeUnit.SECONDS.toMillis(3)) {
     waitFor(count, timeout, this.@backlogs)
+  }
+
+  void waitForSchemaRegistryUsages(int count, long timeout = TimeUnit.SECONDS.toMillis(3)) {
+    waitFor(count, timeout, this.@schemaRegistryUsages)
   }
 
   private static void waitFor(int count, long timeout, Collection collection) {

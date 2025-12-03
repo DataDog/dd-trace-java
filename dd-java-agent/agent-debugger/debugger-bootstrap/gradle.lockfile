@@ -4,6 +4,7 @@
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.beust:jcommander:1.78=testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.3=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc,testCompileClasspath,testRuntimeClasspath
 com.github.spotbugs:spotbugs-annotations:4.2.0=compileClasspath,testCompileClasspath,testRuntimeClasspath

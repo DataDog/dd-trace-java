@@ -1,5 +1,5 @@
 plugins {
-  id 'datadog.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

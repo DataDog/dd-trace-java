@@ -2,6 +2,7 @@ package datadog.common.socket;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_SOCKET_PATH;
 
+import datadog.common.filesystem.Files;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
@@ -20,7 +21,7 @@ public final class SocketUtils {
     if (!OperatingSystem.isWindows()) {
       if (unixDomainSocket == null
           && Config.get().isAgentConfiguredUsingDefault()
-          && new File(DEFAULT_TRACE_AGENT_SOCKET_PATH).exists()) {
+          && Files.exists(new File(DEFAULT_TRACE_AGENT_SOCKET_PATH))) {
         log.info("Detected {}.  Using it to send trace data.", DEFAULT_TRACE_AGENT_SOCKET_PATH);
         unixDomainSocket = DEFAULT_TRACE_AGENT_SOCKET_PATH;
       }

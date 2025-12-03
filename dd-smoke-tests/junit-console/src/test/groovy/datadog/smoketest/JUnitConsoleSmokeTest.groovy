@@ -192,6 +192,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=DEBUG")
     command.addAll((String[]) ["-jar", JUNIT_CONSOLE_JAR_PATH])
     command.addAll(consoleCommand)
     command.addAll([

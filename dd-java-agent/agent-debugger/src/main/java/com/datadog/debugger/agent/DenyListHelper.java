@@ -1,8 +1,8 @@
 package com.datadog.debugger.agent;
 
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.util.Redaction;
-import datadog.trace.util.ClassNameTrie;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;

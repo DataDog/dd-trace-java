@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testLatestJdk")
@@ -35,7 +37,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     assertFalse(logHasErrors(logFilePath, it -> false));
   }
 
@@ -53,7 +57,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     assertFalse(logHasErrors(logFilePath, it -> false));
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.
@@ -78,7 +84,9 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
         snapshot -> {
           snapshotReceived.set(true);
         });
-    processRequests(snapshotReceived::get);
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     targetProcess.destroy();
     // Wait for the app exit with some extra time.
     // The expectation is that agent doesn't prevent app from exiting.

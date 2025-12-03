@@ -1,7 +1,5 @@
 package com.datadog.debugger.probe;
 
-import static java.util.Arrays.stream;
-
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.Types;
 import com.datadog.debugger.util.ClassFileLines;
@@ -9,14 +7,12 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -50,13 +46,8 @@ public class Where {
     return new Where(typeName, methodName, signature, lines, null);
   }
 
-  public static Where of(Method method) {
-    return of(
-        method.getDeclaringClass().getName(),
-        method.getName(),
-        stream(method.getParameterTypes())
-            .map(Class::getTypeName)
-            .collect(Collectors.joining(", ", "(", ")")));
+  public static Where of(String typeName, String methodName, String signature) {
+    return new Where(typeName, methodName, signature, (SourceLine[]) null, null);
   }
 
   protected static SourceLine[] sourceLines(String[] defs) {

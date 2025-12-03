@@ -72,13 +72,23 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       "DD_CIVISIBILITY_AGENTLESS_ENABLED" : "true",
       "DD_CIVISIBILITY_AGENTLESS_URL"     : "${mockBackend.intakeUrl}".toString(),
       "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED": "false",
+      "DD_CIVISIBILITY_GIT_CLIENT_ENABLED": "false",
+      "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"  : "false",
       "DD_API_KEY"                        : "dummy"
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
       command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }
-    return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
+
+    try {
+      return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
+    } catch (Exception e) {
+      println "=============================================================="
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Launcher execution failed with exception:\n ${e.message}"
+      println "=============================================================="
+      throw e
+    }
   }
 
   private static boolean gradleDaemonStartCommandContains(String buildOutput, String... tokens) {
