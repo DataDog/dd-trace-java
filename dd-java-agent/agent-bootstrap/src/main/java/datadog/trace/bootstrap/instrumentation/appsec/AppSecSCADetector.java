@@ -64,6 +64,12 @@ public class AppSecSCADetector {
           if (stackId != null) {
             rootSpan.setTag("appsec.sca.stack_id", stackId);
           }
+
+          // Capture and add location
+          SCALocation location = captureLocation(rootSpan, stackId);
+          if (location != null) {
+            addLocationTags(rootSpan, location);
+          }
         }
       }
 
@@ -89,7 +95,6 @@ public class AppSecSCADetector {
       log.debug(message.toString());
 
       // TODO: Future enhancements:
-      // - Add location
       // - Report to Datadog backend via telemetry API
       // - Implement rate limiting to avoid log spam
       // - Add sampling for high-frequency methods
@@ -97,7 +102,61 @@ public class AppSecSCADetector {
     } catch (Throwable t) {
       // Never throw from instrumented callback - would break application
       // Silently ignore errors
-      t.printStackTrace();
+      log.debug("Error in SCA detection handler", t);
+    }
+  }
+
+  /**
+   * Captures the location where the vulnerable method was invoked.
+   *
+   * @param span the span
+   * @param stackId the stack trace ID
+   * @return the location, or null if unable to capture
+   */
+  private static SCALocation captureLocation(AgentSpan span, String stackId) {
+    try {
+      // Get the first user code frame from the stack trace
+      StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+      for (StackTraceElement element : stackTrace) {
+        String className = element.getClassName();
+
+        // Skip internal frames
+        if (className.startsWith("java.lang.Thread")
+            || className.startsWith("datadog.trace.bootstrap.instrumentation.appsec.")
+            || className.contains("AppSecSCATransformer$")) {
+          continue;
+        }
+
+        // Found first user code frame
+        return SCALocation.forSpanAndStack(span, element, stackId);
+      }
+
+      return null;
+    } catch (Throwable t) {
+      log.debug("Failed to capture SCA location", t);
+      return null;
+    }
+  }
+
+  /**
+   * Adds location information as tags to the span.
+   *
+   * @param span the span to tag
+   * @param location the location information
+   */
+  private static void addLocationTags(AgentSpan span, SCALocation location) {
+    if (location.getPath() != null) {
+      span.setTag("appsec.sca.location.path", location.getPath());
+    }
+    if (location.getMethod() != null) {
+      span.setTag("appsec.sca.location.method", location.getMethod());
+    }
+    if (location.getLine() > 0) {
+      span.setTag("appsec.sca.location.line", location.getLine());
+    }
+    if (location.getSpanId() != null) {
+      span.setTag("appsec.sca.location.span_id", location.getSpanId());
     }
   }
 
