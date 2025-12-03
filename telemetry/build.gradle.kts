@@ -34,6 +34,9 @@ dependencies {
   implementation(libs.slf4j)
 
   implementation(project(":internal-api"))
+  
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation(group = "com.antithesis", name = "sdk", version = "1.4.5")
 
   compileOnly(project(":dd-java-agent:agent-tooling"))
   testImplementation(project(":dd-java-agent:agent-tooling"))

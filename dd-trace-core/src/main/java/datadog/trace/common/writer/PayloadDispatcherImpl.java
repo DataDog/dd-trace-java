@@ -109,6 +109,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       healthMetrics.onSerialize(sizeInBytes);
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
+
       if (response.success()) {
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
