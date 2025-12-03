@@ -3,11 +3,9 @@
   "supportedConfigurations": {
     "DD_TRACE_AEROSPIKE_ENABLED": [
       {
-        "version": "B",
-        "type": "int",
+        "type": null,
         "default": "true",
-        "aliases": ["DD_INTEGRATION_AEROSPIKE_ENABLED", "DD_TRACE_INTEGRATION_AEROSPIKE_ENABLED"],
-        "propertyKeys": []
+        "aliases": null
       }
     ]
   },
