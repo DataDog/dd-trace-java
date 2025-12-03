@@ -506,6 +506,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
+  public <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+    Object tag = unsafeGetTag(name);
+    return null == tag ? defaultValue : (U) tag;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <U> U unsafeGetTag(CharSequence name) {
+    return (U) context.unsafeGetTag(String.valueOf(name));
+  }
+
+  @Override
   @Nonnull
   public final DDSpanContext context() {
     return context;

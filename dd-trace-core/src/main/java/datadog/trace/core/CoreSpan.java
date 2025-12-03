@@ -57,6 +57,14 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
+  default <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+    return getTag(name, defaultValue);
+  }
+
+  default <U> U unsafeGetTag(CharSequence name) {
+    return getTag(name);
+  }
+
   boolean hasSamplingPriority();
 
   boolean isMeasured();
