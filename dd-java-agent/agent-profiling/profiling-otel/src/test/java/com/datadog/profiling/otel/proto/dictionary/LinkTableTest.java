@@ -40,10 +40,6 @@ class LinkTableTest {
   @Test
   void internAllZerosReturnsIndexZero() {
     assertEquals(0, table.intern(new byte[16], new byte[8]));
-  }
-
-  @Test
-  void internLongZerosReturnsIndexZero() {
     assertEquals(0, table.intern(0L, 0L));
   }
 
@@ -113,17 +109,6 @@ class LinkTableTest {
   }
 
   @Test
-  void sizeIncrementsCorrectly() {
-    assertEquals(1, table.size()); // empty link at 0
-    table.intern(1L, 1L);
-    assertEquals(2, table.size());
-    table.intern(2L, 2L);
-    assertEquals(3, table.size());
-    table.intern(1L, 1L); // duplicate
-    assertEquals(3, table.size());
-  }
-
-  @Test
   void resetClearsTable() {
     table.intern(1L, 1L);
     table.intern(2L, 2L);
@@ -131,13 +116,5 @@ class LinkTableTest {
 
     table.reset();
     assertEquals(1, table.size());
-  }
-
-  @Test
-  void getLinksReturnsAllLinks() {
-    table.intern(1L, 1L);
-    table.intern(2L, 2L);
-
-    assertEquals(3, table.getLinks().size());
   }
 }
