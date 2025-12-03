@@ -13,6 +13,7 @@ import com.amazonaws.services.sns.model.PublishBatchRequest;
 import com.amazonaws.services.sns.model.PublishBatchRequestEntry;
 import com.amazonaws.services.sns.model.PublishRequest;
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.ContextStore;
@@ -49,6 +50,9 @@ public class SnsInterceptor extends RequestHandler2 {
 
   @Override
   public AmazonWebServiceRequest beforeMarshalling(AmazonWebServiceRequest request) {
+    if (!Config.get().isSnsInjectDatadogAttributeEnabled()) {
+      return request;
+    }
     // Injecting the trace context into SNS messageAttributes.
     if (request instanceof PublishRequest) {
       PublishRequest pRequest = (PublishRequest) request;
