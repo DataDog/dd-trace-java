@@ -11,7 +11,7 @@ class SupportedConfigurationSource {
 
   /** @return Set of supported environment variable keys */
   public boolean supported(String env) {
-    return GeneratedSupportedConfigurations.SUPPORTED.contains(env);
+    return GeneratedSupportedConfigurations.SUPPORTED.containsKey(env);
   }
 
   /** @return List of aliases for an environment variable */
