@@ -1,3 +1,6 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import com.amazonaws.SDKGlobalConfiguration
@@ -23,16 +26,12 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.v1.sqs.TracingList
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import javax.jms.Session
 import org.elasticmq.rest.sqs.SQSRestServerBuilder
 import spock.lang.IgnoreIf
 import spock.lang.Shared
-
-import javax.jms.Session
-import java.nio.ByteBuffer
-import java.nio.charset.Charset
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static java.nio.charset.StandardCharsets.UTF_8
 
 abstract class SqsClientTest extends VersionedNamingTestBase {
 
@@ -184,6 +183,31 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
     assert messages[0].attributes['AWSTraceHeader'] =~
     /Root=1-[0-9a-f]{8}-00000000${sendSpan.traceId.toHexStringPadded(16)};Parent=${DDSpanId.toHexStringPadded(sendSpan.spanId)};Sampled=1/
+
+    cleanup:
+    client.shutdown()
+  }
+
+  def "dadatog context is not injected if SqsInjectDatadogAttribute is disabled"() {
+    setup:
+    injectSysConfig("sqs.inject.datadog.attribute.enabled", "false")
+    def client = AmazonSQSClientBuilder.standard()
+    .withEndpointConfiguration(endpoint)
+    .withCredentials(credentialsProvider)
+    .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    client.sendMessage(queueUrl, 'sometext')
+    def messages = client.receiveMessage(queueUrl).messages
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+
+    then:
+    assert !messages[0].messageAttributes.containsKey("_datadog")
 
     cleanup:
     client.shutdown()

@@ -180,6 +180,25 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     !traceContextInJson['dd-pathway-ctx-base64'].toString().isBlank()
   }
 
+  def "datadog context is not injected when SnsInjectDatadogAttribute is disabled"() {
+    setup:
+    TEST_WRITER.clear()
+    injectSysConfig("sns.inject.datadog.attribute.enabled", "false")
+
+    when:
+    snsClient.publish { it.message("sometext").topicArn(testTopicARN)}
+
+    def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
+    def jsonSlurper = new JsonSlurper()
+    def messageBody = jsonSlurper.parseText(message.body())
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    then:
+    assert messageBody["Message"] == "sometext"
+    assert  messageBody["MessageAttributes"] == null
+  }
+
   def "SNS message to phone number doesn't leak exception"() {
     when:
     snsClient.publish { it.message("sometext").phoneNumber("+19995550123") }
