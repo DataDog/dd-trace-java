@@ -338,7 +338,7 @@ public class CrashtrackingSmokeTest {
   private void assertCrashData(String uuid) throws InterruptedException, IOException {
     CrashTelemetryData crashData = crashEvents.poll(DATA_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
-    assertTrue(crashData.payload.get(0).message.contains("OutOfMemory"));
+    assertTrue(crashData.payload.get(0).message.contains("Java heap space"));
     assertTrue(crashData.payload.get(0).tags.contains("severity:crash"));
     final Map<?, ?> map = moshi.adapter(Map.class).fromJson(crashData.payload.get(0).message);
     final Object receivedUuid = map.get("uuid");

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
@@ -50,6 +51,9 @@ public class SnsInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+    if (!Config.get().isSnsInjectDatadogAttributeEnabled()) {
+      return context.request();
+    }
     // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();

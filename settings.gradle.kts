@@ -21,6 +21,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "4.2.2"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -141,11 +142,20 @@ include(
 // AI Guard
 include(":dd-java-agent:agent-aiguard")
 
+// Feature Flagging
+include(
+  ":products:feature-flagging:agent",
+  ":products:feature-flagging:api",
+  ":products:feature-flagging:bootstrap",
+  ":products:feature-flagging:lib"
+)
+
 // misc
 include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
+  ":utils:filesystem-utils",
   ":utils:flare-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
@@ -286,8 +296,8 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-1.0",
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
-  ":dd-java-agent:instrumentation:axway-api",
-  ":dd-java-agent:instrumentation:azure-functions",
+  ":dd-java-agent:instrumentation:axway-api-7.5",
+  ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:caffeine",
   ":dd-java-agent:instrumentation:cdi-1.2",
   ":dd-java-agent:instrumentation:classloading:jboss-testing",
@@ -301,6 +311,7 @@ include(
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5",
   ":dd-java-agent:instrumentation:commons-text-1.0",
+  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-7.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
@@ -329,7 +340,7 @@ include(
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
   ":dd-java-agent:instrumentation:glassfish-3.0",
-  ":dd-java-agent:instrumentation:google-http-client",
+  ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub",
   ":dd-java-agent:instrumentation:graal:native-image",
   ":dd-java-agent:instrumentation:gradle-testing",
@@ -379,8 +390,8 @@ include(
   ":dd-java-agent:instrumentation:java:java-nio-1.8",
   ":dd-java-agent:instrumentation:java:java-security-1.8",
   ":dd-java-agent:instrumentation:java:java-util-1.8",
-  ":dd-java-agent:instrumentation:javax-mail",
-  ":dd-java-agent:instrumentation:javax-naming",
+  ":dd-java-agent:instrumentation:javax-mail-1.4.4",
+  ":dd-java-agent:instrumentation:javax-naming-1.0",
   ":dd-java-agent:instrumentation:javax-xml",
   ":dd-java-agent:instrumentation:jboss:jboss-logmanager-1.1",
   ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3",
@@ -433,8 +444,8 @@ include(
   ":dd-java-agent:instrumentation:kotlin-coroutines",
   ":dd-java-agent:instrumentation:lettuce:lettuce-4.0",
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
-  ":dd-java-agent:instrumentation:liberty-20",
-  ":dd-java-agent:instrumentation:liberty-23",
+  ":dd-java-agent:instrumentation:liberty:liberty-20.0",
+  ":dd-java-agent:instrumentation:liberty:liberty-23.0",
   ":dd-java-agent:instrumentation:log4j:log4j-1.2.4",
   ":dd-java-agent:instrumentation:log4j:log4j-2.0",
   ":dd-java-agent:instrumentation:log4j:log4j-2.7",

@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // Since we are using different scala versions for different test sets,
 // we put the test classes in the baseTest test set so that the scala

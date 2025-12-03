@@ -46,6 +46,10 @@ out/
 ######################
 .vscode
 
+# Cursor #
+##########
+.cursor
+
 # Vim #
 #######
 *.sw[nop]
@@ -81,3 +85,6 @@ mise*.local.toml
 .config/mise*.toml
 # asdf
 .tool-versions
+
+# Exclude kotlin build files
+.kotlin

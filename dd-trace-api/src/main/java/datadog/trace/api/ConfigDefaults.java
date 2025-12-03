@@ -46,10 +46,11 @@ public final class ConfigDefaults {
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
+  static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = true;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
   static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;

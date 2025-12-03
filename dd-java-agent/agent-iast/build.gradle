@@ -44,6 +44,7 @@ dependencies {
   implementation project(':internal-api:internal-api-9')
   implementation libs.moshi
   implementation libs.bundles.asm
+  implementation libs.instrument.java
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
