@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'java-test-fixtures'
-  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
+  id 'org.jetbrains.kotlin.jvm'
 }
 
 muzzle {
