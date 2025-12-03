@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -42,7 +42,7 @@ public class GrizzlyHttpHandlerInstrumentation
         @Advice.Local("contextScope") ContextScope scope,
         @Advice.Argument(0) final Request request,
         @Advice.Argument(1) final Response response) {
-      if (request.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
+      if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
         return false;
       }
 
@@ -54,14 +54,14 @@ public class GrizzlyHttpHandlerInstrumentation
 
       scope = context.attach();
 
-      request.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       request.setAttribute(
           CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        boolean success = GrizzlyBlockingHelper.block(request, response, rba, span);
+        boolean success = GrizzlyBlockingHelper.block(request, response, rba, context);
         if (success) {
           return true; /* skip body */
         }

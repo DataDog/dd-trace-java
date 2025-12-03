@@ -21,6 +21,11 @@ public class SimpleTempFileManager implements TempFileManager {
   }
 
   @Override
+  public Path tempDir() {
+    return tempDir;
+  }
+
+  @Override
   public Path createTempFile(String libName, String libExt) throws IOException, SecurityException {
     FileAttribute<Set<PosixFilePermission>> permAttrs =
         PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));

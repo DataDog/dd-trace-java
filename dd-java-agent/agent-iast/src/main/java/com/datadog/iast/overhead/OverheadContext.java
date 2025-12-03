@@ -10,8 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.jetbrains.annotations.NotNull;
 
 public class OverheadContext {
 
@@ -28,7 +28,7 @@ public class OverheadContext {
         @Override
         public AtomicIntegerArray computeIfAbsent(
             String key,
-            @NotNull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
+            @Nonnull Function<? super String, ? extends AtomicIntegerArray> mappingFunction) {
           if (this.size() >= GLOBAL_MAP_MAX_SIZE) {
             super.clear();
           }

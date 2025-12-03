@@ -1,7 +1,7 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 
 import java.nio.file.Files
 import java.util.concurrent.ThreadLocalRandom

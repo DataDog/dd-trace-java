@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -111,7 +112,8 @@ public final class ConfigProvider {
     String value = getStringInternal(key);
     if (null != value) {
       try {
-        return Enum.valueOf(enumType, value);
+        // replace invalid characters with _ and make sure it's upper-case before converting
+        return Enum.valueOf(enumType, value.replace('/', '_').toUpperCase(Locale.ROOT));
       } catch (Exception ignoreAndUseDefault) {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
@@ -248,6 +250,10 @@ public final class ConfigProvider {
     return get(key, defaultValue, Double.class);
   }
 
+  public double getDouble(String key, double defaultValue, String... aliases) {
+    return get(key, defaultValue, Double.class, aliases);
+  }
+
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
     if (collectConfig) {
       reportDefault(key, defaultValue);
@@ -297,12 +303,12 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key));
   }
 
-  public List<String> getList(String key, List<String> defaultValue) {
+  public List<String> getList(String key, List<String> defaultValue, String... aliases) {
     // Ensure the first item at DEFAULT is the accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
-    String list = getStringInternal(key);
+    String list = getStringInternal(key, aliases);
     if (null == list) {
       return defaultValue;
     } else {
@@ -328,6 +334,10 @@ public final class ConfigProvider {
   }
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
+    return getMergedMap(key, ':', aliases);
+  }
+
+  public Map<String, String> getMergedMap(String key, char keyValueDelimiter, String... aliases) {
     ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
     int seqId = NON_DEFAULT_SEQ_ID;
 
@@ -337,7 +347,7 @@ public final class ConfigProvider {
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key, keyValueDelimiter);
 
       if (!parsedMap.isEmpty()) {
         if (collectConfig) {

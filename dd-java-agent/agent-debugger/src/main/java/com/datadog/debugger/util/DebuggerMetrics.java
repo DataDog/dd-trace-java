@@ -29,7 +29,7 @@ public class DebuggerMetrics implements StatsDClient {
     }
   }
 
-  public static DebuggerMetrics getInstance(Config config) {
+  public static synchronized DebuggerMetrics getInstance(Config config) {
     if (INSTANCE == null) {
       INSTANCE = new DebuggerMetrics(config);
     }

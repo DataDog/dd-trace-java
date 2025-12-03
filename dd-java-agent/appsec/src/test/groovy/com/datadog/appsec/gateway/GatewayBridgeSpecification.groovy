@@ -1138,7 +1138,8 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'fingerprints are set in the span after a request'() {
     given:
-    final mockAppSecCtx = new AppSecRequestContext(derivatives: ['_dd.appsec.fp.http.endpoint': 'xyz'])
+    final mockAppSecCtx = new AppSecRequestContext()
+    mockAppSecCtx.reportDerivatives(['_dd.appsec.fp.http.endpoint': ['value': 'xyz']])
     final mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment

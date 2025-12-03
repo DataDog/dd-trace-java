@@ -1,9 +1,9 @@
 package com.datadog.debugger.util;
 
 import com.datadog.debugger.agent.ThirdPartyLibraries;
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
-import datadog.trace.util.ClassNameTrie;
 import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;

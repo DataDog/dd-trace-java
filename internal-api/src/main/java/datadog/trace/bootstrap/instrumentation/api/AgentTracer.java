@@ -373,7 +373,23 @@ public class AgentTracer {
       return buildSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
     }
 
+    @Deprecated
+    default SpanBuilder singleSpanBuilder(CharSequence spanName) {
+      return singleSpanBuilder(DEFAULT_INSTRUMENTATION_NAME, spanName);
+    }
+
+    /**
+     * Returns a SpanBuilder that can be used to produce multiple spans. To minimize overhead, use
+     * of {@link #singleSpanBuilder(String, CharSequence)} is preferred when only a single span is
+     * being built.
+     */
     SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
+
+    /**
+     * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
+     * single span creation limitation, this method is more efficient than {@link #buildSpan}
+     */
+    SpanBuilder singleSpanBuilder(String instrumentationName, CharSequence spanName);
 
     void close();
 
@@ -390,9 +406,9 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    AgentSpanContext notifyExtensionStart(Object event);
+    AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId);
 
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -544,6 +560,12 @@ public class AgentTracer {
     }
 
     @Override
+    public SpanBuilder singleSpanBuilder(
+        final String instrumentationName, final CharSequence spanName) {
+      return null;
+    }
+
+    @Override
     public void close() {}
 
     @Override
@@ -631,12 +653,13 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpanContext notifyExtensionStart(Object event) {
+    public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
       return null;
     }
 
     @Override
-    public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+    public void notifyExtensionEnd(
+        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

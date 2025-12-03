@@ -75,6 +75,10 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/liblz4-java.dylib'
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
+    exclude '**/package.html'
+
+    // Used to generate Java code during build, no need to include original file
+    exclude '**/*.trie'
 
     // Replaced by 'instrumenter.index', no need to include original service file
     exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
@@ -89,6 +93,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
+    // use dd-instrument-java's embedded copy of asm
+    relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
     // Minimize and relocate the airlift compressor dependency for ZSTD
     exclude '**/io/airlift/compress/bzip2/**'
@@ -183,6 +189,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -201,6 +208,8 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
     exclude(dependency('org.slf4j::'))
+    // use dd-instrument-java's embedded copy of asm
+    exclude(dependency('org.ow2.asm:asm:'))
   }
 }
 includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)
@@ -310,6 +319,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  shadowInclude project(path: ':products:feature-flagging:bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared

@@ -80,6 +80,10 @@ public final class GeneralConfig {
   public static final String DATA_JOBS_OPENLINEAGE_ENABLED = "data.jobs.openlineage.enabled";
   public static final String DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED =
       "data.jobs.openlineage.timeout.enabled";
+  public static final String DATA_JOBS_PARSE_SPARK_PLAN_ENABLED =
+      "data.jobs.parse_spark_plan.enabled";
+  public static final String DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED =
+      "data.jobs.experimental_features.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
@@ -110,6 +114,7 @@ public final class GeneralConfig {
   public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
   public static final String TAG_NAME_UTF8_CACHE_SIZE = "tag.name.utf8.cache.size";
   public static final String TAG_VALUE_UTF8_CACHE_SIZE = "tag.value.utf8.cache.size";
+  public static final String SPAN_BUILDER_REUSE_ENABLED = "span.builder.reuse.enabled";
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
 
   public static final String SSI_INJECTION_ENABLED = "injection.enabled";

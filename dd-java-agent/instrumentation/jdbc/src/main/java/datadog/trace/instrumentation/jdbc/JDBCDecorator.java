@@ -59,6 +59,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
+      Config.get().isDbmAlwaysAppendSqlComment();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -207,8 +209,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
-      final String url = metaData.getURL();
-      if (url != null) {
+      final String url;
+      if (metaData != null && (url = metaData.getURL()) != null) {
         try {
           dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
         } catch (final Throwable ex) {
@@ -317,7 +319,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
     AgentSpan instrumentationSpan =
-        AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
+        AgentTracer.get()
+            .singleSpanBuilder("set context_info")
+            .withTag("dd.instrumentation", true)
+            .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     try (AgentScope scope = activateSpan(instrumentationSpan)) {

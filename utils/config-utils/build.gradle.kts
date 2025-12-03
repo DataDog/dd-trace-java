@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("supported-config-generator")
+  id("dd-trace-java.supported-config-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -47,6 +47,7 @@ val excludedClassesBranchCoverage by extra(
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
+    "datadog.trace.api.telemetry.NoOpConfigInversionMetricCollector",
     "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
     "datadog.trace.config.inversion.SupportedConfigurationSource"
   )
@@ -56,6 +57,7 @@ dependencies {
   implementation(project(":components:environment"))
   implementation(project(":components:yaml"))
   implementation(project(":dd-trace-api"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(libs.slf4j)
 
   testImplementation(project(":utils:test-utils"))

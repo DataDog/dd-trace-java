@@ -40,7 +40,7 @@ class SymbolSinkTest {
     assertEquals("file", symbolContent.getPartName());
     assertEquals("file.json", symbolContent.getFileName());
     assertEquals(
-        "{\"language\":\"JAVA\",\"scopes\":[{\"end_line\":0,\"scope_type\":\"JAR\",\"start_line\":0}],\"service\":\"service1\"}",
+        "{\"language\":\"JAVA\",\"scopes\":[{\"end_line\":0,\"has_injectible_lines\":false,\"scope_type\":\"JAR\",\"start_line\":0}],\"service\":\"service1\"}",
         new String(symbolContent.getContent()));
   }
 
@@ -109,12 +109,12 @@ class SymbolSinkTest {
   }
 
   @Test
-  public void splitTootManyJarScopes() {
+  public void splitTooManyJarScopes() {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
     when(config.isSymbolDatabaseCompressed()).thenReturn(false);
-    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 2048);
+    SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 4096);
     final int NUM_JAR_SCOPES = 21;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
       symbolSink.addScope(

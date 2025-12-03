@@ -1,16 +1,20 @@
 package datadog.crashtracking;
 
+import static datadog.crashtracking.CrashUploader.HEADER_DD_EVP_SUBDOMAIN;
+import static datadog.crashtracking.CrashUploader.HEADER_DD_TELEMETRY_API_VERSION;
+import static datadog.crashtracking.CrashUploader.TELEMETRY_API_VERSION;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.common.version.VersionInfo;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.util.TraceUtils;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,30 +49,12 @@ public class CrashUploaderTest {
   private static final String HOSTNAME = "crash-hostname";
   private static final String SERVICE = "crash-service";
   private static final String VERSION = "crash-version";
-  // private static final Map<String, String> TAGS = Map.of("foo", "bar", "baz", "123", "null",
-  // null, "empty", "");
-
-  // // We sort tags to have expected parameters to have expected result
-  // private static final Map<String, String> EXPECTED_TAGS =
-  //     ImmutableMap.of(
-  //         "baz", "123",
-  //         "foo", "bar",
-  //         PidHelper.PID_TAG, PidHelper.PID.toString(),
-  //         VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION,
-  //         VersionInfo.LIBRARY_VERSION_TAG, VersionInfo.VERSION);
+  private static final String SAMPLE_UUID = "a4194cd6-8cb3-45fd-9bd9-3af83e0a3ad3";
 
   // TODO: Add a test to verify overall request timeout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-  private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
-
-  // Termination timeout has to be longer than request timeout to make sure that all callbacks are
-  // called before the termination.
-  private final Duration TERMINATION_TIMEOUT = REQUEST_TIMEOUT.plus(Duration.ofSeconds(5));
-
-  private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   private Config config = spy(Config.get());
-  private ConfigProvider configProvider;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -86,6 +72,8 @@ public class CrashUploaderTest {
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
     when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingErrorTrackingUrl())
+        .thenReturn(server.url(URL_PATH).toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
   }
@@ -144,22 +132,132 @@ public class CrashUploaderTest {
     return Paths.get(getClass().getClassLoader().getResource(resourceName).toURI());
   }
 
+  @Test
+  public void testTelemetryCrashPing() throws Exception {
+    // Given
+    final String expected = readFileAsString("golden/telemetry/sample-ping-for-telemetry.txt");
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .build();
+    // When
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.sendPingToTelemetry(null);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    // header
+    assertCommonHeader(event);
+
+    // payload:
+    assertEquals("DEBUG", event.get("payload").get(0).get("level").asText());
+
+    assertFalse(event.get("payload").get(0).get("is_sensitive").asBoolean());
+    String tags = event.get("payload").get(0).get("tags").asText();
+    assertNotNull(tags);
+    assertTrue(tags.contains("is_crash_ping:true"));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("service:" + crashConfig.service)));
+    assertTrue(tags.contains("uuid:" + crashConfig.reportUUID));
+    assertTrue(tags.contains(TraceUtils.normalizeTag("tracer_version:" + VersionInfo.VERSION)));
+    assertTrue(tags.contains("language_name:jvm"));
+    assertEquals(expected, event.get("payload").get(0).get("message").asText());
+    assertCommonPayload(event);
+  }
+
+  @Test
+  public void testErrorTrackingCrashPing() throws Exception {
+    // Given
+    final ObjectMapper mapper = new ObjectMapper();
+    final Map<String, ?> expected =
+        mapper.readValue(readFileAsString("golden/errortracking/sample-ping.txt"), Map.class);
+    // remove ddtags and osinfo if present from the expected (they will be checked apart)
+    expected.remove("ddtags");
+    expected.remove("os_info");
+    expected.remove("timestamp");
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
+            .build();
+    // When
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    uploader.sendPingToErrorTracking(null);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+    final String requestBody = recordedRequest.getBody().readUtf8();
+    final Map<String, ?> extracted = mapper.readValue(requestBody, Map.class);
+
+    assertNotNull(extracted.remove("timestamp"));
+
+    // assert osInfo
+    final Map<String, ?> osInfo = (Map<String, ?>) extracted.remove("os_info");
+
+    assertNotNull(osInfo);
+    assertNotNull(osInfo.get("architecture"));
+    assertNotNull(osInfo.get("version"));
+    assertNotNull(osInfo.get("os_type"));
+    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+
+    // assert ddtags
+    String ddtags = (String) extracted.remove("ddtags");
+    assertNotNull(ddtags);
+    assertTrue(ddtags.contains(crashConfig.tags)); // includes the tags
+    assertTrue(ddtags.contains("service:")); // has the service
+    assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
+    assertTrue(ddtags.contains("is_crash_ping:true"));
+
+    // assert platform independent equality
+    assertEquals(
+        expected,
+        extracted,
+        () -> {
+          try {
+            return "Expected: "
+                + mapper.writeValueAsString(expected)
+                + "\nbut got: "
+                + mapper.writeValueAsString(extracted);
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+        });
+  }
+
   @ParameterizedTest
   @ValueSource(
       strings = {
         "sample-crash-for-telemetry.txt",
         "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt"
+        "sample-crash-for-telemetry-3.txt",
+        "sample_oom.txt"
       })
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
-    CrashLog expected = CrashLog.fromJson(readFileAsString("golden/" + log));
+    CrashLog expected = CrashLog.fromJson(readFileAsString("golden/telemetry/" + log));
     ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config).processTags("a:b").runtimeId("1234").build();
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.uploadToTelemetry(getResourcePath(log));
+    uploader.upload(getResourcePath(log));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -169,17 +267,14 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
 
-    assertEquals(CrashUploader.TELEMETRY_API_VERSION, event.get("api_version").asText());
-    assertEquals("logs", event.get("request_type").asText());
-    assertEquals("crashtracker", event.get("origin").asText());
-    assertEquals("1234", event.get("runtime_id").asText());
+    // header
+    assertCommonHeader(event);
 
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
     assertTrue(event.get("payload").get(0).get("is_sensitive").asBoolean());
     assertTrue(event.get("payload").get(0).get("is_crash").asBoolean());
-    // we need to sanitize the UIID which keeps on changing
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);
 
@@ -187,6 +282,85 @@ public class CrashUploaderTest {
         expected.equalsForTest(extracted),
         () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
+    assertCommonPayload(event);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "sample-crash-for-telemetry.txt",
+        "sample-crash-for-telemetry-2.txt",
+        "sample-crash-for-telemetry-3.txt",
+        "sample_oom.txt"
+      })
+  public void testErrorTrackingHappyPath(String log) throws Exception {
+    // Given
+    final ObjectMapper mapper = new ObjectMapper();
+    final Map<String, ?> expected =
+        mapper.readValue(readFileAsString("golden/errortracking/" + log), Map.class);
+    // remove ddtags and osinfo if present from the expected (they will be checked apart)
+    expected.remove("ddtags");
+    expected.remove("os_info");
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
+            .build();
+    // When
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString(log), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    // Then
+    assertEquals(url, recordedRequest.getRequestUrl());
+    final String requestBody = recordedRequest.getBody().readUtf8();
+    final Map<String, ?> extracted = mapper.readValue(requestBody, Map.class);
+
+    // assert osInfo
+    final Map<String, ?> osInfo = (Map<String, ?>) extracted.remove("os_info");
+
+    assertNotNull(osInfo);
+    assertNotNull(osInfo.get("architecture"));
+    assertNotNull(osInfo.get("version"));
+    assertNotNull(osInfo.get("os_type"));
+    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+
+    // assert ddtags
+    String ddtags = (String) extracted.remove("ddtags");
+    assertNotNull(ddtags);
+    assertTrue(ddtags.contains(crashConfig.tags)); // includes the tags
+    assertTrue(ddtags.contains("service:")); // has the service
+    assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
+    assertTrue(ddtags.contains("is_crash:true"));
+
+    // assert platform independent equality
+    assertEquals(
+        expected,
+        extracted,
+        () -> {
+          try {
+            return "Expected: "
+                + mapper.writeValueAsString(expected)
+                + "\nbut got: "
+                + mapper.writeValueAsString(extracted);
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+        });
+  }
+
+  private void assertCommonHeader(JsonNode event) {
+    assertEquals(TELEMETRY_API_VERSION, event.get("api_version").asText());
+    assertEquals("logs", event.get("request_type").asText());
+    assertEquals("crashtracker", event.get("origin").asText());
+    assertEquals("1234", event.get("runtime_id").asText());
+  }
+
+  private void assertCommonPayload(JsonNode event) {
     // application:
     assertEquals(ENV, event.get("application").get("env").asText());
     assertEquals("jvm", event.get("application").get("language_name").asText());
@@ -209,22 +383,33 @@ public class CrashUploaderTest {
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    assertFalse(uploader.uploadToTelemetry(getResourcePath("no-crash.txt")));
+    uploader.upload(getResourcePath("no-crash.txt"));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)); // still sending incomplete report
   }
 
-  @Test
-  public void testAgentlessRequest() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testAgentlessRequest(boolean telemetryOrErrorTracking) throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isCrashTrackingAgentless()).thenReturn(true);
     ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config).build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.remoteUpload(
+        readFileAsString("sample-crash.txt"), telemetryOrErrorTracking, !telemetryOrErrorTracking);
 
-    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    // common
     assertNotNull(recordedRequest);
     assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    if (telemetryOrErrorTracking) {
+      // telemetry
+      assertEquals(
+          TELEMETRY_API_VERSION, recordedRequest.getHeader(HEADER_DD_TELEMETRY_API_VERSION));
+    } else {
+      assertNull(recordedRequest.getHeader(HEADER_DD_EVP_SUBDOMAIN));
+    }
   }
 
   @Test
@@ -235,12 +420,40 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     assertNull(recordedRequest.getHeader("DD-API-KEY"));
     // it would be nice if the test asserted the log line was written out, but it's not essential
+  }
+
+  @Test
+  public void testParallelSendResilience() throws Exception {
+    try (MockWebServer errorTrackingServer = new MockWebServer()) {
+      errorTrackingServer.start();
+      // Given
+      when(config.getFinalCrashTrackingErrorTrackingUrl())
+          .thenReturn(errorTrackingServer.url(URL_PATH).toString());
+      final CrashUploader uploader =
+          new CrashUploader(config, new ConfigManager.StoredConfig.Builder(config).build());
+
+      // When
+      server.enqueue(new MockResponse().setResponseCode(200));
+      // simulate a timeout from error tracking
+      errorTrackingServer.enqueue(
+          new MockResponse().setHeadersDelay(4, TimeUnit.SECONDS).setResponseCode(200));
+      long start = System.nanoTime();
+      uploader.remoteUpload(readFileAsString("sample-crash.txt"), true, true);
+      long elapsed = System.nanoTime() - start;
+
+      // Then
+      // assert both backends have been contacted
+      assertNotNull(server.takeRequest(1, TimeUnit.SECONDS));
+      assertNotNull(errorTrackingServer.takeRequest(1, TimeUnit.SECONDS));
+      // assert that we waited
+      assertTrue(TimeUnit.NANOSECONDS.toMillis(elapsed) > 2000);
+    }
   }
 
   @Test
@@ -252,7 +465,7 @@ public class CrashUploaderTest {
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(Collections.singletonList(getResourcePath("sample-crash.txt")));
+    uploader.upload(getResourcePath("sample-crash.txt"));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);

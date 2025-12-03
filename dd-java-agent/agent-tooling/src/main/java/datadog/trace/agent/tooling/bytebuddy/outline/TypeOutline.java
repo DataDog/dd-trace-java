@@ -1,7 +1,9 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
+import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.annotationOutline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 
+import datadog.instrument.classmatch.ClassOutline;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.description.annotation.AnnotationDescription;
@@ -40,6 +42,30 @@ final class TypeOutline extends WithName {
     this.modifiers = access & ALLOWED_TYPE_MODIFIERS;
     this.superName = superName;
     this.interfaces = interfaces;
+  }
+
+  /** Adapts simpler {@link ClassOutline} structure to existing {@link TypeOutline}. */
+  public TypeOutline(ClassOutline outline) {
+    super(outline.className.replace('/', '.'));
+    this.modifiers = outline.access & ALLOWED_TYPE_MODIFIERS;
+    this.superName = outline.superName;
+    this.interfaces = outline.interfaces;
+
+    for (String annotation : outline.annotations) {
+      declare(annotationOutline(annotation));
+    }
+
+    for (datadog.instrument.classmatch.FieldOutline f : outline.fields) {
+      declare(new FieldOutline(this, f.access, f.fieldName, f.descriptor));
+    }
+
+    for (datadog.instrument.classmatch.MethodOutline m : outline.methods) {
+      MethodOutline method = new MethodOutline(this, m.access, m.methodName, m.descriptor);
+      for (String annotation : m.annotations) {
+        method.declare(annotationOutline(annotation));
+      }
+      declare(method);
+    }
   }
 
   @Override

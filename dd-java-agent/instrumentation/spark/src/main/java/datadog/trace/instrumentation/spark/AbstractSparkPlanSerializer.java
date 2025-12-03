@@ -1,0 +1,222 @@
+package datadog.trace.instrumentation.spark;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.trace.util.MethodHandles;
+import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import org.apache.spark.sql.catalyst.plans.QueryPlan;
+import org.apache.spark.sql.catalyst.trees.TreeNode;
+import org.apache.spark.sql.execution.SparkPlan;
+import scala.Option;
+import scala.collection.Iterable;
+import scala.collection.JavaConverters;
+
+// An extension of how Spark translates `SparkPlan`s to `SparkPlanInfo`, see here:
+// https://github.com/apache/spark/blob/v3.5.0/sql/core/src/main/scala/org/apache/spark/sql/execution/SparkPlanInfo.scala#L54
+public abstract class AbstractSparkPlanSerializer {
+  private final int MAX_DEPTH = 4;
+  private final int MAX_LENGTH = 50;
+  private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
+
+  private final String SPARK_PKG_NAME = "org.apache.spark";
+  private final Set<String> SAFE_PARSE_TRAVERSE =
+      Collections.singleton(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning");
+  private final Set<String> SAFE_PARSE_STRING =
+      new HashSet<>(
+          Arrays.asList(
+              SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
+              SPARK_PKG_NAME
+                  + ".sql.catalyst.expressions.Attribute", // avoid data type added by simpleString
+              SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide", // enum (v3+)
+              SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType", // enum
+              SPARK_PKG_NAME
+                  + ".sql.catalyst.plans.physical.BroadcastMode", // not a product or TreeNode
+              SPARK_PKG_NAME
+                  + ".sql.execution.ShufflePartitionSpec", // not a product or TreeNode (v3+)
+              SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin" // enum (v3+)
+              ));
+
+  // Add class here if we want to break inheritance and interface traversal early when we see
+  // this class. In other words, we explicitly do not match these classes or their parents
+  private final Set<String> NEGATIVE_CACHE =
+      new HashSet<>(
+          Arrays.asList(
+              "java.io.Serializable",
+              "java.lang.Object",
+              "scala.Equals",
+              "scala.Product",
+              SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
+              SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
+              SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
+              SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
+
+  private final MethodHandles methodLoader = new MethodHandles(ClassLoader.getSystemClassLoader());
+  private final MethodHandle getSimpleString =
+      methodLoader.method(TreeNode.class, "simpleString", int.class);
+  private final MethodHandle getSimpleStringLegacy =
+      methodLoader.method(TreeNode.class, "simpleString");
+
+  public abstract String getKey(int idx, TreeNode node);
+
+  public Map<String, String> extractFormattedProduct(SparkPlan plan) {
+    HashMap<String, String> result = new HashMap<>();
+    safeParseTreeNode(plan, 0)
+        .forEach(
+            (key, value) -> {
+              result.put(key, writeObjectToString(value));
+            });
+    return result;
+  }
+
+  protected Map<String, Object> safeParseTreeNode(TreeNode node, int depth) {
+    HashMap<String, Object> args = new HashMap<>();
+    HashMap<String, String> unparsed = new HashMap<>();
+
+    int i = 0;
+    for (Iterator<Object> it = JavaConverters.asJavaIterator(node.productIterator());
+        it.hasNext(); ) {
+      Object obj = it.next();
+
+      Object val = safeParseObjectToJson(obj, depth);
+      if (val != null) {
+        args.put(getKey(i, node), val);
+      } else {
+        unparsed.put(getKey(i, node), obj.getClass().getName());
+      }
+
+      i++;
+    }
+
+    if (unparsed.size() > 0) {
+      // For now, place what we can't parse here with the types so we're aware of them
+      args.put("_dd.unparsed", unparsed);
+    }
+    return args;
+  }
+
+  // Should only call on final values being written to `meta`
+  protected String writeObjectToString(Object value) {
+    try {
+      return mapper.writeValueAsString(value);
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  protected Object safeParseObjectToJson(Object value, int depth) {
+    // This function MUST not arbitrarily serialize the object as we can't be sure what it is.
+    // A null return indicates object is unserializable, otherwise it should really only return
+    // valid JSON types (Array, Map, String, Boolean, Number, null)
+
+    if (value == null) {
+      return "null";
+    } else if (value instanceof String || value instanceof Boolean || value instanceof Number) {
+      return value;
+    } else if (value instanceof Option) {
+      return safeParseObjectToJson(((Option) value).getOrElse(() -> "none"), depth);
+    } else if (value instanceof QueryPlan) {
+      // don't duplicate child nodes
+      return null;
+    } else if (value instanceof Iterable && depth < MAX_DEPTH) {
+      ArrayList<Object> list = new ArrayList<>();
+      for (Object item : JavaConverters.asJavaIterable((Iterable) value)) {
+        Object res = safeParseObjectToJson(item, depth + 1);
+        if (list.size() >= MAX_LENGTH) {
+          break;
+        } else if (res != null) {
+          list.add(res);
+        }
+      }
+      return list;
+    } else if (instanceOf(value, SAFE_PARSE_TRAVERSE, NEGATIVE_CACHE)) {
+      if (value instanceof TreeNode && depth < MAX_DEPTH) {
+        HashMap<String, Object> inner = new HashMap<>();
+        inner.put(
+            value.getClass().getSimpleName(), safeParseTreeNode(((TreeNode) value), depth + 1));
+        return inner;
+      } else {
+        return value.toString();
+      }
+    } else if (instanceOf(value, SAFE_PARSE_STRING, NEGATIVE_CACHE)) {
+      return value.toString();
+    } else if (value instanceof TreeNode) {
+      // fallback case, leave at bottom
+      return getSimpleString((TreeNode) value);
+    }
+
+    return null;
+  }
+
+  private String getSimpleString(TreeNode value) {
+    if (getSimpleString != null) {
+      String simpleString = methodLoader.invoke(getSimpleString, value, MAX_LENGTH);
+      if (simpleString != null) {
+        return simpleString;
+      }
+    }
+
+    if (getSimpleStringLegacy != null) {
+      String simpleString = methodLoader.invoke(getSimpleStringLegacy, value);
+      if (simpleString != null) {
+        return simpleString;
+      }
+    }
+
+    return null;
+  }
+
+  // Matches a class to a set of expected classes. Returns true if the class or any
+  // of the interfaces or parent classes it implements matches a class in `expectedClasses`.
+  // Will not attempt to match any classes identified in `negativeCache` on traversal
+  private boolean instanceOf(Object value, Set<String> expectedClasses, Set<String> negativeCache) {
+    if (classOrInterfaceInstanceOf(value.getClass(), expectedClasses, negativeCache)) {
+      return true;
+    }
+
+    // Traverse up inheritance tree to check for matches
+    int lim = 0;
+    Class currClass = value.getClass();
+    while (currClass.getSuperclass() != null && lim < MAX_DEPTH) {
+      currClass = currClass.getSuperclass();
+      if (negativeCache.contains(currClass.getName())) {
+        // don't traverse known paths
+        break;
+      }
+      if (classOrInterfaceInstanceOf(currClass, expectedClasses, negativeCache)) {
+        return true;
+      }
+      lim += 1;
+    }
+
+    return false;
+  }
+
+  // Matches a class to a set of expected classes. Returns true if the class or any
+  // of the interfaces it implements matches a class in `expectedClasses`. Will not
+  // attempt to match any classes identified in `negativeCache`.
+  private boolean classOrInterfaceInstanceOf(
+      Class cls, Set<String> expectedClasses, Set<String> negativeCache) {
+    // Match on strings to avoid class loading errors
+    if (expectedClasses.contains(cls.getName())) {
+      return true;
+    }
+
+    // Check interfaces as well
+    for (Class interfaceClass : cls.getInterfaces()) {
+      if (!negativeCache.contains(interfaceClass.getName())
+          && classOrInterfaceInstanceOf(interfaceClass, expectedClasses, negativeCache)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}

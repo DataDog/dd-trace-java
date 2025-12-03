@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,14 +31,14 @@ import org.junit.jupiter.api.Test;
 public class NativeLoaderTest {
   @Test
   public void preloaded() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().preloaded("dne1", "dne2").build();
+    NativeLoader loader = NativeLoader.builder().preloaded("preloaded1", "preloaded2").build();
 
-    assertTrue(loader.isPreloaded("dne1"));
-    assertTrue(loader.isPreloaded("dne2"));
+    assertTrue(loader.isPreloaded("preloaded1"));
+    assertTrue(loader.isPreloaded("preloaded2"));
 
-    assertFalse(loader.isPreloaded("dne3"));
+    assertFalse(loader.isPreloaded("dne"));
 
-    try (LibFile lib = loader.resolveDynamic("dne1")) {
+    try (LibFile lib = loader.resolveDynamic("preloaded1")) {
       assertPreloaded(lib);
 
       // already considered loaded -- so this is a nop
@@ -45,18 +46,83 @@ public class NativeLoaderTest {
     }
 
     // already considered loaded -- so this is a nop
-    loader.load("dne2");
+    loader.load("preloaded2");
 
     // not already loaded - so passes through to underlying resolver
-    assertThrows(LibraryLoadException.class, () -> loader.load("dne3"));
+    assertThrows(LibraryLoadException.class, () -> loader.load("dne"));
+  }
+
+  @Test
+  public void preloaded_listenerSupport() throws LibraryLoadException {
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader =
+        NativeLoader.builder()
+            .preloaded("preloaded1", "preloaded2")
+            .addListener(sharedListener)
+            .build();
+
+    // debatable - but no listener calls just for checking
+    assertTrue(loader.isPreloaded("preloaded1"));
+    assertTrue(loader.isPreloaded("preloaded2"));
+
+    sharedListener.expectResolvePreloaded("preloaded1");
+    sharedListener.expectLoadPreloaded("preloaded1");
+
+    TestLibraryLoadingListener scopedListener1 =
+        new TestLibraryLoadingListener()
+            .expectResolvePreloaded("preloaded1")
+            .expectLoadPreloaded("preloaded1");
+
+    try (LibFile lib = loader.resolveDynamic("preloaded1", scopedListener1)) {
+      lib.load();
+    }
+
+    sharedListener.assertDone();
+    scopedListener1.assertDone();
+
+    sharedListener.expectResolvePreloaded("preloaded2");
+    sharedListener.expectLoadPreloaded("preloaded2");
+
+    TestLibraryLoadingListener scopedListener2 =
+        new TestLibraryLoadingListener()
+            .expectResolvePreloaded("preloaded2")
+            .expectLoadPreloaded("preloaded2");
+
+    // load is just convenience for resolve & load
+    loader.load("preloaded2", scopedListener2);
+
+    sharedListener.assertDone();
+    scopedListener2.assertDone();
+
+    sharedListener.expectResolveDynamicFailure("dne");
+
+    TestLibraryLoadingListener scopedListener3 =
+        new TestLibraryLoadingListener().expectResolveDynamicFailure("dne");
+
+    // not already loaded - so passes through to underlying resolver
+    assertThrows(LibraryLoadException.class, () -> loader.load("dne", scopedListener3));
+
+    sharedListener.assertDone();
+    scopedListener3.assertDone();
   }
 
   @Test
   public void unsupportedPlatform() {
-    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
-    NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
 
+    PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(UNSUPPORTED_OS, AARCH64);
+    NativeLoader loader =
+        NativeLoader.builder().platformSpec(unsupportedOsSpec).addListener(sharedListener).build();
+
+    assertFalse(loader.isPlatformSupported());
+
+    sharedListener.expectResolveDynamicFailure("dummy");
+
+    // short-circuit fails during resolution because os isn't supported
     assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+
+    sharedListener.assertDone();
   }
 
   @Test
@@ -64,17 +130,79 @@ public class NativeLoaderTest {
     PlatformSpec unsupportedOsSpec = TestPlatformSpec.of(LINUX, UNSUPPORTED_ARCH);
     NativeLoader loader = NativeLoader.builder().platformSpec(unsupportedOsSpec).build();
 
-    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+    assertFalse(loader.isPlatformSupported());
+
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamicFailure("dummy");
+
+    // short-circuit fails during resolution because arch isn't supported
+    assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy", scopedListener));
+
+    scopedListener.assertDone();
   }
 
   @Test
   public void loadFailure() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader = NativeLoader.builder().addListener(sharedListener).build();
+    assumeTrue(loader.isPlatformSupported());
+
+    sharedListener.expectResolveDynamic("dummy");
+    sharedListener.expectLoadFailure("dummy");
+
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamic("dummy").expectLoadFailure("dummy");
 
     // test libraries are just text files, so they shouldn't load & link properly
     // NativeLoader is supposed to wrap the loading failures, so that we
     // remember to handle them
+
+    // on supported platforms, there is a dummy library file, so this will resolve but fail to load
+    // & link
+    assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
+  }
+
+  @Test
+  public void resolutionFailure_in_LibraryResolver() {
+    Exception exception = new Exception("boom!");
+
+    NativeLoader loader =
+        NativeLoader.builder()
+            .libResolver(
+                (pathLocator, platformSpec, component, libName) -> {
+                  throw exception;
+                })
+            .build();
+
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamicFailure("dummy", exception);
+
+    assertThrows(LibraryLoadException.class, () -> loader.load("dummy", scopedListener));
+
+    scopedListener.assertDone();
+  }
+
+  @Test
+  public void resolutionFailure_in_PathLocator() {
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    Exception exception = new Exception("boom!");
+
+    NativeLoader loader =
+        NativeLoader.builder()
+            .addListener(sharedListener)
+            .pathLocator(
+                (comp, path) -> {
+                  throw exception;
+                })
+            .build();
+
+    sharedListener.expectResolveDynamicFailure("dummy", exception);
+
     assertThrows(LibraryLoadException.class, () -> loader.load("dummy"));
+
+    sharedListener.assertDone();
   }
 
   @Test
@@ -92,24 +220,36 @@ public class NativeLoaderTest {
 
   @Test
   public void fromDir_override_windows() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader =
+        NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+
+    sharedListener.expectResolveDynamic(TestPlatformSpec.windows(), "dummy");
 
     try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.windows(), "dummy")) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("dummy.dll"));
     }
+
+    sharedListener.assertDone();
   }
 
   @Test
   public void fromDir_override_mac() throws LibraryLoadException {
     NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
 
-    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy")) {
+    TestLibraryLoadingListener scopedListener =
+        new TestLibraryLoadingListener().expectResolveDynamic(TestPlatformSpec.mac(), "dummy");
+
+    try (LibFile lib = loader.resolveDynamic(TestPlatformSpec.mac(), "dummy", scopedListener)) {
       // loaded directly from directory, so no clean-up required
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().endsWith("libdummy.dylib"));
     }
+
+    scopedListener.assertDone();
   }
 
   @Test
@@ -135,17 +275,45 @@ public class NativeLoaderTest {
 
   @Test
   public void fromDir_with_component() throws LibraryLoadException {
-    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+    TestLibraryLoadingListener sharedListener = new TestLibraryLoadingListener();
+
+    NativeLoader loader =
+        NativeLoader.builder().fromDir("test-data").addListener(sharedListener).build();
+
+    sharedListener.expectResolveDynamic("comp1", "dummy");
 
     try (LibFile lib = loader.resolveDynamic("comp1", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp1"));
     }
 
+    sharedListener.assertDone();
+
+    sharedListener.expectResolveDynamic("comp2", "dummy");
+
     try (LibFile lib = loader.resolveDynamic("comp2", "dummy")) {
       assertRegularFile(lib);
       assertTrue(lib.getAbsolutePath().contains("comp2"));
     }
+
+    sharedListener.assertDone();
+  }
+
+  @Test
+  public void fromDir_load_with_component() {
+    NativeLoader loader = NativeLoader.builder().fromDir("test-data").build();
+
+    // lib file is a dummy, so fails during loading and linking
+    assertThrows(LibraryLoadException.class, () -> loader.load("comp1", "dummy"));
+
+    TestLibraryLoadingListener scopedListener2 =
+        new TestLibraryLoadingListener()
+            .expectResolveDynamic("comp2", "dummy")
+            .expectLoadFailure("comp2", "dummy");
+
+    assertThrows(LibraryLoadException.class, () -> loader.load("comp2", "dummy", scopedListener2));
+
+    scopedListener2.assertDone();
   }
 
   @Test
@@ -218,10 +386,47 @@ public class NativeLoaderTest {
     try {
       try (URLClassLoader classLoader = createClassLoader(jar)) {
         NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
-        try (LibFile lib = loader.resolveDynamic("dummy")) {
+
+        TestLibraryLoadingListener scopedListener =
+            new TestLibraryLoadingListener()
+                .expectResolveDynamic("dummy")
+                .expectTempFileCreated("dummy")
+                .expectTempFileCleanup("dummy");
+
+        try (LibFile lib = loader.resolveDynamic("dummy", scopedListener)) {
           // loaded from a jar, so copied to temp file
           assertTempFile(lib);
         }
+
+        scopedListener.assertDone();
+      }
+    } finally {
+      deleteHelper(jar);
+    }
+  }
+
+  @Test
+  public void fromJarBackedClassLoader_load_with_component()
+      throws IOException, LibraryLoadException {
+    Path jar = jar("test-data");
+    try {
+      try (URLClassLoader classLoader = createClassLoader(jar)) {
+        NativeLoader loader = NativeLoader.builder().fromClassLoader(classLoader).build();
+
+        // lib file is a dummy, so fails during loading and linking
+        assertThrows(LibraryLoadException.class, () -> loader.load("comp1", "dummy"));
+
+        TestLibraryLoadingListener scopedListener2 =
+            new TestLibraryLoadingListener()
+                .expectResolveDynamic("comp2", "dummy")
+                .expectTempFileCreated("comp2", "dummy")
+                .expectLoadFailure("comp2", "dummy")
+                .expectTempFileCleanup("comp2", "dummy");
+
+        assertThrows(
+            LibraryLoadException.class, () -> loader.load("comp2", "dummy", scopedListener2));
+
+        scopedListener2.assertDone();
       }
     } finally {
       deleteHelper(jar);
@@ -263,8 +468,16 @@ public class NativeLoaderTest {
         NativeLoader loader =
             NativeLoader.builder().fromClassLoader(classLoader).tempDir(noWriteDir).build();
 
+        TestLibraryLoadingListener scopedListener =
+            new TestLibraryLoadingListener()
+                .expectResolveDynamic("dummy")
+                .expectTempFileCreationFailure("dummy");
+
         // unable to resolve to a File because tempDir isn't writable
-        assertThrows(LibraryLoadException.class, () -> loader.resolveDynamic("dummy"));
+        assertThrows(
+            LibraryLoadException.class, () -> loader.resolveDynamic("dummy", scopedListener));
+
+        scopedListener.assertDone();
       } finally {
         deleteHelper(noWriteDir);
       }

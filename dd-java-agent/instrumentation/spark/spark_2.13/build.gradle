@@ -25,17 +25,19 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark32')
 
-ext {
+testJvmConstraints {
   // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
   // Hadoop 3.3.1 (used by spark 3.2) does not support IBM java https://issues.apache.org/jira/browse/HADOOP-17971
   excludeJdk = ['SEMERU8', 'SEMERU11', 'IBM8']
 
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
-  maxJavaVersionForTests = JavaVersion.VERSION_11
+  maxJavaVersion = JavaVersion.VERSION_11
 }
+
 configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:spark')
 

@@ -120,7 +120,7 @@ public class ErpcTls implements Tls {
 
     pointer.setLong(0, TLS_FORMAT);
     pointer.setLong(Native.LONG_SIZE, maxThreads);
-    pointer.setPointer(Native.LONG_SIZE * 2, tls);
+    pointer.setPointer(Native.LONG_SIZE * 2L, tls);
 
     sendRequest(request);
   }
