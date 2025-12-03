@@ -73,6 +73,12 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for (alias in alist) aliasMapping[alias] = canonical
     }
 
+    val reversePropertyKeysMap: Map<String, String> = supported.flatMap { (canonical, configList) ->
+      configList.flatMap { config ->
+        config.propertyKeys.map { propertyKey -> propertyKey to canonical }
+      }
+    }.toMap()
+
     // Build the output .java path from the fully-qualified class name
     val pkgName = finalClassName.substringBeforeLast('.', "")
     val pkgPath = pkgName.replace('.', File.separatorChar)
@@ -88,7 +94,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       supported,
       aliases,
       aliasMapping,
-      deprecated
+      deprecated,
+      reversePropertyKeysMap
     )
   }
 
@@ -99,7 +106,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     supported: Map<String, List<SupportedConfiguration>>,
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
-    deprecated: Map<String, String>
+    deprecated: Map<String, String>,
+    reversePropertyKeysMap: Map<String, String>
   ) {
     val outFile = File(outputPath)
     outFile.parentFile?.mkdirs()
@@ -118,6 +126,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("  public static final Map<String, String> ALIAS_MAPPING;")
       out.println()
       out.println("  public static final Map<String, String> DEPRECATED;")
+      out.println()
+      out.println("  public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;")
       out.println()
       out.println("  static {")
       out.println()
@@ -171,6 +181,15 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
       out.println("    DEPRECATED = Collections.unmodifiableMap(deprecatedMap);")
       out.println()
+
+      // REVERSE_PROPERTY_KEYS_MAP
+      out.println("    Map<String, String> reversePropertyKeysMapping = new HashMap<>();")
+      for ((propertyKey, config) in reversePropertyKeysMap.toSortedMap()) {
+        out.printf("    reversePropertyKeysMapping.put(\"%s\", \"%s\");\n", esc(propertyKey), esc(config))
+      }
+      out.println("    REVERSE_PROPERTY_KEYS_MAP = Collections.unmodifiableMap(reversePropertyKeysMapping);")
+      out.println()
+
       out.println("  }")
       out.println("}")
     }
