@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
@@ -14,6 +15,7 @@ import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
+import spock.lang.IgnoreIf
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -28,6 +30,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 import static java.nio.charset.StandardCharsets.UTF_8
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject

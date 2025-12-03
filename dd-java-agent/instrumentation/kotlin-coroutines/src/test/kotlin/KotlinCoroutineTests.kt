@@ -1,6 +1,5 @@
 import datadog.trace.api.Trace
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.actor
@@ -9,7 +8,6 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.channels.toChannel
 
 @OptIn(ExperimentalCoroutinesApi::class)
-@SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
 
   @Trace
