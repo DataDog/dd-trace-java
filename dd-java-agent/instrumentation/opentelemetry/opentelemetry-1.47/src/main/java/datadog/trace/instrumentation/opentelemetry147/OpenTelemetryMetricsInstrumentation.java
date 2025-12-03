@@ -21,7 +21,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public OpenTelemetryMetricsInstrumentation() {
-    super("opentelemetry.metrics", "opentelemetry-147");
+    super("opentelemetry-metrics", "opentelemetry-1.47");
   }
 
   @Override
