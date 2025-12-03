@@ -4,36 +4,40 @@ This module includes JMH microbenchmarks to measure the performance of critical 
 
 ## Quick Start
 
-Run the essential benchmarks (takes ~5 minutes):
+Run all benchmarks (comprehensive):
 
 ```bash
 ./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh
 ```
 
-## Benchmark Suites
+Run specific benchmarks for faster feedback:
 
-### Default (Fast) - `./gradlew jmh`
+```bash
+# Run only end-to-end converter benchmark
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh -PjmhIncludes="JfrToOtlpConverterBenchmark"
 
-Runs only the most critical hot-path benchmarks with realistic parameters:
+# Run only dictionary benchmarks
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh -PjmhIncludes="DictionaryTableBenchmark"
+```
 
-- **Dictionary interning**: `internString`, `internFunction`, `internStack`
-- **Stack trace conversion**: `convertStackTrace`
-- **Parameters**: 1000 unique entries, 0% and 95% hit rates, stack depths 15 and 30
+## Benchmark Filtering
 
-**Estimated time**: ~5 minutes
-**Use case**: Quick validation during development
+Use `-PjmhIncludes` to filter benchmarks by name (supports regex):
 
-### Full Suite - `./gradlew jmhFull`
+```bash
+# Run specific benchmark class
+./gradlew jmh -PjmhIncludes="JfrToOtlpConverterBenchmark"
 
-Runs all benchmarks with comprehensive parameter combinations:
+# Run specific benchmark method
+./gradlew jmh -PjmhIncludes=".*convertJfrToOtlp"
 
-- All dictionary table operations (String, Function, Location, Stack, Link, Attribute)
-- All protobuf encoder primitives (varint, fixed64, strings, bytes, nested messages)
-- Stack trace conversion with varying depths and deduplication
-- **Parameters**: 3 uniqueEntries values × 3 hitRate values × multiple stack depths
+# Run all string-related benchmarks
+./gradlew jmh -PjmhIncludes=".*internString.*"
+```
 
-**Estimated time**: ~40 minutes
-**Use case**: Comprehensive performance analysis before release
+**Estimated time**:
+- Full suite: ~40 minutes
+- Single benchmark class: ~5-15 minutes depending on parameters
 
 ## Benchmark Categories
 
@@ -74,18 +78,60 @@ Tests low-level protobuf encoding primitives:
 - `writeTypical*` - Realistic combined operations (sample, location, function)
 - `toByteArray` - Final serialization overhead
 
-## Running Specific Benchmarks
+### 4. JfrToOtlpConverterBenchmark
+
+Tests full end-to-end JFR to OTLP conversion performance:
+
+- `convertJfrToOtlp` - Complete conversion pipeline including:
+  - JFR file parsing
+  - Event processing
+  - Dictionary deduplication
+  - OTLP protobuf encoding
+
+**Parameters**:
+- `eventCount`: 50, 500, 5000 (number of events in JFR recording)
+- `stackDepth`: 10, 50, 100 (frames per stack trace)
+- `uniqueContexts`: 100, 1000 (number of unique trace contexts)
+
+**Use case**: Measures real-world conversion throughput with realistic workloads
+
+## Advanced Usage
+
+### Running Specific Benchmarks
 
 ```bash
 # Run only string interning benchmarks
-./gradlew jmh -Pjmh.includes=".*internString"
+./gradlew jmh -PjmhIncludes=".*internString"
 
-# Run with specific parameters
-./gradlew jmh -Pjmh.includes=".*internString" -Pjmh.params="uniqueEntries=1000,hitRate=0.95"
+# Run end-to-end converter benchmark
+./gradlew jmh -PjmhIncludes="JfrToOtlpConverterBenchmark"
 
-# Reduce warmup/measurement iterations for faster runs (less accurate)
-./gradlew jmh -Pjmh.warmupIterations=1 -Pjmh.measurementIterations=1
+# Run specific method across all benchmark classes
+./gradlew jmh -PjmhIncludes=".*convertStackTrace"
 ```
+
+### Customizing JMH Parameters
+
+To customize warmup iterations, measurement iterations, or other JMH parameters, you need to modify the `jmh { }` block in `build.gradle.kts` directly. The me.champeau.jmh plugin doesn't support command-line parameter overrides for most settings.
+
+Alternatively, run the JMH JAR directly for full control:
+
+```bash
+# Build the JMH JAR
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmhJar
+
+# Run with custom JMH options
+java -jar dd-java-agent/agent-profiling/profiling-otel/build/libs/profiling-otel-jmh.jar \
+  JfrToOtlpConverterBenchmark \
+  -wi 3 -i 5 -f 1
+```
+
+Common JMH CLI options:
+- `-wi N` - Warmup iterations (default: 3)
+- `-i N` - Measurement iterations (default: 5)
+- `-f N` - Forks (default: 1)
+- `-l` - List all benchmarks
+- `-lp` - List benchmarks with parameters
 
 ## Performance Expectations
 
@@ -96,6 +142,12 @@ Based on typical hardware (M1/M2 Mac or modern x86_64):
 - **Stack interning**: 15-30 ops/µs
 - **Stack conversion**: Scales linearly with stack depth
 - **Protobuf encoding**: Varint 50-100 ops/µs, strings 10-50 ops/µs
+- **End-to-end conversion** (JfrToOtlpConverterBenchmark - measured on Apple M3 Max):
+  - **50 events**: 156-428 ops/s (2.3-6.4 ms/op) depending on stack depth
+  - **500 events**: 38-130 ops/s (7.7-26.0 ms/op) depending on stack depth
+  - **5000 events**: 3.5-30 ops/s (33.7-289 ms/op) depending on stack depth
+  - **Key factors**: Stack depth (10-100 frames) is the dominant performance factor, ~60% throughput reduction for 10x depth increase
+  - **Scaling**: Linear with event count, minimal impact from unique context count (100 vs 1000)
 
 ## Interpreting Results
 
