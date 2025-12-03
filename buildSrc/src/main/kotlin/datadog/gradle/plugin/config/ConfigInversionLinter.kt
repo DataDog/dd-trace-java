@@ -162,7 +162,7 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
     }
   }
 }
-//TESTINGGG
+
 // Helper functions for checking Config Strings
 private fun normalize(configValue: String) =
   "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
