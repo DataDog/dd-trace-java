@@ -8,24 +8,31 @@ apply(from = "$rootDir/gradle/java.gradle")
 jmh {
   jmhVersion = libs.versions.jmh.get()
 
-  // Fast benchmarks by default (essential hot-path only)
-  // Run with: ./gradlew jmh
-  // Override includes with: ./gradlew jmh -Pjmh.includes=".*"
-  includes = listOf(".*intern(String|Function|Stack)", ".*convertStackTrace")
-
-  // Override parameters with: -Pjmh.params="uniqueEntries=1000,hitRate=0.0"
+  // Allow filtering benchmarks via command line
+  // Usage: ./gradlew jmh -PjmhIncludes="JfrToOtlpConverterBenchmark"
+  // Usage: ./gradlew jmh -PjmhIncludes=".*convertJfrToOtlp"
+  if (project.hasProperty("jmhIncludes")) {
+    val pattern = project.property("jmhIncludes") as String
+    includes = listOf(pattern)
+  }
 }
 
-// Full benchmark suite with all benchmarks and default parameters
-// Estimated time: ~40 minutes
-tasks.register<JavaExec>("jmhFull") {
-  group = "benchmark"
-  description = "Runs the full JMH benchmark suite (all benchmarks, all parameters)"
-  dependsOn(tasks.named("jmhCompileGeneratedClasses"))
+// OTel Collector validation tests (requires Docker)
+tasks.register<Test>("validateOtlp") {
+  group = "verification"
+  description = "Validates OTLP profiles against real OpenTelemetry Collector (requires Docker)"
 
-  classpath = sourceSets["jmh"].runtimeClasspath
-  mainClass.set("org.openjdk.jmh.Main")
-  args = listOf("-rf", "json")
+  // Only run the collector validation tests
+  useJUnitPlatform {
+    includeTags("otlp-validation")
+  }
+
+  // Ensure test classes are compiled
+  dependsOn(tasks.named("testClasses"))
+
+  // Use the test runtime classpath
+  classpath = sourceSets["test"].runtimeClasspath
+  testClassesDirs = sourceSets["test"].output.classesDirs
 }
 
 repositories {
@@ -37,6 +44,26 @@ repositories {
   }
 }
 
+configure<datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension> {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+  // JMC 9.1.1 requires Java 17, and we need jdk.jfr.Event for stack trace testing
+  options.release.set(17)
+  javaCompiler.set(
+    javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+  )
+}
+
+tasks.named<JavaCompile>("compileJmhJava") {
+  // JMC 9.1.1 requires Java 17, and we need jdk.jfr.Event for JMH benchmarks
+  options.release.set(17)
+  javaCompiler.set(
+    javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+  )
+}
+
 dependencies {
   implementation("io.btrace", "jafar-parser", "0.0.1-SNAPSHOT")
   implementation(project(":internal-api"))
@@ -45,4 +72,7 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.jmc)
   testImplementation(libs.jmc.flightrecorder.writer)
+  testImplementation(libs.testcontainers)
+  testImplementation("org.testcontainers:junit-jupiter:1.21.3")
+  testImplementation(libs.okhttp)
 }
