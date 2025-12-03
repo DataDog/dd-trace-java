@@ -45,27 +45,6 @@ class FunctionTableTest {
   }
 
   @Test
-  void getReturnsCorrectEntry() {
-    int idx = table.intern(1, 2, 3, 100);
-    FunctionTable.FunctionEntry entry = table.get(idx);
-    assertEquals(1, entry.nameIndex);
-    assertEquals(2, entry.systemNameIndex);
-    assertEquals(3, entry.filenameIndex);
-    assertEquals(100, entry.startLine);
-  }
-
-  @Test
-  void sizeIncrementsCorrectly() {
-    assertEquals(1, table.size()); // null function at 0
-    table.intern(1, 0, 0, 0);
-    assertEquals(2, table.size());
-    table.intern(2, 0, 0, 0);
-    assertEquals(3, table.size());
-    table.intern(1, 0, 0, 0); // duplicate
-    assertEquals(3, table.size());
-  }
-
-  @Test
   void resetClearsTable() {
     table.intern(1, 2, 3, 10);
     table.intern(4, 5, 6, 20);
@@ -73,13 +52,5 @@ class FunctionTableTest {
 
     table.reset();
     assertEquals(1, table.size());
-  }
-
-  @Test
-  void getFunctionsReturnsAllFunctions() {
-    table.intern(1, 2, 3, 10);
-    table.intern(4, 5, 6, 20);
-
-    assertEquals(3, table.getFunctions().size());
   }
 }

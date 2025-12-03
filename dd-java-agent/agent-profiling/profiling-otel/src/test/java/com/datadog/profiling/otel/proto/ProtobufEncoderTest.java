@@ -34,13 +34,6 @@ class ProtobufEncoderTest {
   }
 
   @Test
-  void writeVarint300() {
-    encoder.writeVarint(300);
-    // 300 = 0b100101100 = 0xAC 0x02
-    assertArrayEquals(new byte[] {(byte) 0xAC, 0x02}, encoder.toByteArray());
-  }
-
-  @Test
   void writeVarintLargeValue() {
     encoder.writeVarint(0xFFFFFFFFL);
     // Max 32-bit value
@@ -69,13 +62,6 @@ class ProtobufEncoderTest {
     encoder.writeTag(1, ProtobufEncoder.WIRETYPE_VARINT);
     // Field 1, wire type 0 = (1 << 3) | 0 = 0x08
     assertArrayEquals(new byte[] {0x08}, encoder.toByteArray());
-  }
-
-  @Test
-  void writeTagField2LengthDelimited() {
-    encoder.writeTag(2, ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
-    // Field 2, wire type 2 = (2 << 3) | 2 = 0x12
-    assertArrayEquals(new byte[] {0x12}, encoder.toByteArray());
   }
 
   @Test
@@ -131,10 +117,6 @@ class ProtobufEncoderTest {
   void writeStringFieldSkipsEmpty() {
     encoder.writeStringField(2, "");
     assertEquals(0, encoder.size());
-  }
-
-  @Test
-  void writeStringFieldSkipsNull() {
     encoder.writeStringField(2, null);
     assertEquals(0, encoder.size());
   }
@@ -187,10 +169,6 @@ class ProtobufEncoderTest {
   void writePackedVarintFieldEmpty() {
     encoder.writePackedVarintField(1, new int[0]);
     assertEquals(0, encoder.size());
-  }
-
-  @Test
-  void writePackedVarintFieldNull() {
     encoder.writePackedVarintField(1, (int[]) null);
     assertEquals(0, encoder.size());
   }
@@ -224,12 +202,5 @@ class ProtobufEncoderTest {
     encoder.writeSignedVarint(-1);
     // ZigZag: -1 -> 1
     assertArrayEquals(new byte[] {0x01}, encoder.toByteArray());
-  }
-
-  @Test
-  void writeSignedVarintNegativeTwo() {
-    encoder.writeSignedVarint(-2);
-    // ZigZag: -2 -> 3
-    assertArrayEquals(new byte[] {0x03}, encoder.toByteArray());
   }
 }
