@@ -18,4 +18,7 @@ dependencies {
 
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.7.1'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+
+  // This module still needs Spock with JUnit4.
+  testImplementation(libs.spock.junit4)
 }

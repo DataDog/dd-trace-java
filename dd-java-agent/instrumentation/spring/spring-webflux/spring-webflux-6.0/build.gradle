@@ -60,5 +60,10 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
+
+  testImplementation(libs.spock.spring)
+  bootTestImplementation(libs.spock.spring)
+  latestDepBootTestImplementation(libs.spock.spring)
+  iastTestImplementation(libs.spock.spring)
 }
 

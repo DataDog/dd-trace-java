@@ -42,7 +42,7 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 
-  compileOnly(libs.bundles.groovy)
+  implementation(libs.bundles.groovy)
 }
 
 tasks.withType(Test).configureEach {
