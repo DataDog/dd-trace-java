@@ -401,6 +401,8 @@ public class DefaultConfigurationPoller
 
     Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
 
+    boolean appliedAny = false;
+
     for (String configKey : fleetResponse.getClientConfigs()) {
       try {
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
@@ -428,6 +430,7 @@ public class DefaultConfigurationPoller
             log.debug(
                 "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
                 configKey);
+    //        appliedAny = true; //force re-apply
             parsedKeysByProduct
                 .computeIfAbsent(product, k -> new ArrayList<>())
                 .add(parsedConfigKey);
@@ -440,7 +443,7 @@ public class DefaultConfigurationPoller
       }
     }
 
-    boolean appliedAny = false;
+
     for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();
       ProductState state = entry.getValue();
