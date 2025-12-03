@@ -37,7 +37,7 @@ instrument-java = "0.0.3"
 jmh = "1.37"
 
 # Profiling
-jmc = "8.1.0"
+jmc = "9.1.1"
 jafar = "0.16.0"
 
 # Web & Network
