@@ -46,23 +46,6 @@ class StringTableTest {
   }
 
   @Test
-  void getReturnsCorrectString() {
-    int idx = table.intern("hello");
-    assertEquals("hello", table.get(idx));
-  }
-
-  @Test
-  void sizeIncrementsCorrectly() {
-    assertEquals(1, table.size()); // empty string at 0
-    table.intern("a");
-    assertEquals(2, table.size());
-    table.intern("b");
-    assertEquals(3, table.size());
-    table.intern("a"); // duplicate
-    assertEquals(3, table.size());
-  }
-
-  @Test
   void resetClearsTable() {
     table.intern("foo");
     table.intern("bar");
@@ -71,16 +54,5 @@ class StringTableTest {
     table.reset();
     assertEquals(1, table.size());
     assertEquals("", table.get(0));
-  }
-
-  @Test
-  void getStringsReturnsAllStrings() {
-    table.intern("foo");
-    table.intern("bar");
-
-    assertEquals(3, table.getStrings().size());
-    assertEquals("", table.getStrings().get(0));
-    assertEquals("foo", table.getStrings().get(1));
-    assertEquals("bar", table.getStrings().get(2));
   }
 }

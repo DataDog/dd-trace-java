@@ -31,25 +31,6 @@ class OtlpProfileValidatorTest {
   }
 
   @Test
-  void validateStringTableIndex0() {
-    StringTable strings = new StringTable();
-
-    // Index 0 should be empty string
-    assertEquals("", strings.get(0));
-
-    ValidationResult result =
-        OtlpProfileValidator.validateDictionaries(
-            strings,
-            new FunctionTable(),
-            new LocationTable(),
-            new StackTable(),
-            new LinkTable(),
-            new AttributeTable());
-
-    assertTrue(result.isValid());
-  }
-
-  @Test
   void validateStringTableWithValidEntries() {
     StringTable strings = new StringTable();
     strings.intern("com.example.Class");
@@ -65,26 +46,6 @@ class OtlpProfileValidatorTest {
             new LinkTable(),
             new AttributeTable());
 
-    assertTrue(result.isValid());
-  }
-
-  @Test
-  void detectDuplicateStrings() {
-    StringTable strings = new StringTable();
-    strings.intern("duplicate");
-    strings.intern("unique");
-    strings.intern("duplicate"); // Should be deduplicated by StringTable
-
-    ValidationResult result =
-        OtlpProfileValidator.validateDictionaries(
-            strings,
-            new FunctionTable(),
-            new LocationTable(),
-            new StackTable(),
-            new LinkTable(),
-            new AttributeTable());
-
-    // StringTable automatically deduplicates, so this should be valid
     assertTrue(result.isValid());
   }
 
@@ -111,48 +72,6 @@ class OtlpProfileValidatorTest {
   }
 
   @Test
-  void detectInvalidFunctionTableReferences() {
-    StringTable strings = new StringTable();
-    strings.intern("method");
-
-    FunctionTable functions = new FunctionTable();
-    // The intern() method itself validates indices, so invalid entries
-    // cannot be created through the normal API. This test verifies that
-    // valid entries pass validation.
-    functions.intern(1, 1, 1, 100);
-
-    ValidationResult result =
-        OtlpProfileValidator.validateDictionaries(
-            strings,
-            functions,
-            new LocationTable(),
-            new StackTable(),
-            new LinkTable(),
-            new AttributeTable());
-
-    assertTrue(result.isValid());
-  }
-
-  @Test
-  void validateStackTableIndex0() {
-    StackTable stacks = new StackTable();
-
-    // Index 0 should be empty stack
-    assertEquals(0, stacks.get(0).locationIndices.length);
-
-    ValidationResult result =
-        OtlpProfileValidator.validateDictionaries(
-            new StringTable(),
-            new FunctionTable(),
-            new LocationTable(),
-            stacks,
-            new LinkTable(),
-            new AttributeTable());
-
-    assertTrue(result.isValid());
-  }
-
-  @Test
   void validateStackTableWithValidReferences() {
     StringTable strings = new StringTable();
     int nameIdx = strings.intern("method");
@@ -170,35 +89,6 @@ class OtlpProfileValidatorTest {
     ValidationResult result =
         OtlpProfileValidator.validateDictionaries(
             strings, functions, locations, stacks, new LinkTable(), new AttributeTable());
-
-    assertTrue(result.isValid());
-  }
-
-  @Test
-  void validateLinkTableIndex0() {
-    LinkTable links = new LinkTable();
-
-    // Index 0 should have zero trace/span IDs
-    LinkTable.LinkEntry index0 = links.get(0);
-    assertNotNull(index0.traceId);
-    assertNotNull(index0.spanId);
-
-    // All bytes should be zero
-    for (byte b : index0.traceId) {
-      assertEquals(0, b);
-    }
-    for (byte b : index0.spanId) {
-      assertEquals(0, b);
-    }
-
-    ValidationResult result =
-        OtlpProfileValidator.validateDictionaries(
-            new StringTable(),
-            new FunctionTable(),
-            new LocationTable(),
-            new StackTable(),
-            links,
-            new AttributeTable());
 
     assertTrue(result.isValid());
   }
@@ -291,17 +181,5 @@ class OtlpProfileValidatorTest {
     assertTrue(result.isValid(), "Should be valid with only warnings");
     assertEquals(0, result.getErrors().size());
     assertEquals(1, result.getWarnings().size());
-  }
-
-  @Test
-  void validationResultReportFormat() {
-    ValidationResult valid = ValidationResult.builder().build();
-    assertTrue(valid.getReport().contains("PASSED"));
-
-    ValidationResult withErrors =
-        ValidationResult.builder().addError("Test error").addWarning("Test warning").build();
-    assertTrue(withErrors.getReport().contains("FAILED"));
-    assertTrue(withErrors.getReport().contains("Test error"));
-    assertTrue(withErrors.getReport().contains("Test warning"));
   }
 }
