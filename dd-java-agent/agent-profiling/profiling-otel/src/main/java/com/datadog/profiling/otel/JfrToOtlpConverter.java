@@ -382,7 +382,11 @@ public final class JfrToOtlpConverter {
     JfrClass type = method.type();
     String className = type != null ? type.name() : null;
 
-    // Build full name: "ClassName.methodName"
+    // Get line number
+    int lineNumber = frame.lineNumber();
+    long line = Math.max(lineNumber, 0);
+
+    // Build full name
     String fullName;
     if (className != null && !className.isEmpty()) {
       fullName = className + "." + (methodName != null ? methodName : "");
@@ -390,16 +394,12 @@ public final class JfrToOtlpConverter {
       fullName = methodName != null ? methodName : "";
     }
 
-    // Get line number
-    int lineNumber = frame.lineNumber();
-    long line = Math.max(lineNumber, 0);
-
     // Intern strings
     int nameIndex = stringTable.intern(fullName);
-    int methodNameIndex = stringTable.intern(methodName);
     int classNameIndex = stringTable.intern(className);
+    int methodNameIndex = stringTable.intern(methodName);
 
-    // Create function entry
+    // Intern function
     int functionIndex = functionTable.intern(nameIndex, methodNameIndex, classNameIndex, 0);
 
     // Create location entry

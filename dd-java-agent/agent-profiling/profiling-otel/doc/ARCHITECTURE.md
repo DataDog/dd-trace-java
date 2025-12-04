@@ -331,7 +331,18 @@ JMH microbenchmarks implemented in `src/jmh/java/com/datadog/profiling/otel/benc
 
 # Run specific benchmark method
 ./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh -PjmhIncludes=".*convertJfrToOtlp"
+
+# Run with CPU and allocation profiling
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:jmh \
+  -PjmhIncludes="JfrToOtlpConverterBenchmark" \
+  -PjmhProfile=true
 ```
+
+**Profiling Support** (added in build.gradle.kts):
+- Stack profiler: CPU sampling to identify hot methods
+- GC profiler: Allocation rate tracking and GC overhead measurement
+- Enable with `-PjmhProfile=true` property
+- Adds JVM flags: `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints`
 
 **Key Performance Characteristics** (measured on Apple M3 Max):
 - Dictionary interning: ~8-26 ops/µs (cold to warm cache)
@@ -343,6 +354,15 @@ JMH microbenchmarks implemented in `src/jmh/java/com/datadog/profiling/otel/benc
   - 5000 events: 3.5-30 ops/s (33.7-289 ms/op) depending on stack depth
   - Primary bottleneck: Stack depth processing (~60% throughput reduction for 10x depth increase)
   - Linear scaling with event count, minimal impact from unique context count
+
+**Profiling Results (December 2024)**:
+Profiling revealed actual CPU time distribution:
+- **JFR File I/O: ~20%** (jafar-parser library, external dependency)
+- **Protobuf Encoding: ~5%** (fundamental serialization cost)
+- **Conversion Logic: ~3%** (our code)
+- **Dictionary Operations: ~1-2%** (already well-optimized, NOT the bottleneck)
+
+Key insight: Dictionary operations account for only ~1-2% of runtime. The dominant factor is O(n) frame processing with stack depth. Optimization attempts targeting dictionary operations showed no improvement (-7% to +6%, within measurement noise). Modern JVM escape analysis already optimizes temporary allocations effectively.
 
 ### Phase 6: OTLP Compatibility Testing & Validation (Completed)
 
