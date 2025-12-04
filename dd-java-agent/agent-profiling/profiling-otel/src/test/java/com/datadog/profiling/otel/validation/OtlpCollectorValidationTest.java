@@ -43,9 +43,11 @@ import org.testcontainers.utility.MountableFile;
  * <p><b>OTLP Profiles Status:</b> As of 2024, OTLP profiles is in Development maturity. The OTel
  * Collector may not fully support profiles yet, so these tests validate that the collector can at
  * least accept and deserialize our protobuf messages without errors.
+ *
+ * <p><b>Docker Requirement:</b> If Docker is not available, these tests will be skipped gracefully.
  */
 @Tag("otlp-validation")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class OtlpCollectorValidationTest {
 
   @TempDir Path tempDir;
