@@ -458,7 +458,6 @@ class ConfigTest extends DDSpecification {
     config.otlpMetricsProtocol == HTTP_PROTOBUF
     config.otlpMetricsTimeout == 5000
     config.otlpMetricsTemporalityPreference == CUMULATIVE
-
   }
 
   def "otel metrics: default values when configured incorrectly"() {

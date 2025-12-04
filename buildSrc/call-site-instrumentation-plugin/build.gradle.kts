@@ -1,7 +1,7 @@
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "6.13.0"
+  id("com.diffplug.spotless") version "8.1.0"
   id("com.gradleup.shadow") version "8.3.6"
 }
 
@@ -17,8 +17,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.32.0")
   }
 }
 

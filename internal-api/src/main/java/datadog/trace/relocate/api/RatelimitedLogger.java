@@ -35,7 +35,9 @@ public class RatelimitedLogger {
     nextLogNanos = new AtomicLong(timeSource.getNanoTicks());
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean warn(final String format, final Object... arguments) {
     return warn(null, format, arguments);
   }

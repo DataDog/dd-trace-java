@@ -15,7 +15,9 @@ public interface SpanMetricRegistry {
    */
   SpanMetrics get(String instrumentationName);
 
-  /** @return Human-readable summary of the current span metrics. */
+  /**
+   * @return Human-readable summary of the current span metrics.
+   */
   default String summary() {
     return "";
   }

@@ -210,12 +210,15 @@ ext.conditionalJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<Stri
   testTask,
   applyFromVersion,
   jvmArgsToApply,
-  additionalCondition ?: testTask.project.providers.provider { true }
+  additionalCondition ?: testTask.project.providers.provider {
+    true
+  }
   ))
 }
 
 // TODO move to test-suites config ?
-tasks.withType(Test).configureEach { Test testTask ->
+tasks.withType(Test).configureEach {
+  Test testTask ->
   if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
     doFirst {
       def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
@@ -226,7 +229,8 @@ tasks.withType(Test).configureEach { Test testTask ->
 }
 
 
-[JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+[JavaCompile, ScalaCompile, GroovyCompile].each {
+  type ->
   tasks.withType(type).configureEach {
     if (options.fork) {
       options.forkOptions.with {
@@ -237,7 +241,8 @@ tasks.withType(Test).configureEach { Test testTask ->
 }
 
 if (project.plugins.hasPlugin('kotlin')) {
-  ['compileKotlin', 'compileTestKotlin'].each { type ->
+  ['compileKotlin', 'compileTestKotlin'].each {
+    type ->
     tasks.named(type) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
@@ -357,7 +362,8 @@ def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion comp
 }
 
 ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
-  taskNames.each { taskName ->
+  taskNames.each {
+    taskName ->
     tasks.named(taskName, GroovyCompile) {
       configureCompiler(it, toolchainVersion)
     }

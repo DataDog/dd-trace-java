@@ -3992,12 +3992,16 @@ public class Config {
     return ciVisibilityCodeCoverageEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly enabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly enabled
+   */
   public boolean isCiVisibilityCoverageLinesEnabled() {
     return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
   }
 
-  /** @return {@code true} if code coverage line-granularity is explicitly disabled */
+  /**
+   * @return {@code true} if code coverage line-granularity is explicitly disabled
+   */
   public boolean isCiVisibilityCoverageLinesDisabled() {
     return ciVisibilityCoverageLinesEnabled != null && !ciVisibilityCoverageLinesEnabled;
   }
@@ -4764,7 +4768,9 @@ public class Config {
     return sfnInjectDatadogAttributeEnabled;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public TagMap getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
 
