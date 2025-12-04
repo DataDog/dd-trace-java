@@ -276,8 +276,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
   public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL
 
-  public static final String PROFILING_OTLP_COMPRESSION = "profiling.otlp.compression";
-  public static final String PROFILING_OTLP_COMPRESSION_DEFAULT = "gzip";
+  public static final String PROFILING_OTLP_COMPRESSION_ENABLED =
+      "profiling.otlp.compression.enabled";
+  public static final boolean PROFILING_OTLP_COMPRESSION_ENABLED_DEFAULT = true;
 
   private ProfilingConfig() {}
 }
