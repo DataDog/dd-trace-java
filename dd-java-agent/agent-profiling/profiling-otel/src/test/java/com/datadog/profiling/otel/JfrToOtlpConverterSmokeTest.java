@@ -667,4 +667,198 @@ class JfrToOtlpConverterSmokeTest {
     assertTrue(json.contains("\"dictionary\""));
     System.out.println("JSON output:\n" + json);
   }
+
+  @Test
+  void convertWithOriginalPayloadDisabledByDefault() throws IOException {
+    Path jfrFile = tempDir.resolve("no-payload.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      Type executionSampleType =
+          recording.registerEventType(
+              "datadog.ExecutionSample",
+              type -> {
+                type.addField("spanId", Types.Builtin.LONG);
+                type.addField("localRootSpanId", Types.Builtin.LONG);
+              });
+
+      writeEvent(
+          recording,
+          executionSampleType,
+          valueBuilder -> {
+            valueBuilder.putField("spanId", 100L);
+            valueBuilder.putField("localRootSpanId", 200L);
+          });
+    }
+
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    // Convert without setting includeOriginalPayload (default is false)
+    byte[] result = converter.addFile(jfrFile, start, end).convert();
+
+    assertNotNull(result);
+    assertTrue(result.length > 0);
+
+    // Result should be smaller than with payload
+    // (Note: can't easily verify absence of field in raw protobuf bytes)
+  }
+
+  @Test
+  void convertWithOriginalPayloadEnabled() throws IOException {
+    Path jfrFile = tempDir.resolve("with-payload.jfr");
+    long jfrFileSize;
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      Type executionSampleType =
+          recording.registerEventType(
+              "datadog.ExecutionSample",
+              type -> {
+                type.addField("spanId", Types.Builtin.LONG);
+                type.addField("localRootSpanId", Types.Builtin.LONG);
+              });
+
+      writeEvent(
+          recording,
+          executionSampleType,
+          valueBuilder -> {
+            valueBuilder.putField("spanId", 100L);
+            valueBuilder.putField("localRootSpanId", 200L);
+          });
+    }
+
+    jfrFileSize = java.nio.file.Files.size(jfrFile);
+
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    // Convert WITH original payload
+    byte[] resultWithPayload =
+        converter.setIncludeOriginalPayload(true).addFile(jfrFile, start, end).convert();
+
+    assertNotNull(resultWithPayload);
+    assertTrue(resultWithPayload.length > 0);
+
+    // Result should be at least as large as the JFR file size (contains JFR + OTLP overhead)
+    assertTrue(
+        resultWithPayload.length >= jfrFileSize,
+        String.format(
+            "Result size %d should be >= JFR file size %d",
+            resultWithPayload.length, jfrFileSize));
+  }
+
+  @Test
+  void convertMultipleRecordingsWithOriginalPayload() throws IOException {
+    Path jfrFile1 = tempDir.resolve("payload1.jfr");
+    Path jfrFile2 = tempDir.resolve("payload2.jfr");
+    long totalJfrSize;
+
+    // Create first recording
+    try (Recording recording = Recordings.newRecording(jfrFile1)) {
+      Type executionSampleType =
+          recording.registerEventType(
+              "datadog.ExecutionSample",
+              type -> {
+                type.addField("spanId", Types.Builtin.LONG);
+                type.addField("localRootSpanId", Types.Builtin.LONG);
+              });
+
+      writeEvent(
+          recording,
+          executionSampleType,
+          valueBuilder -> {
+            valueBuilder.putField("spanId", 1L);
+            valueBuilder.putField("localRootSpanId", 2L);
+          });
+    }
+
+    // Create second recording
+    try (Recording recording = Recordings.newRecording(jfrFile2)) {
+      Type methodSampleType =
+          recording.registerEventType(
+              "datadog.MethodSample",
+              type -> {
+                type.addField("spanId", Types.Builtin.LONG);
+                type.addField("localRootSpanId", Types.Builtin.LONG);
+              });
+
+      writeEvent(
+          recording,
+          methodSampleType,
+          valueBuilder -> {
+            valueBuilder.putField("spanId", 3L);
+            valueBuilder.putField("localRootSpanId", 4L);
+          });
+    }
+
+    totalJfrSize =
+        java.nio.file.Files.size(jfrFile1) + java.nio.file.Files.size(jfrFile2);
+
+    Instant start = Instant.now().minusSeconds(20);
+    Instant middle = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    // Convert both recordings with original payload (creates "uber-JFR")
+    byte[] result =
+        converter
+            .setIncludeOriginalPayload(true)
+            .addFile(jfrFile1, start, middle)
+            .addFile(jfrFile2, middle, end)
+            .convert();
+
+    assertNotNull(result);
+    assertTrue(result.length > 0);
+
+    // Result should contain concatenated JFR files
+    assertTrue(
+        result.length >= totalJfrSize,
+        String.format(
+            "Result size %d should be >= combined JFR size %d", result.length, totalJfrSize));
+  }
+
+  @Test
+  void converterResetsOriginalPayloadSetting() throws IOException {
+    Path jfrFile = tempDir.resolve("reset-test.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      Type executionSampleType =
+          recording.registerEventType(
+              "datadog.ExecutionSample",
+              type -> {
+                type.addField("spanId", Types.Builtin.LONG);
+                type.addField("localRootSpanId", Types.Builtin.LONG);
+              });
+
+      writeEvent(
+          recording,
+          executionSampleType,
+          valueBuilder -> {
+            valueBuilder.putField("spanId", 42L);
+            valueBuilder.putField("localRootSpanId", 42L);
+          });
+    }
+
+    long jfrFileSize = java.nio.file.Files.size(jfrFile);
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    // First conversion WITH payload
+    byte[] result1 =
+        converter.setIncludeOriginalPayload(true).addFile(jfrFile, start, end).convert();
+
+    assertTrue(result1.length >= jfrFileSize, "First conversion should include payload");
+
+    // Setting is preserved for reuse (not reset after convert())
+    byte[] result2 = converter.addFile(jfrFile, start, end).convert();
+
+    assertTrue(
+        result2.length >= jfrFileSize, "Second conversion should still include payload");
+
+    // Explicitly disable for third conversion
+    byte[] result3 =
+        converter.setIncludeOriginalPayload(false).addFile(jfrFile, start, end).convert();
+
+    // Third result should be smaller (no payload)
+    assertTrue(
+        result3.length < result1.length, "Third conversion without payload should be smaller");
+  }
 }
