@@ -430,7 +430,7 @@ public class DefaultConfigurationPoller
             log.debug(
                 "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
                 configKey);
-    //        appliedAny = true; //force re-apply
+            //        appliedAny = true; //force re-apply
             parsedKeysByProduct
                 .computeIfAbsent(product, k -> new ArrayList<>())
                 .add(parsedConfigKey);
@@ -442,7 +442,6 @@ public class DefaultConfigurationPoller
         errors.add(e);
       }
     }
-
 
     for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();

@@ -51,26 +51,27 @@ public class AppSecSCADetector {
         AgentSpan rootSpan = activeSpan.getLocalRootSpan();
         if (rootSpan != null) {
           // Tag the root span with SCA detection metadata
-          rootSpan.setTag(PREFIX+"class", binaryClassName);
-          rootSpan.setTag(PREFIX+"method", methodName);
+          rootSpan.setTag(PREFIX + "class", binaryClassName);
+          rootSpan.setTag(PREFIX + "method", methodName);
 
           if (advisory != null) {
-            rootSpan.setTag(PREFIX+"advisory", advisory);
+            rootSpan.setTag(PREFIX + "advisory", advisory);
           }
           if (cve != null) {
-            rootSpan.setTag(PREFIX+"cve", cve);
+            rootSpan.setTag(PREFIX + "cve", cve);
           }
 
           // Capture and add stack trace using IAST's system
           String stackId = addSCAStackTrace(rootSpan);
           if (stackId != null) {
-            rootSpan.setTag(PREFIX+"stack_id", stackId);
+            rootSpan.setTag(PREFIX + "stack_id", stackId);
           }
         }
       }
 
       // Log at debug level
-      log.debug("SCA detection: {} - Vulnerable method invoked: {}#{}", cve, binaryClassName, methodName);
+      log.debug(
+          "SCA detection: {} - Vulnerable method invoked: {}#{}", cve, binaryClassName, methodName);
 
       // TODO: Future enhancements:
       // - Report Location

@@ -96,7 +96,8 @@ public class AppSecSCAInstrumentationUpdater {
 
     // Determine which classes need to be retransformed
     Set<String> newTargetClassNames = extractTargetClassNames(newConfig);
-    Set<String> oldTargetClassNames = oldConfig != null ? extractTargetClassNames(oldConfig) : new HashSet<>();
+    Set<String> oldTargetClassNames =
+        oldConfig != null ? extractTargetClassNames(oldConfig) : new HashSet<>();
 
     // Compute classes that need retransformation (new targets + removed targets)
     Set<String> classesToRetransform = new HashSet<>();
