@@ -831,29 +831,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
   }
 
-  void 'SCA deserializer handles multiple formats correctly'() {
-    when: 'deserialize object format'
-    def objectFormatJson = '''
-      {
-        "vulnerabilities": [
-          {
-            "advisory": "GHSA-1111-2222-3333",
-            "cve": "CVE-2024-0001",
-            "external_entrypoint": {
-              "class": "com.example.VulnerableClass1",
-              "methods": ["method1"]
-            }
-          }
-        ]
-      }
-    '''
-    def config1 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(objectFormatJson.bytes)
-
-    then:
-    config1 != null
-    config1.vulnerabilities.size() == 1
-
-    when: 'deserialize array format'
+  void 'SCA deserializer handles array format correctly'() {
+    when: 'deserialize array format from backend'
     def arrayFormatJson = '''
       [
         {
@@ -866,19 +845,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
         }
       ]
     '''
-    def config2 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(arrayFormatJson.bytes)
+    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(arrayFormatJson.bytes)
 
     then:
-    config2 != null
-    config2.vulnerabilities.size() == 1
-
-    when: 'deserialize empty config'
-    def emptyJson = '{"vulnerabilities": []}'
-    def config3 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(emptyJson.bytes)
-
-    then:
-    config3 != null
-    config3.vulnerabilities.isEmpty()
+    config != null
+    config.vulnerabilities.size() == 1
+    config.vulnerabilities[0].advisory == "GHSA-xxxx-yyyy-zzzz"
+    config.vulnerabilities[0].cve == "CVE-2024-0001"
   }
 
 

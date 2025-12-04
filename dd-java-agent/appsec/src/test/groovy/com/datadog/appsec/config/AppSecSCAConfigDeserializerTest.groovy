@@ -4,25 +4,23 @@ import spock.lang.Specification
 
 class AppSecSCAConfigDeserializerTest extends Specification {
 
-  def "deserializes valid JSON byte array"() {
+  def "deserializes valid JSON array from backend"() {
     given:
     def json = '''
-      {
-        "vulnerabilities": [
-          {
-            "advisory": "GHSA-24rp-q3w6-vc56",
-            "cve": "CVE-2024-1597",
-            "vulnerable_internal_code": {
-              "class": "org.postgresql.core.v3.SimpleParameterList",
-              "method": "toString"
-            },
-            "external_entrypoint": {
-              "class": "org.postgresql.jdbc.PgPreparedStatement",
-              "methods": ["executeQuery", "executeUpdate", "execute"]
-            }
+      [
+        {
+          "advisory": "GHSA-24rp-q3w6-vc56",
+          "cve": "CVE-2024-1597",
+          "vulnerable_internal_code": {
+            "class": "org.postgresql.core.v3.SimpleParameterList",
+            "method": "toString"
+          },
+          "external_entrypoint": {
+            "class": "org.postgresql.jdbc.PgPreparedStatement",
+            "methods": ["executeQuery", "executeUpdate", "execute"]
           }
-        ]
-      }
+        }
+      ]
     '''
     def bytes = json.bytes
 
@@ -56,9 +54,9 @@ class AppSecSCAConfigDeserializerTest extends Specification {
     config == null
   }
 
-  def "deserializes minimal configuration"() {
+  def "deserializes empty array"() {
     given:
-    def json = '{"vulnerabilities": []}'
+    def json = '[]'
     def bytes = json.bytes
 
     when:
@@ -73,34 +71,32 @@ class AppSecSCAConfigDeserializerTest extends Specification {
   def "handles multiple vulnerabilities"() {
     given:
     def json = '''
-      {
-        "vulnerabilities": [
-          {
-            "advisory": "GHSA-1111-2222-3333",
-            "cve": "CVE-2024-0001",
-            "vulnerable_internal_code": {
-              "class": "com.example.Class1",
-              "method": "method1"
-            }
-          },
-          {
-            "advisory": "GHSA-4444-5555-6666",
-            "cve": "CVE-2024-0002",
-            "vulnerable_internal_code": {
-              "class": "com.example.Class2",
-              "method": "method2"
-            }
-          },
-          {
-            "advisory": "GHSA-7777-8888-9999",
-            "cve": "CVE-2024-0003",
-            "vulnerable_internal_code": {
-              "class": "com.example.Class3",
-              "method": "method3"
-            }
+      [
+        {
+          "advisory": "GHSA-1111-2222-3333",
+          "cve": "CVE-2024-0001",
+          "vulnerable_internal_code": {
+            "class": "com.example.Class1",
+            "method": "method1"
           }
-        ]
-      }
+        },
+        {
+          "advisory": "GHSA-4444-5555-6666",
+          "cve": "CVE-2024-0002",
+          "vulnerable_internal_code": {
+            "class": "com.example.Class2",
+            "method": "method2"
+          }
+        },
+        {
+          "advisory": "GHSA-7777-8888-9999",
+          "cve": "CVE-2024-0003",
+          "vulnerable_internal_code": {
+            "class": "com.example.Class3",
+            "method": "method3"
+          }
+        }
+      ]
     '''
     def bytes = json.bytes
 
@@ -132,7 +128,7 @@ class AppSecSCAConfigDeserializerTest extends Specification {
     AppSecSCAConfigDeserializer.INSTANCE === AppSecSCAConfigDeserializer.INSTANCE
   }
 
-  def "deserializes direct array format (backend format)"() {
+  def "deserializes complete vulnerability with all fields"() {
     given:
     def json = '''
       [
@@ -166,48 +162,5 @@ class AppSecSCAConfigDeserializerTest extends Specification {
     config.vulnerabilities[0].vulnerableInternalCode.methodName == "getMethods"
     config.vulnerabilities[0].externalEntrypoint.className == "org.hsqldb.jdbc.JDBCStatement"
     config.vulnerabilities[0].externalEntrypoint.methods == ["execute", "executeQuery", "executeUpdate"]
-  }
-
-  def "deserializes object format with vulnerabilities property"() {
-    given:
-    def json = '''
-      {
-        "vulnerabilities": [
-          {
-            "advisory": "GHSA-test-1234-abcd",
-            "cve": "CVE-2024-9999",
-            "vulnerable_internal_code": {
-              "class": "com.example.Vulnerable",
-              "method": "badMethod"
-            }
-          }
-        ]
-      }
-    '''
-    def bytes = json.bytes
-
-    when:
-    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(bytes)
-
-    then:
-    config != null
-    config.vulnerabilities != null
-    config.vulnerabilities.size() == 1
-    config.vulnerabilities[0].advisory == "GHSA-test-1234-abcd"
-    config.vulnerabilities[0].cve == "CVE-2024-9999"
-  }
-
-  def "deserializes empty direct array"() {
-    given:
-    def json = '[]'
-    def bytes = json.bytes
-
-    when:
-    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(bytes)
-
-    then:
-    config != null
-    config.vulnerabilities != null
-    config.vulnerabilities.isEmpty()
   }
 }

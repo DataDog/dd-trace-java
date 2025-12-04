@@ -12,28 +12,19 @@ import okio.BufferedSource;
 import okio.Okio;
 
 /**
- * Deserializer for Supply Chain Analysis (SCA) configuration from Remote Config. Converts JSON
- * payload from ASM_SCA product into typed AppSecSCAConfig objects.
+ * Deserializer for SCA configuration from Remote Config.
  *
- * <p>Supports two formats:
- *
- * <ul>
- *   <li>Object with vulnerabilities property: {"vulnerabilities": [...]}
- *   <li>Direct array of vulnerabilities: [...]
- * </ul>
+ * <p>Converts JSON payload from Remote Config into typed AppSecSCAConfig objects. The backend
+ * sends vulnerabilities as a direct JSON array: [{"advisory": "...", "cve": "...", ...}]
  */
 public class AppSecSCAConfigDeserializer implements ConfigurationDeserializer<AppSecSCAConfig> {
 
   public static final AppSecSCAConfigDeserializer INSTANCE = new AppSecSCAConfigDeserializer();
 
-  private static final Moshi MOSHI = new Moshi.Builder().build();
-  private static final JsonAdapter<AppSecSCAConfig> CONFIG_ADAPTER =
-      MOSHI.adapter(AppSecSCAConfig.class);
-
   private static final Type VULNERABILITY_LIST_TYPE =
       Types.newParameterizedType(List.class, AppSecSCAConfig.Vulnerability.class);
   private static final JsonAdapter<List<AppSecSCAConfig.Vulnerability>> VULNERABILITY_LIST_ADAPTER =
-      MOSHI.adapter(VULNERABILITY_LIST_TYPE);
+      new Moshi.Builder().build().adapter(VULNERABILITY_LIST_TYPE);
 
   private AppSecSCAConfigDeserializer() {}
 
@@ -43,21 +34,14 @@ public class AppSecSCAConfigDeserializer implements ConfigurationDeserializer<Ap
       return null;
     }
 
-    // Read the content as string to detect format
-    String jsonString = new String(content, "UTF-8").trim();
+    // Backend sends vulnerabilities as a JSON array: [...]
+    BufferedSource source = Okio.buffer(Okio.source(new ByteArrayInputStream(content)));
+    List<AppSecSCAConfig.Vulnerability> vulnerabilities =
+        VULNERABILITY_LIST_ADAPTER.fromJson(source);
 
-    if (jsonString.startsWith("[")) {
-      // Direct array format: [{"advisory": "...", ...}]
-      BufferedSource source = Okio.buffer(Okio.source(new ByteArrayInputStream(content)));
-      List<AppSecSCAConfig.Vulnerability> vulnerabilities =
-          VULNERABILITY_LIST_ADAPTER.fromJson(source);
-      AppSecSCAConfig config = new AppSecSCAConfig();
-      config.vulnerabilities = vulnerabilities;
-      return config;
-    } else {
-      // Object format: {"vulnerabilities": [...]}
-      BufferedSource source = Okio.buffer(Okio.source(new ByteArrayInputStream(content)));
-      return CONFIG_ADAPTER.fromJson(source);
-    }
+    // Wrap the list in an AppSecSCAConfig object
+    AppSecSCAConfig config = new AppSecSCAConfig();
+    config.vulnerabilities = vulnerabilities;
+    return config;
   }
 }
