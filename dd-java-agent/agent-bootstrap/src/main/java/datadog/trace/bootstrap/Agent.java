@@ -329,15 +329,6 @@ public class Agent {
       StaticEventLogger.end("crashtracking");
     }
 
-    // This task removes stale ClassLoaderValue entries where the class-loader is gone
-    // It only runs a couple of times a minute since class-loaders are rarely unloaded
-    AgentTaskScheduler.get()
-        .scheduleAtFixedRate(
-            ClassLoaderValue::removeStaleEntries,
-            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
-            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
-            TimeUnit.SECONDS);
-
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -420,6 +411,15 @@ public class Agent {
 
       StaticEventLogger.end("Profiling");
     }
+
+    // This task removes stale ClassLoaderValue entries where the class-loader is gone
+    // It only runs a couple of times a minute since class-loaders are rarely unloaded
+    AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            ClassLoaderValue::removeStaleEntries,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS);
 
     StaticEventLogger.end("Agent.start");
   }
