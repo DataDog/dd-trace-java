@@ -37,8 +37,8 @@ public class AppSecSCAInstrumentationUpdater {
   /**
    * Called when SCA configuration is updated via Remote Config.
    *
-   * <p>Updates the current config reference that the persistent transformer reads via supplier.
-   * The transformer remains installed and will automatically instrument any new classes that load.
+   * <p>Updates the current config reference that the persistent transformer reads via supplier. The
+   * transformer remains installed and will automatically instrument any new classes that load.
    *
    * @param newConfig the new SCA configuration, or null if config was removed
    */

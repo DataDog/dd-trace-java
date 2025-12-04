@@ -276,12 +276,12 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: className,
       methods: ["vulnerableMethod"]
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     return new AppSecSCAConfig(vulnerabilities: [vulnerability])
   }
 
@@ -289,22 +289,22 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def entrypoint1 = new AppSecSCAConfig.ExternalEntrypoint(
       className: className1,
       methods: ["vulnerableMethod1"]
-    )
+      )
     def vulnerability1 = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint1
-    )
+      )
 
     def entrypoint2 = new AppSecSCAConfig.ExternalEntrypoint(
       className: className2,
       methods: ["vulnerableMethod2"]
-    )
+      )
     def vulnerability2 = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-aaaa-bbbb-cccc",
       cve: "CVE-2024-0002",
       externalEntrypoint: entrypoint2
-    )
+      )
 
     return new AppSecSCAConfig(vulnerabilities: [vulnerability1, vulnerability2])
   }

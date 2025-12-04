@@ -14,8 +14,8 @@ import okio.Okio;
 /**
  * Deserializer for SCA configuration from Remote Config.
  *
- * <p>Converts JSON payload from Remote Config into typed AppSecSCAConfig objects. The backend
- * sends vulnerabilities as a direct JSON array: [{"advisory": "...", "cve": "...", ...}]
+ * <p>Converts JSON payload from Remote Config into typed AppSecSCAConfig objects. The backend sends
+ * vulnerabilities as a direct JSON array: [{"advisory": "...", "cve": "...", ...}]
  */
 public class AppSecSCAConfigDeserializer implements ConfigurationDeserializer<AppSecSCAConfig> {
 

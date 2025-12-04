@@ -133,22 +133,22 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint1 = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: ["method1"]
-    )
+      )
     def vulnerability1 = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-1111-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint1
-    )
+      )
 
     def entrypoint2 = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: ["method2"]
-    )
+      )
     def vulnerability2 = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-2222-zzzz",
       cve: "CVE-2024-0002",
       externalEntrypoint: entrypoint2
-    )
+      )
 
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability1, vulnerability2])
     configSupplier.get() >> config
@@ -170,12 +170,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: ["vulnerableMethod"]
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: null,
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability])
     configSupplier.get() >> config
 
@@ -196,12 +196,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: ["vulnerableMethod"]
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: null,
       externalEntrypoint: entrypoint
-    )
+      )
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability])
     configSupplier.get() >> config
 
@@ -237,12 +237,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: [] // Empty methods list
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability])
     configSupplier.get() >> config
 
@@ -262,12 +262,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: null // Null methods
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability])
     configSupplier.get() >> config
 
@@ -287,12 +287,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: "com.example.VulnerableClass",
       methods: [null, "", "validMethod"] // Mix of invalid and valid
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     def config = new AppSecSCAConfig(vulnerabilities: [vulnerability])
     configSupplier.get() >> config
 
@@ -338,12 +338,12 @@ class AppSecSCATransformerTest extends DDSpecification {
     def entrypoint = new AppSecSCAConfig.ExternalEntrypoint(
       className: className,
       methods: ["vulnerableMethod"]
-    )
+      )
     def vulnerability = new AppSecSCAConfig.Vulnerability(
       advisory: "GHSA-xxxx-yyyy-zzzz",
       cve: "CVE-2024-0001",
       externalEntrypoint: entrypoint
-    )
+      )
     return new AppSecSCAConfig(vulnerabilities: [vulnerability])
   }
 

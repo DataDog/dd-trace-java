@@ -89,65 +89,65 @@ class ScaSmokeTest extends AbstractSmokeTest {
 
   //TODO fix it
 
-//   void 'test complete SCA instrumentation and detection flow'() {
-//     given: 'A sample SCA configuration targeting ObjectMapper.readValue'
-//     final scaConfig = '''
-// {
-//   "enabled": true,
-//   "instrumentation_targets": [
-//     {
-//       "class_name": "com/fasterxml/jackson/databind/ObjectMapper",
-//       "method_name": "readValue",
-//       "method_descriptor": "(Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Object;"
-//     }
-//   ]
-// }
-// '''
-//
-//     when: 'AppSec is started and subscribes to SCA'
-//     waitForRcClientRequest { req ->
-//       decodeProducts(req).contains(Product.DEBUG)
-//     }
-//
-//     and: 'Application signals it is ready for instrumentation'
-//     def ready = isLogPresent { it.contains('READY_FOR_INSTRUMENTATION') }
-//     assert ready, 'Application should signal readiness'
-//
-//     and: 'SCA configuration is sent via Remote Config'
-//     setRemoteConfig('datadog/2/ASM_SCA/sca_test_config/config', scaConfig)
-//
-//     and: 'Poller receives the new configuration'
-//     // Wait for next RC poll to pick up the config
-//     sleep(2000)
-//
-//     then: 'Instrumentation is applied and logged'
-//     // Check for instrumentation-related logs
-//     def configReceived = isLogPresent { it.contains('Successfully subscribed to ASM_SCA') }
-//     assert configReceived, 'Expected SCA subscription log'
-//
-//     // If retransformation happens, the process should be alive
-//     assert testedProcess.alive
-//
-//     when: 'Application invokes the instrumented method'
-//     def methodInvoked = isLogPresent { it.contains('INVOKING_TARGET_METHOD') }
-//     assert methodInvoked, 'Application should invoke target method'
-//
-//     then: 'SCA detection callback is triggered and logged'
-//     def detectionFound = isLogPresent { String log ->
-//       log.contains('[SCA DETECTION] Vulnerable method invoked') &&
-//         log.contains('ObjectMapper') &&
-//         log.contains('readValue')
-//     }
-//     assert detectionFound, 'SCA detection should have been triggered'
-//
-//     and: 'Method invocation completes successfully'
-//     def invocationDone = isLogPresent { it.contains('METHOD_INVOCATION_DONE') }
-//     assert invocationDone, 'Method invocation should complete'
-//
-//     and: 'Process should be running without errors'
-//     // Process stays alive until all tests finish
-//     assert testedProcess.alive
-//   }
+  //   void 'test complete SCA instrumentation and detection flow'() {
+  //     given: 'A sample SCA configuration targeting ObjectMapper.readValue'
+  //     final scaConfig = '''
+  // {
+  //   "enabled": true,
+  //   "instrumentation_targets": [
+  //     {
+  //       "class_name": "com/fasterxml/jackson/databind/ObjectMapper",
+  //       "method_name": "readValue",
+  //       "method_descriptor": "(Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Object;"
+  //     }
+  //   ]
+  // }
+  // '''
+  //
+  //     when: 'AppSec is started and subscribes to SCA'
+  //     waitForRcClientRequest { req ->
+  //       decodeProducts(req).contains(Product.DEBUG)
+  //     }
+  //
+  //     and: 'Application signals it is ready for instrumentation'
+  //     def ready = isLogPresent { it.contains('READY_FOR_INSTRUMENTATION') }
+  //     assert ready, 'Application should signal readiness'
+  //
+  //     and: 'SCA configuration is sent via Remote Config'
+  //     setRemoteConfig('datadog/2/ASM_SCA/sca_test_config/config', scaConfig)
+  //
+  //     and: 'Poller receives the new configuration'
+  //     // Wait for next RC poll to pick up the config
+  //     sleep(2000)
+  //
+  //     then: 'Instrumentation is applied and logged'
+  //     // Check for instrumentation-related logs
+  //     def configReceived = isLogPresent { it.contains('Successfully subscribed to ASM_SCA') }
+  //     assert configReceived, 'Expected SCA subscription log'
+  //
+  //     // If retransformation happens, the process should be alive
+  //     assert testedProcess.alive
+  //
+  //     when: 'Application invokes the instrumented method'
+  //     def methodInvoked = isLogPresent { it.contains('INVOKING_TARGET_METHOD') }
+  //     assert methodInvoked, 'Application should invoke target method'
+  //
+  //     then: 'SCA detection callback is triggered and logged'
+  //     def detectionFound = isLogPresent { String log ->
+  //       log.contains('[SCA DETECTION] Vulnerable method invoked') &&
+  //         log.contains('ObjectMapper') &&
+  //         log.contains('readValue')
+  //     }
+  //     assert detectionFound, 'SCA detection should have been triggered'
+  //
+  //     and: 'Method invocation completes successfully'
+  //     def invocationDone = isLogPresent { it.contains('METHOD_INVOCATION_DONE') }
+  //     assert invocationDone, 'Method invocation should complete'
+  //
+  //     and: 'Process should be running without errors'
+  //     // Process stays alive until all tests finish
+  //     assert testedProcess.alive
+  //   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {
     return request.client.products.collect { Product.valueOf(it) }
