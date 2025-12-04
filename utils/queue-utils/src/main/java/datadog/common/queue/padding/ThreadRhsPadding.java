@@ -1,8 +1,7 @@
 package datadog.common.queue.padding;
 
-/** Right-hand-side (RHS) padding to prevent false sharing. */
+/** Right padding: 128 bytes for Apple Silicon, x86 prefetch, and future CPUs. */
 public class ThreadRhsPadding extends ThreadValue {
-  /** 7 bytes fields to occupy space on the right side of the value. */
   @SuppressWarnings("unused")
-  private long p9, p10, p11, p12, p13, p14, p15;
+  private long p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24;
 }

@@ -1,23 +1,24 @@
 package datadog.common.queue;
 
-import static datadog.trace.util.BitUtils.nextPowerOfTwo;
+import static org.jctools.util.Pow2.roundToPowerOfTwo;
 
-import datadog.common.queue.padding.PaddedSequence;
+import datadog.common.queue.padding.PaddedLong;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
 import java.util.Iterator;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import javax.annotation.Nonnull;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MessagePassingQueueUtil;
 
 /**
- * Base class for non-blocking queuing operations.
+ * Base class for VarHandle-based lock-free queues with optimized memory ordering.
  *
- * @param <E> the type of elements held by this queue
+ * @param <E> element type
  */
-abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue<E> {
-  private static final int CACHE_LINE_LONGS = 8; // 64 bytes / 8 bytes per long/ref
+abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQueue<E> {
+  // 128-byte padding for Apple Silicon, prefetch, and future CPUs
+  private static final int CACHE_LINE_LONGS = 16;
+
   protected static final VarHandle ARRAY_HANDLE;
 
   static {
@@ -28,101 +29,123 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements NonBlockingQueue
     }
   }
 
-  /** The capacity of the queue (must be a power of two) */
   protected final int capacity;
-
-  /** Mask for fast modulo operation (index = pos & mask) */
   protected final int mask;
-
-  /** The backing array (plain Java array for VarHandle access) */
   protected final Object[] buffer;
+  protected final PaddedLong tail = new PaddedLong(); // producer index
+  protected final PaddedLong head = new PaddedLong(); // consumer index
 
-  // Padding to avoid false sharing
-  @SuppressWarnings("unused")
-  private long p0, p1, p2, p3, p4, p5, p6;
-
-  /** Next free slot for producer (single-threaded) */
-  protected final PaddedSequence tail = new PaddedSequence();
-
-  /** Next slot to consume (multi-threaded) */
-  protected final PaddedSequence head = new PaddedSequence();
-
-  // Padding around head
-  @SuppressWarnings("unused")
-  private long r0, r1, r2, r3, r4, r5, r6;
-
+  /** @param requestedCapacity queue capacity (rounded up to power of two) */
   public BaseQueue(int requestedCapacity) {
-    this.capacity = nextPowerOfTwo(requestedCapacity);
+    this.capacity = roundToPowerOfTwo(requestedCapacity);
     this.mask = this.capacity - 1;
     this.buffer = new Object[capacity + 2 * CACHE_LINE_LONGS];
   }
 
+  /**
+   * Converts sequence to array index: (sequence & mask) + padding offset
+   *
+   * @param sequence sequence number
+   * @return array index with padding offset
+   */
   protected final int arrayIndex(long sequence) {
     return (int) (sequence & mask) + CACHE_LINE_LONGS;
   }
 
-  @Override
-  public int drain(Consumer<E> consumer) {
-    return drain(consumer, Integer.MAX_VALUE);
-  }
-
-  @Override
-  public int drain(@Nonnull Consumer<E> consumer, int limit) {
-    int count = 0;
-    E e;
-    while (count < limit && (e = poll()) != null) {
-      consumer.accept(e);
-      count++;
-    }
-    return count;
-  }
-
-  @Override
-  public int fill(@Nonnull Supplier<? extends E> supplier, int limit) {
-    if (limit <= 0) {
-      return 0;
-    }
-
-    int added = 0;
-    while (added < limit) {
-      E e = supplier.get();
-      if (e == null) {
-        break; // stop if supplier exhausted
-      }
-
-      if (offer(e)) {
-        added++;
-      } else {
-        break; // queue is full
-      }
-    }
-    return added;
-  }
-
   /**
-   * Iterator is not supported.
-   *
-   * @throws UnsupportedOperationException always
+   * @param consumer element consumer
+   * @return count drained
    */
+  @Override
+  public final int drain(Consumer<E> consumer) {
+    return MessagePassingQueueUtil.drain(this, consumer);
+  }
+
   @Override
   public final Iterator<E> iterator() {
     throw new UnsupportedOperationException();
   }
 
+  /**
+   * @param c element consumer
+   * @param wait wait strategy
+   * @param exit exit condition
+   */
   @Override
-  public final int remainingCapacity() {
-    return capacity - size();
+  public final void drain(Consumer<E> c, WaitStrategy wait, ExitCondition exit) {
+    MessagePassingQueueUtil.drain(this, c, wait, exit);
   }
 
+  /**
+   * @param s element supplier
+   * @param wait wait strategy
+   * @param exit exit condition
+   */
+  @Override
+  public final void fill(Supplier<E> s, WaitStrategy wait, ExitCondition exit) {
+    MessagePassingQueueUtil.fill(this, s, wait, exit);
+  }
+
+  /**
+   * @param s element supplier
+   * @return count filled
+   */
+  @Override
+  public final int fill(Supplier<E> s) {
+    return MessagePassingQueueUtil.fillBounded(this, s);
+  }
+
+  /** @return queue capacity */
   @Override
   public final int capacity() {
     return capacity;
   }
 
+  /**
+   * Returns estimated size. May be stale due to concurrent updates. Uses sandwich technique: read
+   * head, tail, head to detect races.
+   *
+   * @return estimated queue size
+   */
   @Override
   public final int size() {
-    long currentTail = tail.getVolatile();
-    long currentHead = head.getVolatile();
-    return (int) (currentTail - currentHead);
+    long after = head.getVolatile();
+    long size;
+    while (true) {
+      final long before = after;
+      final long currentTail = tail.getVolatile();
+      after = head.getVolatile();
+      // "Sandwich" pattern (head-tail-head) to detect races.
+      // If head unchanged, tail read is consistent. If head changed, consumer
+      // polled concurrently - retry. Prevents negative/stale size from reordering.
+      if (before == after) {
+        size = currentTail - after;
+        break;
+      }
+    }
+    return sanitizeSize(size);
+  }
+
+  /**
+   * Conservative empty check: may return false when poll() would return null, but never returns
+   * true when elements exist.
+   *
+   * @return true if empty (conservative)
+   */
+  @Override
+  public final boolean isEmpty() {
+    return head.getVolatile() >= tail.getVolatile();
+  }
+
+  private int sanitizeSize(long size) {
+    if (size < 0) return 0;
+    if (size > capacity) return capacity;
+    if (size > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+    return (int) size;
+  }
+
+  @Override
+  public final String toString() {
+    return this.getClass().getName();
   }
 }
