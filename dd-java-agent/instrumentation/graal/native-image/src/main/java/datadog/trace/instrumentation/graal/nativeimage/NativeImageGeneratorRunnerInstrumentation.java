@@ -147,7 +147,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.WeakMapContextStore:build_time,"
               + "datadog.trace.config.inversion.ConfigHelper:rerun,"
               + "datadog.trace.config.inversion.ConfigHelper$StrictnessPolicy:rerun,"
-              + "datadog.trace.config.inversion.GeneratedSupportedConfigurations:rerun,"
+              + "datadog.trace.config.inversion.GeneratedSupportedConfigurations:build_time,"
               + "datadog.trace.instrumentation.guava10.GuavaAsyncResultExtension:build_time,"
               + "datadog.trace.instrumentation.reactivestreams.ReactiveStreamsAsyncResultExtension:build_time,"
               + "datadog.trace.instrumentation.reactor.core.ReactorAsyncResultExtension:build_time,"
