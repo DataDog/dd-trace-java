@@ -26,6 +26,8 @@ public class AppSecSCADetector {
 
   private static final String METASTRUCT_SCA = "sca";
 
+  private static final String PREFIX = "_dd.appsec.sca.";
+
   /**
    * Called when a vulnerable method is invoked.
    *
@@ -49,47 +51,30 @@ public class AppSecSCADetector {
         AgentSpan rootSpan = activeSpan.getLocalRootSpan();
         if (rootSpan != null) {
           // Tag the root span with SCA detection metadata
-          rootSpan.setTag("appsec.sca.class", binaryClassName);
-          rootSpan.setTag("appsec.sca.method", methodName);
+          rootSpan.setTag(PREFIX+"class", binaryClassName);
+          rootSpan.setTag(PREFIX+"method", methodName);
 
           if (advisory != null) {
-            rootSpan.setTag("appsec.sca.advisory", advisory);
+            rootSpan.setTag(PREFIX+"advisory", advisory);
           }
           if (cve != null) {
-            rootSpan.setTag("appsec.sca.cve", cve);
+            rootSpan.setTag(PREFIX+"cve", cve);
           }
 
           // Capture and add stack trace using IAST's system
           String stackId = addSCAStackTrace(rootSpan);
           if (stackId != null) {
-            rootSpan.setTag("appsec.sca.stack_id", stackId);
+            rootSpan.setTag(PREFIX+"stack_id", stackId);
           }
         }
-      }
-
-      // Build detection message with vulnerability metadata
-      StringBuilder message = new StringBuilder("SCA detection: Vulnerable method invoked: ");
-      message.append(binaryClassName).append(".").append(methodName).append(descriptor);
-
-      if (advisory != null || cve != null) {
-        message.append(" [");
-        if (advisory != null) {
-          message.append("Advisory: ").append(advisory);
-        }
-        if (cve != null) {
-          if (advisory != null) {
-            message.append(", ");
-          }
-          message.append("CVE: ").append(cve);
-        }
-        message.append("]");
       }
 
       // Log at debug level
-      log.debug(message.toString());
+      log.debug("SCA detection: {} - Vulnerable method invoked: {}#{}", cve, binaryClassName, methodName);
 
       // TODO: Future enhancements:
       // - Report Location
+      // - Report multiple vulnerabilities per request
       // - Implement rate limiting to avoid log spam
       // - Add sampling for high-frequency methods
 
