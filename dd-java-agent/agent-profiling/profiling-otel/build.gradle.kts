@@ -15,6 +15,17 @@ jmh {
     val pattern = project.property("jmhIncludes") as String
     includes = listOf(pattern)
   }
+
+  // Profiling support
+  // Usage: ./gradlew jmh -PjmhProfile=true
+  // Generates flamegraph and allocation profile
+  if (project.hasProperty("jmhProfile")) {
+    profilers = listOf("gc", "stack")
+    jvmArgs = listOf(
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints"
+    )
+  }
 }
 
 // OTel Collector validation tests (requires Docker)
