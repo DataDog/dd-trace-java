@@ -118,7 +118,7 @@ public class CompositeController implements Controller {
     }
 
     @Override
-    public void release() {
+    protected void doRelease() {
       for (RecordingData data : data) {
         data.release();
       }

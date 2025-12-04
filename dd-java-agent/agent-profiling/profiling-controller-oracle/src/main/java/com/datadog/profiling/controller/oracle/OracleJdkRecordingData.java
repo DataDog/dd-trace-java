@@ -51,7 +51,7 @@ public class OracleJdkRecordingData extends RecordingData {
   }
 
   @Override
-  public void release() {
+  protected void doRelease() {
     // noop
   }
 
