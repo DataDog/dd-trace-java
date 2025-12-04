@@ -145,6 +145,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
   void assertEndpointDiscovery(final List<?> endpoints) {
     final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
     assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])

@@ -122,21 +122,33 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void setHeader(String name, String value) {
-    checkForContentSecurityPolicy(name);
+    if (shouldInject) {
+      if (isContentLengthHeader(name)) {
+        return;
+      }
+      checkForContentSecurityPolicy(name);
+    }
     super.setHeader(name, value);
   }
 
   @Override
   public void addHeader(String name, String value) {
-    checkForContentSecurityPolicy(name);
+    if (shouldInject) {
+      if (isContentLengthHeader(name)) {
+        return;
+      }
+      checkForContentSecurityPolicy(name);
+    }
     super.addHeader(name, value);
   }
 
+  private boolean isContentLengthHeader(String name) {
+    return "content-length".equalsIgnoreCase(name);
+  }
+
   private void checkForContentSecurityPolicy(String name) {
-    if (name != null) {
-      if (name.startsWith("Content-Security-Policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
-      }
+    if (name != null && name.equalsIgnoreCase("content-security-policy")) {
+      RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
     }
   }
 
