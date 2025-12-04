@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ClassFileTransformer for Supply Chain Analysis (SCA) vulnerability detection.
+ * ClassFileTransformer for SCA vulnerability detection.
  *
  * <p>Instruments methods specified in the SCA configuration to detect when vulnerable third-party
  * library methods are called at runtime.
@@ -71,7 +71,7 @@ public class AppSecSCATransformer implements ClassFileTransformer {
       log.debug("Instrumenting SCA target class: {}", className);
       return instrumentClass(classfileBuffer, className, targetMethods);
     } catch (Exception e) {
-      log.error("Failed to instrument SCA target class: {}", className, e);
+      log.debug("Failed to instrument SCA target class: {}", className, e);
       return null; // Return null to keep original bytecode
     }
   }
@@ -123,10 +123,10 @@ public class AppSecSCATransformer implements ClassFileTransformer {
     try {
       reader.accept(visitor, ClassReader.EXPAND_FRAMES);
       byte[] transformedBytecode = writer.toByteArray();
-      log.info("Successfully instrumented SCA target class: {}", className);
+      log.debug("Successfully instrumented SCA target class: {}", className);
       return transformedBytecode;
     } catch (Exception e) {
-      log.error("Error during ASM transformation for class: {}", className, e);
+      log.debug("Error during ASM transformation for class: {}", className, e);
       return null;
     }
   }
