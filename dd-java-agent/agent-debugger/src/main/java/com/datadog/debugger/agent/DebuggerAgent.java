@@ -198,10 +198,6 @@ public class DebuggerAgent {
     LOGGER.debug("Subscribing to Live Debugging...");
     configurationPoller.addListener(
         Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
-    if (symDBEnablement != null && !config.isSymbolDatabaseForceUpload()) {
-      LOGGER.debug("Subscribing to Symbol DB...");
-      configurationPoller.addListener(Product.LIVE_DEBUGGING_SYMBOL_DB, symDBEnablement);
-    }
   }
 
   public static void startSymbolDatabase(Config config) {
