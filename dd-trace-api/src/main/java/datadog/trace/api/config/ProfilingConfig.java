@@ -265,5 +265,19 @@ public final class ProfilingConfig {
   public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
   public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;
 
+  // OTLP Profiles Format Support
+  public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
+  public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD =
+      "profiling.otlp.include.original.payload";
+  public static final boolean PROFILING_OTLP_INCLUDE_ORIGINAL_PAYLOAD_DEFAULT = false;
+
+  public static final String PROFILING_OTLP_URL = "profiling.otlp.url";
+  public static final String PROFILING_OTLP_URL_DEFAULT = ""; // Empty = derive from agent URL
+
+  public static final String PROFILING_OTLP_COMPRESSION = "profiling.otlp.compression";
+  public static final String PROFILING_OTLP_COMPRESSION_DEFAULT = "gzip";
+
   private ProfilingConfig() {}
 }
