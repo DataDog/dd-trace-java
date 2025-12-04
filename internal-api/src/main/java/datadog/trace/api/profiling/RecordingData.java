@@ -29,7 +29,7 @@ public abstract class RecordingData implements ProfilingSnapshot {
   protected final Kind kind;
 
   // Reference counting for multiple listeners
-  private final AtomicInteger refCount = new AtomicInteger(1); // Start at 1
+  private final AtomicInteger refCount = new AtomicInteger(0); // Start at 0
   private volatile boolean released = false;
 
   public RecordingData(final Instant start, final Instant end, Kind kind) {
@@ -46,8 +46,12 @@ public abstract class RecordingData implements ProfilingSnapshot {
   public abstract RecordingInputStream getStream() throws IOException;
 
   /**
-   * Increment reference count. Must be called before passing RecordingData to additional listeners
-   * beyond the first.
+   * Increment reference count. Must be called once for each handler that will process this
+   * RecordingData.
+   *
+   * <p>The reference count starts at 0, so every handler must call {@code retain()} before
+   * processing and {@code release()} when done. When the last handler calls {@code release()}, the
+   * reference count reaches 0 and resources are cleaned up.
    *
    * @return this instance for chaining
    * @throws IllegalStateException if the recording has already been released
@@ -64,9 +68,9 @@ public abstract class RecordingData implements ProfilingSnapshot {
   /**
    * Releases the resources associated with the recording, for example the underlying file.
    *
-   * <p>This method uses reference counting to support multiple listeners. Each call to {@link
-   * #retain()} must be matched with a call to {@code release()}. The actual resource cleanup
-   * happens when the reference count reaches zero.
+   * <p>This method uses reference counting to support multiple handlers. Each call to {@link
+   * #retain()} must be matched with a call to {@code release()}. The actual resource cleanup via
+   * {@link #doRelease()} happens when the reference count reaches zero.
    *
    * <p>Forgetting to release this when done streaming will lead to one or more of the following:
    *
