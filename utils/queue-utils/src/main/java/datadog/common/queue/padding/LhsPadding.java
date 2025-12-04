@@ -1,8 +1,7 @@
 package datadog.common.queue.padding;
 
-/** Left-hand-side (LHS) padding to prevent false sharing. */
+/** Left padding: 128 bytes for Apple Silicon, x86 prefetch, and future CPUs. */
 class LhsPadding {
-  /** 7 bytes padding field to occupy space on the left side of the value. */
   @SuppressWarnings("unused")
-  private long p1, p2, p3, p4, p5, p6, p7;
+  private long p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16;
 }

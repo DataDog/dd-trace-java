@@ -1,96 +1,211 @@
 package datadog.common.queue;
 
 import datadog.common.queue.padding.PaddedThread;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-import javax.annotation.Nonnull;
 
 /**
- * A Multiple-Producer, Single-Consumer (MPSC) bounded lock-free queue using a circular array and
- * VarHandles. It adds blocking capabilities for a single consumer (take, timed offer).
- *
- * <p>All operations are wait-free for the consumer and lock-free for producers.
+ * Multiple-Producer, Single-Consumer bounded lock-free queue with blocking consumer support.
+ * Producers are lock-free (CAS-based), consumer is wait-free. Uses VarHandles for memory ordering.
  *
  * @param <E> the type of elements stored
  */
-class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
-    implements BlockingConsumerNonBlockingQueue<E> {
+public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle<E>
+    implements MessagePassingBlockingQueue<E> {
 
-  /** Reference to the waiting consumer thread (set atomically). */
   private final PaddedThread consumerThread = new PaddedThread();
 
-  /**
-   * Creates a new MPSC queue.
-   *
-   * @param requestedCapacity the desired capacity, rounded up to next power of two
-   */
+  /** @param requestedCapacity queue capacity (rounded up to power of two) */
   public MpscBlockingConsumerArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
   }
 
+  /**
+   * Inserts element at tail if space available. Lock-free for producers competing via CAS. Uses
+   * release semantics on buffer write to synchronize with consumer's acquire read.
+   *
+   * @param e the element to add (must not be null)
+   * @return true if added, false if full
+   */
   @Override
-  public final boolean offer(E e) {
+  public boolean offer(E e) {
     Objects.requireNonNull(e);
 
-    // jctools does the same local copy to have the jitter optimise the accesses
-    final Object[] localBuffer = this.buffer;
+    long pLimit = this.producerLimit.getVolatile();
+    long pIndex;
 
-    long localProducerLimit = producerLimit.getVolatile();
-    long cachedHead = 0L; // Local cache of head to reduce volatile reads
+    do {
+      pIndex = tail.getVolatile();
 
-    int spinCycles = 0;
-    boolean parkOnSpin = (Thread.currentThread().getId() & 1) == 0;
+      if (pIndex >= pLimit) {
+        final long cIndex = head.getVolatile();
+        pLimit = cIndex + capacity;
 
-    while (true) {
-      long currentTail = tail.getVolatile();
-
-      // Check if producer limit exceeded
-      if (currentTail >= localProducerLimit) {
-        // Refresh head only when necessary
-        cachedHead = head.getVolatile();
-        localProducerLimit = cachedHead + capacity;
-
-        if (currentTail >= localProducerLimit) {
-          return false; // queue full
+        if (pIndex >= pLimit) {
+          return false;
         }
 
-        // Update producerLimit so other producers also benefit
-        producerLimit.setVolatile(localProducerLimit);
+        this.producerLimit.setVolatile(pLimit);
       }
+    } while (!tail.compareAndSet(pIndex, pIndex + 1));
 
-      // Attempt to claim a slot
-      if (tail.compareAndSet(currentTail, currentTail + 1)) {
-        final int index = arrayIndex(currentTail);
+    final int index = arrayIndex(pIndex);
 
-        // Release-store ensures producer's write is visible to consumer
-        ARRAY_HANDLE.setRelease(localBuffer, index, e);
+    // Release: synchronizes element write with consumer's acquire read
+    ARRAY_HANDLE.setRelease(buffer, index, e);
+    Thread c = consumerThread.getAndSet(null);
+    if (c != null) {
+      LockSupport.unpark(c);
+    }
+    return true;
+  }
 
-        // Atomically clear and unpark the consumer if waiting
-        Thread c = consumerThread.getAndSet(null);
-        if (c != null) {
-          LockSupport.unpark(c);
+  /**
+   * Batch operation claiming multiple slots with single CAS, then filling them. More efficient than
+   * repeated offer() calls due to reduced CAS contention.
+   *
+   * @param s supplier of elements
+   * @param limit max elements to add
+   * @return actual number of elements added
+   */
+  @Override
+  public int fill(Supplier<E> s, int limit) {
+    if (null == s) {
+      throw new IllegalArgumentException("supplier is null");
+    }
+    if (limit < 0) {
+      throw new IllegalArgumentException("limit is negative:" + limit);
+    }
+    if (limit == 0) {
+      return 0;
+    }
+
+    long pLimit = this.producerLimit.getVolatile();
+    long pIndex;
+    int actualLimit;
+
+    do {
+      pIndex = tail.getVolatile();
+      long available = pLimit - pIndex;
+
+      if (available <= 0) {
+        final long cIndex = head.getVolatile();
+        pLimit = cIndex + capacity;
+        available = pLimit - pIndex;
+
+        if (available <= 0) {
+          return 0;
         }
 
-        return true;
+        this.producerLimit.setVolatile(pLimit);
       }
 
-      // Backoff to reduce contention
-      if ((spinCycles & 1) == 0) {
-        Thread.onSpinWait();
+      actualLimit = Math.min((int) available, limit);
+    } while (!tail.compareAndSet(pIndex, pIndex + actualLimit));
+
+    for (int i = 0; i < actualLimit; i++) {
+      final int index = arrayIndex(pIndex + i);
+      final E e = s.get();
+      ARRAY_HANDLE.setRelease(buffer, index, e);
+    }
+
+    Thread c = consumerThread.getAndSet(null);
+    if (c != null) {
+      LockSupport.unpark(c);
+    }
+
+    return actualLimit;
+  }
+
+  /**
+   * Retrieves and removes head element, or returns null if empty. Wait-free for single consumer.
+   * Uses plain read for head (consumer-exclusive), acquire for buffer (syncs with producer's
+   * release), and release for head write (ensures slot clear visible to producers).
+   *
+   * @return head element or null if empty
+   */
+  @Override
+  @SuppressWarnings("unchecked")
+  public E poll() {
+    // Plain: consumer reads its own head, no synchronization needed
+    final long cIndex = head.getPlain();
+    final int index = arrayIndex(cIndex);
+
+    final Object[] buffer = this.buffer;
+
+    // Acquire: pairs with producer's setRelease
+    Object e = ARRAY_HANDLE.getAcquire(buffer, index);
+
+    if (e == null) {
+      if (cIndex != tail.getVolatile()) {
+        // Producer claimed slot but hasn't written yet - spin until element appears
+        do {
+          e = ARRAY_HANDLE.getAcquire(buffer, index);
+        } while (e == null);
       } else {
-        if (parkOnSpin) {
-          LockSupport.parkNanos(1);
-        } else {
-          Thread.yield();
-        }
+        return null;
       }
-      spinCycles++;
+    }
+
+    // Release: ensures slot clear visible before head advance
+    ARRAY_HANDLE.setRelease(buffer, index, null);
+
+    // Release: synchronizes slot clear with producers reading head
+    head.setRelease(cIndex + 1);
+
+    return (E) e;
+  }
+
+  @Override
+  public void put(E e) throws InterruptedException {
+    if (!offer(e)) {
+      throw new UnsupportedOperationException();
     }
   }
 
   @Override
-  public final E poll(long timeout, @Nonnull TimeUnit unit) throws InterruptedException {
+  public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+    {
+      if (offer(e)) {
+        return true;
+      }
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  /**
+   * Drains up to limit elements with timed wait. Single consumer only.
+   *
+   * @param c element consumer
+   * @param limit max elements to drain
+   * @param timeout max wait time
+   * @param unit timeout unit
+   * @return number of polled elements
+   */
+  public int drain(Consumer<E> c, final int limit, long timeout, TimeUnit unit)
+      throws InterruptedException {
+    if (limit == 0) {
+      return 0;
+    }
+    final int drained = drain(c, limit);
+    if (drained != 0) {
+      return drained;
+    }
+    final E e = poll(timeout, unit);
+    if (e == null) return 0;
+    c.accept(e);
+    return 1 + drain(c, limit - 1);
+  }
+
+  /**
+   * @param timeout max wait time
+   * @param unit timeout unit
+   * @return head element or null if timeout
+   */
+  @Override
+  public E poll(long timeout, TimeUnit unit) throws InterruptedException {
     E e = poll();
     if (e != null) {
       return e;
@@ -107,8 +222,22 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
   }
 
   @Override
+  public int remainingCapacity() {
+    return capacity - size();
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public int drainTo(Collection<? super E> c, int maxElements) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public E take() throws InterruptedException {
-    consumerThread.setVolatile(Thread.currentThread());
     E e;
     while ((e = poll()) == null) {
       parkUntilNext(-1);
@@ -117,30 +246,29 @@ class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQueueVarHandle
   }
 
   /**
-   * Blocks (parks) until an element becomes available or until the specified timeout elapses.
+   * Parks consumer thread until element available or timeout elapses. Single consumer only.
    *
-   * <p>It is safe if only one thread is waiting (it's the case for this single consumer
-   * implementation).
-   *
-   * @param nanos max wait time in nanoseconds. If negative, it will park indefinably until waken or
-   *     interrupted
-   * @throws InterruptedException if interrupted while waiting
+   * @param nanos max wait time; negative means indefinite
    */
   private void parkUntilNext(long nanos) throws InterruptedException {
-    Thread current = Thread.currentThread();
-    // Publish the consumer thread (no ordering required)
-    consumerThread.setOpaque(current);
-    if (nanos <= 0) {
-      LockSupport.park(this);
-    } else {
-      LockSupport.parkNanos(this, nanos);
-    }
-
     if (Thread.interrupted()) {
       throw new InterruptedException();
     }
 
-    // Cleanup (no fence needed, single consumer)
-    consumerThread.setOpaque(null);
+    Thread current = Thread.currentThread();
+    try {
+      // Opaque: no ordering required for thread publication
+      consumerThread.setOpaque(current);
+      if (nanos <= 0) {
+        LockSupport.parkNanos(this, Long.MAX_VALUE);
+      } else {
+        LockSupport.parkNanos(this, nanos);
+      }
+      if (Thread.interrupted()) {
+        throw new InterruptedException();
+      }
+    } finally {
+      consumerThread.setOpaque(null);
+    }
   }
 }

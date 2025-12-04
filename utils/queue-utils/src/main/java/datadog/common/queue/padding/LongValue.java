@@ -1,10 +1,6 @@
 package datadog.common.queue.padding;
 
-/**
- * Holds the actual sequence value, padded on the left to prevent false sharing with preceding
- * fields.
- */
+/** Holds the actual long value, padded on left to prevent false sharing. */
 class LongValue extends LhsPadding {
-  /** The volatile value being protected from false sharing. */
   protected volatile long value;
 }

@@ -1,8 +1,8 @@
 package datadog.common.queue;
 
 import datadog.environment.JavaVirtualMachine;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscArrayQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -31,13 +31,13 @@ public final class Queues {
    *
    * @param requestedCapacity the requested capacity of the queue. Will be rounded to the next power
    *     of two.
-   * @return a new {@link NonBlockingQueue} instance suitable for MPSC usage
+   * @return a new {@link MessagePassingQueue} instance suitable for MPSC usage
    */
-  public static <E> NonBlockingQueue<E> mpscArrayQueue(int requestedCapacity) {
+  public static <E> MessagePassingQueue<E> mpscArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
       return new MpscArrayQueueVarHandle<>(requestedCapacity);
     }
-    return new JctoolsWrappedQueue<>(new MpscArrayQueue<>(requestedCapacity));
+    return new MpscArrayQueue<>(requestedCapacity);
   }
 
   /**
@@ -46,13 +46,13 @@ public final class Queues {
    * <p>\ * @param requestedCapacity the requested capacity of the queue. Will be rounded to the
    * next power of two.
    *
-   * @return a new {@link NonBlockingQueue} instance suitable for SPMC usage
+   * @return a new {@link MessagePassingQueue} instance suitable for SPMC usage
    */
-  public static <E> NonBlockingQueue<E> spmcArrayQueue(int requestedCapacity) {
+  public static <E> MessagePassingQueue<E> spmcArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
       return new SpmcArrayQueueVarHandle<>(requestedCapacity);
     }
-    return new JctoolsWrappedQueue<>(new SpmcArrayQueue<>(requestedCapacity));
+    return new SpmcArrayQueue<>(requestedCapacity);
   }
 
   /**
@@ -61,16 +61,15 @@ public final class Queues {
    *
    * @param requestedCapacity the requested capacity of the queue. Will be rounded to the next power
    *     of two.
-   * @return a new {@link BlockingConsumerNonBlockingQueue} instance suitable for MPSC usage with
+   * @return a new {@link MessagePassingBlockingQueue} instance suitable for MPSC usage with
    *     blocking consumption
    */
-  public static <E> BlockingConsumerNonBlockingQueue<E> mpscBlockingConsumerArrayQueue(
+  public static <E> MessagePassingBlockingQueue<E> mpscBlockingConsumerArrayQueue(
       int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
       return new MpscBlockingConsumerArrayQueueVarHandle<>(requestedCapacity);
     }
-    return new JctoolsMpscBlockingConsumerWrappedQueue<>(
-        new MpscBlockingConsumerArrayQueue<>(requestedCapacity));
+    return new MpscBlockingConsumerArrayQueueDelegate<>(requestedCapacity);
   }
 
   /**
@@ -78,12 +77,12 @@ public final class Queues {
    *
    * @param requestedCapacity the requested capacity of the queue. Will be rounded to the next power
    *     of two.
-   * @return a new {@link NonBlockingQueue} instance suitable for SPSC usage
+   * @return a new {@link MessagePassingQueue} instance suitable for SPSC usage
    */
-  public static <E> NonBlockingQueue<E> spscArrayQueue(int requestedCapacity) {
+  public static <E> MessagePassingQueue<E> spscArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
       return new SpscArrayQueueVarHandle<>(requestedCapacity);
     }
-    return new JctoolsWrappedQueue<>(new SpscArrayQueue<>(requestedCapacity));
+    return new SpscArrayQueue<>(requestedCapacity);
   }
 }

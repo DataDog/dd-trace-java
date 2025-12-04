@@ -6,7 +6,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.common.queue.BlockingConsumerNonBlockingQueue;
+import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -35,7 +35,7 @@ public class EvalProcessingWorker implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(EvalProcessingWorker.class);
 
-  private final BlockingConsumerNonBlockingQueue<LLMObsEval> queue;
+  private final MessagePassingBlockingQueue<LLMObsEval> queue;
   private final Thread serializerThread;
 
   public EvalProcessingWorker(
@@ -99,7 +99,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(EvalSerializingHandler.class);
     private static final int FLUSH_THRESHOLD = 50;
 
-    private final BlockingConsumerNonBlockingQueue<LLMObsEval> queue;
+    private final MessagePassingBlockingQueue<LLMObsEval> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
@@ -112,7 +112,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private final List<LLMObsEval> buffer = new ArrayList<>();
 
     public EvalSerializingHandler(
-        final BlockingConsumerNonBlockingQueue<LLMObsEval> queue,
+        final MessagePassingBlockingQueue<LLMObsEval> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,

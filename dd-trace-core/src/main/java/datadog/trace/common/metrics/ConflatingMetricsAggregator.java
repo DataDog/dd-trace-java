@@ -19,7 +19,6 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.common.queue.NonBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -41,13 +40,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.jctools.queues.MessagePassingQueue;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,11 +89,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
   private final Set<String> ignoredResources;
-  private final Queue<Batch> batchPool;
+  private final MessagePassingQueue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final NonBlockingQueue<InboxItem> inbox;
+  private final MessagePassingQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
