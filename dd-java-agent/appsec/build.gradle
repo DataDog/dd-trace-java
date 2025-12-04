@@ -81,6 +81,7 @@ ext {
     'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
+    'com.datadog.appsec.config.AppSecSCAConfig',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

@@ -9,20 +9,12 @@ import java.util.List;
  *
  * <p>This configuration enables dynamic instrumentation of third-party dependencies to detect and
  * report known vulnerabilities at runtime. Each vulnerability specifies:
- *
- * <ul>
- *   <li>Advisory and CVE identifiers
- *   <li>Vulnerable internal code location (class/method to instrument)
- *   <li>External entrypoints that can trigger the vulnerability
- * </ul>
  */
 public class AppSecSCAConfig {
 
-  /** List of vulnerabilities to detect via instrumentation. */
   @Json(name = "vulnerabilities")
   public List<Vulnerability> vulnerabilities;
 
-  /** Represents a single vulnerability with its detection metadata. */
   public static class Vulnerability {
     /** GitHub Security Advisory ID (e.g., "GHSA-24rp-q3w6-vc56"). */
     @Json(name = "advisory")
