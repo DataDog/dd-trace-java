@@ -245,7 +245,7 @@ abstract class InstrumentAction : WorkAction<InstrumentWorkParameters> {
         pluginCL = classLoaderCache[classLoaderKey]
         if (lastBuildStamp < buildStamp || pluginCL == null) {
           pluginCL = createClassLoader(parameters.pluginClassPath)
-          classLoaderCache[classLoaderKey] = pluginCL
+          classLoaderCache[classLoaderKey] = pluginCL!!
           lastBuildStamp = buildStamp
         }
       }
