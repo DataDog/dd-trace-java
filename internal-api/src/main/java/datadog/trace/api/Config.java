@@ -537,6 +537,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_ALWAYS_
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.ELASTICSEARCH_PARAMS_ENABLED;
@@ -1115,6 +1117,8 @@ public class Config {
   private final String dbmPropagationMode;
   private final boolean dbmTracePreparedStatements;
   private final boolean dbmAlwaysAppendSqlComment;
+  private final boolean dbMetadataFetchingOnQuery;
+  private final boolean dbMetadataFetchingOnConnect;
 
   private final boolean dynamicInstrumentationEnabled;
   private final String dynamicInstrumentationSnapshotUrl;
@@ -1681,6 +1685,9 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX,
             DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX);
+
+    dbMetadataFetchingOnQuery = configProvider.getBoolean(DB_METADATA_FETCHING_ON_QUERY, true);
+    dbMetadataFetchingOnConnect = configProvider.getBoolean(DB_METADATA_FETCHING_ON_CONNECT, true);
 
     dbClientSplitByHost =
         configProvider.getBoolean(
@@ -3308,6 +3315,14 @@ public class Config {
 
   public boolean isDbClientSplitByHost() {
     return dbClientSplitByHost;
+  }
+
+  public boolean isDbMetadataFetchingOnQueryEnabled() {
+    return dbMetadataFetchingOnQuery;
+  }
+
+  public boolean isDbMetadataFetchingOnConnectEnabled() {
+    return dbMetadataFetchingOnConnect;
   }
 
   public Set<String> getSplitByTags() {
@@ -5806,6 +5821,10 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", dbMetadataFetchingEnabled="
+        + dbMetadataFetchingOnQuery
+        + ", dbMetadataFetchingOnConnect="
+        + dbMetadataFetchingOnConnect
         + ", dbmInjectSqlBaseHash="
         + dbmInjectSqlBaseHash
         + ", dbmPropagationMode="
