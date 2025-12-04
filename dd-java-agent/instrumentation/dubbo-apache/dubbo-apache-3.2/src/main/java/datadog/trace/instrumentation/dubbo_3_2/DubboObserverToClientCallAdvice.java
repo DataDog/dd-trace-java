@@ -13,7 +13,7 @@ public class DubboObserverToClientCallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.FieldValue("call") ClientCall call) {
     TripleClientCall tripleClientCall = (TripleClientCall) call ;
-    return DECORATE.obToClientCall(tripleClientCall);
+    return DECORATE.clientCall(tripleClientCall);
   }
 //
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
