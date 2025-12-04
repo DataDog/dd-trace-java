@@ -76,7 +76,7 @@ tasks.named<JavaCompile>("compileJmhJava") {
 }
 
 dependencies {
-  implementation("io.btrace", "jafar-parser", "0.0.1-SNAPSHOT")
+  implementation(libs.jafar.parser)
   implementation(project(":internal-api"))
   implementation(project(":components:json"))
 
