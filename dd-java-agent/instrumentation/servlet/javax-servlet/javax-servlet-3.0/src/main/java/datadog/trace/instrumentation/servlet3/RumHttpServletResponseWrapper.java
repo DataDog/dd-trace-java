@@ -147,7 +147,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   }
 
   private void checkForContentSecurityPolicy(String name) {
-    if (name != null && name.equalsIgnoreCase("content-security-policy")) {
+    if ("content-security-policy".equalsIgnoreCase(name)) {
       RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
     }
   }
