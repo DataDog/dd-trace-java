@@ -37,32 +37,33 @@ internal object MuzzleVersionUtils {
     list: Set<Version>,
     skipVersions: Set<String>,
     includeSnapshots: Boolean
-  ): Set<Version> {
-    return list.filter { version ->
+  ): Set<Version> = list
+    .filter { version ->
       val v = version.toString().lowercase(Locale.ROOT)
       if (includeSnapshots) {
         !skipVersions.contains(v)
       } else {
-        !(v.endsWith("-snapshot") ||
-          v.contains("rc") ||
-          v.contains(".cr") ||
-          v.contains("alpha") ||
-          v.contains("beta") ||
-          v.contains("-b") ||
-          v.contains(".m") ||
-          v.contains("-m") ||
-          v.contains("-dev") ||
-          v.contains("-ea") ||
-          v.contains("-atlassian-") ||
-          v.contains("public_draft") ||
-          v.contains("-cr") ||
-          v.contains("-preview") ||
-          skipVersions.contains(v) ||
-          END_NMN_PATTERN.matches(v) ||
-          GIT_SHA_PATTERN.matches(v))
+        !(
+          v.endsWith("-snapshot") ||
+            v.contains("rc") ||
+            v.contains(".cr") ||
+            v.contains("alpha") ||
+            v.contains("beta") ||
+            v.contains("-b") ||
+            v.contains(".m") ||
+            v.contains("-m") ||
+            v.contains("-dev") ||
+            v.contains("-ea") ||
+            v.contains("-atlassian-") ||
+            v.contains("public_draft") ||
+            v.contains("-cr") ||
+            v.contains("-preview") ||
+            skipVersions.contains(v) ||
+            END_NMN_PATTERN.matches(v) ||
+            GIT_SHA_PATTERN.matches(v)
+          )
       }
     }.toSet()
-  }
 
   /**
    * Select a random set of versions to test
@@ -84,9 +85,10 @@ internal object MuzzleVersionUtils {
   ): Set<Version> {
     if (versions.size <= 1) return versions
     val beforeSize = versions.size
-    val filteredVersions = versions.toMutableList().apply {
-      removeAll { skipVersions.contains(it.toString()) }
-    }
+    val filteredVersions =
+      versions.toMutableList().apply {
+        removeAll { skipVersions.contains(it.toString()) }
+      }
     val versionSet = VersionSet(filteredVersions)
     val shuffled = versionSet.lowAndHighForMajorMinor.shuffled().toMutableList()
     var afterSize = shuffled.size

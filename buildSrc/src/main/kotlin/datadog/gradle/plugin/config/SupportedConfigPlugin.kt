@@ -11,7 +11,10 @@ class SupportedConfigPlugin : Plugin<Project> {
     generateSupportedConfigurations(targetProject, extension)
   }
 
-  private fun generateSupportedConfigurations(targetProject: Project, extension: SupportedTracerConfigurations) {
+  private fun generateSupportedConfigurations(
+    targetProject: Project,
+    extension: SupportedTracerConfigurations
+  ) {
     val generateTask =
       targetProject.tasks.register("generateSupportedConfigurations", ParseSupportedConfigurationsTask::class.java) {
         jsonFile.set(extension.jsonFile)

@@ -38,12 +38,13 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   /** Executor wrapped with proper Gradle lifecycle. */
-  abstract class DumpSchedulerService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+  abstract class DumpSchedulerService :
+    BuildService<BuildServiceParameters.None>,
+    AutoCloseable {
     private val executor: ScheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hanged-test-dump").apply { isDaemon = true } }
 
-    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> =
-      executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
+    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> = executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
 
     override fun close() {
       executor.shutdownNow()
@@ -55,8 +56,9 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val scheduler = project.gradle.sharedServices
-      .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
+    val scheduler =
+      project.gradle.sharedServices
+        .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
 
     // Create plugin properties.
     val props = project.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java)
@@ -89,11 +91,12 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val future = scheduler.get().schedule({
-      t.logger.quiet("Taking dumps after ${delay.seconds} seconds delay for $taskName")
+    val future =
+      scheduler.get().schedule({
+        t.logger.quiet("Taking dumps after ${delay.seconds} seconds delay for $taskName")
 
-      takeDump(t)
-    }, delay)
+        takeDump(t)
+      }, delay)
 
     t.extra.set(DUMP_FUTURE_KEY, future)
   }
@@ -101,27 +104,26 @@ class DumpHangedTestPlugin : Plugin<Project> {
   private fun takeDump(t: Task) {
     try {
       // Use Gradle's build dir and adjust for CI artifacts collection if needed.
-      val dumpsDir: File = t.project.layout.buildDirectory
-        .dir("dumps")
-        .map { dir ->
-          if (t.project.providers.environmentVariable("CI").isPresent) {
-            // Move reports into the folder collected by the collect_reports.sh script.
-            File(
-              dir.asFile.absolutePath.replace(
-                "dd-trace-java/dd-java-agent",
-                "dd-trace-java/workspace/dd-java-agent"
+      val dumpsDir: File =
+        t.project.layout.buildDirectory
+          .dir("dumps")
+          .map { dir ->
+            if (t.project.providers.environmentVariable("CI").isPresent) {
+              // Move reports into the folder collected by the collect_reports.sh script.
+              File(
+                dir.asFile.absolutePath.replace(
+                  "dd-trace-java/dd-java-agent",
+                  "dd-trace-java/workspace/dd-java-agent"
+                )
               )
-            )
-          } else {
-            dir.asFile
-          }
-        }
-        .get()
+            } else {
+              dir.asFile
+            }
+          }.get()
 
       dumpsDir.mkdirs()
 
-      fun file(name: String, ext: String = "log") =
-        File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
+      fun file(name: String, ext: String = "log") = File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
 
       // For simplicity, use `0` as the PID, which collects all thread dumps across JVMs.
       val allThreadsFile = file("all-thread-dumps")
@@ -132,17 +134,19 @@ class DumpHangedTestPlugin : Plugin<Project> {
       runCmd(Redirect.to(allJavaProcessesFile), "jcmd", "-l")
 
       // Collect pids for 'Gradle Test Executor'.
-      val pids = allJavaProcessesFile.readLines()
-        .filter { it.contains("Gradle Test Executor") }
-        .map { it.substringBefore(' ') }
+      val pids =
+        allJavaProcessesFile
+          .readLines()
+          .filter { it.contains("Gradle Test Executor") }
+          .map { it.substringBefore(' ') }
 
       pids.forEach { pid ->
         // Collect heap dump by pid.
-        val heapDumpPath = file("${pid}-heap-dump", "hprof").absolutePath
+        val heapDumpPath = file("$pid-heap-dump", "hprof").absolutePath
         runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
 
         // Collect thread dump by pid.
-        val threadDumpFile = file("${pid}-thread-dump")
+        val threadDumpFile = file("$pid-thread-dump")
         runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
       }
     } catch (e: Throwable) {
@@ -151,9 +155,10 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   private fun cleanup(t: Task) {
-    val future = t.extra
-      .takeIf { it.has(DUMP_FUTURE_KEY) }
-      ?.get(DUMP_FUTURE_KEY) as? ScheduledFuture<*>
+    val future =
+      t.extra
+        .takeIf { it.has(DUMP_FUTURE_KEY) }
+        ?.get(DUMP_FUTURE_KEY) as? ScheduledFuture<*>
 
     if (future != null && !future.isDone) {
       t.logger.info("Taking dump canceled with remaining delay of ${future.getDelay(TimeUnit.SECONDS)} seconds for ${t.path}")
@@ -165,11 +170,12 @@ class DumpHangedTestPlugin : Plugin<Project> {
     redirectTo: Redirect,
     vararg args: String
   ) {
-    val exitCode = ProcessBuilder(*args)
-      .redirectErrorStream(true)
-      .redirectOutput(redirectTo)
-      .start()
-      .waitFor()
+    val exitCode =
+      ProcessBuilder(*args)
+        .redirectErrorStream(true)
+        .redirectOutput(redirectTo)
+        .start()
+        .waitFor()
 
     if (exitCode != 0) {
       throw IOException("Process failed: ${args.joinToString(" ")}, exit code: $exitCode")

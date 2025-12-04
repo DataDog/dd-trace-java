@@ -28,13 +28,14 @@ abstract class MuzzleGenerateReportTask : AbstractMuzzleReportTask() {
         lines.forEachIndexed { idx, line ->
           if (idx == 0) return@forEachIndexed // skip header
           val split = line.split(",")
-          val parsed = TestedArtifact(
-            split[0],
-            split[1],
-            split[2],
-            versionScheme.parseVersion(split[3]),
-            versionScheme.parseVersion(split[4])
-          )
+          val parsed =
+            TestedArtifact(
+              split[0],
+              split[1],
+              split[2],
+              versionScheme.parseVersion(split[3]),
+              versionScheme.parseVersion(split[4])
+            )
           map.merge(parsed.key(), parsed) { x, y ->
             TestedArtifact(
               x.instrumentation,

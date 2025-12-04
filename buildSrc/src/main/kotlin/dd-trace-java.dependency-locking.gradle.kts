@@ -12,9 +12,9 @@
 
 project.dependencyLocking {
   lockAllConfigurations()
-  //lockmode set to LENIENT because there are resolution
-  //errors in the build with an apiguardian dependency.
-  //See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
+  // lockmode set to LENIENT because there are resolution
+  // errors in the build with an apiguardian dependency.
+  // See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
   lockMode = LockMode.LENIENT
 }
 
@@ -24,11 +24,12 @@ tasks.register("resolveAndLockAll") {
     require(gradle.startParameter.isWriteDependencyLocks)
   }
   doLast {
-    configurations.filter {
-      // Add any custom filtering on the configurations to be resolved:
-      // - Should be resolvable
-      // - Should skip Scala related task (https://github.com/ben-manes/gradle-versions-plugin/issues/816#issuecomment-1872264880)
-      it.isCanBeResolved && !it.name.startsWith("incrementalScalaAnalysis")
-    }.forEach { it.resolve() }
+    configurations
+      .filter {
+        // Add any custom filtering on the configurations to be resolved:
+        // - Should be resolvable
+        // - Should skip Scala related task (https://github.com/ben-manes/gradle-versions-plugin/issues/816#issuecomment-1872264880)
+        it.isCanBeResolved && !it.name.startsWith("incrementalScalaAnalysis")
+      }.forEach { it.resolve() }
   }
 }

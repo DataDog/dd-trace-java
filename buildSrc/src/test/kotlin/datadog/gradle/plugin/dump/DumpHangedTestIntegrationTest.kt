@@ -98,12 +98,14 @@ class DumpHangedTestIntegrationTest {
     )
 
     try {
-      val buildResult = GradleRunner.create()
-        .forwardOutput()
-        .withPluginClasspath()
-        .withArguments("test")
-        .withProjectDir(projectDir)
-        .build()
+      val buildResult =
+        GradleRunner
+          .create()
+          .forwardOutput()
+          .withPluginClasspath()
+          .withArguments("test")
+          .withProjectDir(projectDir)
+          .build()
 
       return buildResult.output.lines()
     } catch (e: UnexpectedBuildFailure) {

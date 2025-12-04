@@ -5,8 +5,8 @@ import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifa
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
-import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
@@ -52,19 +52,21 @@ class MuzzlePlugin : Plugin<Project> {
     val bootstrapProject = ddJavaAgent["agent-bootstrap"] ?: error(":dd-java-agent:agent-bootstrap project not found")
     val toolingProject = ddJavaAgent["agent-tooling"] ?: error(":dd-java-agent:agent-tooling project not found")
 
-    val muzzleBootstrap = project.configurations.register("muzzleBootstrap") {
-      isCanBeConsumed = false
-      isCanBeResolved = true
+    val muzzleBootstrap =
+      project.configurations.register("muzzleBootstrap") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
 
-      dependencies.add(project.dependencies.project(bootstrapProject.path))
-    }
+        dependencies.add(project.dependencies.project(bootstrapProject.path))
+      }
 
-    val muzzleTooling = project.configurations.register("muzzleTooling") {
-      isCanBeConsumed = false
-      isCanBeResolved = true
+    val muzzleTooling =
+      project.configurations.register("muzzleTooling") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
 
-      dependencies.add(project.dependencies.project(toolingProject.path))
-    }
+        dependencies.add(project.dependencies.project(toolingProject.path))
+      }
 
     project.evaluationDependsOn(bootstrapProject.path)
     project.evaluationDependsOn(toolingProject.path)
@@ -72,29 +74,40 @@ class MuzzlePlugin : Plugin<Project> {
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     @Suppress("UNCHECKED_CAST")
-    val compileMuzzle = project.tasks.register("compileMuzzle") {
-      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
-      dependsOn(bootstrapProject.tasks.named("compileJava"))
-      dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
-      dependsOn(toolingProject.tasks.named("compileJava"))
-    }
-
-    val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
-      this.muzzleBootstrap.set(muzzleBootstrap)
-      this.muzzleTooling.set(muzzleTooling)
-      dependsOn(compileMuzzle)
-    }
-
-    project.tasks.register<MuzzleGetReferencesTask>("printReferences") {
-      dependsOn(compileMuzzle)
-    }.also {
-      val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
-        doLast {
-          println(it.get().outputFile.get().asFile.readText())
-        }
+    val compileMuzzle =
+      project.tasks.register("compileMuzzle") {
+        dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
+        dependsOn(bootstrapProject.tasks.named("compileJava"))
+        dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
+        dependsOn(toolingProject.tasks.named("compileJava"))
       }
-      it.configure { finalizedBy(printReferencesTask) }
-    }
+
+    val muzzleTask =
+      project.tasks.register<MuzzleTask>("muzzle") {
+        this.muzzleBootstrap.set(muzzleBootstrap)
+        this.muzzleTooling.set(muzzleTooling)
+        dependsOn(compileMuzzle)
+      }
+
+    project.tasks
+      .register<MuzzleGetReferencesTask>("printReferences") {
+        dependsOn(compileMuzzle)
+      }.also {
+        val printReferencesTask =
+          project.tasks.register("actuallyPrintReferences") {
+            doLast {
+              println(
+                it
+                  .get()
+                  .outputFile
+                  .get()
+                  .asFile
+                  .readText()
+              )
+            }
+          }
+        it.configure { finalizedBy(printReferencesTask) }
+      }
 
     project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
       dependsOn(compileMuzzle)
@@ -102,12 +115,13 @@ class MuzzlePlugin : Plugin<Project> {
 
     project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
 
-    val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
-      // removing leading ':' if present
-      val muzzleTaskName = taskName.removePrefix(":")
-      val projectPath = project.path.removePrefix(":")
-      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName
-    }
+    val hasRelevantTask =
+      project.gradle.startParameter.taskNames.any { taskName ->
+        // removing leading ':' if present
+        val muzzleTaskName = taskName.removePrefix(":")
+        val projectPath = project.path.removePrefix(":")
+        muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName
+      }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
       return
@@ -147,9 +161,10 @@ class MuzzlePlugin : Plugin<Project> {
         project.logger.info("configured $directive")
       }
 
-      val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
-        startTimeMs.set(startTime)
-      }
+      val timingTask =
+        project.tasks.register<MuzzleEndTask>("muzzle-end") {
+          startTimeMs.set(startTime)
+        }
       // last muzzle task to run
       runAfter.configure {
         finalizedBy(timingTask)
@@ -178,14 +193,16 @@ class MuzzlePlugin : Plugin<Project> {
       instrumentationProject: Project,
       runAfterTask: TaskProvider<MuzzleTask>,
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
-      muzzleTooling: NamedDomainObjectProvider<Configuration>
+      muzzleTooling: NamedDomainObjectProvider<Configuration>,
     ): TaskProvider<MuzzleTask> {
-      val muzzleTaskName = buildString {
-        append("muzzle-Assert")
-        when {
+      val muzzleTaskName =
+        buildString {
+          append("muzzle-Assert")
+          when {
             muzzleDirective.isCoreJdk -> {
               append(muzzleDirective)
             }
+
             else -> {
               append(if (muzzleDirective.assertPass) "Pass" else "Fail")
               append("-")
@@ -196,53 +213,57 @@ class MuzzlePlugin : Plugin<Project> {
               append(versionArtifact?.version)
               append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
             }
+          }
         }
-      }
       instrumentationProject.configurations.register(muzzleTaskName) {
         if (!muzzleDirective.isCoreJdk && versionArtifact != null) {
-          val depId = buildString {
-            append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")
+          val depId =
+            buildString {
+              append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")
 
-            versionArtifact.classifier?.let {
-              append(":")
-              append(it)
+              versionArtifact.classifier?.let {
+                append(":")
+                append(it)
+              }
             }
-          }
 
-          val dep = instrumentationProject.dependencies.create(depId) {
-            isTransitive = true
+          val dep =
+            instrumentationProject.dependencies.create(depId) {
+              isTransitive = true
 
-            // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
-            // longer bundled with the JVM and have to be excluded for the muzzle tests to be able to run.
-            exclude(group = "com.sun.jdmk", module = "jmxtools")
-            exclude(group = "com.sun.jmx", module = "jmxri")
+              // The following optional transitive dependencies are brought in by some legacy module such as log4j 1.x but are no
+              // longer bundled with the JVM and have to be excluded for the muzzle tests to be able to run.
+              exclude(group = "com.sun.jdmk", module = "jmxtools")
+              exclude(group = "com.sun.jmx", module = "jmxri")
 
-            // Also exclude specifically excluded dependencies
-            muzzleDirective.excludedDependencies.forEach {
-              val parts = it.split(":")
-              exclude(group = parts[0], module = parts[1])
+              // Also exclude specifically excluded dependencies
+              muzzleDirective.excludedDependencies.forEach {
+                val parts = it.split(":")
+                exclude(group = parts[0], module = parts[1])
+              }
             }
-          }
           dependencies.add(dep)
         }
 
         muzzleDirective.additionalDependencies.forEach {
-          val dep = instrumentationProject.dependencies.create(it) {
-            isTransitive = true
-            for (excluded in muzzleDirective.excludedDependencies) {
-              val parts = excluded.split(":")
-              exclude(group = parts[0], module = parts[1])
+          val dep =
+            instrumentationProject.dependencies.create(it) {
+              isTransitive = true
+              for (excluded in muzzleDirective.excludedDependencies) {
+                val parts = excluded.split(":")
+                exclude(group = parts[0], module = parts[1])
+              }
             }
-          }
           dependencies.add(dep)
         }
       }
 
-      val muzzleTask = instrumentationProject.tasks.register<MuzzleTask>(muzzleTaskName) {
-        this.muzzleDirective.set(muzzleDirective)
-        this.muzzleBootstrap.set(muzzleBootstrap)
-        this.muzzleTooling.set(muzzleTooling)
-      }
+      val muzzleTask =
+        instrumentationProject.tasks.register<MuzzleTask>(muzzleTaskName) {
+          this.muzzleDirective.set(muzzleDirective)
+          this.muzzleBootstrap.set(muzzleBootstrap)
+          this.muzzleTooling.set(muzzleTooling)
+        }
 
       runAfterTask.configure {
         finalizedBy(muzzleTask)

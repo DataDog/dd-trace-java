@@ -1,23 +1,25 @@
 package datadog.gradle.plugin.config
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.api.DefaultTask
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
 import javax.inject.Inject
 
 @CacheableTask
-abstract class ParseSupportedConfigurationsTask  @Inject constructor(
+abstract class ParseSupportedConfigurationsTask
+@Inject
+constructor(
   private val objects: ObjectFactory
 ) : DefaultTask() {
   @InputFile
@@ -39,14 +41,17 @@ abstract class ParseSupportedConfigurationsTask  @Inject constructor(
 
     // Read JSON (directly from the file, not classpath)
     val mapper = ObjectMapper()
-    val fileData: Map<String, Any?> = FileInputStream(input).use { inStream ->
-      mapper.readValue(inStream, object : TypeReference<Map<String, Any?>>() {})
-    }
+    val fileData: Map<String, Any?> =
+      FileInputStream(input).use { inStream ->
+        mapper.readValue(inStream, object : TypeReference<Map<String, Any?>>() {})
+      }
 
     @Suppress("UNCHECKED_CAST")
     val supported = fileData["supportedConfigurations"] as Map<String, List<String>>
+
     @Suppress("UNCHECKED_CAST")
     val aliases = fileData["aliases"] as Map<String, List<String>>
+
     @Suppress("UNCHECKED_CAST")
     val deprecated = (fileData["deprecations"] as? Map<String, String>) ?: emptyMap()
 
@@ -149,9 +154,7 @@ abstract class ParseSupportedConfigurationsTask  @Inject constructor(
     }
   }
 
-  private fun quoteList(list: List<String>): String =
-    list.joinToString(", ") { "\"${esc(it)}\"" }
+  private fun quoteList(list: List<String>): String = list.joinToString(", ") { "\"${esc(it)}\"" }
 
-  private fun esc(s: String): String =
-    s.replace("\\", "\\\\").replace("\"", "\\\"")
+  private fun esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 }

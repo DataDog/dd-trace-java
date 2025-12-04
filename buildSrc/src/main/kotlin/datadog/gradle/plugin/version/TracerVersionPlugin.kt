@@ -11,7 +11,7 @@ import java.io.File
 import javax.inject.Inject
 
 class TracerVersionPlugin @Inject constructor(
-  private val providerFactory: ProviderFactory,
+  private val providerFactory: ProviderFactory
 ) : Plugin<Project> {
   private val logger = Logging.getLogger(TracerVersionPlugin::class.java)
 
@@ -23,9 +23,10 @@ class TracerVersionPlugin @Inject constructor(
     val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
     extension.detectDirty.set(
-       providerFactory.gradleProperty("tracerVersion.dirtiness")
-         .map { it.trim().toBoolean() }
-         .orElse(false)
+      providerFactory
+        .gradleProperty("tracerVersion.dirtiness")
+        .map { it.trim().toBoolean() }
+        .orElse(false)
     )
 
     val versionProvider = versionProvider(targetProject, extension)
@@ -40,36 +41,37 @@ class TracerVersionPlugin @Inject constructor(
   ): String {
     val repoWorkingDirectory = targetProject.rootDir
 
-    val buildVersion: String = if (!repoWorkingDirectory.resolve(".git").exists()) {
-      // Not a git repository
-      extension.defaultVersion.get()
-    } else {
-      providerFactory.zip(
-        gitDescribeProvider(extension, repoWorkingDirectory),
-        gitCurrentBranchProvider(repoWorkingDirectory)
-      ) { describeString, currentBranch ->
-        toTracerVersion(describeString, extension) {
-          when {
-            currentBranch.startsWith("release/v") -> {
-              logger.info("Incrementing patch because release branch : $currentBranch")
-              nextPatchVersion()
+    val buildVersion: String =
+      if (!repoWorkingDirectory.resolve(".git").exists()) {
+        // Not a git repository
+        extension.defaultVersion.get()
+      } else {
+        providerFactory
+          .zip(
+            gitDescribeProvider(extension, repoWorkingDirectory),
+            gitCurrentBranchProvider(repoWorkingDirectory)
+          ) { describeString, currentBranch ->
+            toTracerVersion(describeString, extension) {
+              when {
+                currentBranch.startsWith("release/v") -> {
+                  logger.info("Incrementing patch because release branch : $currentBranch")
+                  nextPatchVersion()
+                }
+
+                else -> {
+                  logger.info("Incrementing minor")
+                  nextMinorVersion()
+                }
+              }
             }
-            else -> {
-              logger.info("Incrementing minor")
-              nextMinorVersion()
-            }
-          }
-        }
-      }.get()
-    }
+          }.get()
+      }
 
     logger.lifecycle("Tracer build version: {}", buildVersion)
     return buildVersion
   }
 
-  private fun gitCurrentBranchProvider(
-    repoWorkingDirectory: File
-  ) = providerFactory.of(GitCommandValueSource::class.java) {
+  private fun gitCurrentBranchProvider(repoWorkingDirectory: File) = providerFactory.of(GitCommandValueSource::class.java) {
     parameters {
       gitCommand.addAll(
         "git",
@@ -109,18 +111,20 @@ class TracerVersionPlugin @Inject constructor(
 
     val tagPrefix = extension.tagVersionPrefix.get()
     val tagRegex = Regex("$tagPrefix(\\d+\\.\\d+\\.\\d+)(.*)")
-    val matchResult = tagRegex.find(describeString)
-      ?: return extension.defaultVersion.get()
+    val matchResult =
+      tagRegex.find(describeString)
+        ?: return extension.defaultVersion.get()
 
     val (lastTagVersion, describeTrailer) = matchResult.destructured
     val hasLaterCommits = describeTrailer.isNotBlank()
-    val version = Version.parse(lastTagVersion).let {
-      if (hasLaterCommits) {
-        it.nextVersion()
-      } else {
-        it
+    val version =
+      Version.parse(lastTagVersion).let {
+        if (hasLaterCommits) {
+          it.nextVersion()
+        } else {
+          it
+        }
       }
-    }
 
     return buildString {
       append(version.toString())
@@ -136,12 +140,21 @@ class TracerVersionPlugin @Inject constructor(
   }
 
   open class TracerVersionExtension @Inject constructor(objectFactory: ObjectFactory) {
-    val defaultVersion = objectFactory.property(String::class)
-      .convention("0.1.0-SNAPSHOT")
-    val tagVersionPrefix = objectFactory.property(String::class)
-      .convention("v")
-    val useSnapshot = objectFactory.property(Boolean::class)
-      .convention(true)
+    val defaultVersion =
+      objectFactory
+        .property(String::class)
+        .convention("0.1.0-SNAPSHOT")
+
+    val tagVersionPrefix =
+      objectFactory
+        .property(String::class)
+        .convention("v")
+
+    val useSnapshot =
+      objectFactory
+        .property(Boolean::class)
+        .convention(true)
+
     val detectDirty = objectFactory.property(Boolean::class)
   }
 }

@@ -6,6 +6,34 @@ plugins {
   id("com.diffplug.spotless") version "8.1.0"
 }
 
+spotless {
+  kotlin {
+    toggleOffOn()
+    target("**/*.kt")
+
+    ktlint("1.8.0").editorConfigOverride(
+      // Disable trailing comma rules to minimize diff.
+      mapOf(
+        "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+        "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+      )
+    )
+  }
+
+  kotlinGradle {
+    toggleOffOn()
+    target("**/*.gradle.kts")
+
+    ktlint("1.8.0").editorConfigOverride(
+      // Disable trailing comma rules to minimize diff.
+      mapOf(
+        "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+        "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+      )
+    )
+  }
+}
+
 java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(8)

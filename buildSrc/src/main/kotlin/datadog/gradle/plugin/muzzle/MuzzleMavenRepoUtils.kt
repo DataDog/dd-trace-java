@@ -38,10 +38,11 @@ internal object MuzzleMavenRepoUtils {
    */
   @JvmStatic
   fun newRepositorySystem(): RepositorySystem {
-    val locator = MavenRepositorySystemUtils.newServiceLocator().apply {
-      addService(RepositoryConnectorFactory::class.java, BasicRepositoryConnectorFactory::class.java)
-      addService(TransporterFactory::class.java, HttpTransporterFactory::class.java)
-    }
+    val locator =
+      MavenRepositorySystemUtils.newServiceLocator().apply {
+        addService(RepositoryConnectorFactory::class.java, BasicRepositoryConnectorFactory::class.java)
+        addService(TransporterFactory::class.java, HttpTransporterFactory::class.java)
+      }
     return locator.getService(RepositorySystem::class.java)
   }
 
@@ -50,13 +51,15 @@ internal object MuzzleMavenRepoUtils {
    */
   @JvmStatic
   fun newRepositorySystemSession(system: RepositorySystem): RepositorySystemSession {
-    val session = MavenRepositorySystemUtils.newSession().apply {
-      val tmpDir = Files.createTempDirectory("muzzle-generated-tmpdir-").toFile().apply {
-        deleteOnExit()
+    val session =
+      MavenRepositorySystemUtils.newSession().apply {
+        val tmpDir =
+          Files.createTempDirectory("muzzle-generated-tmpdir-").toFile().apply {
+            deleteOnExit()
+          }
+        val localRepo = LocalRepository(tmpDir)
+        localRepositoryManager = system.newLocalRepositoryManager(this, localRepo)
       }
-      val localRepo = LocalRepository(tmpDir)
-      localRepositoryManager = system.newLocalRepositoryManager(this, localRepo)
-    }
     return session
   }
 
@@ -68,48 +71,53 @@ internal object MuzzleMavenRepoUtils {
     system: RepositorySystem,
     session: RepositorySystemSession
   ): Set<MuzzleDirective> {
-    val allVersionsArtifact = DefaultArtifact(
-      muzzleDirective.group,
-      muzzleDirective.module,
-      "jar",
-      "[,)"
-    )
+    val allVersionsArtifact =
+      DefaultArtifact(
+        muzzleDirective.group,
+        muzzleDirective.module,
+        "jar",
+        "[,)"
+      )
     val repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
-    val allRangeRequest = VersionRangeRequest().apply {
-      repositories = repos
-      artifact = allVersionsArtifact
-    }
+    val allRangeRequest =
+      VersionRangeRequest().apply {
+        repositories = repos
+        artifact = allVersionsArtifact
+      }
     val allRangeResult = system.resolveVersionRange(session, allRangeRequest)
 
-    val directiveArtifact = DefaultArtifact(
-      muzzleDirective.group,
-      muzzleDirective.module,
-      "jar",
-      muzzleDirective.versions
-    )
-    val rangeRequest = VersionRangeRequest().apply {
-      repositories = repos
-      artifact = directiveArtifact
-    }
+    val directiveArtifact =
+      DefaultArtifact(
+        muzzleDirective.group,
+        muzzleDirective.module,
+        "jar",
+        muzzleDirective.versions
+      )
+    val rangeRequest =
+      VersionRangeRequest().apply {
+        repositories = repos
+        artifact = directiveArtifact
+      }
     val rangeResult = system.resolveVersionRange(session, rangeRequest)
 
     val rangeResultVersions = rangeResult.versions.toSet()
     allRangeResult.versions.removeAll(rangeResultVersions)
-    return MuzzleVersionUtils.filterAndLimitVersions(
-      allRangeResult,
-      muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
-    ).map { version ->
-      MuzzleDirective().apply {
-        name = muzzleDirective.name
-        group = muzzleDirective.group
-        module = muzzleDirective.module
-        versions = version.toString()
-        assertPass = !muzzleDirective.assertPass
-        excludedDependencies = muzzleDirective.excludedDependencies
-        includeSnapshots = muzzleDirective.includeSnapshots
-      }
-    }.toSet()
+    return MuzzleVersionUtils
+      .filterAndLimitVersions(
+        allRangeResult,
+        muzzleDirective.skipVersions,
+        muzzleDirective.includeSnapshots
+      ).map { version ->
+        MuzzleDirective().apply {
+          name = muzzleDirective.name
+          group = muzzleDirective.group
+          module = muzzleDirective.module
+          versions = version.toString()
+          assertPass = !muzzleDirective.assertPass
+          excludedDependencies = muzzleDirective.excludedDependencies
+          includeSnapshots = muzzleDirective.includeSnapshots
+        }
+      }.toSet()
   }
 
   /**
@@ -121,17 +129,19 @@ internal object MuzzleMavenRepoUtils {
     system: RepositorySystem,
     session: RepositorySystemSession
   ): VersionRangeResult {
-    val directiveArtifact: Artifact = DefaultArtifact(
-      muzzleDirective.group,
-      muzzleDirective.module,
-      muzzleDirective.classifier ?: "",
-      "jar",
-      muzzleDirective.versions
-    )
-    val rangeRequest = VersionRangeRequest().apply {
-      repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
-      artifact = directiveArtifact
-    }
+    val directiveArtifact: Artifact =
+      DefaultArtifact(
+        muzzleDirective.group,
+        muzzleDirective.module,
+        muzzleDirective.classifier ?: "",
+        "jar",
+        muzzleDirective.versions
+      )
+    val rangeRequest =
+      VersionRangeRequest().apply {
+        repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
+        artifact = directiveArtifact
+      }
 
     // In rare cases, the version resolution range silently failed with the maven proxy,
     // retries 3 times at most then suggest to restart the job later.
@@ -176,13 +186,14 @@ internal object MuzzleMavenRepoUtils {
     for (n in names) {
       val testedArtifact = TestedArtifact(n, directive.group ?: "", directive.module ?: "", lowVersion, highVersion)
       val value = ret[testedArtifact.key()] ?: testedArtifact
-      ret[testedArtifact.key()] = TestedArtifact(
-        value.instrumentation,
-        value.group,
-        value.module,
-        lowest(lowVersion, value.lowVersion),
-        highest(highVersion, value.highVersion)
-      )
+      ret[testedArtifact.key()] =
+        TestedArtifact(
+          value.instrumentation,
+          value.group,
+          value.module,
+          lowest(lowVersion, value.lowVersion),
+          highest(highVersion, value.highVersion)
+        )
     }
     return ret
   }
@@ -205,20 +216,23 @@ internal object MuzzleMavenRepoUtils {
     muzzleDirective: MuzzleDirective,
     rangeResult: VersionRangeResult
   ): Set<Artifact> {
-    val versions = MuzzleVersionUtils.filterAndLimitVersions(
-      rangeResult,
-      muzzleDirective.skipVersions,
-      muzzleDirective.includeSnapshots
-    )
-    val allVersionArtifacts = versions.map { version ->
-      DefaultArtifact(
-        muzzleDirective.group,
-        muzzleDirective.module,
-        muzzleDirective.classifier ?: "",
-        "jar",
-        version.toString()
+    val versions =
+      MuzzleVersionUtils.filterAndLimitVersions(
+        rangeResult,
+        muzzleDirective.skipVersions,
+        muzzleDirective.includeSnapshots
       )
-    }.toSet()
+    val allVersionArtifacts =
+      versions
+        .map { version ->
+          DefaultArtifact(
+            muzzleDirective.group,
+            muzzleDirective.module,
+            muzzleDirective.classifier ?: "",
+            "jar",
+            version.toString()
+          )
+        }.toSet()
     if (allVersionArtifacts.isEmpty()) {
       throw GradleException("No muzzle artifacts found for ${muzzleDirective.group}:${muzzleDirective.module} ${muzzleDirective.versions} ${muzzleDirective.classifier}")
     }
