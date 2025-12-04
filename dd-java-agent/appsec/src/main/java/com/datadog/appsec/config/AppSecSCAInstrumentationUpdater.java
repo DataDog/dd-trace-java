@@ -5,37 +5,20 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handles dynamic instrumentation updates for Supply Chain Analysis (SCA) vulnerability detection.
+ * Handles dynamic instrumentation updates SCA vulnerability detection.
  *
  * <p>This class receives SCA configuration updates from Remote Config and triggers retransformation
  * of classes that match the instrumentation targets.
- *
- * <p><b>Key design features:</b>
- *
- * <ul>
- *   <li><b>Persistent transformer</b>: Installs the transformer once and keeps it installed. The
- *       transformer uses a Supplier to read the current config dynamically, eliminating timing gaps
- *       where classes loading during transformer reinstallation would miss instrumentation.
- *   <li><b>Automatic instrumentation of new classes</b>: Classes that load after config arrives are
- *       automatically instrumented by the persistent transformer.
- *   <li><b>Smart retransformation</b>: When config updates, only retransforms classes that are
- *       already loaded. New classes will be instrumented automatically when they load.
- * </ul>
- *
- * <p>Thread-safe: Multiple threads can call {@link #onConfigUpdate(AppSecSCAConfig)} concurrently.
  */
 public class AppSecSCAInstrumentationUpdater {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSCAInstrumentationUpdater.class);
 
   private final Instrumentation instrumentation;
-  private final Lock updateLock = new ReentrantLock();
 
   private volatile AppSecSCAConfig currentConfig;
   private AppSecSCATransformer currentTransformer;
@@ -54,35 +37,29 @@ public class AppSecSCAInstrumentationUpdater {
   /**
    * Called when SCA configuration is updated via Remote Config.
    *
+   * <p>Updates the current config reference that the persistent transformer reads via supplier.
+   * The transformer remains installed and will automatically instrument any new classes that load.
+   *
    * @param newConfig the new SCA configuration, or null if config was removed
    */
-  public void onConfigUpdate(AppSecSCAConfig newConfig) {
-    updateLock.lock();
-    try {
-      if (newConfig == null) {
-        log.debug("SCA config removed, disabling instrumentation");
-        removeInstrumentation();
-        currentConfig = null;
-        return;
-      }
+  public synchronized void onConfigUpdate(AppSecSCAConfig newConfig) {
+    AppSecSCAConfig oldConfig = currentConfig;
+    currentConfig = newConfig;
 
-      if (newConfig.vulnerabilities == null || newConfig.vulnerabilities.isEmpty()) {
-        log.debug("SCA config has no vulnerabilities");
-        removeInstrumentation();
-        currentConfig = newConfig;
-        return;
-      }
-
-      log.info(
-          "Applying SCA instrumentation for {} vulnerabilities", newConfig.vulnerabilities.size());
-
-      AppSecSCAConfig oldConfig = currentConfig;
-      currentConfig = newConfig;
-
-      applyInstrumentation(oldConfig, newConfig);
-    } finally {
-      updateLock.unlock();
+    if (newConfig == null) {
+      log.debug("SCA config removed, instrumentation will remain until JVM restart");
+      return;
     }
+
+    if (newConfig.vulnerabilities == null || newConfig.vulnerabilities.isEmpty()) {
+      log.debug("SCA config has no vulnerabilities, instrumentation will remain until JVM restart");
+      return;
+    }
+
+    log.debug(
+        "Applying SCA instrumentation for {} vulnerabilities", newConfig.vulnerabilities.size());
+
+    applyInstrumentation(oldConfig, newConfig);
   }
 
   private void applyInstrumentation(AppSecSCAConfig oldConfig, AppSecSCAConfig newConfig) {
@@ -94,36 +71,35 @@ public class AppSecSCAInstrumentationUpdater {
       instrumentation.addTransformer(currentTransformer, true);
     }
 
-    // Determine which classes need to be retransformed
+    // Determine which classes need to be retransformed (only NEW targets)
     Set<String> newTargetClassNames = extractTargetClassNames(newConfig);
     Set<String> oldTargetClassNames =
         oldConfig != null ? extractTargetClassNames(oldConfig) : new HashSet<>();
 
-    // Compute classes that need retransformation (new targets + removed targets)
-    Set<String> classesToRetransform = new HashSet<>();
-    classesToRetransform.addAll(newTargetClassNames); // New or updated targets
-    classesToRetransform.addAll(oldTargetClassNames); // Old targets (to remove instrumentation)
+    // Only retransform classes for NEW targets (additive-only approach)
+    Set<String> classesToRetransform = new HashSet<>(newTargetClassNames);
+    classesToRetransform.removeAll(oldTargetClassNames); // Remove already instrumented targets
 
     if (classesToRetransform.isEmpty()) {
-      log.debug("No target classes to retransform");
+      log.debug("No new target classes to retransform");
       return;
     }
 
-    // Find loaded classes that match targets
+    // Find loaded classes that match NEW targets
     List<Class<?>> loadedClassesToRetransform = findLoadedClasses(classesToRetransform);
 
     if (loadedClassesToRetransform.isEmpty()) {
       log.debug(
-          "No loaded classes match SCA targets yet ({} targets total, they may load later)",
-          newTargetClassNames.size());
+          "No loaded classes match new SCA targets yet ({} new targets, they may load later)",
+          classesToRetransform.size());
       return;
     }
 
-    // Trigger retransformation for already loaded classes
+    // Trigger retransformation for already loaded classes with NEW targets
     log.info(
-        "Retransforming {} loaded classes for SCA instrumentation ({} targets total)",
+        "Retransforming {} loaded classes for {} new SCA targets",
         loadedClassesToRetransform.size(),
-        newTargetClassNames.size());
+        classesToRetransform.size());
     retransformClasses(loadedClassesToRetransform);
   }
 
@@ -135,15 +111,7 @@ public class AppSecSCAInstrumentationUpdater {
     }
 
     for (AppSecSCAConfig.Vulnerability vulnerability : config.vulnerabilities) {
-      // Extract vulnerable internal code class
-      if (vulnerability.vulnerableInternalCode != null
-          && vulnerability.vulnerableInternalCode.className != null
-          && !vulnerability.vulnerableInternalCode.className.isEmpty()) {
-        // className is already in binary format (org.foo.Bar), no conversion needed
-        classNames.add(vulnerability.vulnerableInternalCode.className);
-      }
-
-      // Extract external entrypoint class
+      // Extract external entrypoint class we decide to instrument only the external entrypoint
       if (vulnerability.externalEntrypoint != null
           && vulnerability.externalEntrypoint.className != null
           && !vulnerability.externalEntrypoint.className.isEmpty()) {
@@ -186,17 +154,6 @@ public class AppSecSCAInstrumentationUpdater {
         log.error("Throwable during retransformation of class: {}", clazz.getName(), t);
       }
     }
-  }
-
-  private void removeInstrumentation() {
-    if (currentTransformer != null) {
-      log.debug("Removing SCA transformer");
-      instrumentation.removeTransformer(currentTransformer);
-      currentTransformer = null;
-    }
-
-    // TODO: Optionally retransform classes to remove instrumentation
-    // For now, instrumentation stays until JVM restart
   }
 
   /**
