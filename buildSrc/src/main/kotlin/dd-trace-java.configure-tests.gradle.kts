@@ -81,21 +81,23 @@ tasks.named("check") {
 }
 
 tasks.withType<Test>().configureEach {
-  // Flaky tests management for JUnit 5
-  (options as? JUnitPlatformOptions)?.apply {
-    if (skipFlakyTestsProvider.isPresent) {
-      excludeTags("flaky")
-    } else if (runFlakyTestsProvider.isPresent) {
-      includeTags("flaky")
-    }
-  }
+  // run all tests for now
 
-  // Set system property flag that is checked from tests to determine if they should be skipped or run
-  if (skipFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=false")
-  } else if (runFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=true")
-  }
+  // // Flaky tests management for JUnit 5
+  // (options as? JUnitPlatformOptions)?.apply {
+  //   if (skipFlakyTestsProvider.isPresent) {
+  //     excludeTags("flaky")
+  //   } else if (runFlakyTestsProvider.isPresent) {
+  //     includeTags("flaky")
+  //   }
+  // }
+
+  // // Set system property flag that is checked from tests to determine if they should be skipped or run
+  // if (skipFlakyTestsProvider.isPresent) {
+  //   jvmArgs("-Drun.flaky.tests=false")
+  // } else if (runFlakyTestsProvider.isPresent) {
+  //   jvmArgs("-Drun.flaky.tests=true")
+  // }
 }
 
 tasks.withType<Test>().configureEach {
