@@ -222,6 +222,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     // latest DispatcherServlet throws if no handlers have been found
     if (endpoint == NOT_FOUND && isLatestDepTest) {
