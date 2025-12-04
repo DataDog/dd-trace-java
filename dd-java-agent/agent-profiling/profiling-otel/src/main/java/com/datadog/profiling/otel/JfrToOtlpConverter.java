@@ -104,6 +104,10 @@ public final class JfrToOtlpConverter {
   private final LinkTable linkTable = new LinkTable();
   private final AttributeTable attributeTable = new AttributeTable();
 
+  // Stack trace cache: maps (stackTraceId + chunkId) → stack index
+  // This avoids redundant frame processing for duplicate stack traces
+  private final java.util.Map<Long, Integer> stackTraceCache = new java.util.HashMap<>();
+
   // Sample collectors by profile type
   private final List<SampleData> cpuSamples = new ArrayList<>();
   private final List<SampleData> wallSamples = new ArrayList<>();
@@ -249,6 +253,7 @@ public final class JfrToOtlpConverter {
     stackTable.reset();
     linkTable.reset();
     attributeTable.reset();
+    stackTraceCache.clear();
     cpuSamples.clear();
     wallSamples.clear();
     allocSamples.clear();
@@ -288,8 +293,7 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    JfrStackTrace st = event.stackTrace();
-    int stackIndex = convertStackTrace(st);
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
@@ -300,7 +304,7 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    int stackIndex = convertStackTrace(safeGetStackTrace(event::stackTrace));
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
@@ -311,7 +315,7 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    int stackIndex = convertStackTrace(safeGetStackTrace(event::stackTrace));
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long size = event.allocationSize();
@@ -323,7 +327,7 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    int stackIndex = convertStackTrace(safeGetStackTrace(event::stackTrace));
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
@@ -334,7 +338,7 @@ public final class JfrToOtlpConverter {
     if (event == null) {
       return;
     }
-    int stackIndex = convertStackTrace(safeGetStackTrace(event::stackTrace));
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
@@ -349,13 +353,30 @@ public final class JfrToOtlpConverter {
     }
   }
 
-  private int convertStackTrace(JfrStackTrace stackTrace) {
+  private int convertStackTrace(
+      java.util.function.Supplier<JfrStackTrace> stackTraceSupplier,
+      long stackTraceId,
+      Control ctl) {
+    // Create cache key from stackTraceId + chunk identity
+    // Using System.identityHashCode for chunk since ChunkInfo doesn't override hashCode
+    long cacheKey = stackTraceId ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32);
+
+    // Check cache first - avoid resolving stack trace if cached
+    Integer cachedIndex = stackTraceCache.get(cacheKey);
+    if (cachedIndex != null) {
+      return cachedIndex;
+    }
+
+    // Cache miss - resolve and process stack trace
+    JfrStackTrace stackTrace = safeGetStackTrace(stackTraceSupplier);
     if (stackTrace == null) {
+      stackTraceCache.put(cacheKey, 0);
       return 0;
     }
 
     JfrStackFrame[] frames = stackTrace.frames();
     if (frames == null || frames.length == 0) {
+      stackTraceCache.put(cacheKey, 0);
       return 0;
     }
 
@@ -364,7 +385,9 @@ public final class JfrToOtlpConverter {
       locationIndices[i] = convertFrame(frames[i]);
     }
 
-    return stackTable.intern(locationIndices);
+    int stackIndex = stackTable.intern(locationIndices);
+    stackTraceCache.put(cacheKey, stackIndex);
+    return stackIndex;
   }
 
   private int convertFrame(JfrStackFrame frame) {

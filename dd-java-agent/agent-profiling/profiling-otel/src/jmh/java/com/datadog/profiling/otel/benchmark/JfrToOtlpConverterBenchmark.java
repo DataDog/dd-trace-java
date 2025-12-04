@@ -57,6 +57,14 @@ public class JfrToOtlpConverterBenchmark {
   @Param({"100", "1000"})
   int uniqueContexts;
 
+  /**
+   * Percentage of events that reuse existing stack traces. 0 = all unique stacks (worst case for
+   * cache), 90 = 90% of events reuse stacks from first 10% (best case for cache, realistic for
+   * production workloads).
+   */
+  @Param({"0", "70", "90"})
+  int stackDuplicationPercent;
+
   private Path jfrFile;
   private JfrToOtlpConverter converter;
   private Instant start;
@@ -81,8 +89,11 @@ public class JfrToOtlpConverterBenchmark {
 
       Random random = new Random(42);
 
-      for (int i = 0; i < eventCount; i++) {
-        // Generate stack trace
+      // Pre-generate unique stack traces that will be reused
+      int uniqueStackCount = Math.max(1, (eventCount * (100 - stackDuplicationPercent)) / 100);
+      StackTraceElement[][] uniqueStacks = new StackTraceElement[uniqueStackCount][];
+
+      for (int stackIdx = 0; stackIdx < uniqueStackCount; stackIdx++) {
         StackTraceElement[] stackTrace = new StackTraceElement[stackDepth];
         for (int frameIdx = 0; frameIdx < stackDepth; frameIdx++) {
           int classId = random.nextInt(200);
@@ -96,11 +107,18 @@ public class JfrToOtlpConverterBenchmark {
                   "Class" + classId + ".java",
                   lineNumber);
         }
+        uniqueStacks[stackIdx] = stackTrace;
+      }
+
+      // Generate events, reusing stacks according to duplication percentage
+      for (int i = 0; i < eventCount; i++) {
+        // Select stack trace (first uniqueStackCount events get unique stacks, rest reuse)
+        int stackIndex = i < uniqueStackCount ? i : random.nextInt(uniqueStackCount);
+        final StackTraceElement[] stackTrace = uniqueStacks[stackIndex];
 
         long contextId = random.nextInt(uniqueContexts);
         final long spanId = 50000L + contextId;
         final long rootSpanId = 60000L + contextId;
-        final StackTraceElement[] finalStackTrace = stackTrace;
 
         recording.writeEvent(
             executionSampleType.asValue(
@@ -110,8 +128,7 @@ public class JfrToOtlpConverterBenchmark {
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(
                       "stackTrace",
-                      stackTraceBuilder ->
-                          putStackTrace(types, stackTraceBuilder, finalStackTrace));
+                      stackTraceBuilder -> putStackTrace(types, stackTraceBuilder, stackTrace));
                 }));
       }
     }
