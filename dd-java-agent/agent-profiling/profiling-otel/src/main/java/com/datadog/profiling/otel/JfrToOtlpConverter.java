@@ -120,6 +120,9 @@ public final class JfrToOtlpConverter {
   private long startTimeNanos;
   private long endTimeNanos;
 
+  // Original payload support
+  private boolean includeOriginalPayload = false;
+
   /** Holds data for a single sample before encoding. */
   private static final class SampleData {
     final int stackIndex;
@@ -133,6 +136,24 @@ public final class JfrToOtlpConverter {
       this.value = value;
       this.timestampNanos = timestampNanos;
     }
+  }
+
+  /**
+   * Enables or disables inclusion of original JFR payload in the OTLP output.
+   *
+   * <p>When enabled, the original JFR recording bytes are included in the {@code
+   * original_payload} field of each Profile message, with {@code original_payload_format} set to
+   * "jfr". Multiple JFR files are concatenated into a single "uber-JFR" which is valid per the JFR
+   * specification.
+   *
+   * <p>Default: disabled (as recommended by OTLP spec due to size considerations)
+   *
+   * @param include true to include original payload, false to exclude
+   * @return this converter for method chaining
+   */
+  public JfrToOtlpConverter setIncludeOriginalPayload(boolean include) {
+    this.includeOriginalPayload = include;
+    return this;
   }
 
   /**
@@ -205,9 +226,11 @@ public final class JfrToOtlpConverter {
    */
   public byte[] convert(Kind kind) throws IOException {
     try {
+      // Parse events from all files
       for (PathEntry pathEntry : pathEntries) {
         parseJfrEvents(pathEntry.path);
       }
+
       switch (kind) {
         case JSON:
           return encodeProfilesDataAsJson();
@@ -260,6 +283,48 @@ public final class JfrToOtlpConverter {
     lockSamples.clear();
     startTimeNanos = 0;
     endTimeNanos = 0;
+  }
+
+  /**
+   * Creates an InputStream that concatenates all added JFR files.
+   *
+   * <p>JFR format supports concatenating multiple recordings - they will be processed sequentially
+   * by JFR parsers. This creates an "uber-JFR" containing all added recordings without copying to
+   * memory.
+   *
+   * @return InputStream over all JFR files, or null if no files added
+   */
+  private InputStream createJfrPayloadStream() throws IOException {
+    if (pathEntries.isEmpty()) {
+      return null;
+    }
+
+    if (pathEntries.size() == 1) {
+      // Single file - just return its stream
+      return Files.newInputStream(pathEntries.iterator().next().path);
+    }
+
+    // Multiple files - chain them using SequenceInputStream
+    java.util.Enumeration<InputStream> streams =
+        new java.util.Enumeration<InputStream>() {
+          private final java.util.Iterator<PathEntry> iterator = pathEntries.iterator();
+
+          @Override
+          public boolean hasMoreElements() {
+            return iterator.hasNext();
+          }
+
+          @Override
+          public InputStream nextElement() {
+            try {
+              return Files.newInputStream(iterator.next().path);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        };
+
+    return new java.io.SequenceInputStream(streams);
   }
 
   private void updateTimeRange(Instant start, Instant end) {
@@ -443,13 +508,20 @@ public final class JfrToOtlpConverter {
     return ctl.chunkInfo().asInstant(startTimeTicks).toEpochMilli() * 1_000_000L;
   }
 
-  private byte[] encodeProfilesData() {
+  private byte[] encodeProfilesData() throws IOException {
     ProtobufEncoder encoder = new ProtobufEncoder(64 * 1024);
 
     // ProfilesData message
     // Field 1: resource_profiles (repeated)
     encoder.writeNestedMessage(
-        OtlpProtoFields.ProfilesData.RESOURCE_PROFILES, this::encodeResourceProfiles);
+        OtlpProtoFields.ProfilesData.RESOURCE_PROFILES,
+        enc -> {
+          try {
+            encodeResourceProfiles(enc);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
 
     // Field 2: dictionary
     encoder.writeNestedMessage(OtlpProtoFields.ProfilesData.DICTIONARY, this::encodeDictionary);
@@ -457,14 +529,21 @@ public final class JfrToOtlpConverter {
     return encoder.toByteArray();
   }
 
-  private void encodeResourceProfiles(ProtobufEncoder encoder) {
+  private void encodeResourceProfiles(ProtobufEncoder encoder) throws IOException {
     // ResourceProfiles message
     // Field 2: scope_profiles (repeated)
     encoder.writeNestedMessage(
-        OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES, this::encodeScopeProfiles);
+        OtlpProtoFields.ResourceProfiles.SCOPE_PROFILES,
+        enc -> {
+          try {
+            encodeScopeProfiles(enc);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
-  private void encodeScopeProfiles(ProtobufEncoder encoder) {
+  private void encodeScopeProfiles(ProtobufEncoder encoder) throws IOException {
     // ScopeProfiles message
     // Field 2: profiles (repeated)
     // Encode each profile type that has samples
@@ -472,30 +551,55 @@ public final class JfrToOtlpConverter {
     if (!cpuSamples.isEmpty()) {
       encoder.writeNestedMessage(
           OtlpProtoFields.ScopeProfiles.PROFILES,
-          enc -> encodeProfile(enc, PROFILE_TYPE_CPU, UNIT_SAMPLES, cpuSamples));
+          enc -> {
+            try {
+              encodeProfile(enc, PROFILE_TYPE_CPU, UNIT_SAMPLES, cpuSamples);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
     }
 
     if (!wallSamples.isEmpty()) {
       encoder.writeNestedMessage(
           OtlpProtoFields.ScopeProfiles.PROFILES,
-          enc -> encodeProfile(enc, PROFILE_TYPE_WALL, UNIT_SAMPLES, wallSamples));
+          enc -> {
+            try {
+              encodeProfile(enc, PROFILE_TYPE_WALL, UNIT_SAMPLES, wallSamples);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
     }
 
     if (!allocSamples.isEmpty()) {
       encoder.writeNestedMessage(
           OtlpProtoFields.ScopeProfiles.PROFILES,
-          enc -> encodeProfile(enc, PROFILE_TYPE_ALLOC, UNIT_BYTES, allocSamples));
+          enc -> {
+            try {
+              encodeProfile(enc, PROFILE_TYPE_ALLOC, UNIT_BYTES, allocSamples);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
     }
 
     if (!lockSamples.isEmpty()) {
       encoder.writeNestedMessage(
           OtlpProtoFields.ScopeProfiles.PROFILES,
-          enc -> encodeProfile(enc, PROFILE_TYPE_LOCK, UNIT_NANOSECONDS, lockSamples));
+          enc -> {
+            try {
+              encodeProfile(enc, PROFILE_TYPE_LOCK, UNIT_NANOSECONDS, lockSamples);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
     }
   }
 
   private void encodeProfile(
-      ProtobufEncoder encoder, String profileType, String unit, List<SampleData> samples) {
+      ProtobufEncoder encoder, String profileType, String unit, List<SampleData> samples)
+      throws IOException {
     // Profile message
 
     // Field 1: sample_type
@@ -525,6 +629,21 @@ public final class JfrToOtlpConverter {
     // Field 7: profile_id (16 bytes UUID)
     byte[] profileId = generateProfileId();
     encoder.writeBytesField(OtlpProtoFields.Profile.PROFILE_ID, profileId);
+
+    // Fields 9 & 10: original_payload_format and original_payload (if enabled)
+    if (includeOriginalPayload && !pathEntries.isEmpty()) {
+      encoder.writeStringField(OtlpProtoFields.Profile.ORIGINAL_PAYLOAD_FORMAT, "jfr");
+
+      // Calculate total size of all JFR files
+      long totalSize = 0;
+      for (PathEntry entry : pathEntries) {
+        totalSize += Files.size(entry.path);
+      }
+
+      // Write original_payload from concatenated stream
+      encoder.writeBytesField(
+          OtlpProtoFields.Profile.ORIGINAL_PAYLOAD, createJfrPayloadStream(), totalSize);
+    }
   }
 
   private void encodeValueType(ProtobufEncoder encoder, int typeIndex, int unitIndex) {

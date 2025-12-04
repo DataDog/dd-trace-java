@@ -2,6 +2,7 @@ package com.datadog.profiling.otel.proto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -220,6 +221,41 @@ public final class ProtobufEncoder {
     if (value != null && value.length > 0) {
       writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
       writeBytes(value);
+    }
+  }
+
+  /**
+   * Writes a bytes field from an InputStream without loading entire content into memory.
+   *
+   * @param fieldNumber the field number
+   * @param inputStream the input stream containing bytes to write (will be closed after writing)
+   * @param length the number of bytes to read from the stream
+   * @throws IOException if reading from stream fails
+   */
+  public void writeBytesField(int fieldNumber, InputStream inputStream, long length)
+      throws IOException {
+    if (inputStream == null || length == 0) {
+      return;
+    }
+
+    writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
+    writeVarint(length);
+
+    // Stream bytes directly to buffer
+    byte[] chunk = new byte[8192];
+    long remaining = length;
+    try {
+      while (remaining > 0) {
+        int toRead = (int) Math.min(chunk.length, remaining);
+        int read = inputStream.read(chunk, 0, toRead);
+        if (read < 0) {
+          throw new IOException("Unexpected end of stream");
+        }
+        buffer.write(chunk, 0, read);
+        remaining -= read;
+      }
+    } finally {
+      inputStream.close();
     }
   }
 
