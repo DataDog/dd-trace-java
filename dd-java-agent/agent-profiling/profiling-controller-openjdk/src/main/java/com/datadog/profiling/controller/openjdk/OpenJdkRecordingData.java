@@ -44,7 +44,7 @@ public class OpenJdkRecordingData extends RecordingData {
   }
 
   @Override
-  public void release() {
+  protected void doRelease() {
     recording.close();
   }
 
