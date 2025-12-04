@@ -1,8 +1,10 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
@@ -20,8 +22,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -193,6 +198,10 @@ public class InstrumenterConfig {
   private final Collection<String> additionalJaxRsAnnotations;
 
   private final boolean rumEnabled;
+  private final boolean dataJobsEnabled;
+
+  private final boolean agentlessLogSubmissionEnabled;
+  private final boolean apiSecurityEndpointCollectionEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -227,6 +236,8 @@ public class InstrumenterConfig {
         ProfilingEnablement.of(
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
+    dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -327,6 +338,14 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
     this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
+
+    agentlessLogSubmissionEnabled =
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -618,6 +637,18 @@ public class InstrumenterConfig {
     return rumEnabled;
   }
 
+  public boolean isDataJobsEnabled() {
+    return dataJobsEnabled;
+  }
+
+  public boolean isAgentlessLogSubmissionEnabled() {
+    return agentlessLogSubmissionEnabled;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
@@ -723,6 +754,10 @@ public class InstrumenterConfig {
         + pekkoSchedulerEnabled
         + ", rumEnabled="
         + rumEnabled
+        + ", dataJobsEnabled="
+        + dataJobsEnabled
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
         + '}';
   }
 }
