@@ -226,10 +226,12 @@ public class AgentTaskScheduler implements Executor {
     } catch (final InterruptedException e) {
       // ignore, we only want to preload queue internals
     }
-    // preload a future no-op task to ensure workQueue.take() will use await with timeout during
-    // premain - otherwise on Java 25 it will load ForkJoinPool which in turn loads ForkJoinTask,
-    // which then means we lose the chance to field-inject context into ForkJoinTask instances
-    workQueue.offer(FUTURE_NOOP_PLACEHOLDER);
+    if (this == INSTANCE) {
+      // preload a future no-op task to ensure workQueue.take() will use await with timeout during
+      // premain - otherwise on Java 25 it will load ForkJoinPool which in turn loads ForkJoinTask,
+      // which then means we lose the chance to field-inject context into ForkJoinTask instances
+      workQueue.offer(FUTURE_NOOP_PLACEHOLDER);
+    }
   }
 
   // for testing
