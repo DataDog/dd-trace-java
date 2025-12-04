@@ -55,7 +55,7 @@ public class MongoCommentInjector {
   }
 
   /** Build comment content using SharedDBCommenter */
-  public static String getComment(AgentSpan dbSpan, String hostname, String dbName) {
+  public static String buildComment(AgentSpan dbSpan, String hostname, String dbName) {
     if (!INJECT_COMMENT) {
       return null;
     }

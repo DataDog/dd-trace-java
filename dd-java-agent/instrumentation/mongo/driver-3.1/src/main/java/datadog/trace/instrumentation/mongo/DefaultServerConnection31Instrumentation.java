@@ -78,7 +78,7 @@ public class DefaultServerConnection31Instrumentation extends InstrumenterModule
         hostname = connectionDescription.getServerAddress().getHost();
       }
 
-      String dbmComment = MongoCommentInjector.getComment(span, hostname, dbName);
+      String dbmComment = MongoCommentInjector.buildComment(span, hostname, dbName);
       if (dbmComment != null) {
         originalBsonDocument = MongoCommentInjector.injectComment(dbmComment, originalBsonDocument);
       }

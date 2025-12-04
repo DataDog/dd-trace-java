@@ -93,12 +93,12 @@ class MongoCommentInjectorTest extends BaseMongoCommentInjectorTest {
 }
 
 class MongoCommentInjectorDisabledModeForkedTest extends BaseMongoCommentInjectorTest {
-  def "getComment returns null when INJECT_COMMENT is false"() {
+  def 'buildComment returns null when INJECT_COMMENT is false'() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "disabled")
 
     when:
-    String comment = MongoCommentInjector.getComment(null, null, null)
+    String comment = MongoCommentInjector.buildComment(null, null, null)
 
     then:
     comment == null
