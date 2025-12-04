@@ -815,6 +815,72 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.removeCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
   }
 
+  void 'SCA listener is registered with correct deserializer and capability'() {
+    given:
+    appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    // Verify SCA listener is registered with the correct deserializer
+    1 * poller.addListener(Product.DEBUG, AppSecSCAConfigDeserializer.INSTANCE, _)
+    // Verify SCA capability is advertised
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
+  }
+
+  void 'SCA deserializer handles multiple formats correctly'() {
+    when: 'deserialize object format'
+    def objectFormatJson = '''
+      {
+        "vulnerabilities": [
+          {
+            "advisory": "GHSA-1111-2222-3333",
+            "cve": "CVE-2024-0001",
+            "external_entrypoint": {
+              "class": "com.example.VulnerableClass1",
+              "methods": ["method1"]
+            }
+          }
+        ]
+      }
+    '''
+    def config1 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(objectFormatJson.bytes)
+
+    then:
+    config1 != null
+    config1.vulnerabilities.size() == 1
+
+    when: 'deserialize array format'
+    def arrayFormatJson = '''
+      [
+        {
+          "advisory": "GHSA-xxxx-yyyy-zzzz",
+          "cve": "CVE-2024-0001",
+          "external_entrypoint": {
+            "class": "com.example.VulnerableClass",
+            "methods": ["vulnerableMethod"]
+          }
+        }
+      ]
+    '''
+    def config2 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(arrayFormatJson.bytes)
+
+    then:
+    config2 != null
+    config2.vulnerabilities.size() == 1
+
+    when: 'deserialize empty config'
+    def emptyJson = '{"vulnerabilities": []}'
+    def config3 = AppSecSCAConfigDeserializer.INSTANCE.deserialize(emptyJson.bytes)
+
+    then:
+    config3 != null
+    config3.vulnerabilities.isEmpty()
+  }
+
 
   private static AppSecFeatures autoUserInstrum(String mode) {
     return new AppSecFeatures().tap { features ->

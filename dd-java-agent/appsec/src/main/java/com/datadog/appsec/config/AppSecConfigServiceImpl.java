@@ -151,7 +151,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       this.scaInstrumentationUpdater = new AppSecSCAInstrumentationUpdater(instrumentation);
       log.debug("SCA instrumentation updater initialized successfully");
     } catch (Exception e) {
-      log.error("Failed to initialize SCA instrumentation updater", e);
+      log.debug("Failed to initialize SCA instrumentation updater", e);
     }
   }
 
@@ -436,7 +436,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     try {
       scaInstrumentationUpdater.onConfigUpdate(newConfig);
     } catch (Exception e) {
-      log.error("Error updating SCA instrumentation", e);
+      log.debug("Error updating SCA instrumentation", e);
     }
   }
 
