@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.telemetry.EndpointCollector;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,7 +65,7 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isApiSecurityEndpointCollectionEnabled();
+    return super.isEnabled() && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
   }
 
   public static class AppSecHandlerMappingAdvice {
