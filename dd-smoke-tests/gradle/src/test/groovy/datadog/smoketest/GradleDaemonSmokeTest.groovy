@@ -27,9 +27,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000 // Gradle's default timeout is 10s
 
-  // TODO: Gradle daemons started by the TestKit have an idle period of 3 minutes
-  //  so by the time tests finish, at least some of the daemons are still alive.
-  //  Because of that the temporary TestKit folder cannot be fully deleted
   @Shared
   @TempDir
   Path testKitFolder

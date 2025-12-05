@@ -68,7 +68,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   }
 
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
-    List<String> arguments = []
+    List<String> arguments = ["-Xms512m", "-Xmx512m"]
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
     // for convenience when debugging locally
