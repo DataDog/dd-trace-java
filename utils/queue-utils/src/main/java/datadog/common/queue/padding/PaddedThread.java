@@ -17,12 +17,16 @@ public final class PaddedThread extends ThreadRhsPadding {
     }
   }
 
-  /** @param newValue value to store with opaque semantics (bitwise atomicity only) */
+  /**
+   * @param newValue value to store with opaque semantics (bitwise atomicity only)
+   */
   public void setOpaque(Thread newValue) {
     VALUE_HANDLE.setOpaque(this, newValue);
   }
 
-  /** @param newValue value to store with volatile semantics (full visibility) */
+  /**
+   * @param newValue value to store with volatile semantics (full visibility)
+   */
   public void setVolatile(Thread newValue) {
     VALUE_HANDLE.setVolatile(this, newValue);
   }
@@ -35,7 +39,9 @@ public final class PaddedThread extends ThreadRhsPadding {
     return (Thread) VALUE_HANDLE.getAndSet(this, newValue);
   }
 
-  /** @return value with opaque semantics (bitwise atomicity only) */
+  /**
+   * @return value with opaque semantics (bitwise atomicity only)
+   */
   public Thread getOpaque() {
     return (Thread) VALUE_HANDLE.getOpaque(this);
   }

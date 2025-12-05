@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
-import datadog.trace.util.queue.NonBlockingQueue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.Map;

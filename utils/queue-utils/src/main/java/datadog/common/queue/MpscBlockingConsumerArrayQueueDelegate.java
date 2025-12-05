@@ -14,7 +14,9 @@ import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 final class MpscBlockingConsumerArrayQueueDelegate<E> implements MessagePassingBlockingQueue<E> {
   private final MpscBlockingConsumerArrayQueue<E> delegate;
 
-  /** @param capacity queue capacity */
+  /**
+   * @param capacity queue capacity
+   */
   MpscBlockingConsumerArrayQueueDelegate(int capacity) {
     this.delegate = new MpscBlockingConsumerArrayQueue<>(capacity);
   }

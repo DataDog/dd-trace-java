@@ -15,7 +15,9 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
    */
   protected final PaddedLong producerLimit;
 
-  /** @param requestedCapacity queue capacity (rounded up to power of two) */
+  /**
+   * @param requestedCapacity queue capacity (rounded up to power of two)
+   */
   public MpscArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
     this.producerLimit = new PaddedLong(capacity);

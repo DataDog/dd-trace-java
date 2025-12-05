@@ -16,7 +16,9 @@ public final class SpmcArrayQueueVarHandle<E> extends BaseQueue<E>
   /** Cached producer limit to reduce volatile tail reads. */
   private final PaddedLong consumerLimit = new PaddedLong();
 
-  /** @param requestedCapacity queue capacity (rounded up to power of two) */
+  /**
+   * @param requestedCapacity queue capacity (rounded up to power of two)
+   */
   public SpmcArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
   }
