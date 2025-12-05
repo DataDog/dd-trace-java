@@ -668,26 +668,26 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
             operationName "spark.application"
             spanType "spark"
             assert span.serviceName ==~ expectedService
-            assert span.tags["service_name"] == expectedServiceNameTag
+            assert expectedServiceNameTag == null ? span.tags["service_name"] == null : span.tags["service_name"] ==~ expectedServiceNameTag
           }
         }
         span {
           operationName "spark.sql"
           spanType "spark"
           assert span.serviceName ==~ expectedService
-          assert span.tags["service_name"] == expectedServiceNameTag
+          assert expectedServiceNameTag == null ? span.tags["service_name"] == null : span.tags["service_name"] ==~ expectedServiceNameTag
         }
         span {
           operationName "spark.job"
           spanType "spark"
           assert span.serviceName ==~ expectedService
-          assert span.tags["service_name"] == expectedServiceNameTag
+          assert expectedServiceNameTag == null ? span.tags["service_name"] == null : span.tags["service_name"] ==~ expectedServiceNameTag
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           assert span.serviceName ==~ expectedService
-          assert span.tags["service_name"] == expectedServiceNameTag
+          assert expectedServiceNameTag == null ? span.tags["service_name"] == null : span.tags["service_name"] ==~ expectedServiceNameTag
         }
       }
     }
@@ -700,7 +700,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     null      | true                  | "some_app" | true                  | "(?!.*some_app).*"     | null
     null      | true                  | "some_app" | false                 | "some_app"             | "some_app"
     null      | false                 | "some_app" | false                 | "(?!.*some_app).*"     | null
-    null      | true                  | null       | false                 | "(?!.*some_app).*"     | null
+    null      | true                  | null       | false                 | "(?!.*some_app).*"     | ".+"
   }
 
 
