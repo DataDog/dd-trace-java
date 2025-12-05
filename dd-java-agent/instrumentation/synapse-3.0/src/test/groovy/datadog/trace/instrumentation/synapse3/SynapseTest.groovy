@@ -119,9 +119,10 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     int statusCode = client.newCall(request).execute().code()
 
     then:
+    // should fail here
     assertTraces(1) {
       trace(1) {
-        serverSpan(it, 0, 'GET', statusCode, query)
+        serverSpan(it, 1, 'GET', statusCode, query)
       }
     }
     statusCode == 200

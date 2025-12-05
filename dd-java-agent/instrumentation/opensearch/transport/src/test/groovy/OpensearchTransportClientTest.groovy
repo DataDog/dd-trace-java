@@ -87,7 +87,8 @@ class OpensearchTransportClientTest extends InstrumentationSpecification {
     def status = result.get().status
 
     expect:
-    status.name() == "GREEN"
+    // should fail here
+    status.name() == "XGREEN"
     assertTraces(2) {
       trace(1) {
         span {
