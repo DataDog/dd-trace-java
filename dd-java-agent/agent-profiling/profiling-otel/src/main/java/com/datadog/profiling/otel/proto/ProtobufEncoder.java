@@ -135,9 +135,11 @@ public final class ProtobufEncoder {
     writer.write(nested);
     byte[] messageBytes = nested.toByteArray();
 
+    // ALWAYS write the message, even if empty (length 0)
+    // This is REQUIRED for OTLP dictionary tables where index 0 must be present
+    writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
+    writeVarint(messageBytes.length);
     if (messageBytes.length > 0) {
-      writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
-      writeVarint(messageBytes.length);
       try {
         buffer.write(messageBytes);
       } catch (IOException e) {
@@ -280,7 +282,7 @@ public final class ProtobufEncoder {
    */
   public void writePackedVarintField(int fieldNumber, int[] values) {
     if (values == null || values.length == 0) {
-      return;
+      return; // Empty packed arrays are omitted per protobuf3 spec
     }
 
     // Calculate packed size

@@ -152,10 +152,9 @@ public class ProfcheckValidationTest {
 
       Type objectSampleType =
           recording.registerEventType(
-              "jdk.ObjectAllocationSample",
+              "datadog.ObjectSample",
               type -> {
-                type.addField("objectClass", types.getType("java.lang.Class"));
-                type.addField("weight", Types.Builtin.LONG);
+                type.addField("allocationSize", Types.Builtin.LONG);
                 type.addField("spanId", Types.Builtin.LONG);
                 type.addField("localRootSpanId", Types.Builtin.LONG);
               });
@@ -177,7 +176,7 @@ public class ProfcheckValidationTest {
             objectSampleType.asValue(
                 valueBuilder -> {
                   valueBuilder.putField("startTime", System.nanoTime() + index * 2000000L);
-                  valueBuilder.putField("weight", weight);
+                  valueBuilder.putField("allocationSize", weight);
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(

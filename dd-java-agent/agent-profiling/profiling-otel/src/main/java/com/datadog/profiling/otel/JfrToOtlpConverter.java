@@ -659,7 +659,10 @@ public final class JfrToOtlpConverter {
     // Field 1: stack_index
     encoder.writeVarintField(OtlpProtoFields.Sample.STACK_INDEX, sample.stackIndex);
 
-    // Field 3: link_index (skip field 2 attribute_indices for now)
+    // Field 2: attribute_indices - skip for now (no attribute data from JFR)
+    // TODO: When JFR provides attributes, encode them here
+
+    // Field 3: link_index
     encoder.writeVarintField(OtlpProtoFields.Sample.LINK_INDEX, sample.linkIndex);
 
     // Field 4: values (packed)
@@ -676,21 +679,24 @@ public final class JfrToOtlpConverter {
     // ProfilesDictionary message
 
     // Field 2: location_table
-    for (int i = 1; i < locationTable.size(); i++) {
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
+    for (int i = 0; i < locationTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
           OtlpProtoFields.ProfilesDictionary.LOCATION_TABLE, enc -> encodeLocation(enc, idx));
     }
 
     // Field 3: function_table
-    for (int i = 1; i < functionTable.size(); i++) {
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
+    for (int i = 0; i < functionTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
           OtlpProtoFields.ProfilesDictionary.FUNCTION_TABLE, enc -> encodeFunction(enc, idx));
     }
 
     // Field 4: link_table
-    for (int i = 1; i < linkTable.size(); i++) {
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
+    for (int i = 0; i < linkTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
           OtlpProtoFields.ProfilesDictionary.LINK_TABLE, enc -> encodeLink(enc, idx));
@@ -701,8 +707,17 @@ public final class JfrToOtlpConverter {
       encoder.writeStringField(OtlpProtoFields.ProfilesDictionary.STRING_TABLE, s);
     }
 
+    // Field 6: attribute_table
+    // Note: Must always include at least index 0 (null/unset sentinel) required by OTLP spec
+    for (int i = 0; i < attributeTable.size(); i++) {
+      final int idx = i;
+      encoder.writeNestedMessage(
+          OtlpProtoFields.ProfilesDictionary.ATTRIBUTE_TABLE, enc -> encodeAttribute(enc, idx));
+    }
+
     // Field 7: stack_table
-    for (int i = 1; i < stackTable.size(); i++) {
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
+    for (int i = 0; i < stackTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
           OtlpProtoFields.ProfilesDictionary.STACK_TABLE, enc -> encodeStack(enc, idx));
@@ -713,9 +728,11 @@ public final class JfrToOtlpConverter {
     LocationTable.LocationEntry entry = locationTable.get(index);
 
     // Field 1: mapping_index
+    // Note: Always write, even for index 0 sentinel (value 0) to ensure non-empty message
     encoder.writeVarintField(OtlpProtoFields.Location.MAPPING_INDEX, entry.mappingIndex);
 
     // Field 2: address
+    // Note: For index 0 sentinel, this will be 0 but writeVarintField writes 0 values
     encoder.writeVarintField(OtlpProtoFields.Location.ADDRESS, entry.address);
 
     // Field 3: lines (repeated)
@@ -749,7 +766,40 @@ public final class JfrToOtlpConverter {
   private void encodeStack(ProtobufEncoder encoder, int index) {
     StackTable.StackEntry entry = stackTable.get(index);
 
+    // For index 0 (null sentinel), location_indices is empty
+    // writePackedVarintField handles empty arrays by writing nothing, but writeNestedMessage
+    // now always writes the message envelope (tag + length=0) even if the content is empty
     encoder.writePackedVarintField(OtlpProtoFields.Stack.LOCATION_INDICES, entry.locationIndices);
+  }
+
+  private void encodeAttribute(ProtobufEncoder encoder, int index) {
+    AttributeTable.AttributeEntry entry = attributeTable.get(index);
+
+    // Field 1: key_strindex
+    encoder.writeVarintField(OtlpProtoFields.KeyValueAndUnit.KEY_STRINDEX, entry.keyIndex);
+
+    // Field 2: value (AnyValue oneof)
+    encoder.writeNestedMessage(OtlpProtoFields.KeyValueAndUnit.VALUE, enc -> {
+      switch (entry.valueType) {
+        case STRING:
+          enc.writeStringField(OtlpProtoFields.AnyValue.STRING_VALUE, (String) entry.value);
+          break;
+        case BOOL:
+          enc.writeBoolField(OtlpProtoFields.AnyValue.BOOL_VALUE, (Boolean) entry.value);
+          break;
+        case INT:
+          enc.writeSignedVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
+          break;
+        case DOUBLE:
+          // Note: protobuf doubles are fixed64, not varint
+          long doubleBits = Double.doubleToRawLongBits((Double) entry.value);
+          enc.writeFixed64Field(OtlpProtoFields.AnyValue.DOUBLE_VALUE, doubleBits);
+          break;
+      }
+    });
+
+    // Field 3: unit_strindex
+    encoder.writeVarintField(OtlpProtoFields.KeyValueAndUnit.UNIT_STRINDEX, entry.unitIndex);
   }
 
   private byte[] generateProfileId() {
@@ -973,22 +1023,25 @@ public final class JfrToOtlpConverter {
     json.beginObject();
 
     // location_table array
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("location_table").beginArray();
-    for (int i = 1; i < locationTable.size(); i++) {
+    for (int i = 0; i < locationTable.size(); i++) {
       encodeLocationJson(json, i);
     }
     json.endArray();
 
     // function_table array
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("function_table").beginArray();
-    for (int i = 1; i < functionTable.size(); i++) {
+    for (int i = 0; i < functionTable.size(); i++) {
       encodeFunctionJson(json, i);
     }
     json.endArray();
 
     // link_table array
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("link_table").beginArray();
-    for (int i = 1; i < linkTable.size(); i++) {
+    for (int i = 0; i < linkTable.size(); i++) {
       encodeLinkJson(json, i);
     }
     json.endArray();
@@ -1000,9 +1053,18 @@ public final class JfrToOtlpConverter {
     }
     json.endArray();
 
+    // attribute_table array
+    // Note: Must always include at least index 0 (null/unset sentinel) required by OTLP spec
+    json.name("attribute_table").beginArray();
+    for (int i = 0; i < attributeTable.size(); i++) {
+      encodeAttributeJson(json, i);
+    }
+    json.endArray();
+
     // stack_table array
+    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("stack_table").beginArray();
-    for (int i = 1; i < stackTable.size(); i++) {
+    for (int i = 0; i < stackTable.size(); i++) {
       encodeStackJson(json, i);
     }
     json.endArray();
@@ -1070,6 +1132,37 @@ public final class JfrToOtlpConverter {
       spanIdHex.append(String.format("%02x", b));
     }
     json.name("span_id").value(spanIdHex.toString());
+
+    json.endObject();
+  }
+
+  private void encodeAttributeJson(JsonWriter json, int index) {
+    AttributeTable.AttributeEntry entry = attributeTable.get(index);
+    json.beginObject();
+
+    // key_strindex
+    json.name("key_strindex").value(entry.keyIndex);
+
+    // value object (AnyValue)
+    json.name("value").beginObject();
+    switch (entry.valueType) {
+      case STRING:
+        json.name("string_value").value((String) entry.value);
+        break;
+      case BOOL:
+        json.name("bool_value").value((Boolean) entry.value);
+        break;
+      case INT:
+        json.name("int_value").value((Long) entry.value);
+        break;
+      case DOUBLE:
+        json.name("double_value").value((Double) entry.value);
+        break;
+    }
+    json.endObject();
+
+    // unit_strindex
+    json.name("unit_strindex").value(entry.unitIndex);
 
     json.endObject();
   }
