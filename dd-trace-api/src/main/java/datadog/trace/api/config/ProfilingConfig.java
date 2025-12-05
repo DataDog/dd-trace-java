@@ -55,8 +55,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_BACKPRESSURE_SAMPLING_ENABLED =
       "profiling.backpressure.sampling.enabled";
   public static final boolean PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT = false;
-  public static final String PROFILING_BACKPRESSURE_SAMPLE_LIMIT =
-      "profiling.backpressure.sample.limit";
+
   public static final int PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT = 10_000;
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =

@@ -26,7 +26,7 @@ public class UndertowDecorator
       InstanceStore.of(AttachmentKey.class);
 
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<AgentScope.Continuation> DD_UNDERTOW_CONTINUATION =
+  public static final AttachmentKey<AgentScope.Continuation> DATADOG_UNDERTOW_CONTINUATION =
       attachmentStore.putIfAbsent(
           "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(AgentScope.Continuation.class));
 
