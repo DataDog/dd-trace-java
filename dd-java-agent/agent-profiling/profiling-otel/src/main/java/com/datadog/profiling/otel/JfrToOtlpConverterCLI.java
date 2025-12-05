@@ -15,8 +15,11 @@ import java.time.Instant;
  * # Convert single JFR file to protobuf (default)
  * java -cp ... com.datadog.profiling.otel.JfrToOtlpConverterCLI input.jfr output.pb
  *
- * # Convert to JSON format
+ * # Convert to JSON format (compact)
  * java -cp ... com.datadog.profiling.otel.JfrToOtlpConverterCLI --json input.jfr output.json
+ *
+ * # Convert to pretty-printed JSON
+ * java -cp ... com.datadog.profiling.otel.JfrToOtlpConverterCLI --json --pretty input.jfr output.json
  *
  * # Include original JFR payload
  * java -cp ... com.datadog.profiling.otel.JfrToOtlpConverterCLI --include-payload input.jfr output.pb
@@ -45,6 +48,7 @@ public class JfrToOtlpConverterCLI {
   private void run(String[] args) throws IOException {
     JfrToOtlpConverter.Kind outputKind = JfrToOtlpConverter.Kind.PROTO;
     boolean includePayload = false;
+    boolean prettyPrint = false;
     int firstInputIndex = 0;
 
     // Parse flags
@@ -53,6 +57,10 @@ public class JfrToOtlpConverterCLI {
       switch (flag) {
         case "--json":
           outputKind = JfrToOtlpConverter.Kind.JSON;
+          firstInputIndex++;
+          break;
+        case "--pretty":
+          prettyPrint = true;
           firstInputIndex++;
           break;
         case "--include-payload":
@@ -65,6 +73,11 @@ public class JfrToOtlpConverterCLI {
         default:
           throw new IllegalArgumentException("Unknown flag: " + flag);
       }
+    }
+
+    // Apply pretty-printing to JSON output
+    if (prettyPrint && outputKind == JfrToOtlpConverter.Kind.JSON) {
+      outputKind = JfrToOtlpConverter.Kind.JSON_PRETTY;
     }
 
     // Remaining args: input1.jfr [input2.jfr ...] output.pb/json
@@ -140,6 +153,7 @@ public class JfrToOtlpConverterCLI {
     System.out.println();
     System.out.println("Options:");
     System.out.println("  --json              Output JSON format instead of protobuf");
+    System.out.println("  --pretty            Pretty-print JSON output (use with --json)");
     System.out.println(
         "  --include-payload   Include original JFR payload in output (increases size)");
     System.out.println("  --help              Show this help message");
@@ -148,8 +162,11 @@ public class JfrToOtlpConverterCLI {
     System.out.println("  # Convert to protobuf (default)");
     System.out.println("  JfrToOtlpConverterCLI recording.jfr output.pb");
     System.out.println();
-    System.out.println("  # Convert to JSON for inspection");
+    System.out.println("  # Convert to compact JSON");
     System.out.println("  JfrToOtlpConverterCLI --json recording.jfr output.json");
+    System.out.println();
+    System.out.println("  # Convert to pretty-printed JSON");
+    System.out.println("  JfrToOtlpConverterCLI --json --pretty recording.jfr output.json");
     System.out.println();
     System.out.println("  # Merge multiple recordings");
     System.out.println("  JfrToOtlpConverterCLI file1.jfr file2.jfr file3.jfr merged.pb");
