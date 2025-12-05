@@ -24,7 +24,8 @@ Convert to JSON for human inspection:
 
 ### Options
 
-- `--json` - Output JSON format instead of protobuf (useful for inspection)
+- `--json` - Output JSON format instead of protobuf (compact by default)
+- `--pretty` - Pretty-print JSON output with indentation (use with `--json`)
 - `--include-payload` - Include original JFR payload in output (increases size significantly)
 - `--help` - Show help message
 
@@ -41,11 +42,18 @@ Convert single JFR to protobuf:
 
 #### JSON Output for Inspection
 
-Output JSON format to examine the structure:
+Output compact JSON for processing:
 
 ```bash
 ./gradlew :dd-java-agent:agent-profiling:profiling-otel:convertJfr \
   --args="--json recording.jfr output.json"
+```
+
+Output pretty-printed JSON for human inspection:
+
+```bash
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:convertJfr \
+  --args="--json --pretty recording.jfr output.json"
 
 # Inspect with jq
 cat output.json | jq '.dictionary.string_table | length'
