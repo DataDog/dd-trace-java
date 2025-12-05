@@ -1034,7 +1034,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withServiceName(databricksServiceName);
     } else if (sparkServiceName != null) {
       builder.withServiceName(sparkServiceName);
-      builder.withTag("class_name", sparkServiceName);
+      builder.withTag("service_name", sparkServiceName);
     }
 
     addPropertiesTags(builder, properties);
