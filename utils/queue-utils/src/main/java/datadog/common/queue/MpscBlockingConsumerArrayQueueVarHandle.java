@@ -17,7 +17,9 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends MpscArrayQ
 
   private final PaddedThread consumerThread = new PaddedThread();
 
-  /** @param requestedCapacity queue capacity (rounded up to power of two) */
+  /**
+   * @param requestedCapacity queue capacity (rounded up to power of two)
+   */
   public MpscBlockingConsumerArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
   }

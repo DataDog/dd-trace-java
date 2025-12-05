@@ -20,47 +20,65 @@ public final class PaddedLong extends LongRhsPadding {
     this(0L);
   }
 
-  /** @param initialValue the initial value */
+  /**
+   * @param initialValue the initial value
+   */
   public PaddedLong(long initialValue) {
     setPlain(initialValue);
   }
 
-  /** @return value with volatile semantics (full visibility) */
+  /**
+   * @return value with volatile semantics (full visibility)
+   */
   public long getVolatile() {
     return (long) VALUE_HANDLE.getVolatile(this);
   }
 
-  /** @return value with acquire semantics (pairs with setRelease) */
+  /**
+   * @return value with acquire semantics (pairs with setRelease)
+   */
   public long getAcquire() {
     return (long) VALUE_HANDLE.getAcquire(this);
   }
 
-  /** @return value with plain semantics (no ordering) */
+  /**
+   * @return value with plain semantics (no ordering)
+   */
   public long getPlain() {
     return (long) VALUE_HANDLE.get(this);
   }
 
-  /** @return value with opaque semantics (bitwise atomicity only) */
+  /**
+   * @return value with opaque semantics (bitwise atomicity only)
+   */
   public long getOpaque() {
     return (long) VALUE_HANDLE.getOpaque(this);
   }
 
-  /** @param newValue value to store with volatile semantics (full visibility) */
+  /**
+   * @param newValue value to store with volatile semantics (full visibility)
+   */
   public void setVolatile(long newValue) {
     VALUE_HANDLE.setVolatile(this, newValue);
   }
 
-  /** @param newValue value to store with release semantics (pairs with getAcquire) */
+  /**
+   * @param newValue value to store with release semantics (pairs with getAcquire)
+   */
   public void setRelease(long newValue) {
     VALUE_HANDLE.setRelease(this, newValue);
   }
 
-  /** @param newValue value to store with plain semantics (no ordering) */
+  /**
+   * @param newValue value to store with plain semantics (no ordering)
+   */
   public void setPlain(long newValue) {
     VALUE_HANDLE.set(this, newValue);
   }
 
-  /** @param newValue value to store with opaque semantics (bitwise atomicity only) */
+  /**
+   * @param newValue value to store with opaque semantics (bitwise atomicity only)
+   */
   public void setOpaque(long newValue) {
     VALUE_HANDLE.setOpaque(this, newValue);
   }

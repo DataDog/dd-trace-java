@@ -1,9 +1,9 @@
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 import org.gradle.kotlin.dsl.extra
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.8"
   id("me.champeau.jmh")
   idea
 }
@@ -17,8 +17,12 @@ java {
     languageVersion = JavaLanguageVersion.of(11)
   }
 }
-
-tasks.withType<Javadoc>().configureEach() {
+/*
+tasks.named<CheckForbiddenApis>("forbiddenApisMain_java11") {
+  failOnMissingClasses = false
+}
+*/
+tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
@@ -38,10 +42,6 @@ dependencies {
 
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.slf4j)
-}
-
-tasks.forbiddenApisMain {
-  failOnMissingClasses = false
 }
 
 idea {

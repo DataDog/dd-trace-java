@@ -13,7 +13,9 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   private long cachedTail = 0L; // visible only to consumer
   private final int lookAheadStep;
 
-  /** @param requestedCapacity queue capacity (rounded up to power of two) */
+  /**
+   * @param requestedCapacity queue capacity (rounded up to power of two)
+   */
   public SpscArrayQueueVarHandle(int requestedCapacity) {
     super(requestedCapacity);
     // This should go in a common place because today is defined under jctools-channel
@@ -45,7 +47,9 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return true;
   }
 
-  /** @return head element or null if empty */
+  /**
+   * @return head element or null if empty
+   */
   @Override
   @SuppressWarnings("unchecked")
   public E poll() {
@@ -68,7 +72,9 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return value;
   }
 
-  /** @return head element or null if empty */
+  /**
+   * @return head element or null if empty
+   */
   @Override
   @SuppressWarnings("unchecked")
   public E peek() {
@@ -197,13 +203,17 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     return offer(e);
   }
 
-  /** @return head element or null if empty */
+  /**
+   * @return head element or null if empty
+   */
   @Override
   public E relaxedPoll() {
     return poll();
   }
 
-  /** @return head element or null if empty */
+  /**
+   * @return head element or null if empty
+   */
   @Override
   public E relaxedPeek() {
     return peek();

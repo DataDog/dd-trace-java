@@ -35,7 +35,9 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
   protected final PaddedLong tail = new PaddedLong(); // producer index
   protected final PaddedLong head = new PaddedLong(); // consumer index
 
-  /** @param requestedCapacity queue capacity (rounded up to power of two) */
+  /**
+   * @param requestedCapacity queue capacity (rounded up to power of two)
+   */
   public BaseQueue(int requestedCapacity) {
     this.capacity = roundToPowerOfTwo(requestedCapacity);
     this.mask = this.capacity - 1;
@@ -95,7 +97,9 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
     return MessagePassingQueueUtil.fillBounded(this, s);
   }
 
-  /** @return queue capacity */
+  /**
+   * @return queue capacity
+   */
   @Override
   public final int capacity() {
     return capacity;
