@@ -77,8 +77,6 @@ fi
 
 echo ""
 echo "[2/2] Running profcheck (OpenTelemetry conformance checker)..."
-echo "Note: profcheck currently has known issues with attribute_indices parsing"
-echo "      and may report false positives. protoc validation is authoritative."
 echo ""
 
 if profcheck "$FILE" 2>&1 | tee /tmp/profcheck.txt; then
@@ -86,24 +84,12 @@ if profcheck "$FILE" 2>&1 | tee /tmp/profcheck.txt; then
     PROFCHECK_STATUS=0
 else
     PROFCHECK_STATUS=1
-    # Check if it's the known attribute_indices bug
-    if grep -q "attribute_indices.*out of range" /tmp/profcheck.txt; then
-        echo ""
-        echo "⚠ KNOWN ISSUE: profcheck reports attribute_indices errors"
-        echo "  This is a known bug in profcheck PR #12 where it misreads"
-        echo "  link_index values as attribute_indices values."
-        echo "  Since protoc validation passed, the profile is correct."
-        echo ""
-        echo "Full profcheck output saved for inspection:"
-        echo "--- BEGIN PROFCHECK OUTPUT ---"
-        cat /tmp/profcheck.txt
-        echo "--- END PROFCHECK OUTPUT ---"
-    else
-        # Unknown profcheck error - show the full output
-        echo ""
-        echo "⚠ Unexpected profcheck failure:"
-        cat /tmp/profcheck.txt
-    fi
+    echo "✗ profcheck validation FAILED"
+    echo ""
+    echo "Full profcheck output:"
+    echo "--- BEGIN PROFCHECK OUTPUT ---"
+    cat /tmp/profcheck.txt
+    echo "--- END PROFCHECK OUTPUT ---"
 fi
 
 echo ""
@@ -111,11 +97,15 @@ echo "================================"
 echo "Validation Summary"
 echo "================================"
 echo "protoc:    $([ $PROTOC_STATUS -eq 0 ] && echo 'PASS ✓' || echo 'FAIL ✗')"
-echo "profcheck: $([ $PROFCHECK_STATUS -eq 0 ] && echo 'PASS ✓' || echo 'WARNING ⚠')"
+echo "profcheck: $([ $PROFCHECK_STATUS -eq 0 ] && echo 'PASS ✓' || echo 'FAIL ✗')"
 echo ""
 
-# Return success if protoc passed (it's the authoritative validator)
-exit $PROTOC_STATUS
+# Both validators must pass
+if [ $PROTOC_STATUS -eq 0 ] && [ $PROFCHECK_STATUS -eq 0 ]; then
+    exit 0
+else
+    exit 1
+fi
 EOF
 
 RUN chmod +x /usr/local/bin/validate-profile
