@@ -123,7 +123,8 @@ class JfrToOtlpConverterSmokeTest {
               type -> {
                 type.addField("spanId", Types.Builtin.LONG);
                 type.addField("localRootSpanId", Types.Builtin.LONG);
-                type.addField("allocationSize", Types.Builtin.LONG);
+                type.addField("size", Types.Builtin.LONG);
+                type.addField("weight", Types.Builtin.FLOAT);
               });
 
       // Write object sample event
@@ -133,7 +134,8 @@ class JfrToOtlpConverterSmokeTest {
           valueBuilder -> {
             valueBuilder.putField("spanId", 33333L);
             valueBuilder.putField("localRootSpanId", 44444L);
-            valueBuilder.putField("allocationSize", 1024L);
+            valueBuilder.putField("size", 1024L);
+            valueBuilder.putField("weight", 3.5f);
           });
     }
 
@@ -275,7 +277,8 @@ class JfrToOtlpConverterSmokeTest {
               type -> {
                 type.addField("spanId", Types.Builtin.LONG);
                 type.addField("localRootSpanId", Types.Builtin.LONG);
-                type.addField("allocationSize", Types.Builtin.LONG);
+                type.addField("size", Types.Builtin.LONG);
+                type.addField("weight", Types.Builtin.FLOAT);
               });
 
       // Write multiple object sample events with varying allocation sizes
@@ -285,7 +288,8 @@ class JfrToOtlpConverterSmokeTest {
           valueBuilder -> {
             valueBuilder.putField("spanId", 1000L);
             valueBuilder.putField("localRootSpanId", 2000L);
-            valueBuilder.putField("allocationSize", 1024L);
+            valueBuilder.putField("size", 1024L);
+            valueBuilder.putField("weight", 3.5f);
           });
 
       writeEvent(
@@ -294,7 +298,8 @@ class JfrToOtlpConverterSmokeTest {
           valueBuilder -> {
             valueBuilder.putField("spanId", 3000L);
             valueBuilder.putField("localRootSpanId", 4000L);
-            valueBuilder.putField("allocationSize", 2048L);
+            valueBuilder.putField("size", 2048L);
+            valueBuilder.putField("weight", 1.5f);
           });
 
       writeEvent(
@@ -303,7 +308,8 @@ class JfrToOtlpConverterSmokeTest {
           valueBuilder -> {
             valueBuilder.putField("spanId", 1000L); // Same trace as first
             valueBuilder.putField("localRootSpanId", 2000L);
-            valueBuilder.putField("allocationSize", 512L); // Different size
+            valueBuilder.putField("size", 4096L);
+            valueBuilder.putField("weight", 0.8f);
           });
     }
 
@@ -389,7 +395,8 @@ class JfrToOtlpConverterSmokeTest {
               type -> {
                 type.addField("spanId", Types.Builtin.LONG);
                 type.addField("localRootSpanId", Types.Builtin.LONG);
-                type.addField("allocationSize", Types.Builtin.LONG);
+                type.addField("size", Types.Builtin.LONG);
+                type.addField("weight", Types.Builtin.FLOAT);
               });
 
       // Write events of different types with same trace context
@@ -418,7 +425,8 @@ class JfrToOtlpConverterSmokeTest {
           valueBuilder -> {
             valueBuilder.putField("spanId", sharedSpanId);
             valueBuilder.putField("localRootSpanId", sharedRootSpanId);
-            valueBuilder.putField("allocationSize", 4096L);
+            valueBuilder.putField("size", 4096L);
+            valueBuilder.putField("weight", 1.1f);
           });
 
       // Add more ExecutionSamples
@@ -742,8 +750,7 @@ class JfrToOtlpConverterSmokeTest {
     assertTrue(
         resultWithPayload.length >= jfrFileSize,
         String.format(
-            "Result size %d should be >= JFR file size %d",
-            resultWithPayload.length, jfrFileSize));
+            "Result size %d should be >= JFR file size %d", resultWithPayload.length, jfrFileSize));
   }
 
   @Test
@@ -790,8 +797,7 @@ class JfrToOtlpConverterSmokeTest {
           });
     }
 
-    totalJfrSize =
-        java.nio.file.Files.size(jfrFile1) + java.nio.file.Files.size(jfrFile2);
+    totalJfrSize = java.nio.file.Files.size(jfrFile1) + java.nio.file.Files.size(jfrFile2);
 
     Instant start = Instant.now().minusSeconds(20);
     Instant middle = Instant.now().minusSeconds(10);
@@ -850,8 +856,7 @@ class JfrToOtlpConverterSmokeTest {
     // Setting is preserved for reuse (not reset after convert())
     byte[] result2 = converter.addFile(jfrFile, start, end).convert();
 
-    assertTrue(
-        result2.length >= jfrFileSize, "Second conversion should still include payload");
+    assertTrue(result2.length >= jfrFileSize, "Second conversion should still include payload");
 
     // Explicitly disable for third conversion
     byte[] result3 =

@@ -109,7 +109,7 @@ tasks.named<Test>("test") {
     if (dockerAvailable) {
       logger.lifecycle("Building profcheck Docker image for validation tests...")
       project.exec {
-        commandLine("docker", "build", "-f", "${rootDir}/docker/Dockerfile.profcheck", "-t", "profcheck:latest", rootDir.toString())
+        commandLine("docker", "build", "-f", "$rootDir/docker/Dockerfile.profcheck", "-t", "profcheck:latest", rootDir.toString())
       }
     } else {
       logger.warn("Docker not available, skipping profcheck image build. Tests tagged with 'docker' will be skipped.")
