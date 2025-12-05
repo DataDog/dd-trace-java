@@ -7,6 +7,13 @@ plugins {
 }
 
 spotless {
+  java {
+    toggleOffOn()
+    target("**/*.java")
+
+    googleJavaFormat("1.32.0")
+  }
+
   kotlin {
     toggleOffOn()
     target("**/*.kt")
