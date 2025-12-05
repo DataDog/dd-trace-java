@@ -5,17 +5,13 @@ import io.opentelemetry.api.trace.TracerBuilder;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-class OtelTracerBuilder implements TracerBuilder {
+final class OtelTracerBuilder implements TracerBuilder {
+  private final OtelTracerProvider tracerProvider;
   private final String instrumentationScopeName;
 
-  public OtelTracerBuilder(String instrumentationScopeName) {
+  OtelTracerBuilder(OtelTracerProvider tracerProvider, String instrumentationScopeName) {
+    this.tracerProvider = tracerProvider;
     this.instrumentationScopeName = instrumentationScopeName;
-  }
-
-  @Override
-  public TracerBuilder setSchemaUrl(String schemaUrl) {
-    // Not supported
-    return this;
   }
 
   @Override
@@ -25,7 +21,13 @@ class OtelTracerBuilder implements TracerBuilder {
   }
 
   @Override
+  public TracerBuilder setSchemaUrl(String schemaUrl) {
+    // Not supported
+    return this;
+  }
+
+  @Override
   public Tracer build() {
-    return new OtelTracer(this.instrumentationScopeName);
+    return tracerProvider.getTracerShim(instrumentationScopeName);
   }
 }
