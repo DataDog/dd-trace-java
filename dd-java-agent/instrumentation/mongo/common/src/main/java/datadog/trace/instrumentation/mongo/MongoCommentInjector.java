@@ -28,10 +28,13 @@ public class MongoCommentInjector {
       return originalBsonDocument;
     }
 
-    // Create a mutable copy by constructing a new BsonDocument and copying all entries
-    // This handles both regular BsonDocument and immutable RawBsonDocument/ByteBufBsonDocument
-    BsonDocument command = new BsonDocument();
-    command.putAll(originalBsonDocument);
+    BsonDocument command = originalBsonDocument;
+    if (!originalBsonDocument.getClass().equals(BsonDocument.class)) {
+      // Create a mutable copy by constructing a new BsonDocument and copying all entries
+      // This handles both regular BsonDocument and immutable RawBsonDocument/ByteBufBsonDocument
+      command = new BsonDocument();
+      command.putAll(originalBsonDocument);
+    }
 
     try {
       for (String commentKey : new String[] {"comment", "$comment"}) {

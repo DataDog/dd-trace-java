@@ -5,6 +5,7 @@ import datadog.trace.instrumentation.mongo.MongoCommentInjector
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.RawBsonDocument
+import org.bson.codecs.BsonDocumentCodec
 
 abstract class BaseMongoCommentInjectorTest extends InstrumentationSpecification {
   @Override
@@ -113,7 +114,7 @@ class MongoCommentInjectorServiceModeForkedTest extends BaseMongoCommentInjector
 
     // Create a RawBsonDocument (immutable) by encoding a regular BsonDocument
     def mutableDoc = new BsonDocument("find", new BsonString("collection"))
-    def rawDoc = new RawBsonDocument(mutableDoc, new org.bson.codecs.BsonDocumentCodec())
+    def rawDoc = new RawBsonDocument(mutableDoc, new BsonDocumentCodec())
     def dbmComment = "dddbs='test-service',dde='test'"
 
     // Verify RawBsonDocument.clone() returns immutable document
@@ -151,6 +152,6 @@ class MongoCommentInjectorServiceModeForkedTest extends BaseMongoCommentInjector
     result != null
     result.containsKey("comment")
     result.get("comment").asString().getValue() == dbmComment
-    !result.is(originalCommand)
+    result.is(originalCommand)
   }
 }
