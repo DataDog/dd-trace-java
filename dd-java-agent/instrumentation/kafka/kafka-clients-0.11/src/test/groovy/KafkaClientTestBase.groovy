@@ -1,4 +1,5 @@
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -249,6 +250,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
+
+    // verify ClusterIdHolder was properly cleaned up after produce and consume
+    ClusterIdHolder.get() == null
 
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
@@ -605,7 +609,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).subList kafka consume"() {
@@ -661,7 +664,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -717,7 +719,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test iteration backwards over ConsumerRecords"() {
@@ -826,7 +827,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   @Flaky("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
@@ -889,7 +889,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       def headers = received.headers()
       assert headers.iterator().hasNext()
-
     }
     assert receivedSet.isEmpty()
 
@@ -1279,8 +1278,6 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest {
-
-
 }
 
 class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest {

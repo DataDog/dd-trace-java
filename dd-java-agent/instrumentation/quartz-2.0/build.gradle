@@ -1,7 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  version40TestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
 muzzle {
   pass {
     group = 'org.quartz-scheduler'
@@ -17,7 +13,6 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('version40Test', 'test')
 
-
 dependencies {
   compileOnly group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
   testImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.0.0'
@@ -29,7 +24,6 @@ dependencies {
   latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz-jobs', version: '+'
   latestDepTestImplementation group: 'jakarta.transaction', name: 'jakarta.transaction-api', version: '2.0.1'
   latestDepTestImplementation group: 'org.quartz-scheduler', name: 'quartz', version: '+'
-
 }
 
 [
@@ -40,5 +34,17 @@ dependencies {
 ].each {
   tasks.named(it, AbstractCompile) {
     configureCompiler(it, 11)
+  }
+}
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("version40Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
   }
 }

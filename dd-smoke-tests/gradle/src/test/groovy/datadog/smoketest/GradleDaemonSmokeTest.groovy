@@ -215,7 +215,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       install.createDist(configuration)
 
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
-
     } catch (Exception e) {
       println "${new Date()}: $specificationContext.currentIteration.displayName " +
         "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
@@ -243,7 +242,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       def buildResult = successExpected ? gradleRunner.build() : gradleRunner.buildAndFail()
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
       return buildResult
-
     } catch (Exception e) {
       def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
       if (daemonLog != null) {

@@ -9,7 +9,10 @@ import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.HtmlRumServlet
 import datadog.trace.instrumentation.servlet3.TestServlet3
 import datadog.trace.instrumentation.servlet3.XmlRumServlet
-import groovy.servlet.AbstractHttpServlet
+import datadog.context.Context
+
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -22,6 +25,7 @@ import javax.servlet.AsyncListener
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 import javax.servlet.annotation.WebServlet
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -250,7 +254,6 @@ class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
 }
 
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class JettyServlet3TestAsync extends JettyServlet3Test {
@@ -273,7 +276,6 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
 }
 
 class JettyServlet3ASyncV1ForkedTest extends JettyServlet3TestAsync implements TestingGenericHttpNamingConventions.ServerV1 {
-
 }
 
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
@@ -419,7 +421,7 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
 
 
 @WebServlet(asyncSupported = true)
-class DispatchTimeoutAsync extends AbstractHttpServlet {
+class DispatchTimeoutAsync extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def target = req.servletPath.replace("/dispatch", "")
@@ -514,7 +516,7 @@ class JettyServlet3TestAsyncDispatchOnAsyncTimeout extends JettyServlet3Test {
 }
 
 @WebServlet(asyncSupported = true)
-class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
+class ServeFromOnAsyncTimeout extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) {
     def context = req.startAsync()
@@ -526,7 +528,8 @@ class ServeFromOnAsyncTimeout extends AbstractHttpServlet {
 
         @Override
         void onTimeout(AsyncEvent event) throws IOException {
-          AgentSpan span = event.getSuppliedRequest().getAttribute('datadog.span')
+          Context ddContext = (Context) event.getSuppliedRequest().getAttribute(DD_CONTEXT_ATTRIBUTE)
+          AgentSpan span = spanFromContext(ddContext)
           activateSpan(span).withCloseable {
             try {
               delegateServlet.service(req, resp)
@@ -614,5 +617,4 @@ class IastJettyServlet3ForkedTest extends JettyServlet3TestSync {
     0 * appModule.checkSessionTrackingModes(_)
     0 * _
   }
-
 }

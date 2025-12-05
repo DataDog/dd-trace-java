@@ -303,12 +303,12 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key));
   }
 
-  public List<String> getList(String key, List<String> defaultValue) {
+  public List<String> getList(String key, List<String> defaultValue, String... aliases) {
     // Ensure the first item at DEFAULT is the accurate one
     if (collectConfig) {
       reportDefault(key, defaultValue);
     }
-    String list = getStringInternal(key);
+    String list = getStringInternal(key, aliases);
     if (null == list) {
       return defaultValue;
     } else {

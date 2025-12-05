@@ -9,7 +9,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 dependencies {
   // First 2.10 version that accepts target 1.8
@@ -61,6 +61,10 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
     if (javaConcatenation) {
       handler.add(implementationConfiguration.name, project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
     }
+  }
+
+  csi {
+    additionalPaths.from(classPathConfiguration)
   }
 
   return tasks.register("test$version", Test) {

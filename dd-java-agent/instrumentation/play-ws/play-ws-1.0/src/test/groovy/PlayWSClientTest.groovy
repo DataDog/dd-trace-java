@@ -137,10 +137,8 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
 
 @Timeout(5)
 class PlayJavaWSClientV0ForkedTest extends  PlayJavaWSClientTest {
-
 }
 
 @Timeout(5)
 class PlayJavaWSClientV1ForkedTest extends PlayJavaWSClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
-
 }

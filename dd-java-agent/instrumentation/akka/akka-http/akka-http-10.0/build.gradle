@@ -1,11 +1,6 @@
-// Set properties before any plugins get loaded
-ext {
-  lagomTestMaxJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // Since we are using different scala versions for different test sets,
 // we put the test classes in the baseTest test set so that the scala
@@ -21,6 +16,12 @@ addTestSuite('iastTest')
 addTestSuiteForDir 'version101IastTest', 'iastTest'
 addTestSuiteForDir 'version102IastTest', 'iastTest'
 addTestSuiteForDir 'latestDepIastTest', 'iastTest'
+
+tasks.named("lagomTest", Test) {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_1_8
+  }
+}
 
 tasks.named("compileLagomTestJava", JavaCompile) {
   sourceCompatibility = JavaVersion.VERSION_1_8
@@ -118,7 +119,7 @@ dependencies {
   baseTestImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.11', version: '10.0.10'
 
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
+  iastTestCompileOnly libs.forbiddenapis
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')

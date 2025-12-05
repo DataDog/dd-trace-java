@@ -28,8 +28,6 @@ apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
@@ -72,6 +70,6 @@ dependencies {
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
   testImplementation project(':dd-java-agent:instrumentation:scala-promise')
 
-  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '+'
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+' // scala-lang 3.x requires scala 3.x compiler
   latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise')
 }

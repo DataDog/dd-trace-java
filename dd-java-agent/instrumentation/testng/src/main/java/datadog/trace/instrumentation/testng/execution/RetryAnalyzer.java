@@ -6,6 +6,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
@@ -13,6 +14,10 @@ import org.testng.ITestResult;
 public class RetryAnalyzer implements IRetryAnalyzer {
 
   private volatile TestExecutionPolicy executionPolicy;
+
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "the field is confined to a single thread")
   private boolean suppressFailures;
 
   public void createExecutionPolicy(ITestResult result) {

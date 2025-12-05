@@ -30,17 +30,20 @@ public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
   private boolean ignoreActiveSpan;
+
   /**
    * Operation name overridden value by {@link OtelConventions#OPERATION_NAME_SPECIFIC_ATTRIBUTE}
    * reserved attribute ({@code null} if not set).
    */
   private String overriddenOperationName;
+
   /**
    * Analytics sample rate metric value from {@link
    * OtelConventions#ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES} reserved attribute ({@code -1} if not
    * set).
    */
   private int overriddenAnalyticsSampleRate;
+
   /**
    * HTTP status code overridden value by {@link
    * OtelConventions#HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE} reserved attribute ({@code -1} if not

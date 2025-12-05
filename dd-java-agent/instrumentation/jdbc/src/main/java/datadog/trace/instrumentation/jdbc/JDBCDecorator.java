@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
       Config.get().isDbmAlwaysAppendSqlComment();
+  public static final boolean FETCH_DB_METADATA_ON_CONNECT =
+      Config.get().isDbMetadataFetchingOnConnectEnabled();
+  private static final boolean FETCH_DB_METADATA_ON_QUERY =
+      Config.get().isDbMetadataFetchingOnQueryEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
 
@@ -183,7 +188,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (Throwable ignore) {
         }
         if (dbInfo == null) {
-          // couldn't find DBInfo anywhere, so fall back to default
+          // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
           dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
@@ -202,7 +207,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null) {
+    if (connection == null || !FETCH_DB_METADATA_ON_QUERY) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -211,16 +216,19 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final DatabaseMetaData metaData = connection.getMetaData();
       final String url;
       if (metaData != null && (url = metaData.getURL()) != null) {
+        Properties clientInfo = null;
         try {
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+          clientInfo = connection.getClientInfo();
         } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed.
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          log.debug("Could not get client info from DB", ex);
         }
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
     } catch (final SQLException se) {
+      log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
@@ -319,7 +327,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
     AgentSpan instrumentationSpan =
-        AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
+        AgentTracer.get()
+            .singleSpanBuilder("set context_info")
+            .withTag("dd.instrumentation", true)
+            .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     try (AgentScope scope = activateSpan(instrumentationSpan)) {

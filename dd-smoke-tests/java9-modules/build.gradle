@@ -1,8 +1,8 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
 
 tasks.named("jar", Jar) {
   manifest {
@@ -15,10 +15,11 @@ tasks.withType(JavaCompile).configureEach { JavaCompile jc ->
   // read up classpath lazily to avoid early locking of gradle settings
   jc.options.compilerArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
-      Iterable<String> asArguments() {
-        { return ['--module-path', jc.classpath.asPath]}
-      }
-    })
+      Iterable<String> asArguments() { {
+          return ['--module-path', jc.classpath.asPath]
+        }
+    }
+  })
 }
 
 tasks.withType(Test).configureEach {
@@ -40,8 +41,8 @@ tasks.withType(Test).configureEach {
     // Run the jlink command to create the image
     exec {
       commandLine jlinkExecutable, '--no-man-pages', '--no-header-files',
-        '--add-modules', 'java.instrument,datadog.smoketest.moduleapp',
-        "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir
+      '--add-modules', 'java.instrument,datadog.smoketest.moduleapp',
+      "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir
     }
 
     it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"

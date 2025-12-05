@@ -1,11 +1,5 @@
 package datadog.trace.api
 
-import datadog.trace.api.env.FixedCapturedEnvironment
-import datadog.trace.bootstrap.config.provider.AgentArgsInjector
-import datadog.trace.bootstrap.config.provider.ConfigConverter
-import datadog.trace.bootstrap.config.provider.ConfigProvider
-import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
@@ -21,10 +15,10 @@ import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
-import static datadog.trace.api.TracePropagationStyle.BAGGAGE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
@@ -50,16 +44,16 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
-import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
-import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -68,8 +62,8 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED
-import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
@@ -110,10 +104,6 @@ import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
@@ -126,8 +116,12 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
+import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -136,6 +130,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING
+import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING
 import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_PROTOBUF
 import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
@@ -149,6 +145,13 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
 import datadog.trace.config.inversion.ConfigHelper
+
+import datadog.trace.api.env.FixedCapturedEnvironment
+import datadog.trace.bootstrap.config.provider.AgentArgsInjector
+import datadog.trace.bootstrap.config.provider.ConfigConverter
+import datadog.trace.bootstrap.config.provider.ConfigProvider
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 
 class ConfigTest extends DDSpecification {
   private static final String PREFIX = "dd."
@@ -184,6 +187,18 @@ class ConfigTest extends DDSpecification {
   private static final DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED"
   private static final DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP"
   private static final DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED"
+  private static final DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING"
+  private static final DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV = "DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING"
+
+  private static final DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+  private static final DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV = "DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED"
+
+  private static final EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED = "eventbridge.inject.datadog.attribute.enabled"
+  private static final SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sfn.inject.datadog.attribute.enabled"
+  private static final SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sns.inject.datadog.attribute.enabled"
+  private static final SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED = "sqs.inject.datadog.attribute.enabled"
 
   private static final DD_TRACE_OTEL_ENABLED_ENV = "DD_TRACE_OTEL_ENABLED"
   private static final DD_TRACE_OTEL_ENABLED_PROP = "dd.trace.otel.enabled"
@@ -313,6 +328,14 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
     prop.setProperty(JDK_SOCKET_ENABLED, "false")
 
+    prop.setProperty(TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    prop.setProperty(TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
+    prop.setProperty(SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    prop.setProperty(SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+
     prop.setProperty(METRICS_OTEL_ENABLED, "True")
     prop.setProperty(METRICS_OTEL_INTERVAL, "11000")
     prop.setProperty(METRICS_OTEL_TIMEOUT, "9000")
@@ -418,6 +441,15 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 128
     config.jdkSocketEnabled == false
 
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
+
+    config.xDatadogTagsMaxLength == 128
     config.metricsOtelEnabled
     config.metricsOtelInterval == 11000
     config.metricsOtelTimeout == 9000
@@ -427,7 +459,6 @@ class ConfigTest extends DDSpecification {
     config.otlpMetricsProtocol == HTTP_PROTOBUF
     config.otlpMetricsTimeout == 5000
     config.otlpMetricsTemporalityPreference == CUMULATIVE
-
   }
 
   def "otel metrics: default values when configured incorrectly"() {
@@ -708,6 +739,14 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES, "exclude file")
     System.setProperty(PREFIX + TRACE_X_DATADOG_TAGS_MAX_LENGTH, "128")
 
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "all")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
+
+    System.setProperty(PREFIX + SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+    System.setProperty(PREFIX + SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED, "false")
+
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "True")
     System.setProperty(OTEL_METRIC_EXPORT_INTERVAL_PROP, "11000")
     System.setProperty(OTEL_METRIC_EXPORT_TIMEOUT_PROP, "9000")
@@ -809,6 +848,14 @@ class ConfigTest extends DDSpecification {
     config.dynamicInstrumentationInstrumentTheWorld == "method"
     config.dynamicInstrumentationExcludeFiles == "exclude file"
 
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
+
     config.xDatadogTagsMaxLength == 128
 
     config.metricsOtelEnabled
@@ -840,6 +887,13 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "true")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_FLUSH_INTERVAL, "81")
     environmentVariables.set(DD_TRACE_HEADER_TAGS, "*")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+    environmentVariables.set(DD_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED_ENV, "false")
+
     environmentVariables.set(DD_METRICS_OTEL_ENABLED_ENV, "True")
     environmentVariables.set(OTEL_RESOURCE_ATTRIBUTES_ENV, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
     environmentVariables.set(OTEL_METRIC_EXPORT_INTERVAL_ENV, "11000")
@@ -868,8 +922,15 @@ class ConfigTest extends DDSpecification {
     config.xDatadogTagsMaxLength == 42
     config.isLongRunningTraceEnabled()
     config.getLongRunningTraceFlushInterval() == 81
-    config.requestHeaderTags == ["*":"http.request.headers."]
-    config.responseHeaderTags == ["*":"http.response.headers."]
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+    !config.isSfnInjectDatadogAttributeEnabled()
+    !config.isSqsInjectDatadogAttributeEnabled()
+    !config.isSnsInjectDatadogAttributeEnabled()
+    !config.isEventbridgeInjectDatadogAttributeEnabled()
+
+    config.requestHeaderTags == ["*": "http.request.headers."]
+    config.responseHeaderTags == ["*": "http.response.headers."]
     config.metricsOtelEnabled
     config.metricsOtelInterval == 11000
     config.metricsOtelTimeout == 9000
@@ -888,6 +949,8 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
     environmentVariables.set(DD_TRACE_LONG_RUNNING_ENABLED, "false")
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, "all")
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, "")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
@@ -895,6 +958,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + TRACE_LONG_RUNNING_ENABLED, "true")
+    System.setProperty(PREFIX + TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING, "")
+    System.setProperty(PREFIX + TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING, "all")
 
     when:
     def config = new Config()
@@ -907,6 +972,10 @@ class ConfigTest extends DDSpecification {
     config.agentUrl == "http://somewhere:123"
     config.longRunningTraceEnabled
     config.longRunningTraceFlushInterval == 120
+    config.cloudRequestPayloadTagging == []
+    config.cloudResponsePayloadTagging == []
+    !config.isCloudRequestPayloadTaggingEnabled()
+    config.isCloudResponsePayloadTaggingEnabled()
   }
 
   def "default when configured incorrectly"() {
@@ -1061,7 +1130,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.requestHeaderTags == [e: "five"]
-    config.baggageMapping == [f: "six",g: "g"]
+    config.baggageMapping == [f: "six", g: "g"]
     config.httpServerErrorStatuses == toBitSet((122..457))
     config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
@@ -1333,8 +1402,8 @@ class ConfigTest extends DDSpecification {
     value               | expected // null means default value
     // spotless:off
     "1"                 | [1]
-    "3,13,400-403"      | [3,13,400,401,402,403]
-    "2,10,13-15"        | [2,10,13,14,15]
+    "3,13,400-403"      | [3, 13, 400, 401, 402, 403]
+    "2,10,13-15"        | [2, 10, 13, 14, 15]
     "a"                 | null
     ""                  | null
     "1000"              | null
@@ -2030,7 +2099,7 @@ class ConfigTest extends DDSpecification {
 
     //verify expected behavior when not enabled under feature flag
     config.logsInjectionEnabled == true
-    config.globalTags == [env:"test", aKey:"aVal", bKey:"bVal"]
+    config.globalTags == [env: "test", aKey: "aVal", bKey: "bVal"]
   }
 
   def "verify behavior of DD_TRACE_EXPERIMENTAL_FEATURE_ENABLED when value is 'all'"() {
@@ -2105,18 +2174,18 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    value       | tClass  | expected
-    "true"      | Boolean | true
-    "trUe"      | Boolean | true
-    "false"     | Boolean | false
-    "False"     | Boolean | false
-    "1"         | Boolean | true
-    "0"         | Boolean | false
-    "42.42"     | Float   | 42.42f
-    "42.42"     | Double  | 42.42
-    "44"        | Integer | 44
-    "45"        | Long    | 45
-    "46"        | Short   | 46
+    value   | tClass  | expected
+    "true"  | Boolean | true
+    "trUe"  | Boolean | true
+    "false" | Boolean | false
+    "False" | Boolean | false
+    "1"     | Boolean | true
+    "0"     | Boolean | false
+    "42.42" | Float   | 42.42f
+    "42.42" | Double  | 42.42
+    "44"    | Integer | 44
+    "45"    | Long    | 45
+    "46"    | Short   | 46
     // spotless:on
   }
 
@@ -2719,12 +2788,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "9"           | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
-    "10"          | 10
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "9"                     | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
+    "10"                    | 10
+    "450"                   | 450
   }
 
   def "ssi injection enabled"() {
@@ -2770,12 +2839,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     configuredFlushInterval | flushInterval
-    "invalid"     | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "-1"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "19"          | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "451"         | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
-    "20"          | 20
-    "450"         | 450
+    "invalid"               | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "-1"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "19"                    | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "451"                   | DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
+    "20"                    | 20
+    "450"                   | 450
   }
 
   def "partial flush and min spans interaction"() {
@@ -2818,10 +2887,10 @@ class ConfigTest extends DDSpecification {
 
     where:
     // spotless:off
-    enablementMode | expectedEnabled | expectedStartDelay             | expectedStartForceFirst
-    "true"         | true            | 1                              | true
-    "false"        | false           | 1                              | true
-    "auto"         | true            | PROFILING_START_DELAY_DEFAULT  | PROFILING_START_FORCE_FIRST_DEFAULT
+    enablementMode | expectedEnabled | expectedStartDelay            | expectedStartForceFirst
+    "true"         | true            | 1                             | true
+    "false"        | false           | 1                             | true
+    "auto"         | true            | PROFILING_START_DELAY_DEFAULT | PROFILING_START_FORCE_FIRST_DEFAULT
     // spotless:on
   }
 
@@ -2870,19 +2939,52 @@ class ConfigTest extends DDSpecification {
     "datad0g.com"       | "https://all-http-intake.logs.datad0g.com/api/v2/apmtelemetry"
   }
 
+  def "set cloud payload tagging config"() {
+    setup:
+    environmentVariables.set(DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV, reqEnv)
+    environmentVariables.set(DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV, respEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    if (expectedReqConfig == null) {
+      // if expected config is null, then the feature should be disabled
+      assert !config.isCloudRequestPayloadTaggingEnabled()
+    } else {
+      assert config.cloudRequestPayloadTagging.toString() == expectedReqConfig
+    }
+
+    if (expectedRespConfig == null) {
+      assert !config.isCloudResponsePayloadTaggingEnabled()
+    } else {
+      assert config.cloudResponsePayloadTagging.toString() == expectedRespConfig
+    }
+
+    where:
+    reqEnv         | respEnv        | expectedReqConfig | expectedRespConfig
+    "all"          | "all"          | '[]'              | '[]'
+    "all,invalid"  | "all,invalid"  | null              | null
+    ""             | ""             | null              | null
+    "invalid"      | "invalid"      | null              | null
+    "\$.a"         | "\$.b"         | '[$[\'a\']]'          | '[$[\'b\']]'
+    "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
+  }
+
   // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
     def strictness
 
-    def setup(){
+    def setup() {
       strictness = ConfigHelper.get().configInversionStrictFlag()
       ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     }
 
-    def cleanup(){
+    def cleanup() {
       ConfigHelper.get().setConfigInversionStrict(strictness)
     }
+
 
     def "verify rule config #name"() {
       setup:
@@ -3116,5 +3218,57 @@ class ConfigTest extends DDSpecification {
       configProvider.getInteger("i", 61) == 13
       configProvider.getBoolean("a", true) == true
     }
+  }
+
+  def "db metadata fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.metadata.fetching.on.query", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_QUERY", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbMetadataFetchingOnQueryEnabled() == expected
+
+    where:
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
+  }
+
+  def "db client info fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.metadata.fetching.on.connect", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_CONNECT", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbMetadataFetchingOnConnectEnabled() == expected
+
+    where:
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
   }
 }

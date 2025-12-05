@@ -120,7 +120,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
         ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
-          .append("=").append(entry.getValue()).append(",")
+        .append("=").append(entry.getValue()).append(",")
       }
     }
     ddEnvVars.append("DD_SERVICE=").append(Config.get().getServiceName())
@@ -252,6 +252,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The variable is accessed only by the test thread in setup and cleanup.")
   boolean originalAppSecRuntimeValue
 
   @Shared
@@ -353,10 +354,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
 
     Sink sink = new Sink() {
-        void accept(int messageCount, ByteBuffer buffer) {}
+      void accept(int messageCount, ByteBuffer buffer) {}
 
-        void register(EventListener listener) {}
-      }
+      void register(EventListener listener) {}
+    }
 
     // Fast enough so tests don't take forever
     long bucketDuration = dataStreamsBucketDuration()
@@ -379,15 +380,15 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
 
     TEST_TRACER =
-      Spy(
-      CoreTracer.builder()
-      .writer(TEST_WRITER)
-      .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
-      .statsDClient(STATS_D_CLIENT)
-      .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
-      .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
-      .build())
+    Spy(
+    CoreTracer.builder()
+    .writer(TEST_WRITER)
+    .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
+    .statsDClient(STATS_D_CLIENT)
+    .strictTraceWrites(useStrictTraceWrites())
+    .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
+    .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
+    .build())
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
@@ -412,7 +413,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
-      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
   }
 
   protected String idGenerationStrategyName() {
@@ -515,12 +516,12 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       def sw = new StringWriter()
       PrintWriter pw = new PrintWriter(sw)
       entry.value.eachWithIndex { Exception e, int i ->
-        pw.write('\n' as char)
+        pw.write((char)'\n')
         pw.write "Location $i:\n"
         def st = e.stackTrace
         int loc = st.findIndexOf {
           it.className.startsWith(TrackingSpanDecorator.class.name) &&
-            it.methodName.startsWith('finish')
+          it.methodName.startsWith('finish')
         }
         for (int j = loc == -1 ? 0 : loc; j < st.length; j++) {
           pw.println("\tat ${st[j]}")
@@ -558,23 +559,23 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   void assertTraces(
-    final int size,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     assertTraces(size, false, spec)
   }
 
   void assertTraces(
-    final int size,
-    final boolean ignoreAdditionalTraces,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final boolean ignoreAdditionalTraces,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
   }
 
@@ -583,13 +584,13 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_NAMES = ListWriterAssert.SORT_TRACES_BY_NAMES
 
   void assertTraces(
-    final int size,
-    final Comparator<List<DDSpan>> traceSorter,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final Comparator<List<DDSpan>> traceSorter,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, false, traceSorter, spec)
   }
 
@@ -634,7 +635,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
-      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+    && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

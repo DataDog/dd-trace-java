@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -65,7 +66,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-
+    codeOriginSetup()
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
@@ -217,6 +218,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def received = records.poll(10, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
+
+    // verify ClusterIdHolder was properly cleaned up after produce and consume
+    ClusterIdHolder.get() == null
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
     TEST_WRITER.waitForTraces(nTraces)
@@ -1024,12 +1028,6 @@ class KafkaClientV0ForkedTest extends KafkaClientForkedTest {
 }
 
 class KafkaClientV1ForkedTest extends KafkaClientForkedTest {
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    codeOriginSetup()
-  }
-
   @Override
   int version() {
     1

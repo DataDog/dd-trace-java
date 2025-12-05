@@ -1,15 +1,24 @@
 package datadog.trace.core
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.time.TimeSource
 import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
+import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 class PendingTraceTest extends PendingTraceTestBase {
 
   @Override

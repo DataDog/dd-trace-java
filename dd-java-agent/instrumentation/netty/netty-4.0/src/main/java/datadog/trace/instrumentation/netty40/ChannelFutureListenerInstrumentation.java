@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.netty40;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY_CONNECT;
@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -94,9 +95,9 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
 
       final AgentSpan errorSpan = startSpan(NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       errorSpan.context().setIntegrationName(NETTY);
-      try (final AgentScope scope = activateSpan(errorSpan)) {
+      try (final ContextScope scope = getCurrentContext().with(errorSpan).attach()) {
         NettyHttpServerDecorator.DECORATE.onError(errorSpan, cause);
-        NettyHttpServerDecorator.DECORATE.beforeFinish(errorSpan);
+        NettyHttpServerDecorator.DECORATE.beforeFinish(scope.context());
         errorSpan.finish();
       }
 

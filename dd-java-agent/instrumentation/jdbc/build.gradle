@@ -3,10 +3,6 @@ plugins {
   id 'me.champeau.jmh'
 }
 
-ext {
-  latestDepJava11TestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 muzzle {
   pass {
     coreJdk()
@@ -16,7 +12,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('oldH2Test', 'test')
 addTestSuiteForDir('oldPostgresTest', 'test')
@@ -99,3 +95,10 @@ tasks.withType(GroovyCompile).configureEach {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
+
+tasks.named("latestDepJava11Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+

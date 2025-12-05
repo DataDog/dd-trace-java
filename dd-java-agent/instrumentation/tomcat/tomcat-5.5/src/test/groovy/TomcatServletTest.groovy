@@ -335,7 +335,6 @@ abstract class TomcatServletTest extends AbstractServletTest<Embedded, Context> 
 }
 
 class TomcatServletV0Test extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV0 {
-
 }
 
 class TomcatServletV1ForkedTest extends TomcatServletTest implements TestingGenericHttpNamingConventions.ServerV1 {

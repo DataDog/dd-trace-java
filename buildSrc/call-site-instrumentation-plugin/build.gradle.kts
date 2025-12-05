@@ -1,7 +1,7 @@
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "6.13.0"
+  id("com.diffplug.spotless") version "8.1.0"
   id("com.gradleup.shadow") version "8.3.6"
 }
 
@@ -17,8 +17,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.32.0")
   }
 }
 
@@ -35,11 +34,10 @@ dependencies {
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.spock.core)
-  testImplementation("org.objenesis", "objenesis", "3.0.1")
   testImplementation(libs.groovy)
+  testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
+  testImplementation(libs.spotbugs.annotations)
 }
 
 sourceSets {

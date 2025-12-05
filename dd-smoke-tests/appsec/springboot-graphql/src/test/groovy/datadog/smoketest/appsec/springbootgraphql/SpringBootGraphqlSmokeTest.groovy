@@ -157,6 +157,5 @@ class SpringBootGraphqlSmokeTest extends AbstractAppSecServerSmokeTest {
 
     // 4KB allow to bypass WAF but detected as graphql attack
     'graphql attack'       | 'test' | 'graphql.server.all_resolvers' | 4096
-
   }
 }

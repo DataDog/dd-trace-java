@@ -1,5 +1,6 @@
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -48,7 +49,15 @@ import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit5Test extends CiVisibilityInstrumentationTest {
 

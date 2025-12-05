@@ -394,5 +394,4 @@ class SpanSamplingWorkerTest extends DDSpecification {
     false          | true
     true           | true
   }
-
 }

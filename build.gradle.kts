@@ -2,15 +2,16 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
-  id("datadog.gradle-debug")
-  id("datadog.dependency-locking")
-  id("datadog.tracer-version")
-  id("datadog.dump-hanged-test")
-  id("datadog.ci-jobs")
+  id("dd-trace-java.gradle-debug")
+  id("dd-trace-java.dependency-locking")
+  id("dd-trace-java.tracer-version")
+  id("dd-trace-java.dump-hanged-test")
+  id("dd-trace-java.config-inversion-linter")
+  id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "6.13.0"
-  id("com.github.spotbugs") version "5.0.14"
-  id("de.thetaphi.forbiddenapis") version "3.8"
+  id("com.diffplug.spotless") version "8.1.0"
+  id("com.github.spotbugs") version "6.4.7"
+  id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.6" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
@@ -35,7 +36,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
 
     // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.32.0")
   }
   groovyGradle {
     greclipse()
@@ -44,13 +45,14 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("0.41.0")
+    ktlint("1.8.0")
   }
   kotlin {
-    ktlint("0.41.0")
+    ktlint("1.8.0")
   }
   scala {
-    scalafmt("2.7.5")
+    // TODO: For some reason Scala format is working correctly with this version only.
+    scalafmt("3.8.6")
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
@@ -144,7 +146,8 @@ testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), empty
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
 testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
 testAggregate(
-  "base", listOf(":"),
+  "base",
+  listOf(":"),
   listOf(
     ":dd-java-agent:instrumentation",
     ":dd-smoke-tests",

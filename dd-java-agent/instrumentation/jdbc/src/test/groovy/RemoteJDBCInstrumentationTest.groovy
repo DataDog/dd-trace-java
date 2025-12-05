@@ -34,7 +34,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
-@Requires({ !System.getProperty("java.vendor").contains("IBM") })
+@Requires({
+  !System.getProperty("java.vendor").contains("IBM")
+})
 abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   static final String POSTGRESQL = "postgresql"
   static final String MYSQL = "mysql"
