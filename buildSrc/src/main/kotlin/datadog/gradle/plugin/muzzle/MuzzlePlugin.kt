@@ -73,7 +73,7 @@ class MuzzlePlugin : Plugin<Project> {
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     @Suppress("UNCHECKED_CAST")
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
+      dependsOn(project.tasks.withType(Class.forName("datadog.gradle.plugin.instrument.InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
