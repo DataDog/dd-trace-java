@@ -57,11 +57,15 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       extractSchemas(ctx, ctx_.getTraceSegment());
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
+      // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting it
+      // detected as a
+      // missed request-ended event.
       try {
-        // XXX: Close the additive first. This is not strictly needed, but it'll prevent getting it
-        // detected as a
-        // missed request-ended event.
         ctx.closeWafContext();
+      } catch (Exception e) {
+        log.debug("Error closing WAF context", e);
+      }
+      try {
         ctx.close();
       } catch (Exception e) {
         log.debug("Error closing AppSecRequestContext", e);

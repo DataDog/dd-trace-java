@@ -836,17 +836,19 @@ public class GatewayBridge {
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
-    if (maybeSampleForApiSecurity(ctx, spanInfo, tags)) {
-      if (!Config.get().isApmTracingEnabled()) {
-        traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-      }
-    } else {
+    boolean sampledForApiSec = maybeSampleForApiSecurity(ctx, spanInfo, tags);
+
+    if (!sampledForApiSec) {
       ctx.closeWafContext();
     }
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
+      if (sampledForApiSec && !Config.get().isApmTracingEnabled()) {
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
+
       traceSeg.setTagTop("_dd.appsec.enabled", 1);
       traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
