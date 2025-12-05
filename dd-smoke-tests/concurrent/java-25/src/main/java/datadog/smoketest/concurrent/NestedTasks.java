@@ -33,6 +33,7 @@ public final class NestedTasks implements TestCase {
   void subTask1() {
     // Some basic computations here
   }
+
   @WithSpan("great-child1-2")
   void subTask2() {
     // Some basic computations here
