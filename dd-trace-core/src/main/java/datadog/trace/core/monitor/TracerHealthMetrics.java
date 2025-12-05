@@ -85,9 +85,12 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder scopeCloseErrors = new LongAdder();
   private final LongAdder userScopeCloseErrors = new LongAdder();
 
+  private final LongAdder pendingWriteAround = new LongAdder();
+
   private final LongAdder longRunningTracesWrite = new LongAdder();
   private final LongAdder longRunningTracesDropped = new LongAdder();
   private final LongAdder longRunningTracesExpired = new LongAdder();
+  private final LongAdder longRunningTracesDroppedSampling = new LongAdder();
 
   private final LongAdder clientStatsProcessedSpans = new LongAdder();
   private final LongAdder clientStatsProcessedTraces = new LongAdder();
@@ -296,10 +299,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
+  public void onPendingWriteAround() {
+    pendingWriteAround.increment();
+  }
+
+  @Override
+  public void onLongRunningUpdate(
+      final int dropped, final int write, final int expired, final int droppedSampling) {
     longRunningTracesWrite.add(write);
     longRunningTracesDropped.add(dropped);
     longRunningTracesExpired.add(expired);
+    longRunningTracesDroppedSampling.add(droppedSampling);
   }
 
   private void onSendAttempt(
@@ -473,12 +483,19 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(
             target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
 
+        reportIfChanged(target.statsd, "pending.write_around", target.pendingWriteAround, NO_TAGS);
+
         reportIfChanged(
             target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
         reportIfChanged(
             target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "long-running.dropped_sampling",
+            target.longRunningTracesDroppedSampling,
+            NO_TAGS);
 
         reportIfChanged(
             target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
@@ -602,12 +619,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nuserScopeCloseErrors="
         + userScopeCloseErrors.sum()
         + "\n"
+        + "\npendingWriteAround="
+        + pendingWriteAround.sum()
+        + "\n"
         + "\nlongRunningTracesWrite="
         + longRunningTracesWrite.sum()
         + "\nlongRunningTracesDropped="
         + longRunningTracesDropped.sum()
         + "\nlongRunningTracesExpired="
         + longRunningTracesExpired.sum()
+        + "\nlongRunningTracesDroppedSampling="
+        + longRunningTracesDroppedSampling.sum()
         + "\n"
         + "\nclientStatsRequests="
         + clientStatsRequests.sum()
