@@ -75,6 +75,18 @@ tasks.named<JavaCompile>("compileJmhJava") {
   )
 }
 
+// CLI task for converting JFR files
+// Usage: ./gradlew :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args="input.jfr output.pb"
+// Usage: ./gradlew :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args="--json input.jfr output.json"
+tasks.register<JavaExec>("convertJfr") {
+  group = "application"
+  description = "Convert JFR recording to OTLP profiles format"
+  classpath = sourceSets["main"].runtimeClasspath
+  mainClass.set("com.datadog.profiling.otel.JfrToOtlpConverterCLI")
+
+  // Uses Gradle's built-in --args parameter which properly handles spaces in paths
+}
+
 dependencies {
   implementation(libs.jafar.parser)
   implementation(project(":internal-api"))
