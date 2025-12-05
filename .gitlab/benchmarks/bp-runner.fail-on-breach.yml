@@ -36,13 +36,13 @@ experiments:
               - throughput > 1100.0 op/s
 
           # Startup macrobenchmarks
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AGlobalTracer&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AGlobalTracer&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AGlobalTracer&trendsType=scenario
-          - name: "startup:petclinic:(tracing|appsec|iast):GlobalTracer"
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AAgent.start&trendsType=scenario
+          - name: "startup:petclinic:tracing:Agent.start"
             thresholds:
-              - execution_time < 280 ms
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AGlobalTracer&trendsType=scenario
-          - name: "startup:petclinic:profiling:GlobalTracer"
+              - execution_time < 1120ms
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AAgent.start&trendsType=scenario
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AAgent.start&trendsType=scenario
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
+          - name: "startup:petclinic:(profiling|appsec|iast):Agent.start"
             thresholds:
-              - execution_time < 420 ms
+              - execution_time < 1300 ms
