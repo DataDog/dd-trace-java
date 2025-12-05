@@ -89,6 +89,7 @@ public class ProfcheckValidationTest {
   public void testCpuProfile() throws Exception {
     // Generate JFR recording with CPU samples
     Path jfrFile = tempDir.resolve("cpu.jfr");
+
     try (Recording recording = Recordings.newRecording(jfrFile)) {
       Types types = recording.getTypes();
 
@@ -102,7 +103,6 @@ public class ProfcheckValidationTest {
 
       // Add 100 CPU samples with various stack traces
       for (int i = 0; i < 100; i++) {
-        final int index = i;
         final long spanId = 10000L + i;
         final long rootSpanId = 20000L + (i % 10);
 
@@ -116,7 +116,6 @@ public class ProfcheckValidationTest {
         recording.writeEvent(
             executionSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField("startTime", System.nanoTime() + index * 1000000L);
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(
@@ -131,24 +130,23 @@ public class ProfcheckValidationTest {
     byte[] otlpData = convertJfrToOtlp(jfrFile);
     Files.write(otlpFile, otlpData);
 
-    // Validate with profcheck (now includes protoc validation)
+    // Validate with profcheck (includes both protoc and profcheck validation)
     String result = validateWithProfcheck(otlpFile);
 
-    // Check for protoc validation success (authoritative)
+    // Both validators must pass
     assertTrue(
         result.contains("protoc validation PASSED"),
         "CPU profile should pass protoc validation (spec-compliant). Output: " + result);
-
-    // Profcheck failures are expected due to known bug, just log them
-    if (result.contains("profcheck") && result.contains("WARNING")) {
-      System.out.println("Note: profcheck reported warnings (known attribute_indices parsing bug)");
-    }
+    assertTrue(
+        result.contains("profcheck validation PASSED"),
+        "CPU profile should pass profcheck validation. Output: " + result);
   }
 
   @Test
   public void testAllocationProfile() throws Exception {
     // Generate JFR recording with allocation samples
     Path jfrFile = tempDir.resolve("alloc.jfr");
+
     try (Recording recording = Recordings.newRecording(jfrFile)) {
       Types types = recording.getTypes();
 
@@ -164,7 +162,6 @@ public class ProfcheckValidationTest {
 
       // Add 50 allocation samples
       for (int i = 0; i < 50; i++) {
-        final int index = i;
         final long weight = 1024L * (i + 1);
         final long spanId = 30000L + i;
         final long rootSpanId = 40000L + (i % 5);
@@ -178,7 +175,6 @@ public class ProfcheckValidationTest {
         recording.writeEvent(
             objectSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField("startTime", System.nanoTime() + index * 2000000L);
                   valueBuilder.putField("size", weight);
                   valueBuilder.putField("weight", 0.9f);
                   valueBuilder.putField("spanId", spanId);
@@ -195,18 +191,23 @@ public class ProfcheckValidationTest {
     byte[] otlpData = convertJfrToOtlp(jfrFile);
     Files.write(otlpFile, otlpData);
 
-    // Validate with profcheck (now includes protoc validation)
+    // Validate with profcheck (includes both protoc and profcheck validation)
     String result = validateWithProfcheck(otlpFile);
 
+    // Both validators must pass
     assertTrue(
         result.contains("protoc validation PASSED"),
         "Allocation profile should pass protoc validation (spec-compliant). Output: " + result);
+    assertTrue(
+        result.contains("profcheck validation PASSED"),
+        "Allocation profile should pass profcheck validation. Output: " + result);
   }
 
   @Test
   public void testMixedProfile() throws Exception {
     // Generate JFR recording with multiple event types
     Path jfrFile = tempDir.resolve("mixed.jfr");
+
     try (Recording recording = Recordings.newRecording(jfrFile)) {
       Types types = recording.getTypes();
 
@@ -235,7 +236,6 @@ public class ProfcheckValidationTest {
 
       // Add mix of events
       for (int i = 0; i < 20; i++) {
-        final int index = i;
         final long spanId = 50000L + i;
         final long rootSpanId = 60000L;
 
@@ -243,7 +243,6 @@ public class ProfcheckValidationTest {
         recording.writeEvent(
             executionSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField("startTime", System.nanoTime() + index * 1000000L);
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(
@@ -255,8 +254,6 @@ public class ProfcheckValidationTest {
         recording.writeEvent(
             methodSampleType.asValue(
                 valueBuilder -> {
-                  valueBuilder.putField(
-                      "startTime", System.nanoTime() + index * 1000000L + 500000L);
                   valueBuilder.putField("spanId", spanId);
                   valueBuilder.putField("localRootSpanId", rootSpanId);
                   valueBuilder.putField(
@@ -271,12 +268,16 @@ public class ProfcheckValidationTest {
     byte[] otlpData = convertJfrToOtlp(jfrFile);
     Files.write(otlpFile, otlpData);
 
-    // Validate with profcheck (now includes protoc validation)
+    // Validate with profcheck (includes both protoc and profcheck validation)
     String result = validateWithProfcheck(otlpFile);
 
+    // Both validators must pass
     assertTrue(
         result.contains("protoc validation PASSED"),
         "Mixed profile should pass protoc validation (spec-compliant). Output: " + result);
+    assertTrue(
+        result.contains("profcheck validation PASSED"),
+        "Mixed profile should pass profcheck validation. Output: " + result);
   }
 
   private byte[] convertJfrToOtlp(Path jfrFile) throws IOException {
