@@ -39,7 +39,7 @@ experiments:
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:tracing:Agent.start"
             thresholds:
-              - execution_time < 1120ms
+              - execution_time < 1120 ms
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
