@@ -195,7 +195,6 @@ public final class TraceInstrumentationConfig {
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
-  public static final String ADD_SPAN_POINTERS = "add.span.pointers";
 
   private TraceInstrumentationConfig() {}
 }
