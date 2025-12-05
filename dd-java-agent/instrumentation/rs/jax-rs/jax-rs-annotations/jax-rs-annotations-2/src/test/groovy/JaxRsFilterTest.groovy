@@ -236,5 +236,4 @@ class ResteasyFilterTest extends JaxRsFilterTest {
 
     return [response.contentAsString, response.status]
   }
-
 }

@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 /** This class holds helper methods to encode span links into span context. */
 public class DDSpanLink extends SpanLink {
   private static final Logger LOGGER = LoggerFactory.getLogger(DDSpanLink.class);
+
   /** The maximum of characters a span tag value can hold. */
   private static final int TAG_MAX_LENGTH = 25_000;
 

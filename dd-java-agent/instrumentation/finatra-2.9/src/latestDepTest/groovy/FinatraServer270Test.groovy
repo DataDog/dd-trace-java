@@ -52,7 +52,6 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
         }
 
         void onEntry(Event event) {
-
         }
 
         @Override

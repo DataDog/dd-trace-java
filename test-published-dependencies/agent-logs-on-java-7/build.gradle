@@ -5,6 +5,11 @@ plugins {
 
 java {
   disableAutoTargetJvm()
+
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+
   sourceCompatibility = JavaVersion.VERSION_1_7
   targetCompatibility = JavaVersion.VERSION_1_7
 }

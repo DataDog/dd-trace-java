@@ -659,7 +659,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  /** @return the portion of the body read so far, if any */
+  /**
+   * @return the portion of the body read so far, if any
+   */
   public CharSequence getStoredRequestBody() {
     StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
     if (storedRequestBodySupplier == null) {

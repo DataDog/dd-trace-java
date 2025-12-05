@@ -7,7 +7,9 @@ import ratpack.handling.internal.ChainHandler;
 import ratpack.path.PathBinder;
 import ratpack.path.internal.TokenPathBinder;
 
-/** @see ratpack.path.internal.PathBindingStorage */
+/**
+ * @see ratpack.path.internal.PathBindingStorage
+ */
 public class PathHandlerAdvice {
 
   // limitation: we can publish tokens for more than one handler in the same request

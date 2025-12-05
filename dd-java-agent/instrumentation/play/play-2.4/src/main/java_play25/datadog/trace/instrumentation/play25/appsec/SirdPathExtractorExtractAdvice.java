@@ -9,7 +9,9 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.collection.immutable.List;
 
-/** @see play.api.routing.sird.PathExtractor#extract(java.lang.String) */
+/**
+ * @see play.api.routing.sird.PathExtractor#extract(java.lang.String)
+ */
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class SirdPathExtractorExtractAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
