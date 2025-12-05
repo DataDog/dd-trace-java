@@ -308,7 +308,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       if (metricsEnabled) {
         newState.supportsClientSideStats =
-            AgentVersion.isVersionAtLeast(newState.version, 7, 65, 0);
+            !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
         Object canDrop = map.get("client_drop_p0s");
         newState.supportsDropping =
             null != canDrop
