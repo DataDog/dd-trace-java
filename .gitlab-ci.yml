@@ -61,6 +61,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -363,6 +364,12 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    # TODO: Latest version of spotless is failing with OOM on CI only.
+    # Setting 8G memory solving this issue, but we need to solve it eventually.
+    GRADLE_MEM: 8G
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS

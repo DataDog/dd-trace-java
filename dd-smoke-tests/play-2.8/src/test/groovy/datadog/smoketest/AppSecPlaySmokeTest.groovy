@@ -73,7 +73,11 @@ abstract class AppSecPlaySmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(3)
     def spans = rootSpans.toList().toSorted { it.span.duration }
     spans.size() == 3
-    def sampledSpans = spans.findAll { it.meta.keySet().any { it.startsWith('_dd.appsec.s.req.') } }
+    def sampledSpans = spans.findAll {
+      it.meta.keySet().any {
+        it.startsWith('_dd.appsec.s.req.')
+      }
+    }
     sampledSpans.size() == 1
     def span = sampledSpans[0]
     span.meta.containsKey('_dd.appsec.s.req.query')
@@ -155,5 +159,4 @@ abstract class AppSecPlaySmokeTest extends AbstractAppSecServerSmokeTest {
       return "play.core.server.NettyServerProvider"
     }
   }
-
 }

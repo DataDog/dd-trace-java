@@ -61,7 +61,6 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
     // causing random test failures (we are not testing these features here so they don't need to be on)
-    command.add("-Ddd.crashtracking.enabled=false")
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
     command.add("-Ddd.remote_config.enabled=false")
     command.add("-Ddd.writer.type=TraceStructureWriter")
