@@ -1,0 +1,10 @@
+# Usage: BENCHMARK_TYPE=<startup|load|dacapo> bp-runner .gitlab/benchmarks/bp-runner.yml --debug -t
+
+experiments:
+  - name: run-benchmarks
+    steps:
+      - name: benchmarks
+        cpus: 24-47
+        run: shell
+        script: /platform/steps/run-benchmarks.sh $BENCHMARK_TYPE
+
