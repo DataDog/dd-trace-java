@@ -222,7 +222,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('String').stringValue(
       "{\"x-datadog-trace-id\": \"4948377316357291421\", \"x-datadog-parent-id\": \"6746998015037429512\", \"x-datadog-sampling-priority\": \"1\"}"
       ).build()]).build()
-    def messages = new TracingList([message],
+    def messages = new TracingList(null, [message],
     "http://localhost:${address.port}/000000000000/somequeue",
     "00000000-0000-0000-0000-000000000000")
 
@@ -265,7 +265,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     def message = Message.builder().messageAttributes(['_datadog': MessageAttributeValue.builder().dataType('Binary').binaryValue(SdkBytes.fromByteBuffer(
       headerValue
       )).build()]).build()
-    def messages = new TracingList([message],
+    def messages = new TracingList(null, [message],
     "http://localhost:${address.port}/000000000000/somequeue",
     "00000000-0000-0000-0000-000000000000")
 
