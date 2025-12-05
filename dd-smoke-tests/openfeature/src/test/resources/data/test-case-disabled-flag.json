@@ -1,0 +1,40 @@
+[
+  {
+    "flag": "disabled_flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "disabled_flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "disabled_flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": 0
+    }
+  }
+]
