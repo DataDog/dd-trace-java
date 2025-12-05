@@ -1,7 +1,7 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.test.util.Flaky
-import datadog.trace.test.util.Predicates.IBM
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -30,7 +30,7 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     return processBuilder
   }
 
-  @Flaky(value = 'Race condition with IMB. Check APMAPI-1194', condition = IBM)
+  @Flaky(value = 'Race condition with IMB. Check APMAPI-1194', condition = () -> JavaVirtualMachine.isIbm())
   def "resource types loaded by custom system class-loader are transformed"() {
     when:
     testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
@@ -39,7 +39,8 @@ class CustomSystemLoaderSmokeTest extends AbstractSmokeTest {
     testedProcess.exitValue() == 0
     int loadedResources = 0
     int transformedResources = 0
-    forEachLogLine { String it ->
+    forEachLogLine {
+      String it ->
       if (it =~ /Loading sample.app.Resource[$]Test[1-3] from TestLoader/) {
         loadedResources++
       }

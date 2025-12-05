@@ -1,8 +1,7 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.test.util.Flaky
-
-import static datadog.trace.test.util.Predicates.IBM
 
 class SampleTraceSmokeTest extends AbstractSmokeTest {
 
@@ -25,7 +24,7 @@ class SampleTraceSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  @Flaky(condition = IBM)
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm())
   def 'sample traces are sent'() {
     when:
     waitForTraceCount(10)
