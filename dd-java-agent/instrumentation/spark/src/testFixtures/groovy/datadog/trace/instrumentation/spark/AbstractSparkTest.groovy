@@ -629,7 +629,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     null      | null                | null                                                                                   | "(?!.*databricks).*"
   }
 
-  def "set the proper spark service name"(String ddService, boolean sparkAppNameAsService, String appName, boolean isRunningOnDatabricks, String expectedService) {
+  def "set the proper spark service name"(String ddService, boolean sparkAppNameAsService, String appName, boolean isRunningOnDatabricks, String expectedService, String expectedServiceNameTag) {
     setup:
     if (ddService != null) {
       injectSysConfig("dd.service", ddService)
@@ -668,35 +668,39 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
             operationName "spark.application"
             spanType "spark"
             assert span.serviceName ==~ expectedService
+            assert span.tags["service_name"] == expectedServiceNameTag
           }
         }
         span {
           operationName "spark.sql"
           spanType "spark"
           assert span.serviceName ==~ expectedService
+          assert span.tags["service_name"] == expectedServiceNameTag
         }
         span {
           operationName "spark.job"
           spanType "spark"
           assert span.serviceName ==~ expectedService
+          assert span.tags["service_name"] == expectedServiceNameTag
         }
         span {
           operationName "spark.stage"
           spanType "spark"
           assert span.serviceName ==~ expectedService
+          assert span.tags["service_name"] == expectedServiceNameTag
         }
       }
     }
 
     where:
-    ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService
-    "foobar"  | true                  | "some_app" | false                 | "(?!.*some_app).*"
-    "spark"   | true                  | "some_app" | false                 | "some_app"
-    "hadoop"  | true                  | "some_app" | false                 | "some_app"
-    null      | true                  | "some_app" | true                  | "(?!.*some_app).*"
-    null      | true                  | "some_app" | false                 | "some_app"
-    null      | false                 | "some_app" | false                 | "(?!.*some_app).*"
-    null      | true                  | null       | false                 | "(?!.*some_app).*"
+    ddService | sparkAppNameAsService | appName    | isRunningOnDatabricks | expectedService        | expectedServiceNameTag
+    "foobar"  | true                  | "some_app" | false                 | "(?!.*some_app).*"     | null
+    "spark"   | true                  | "some_app" | false                 | "some_app"             | "some_app"
+    "hadoop"  | true                  | "some_app" | false                 | "some_app"             | "some_app"
+    null      | true                  | "some_app" | true                  | "(?!.*some_app).*"     | null
+    null      | true                  | "some_app" | false                 | "some_app"             | "some_app"
+    null      | false                 | "some_app" | false                 | "(?!.*some_app).*"     | null
+    null      | true                  | null       | false                 | "(?!.*some_app).*"     | null
   }
 
 
