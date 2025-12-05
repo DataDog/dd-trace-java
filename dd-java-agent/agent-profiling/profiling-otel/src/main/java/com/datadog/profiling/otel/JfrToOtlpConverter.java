@@ -59,8 +59,10 @@ public final class JfrToOtlpConverter {
   public enum Kind {
     /** Protobuf binary format (default). */
     PROTO,
-    /** JSON text format. */
-    JSON
+    /** JSON text format (compact). */
+    JSON,
+    /** JSON text format with pretty-printing. */
+    JSON_PRETTY
   }
 
   private static final class PathEntry {
@@ -233,7 +235,9 @@ public final class JfrToOtlpConverter {
 
       switch (kind) {
         case JSON:
-          return encodeProfilesDataAsJson();
+          return encodeProfilesDataAsJson(false);
+        case JSON_PRETTY:
+          return encodeProfilesDataAsJson(true);
         case PROTO:
         default:
           return encodeProfilesData();
@@ -762,7 +766,7 @@ public final class JfrToOtlpConverter {
 
   // JSON encoding methods
 
-  private byte[] encodeProfilesDataAsJson() {
+  private byte[] encodeProfilesDataAsJson(boolean prettyPrint) {
     JsonWriter json = new JsonWriter();
     json.beginObject();
 
@@ -776,7 +780,86 @@ public final class JfrToOtlpConverter {
     encodeDictionaryJson(json);
 
     json.endObject();
-    return json.toByteArray();
+    byte[] compactJson = json.toByteArray();
+
+    // Pretty-print if requested
+    return prettyPrint ? prettyPrintJson(compactJson) : compactJson;
+  }
+
+  /**
+   * Pretty-prints compact JSON with indentation.
+   *
+   * <p>Simple pretty-printer that adds newlines and indentation without external dependencies.
+   */
+  private byte[] prettyPrintJson(byte[] compactJson) {
+    String compact = new String(compactJson, java.nio.charset.StandardCharsets.UTF_8);
+    StringBuilder pretty = new StringBuilder(compact.length() + compact.length() / 4);
+    int indent = 0;
+    boolean inString = false;
+    boolean escape = false;
+
+    for (int i = 0; i < compact.length(); i++) {
+      char c = compact.charAt(i);
+
+      if (escape) {
+        pretty.append(c);
+        escape = false;
+        continue;
+      }
+
+      if (c == '\\') {
+        pretty.append(c);
+        escape = true;
+        continue;
+      }
+
+      if (c == '"') {
+        pretty.append(c);
+        inString = !inString;
+        continue;
+      }
+
+      if (inString) {
+        pretty.append(c);
+        continue;
+      }
+
+      switch (c) {
+        case '{':
+        case '[':
+          pretty.append(c).append('\n');
+          indent++;
+          appendIndent(pretty, indent);
+          break;
+        case '}':
+        case ']':
+          pretty.append('\n');
+          indent--;
+          appendIndent(pretty, indent);
+          pretty.append(c);
+          break;
+        case ',':
+          pretty.append(c).append('\n');
+          appendIndent(pretty, indent);
+          break;
+        case ':':
+          pretty.append(c).append(' ');
+          break;
+        default:
+          if (!Character.isWhitespace(c)) {
+            pretty.append(c);
+          }
+          break;
+      }
+    }
+
+    return pretty.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  private void appendIndent(StringBuilder sb, int indent) {
+    for (int i = 0; i < indent * 2; i++) {
+      sb.append(' ');
+    }
   }
 
   private void encodeResourceProfilesJson(JsonWriter json) {
