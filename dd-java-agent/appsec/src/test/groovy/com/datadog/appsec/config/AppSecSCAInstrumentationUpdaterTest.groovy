@@ -92,19 +92,19 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
   def "onConfigUpdate retransforms loaded classes matching targets"() {
     given:
     def updater = new AppSecSCAInstrumentationUpdater(instrumentation)
-    // Use String.class as a real class for testing
+    // Use String as a real class for testing
     def targetClassName = "java.lang.String"
     def config = createConfigWithOneVulnerability(targetClassName)
 
-    instrumentation.getAllLoadedClasses() >> [String.class]
-    instrumentation.isModifiableClass(String.class) >> true
+    instrumentation.getAllLoadedClasses() >> [String]
+    instrumentation.isModifiableClass(String) >> true
 
     when:
     updater.onConfigUpdate(config)
 
     then:
     1 * instrumentation.addTransformer(_, true)
-    1 * instrumentation.retransformClasses(String.class)
+    1 * instrumentation.retransformClasses(String)
   }
 
   def "onConfigUpdate does not retransform non-modifiable classes"() {
@@ -113,8 +113,8 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def targetClassName = "java.lang.String"
     def config = createConfigWithOneVulnerability(targetClassName)
 
-    instrumentation.getAllLoadedClasses() >> [String.class]
-    instrumentation.isModifiableClass(String.class) >> false
+    instrumentation.getAllLoadedClasses() >> [String]
+    instrumentation.isModifiableClass(String) >> false
 
     when:
     updater.onConfigUpdate(config)
@@ -129,8 +129,8 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def updater = new AppSecSCAInstrumentationUpdater(instrumentation)
     def config = createConfigWithOneVulnerability("java.lang.String")
 
-    // Use Integer.class which does NOT match the target (String)
-    instrumentation.getAllLoadedClasses() >> [Integer.class]
+    // Use Integer which does NOT match the target (String)
+    instrumentation.getAllLoadedClasses() >> [Integer]
 
     when:
     updater.onConfigUpdate(config)
@@ -149,29 +149,29 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     when:
     // First config with one vulnerability
     def config1 = createConfigWithOneVulnerability(class1)
-    instrumentation.getAllLoadedClasses() >> [String.class]
-    instrumentation.isModifiableClass(String.class) >> true
+    instrumentation.getAllLoadedClasses() >> [String]
+    instrumentation.isModifiableClass(String) >> true
     updater.onConfigUpdate(config1)
 
     then:
     // Transformer was installed on first config
     1 * instrumentation.addTransformer(_, true)
-    1 * instrumentation.retransformClasses(String.class)
+    1 * instrumentation.retransformClasses(String)
 
     when:
     // Second config adds another vulnerability
     def config2 = createConfigWithTwoVulnerabilities(class1, class2)
-    instrumentation.getAllLoadedClasses() >> [String.class, Integer.class]
-    instrumentation.isModifiableClass(Integer.class) >> true
+    instrumentation.getAllLoadedClasses() >> [String, Integer]
+    instrumentation.isModifiableClass(Integer) >> true
     updater.onConfigUpdate(config2)
 
     then:
     // Transformer should NOT be installed again
     0 * instrumentation.addTransformer(_, _)
     // Only the NEW class (Integer) should be retransformed
-    1 * instrumentation.retransformClasses(Integer.class)
+    1 * instrumentation.retransformClasses(Integer)
     // String should NOT be retransformed again
-    0 * instrumentation.retransformClasses(String.class)
+    0 * instrumentation.retransformClasses(String)
   }
 
   def "onConfigUpdate handles retransformation exceptions gracefully"() {
@@ -180,9 +180,9 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def targetClassName = "java.lang.String"
     def config = createConfigWithOneVulnerability(targetClassName)
 
-    instrumentation.getAllLoadedClasses() >> [String.class]
-    instrumentation.isModifiableClass(String.class) >> true
-    instrumentation.retransformClasses(String.class) >> { throw new RuntimeException("Test exception") }
+    instrumentation.getAllLoadedClasses() >> [String]
+    instrumentation.isModifiableClass(String) >> true
+    instrumentation.retransformClasses(String) >> { throw new RuntimeException("Test exception") }
 
     when:
     updater.onConfigUpdate(config)
@@ -224,7 +224,7 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
     def class2 = "java.lang.Integer"
     def config = createConfigWithTwoVulnerabilities(class1, class2)
 
-    instrumentation.getAllLoadedClasses() >> [String.class, Integer.class]
+    instrumentation.getAllLoadedClasses() >> [String, Integer]
     instrumentation.isModifiableClass(_) >> true
 
     when:
@@ -232,8 +232,8 @@ class AppSecSCAInstrumentationUpdaterTest extends DDSpecification {
 
     then:
     1 * instrumentation.addTransformer(_, true)
-    1 * instrumentation.retransformClasses(String.class)
-    1 * instrumentation.retransformClasses(Integer.class)
+    1 * instrumentation.retransformClasses(String)
+    1 * instrumentation.retransformClasses(Integer)
   }
 
   def "getCurrentConfig returns current configuration"() {
