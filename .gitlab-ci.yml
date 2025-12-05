@@ -135,7 +135,8 @@ default:
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
     GRADLE_WORKERS: 2
-    GRADLE_MEM: 3G
+    GRADLE_MEM_MIN: 1G
+    GRADLE_MEM_MAX: 3G
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 10Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
@@ -175,6 +176,7 @@ default:
     - |
       JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
       cat >> gradle.properties <<EOF
+      org.gradle.daemon.performance.enable-monitoring=false
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
@@ -184,7 +186,7 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -258,7 +260,8 @@ build:
     BUILD_CACHE_POLICY: push
     CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: 3G
+    GRADLE_MEM_MIN: 1G
+    GRADLE_MEM_MAX: 3G
     GRADLE_WORKERS: 5
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
@@ -285,7 +288,8 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: 3G
+    GRADLE_MEM_MIN: 1G
+    GRADLE_MEM_MAX: 3G
     GRADLE_WORKERS: 5
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
@@ -371,7 +375,8 @@ spotless:
   variables:
     # TODO: Latest version of spotless is failing with OOM on CI only.
     # Setting 8G memory solving this issue, but we need to solve it eventually.
-    GRADLE_MEM: 8G
+    GRADLE_MEM_MIN: 8G
+    GRADLE_MEM_MAX: 8G
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
@@ -550,7 +555,8 @@ muzzle-dep-report:
     KUBERNETES_MEMORY_LIMIT: 17Gi
     KUBERNETES_CPU_REQUEST: 10
     GRADLE_WORKERS: 4
-    GRADLE_MEM: 3G
+    GRADLE_MEM_MIN: 1G
+    GRADLE_MEM_MAX: 3G
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -572,7 +578,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
