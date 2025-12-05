@@ -16,10 +16,11 @@ public class DubboServerCallAdvice {
 //
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
-      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final AgentScope scope,@Advice.FieldValue("invocation") RpcInvocation invocation, @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
       return;
     }
+    DECORATE.onError(scope.span(), throwable);
     DECORATE.beforeFinish(scope.span());
     scope.close();
     scope.span().finish();

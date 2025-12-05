@@ -19,7 +19,6 @@ import static datadog.trace.instrumentation.dubbo_3_2.DubboHeadersExtractAdapter
 
 public class DubboDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(DubboDecorator.class);
-  public static final CharSequence DUBBO_REQUEST = UTF8BytesString.create("dubbo");
 
   public static final CharSequence DUBBO_SERVER = UTF8BytesString.create("apache-dubbo");
 
@@ -44,70 +43,46 @@ public class DubboDecorator extends BaseDecorator {
     span.setResourceName(methodName);
   }
 
-  public AgentScope obToClientCall(TripleClientCall tripleClientCall){
+  public AgentScope clientCall(TripleClientCall tripleClientCall){
 
     try {
       RequestMetadata requestMetadata = (RequestMetadata)Dubbo3Constants.getValue(TripleClientCall.class, tripleClientCall, "requestMetadata");
       DubboMetadata metadata = new DubboMetadata(null,requestMetadata);
       AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
       AgentSpan span = startSpan("onMessage", parentContext);
-//      defaultPropagator().inject(span, metadata, SETTER);
       return  activateSpan(span);
     }catch (Exception e){
-      e.printStackTrace();
+      log.error("dubboException:",e);
     }
-    return activateSpan(activeSpan());
+    return activateSpan(noopSpan());
   }
-
-  public AgentScope obToClientCallClose(TripleClientCall tripleClientCall, TriRpcStatus status) {
-    try {
-      RequestMetadata requestMetadata = (RequestMetadata)Dubbo3Constants.getValue(TripleClientCall.class, tripleClientCall, "requestMetadata");
+  //
+  public AgentScope clientComplete(RequestMetadata requestMetadata, TriRpcStatus status) {
       DubboMetadata metadata = new DubboMetadata(null,requestMetadata);
       AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
-      AgentSpan span = startSpan(status.isOk() ? "onCompleted" : "onError", parentContext);
+      AgentSpan span = startSpan("onComplete", parentContext);
       return  activateSpan(span);
-    }catch (Exception e){
-      e.printStackTrace();
-    }
-    return activateSpan(activeSpan());
   }
 
   public AgentScope serverCall(RpcInvocation rpcInvocation){
-
-    try {
       DubboMetadata metadata = new DubboMetadata(rpcInvocation,null);
       AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
       AgentSpan span = startSpan("onMessage", parentContext);
 //      defaultPropagator().inject(span, metadata, SETTER);
       return  activateSpan(span);
-    }catch (Exception e){
-      e.printStackTrace();
-    }
-    return activateSpan(activeSpan());
   }
 
-  public AgentScope serverCall(RpcInvocation rpcInvocation, Long status) {
-    try {
-      DubboMetadata metadata = new DubboMetadata(rpcInvocation,null);
-      AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
-      AgentSpan span = startSpan("onCancel", parentContext);
-//      defaultPropagator().inject(span, metadata, SETTER);
-      return  activateSpan(span);
-    }catch (Exception e){
-      e.printStackTrace();
-    }
-    return activateSpan(activeSpan());
+  public AgentScope serverComplete(RpcInvocation invocation) {
+    DubboMetadata metadata = new DubboMetadata(invocation,null);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
+    AgentSpan span = startSpan("onComplete", parentContext);
+    return  activateSpan(span);
   }
 
-  public AgentScope serverCallOnComplete(RpcInvocation invocation) {
-    try {
-      DubboMetadata metadata = new DubboMetadata(invocation,null);
-      AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
-      AgentSpan span = startSpan("onCompleted", parentContext);
-      return  activateSpan(span);
-    }catch (Exception e){
-      e.printStackTrace();
-    }
-    return activateSpan(activeSpan());
+  public AgentScope serverOnData(RequestMetadata httpMetadata) {
+    DubboMetadata metadata = new DubboMetadata(null,httpMetadata);
+    AgentSpanContext parentContext = extractContextAndGetSpanContext(metadata, GETTER);
+    AgentSpan span = startSpan("onCompleted", parentContext);
+    return  activateSpan(span);
   }
 }
