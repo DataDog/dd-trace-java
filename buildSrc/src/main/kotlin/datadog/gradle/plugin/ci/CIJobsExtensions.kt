@@ -7,17 +7,20 @@ import org.gradle.kotlin.dsl.extra
 /**
  * Returns the task's path, given affected projects, if this task or its dependencies are affected by git changes.
  */
-internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project, Set<String>>): String? {
+internal fun findAffectedTaskPath(
+  baseTask: Task,
+  affectedProjects: Map<Project, Set<String>>
+): String? {
   val visited = mutableSetOf<Task>()
   val queue = mutableListOf(baseTask)
-  
+
   while (queue.isNotEmpty()) {
     val t = queue.removeAt(0)
     if (visited.contains(t)) {
       continue
     }
     visited.add(t)
-    
+
     val affectedTasks = affectedProjects[t.project]
     if (affectedTasks != null) {
       if (affectedTasks.contains("all")) {
@@ -27,7 +30,7 @@ internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project,
         return "${t.project.path}:${t.name}"
       }
     }
-    
+
     t.taskDependencies.getDependencies(t).forEach { queue.add(it) }
   }
   return null
@@ -106,4 +109,3 @@ fun Project.testAggregate(
   createRootTask("${baseTaskName}LatestDepTest", "allLatestDepTests", includePrefixes, excludePrefixes, forceCoverage)
   createRootTask("${baseTaskName}Check", "check", includePrefixes, excludePrefixes, forceCoverage)
 }
-

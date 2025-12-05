@@ -70,16 +70,16 @@ open class MuzzleDirective : Serializable {
    * @param defaults the default repositories
    * @return a list of the default repositories followed by any additional repositories
    */
-  internal fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> {
-    return if (additionalRepositories.isEmpty()) {
-      defaults
-    } else {
-      ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
-        addAll(defaults)
-        addAll(additionalRepositories.map { (id, type, url) ->
+  internal fun getRepositories(defaults: List<RemoteRepository>): List<RemoteRepository> = if (additionalRepositories.isEmpty()) {
+    defaults
+  } else {
+    ArrayList<RemoteRepository>(defaults.size + additionalRepositories.size).apply {
+      addAll(defaults)
+      addAll(
+        additionalRepositories.map { (id, type, url) ->
           RemoteRepository.Builder(id, type, url).build()
-        })
-      }
+        }
+      )
     }
   }
 
@@ -91,12 +91,9 @@ open class MuzzleDirective : Serializable {
   val nameSlug: String
     get() = name?.trim()?.replace(Regex("[^a-zA-Z0-9]+"), "-") ?: ""
 
-  override fun toString(): String {
-    return if (isCoreJdk) {
-      "${if (assertPass) "Pass" else "Fail"}-core-jdk"
-    } else {
-      "${if (assertPass) "pass" else "fail"} $group:$module:$versions"
-    }
+  override fun toString(): String = if (isCoreJdk) {
+    "${if (assertPass) "Pass" else "Fail"}-core-jdk"
+  } else {
+    "${if (assertPass) "pass" else "fail"} $group:$module:$versions"
   }
 }
-

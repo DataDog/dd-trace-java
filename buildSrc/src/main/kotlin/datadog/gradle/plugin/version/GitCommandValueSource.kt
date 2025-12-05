@@ -18,27 +18,31 @@ abstract class GitCommandValueSource @Inject constructor(
     val commands = parameters.gitCommand.get()
 
     val outputStream = ByteArrayOutputStream()
-    val result = try {
-      execOperations.exec {
-        commandLine(commands)
-        workingDir(workDir)
-        standardOutput = outputStream
-        errorOutput = outputStream
-        isIgnoreExitValue = true
+    val result =
+      try {
+        execOperations.exec {
+          commandLine(commands)
+          workingDir(workDir)
+          standardOutput = outputStream
+          errorOutput = outputStream
+          isIgnoreExitValue = true
+        }
+      } catch (e: Exception) {
+        throw GradleException("Failed to run: ${commands.joinToString(" ")}", e)
       }
-    } catch (e: Exception) {
-      throw GradleException("Failed to run: ${commands.joinToString(" ")}", e)
-    }
 
     val output = outputStream.toString(Charset.defaultCharset().name()).trim()
     when {
       result.exitValue == 128 &&
-        (output.startsWith("fatal: not a git repository")
-          || output.startsWith("fatal: No names found, cannot describe anything."))
-            -> {
+        (
+          output.startsWith("fatal: not a git repository") ||
+            output.startsWith("fatal: No names found, cannot describe anything.")
+          )
+      -> {
         // Behaves as if not a git repo
         return ""
       }
+
       result.exitValue != 0 -> {
         throw GradleException(
           """
@@ -46,7 +50,7 @@ abstract class GitCommandValueSource @Inject constructor(
               (exit code: ${result.exitValue})
             Output:
             $output
-            """.trimIndent()
+          """.trimIndent()
         )
       }
     }

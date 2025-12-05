@@ -11,10 +11,11 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   abstract val startTimeMs: Property<Long>
 
   @get:OutputFile
-  val resultsFile = project.rootProject
-    .layout
-    .buildDirectory
-    .file("${MUZZLE_TEST_RESULTS}/${project.pathSlug}_muzzle/results.xml")
+  val resultsFile =
+    project.rootProject
+      .layout
+      .buildDirectory
+      .file("${MUZZLE_TEST_RESULTS}/${project.pathSlug}_muzzle/results.xml")
 
   @TaskAction
   fun generatesResultFile() {

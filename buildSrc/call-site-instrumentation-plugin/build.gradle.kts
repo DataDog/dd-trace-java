@@ -1,24 +1,12 @@
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "8.1.0"
   id("com.gradleup.shadow") version "8.3.6"
 }
 
 java {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-spotless {
-  java {
-    toggleOffOn()
-    // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
-    target("src/**/*.java")
-    // ignore embedded test projects
-    targetExclude("src/test/resources/**")
-    googleJavaFormat("1.32.0")
-  }
 }
 
 apply {

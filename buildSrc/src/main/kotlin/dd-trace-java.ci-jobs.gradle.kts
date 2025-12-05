@@ -11,7 +11,7 @@ import kotlin.math.abs
 // Set up activePartition property on all projects
 allprojects {
   extra.set("activePartition", true)
-  
+
   val taskPartitionCountProvider = rootProject.providers.gradleProperty("taskPartitionCount")
   val taskPartitionProvider = rootProject.providers.gradleProperty("taskPartition")
   if (taskPartitionCountProvider.isPresent && taskPartitionProvider.isPresent) {
@@ -20,20 +20,22 @@ allprojects {
     val currentTaskPartition = abs(project.path.hashCode() % taskPartitionCount.toInt())
     extra.set("activePartition", currentTaskPartition == taskPartition.toInt())
   }
-  
+
   // Disable test tasks if not in active partition
-  val activePartitionProvider = providers.provider {
-    project.extra.properties["activePartition"] as? Boolean ?: true
-  }
-  
+  val activePartitionProvider =
+    providers.provider {
+      project.extra.properties["activePartition"] as? Boolean ?: true
+    }
+
   tasks.withType<Test>().configureEach {
     enabled = activePartitionProvider.get()
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
-}
+fun relativeToGitRoot(f: File): File = rootProject.projectDir
+  .toPath()
+  .relativize(f.absoluteFile.toPath())
+  .toFile()
 
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val stdout = StringBuilder()
@@ -60,19 +62,24 @@ rootProject.extra.set("useGitChanges", false)
 val gitBaseRefProvider = rootProject.providers.gradleProperty("gitBaseRef")
 if (gitBaseRefProvider.isPresent) {
   val baseRef = gitBaseRefProvider.get()
-  val newRef = rootProject.providers.gradleProperty("gitNewRef").orElse("HEAD").get()
-  
+  val newRef =
+    rootProject.providers
+      .gradleProperty("gitNewRef")
+      .orElse("HEAD")
+      .get()
+
   val changedFiles = getChangedFiles(baseRef, newRef)
   rootProject.extra.set("changedFiles", changedFiles)
   rootProject.extra.set("useGitChanges", true)
-  
-  val ignoredFiles = fileTree(rootProject.projectDir) {
-    include(".gitignore", ".editorconfig")
-    include("*.md", "**/*.md")
-    include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
-    include("NOTICE")
-    include("static-analysis.datadog.yml")
-  }
+
+  val ignoredFiles =
+    fileTree(rootProject.projectDir) {
+      include(".gitignore", ".editorconfig")
+      include("*.md", "**/*.md")
+      include("gradlew", "gradlew.bat", "mvnw", "mvnw.cmd")
+      include("NOTICE")
+      include("static-analysis.datadog.yml")
+    }
 
   changedFiles.forEach { f ->
     if (ignoredFiles.contains(f)) {
@@ -82,13 +89,14 @@ if (gitBaseRefProvider.isPresent) {
 
   val filteredChangedFiles = changedFiles.filter { !ignoredFiles.contains(it) }
   rootProject.extra.set("changedFiles", filteredChangedFiles)
-  
-  val globalEffectFiles = fileTree(rootProject.projectDir) {
-    include(".gitlab/**")
-    include("build.gradle")
-    include("gradle/**")
-  }
-  
+
+  val globalEffectFiles =
+    fileTree(rootProject.projectDir) {
+      include(".gitlab/**")
+      include("build.gradle")
+      include("gradle/**")
+    }
+
   for (f in filteredChangedFiles) {
     if (globalEffectFiles.contains(f)) {
       logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
@@ -96,20 +104,21 @@ if (gitBaseRefProvider.isPresent) {
       break
     }
   }
-  
+
   if (rootProject.extra.get("useGitChanges") as Boolean) {
     logger.warn("Git change tracking is enabled: $baseRef..$newRef")
-    
+
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
 
     // Path prefixes mapped to affected task names. A file not matching any of these prefixes will affect all tasks in
     // the project ("all" can be used a task name to explicitly state the same). Only the first matching prefix is used.
-    val matchers = listOf(
-      mapOf("prefix" to "src/testFixtures/", "task" to "testFixturesClasses"),
-      mapOf("prefix" to "src/test/", "task" to "testClasses"),
-      mapOf("prefix" to "src/jmh/", "task" to "jmhCompileGeneratedClasses")
-    )
+    val matchers =
+      listOf(
+        mapOf("prefix" to "src/testFixtures/", "task" to "testFixturesClasses"),
+        mapOf("prefix" to "src/test/", "task" to "testClasses"),
+        mapOf("prefix" to "src/jmh/", "task" to "jmhCompileGeneratedClasses")
+      )
 
     for (f in filteredChangedFiles) {
       val p = projects.find { f.toString().startsWith(it.projectDir.path + "/") }
@@ -120,20 +129,25 @@ if (gitBaseRefProvider.isPresent) {
       }
 
       // Make sure path separator is /
-      val relPath = p.projectDir.toPath().relativize(f.toPath()).joinToString("/")
+      val relPath =
+        p.projectDir
+          .toPath()
+          .relativize(f.toPath())
+          .joinToString("/")
       val task = matchers.find { relPath.startsWith(it["prefix"]!!) }?.get("task") ?: "all"
       logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} ($task)")
       affectedProjects.computeIfAbsent(p) { mutableSetOf() }.add(task)
     }
-    
+
     rootProject.extra.set("affectedProjects", affectedProjects)
   }
 }
 
 tasks.register("runMuzzle") {
-  val muzzleSubprojects = subprojects.filter { p ->
-    val activePartition = p.extra.get("activePartition") as Boolean
-    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("dd-trace-java.muzzle")
-  }
+  val muzzleSubprojects =
+    subprojects.filter { p ->
+      val activePartition = p.extra.get("activePartition") as Boolean
+      activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("dd-trace-java.muzzle")
+    }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

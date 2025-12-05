@@ -12,8 +12,8 @@ import java.io.File
 import java.io.FileInputStream
 
 class InstrumentPluginTest {
-
-  private val buildGradle = """
+  private val buildGradle =
+    """
     plugins {
       id 'java'
       id 'dd-trace-java.instrument'
@@ -39,9 +39,10 @@ class InstrumentPluginTest {
     instrument.plugins = [
       'TestPlugin'
     ]
-  """.trimIndent()
+    """.trimIndent()
 
-  private val testPlugin = """
+  private val testPlugin =
+    """
     import java.io.File;
     import java.io.IOException;
     import net.bytebuddy.build.Plugin;
@@ -74,12 +75,13 @@ class InstrumentPluginTest {
         // no-op
       }
     }
-  """.trimIndent()
+    """.trimIndent()
 
-  private val exampleCode = """
+  private val exampleCode =
+    """
     package example;
     public class ExampleCode {}
-  """.trimIndent()
+    """.trimIndent()
 
   @TempDir
   lateinit var buildDir: File
@@ -96,13 +98,16 @@ class InstrumentPluginTest {
     File(examplePackageDir, "ExampleCode.java").writeText(exampleCode)
 
     // Run Gradle build with TestKit
-    val result = GradleRunner.create().withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
-      .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
-      .withProjectDir(buildDir)
-      .withArguments("build", "--stacktrace")
-      .withPluginClasspath()
-      .forwardOutput()
-      .build()
+    val result =
+      GradleRunner
+        .create()
+        .withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
+        .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
+        .withProjectDir(buildDir)
+        .withArguments("build", "--stacktrace")
+        .withPluginClasspath()
+        .forwardOutput()
+        .build()
 
     val classFile = File(buildDir, "build/classes/java/main/example/ExampleCode.class")
     assertTrue(classFile.isFile)
@@ -112,7 +117,13 @@ class InstrumentPluginTest {
       val classReader = ClassReader(input)
       classReader.accept(
         object : ClassVisitor(OpenedClassReader.ASM_API) {
-          override fun visitField(access: Int, fieldName: String?, descriptor: String?, signature: String?, value: Any?): FieldVisitor? {
+          override fun visitField(
+            access: Int,
+            fieldName: String?,
+            descriptor: String?,
+            signature: String?,
+            value: Any?
+          ): FieldVisitor? {
             if ("__TEST__FIELD__" == fieldName) {
               foundInsertedField = true
             }

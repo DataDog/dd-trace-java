@@ -46,30 +46,40 @@ class TestJvmSpec(val project: Project) {
   /**
    * Normalized `stable` string to the highest JAVA_X_HOME found in environment variables.
    */
-  val normalizedTestJvm: Provider<String> = testJvmProperty.map { testJvm ->
-    if (testJvm.isBlank()) {
-      throw GradleException("testJvm property is blank")
-    }
-
-    // "stable" is calculated as the largest X found in JAVA_X_HOME
-    when (testJvm) {
-      "stable" -> {
-        val javaVersions = project.providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
-          javaHomes
-            .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) && it.key != "JAVA_26_HOME" } // JDK 26 is EA
-            .map { Regex("^JAVA_(\\d+)_HOME$").find(it.key)!!.groupValues[1].toInt() }
-        }.get()
-
-        if (javaVersions.isEmpty()) {
-          throw GradleException("No valid JAVA_X_HOME environment variables found.")
+  val normalizedTestJvm: Provider<String> =
+    testJvmProperty
+      .map { testJvm ->
+        if (testJvm.isBlank()) {
+          throw GradleException("testJvm property is blank")
         }
 
-        javaVersions.max().toString()
-      }
+        // "stable" is calculated as the largest X found in JAVA_X_HOME
+        when (testJvm) {
+          "stable" -> {
+            val javaVersions =
+              project.providers
+                .environmentVariablesPrefixedBy("JAVA_")
+                .map { javaHomes ->
+                  javaHomes
+                    .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) && it.key != "JAVA_26_HOME" } // JDK 26 is EA
+                    .map { Regex("^JAVA_(\\d+)_HOME$").find(it.key)!!.groupValues[1].toInt() }
+                }.get()
 
-      else -> testJvm
-    }
-  }.map { project.logger.info("normalized testJvm: $it"); it }
+            if (javaVersions.isEmpty()) {
+              throw GradleException("No valid JAVA_X_HOME environment variables found.")
+            }
+
+            javaVersions.max().toString()
+          }
+
+          else -> {
+            testJvm
+          }
+        }
+      }.map {
+        project.logger.info("normalized testJvm: $it")
+        it
+      }
 
   /**
    * The home path of the test JVM.
@@ -80,54 +90,63 @@ class TestJvmSpec(val project: Project) {
    *
    * Holds the resolved JavaToolchainSpec for the test JVM.
    */
-  private val testJvmSpec = normalizedTestJvm.map {
-    val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
+  private val testJvmSpec =
+    normalizedTestJvm
+      .map {
+        val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
 
-    when {
-      Files.exists(Paths.get(it)) -> it.normalizeToJDKJavaHome().toToolchainSpec()
+        when {
+          Files.exists(Paths.get(it)) -> {
+            it.normalizeToJDKJavaHome().toToolchainSpec()
+          }
 
-      version.isNotBlank() -> {
-        // Best effort to make a spec for the passed testJvm
-        // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
-        // if it is an integer, we assume it's a Java version
-        // also we can handle on macOs oracle, zulu, semeru, graalvm prefixes
+          version.isNotBlank() -> {
+            // Best effort to make a spec for the passed testJvm
+            // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
+            // if it is an integer, we assume it's a Java version
+            // also we can handle on macOs oracle, zulu, semeru, graalvm prefixes
 
-        // This is using internal APIs
-        DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
-          languageVersion.set(JavaLanguageVersion.of(version.toInt()))
-          when (distribution.lowercase()) {
-            "oracle" -> {
-              vendor.set(JvmVendorSpec.ORACLE)
-            }
+            // This is using internal APIs
+            DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
+              languageVersion.set(JavaLanguageVersion.of(version.toInt()))
+              when (distribution.lowercase()) {
+                "oracle" -> {
+                  vendor.set(JvmVendorSpec.ORACLE)
+                }
 
-            "zulu" -> {
-              vendor.set(JvmVendorSpec.AZUL)
-            }
+                "zulu" -> {
+                  vendor.set(JvmVendorSpec.AZUL)
+                }
 
-            "semeru" -> {
-              vendor.set(JvmVendorSpec.IBM)
-              implementation.set(JvmImplementation.J9)
-            }
+                "semeru" -> {
+                  vendor.set(JvmVendorSpec.IBM)
+                  implementation.set(JvmImplementation.J9)
+                }
 
-            "graalvm" -> {
-              vendor.set(JvmVendorSpec.GRAAL_VM)
-              nativeImageCapable.set(true)
+                "graalvm" -> {
+                  vendor.set(JvmVendorSpec.GRAAL_VM)
+                  nativeImageCapable.set(true)
+                }
+              }
             }
           }
-        }
-      }
 
-      else -> throw GradleException(
-        """
-        Unable to find launcher for Java '$it'. It needs to be:
-        1. A valid path to a JDK home, or
-        2. An environment variable named 'JAVA_<testJvm>_HOME' or '<testJvm>' pointing to a JDK home, or
-        3. A Java version or a known distribution+version combination (e.g. '11', 'zulu8', 'graalvm11', etc.) that can be resolved via Gradle toolchains.
-        4. If using Gradle toolchains, ensure that the requested JDK is installed and configured correctly.
-        """.trimIndent()
-      )
-    }
-  }.map { project.logger.info("testJvm home path: $it"); it }
+          else -> {
+            throw GradleException(
+              """
+              Unable to find launcher for Java '$it'. It needs to be:
+              1. A valid path to a JDK home, or
+              2. An environment variable named 'JAVA_<testJvm>_HOME' or '<testJvm>' pointing to a JDK home, or
+              3. A Java version or a known distribution+version combination (e.g. '11', 'zulu8', 'graalvm11', etc.) that can be resolved via Gradle toolchains.
+              4. If using Gradle toolchains, ensure that the requested JDK is installed and configured correctly.
+              """.trimIndent()
+            )
+          }
+        }
+      }.map {
+        project.logger.info("testJvm home path: $it")
+        it
+      }
 
   /**
    * The Java launcher for the test JVM.
@@ -135,25 +154,32 @@ class TestJvmSpec(val project: Project) {
    * Current JVM or a launcher specified via the testJvm.
    */
   val javaTestLauncher: Provider<JavaLauncher> =
-    project.providers.zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
-      // Only change test JVM if it's not the one we are running the gradle build with
-      if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
-        project.providers.provider<JavaLauncher?> { null }
-      } else {
-        // The provider always says that a value is present so we need to wrap it for proper error messages
-        project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {
-          throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-        })
+    project.providers
+      .zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
+        // Only change test JVM if it's not the one we are running the gradle build with
+        if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
+          project.providers.provider<JavaLauncher?> { null }
+        } else {
+          // The provider always says that a value is present so we need to wrap it for proper error messages
+          project.javaToolchains.launcherFor(jvmSpec).orElse(
+            project.providers.provider {
+              throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+            }
+          )
+        }
       }
-    }.flatMap { it }.map { project.logger.info("testJvm launcher: ${it.executablePath}"); it }
+      .flatMap { it }
+      .map {
+        project.logger.info("testJvm launcher: ${it.executablePath}")
+        it
+      }
 
   private fun String.normalizeToJDKJavaHome(): Path {
     val javaHome = project.file(this).toPath().toRealPath()
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toToolchainSpec(): JavaToolchainSpec =
-    // This is using internal APIs
+  private fun Path.toToolchainSpec(): JavaToolchainSpec = // This is using internal APIs
     SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
 
   private val Project.javaToolchains: JavaToolchainService

@@ -31,12 +31,10 @@ abstract class MuzzleTask @Inject constructor(
   objects: ObjectFactory,
   providers: ProviderFactory,
 ) : AbstractMuzzleTask() {
-  override fun getDescription(): String {
-    return if (muzzleDirective.isPresent) {
-      "Run instrumentation muzzle on ${muzzleDirective.get().name} dependency"
-    } else {
-      "Run instrumentation muzzle on compile time dependencies"
-    }
+  override fun getDescription(): String = if (muzzleDirective.isPresent) {
+    "Run instrumentation muzzle on ${muzzleDirective.get().name} dependency"
+  } else {
+    "Run instrumentation muzzle on compile time dependencies"
   }
 
   @get:Inject
@@ -71,41 +69,47 @@ abstract class MuzzleTask @Inject constructor(
   // This output is only used to make the task cacheable, this is not exposed
   @get:OutputFile
   @get:Optional
-  protected val result: RegularFileProperty = objects.fileProperty().convention(
-    project.layout.buildDirectory.file("reports/${name}.txt")
-  )
+  protected val result: RegularFileProperty = objects.fileProperty()
+    .convention(project.layout.buildDirectory.file("reports/$name.txt"))
 
   @TaskAction
   fun muzzle() {
     when {
-        !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass } -> {
-          project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
-          assertMuzzle()
-        }
-        muzzleDirective.isPresent -> {
-          assertMuzzle(muzzleDirective.get())
-        }
+      !project.extensions
+        .getByType<MuzzleExtension>()
+        .directives
+        .any { it.assertPass } -> {
+        project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
+        assertMuzzle()
+      }
+
+      muzzleDirective.isPresent -> {
+        assertMuzzle(muzzleDirective.get())
+      }
     }
   }
 
   private fun assertMuzzle(muzzleDirective: MuzzleDirective? = null) {
-    val workQueue = if (muzzleDirective?.javaVersion != null) {
-      val javaLauncher = javaToolchainService.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
-      }.get()
-      // Note process isolation leaks gradle dependencies to the child process
-      // and may need additional code on muzzle plugin to filter those out
-      // See https://github.com/gradle/gradle/issues/33987
-      workerExecutor.processIsolation {
-        forkOptions {
-          executable(javaLauncher.executablePath)
+    val workQueue =
+      if (muzzleDirective?.javaVersion != null) {
+        val javaLauncher =
+          javaToolchainService
+            .launcherFor {
+              languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
+            }.get()
+        // Note process isolation leaks gradle dependencies to the child process
+        // and may need additional code on muzzle plugin to filter those out
+        // See https://github.com/gradle/gradle/issues/33987
+        workerExecutor.processIsolation {
+          forkOptions {
+            executable(javaLauncher.executablePath)
+          }
         }
+      } else {
+        // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
+        // and should not be impacted by the actual running JDK.
+        workerExecutor.noIsolation()
       }
-    } else {
-      // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
-      // and should not be impacted by the actual running JDK.
-      workerExecutor.noIsolation()
-    }
     workQueue.submit(MuzzleAction::class.java) {
       buildStartedTime.set(invocationDetails.buildStartedTime)
       bootstrapClassPath.setFrom(muzzleBootstrap)
@@ -136,11 +140,12 @@ abstract class MuzzleTask @Inject constructor(
   private fun createMuzzleClassPath(project: Project, muzzleTaskName: String): FileCollection {
     project.logger.info("Creating muzzle classpath for $muzzleTaskName")
     val cp = project.files()
-    val config = if (muzzleTaskName == "muzzle") {
-      project.configurations.named("compileClasspath").get()
-    } else {
-      project.configurations.named(muzzleTaskName).get()
-    }
+    val config =
+      if (muzzleTaskName == "muzzle") {
+        project.configurations.named("compileClasspath").get()
+      } else {
+        project.configurations.named(muzzleTaskName).get()
+      }
     cp.from(config)
     if (project.logger.isInfoEnabled) {
       cp.forEach { project.logger.info("-- $it") }
