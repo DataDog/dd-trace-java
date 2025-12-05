@@ -5,6 +5,8 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.core.DDSpan;
@@ -13,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
 
     private final Thread spanSamplingThread;
     private final SamplingHandler samplingHandler;
-    private final MpscBlockingConsumerArrayQueue<Object> spanSamplingQueue;
+    private final MessagePassingBlockingQueue<Object> spanSamplingQueue;
     private final Queue<Object> primaryQueue;
     private final Queue<Object> secondaryQueue;
     private final SingleSpanSampler singleSpanSampler;
@@ -62,7 +63,7 @@ public interface SpanSamplingWorker extends AutoCloseable {
         DroppingPolicy droppingPolicy) {
       this.samplingHandler = new SamplingHandler();
       this.spanSamplingThread = newAgentThread(SPAN_SAMPLING_PROCESSOR, samplingHandler);
-      this.spanSamplingQueue = new MpscBlockingConsumerArrayQueue<>(capacity);
+      this.spanSamplingQueue = Queues.mpscBlockingConsumerArrayQueue(capacity);
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.singleSpanSampler = singleSpanSampler;

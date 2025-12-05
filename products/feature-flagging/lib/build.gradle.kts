@@ -21,6 +21,7 @@ dependencies {
   api(libs.jctools)
   api(project(":communication"))
   api(project(":products:feature-flagging:bootstrap"))
+  api(project(":utils:queue-utils"))
 
   compileOnly(project(":dd-trace-core")) // shading does not work with this one
 
