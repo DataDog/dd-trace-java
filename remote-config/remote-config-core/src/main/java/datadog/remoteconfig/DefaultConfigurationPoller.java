@@ -415,29 +415,15 @@ public class DefaultConfigurationPoller
                   + parsedConfigKey.getProductName()
                   + " is not being handled");
         }
-        // TODO(POC): Remove this variable once DEBUG endpoint is removed
-        // POC/TEMPORARY: Detect SCA configs from debugging endpoint
-        // Backend serves SCA configs via: GET
-        // /api/unstable/remote-config/debug/configs/SCA_{id}
-        // These arrive as DEBUG product
-        // with "SCA_" prefix in config ID. Remap to ASM_SCA product so existing ASM_SCA listeners
-        // receive them.
-        datadog.remoteconfig.state.ConfigKey configKeyToAdd = parsedConfigKey;
-        // TODO for debugging
-        if (product == Product.DEBUG) {
-          if ("DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
-              && parsedConfigKey.getConfigId().startsWith("SCA_")) {
-            log.debug(
-                "POC: Detected SCA config from DEBUG endpoint, remapping to ASM_SCA: {}",
-                configKey);
-            //        appliedAny = true; //force re-apply
-            parsedKeysByProduct
-                .computeIfAbsent(product, k -> new ArrayList<>())
-                .add(parsedConfigKey);
-          }
-        } else {
-          parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
+        // TODO(POC): Log when we detect SCA configs from DEBUG endpoint
+        // Backend serves SCA configs via: GET /api/unstable/remote-config/debug/configs/SCA_{id}
+        // These arrive as DEBUG product with "SCA_" prefix in config ID.
+        if (product == Product.DEBUG
+            && "DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
+            && parsedConfigKey.getConfigId().startsWith("SCA_")) {
+          log.debug("POC: Detected SCA config from DEBUG endpoint: {}", configKey);
         }
+        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
       } catch (ReportableException e) {
         errors.add(e);
       }

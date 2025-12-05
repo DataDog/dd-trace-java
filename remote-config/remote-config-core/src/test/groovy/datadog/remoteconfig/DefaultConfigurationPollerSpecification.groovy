@@ -1690,10 +1690,11 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   ]
   ))
 
-  void 'POC: remaps DEBUG product with SCA_ prefix to ASM_SCA'() {
+  void 'POC: handles DEBUG product with SCA_ prefix'() {
     setup:
     def scaConfigContent = '{"enabled":true,"instrumentation_targets":[{"class_name":"com/fasterxml/jackson/databind/ObjectMapper","method_name":"readValue"}]}'
     def scaConfigKey = 'datadog/2/DEBUG/SCA_my_service_123/config'
+    def scaConfigHash = String.format('%064x', new BigInteger(1, MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))))
     def respBody = JsonOutput.toJson(
       client_configs: [scaConfigKey],
       roots: [],
@@ -1711,7 +1712,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
           (scaConfigKey): [
             custom: [v: 1],
             hashes: [
-              sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+              sha256: scaConfigHash
             ],
             length: scaConfigContent.size(),
           ]
@@ -1751,7 +1752,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     def body = parseBody(request.body())
     with(body.client.state.config_states[0]) {
       id == 'SCA_my_service_123'
-      product == 'ASM_SCA'
+      product == 'DEBUG'
       version == 1
     }
   }
@@ -1819,6 +1820,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     setup:
     def scaConfigContent = '{"enabled":true}'
     def scaConfigKey = 'datadog/2/DEBUG/SCA_service/config'
+    def scaConfigHash = String.format('%064x', new BigInteger(1, MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))))
     def asmConfigKey = 'employee/ASM_DD/1.recommended.json/config'
     def respBody = JsonOutput.toJson(
       client_configs: [asmConfigKey, scaConfigKey],
@@ -1846,7 +1848,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
           (scaConfigKey): [
             custom: [v: 1],
             hashes: [
-              sha256: new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(scaConfigContent.getBytes('UTF-8'))).toString(16)
+              sha256: scaConfigHash
             ],
             length: scaConfigContent.size(),
           ]
@@ -1891,7 +1893,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     def body = parseBody(request.body())
     body.client.state.config_states.size() == 2
     def asmConfig = body.client.state.config_states.find { it.product == 'ASM_DD' }
-    def scaConfig = body.client.state.config_states.find { it.product == 'ASM_SCA' }
+    def scaConfig = body.client.state.config_states.find { it.product == 'DEBUG' }
     with(asmConfig) {
       id == '1.recommended.json'
       product == 'ASM_DD'
@@ -1899,7 +1901,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     }
     with(scaConfig) {
       id == 'SCA_service'
-      product == 'ASM_SCA'
+      product == 'DEBUG'
       version == 1
     }
   }
