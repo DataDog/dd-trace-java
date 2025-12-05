@@ -19,4 +19,13 @@ public interface ObjectSample {
   long localRootSpanId();
 
   long allocationSize();
+
+  @JfrField("objectClass")
+  String objectClass();
+
+  @JfrField("size")
+  long size();
+
+  @JfrField("weight")
+  float weight();
 }

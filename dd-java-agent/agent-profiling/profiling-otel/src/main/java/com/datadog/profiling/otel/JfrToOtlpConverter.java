@@ -131,22 +131,24 @@ public final class JfrToOtlpConverter {
     final int linkIndex;
     final long value;
     final long timestampNanos;
+    final int[] attributeIndices;
 
-    SampleData(int stackIndex, int linkIndex, long value, long timestampNanos) {
+    SampleData(
+        int stackIndex, int linkIndex, long value, long timestampNanos, int[] attributeIndices) {
       this.stackIndex = stackIndex;
       this.linkIndex = linkIndex;
       this.value = value;
       this.timestampNanos = timestampNanos;
+      this.attributeIndices = attributeIndices != null ? attributeIndices : new int[0];
     }
   }
 
   /**
    * Enables or disables inclusion of original JFR payload in the OTLP output.
    *
-   * <p>When enabled, the original JFR recording bytes are included in the {@code
-   * original_payload} field of each Profile message, with {@code original_payload_format} set to
-   * "jfr". Multiple JFR files are concatenated into a single "uber-JFR" which is valid per the JFR
-   * specification.
+   * <p>When enabled, the original JFR recording bytes are included in the {@code original_payload}
+   * field of each Profile message, with {@code original_payload_format} set to "jfr". Multiple JFR
+   * files are concatenated into a single "uber-JFR" which is valid per the JFR specification.
    *
    * <p>Default: disabled (as recommended by OTLP spec due to size considerations)
    *
@@ -366,7 +368,8 @@ public final class JfrToOtlpConverter {
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
-    cpuSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp));
+    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
+    cpuSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, attributeIndices));
   }
 
   private void handleMethodSample(MethodSample event, Control ctl) {
@@ -377,7 +380,8 @@ public final class JfrToOtlpConverter {
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
-    wallSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp));
+    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("wall")};
+    wallSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, attributeIndices));
   }
 
   private void handleObjectSample(ObjectSample event, Control ctl) {
@@ -387,9 +391,47 @@ public final class JfrToOtlpConverter {
     int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
-    long size = event.allocationSize();
 
-    allocSamples.add(new SampleData(stackIndex, linkIndex, size, timestamp));
+    // Try to get size and weight fields (new format)
+    // Fall back to allocationSize if not available (backwards compatibility)
+    long size;
+    float weight;
+    try {
+      size = event.size();
+      weight = event.weight();
+      if (size == 0 && weight == 0) {
+        // Fields exist but are zero - fall back to allocationSize
+        size = event.allocationSize();
+        weight = 1;
+      }
+    } catch (Exception e) {
+      // Fields don't exist in JFR event - use allocationSize
+      size = event.allocationSize();
+      weight = 1;
+    }
+
+    long upscaledSize = Math.round(size * weight);
+
+    // Build attributes: sample.type + alloc.class (if available)
+    int sampleTypeIndex = getSampleTypeAttributeIndex("alloc");
+    String className = null;
+    try {
+      className = event.objectClass();
+    } catch (Exception ignored) {
+      // objectClass field doesn't exist in this JFR event - skip it
+    }
+
+    int[] attributeIndices;
+    if (className != null && !className.isEmpty()) {
+      int keyIndex = stringTable.intern("alloc.class");
+      int classAttrIndex = attributeTable.internString(keyIndex, className, 0);
+      attributeIndices = new int[] {sampleTypeIndex, classAttrIndex};
+    } else {
+      attributeIndices = new int[] {sampleTypeIndex};
+    }
+
+    allocSamples.add(
+        new SampleData(stackIndex, linkIndex, upscaledSize, timestamp, attributeIndices));
   }
 
   private void handleMonitorEnter(JavaMonitorEnter event, Control ctl) {
@@ -400,7 +442,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp));
+    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, attributeIndices));
   }
 
   private void handleMonitorWait(JavaMonitorWait event, Control ctl) {
@@ -411,7 +454,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp));
+    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, attributeIndices));
   }
 
   private JfrStackTrace safeGetStackTrace(java.util.function.Supplier<JfrStackTrace> supplier) {
@@ -503,6 +547,12 @@ public final class JfrToOtlpConverter {
       return 0;
     }
     return linkTable.intern(localRootSpanId, spanId);
+  }
+
+  private int getSampleTypeAttributeIndex(String sampleType) {
+    int keyIndex = stringTable.intern("sample.type");
+    int unitIndex = 0; // No unit for string labels
+    return attributeTable.internString(keyIndex, sampleType, unitIndex);
   }
 
   private long convertTimestamp(long startTimeTicks, Control ctl) {
@@ -659,8 +709,11 @@ public final class JfrToOtlpConverter {
     // Field 1: stack_index
     encoder.writeVarintField(OtlpProtoFields.Sample.STACK_INDEX, sample.stackIndex);
 
-    // Field 2: attribute_indices - skip for now (no attribute data from JFR)
-    // TODO: When JFR provides attributes, encode them here
+    // Field 2: attribute_indices (packed repeated int32 - proto3 default)
+    if (sample.attributeIndices.length > 0) {
+      encoder.writePackedVarintField(
+          OtlpProtoFields.Sample.ATTRIBUTE_INDICES, sample.attributeIndices);
+    }
 
     // Field 3: link_index
     encoder.writeVarintField(OtlpProtoFields.Sample.LINK_INDEX, sample.linkIndex);
@@ -779,24 +832,26 @@ public final class JfrToOtlpConverter {
     encoder.writeVarintField(OtlpProtoFields.KeyValueAndUnit.KEY_STRINDEX, entry.keyIndex);
 
     // Field 2: value (AnyValue oneof)
-    encoder.writeNestedMessage(OtlpProtoFields.KeyValueAndUnit.VALUE, enc -> {
-      switch (entry.valueType) {
-        case STRING:
-          enc.writeStringField(OtlpProtoFields.AnyValue.STRING_VALUE, (String) entry.value);
-          break;
-        case BOOL:
-          enc.writeBoolField(OtlpProtoFields.AnyValue.BOOL_VALUE, (Boolean) entry.value);
-          break;
-        case INT:
-          enc.writeSignedVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
-          break;
-        case DOUBLE:
-          // Note: protobuf doubles are fixed64, not varint
-          long doubleBits = Double.doubleToRawLongBits((Double) entry.value);
-          enc.writeFixed64Field(OtlpProtoFields.AnyValue.DOUBLE_VALUE, doubleBits);
-          break;
-      }
-    });
+    encoder.writeNestedMessage(
+        OtlpProtoFields.KeyValueAndUnit.VALUE,
+        enc -> {
+          switch (entry.valueType) {
+            case STRING:
+              enc.writeStringField(OtlpProtoFields.AnyValue.STRING_VALUE, (String) entry.value);
+              break;
+            case BOOL:
+              enc.writeBoolField(OtlpProtoFields.AnyValue.BOOL_VALUE, (Boolean) entry.value);
+              break;
+            case INT:
+              enc.writeSignedVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
+              break;
+            case DOUBLE:
+              // Note: protobuf doubles are fixed64, not varint
+              long doubleBits = Double.doubleToRawLongBits((Double) entry.value);
+              enc.writeFixed64Field(OtlpProtoFields.AnyValue.DOUBLE_VALUE, doubleBits);
+              break;
+          }
+        });
 
     // Field 3: unit_strindex
     encoder.writeVarintField(OtlpProtoFields.KeyValueAndUnit.UNIT_STRINDEX, entry.unitIndex);

@@ -82,8 +82,7 @@ public class JfrToOtlpConverterCLI {
 
     // Remaining args: input1.jfr [input2.jfr ...] output.pb/json
     if (args.length - firstInputIndex < 2) {
-      throw new IllegalArgumentException(
-          "At least one input file and one output file required");
+      throw new IllegalArgumentException("At least one input file and one output file required");
     }
 
     // Last arg is output file

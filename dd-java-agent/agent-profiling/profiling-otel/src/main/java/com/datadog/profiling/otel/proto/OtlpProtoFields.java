@@ -67,9 +67,9 @@ public final class OtlpProtoFields {
   // Sample fields
   public static final class Sample {
     public static final int STACK_INDEX = 1;
-    public static final int ATTRIBUTE_INDICES = 2;
-    public static final int LINK_INDEX = 3;
-    public static final int VALUES = 4;
+    public static final int VALUES = 2;
+    public static final int ATTRIBUTE_INDICES = 3;
+    public static final int LINK_INDEX = 4;
     public static final int TIMESTAMPS_UNIX_NANO = 5;
 
     private Sample() {}
