@@ -1,11 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
-import datadog.trace.core.database.SharedDBCommenter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 
 public class SQLCommenter {
-  private static final Logger log = LoggerFactory.getLogger(SQLCommenter.class);
   // SQL-specific constants, rest defined in SharedDBCommenter
   private static final char SPACE = ' ';
   private static final String OPEN_COMMENT = "/*";

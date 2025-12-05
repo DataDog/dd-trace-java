@@ -13,7 +13,7 @@ import com.mongodb.connection.ConnectionDescription;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.database.SharedDBCommenter;
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 

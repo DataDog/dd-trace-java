@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.database.SharedDBCommenter;
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;

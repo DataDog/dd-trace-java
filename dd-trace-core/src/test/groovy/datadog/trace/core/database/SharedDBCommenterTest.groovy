@@ -1,5 +1,6 @@
 package datadog.trace.core.database
 
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter
 import spock.lang.Specification
 
 class SharedDBCommenterTest extends Specification {

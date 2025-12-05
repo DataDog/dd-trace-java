@@ -1,4 +1,4 @@
-import datadog.trace.core.database.SharedDBCommenter
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter
 import spock.lang.Specification
 
 class MongoDBMCommentTest extends Specification {

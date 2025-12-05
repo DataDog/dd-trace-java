@@ -61,7 +61,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".JDBCDecorator",
       packageName + ".SQLCommenter",
-      "datadog.trace.core.database.SharedDBCommenter",
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
     };
   }
 
