@@ -2,6 +2,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.slf4j.LoggerFactory
@@ -65,7 +66,7 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
     }
   }
 
-  def mongoSpan(TraceAssert trace, int index, String mongoOp, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
+  def mongoSpan(TraceAssert trace, int index, String mongoOp, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, boolean addDbmTag = false) {
     def dbType = dbType()
     trace.span(index) {
       serviceName renameService ? instance : service()
@@ -86,6 +87,9 @@ abstract class MongoBaseTest extends VersionedNamingTestBase {
         "$Tags.DB_TYPE" dbType
         "$Tags.DB_INSTANCE" instance
         "$Tags.DB_OPERATION" mongoOp
+        if (addDbmTag) {
+          "$InstrumentationTags.DBM_TRACE_INJECTED" true
+        }
         peerServiceFrom(Tags.DB_INSTANCE)
         defaultTags()
       }
