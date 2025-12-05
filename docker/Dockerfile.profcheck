@@ -1,0 +1,36 @@
+# Dockerfile for building and running OpenTelemetry profcheck tool
+# Usage:
+#   docker build -f Dockerfile.profcheck -t profcheck .
+#   docker run --rm -v $(pwd):/data profcheck /data/output.pb
+
+FROM golang:1.23-alpine AS builder
+
+# Install git
+RUN apk add --no-cache git
+
+# Clone the sig-profiling repo and checkout profcheck branch
+WORKDIR /build
+RUN git clone https://github.com/open-telemetry/sig-profiling.git && \
+    cd sig-profiling && \
+    git fetch origin pull/12/head:profcheck && \
+    git checkout profcheck
+
+# Fix go.mod to use available Go version (1.24.4 doesn't exist yet)
+WORKDIR /build/sig-profiling/tools/profcheck
+RUN sed -i 's/go 1.24.4/go 1.23/' go.mod && \
+    go mod tidy
+
+# Build profcheck
+RUN go build -o /profcheck .
+
+# Create minimal runtime image
+FROM alpine:latest
+
+# Copy profcheck binary
+COPY --from=builder /profcheck /usr/local/bin/profcheck
+
+# Set working directory
+WORKDIR /data
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/profcheck"]

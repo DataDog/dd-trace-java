@@ -28,23 +28,7 @@ jmh {
   }
 }
 
-// OTel Collector validation tests (requires Docker)
-tasks.register<Test>("validateOtlp") {
-  group = "verification"
-  description = "Validates OTLP profiles against real OpenTelemetry Collector (requires Docker)"
-
-  // Only run the collector validation tests
-  useJUnitPlatform {
-    includeTags("otlp-validation")
-  }
-
-  // Ensure test classes are compiled
-  dependsOn(tasks.named("testClasses"))
-
-  // Use the test runtime classpath
-  classpath = sourceSets["test"].runtimeClasspath
-  testClassesDirs = sourceSets["test"].output.classesDirs
-}
+// OTLP validation tests removed - use profcheck validation instead (see validateOtlp task below)
 
 repositories {
   maven {
@@ -85,6 +69,86 @@ tasks.register<JavaExec>("convertJfr") {
   mainClass.set("com.datadog.profiling.otel.JfrToOtlpConverterCLI")
 
   // Uses Gradle's built-in --args parameter which properly handles spaces in paths
+}
+
+// Build profcheck Docker image
+// Usage: ./gradlew :dd-java-agent:agent-profiling:profiling-otel:buildProfcheck
+tasks.register<Exec>("buildProfcheck") {
+  group = "verification"
+  description = "Build profcheck Docker image for OTLP validation"
+  workingDir = rootDir
+  commandLine("docker", "build", "-f", "docker/Dockerfile.profcheck", "-t", "profcheck:latest", ".")
+
+  // Check if Docker is available
+  doFirst {
+    try {
+      project.exec {
+        commandLine("docker", "info")
+        isIgnoreExitValue = false
+      }
+    } catch (e: Exception) {
+      throw org.gradle.api.GradleException("Docker is not available. Profcheck validation requires Docker to be running.")
+    }
+  }
+}
+
+// Ensure profcheck image is built before running tests with @Tag("docker")
+tasks.named<Test>("test") {
+  // Build profcheck image if Docker is available (for ProfcheckValidationTest)
+  doFirst {
+    val dockerAvailable = try {
+      project.exec {
+        commandLine("docker", "info")
+        isIgnoreExitValue = false
+      }
+      true
+    } catch (e: Exception) {
+      false
+    }
+
+    if (dockerAvailable) {
+      logger.lifecycle("Building profcheck Docker image for validation tests...")
+      project.exec {
+        commandLine("docker", "build", "-f", "${rootDir}/docker/Dockerfile.profcheck", "-t", "profcheck:latest", rootDir.toString())
+      }
+    } else {
+      logger.warn("Docker not available, skipping profcheck image build. Tests tagged with 'docker' will be skipped.")
+    }
+  }
+}
+
+// Validate OTLP output using profcheck
+// Usage: ./gradlew :dd-java-agent:agent-profiling:profiling-otel:validateOtlp -PotlpFile=/path/to/output.pb
+tasks.register<Exec>("validateOtlp") {
+  group = "verification"
+  description = "Validate OTLP profile using profcheck (requires Docker)"
+
+  // Ensure profcheck image exists
+  dependsOn("buildProfcheck")
+
+  doFirst {
+    if (!project.hasProperty("otlpFile")) {
+      throw org.gradle.api.GradleException("Property 'otlpFile' is required. Usage: -PotlpFile=/path/to/output.pb")
+    }
+
+    val otlpFilePath = project.property("otlpFile") as String
+    val otlpFile = file(otlpFilePath)
+
+    if (!otlpFile.exists()) {
+      throw org.gradle.api.GradleException("File not found: $otlpFilePath")
+    }
+
+    val parentDir = otlpFile.parentFile.absolutePath
+    val fileName = otlpFile.name
+
+    // Run profcheck in Docker with volume mount
+    commandLine(
+      "docker", "run", "--rm",
+      "-v", "$parentDir:/data:ro",
+      "profcheck:latest",
+      "/data/$fileName"
+    )
+  }
 }
 
 dependencies {

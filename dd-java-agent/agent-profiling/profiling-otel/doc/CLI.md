@@ -269,8 +269,35 @@ java -cp "dd-java-agent/agent-profiling/profiling-otel/build/libs/*:$(find . -na
 
 **Note**: Managing the classpath manually is complex. The Gradle task is recommended.
 
+## Validating Output with Profcheck
+
+OpenTelemetry's `profcheck` tool can validate that generated OTLP profiles conform to the specification:
+
+```bash
+# Convert JFR to OTLP
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:convertJfr \
+  --args="recording.jfr output.pb"
+
+# Build profcheck Docker image (one-time)
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:buildProfcheck
+
+# Validate with profcheck
+./gradlew :dd-java-agent:agent-profiling:profiling-otel:validateOtlp \
+  -PotlpFile=output.pb
+# Output: "output.pb: conformance checks passed"
+
+# OR use Docker directly
+docker run --rm -v $(pwd):/data:ro profcheck:latest /data/output.pb
+```
+
+See [PROFCHECK_INTEGRATION.md](PROFCHECK_INTEGRATION.md) for:
+- Profcheck integration details
+- Integration with CI/CD
+- Validation coverage details
+
 ## See Also
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Converter design and implementation details
 - [BENCHMARKS.md](BENCHMARKS.md) - Performance benchmarks and profiling
+- [PROFCHECK_INTEGRATION.md](PROFCHECK_INTEGRATION.md) - OTLP validation with profcheck
 - [../README.md](../README.md) - Module overview
