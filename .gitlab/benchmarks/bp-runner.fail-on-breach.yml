@@ -35,14 +35,15 @@ experiments:
             thresholds:
               - throughput > 1100.0 op/s
 
-          # Startup macrobenchmarks
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AGlobalTracer&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AGlobalTracer&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AGlobalTracer&trendsType=scenario
-          - name: "startup:petclinic:(tracing|appsec|iast):GlobalTracer"
-            thresholds:
-              - execution_time < 280 ms
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AGlobalTracer&trendsType=scenario
-          - name: "startup:petclinic:profiling:GlobalTracer"
-            thresholds:
-              - execution_time < 420 ms
+          # TODO: Startup benchmarks need to be moved from dd-trace-java to apm-sdks-benchmarks (https://github.com/DataDog/dd-trace-java/blob/master/benchmark/startup/petclinic/benchmark.json)
+          # # Startup macrobenchmarks
+          # # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AGlobalTracer&trendsType=scenario
+          # # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AGlobalTracer&trendsType=scenario
+          # # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AGlobalTracer&trendsType=scenario
+          # - name: "startup:petclinic:(tracing|appsec|iast):GlobalTracer"
+          #   thresholds:
+          #     - execution_time < 280 ms
+          # # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AGlobalTracer&trendsType=scenario
+          # - name: "startup:petclinic:profiling:GlobalTracer"
+          #   thresholds:
+          #     - execution_time < 420 ms
