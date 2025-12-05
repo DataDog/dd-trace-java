@@ -82,6 +82,7 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
     val javaFiles = target.fileTree(target.projectDir) {
       include("**/src/main/java/**/*.java")
       exclude("**/build/**", "**/dd-smoke-tests/**")
+      exclude("dd-java-agent/instrumentation/undertow/src/main/java/datadog/trace/instrumentation/undertow/UndertowDecorator.java")
     }
     inputs.files(javaFiles)
     outputs.upToDateWhen { true }
