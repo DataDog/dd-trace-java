@@ -176,6 +176,7 @@ default:
     - |
       JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
       cat >> gradle.properties <<EOF
+      org.gradle.daemon.performance.enable-monitoring=false
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
