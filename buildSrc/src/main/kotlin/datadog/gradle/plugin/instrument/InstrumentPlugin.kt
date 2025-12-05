@@ -3,6 +3,7 @@ package datadog.gradle.plugin.instrument
 import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
@@ -17,6 +18,7 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.TaskCollection
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -36,10 +38,13 @@ class InstrumentPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     val extension = project.extensions.create("instrument", InstrumentExtension::class.java)
 
-    project.tasks.matching {
+    val tasks: TaskCollection<Task> = project.tasks.matching {
       it.name in listOf("compileJava", "compileScala", "compileGroovy") ||
           it.name.matches(Regex("compileMain_.+Java"))
-    }.configureEach {
+    }
+
+    // `all` can not be chained, as Kotlin choose to call method for collection, not for `TaskCollection`.
+    tasks.all {
       val compileTask = this as AbstractCompile
       val versionRegex = Regex("compileMain_(.+)Java")
       val versionMatch = versionRegex.matchEntire(compileTask.name)
