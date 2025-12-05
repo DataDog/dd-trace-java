@@ -289,8 +289,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
           forceKeep |= publish(span, isTopLevel, spanKind);
         }
       }
-      healthMetrics.onClientStatTraceComputed(
-          counted, trace.size(), features.supportsDropping() && !forceKeep);
+      healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
     }
     return forceKeep;
   }
