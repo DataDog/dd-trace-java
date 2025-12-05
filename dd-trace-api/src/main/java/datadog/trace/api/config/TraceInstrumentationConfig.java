@@ -38,9 +38,6 @@ public final class TraceInstrumentationConfig {
   public static final String EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL =
       "experimental.defer.integrations.until";
 
-  @SuppressWarnings("unused")
-  public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
-
   public static final String TRACE_THREAD_POOL_EXECUTORS_EXCLUDE =
       "trace.thread-pool-executors.exclude";
 
