@@ -45,10 +45,6 @@ tasks.named("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
-['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
-  tasks.named(it) { enabled = false }
-}
-
 application {
   mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
