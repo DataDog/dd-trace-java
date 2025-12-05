@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -73,9 +72,6 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   }
 
   public static class ContextStoreAdvice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "executionRequest is the argument of the original method")
     @Advice.OnMethodEnter
     public static void setContextStores() {
       ContextStore<TestDescriptor, TestExecutionHistory> contextStore =

@@ -285,7 +285,6 @@ class SessionTest extends AbstractHibernateTest {
           }
         }
       }
-
     }
 
     where:
@@ -360,7 +359,6 @@ class SessionTest extends AbstractHibernateTest {
           }
         }
       }
-
     }
   }
 
@@ -433,7 +431,6 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-
       }
     }
 

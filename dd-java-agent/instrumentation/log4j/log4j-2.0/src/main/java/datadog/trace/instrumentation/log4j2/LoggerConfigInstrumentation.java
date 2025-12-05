@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -23,7 +24,8 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isAgentlessLogSubmissionEnabled();
+    return super.isApplicable(enabledSystems)
+        && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
   }
 
   @Override

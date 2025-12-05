@@ -145,6 +145,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
   void assertEndpointDiscovery(final List<?> endpoints) {
     final discovered = endpoints.collectEntries { [(it.method): it] }  as Map<String, Endpoint>
     assert discovered.keySet().containsAll([Endpoint.Method.POST, Endpoint.Method.PATCH, Endpoint.Method.PUT])
@@ -485,13 +490,13 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   def "test inferred proxy span is finished"() {
     setup:
     def request = request(SUCCESS, "GET", null)
-      .header("x-dd-proxy", "aws-apigateway")
-      .header("x-dd-proxy-request-time-ms", "12345")
-      .header("x-dd-proxy-path", "/success")
-      .header("x-dd-proxy-httpmethod", "GET")
-      .header("x-dd-proxy-domain-name", "api.example.com")
-      .header("x-dd-proxy-stage", "test")
-      .build()
+    .header("x-dd-proxy", "aws-apigateway")
+    .header("x-dd-proxy-request-time-ms", "12345")
+    .header("x-dd-proxy-path", "/success")
+    .header("x-dd-proxy-httpmethod", "GET")
+    .header("x-dd-proxy-domain-name", "api.example.com")
+    .header("x-dd-proxy-stage", "test")
+    .build()
 
     when:
     def response = client.newCall(request).execute()

@@ -21,6 +21,8 @@ jobs:
   build:
     runs-on:
       group: APM Larger Runners
+    environment:
+      name: ci-build
     steps:
       - name: Checkout repository
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # 6.0.0

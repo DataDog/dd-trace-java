@@ -1199,13 +1199,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(this, event);
+  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
+    return LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {
-    LambdaHandler.notifyEndInvocation(span, result, isError);
+  public void notifyExtensionEnd(
+      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
+    LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
   }
 
   @Override
@@ -1551,6 +1552,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected Object builderCiVisibilityContextData;
     protected List<AgentSpanLink> links;
     protected long spanId = AUTO_ASSIGN_SPAN_ID;
+
     // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
     CoreSpanBuilder(CoreTracer tracer) {

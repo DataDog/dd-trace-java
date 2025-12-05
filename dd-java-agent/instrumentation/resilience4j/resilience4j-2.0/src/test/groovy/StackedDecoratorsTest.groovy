@@ -73,7 +73,8 @@ class StackedDecoratorsTest extends InstrumentationSpecification {
     }
   }
 
-  def <T> T serviceCall(T value, String name) { AgentTracer.startSpan("test", name).finish()
+  def <T> T serviceCall(T value, String name) {
+    AgentTracer.startSpan("test", name).finish()
     value
   }
 }
