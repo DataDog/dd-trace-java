@@ -50,6 +50,8 @@
 0 java.lang.ProcessImpl
 # allow Runtime instrumentation for RASP
 0 java.lang.Runtime
+# allow context tracking for VirtualThread
+0 java.lang.VirtualThread
 0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.Socket

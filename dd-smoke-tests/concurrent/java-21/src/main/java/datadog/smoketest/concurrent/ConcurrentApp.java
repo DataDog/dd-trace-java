@@ -17,6 +17,7 @@ public class ConcurrentApp {
 
   private static FibonacciCalculator getCalculator(String name) {
     return switch (name) {
+      case "virtualThreadStart" -> new VirtualThreadStartCalculator();
       case "virtualThreadExecute" -> new VirtualThreadExecuteCalculator();
       case "virtualThreadSubmitRunnable" -> new VirtualThreadSubmitRunnableCalculator();
       case "virtualThreadSubmitCallable" -> new VirtualThreadSubmitCallableCalculator();

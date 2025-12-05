@@ -21,6 +21,11 @@ public class VirtualThreadInvokeAnyCalculator implements FibonacciCalculator {
     return this.executor.invokeAny(of(task));
   }
 
+  @Override
+  public void close() {
+    this.executor.shutdown();
+  }
+
   public class FibonacciSubmitTask implements Callable<Long> {
     private final long n;
 
@@ -37,10 +42,5 @@ public class VirtualThreadInvokeAnyCalculator implements FibonacciCalculator {
       FibonacciSubmitTask task2 = new FibonacciSubmitTask(this.n - 2);
       return executor.invokeAny(of(task1)) + executor.invokeAny(of(task2));
     }
-  }
-
-  @Override
-  public void close() {
-    this.executor.shutdown();
   }
 }

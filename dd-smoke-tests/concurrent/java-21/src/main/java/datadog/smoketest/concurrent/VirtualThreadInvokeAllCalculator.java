@@ -23,6 +23,11 @@ public class VirtualThreadInvokeAllCalculator implements FibonacciCalculator {
     return this.executor.invokeAll(of(task)).getFirst().get();
   }
 
+  @Override
+  public void close() {
+    this.executor.shutdown();
+  }
+
   public class FibonacciSubmitTask implements Callable<Long> {
     private final long n;
 
@@ -40,10 +45,5 @@ public class VirtualThreadInvokeAllCalculator implements FibonacciCalculator {
       List<Future<Long>> futures = executor.invokeAll(List.of(task1, task2));
       return futures.getFirst().get() + futures.getLast().get();
     }
-  }
-
-  @Override
-  public void close() {
-    this.executor.shutdown();
   }
 }
