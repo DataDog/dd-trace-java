@@ -391,6 +391,8 @@ public final class ContinuableScopeManager implements ContextManager {
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
 
+    private final ScopeStack[] fastStacks = new ScopeStack[2048]; // This should be tuned
+
     private final ProfilingContextIntegration profilingContextIntegration;
 
     ScopeStackThreadLocal(ProfilingContextIntegration profilingContextIntegration) {
@@ -400,6 +402,41 @@ public final class ContinuableScopeManager implements ContextManager {
     @Override
     protected ScopeStack initialValue() {
       return new ScopeStack(profilingContextIntegration);
+    }
+
+    @Override
+    public ScopeStack get() {
+      final long id = Thread.currentThread().getId();
+      if (id >= 0 && id < this.fastStacks.length) {
+        ScopeStack ret = fastStacks[(int) id];
+        if (ret == null) {
+          ret = initialValue();
+          fastStacks[(int) id] = ret;
+        }
+        return ret;
+      } else {
+        return super.get();
+      }
+    }
+
+    @Override
+    public void set(ScopeStack value) {
+      final long id = Thread.currentThread().getId();
+      if (id >= 0 && id < this.fastStacks.length) {
+        fastStacks[(int) id] = value;
+      } else {
+        super.set(value);
+      }
+    }
+
+    @Override
+    public void remove() {
+      final long id = Thread.currentThread().getId();
+      if (id >= 0 && id < this.fastStacks.length) {
+        fastStacks[(int) id] = null;
+      } else {
+        super.remove();
+      }
     }
   }
 
