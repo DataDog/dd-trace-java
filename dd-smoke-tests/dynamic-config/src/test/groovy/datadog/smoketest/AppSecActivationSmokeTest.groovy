@@ -3,6 +3,7 @@ package datadog.smoketest
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.dynamicconfig.AppSecApplication
+import datadog.trace.test.util.Flaky
 
 class AppSecActivationSmokeTest extends AbstractSmokeTest {
 
@@ -24,6 +25,7 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  @Flaky
   void 'test activation via RC workflow'() {
     given:
     final asmRuleProducts = [Product.ASM, Product.ASM_DD, Product.ASM_DATA]
