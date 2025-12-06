@@ -365,11 +365,14 @@ spotless:
   stage: tests
   needs: []
   variables:
+    # TODO: Latest version of spotless is failing with OOM on CI only.
+    # Setting 8G memory solving this issue, but we need to solve it eventually.
+    GRADLE_MEM: 8G
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck --no-daemon --parallel --max-workers=4
+    - ./gradlew spotlessCheck $GRADLE_ARGS
 
 config-inversion-linter:
   extends: .gradle_build
