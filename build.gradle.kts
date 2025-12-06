@@ -115,7 +115,7 @@ allprojects {
       pluginManager.withPlugin("groovy") {
         groovy {
           toggleOffOn()
-          target("**/*.groovy")
+          target("src/**/*.groovy", "application/**/*.groovy")
           targetExclude(commonExcludes)
           greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
         }
