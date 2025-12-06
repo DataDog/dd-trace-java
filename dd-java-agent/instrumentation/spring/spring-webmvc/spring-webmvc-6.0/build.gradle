@@ -47,13 +47,13 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
-  testImplementation libs.spock.spring
-
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
   testImplementation group: 'org.springframework', name: 'spring-websocket', version: '6.0.2'
   testImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'

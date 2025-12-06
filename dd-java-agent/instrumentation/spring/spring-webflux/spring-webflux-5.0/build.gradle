@@ -60,7 +60,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestBoot20Test', 'bootTest')
 addTestSuiteForDir('latestBoot24Test', 'bootTest')
@@ -86,11 +85,12 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1')
-  testImplementation libs.spock.spring
 
   testImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
   testImplementation group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
   testImplementation group: 'org.springframework', name: 'spring-test', version: '5.0.0.RELEASE'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.+'
   // This is the key dep that breaks things, 1.x doesn't work

@@ -37,7 +37,6 @@ dependencies {
   compileOnly(group: 'org.springframework', name: 'spring-aop', version: '1.2')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
-  testImplementation libs.spock.spring
   testImplementation group: 'org.springframework', name: 'spring-test', version: '3.0.0.RELEASE'
 
   // JPA dependencies
@@ -46,6 +45,8 @@ dependencies {
   testImplementation group: 'com.mysema.querydsl', name: 'querydsl-jpa', version: '3.7.4'
   testImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.0.0'
   testImplementation group: 'org.hibernate', name: 'hibernate-entitymanager', version: '4.3.0.Final'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'

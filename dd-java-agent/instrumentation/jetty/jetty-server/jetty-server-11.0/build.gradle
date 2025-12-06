@@ -29,6 +29,8 @@ dependencies {
   testFixturesCompileOnly "org.eclipse.jetty.websocket:websocket-jakarta-server:11.0.0"
   testFixturesImplementation group: 'jakarta.websocket', name: 'jakarta.websocket-client-api', version: '2.0.0'
 
+  testFixturesCompileOnly(libs.bundles.groovy)
+
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }

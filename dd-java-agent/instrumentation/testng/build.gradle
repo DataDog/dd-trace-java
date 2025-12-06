@@ -10,7 +10,11 @@ dependencies {
   testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
   testFixturesImplementation group: 'org.testng', name: 'testng', version: '6.4'
+  testFixturesImplementation libs.junit.jupiter
   testFixturesApi group: 'org.apache.maven', name: 'maven-artifact', version: '3.9.9'
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }
 
 // gradle can't downgrade the testng dependencies with `strictly` and IntelliJ IDEA reports
