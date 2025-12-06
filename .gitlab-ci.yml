@@ -176,7 +176,6 @@ default:
     - |
       JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
       cat >> gradle.properties <<EOF
-      org.gradle.daemon.performance.enable-monitoring=false
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
@@ -368,16 +367,11 @@ spotless:
   stage: tests
   needs: []
   variables:
-    # TODO: Latest version of spotless is failing with OOM on CI only.
-    # Setting 8G memory solving this issue, but we need to solve it eventually.
-    GRADLE_MEM_MIN: 1G
-    GRADLE_MEM_MAX: 4G
-    GRADLE_WORKERS: 3
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck $GRADLE_ARGS
+    - ./gradlew spotlessCheck --no-daemon --parallel --max-workers=4 -Dorg.gradle.jvmargs="-Xms1g -Xmx4g -XX:MaxMetaspaceSize=512m"
 
 config-inversion-linter:
   extends: .gradle_build
