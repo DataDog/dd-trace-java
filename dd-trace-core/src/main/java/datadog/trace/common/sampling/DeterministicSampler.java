@@ -40,10 +40,12 @@ public abstract class DeterministicSampler implements RateSampler {
 
   private final float rate;
   private final long threshold;
+  private final String knuthSampleRate;
 
   public DeterministicSampler(final double rate) {
     this.rate = (float) rate;
     this.threshold = cutoff(rate);
+    this.knuthSampleRate = formatKnuthSamplingRate(rate);
   }
 
   @Override
@@ -59,6 +61,11 @@ public abstract class DeterministicSampler implements RateSampler {
     return rate;
   }
 
+  @Override
+  public String getKnuthSampleRate() {
+    return knuthSampleRate;
+  }
+
   public static long cutoff(double rate) {
     if (rate < 0.5) {
       return (long) (rate * MAX) + Long.MIN_VALUE;
@@ -67,5 +74,36 @@ public abstract class DeterministicSampler implements RateSampler {
       return (long) ((rate * MAX) + Long.MIN_VALUE);
     }
     return Long.MAX_VALUE;
+  }
+
+  /**
+   * Thread-safe custom formatter for Knuth sampling rates. Formats rates to up to 6 decimal places,
+   * removing trailing zeros. Assumes the value is between 0 and 1 (inclusive).
+   */
+  private static String formatKnuthSamplingRate(double value) {
+    if (value <= 0) {
+      return "0";
+    } else if (value >= 1) {
+      return "1";
+    } else {
+      // Scale to 6 decimal places and round
+      long scaled = Math.round(value * 1_000_000);
+
+      // Handle rounding to 1.0 case
+      if (scaled >= 1_000_000) {
+        return "1";
+      }
+
+      // Convert back to string with proper decimal formatting
+      String result = "0." + String.format("%06d", scaled);
+
+      // Remove trailing zeros
+      int endIndex = result.length();
+      while (endIndex > 2 && result.charAt(endIndex - 1) == '0') {
+        endIndex--;
+      }
+
+      return result.substring(0, endIndex);
+    }
   }
 }
