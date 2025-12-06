@@ -41,47 +41,6 @@ allprojects {
       isEnforceCheck = false
     }
 
-    pluginManager.withPlugin("java") {
-      java {
-        toggleOffOn()
-        target("**/*.java")
-        targetExclude("**/build/**", "**/src/test/resources/**")
-        googleJavaFormat("1.32.0")
-      }
-    }
-
-    pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-      kotlin {
-        toggleOffOn()
-        target("**/*.kt")
-        targetExclude("**/build/**", "**/src/test/resources/**")
-        ktlint("1.8.0").editorConfigOverride(
-          mapOf(
-            "ktlint_standard_trailing-comma-on-call-site" to "disabled",
-            "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
-          )
-        )
-      }
-    }
-
-    pluginManager.withPlugin("scala") {
-      scala {
-        toggleOffOn()
-        target("**/*.scala")
-        targetExclude("**/build/**", "**/src/test/resources/**")
-        scalafmt("3.10.2").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
-      }
-    }
-
-    pluginManager.withPlugin("groovy") {
-      groovy {
-        toggleOffOn()
-        target("**/*.groovy")
-        targetExclude("**/build/**", "**/src/test/resources/**")
-        greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
-      }
-    }
-
     // Gradle files and other formats we process globally from root
     if (project == rootProject) {
       kotlinGradle {
@@ -116,6 +75,50 @@ allprojects {
         leadingTabsToSpaces()
         trimTrailingWhitespace()
         endWithNewline()
+      }
+    } else {
+      // Configure source code formatting.
+      val commonExcludes = listOf("**/build/**", "**/src/test/resources/**", "**/agent-jmxfetch/**")
+
+      pluginManager.withPlugin("java") {
+        java {
+          toggleOffOn()
+          target("src/**/*.java", "application/**/*.java")
+          targetExclude(commonExcludes)
+          googleJavaFormat("1.32.0")
+        }
+      }
+
+      pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        kotlin {
+          toggleOffOn()
+          target("src/**/*.kt", "application/**/*.kt")
+          targetExclude(commonExcludes)
+          ktlint("1.8.0").editorConfigOverride(
+            mapOf(
+              "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+              "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+            )
+          )
+        }
+      }
+
+      pluginManager.withPlugin("scala") {
+        scala {
+          toggleOffOn()
+          target("src/**/*.scala", "application/**/*.scala")
+          targetExclude(commonExcludes)
+          scalafmt("3.10.2").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
+        }
+      }
+
+      pluginManager.withPlugin("groovy") {
+        groovy {
+          toggleOffOn()
+          target("**/*.groovy")
+          targetExclude(commonExcludes)
+          greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
+        }
       }
     }
   }
