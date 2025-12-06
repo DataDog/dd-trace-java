@@ -372,7 +372,7 @@ spotless:
     # Setting 8G memory solving this issue, but we need to solve it eventually.
     GRADLE_MEM_MIN: 1G
     GRADLE_MEM_MAX: 4G
-    GRADLE_WORKERS: 4
+    GRADLE_WORKERS: 3
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
