@@ -6,8 +6,12 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
+import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.TempDir
 import spock.util.environment.Jvm
+
+import java.nio.file.Path
 
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName
 
@@ -20,6 +24,13 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
   private static final Map<String,String> DEFAULT_TRACER_CONFIG = defaultJvmArguments()
+
+  @TempDir
+  protected Path prefsDir
+
+  @Shared
+  @TempDir
+  protected Path prefsDirShared
 
   protected static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
@@ -69,6 +80,12 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = []
+
+    // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
+    // Some tests can setup arguments on spec level, so `prefsDir` will be `null` during `setupSpec()`.
+    String prefsPath = (prefsDir ?: prefsDirShared).toAbsolutePath()
+    arguments += "-Djava.util.prefs.userRoot=$prefsPath".toString()
+
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
     // for convenience when debugging locally
