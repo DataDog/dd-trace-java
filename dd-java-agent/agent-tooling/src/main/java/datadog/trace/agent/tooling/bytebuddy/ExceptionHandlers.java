@@ -39,24 +39,14 @@ public class ExceptionHandlers {
               final boolean exitOnFailure = InstrumenterConfig.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
-              // Writes the following bytecode if exitOnFailure is false:
+              // Writes the following bytecode (note that two statements are conditionally written):
               //
-              // BlockingExceptionHandler.rethrowIfBlockingException(t);
+              // BlockingExceptionHandler.rethrowIfBlockingException(t); // when appSecEnabled=true
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
-              //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
-              //     .debug("Failed to handle exception in instrumentation for ...", t);
-              // } catch (Throwable t2) {
-              // }
-              //
-              // And the following bytecode if exitOnFailure is true:
-              //
-              // BlockingExceptionHandler.rethrowIfBlockingException(t);
-              // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError(t);
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
-              //   System.exit(1);
+              //   System.exit(1); // when exitOnFailure=true
               // } catch (Throwable t2) {
               // }
               //
@@ -81,12 +71,14 @@ public class ExceptionHandlers {
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
-              // invoke incrementAndGet on our exception counter
+              mv.visitInsn(Opcodes.DUP); // stack: (top) throwable,throwable
+              // invoke recordError on our exception tracker
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
                   "datadog/trace/bootstrap/InstrumentationErrors",
-                  "incrementErrorCount",
-                  "()V");
+                  "recordError",
+                  "(Ljava/lang/Throwable;)V");
+
               // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(
