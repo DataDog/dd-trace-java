@@ -369,7 +369,7 @@ spotless:
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck -no-daemon --parallel --max-workers=4
+    - ./gradlew spotlessCheck --no-daemon --parallel --max-workers=6
 
 config-inversion-linter:
   extends: .gradle_build
