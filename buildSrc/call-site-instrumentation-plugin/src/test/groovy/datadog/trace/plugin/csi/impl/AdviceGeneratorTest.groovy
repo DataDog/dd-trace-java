@@ -50,7 +50,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupParameters(descriptor, StackDupMode.COPY);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$BeforeAdvice", "before", "(Ljava/lang/String;)V");',
           'handler.method(opcode, owner, name, descriptor, isInterface);'
-        )
+          )
       }
     }
   }
@@ -59,7 +59,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
   class AroundAdvice {
     @CallSite.Around('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String around(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
-      return self.replaceAll(regexp, replacement);
+      return self.replaceAll(regexp, replacement)
     }
   }
 
@@ -81,7 +81,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
         pointcut('java/lang/String', 'replaceAll', '(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;')
         statements(
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AroundAdvice", "around", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");'
-        )
+          )
       }
     }
   }
@@ -114,7 +114,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdvice", "after", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");',
-        )
+          )
       }
     }
   }
@@ -146,7 +146,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY_CTOR);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceCtor", "after", "([Ljava/lang/Object;Ljava/net/URL;)Ljava/net/URL;");',
-        )
+          )
       }
     }
   }
@@ -178,8 +178,8 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   class InvokeDynamicAfterAdvice {
     @CallSite.After(
-      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-      invokeDynamic = true
+    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+    invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] arguments, @CallSite.Return final String result) {
       result
@@ -207,12 +207,12 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'java/lang/invoke/StringConcatFactory',
           'makeConcatWithConstants',
           '(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;'
-        )
+          )
         statements(
           'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);',
           'handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAfterAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;");'
-        )
+          )
       }
     }
   }
@@ -220,15 +220,15 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   class InvokeDynamicAroundAdvice {
     @CallSite.Around(
-      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-      invokeDynamic = true
+    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+    invokeDynamic = true
     )
     static java.lang.invoke.CallSite around(@CallSite.Argument final MethodHandles.Lookup lookup,
-                                            @CallSite.Argument final String name,
-                                            @CallSite.Argument final MethodType concatType,
-                                            @CallSite.Argument final String recipe,
-                                            @CallSite.Argument final Object... constants) {
-      return null;
+      @CallSite.Argument final String name,
+      @CallSite.Argument final MethodType concatType,
+      @CallSite.Argument final String recipe,
+      @CallSite.Argument final Object... constants) {
+      return null
     }
   }
 
@@ -253,10 +253,10 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'java/lang/invoke/StringConcatFactory',
           'makeConcatWithConstants',
           '(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;'
-        )
+          )
         statements(
           'handler.invokeDynamic(name, descriptor, new Handle(Opcodes.H_INVOKESTATIC, "datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicAroundAdvice", "around", "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;", false), bootstrapMethodArguments);',
-        )
+          )
       }
     }
   }
@@ -264,13 +264,13 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   class InvokeDynamicWithConstantsAdvice {
     @CallSite.After(
-      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-      invokeDynamic = true
+    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+    invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] arguments,
-                        @CallSite.Return final String result,
-                        @CallSite.InvokeDynamicConstants final Object[] constants) {
-      return result;
+      @CallSite.Return final String result,
+      @CallSite.InvokeDynamicConstants final Object[] constants) {
+      return result
     }
   }
 
@@ -295,13 +295,13 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'java/lang/invoke/StringConcatFactory',
           'makeConcatWithConstants',
           '(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;'
-        )
+          )
         statements(
           'handler.dupParameters(descriptor, StackDupMode.PREPEND_ARRAY);',
           'handler.invokeDynamic(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);',
           'handler.loadConstantArray(bootstrapMethodArguments);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$InvokeDynamicWithConstantsAdvice", "after", "([Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");'
-        )
+          )
       }
     }
   }
@@ -398,7 +398,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupParameters(descriptor, parameterIndices, owner);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;)V");',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
-        )
+          )
       }
       advices(1) {
         pointcut('java/lang/String', 'format', '(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;')
@@ -407,7 +407,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupParameters(descriptor, parameterIndices, null);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "([Ljava/lang/Object;)V");',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
-        )
+          )
       }
       advices(2) {
         pointcut('java/lang/String', 'subSequence', '(II)Ljava/lang/CharSequence;')
@@ -416,7 +416,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupInvoke(owner, descriptor, parameterIndices);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$PartialArgumentsBeforeAdvice", "before", "(Ljava/lang/String;I)V");',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
-        )
+          )
       }
     }
   }
@@ -448,7 +448,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$SuperTypeReturnAdvice", "after", "([Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");',
           'handler.instruction(Opcodes.CHECKCAST, "java/lang/StringBuilder");'
-        )
+          )
       }
     }
   }
@@ -501,7 +501,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
           'handler.dupInvoke(owner, descriptor, StackDupMode.COPY);',
           'handler.method(opcode, owner, name, descriptor, isInterface);',
           'handler.advice("datadog/trace/plugin/csi/impl/AdviceGeneratorTest$AfterAdviceWithVoidReturn", "after", "(Ljava/lang/StringBuilder;I)V");',
-        )
+          )
       }
     }
   }

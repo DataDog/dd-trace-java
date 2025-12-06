@@ -90,12 +90,3 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.armeria.uberJar.path=$appBuildDir/libs/armeria-smoketest-all.jar"
 }
 
-spotless {
-  java {
-    target "**/*.java"
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}

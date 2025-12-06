@@ -1,7 +1,3 @@
-plugins {
-  id 'com.diffplug.spotless' version '8.1.0'
-}
-
 def sharedConfigDirectory = "$rootDir/../gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
@@ -13,5 +9,4 @@ allprojects {
   version = versionFromFile
 
   apply from: "$sharedConfigDirectory/repositories.gradle"
-  apply from: "$sharedConfigDirectory/spotless.gradle"
 }

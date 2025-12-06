@@ -99,9 +99,3 @@ tasks.withType(Test).configureEach {
 }
 
 def rootDir = project.rootDir
-
-spotless {
-  java {
-    target 'src/**/*.java'
-  }
-}

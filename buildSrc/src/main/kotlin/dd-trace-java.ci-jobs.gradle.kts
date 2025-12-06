@@ -11,7 +11,7 @@ import kotlin.math.abs
 // Set up activePartition property on all projects
 allprojects {
   extra.set("activePartition", true)
-  
+
   val taskPartitionCountProvider = rootProject.providers.gradleProperty("taskPartitionCount")
   val taskPartitionProvider = rootProject.providers.gradleProperty("taskPartition")
   if (taskPartitionCountProvider.isPresent && taskPartitionProvider.isPresent) {
@@ -20,20 +20,18 @@ allprojects {
     val currentTaskPartition = abs(project.path.hashCode() % taskPartitionCount.toInt())
     extra.set("activePartition", currentTaskPartition == taskPartition.toInt())
   }
-  
+
   // Disable test tasks if not in active partition
   val activePartitionProvider = providers.provider {
     project.extra.properties["activePartition"] as? Boolean ?: true
   }
-  
+
   tasks.withType<Test>().configureEach {
     enabled = activePartitionProvider.get()
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
-}
+fun relativeToGitRoot(f: File): File = rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
 
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val stdout = StringBuilder()
@@ -61,11 +59,11 @@ val gitBaseRefProvider = rootProject.providers.gradleProperty("gitBaseRef")
 if (gitBaseRefProvider.isPresent) {
   val baseRef = gitBaseRefProvider.get()
   val newRef = rootProject.providers.gradleProperty("gitNewRef").orElse("HEAD").get()
-  
+
   val changedFiles = getChangedFiles(baseRef, newRef)
   rootProject.extra.set("changedFiles", changedFiles)
   rootProject.extra.set("useGitChanges", true)
-  
+
   val ignoredFiles = fileTree(rootProject.projectDir) {
     include(".gitignore", ".editorconfig")
     include("*.md", "**/*.md")
@@ -82,13 +80,13 @@ if (gitBaseRefProvider.isPresent) {
 
   val filteredChangedFiles = changedFiles.filter { !ignoredFiles.contains(it) }
   rootProject.extra.set("changedFiles", filteredChangedFiles)
-  
+
   val globalEffectFiles = fileTree(rootProject.projectDir) {
     include(".gitlab/**")
     include("build.gradle")
     include("gradle/**")
   }
-  
+
   for (f in filteredChangedFiles) {
     if (globalEffectFiles.contains(f)) {
       logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
@@ -96,10 +94,10 @@ if (gitBaseRefProvider.isPresent) {
       break
     }
   }
-  
+
   if (rootProject.extra.get("useGitChanges") as Boolean) {
     logger.warn("Git change tracking is enabled: $baseRef..$newRef")
-    
+
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
 
@@ -125,7 +123,7 @@ if (gitBaseRefProvider.isPresent) {
       logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} ($task)")
       affectedProjects.computeIfAbsent(p) { mutableSetOf() }.add(task)
     }
-    
+
     rootProject.extra.set("affectedProjects", affectedProjects)
   }
 }

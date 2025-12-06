@@ -280,12 +280,6 @@ def createAppResourceTask(Task task, String name) {
   }
 }
 
-spotless {
-  java {
-    target "**/*.java"
-  }
-}
-
 idea {
   module {
     jdkName = '11'

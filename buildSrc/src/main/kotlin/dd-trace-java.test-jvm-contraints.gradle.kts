@@ -102,27 +102,36 @@ private fun Test.configureConventions(
   taskExtension: TestJvmConstraintsExtension,
   projectExtension: TestJvmConstraintsExtension
 ) {
-  taskExtension.minJavaVersion.convention(projectExtension.minJavaVersion
-    .orElse(providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
-    .orElse(providers.provider { project.findProperty("minJavaVersion") as? JavaVersion })
+  taskExtension.minJavaVersion.convention(
+    projectExtension.minJavaVersion
+      .orElse(providers.provider { project.findProperty("${name}MinJavaVersionForTests") as? JavaVersion })
+      .orElse(providers.provider { project.findProperty("minJavaVersion") as? JavaVersion })
   )
-  taskExtension.maxJavaVersion.convention(projectExtension.maxJavaVersion
-    .orElse(providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
-    .orElse(providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
+  taskExtension.maxJavaVersion.convention(
+    projectExtension.maxJavaVersion
+      .orElse(providers.provider { project.findProperty("${name}MaxJavaVersionForTests") as? JavaVersion })
+      .orElse(providers.provider { project.findProperty("maxJavaVersion") as? JavaVersion })
   )
-  taskExtension.forceJdk.convention(projectExtension.forceJdk
-    .orElse(providers.provider {
-      @Suppress("UNCHECKED_CAST")
-      project.findProperty("forceJdk") as? List<String> ?: emptyList()
-    })
+  taskExtension.forceJdk.convention(
+    projectExtension.forceJdk
+      .orElse(
+        providers.provider {
+          @Suppress("UNCHECKED_CAST")
+          project.findProperty("forceJdk") as? List<String> ?: emptyList()
+        }
+      )
   )
-  taskExtension.excludeJdk.convention(projectExtension.excludeJdk
-    .orElse(providers.provider {
-      @Suppress("UNCHECKED_CAST")
-      project.findProperty("excludeJdk") as? List<String> ?: emptyList()
-    })
+  taskExtension.excludeJdk.convention(
+    projectExtension.excludeJdk
+      .orElse(
+        providers.provider {
+          @Suppress("UNCHECKED_CAST")
+          project.findProperty("excludeJdk") as? List<String> ?: emptyList()
+        }
+      )
   )
-  taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
-    .orElse(providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
+  taskExtension.allowReflectiveAccessToJdk.convention(
+    projectExtension.allowReflectiveAccessToJdk
+      .orElse(providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
   )
 }

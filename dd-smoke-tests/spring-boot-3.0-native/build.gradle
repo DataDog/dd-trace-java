@@ -80,13 +80,3 @@ if (version >= 17) {
     enabled = false
   }
 }
-
-spotless {
-  java {
-    target "**/*.java"
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}

@@ -8,20 +8,6 @@ muzzle {
   }
 }
 
-// We need to set up the spotless targets here before we apply the standard settings to avoid
-// having all the scala files in the common test directories being added as well, making spotless
-// fail because the files are outside this project directory
-apply plugin: 'com.diffplug.spotless'
-spotless {
-  groovy {
-    target('src/**/*.groovy')
-  }
-  scala {
-    target('src/**/*.scala')
-  }
-}
-project.ext.groovySkipJavaExclude = true
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 

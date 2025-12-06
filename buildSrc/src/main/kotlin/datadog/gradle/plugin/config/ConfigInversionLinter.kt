@@ -3,14 +3,14 @@ package datadog.gradle.plugin.config
 import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.expr.StringLiteralExpr
-import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.GradleException
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType
@@ -39,25 +39,24 @@ private var cachedConfigFields: LoadedConfigFields? = null
 private fun loadConfigFields(
   mainSourceSetOutput: org.gradle.api.file.FileCollection,
   generatedClassName: String
-): LoadedConfigFields {
-  return cachedConfigFields ?: run {
-    val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
-    URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
-      val clazz = Class.forName(generatedClassName, true, cl)
+): LoadedConfigFields = cachedConfigFields ?: run {
+  val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
+  URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
+    val clazz = Class.forName(generatedClassName, true, cl)
 
-      val supportedField = clazz.getField("SUPPORTED").get(null)
-      @Suppress("UNCHECKED_CAST")
-      val supportedSet = when (supportedField) {
-        is Set<*> -> supportedField as Set<String>
-        is Map<*, *> -> supportedField.keys as Set<String>
-        else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
-      }
+    val supportedField = clazz.getField("SUPPORTED").get(null)
 
-      @Suppress("UNCHECKED_CAST")
-      val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-      LoadedConfigFields(supportedSet, aliasMappingMap)
-    }.also { cachedConfigFields = it }
-  }
+    @Suppress("UNCHECKED_CAST")
+    val supportedSet = when (supportedField) {
+      is Set<*> -> supportedField as Set<String>
+      is Map<*, *> -> supportedField.keys as Set<String>
+      else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
+    LoadedConfigFields(supportedSet, aliasMappingMap)
+  }.also { cachedConfigFields = it }
 }
 
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
@@ -164,12 +163,10 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
 }
 
 // Helper functions for checking Config Strings
-private fun normalize(configValue: String) =
-  "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
+private fun normalize(configValue: String) = "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
 
 // Checking "public" "static" "final"
-private fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
-  mods.all { hasModifier(it) }
+private fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) = mods.all { hasModifier(it) }
 
 /** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
 private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
@@ -215,8 +212,8 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
               .map { it as? FieldDeclaration }
               .ifPresent { field ->
                 if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
-                  varDecl.typeAsString == "String") {
-
+                  varDecl.typeAsString == "String"
+                ) {
                   val fieldName = varDecl.nameAsString
                   if (fieldName.endsWith("_DEFAULT")) return@ifPresent
                   val init = varDecl.initializer.orElse(null) ?: return@ifPresent
@@ -227,8 +224,10 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
                   val normalized = normalize(rawValue)
                   if (normalized !in supported && normalized !in aliasMapping) {
                     val line = varDecl.range.map { it.begin.line }.orElse(1)
-                    add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                        "which is missing from '${extension.jsonFile.get()}'")
+                    add(
+                      "$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
+                        "which is missing from '${extension.jsonFile.get()}'"
+                    )
                   }
                 }
               }

@@ -50,13 +50,3 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest--runner.jar"
 }
-
-spotless {
-  java {
-    target "**/*.java"
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}

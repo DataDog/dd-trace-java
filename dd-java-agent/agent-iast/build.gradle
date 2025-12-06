@@ -99,11 +99,6 @@ ext {
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.iast.enabled=true']
 }
-spotless {
-  java {
-    target 'src/**/*.java'
-  }
-}
 
 jmh {
   jmhVersion = libs.versions.jmh.get()

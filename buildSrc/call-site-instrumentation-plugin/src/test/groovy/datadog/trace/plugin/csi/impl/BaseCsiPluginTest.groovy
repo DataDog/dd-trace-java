@@ -29,7 +29,8 @@ import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER
 abstract class BaseCsiPluginTest extends Specification {
 
   protected static void assertNoErrors(final HasErrors hasErrors) {
-    final errors = hasErrors.errors.collect { error ->
+    final errors = hasErrors.errors.collect {
+      error ->
       "${error.message}: ${error.cause == null ? '-' : error.causeString}"
     }
     assert errors == []
@@ -50,14 +51,16 @@ abstract class BaseCsiPluginTest extends Specification {
     final classFile = fetchClass(clazz)
     final spec = specificationBuilder().build(classFile).get()
     final pointcutParser = pointcutParser()
-    spec.advices.each { it.parseSignature(pointcutParser) }
+    spec.advices.each {
+      it.parseSignature(pointcutParser)
+    }
     return spec
   }
 
   protected ValidationContext mockValidationContext() {
     return Mock(ValidationContext) {
       mock ->
-        mock.getContextProperty(TYPE_RESOLVER) >> typeResolver()
+      mock.getContextProperty(TYPE_RESOLVER) >> typeResolver()
     }
   }
 
@@ -88,9 +91,9 @@ abstract class BaseCsiPluginTest extends Specification {
   private static class BeforeAdviceSpecificationBuilder extends AdviceSpecificationBuilder {
     @Override
     protected AdviceSpecification build(final MethodType advice,
-                                        final Map<Integer, ParameterSpecification> parameters,
-                                        final String signature,
-                                        final boolean invokeDynamic) {
+    final Map<Integer, ParameterSpecification> parameters,
+    final String signature,
+    final boolean invokeDynamic) {
       return new BeforeSpecification(advice, parameters, signature, invokeDynamic)
     }
   }
@@ -98,9 +101,9 @@ abstract class BaseCsiPluginTest extends Specification {
   private static class AroundAdviceSpecificationBuilder extends AdviceSpecificationBuilder {
     @Override
     protected AroundSpecification build(final MethodType advice,
-                                        final Map<Integer, ParameterSpecification> parameters,
-                                        final String signature,
-                                        final boolean invokeDynamic) {
+    final Map<Integer, ParameterSpecification> parameters,
+    final String signature,
+    final boolean invokeDynamic) {
       return new AroundSpecification(advice, parameters, signature, invokeDynamic)
     }
   }
@@ -108,9 +111,9 @@ abstract class BaseCsiPluginTest extends Specification {
   private static class AfterAdviceSpecificationBuilder extends AdviceSpecificationBuilder {
     @Override
     protected AfterSpecification build(final MethodType advice,
-                                       final Map<Integer, ParameterSpecification> parameters,
-                                       final String signature,
-                                       final boolean invokeDynamic) {
+    final Map<Integer, ParameterSpecification> parameters,
+    final String signature,
+    final boolean invokeDynamic) {
       return new AfterSpecification(advice, parameters, signature, invokeDynamic)
     }
   }
@@ -130,10 +133,18 @@ abstract class BaseCsiPluginTest extends Specification {
     }
 
     void parameters(final ParameterSpecification... parameters) {
-      parameters.eachWithIndex { entry, int i -> this.parameters.put(i, entry) }
-      parameters.grep { it instanceof ArgumentSpecification }
-        .collect { it as ArgumentSpecification}
-        .eachWithIndex{ spec, int i -> spec.index = i}
+      parameters.eachWithIndex {
+        entry, int i -> this.parameters.put(i, entry)
+      }
+      parameters.grep {
+        it instanceof ArgumentSpecification
+      }
+      .collect {
+        it as ArgumentSpecification
+      }
+      .eachWithIndex{
+        spec, int i -> spec.index = i
+      }
     }
 
     void signature(final String signature) {
@@ -152,9 +163,9 @@ abstract class BaseCsiPluginTest extends Specification {
 
 
     protected abstract AdviceSpecification build(final MethodType advice,
-                                                 final Map<Integer, ParameterSpecification> parameters,
-                                                 final String signature,
-                                                 final boolean invokeDynamic)
+    final Map<Integer, ParameterSpecification> parameters,
+    final String signature,
+    final boolean invokeDynamic)
   }
 
   private static class MethodTypeBuilder {
@@ -179,12 +190,16 @@ abstract class BaseCsiPluginTest extends Specification {
     }
 
     void descriptor(final Class<?> returnType, final Class<?>... args) {
-      methodType = Type.getMethodType(Type.getType(returnType), args.collect { Type.getType(it) } as Type[])
+      methodType = Type.getMethodType(Type.getType(returnType), args.collect {
+        Type.getType(it)
+      } as Type[])
     }
 
     void method(final Executable executable) {
       owner = Type.getType(executable.declaringClass)
-      final args = executable.parameterTypes.collect { Type.getType(it) }.toArray(new Type[0]) as Type[]
+      final args = executable.parameterTypes.collect {
+        Type.getType(it)
+      }.toArray(new Type[0]) as Type[]
       if (executable instanceof Constructor) {
         methodName = '<init>'
         methodType = Type.getMethodType(Type.VOID_TYPE, args)

@@ -41,16 +41,3 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${jarPath}"
 }
-
-
-spotless {
-  java {
-    target fileTree("$appDir") {
-      include "**/*.java"
-    }
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}

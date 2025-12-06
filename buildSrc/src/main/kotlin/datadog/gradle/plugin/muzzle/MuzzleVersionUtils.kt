@@ -37,13 +37,13 @@ internal object MuzzleVersionUtils {
     list: Set<Version>,
     skipVersions: Set<String>,
     includeSnapshots: Boolean
-  ): Set<Version> {
-    return list.filter { version ->
-      val v = version.toString().lowercase(Locale.ROOT)
-      if (includeSnapshots) {
-        !skipVersions.contains(v)
-      } else {
-        !(v.endsWith("-snapshot") ||
+  ): Set<Version> = list.filter { version ->
+    val v = version.toString().lowercase(Locale.ROOT)
+    if (includeSnapshots) {
+      !skipVersions.contains(v)
+    } else {
+      !(
+        v.endsWith("-snapshot") ||
           v.contains("rc") ||
           v.contains(".cr") ||
           v.contains("alpha") ||
@@ -59,10 +59,10 @@ internal object MuzzleVersionUtils {
           v.contains("-preview") ||
           skipVersions.contains(v) ||
           END_NMN_PATTERN.matches(v) ||
-          GIT_SHA_PATTERN.matches(v))
-      }
-    }.toSet()
-  }
+          GIT_SHA_PATTERN.matches(v)
+        )
+    }
+  }.toSet()
 
   /**
    * Select a random set of versions to test

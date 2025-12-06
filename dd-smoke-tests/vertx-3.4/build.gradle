@@ -50,16 +50,6 @@ tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.vertx.uberJar.path=$appBuildDir/libs/vertx-3.4-1.0.0-SNAPSHOT-fat.jar"
 }
 
-spotless {
-  java {
-    target "**/*.java"
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}
-
 idea {
   module {
     excludeDirs += [file("$appDir")]

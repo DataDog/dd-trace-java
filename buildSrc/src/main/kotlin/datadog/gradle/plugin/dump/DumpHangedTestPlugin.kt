@@ -38,12 +38,13 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   /** Executor wrapped with proper Gradle lifecycle. */
-  abstract class DumpSchedulerService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+  abstract class DumpSchedulerService :
+    BuildService<BuildServiceParameters.None>,
+    AutoCloseable {
     private val executor: ScheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hanged-test-dump").apply { isDaemon = true } }
 
-    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> =
-      executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
+    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> = executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
 
     override fun close() {
       executor.shutdownNow()
@@ -120,8 +121,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
       dumpsDir.mkdirs()
 
-      fun file(name: String, ext: String = "log") =
-        File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
+      fun file(name: String, ext: String = "log") = File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
 
       // For simplicity, use `0` as the PID, which collects all thread dumps across JVMs.
       val allThreadsFile = file("all-thread-dumps")
@@ -138,11 +138,11 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
       pids.forEach { pid ->
         // Collect heap dump by pid.
-        val heapDumpPath = file("${pid}-heap-dump", "hprof").absolutePath
+        val heapDumpPath = file("$pid-heap-dump", "hprof").absolutePath
         runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
 
         // Collect thread dump by pid.
-        val threadDumpFile = file("${pid}-thread-dump")
+        val threadDumpFile = file("$pid-thread-dump")
         runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
       }
     } catch (e: Throwable) {

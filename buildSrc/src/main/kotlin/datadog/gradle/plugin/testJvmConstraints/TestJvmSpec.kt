@@ -69,7 +69,10 @@ class TestJvmSpec(val project: Project) {
 
       else -> testJvm
     }
-  }.map { project.logger.info("normalized testJvm: $it"); it }
+  }.map {
+    project.logger.info("normalized testJvm: $it")
+    it
+  }
 
   /**
    * The home path of the test JVM.
@@ -127,7 +130,10 @@ class TestJvmSpec(val project: Project) {
         """.trimIndent()
       )
     }
-  }.map { project.logger.info("testJvm home path: $it"); it }
+  }.map {
+    project.logger.info("testJvm home path: $it")
+    it
+  }
 
   /**
    * The Java launcher for the test JVM.
@@ -141,19 +147,23 @@ class TestJvmSpec(val project: Project) {
         project.providers.provider<JavaLauncher?> { null }
       } else {
         // The provider always says that a value is present so we need to wrap it for proper error messages
-        project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {
-          throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-        })
+        project.javaToolchains.launcherFor(jvmSpec).orElse(
+          project.providers.provider {
+            throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+          }
+        )
       }
-    }.flatMap { it }.map { project.logger.info("testJvm launcher: ${it.executablePath}"); it }
+    }.flatMap { it }.map {
+      project.logger.info("testJvm launcher: ${it.executablePath}")
+      it
+    }
 
   private fun String.normalizeToJDKJavaHome(): Path {
     val javaHome = project.file(this).toPath().toRealPath()
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toToolchainSpec(): JavaToolchainSpec =
-    // This is using internal APIs
+  private fun Path.toToolchainSpec(): JavaToolchainSpec = // This is using internal APIs
     SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
 
   private val Project.javaToolchains: JavaToolchainService

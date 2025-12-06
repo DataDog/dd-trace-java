@@ -54,12 +54,3 @@ repositories {
     layout("ivy")
   }
 }
-
-spotless {
-  java {
-    target("**/*.java")
-  }
-  scala {
-    target("**/*.scala")
-  }
-}

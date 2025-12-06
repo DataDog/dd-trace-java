@@ -76,16 +76,6 @@ tasks.named("compileTestGroovy", GroovyCompile) {
   }
 }
 
-spotless {
-  java {
-    target "**/*.java"
-  }
-
-  groovyGradle {
-    target '*.gradle', "**/*.gradle"
-  }
-}
-
 tasks.register("unzip", Copy) {
   dependsOn 'earBuild'
   mustRunAfter 'compileTestGroovy'

@@ -25,37 +25,101 @@ val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
+// List of projects to exclude from processing by Spotless.
+val spotlessExcludedProjects = setOf(":dd-java-agent:agent-jmxfetch")
 
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
-  // these need to align with the types and versions in gradle/spotless.gradle
-  java {
-    removeUnusedImports()
+// Spotless applied per-module for parallel execution, configured centrally here.
+allprojects {
+  if (path in spotlessExcludedProjects) {
+    return@allprojects
+  }
 
-    // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.32.0")
-  }
-  groovyGradle {
-    greclipse()
-  }
-  groovy {
-    greclipse()
-  }
-  kotlinGradle {
-    ktlint("1.8.0")
-  }
-  kotlin {
-    ktlint("1.8.0")
-  }
-  scala {
-    // TODO: For some reason Scala format is working correctly with this version only.
-    scalafmt("3.8.6")
+  apply(plugin = "com.diffplug.spotless")
+
+  configure<SpotlessExtension> {
+    if (rootProject.hasProperty("skipSpotless")) {
+      isEnforceCheck = false
+    }
+
+    pluginManager.withPlugin("java") {
+      java {
+        toggleOffOn()
+        target("**/*.java")
+        targetExclude("**/build/**", "**/src/test/resources/**")
+        googleJavaFormat("1.32.0")
+      }
+    }
+
+    pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+      kotlin {
+        toggleOffOn()
+        target("**/*.kt")
+        targetExclude("**/build/**", "**/src/test/resources/**")
+        ktlint("1.8.0").editorConfigOverride(
+          mapOf(
+            "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+            "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+          )
+        )
+      }
+    }
+
+    pluginManager.withPlugin("scala") {
+      scala {
+        toggleOffOn()
+        target("**/*.scala")
+        targetExclude("**/build/**", "**/src/test/resources/**")
+        scalafmt("3.10.2").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
+      }
+    }
+
+    pluginManager.withPlugin("groovy") {
+      groovy {
+        toggleOffOn()
+        target("**/*.groovy")
+        targetExclude("**/build/**", "**/src/test/resources/**")
+        greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
+      }
+    }
+
+    // Gradle files and other formats we process globally from root
+    if (project == rootProject) {
+      kotlinGradle {
+        toggleOffOn()
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**", "**/agent-jmxfetch/**")
+        ktlint("1.8.0").editorConfigOverride(
+          mapOf(
+            "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+            "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+          )
+        )
+      }
+
+      groovyGradle {
+        toggleOffOn()
+        target("**/*.gradle")
+        targetExclude("**/build/**", "**/agent-jmxfetch/**")
+        greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
+      }
+
+      format("markdown") {
+        toggleOffOn()
+        target("*.md", ".github/**/*.md", "src/**/*.md", "application/**/*.md")
+        leadingTabsToSpaces()
+        endWithNewline()
+      }
+
+      format("misc") {
+        toggleOffOn()
+        target(".gitignore", "*.sh", "tooling/*.sh", ".gitlab/*.sh")
+        leadingTabsToSpaces()
+        trimTrailingWhitespace()
+        endWithNewline()
+      }
+    }
   }
 }
-apply(from = rootDir.resolve("gradle/spotless.gradle"))
 
 val compileTask = tasks.register("compile")
 
@@ -101,8 +165,8 @@ nexusPublishing {
       // For testing, use with https://hub.docker.com/r/sonatype/nexus
       // $ docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus:oss
       // $ ./gradlew publishToLocal -PforceLocal=true
-      // Doesn't work for testing releases though... (due to staging),
-      // however, it's possible to explore http://localhost:8081/nexus/
+      // Doesn"t work for testing releases though... (due to staging),
+      // however, it"s possible to explore http://localhost:8081/nexus/
       register("local") {
         nexusUrl = uri("http://localhost:8081/nexus/content/repositories/releases/")
         snapshotRepositoryUrl = uri("http://localhost:8081/nexus/content/repositories/snapshots/")

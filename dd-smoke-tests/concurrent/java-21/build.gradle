@@ -24,18 +24,6 @@ tasks.withType(JavaCompile).configureEach {
   configureCompiler(it, 21, JavaVersion.VERSION_21)
 }
 
-// Disable plugin tasks that do not support Java 21:
-// * forbiddenApis is missing classes
-// * spotless as the google-java-format version does not support Java 21 and can't be changed once applied
-// * spotbugs failed to read class using newer bytecode versions
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
-
-['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
-  tasks.named(it) { enabled = false }
-}
-
 application {
   mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }
