@@ -370,8 +370,9 @@ spotless:
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
+    - export GRADLE_OPTS="-Xms4g -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
     - ./gradlew --version
-    - ./gradlew spotlessCheck --no-daemon --parallel --max-workers=4 -Dorg.gradle.jvmargs="-Xms1g -Xmx4g -XX:MaxMetaspaceSize=512m"
+    - ./gradlew spotlessCheck --no-daemon --parallel --max-workers=4
 
 config-inversion-linter:
   extends: .gradle_build
