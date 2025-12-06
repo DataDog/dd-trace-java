@@ -370,7 +370,7 @@ spotless:
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
-    - export GRADLE_OPTS="Dorg.gradle.jvmargs='-XX:+UseContainerSupport -XX:MaxRAMPercentage=80.0 -XX:MaxMetaspaceSize=512m -XX:+UseG1GC'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:+UseContainerSupport -XX:MaxRAMPercentage=80.0 -XX:MaxMetaspaceSize=512m -XX:+UseG1GC'"
     - ./gradlew --version
     - ./gradlew spotlessCheck --no-daemon --parallel
 
