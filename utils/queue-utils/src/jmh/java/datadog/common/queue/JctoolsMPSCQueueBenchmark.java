@@ -19,14 +19,14 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /*
-Benchmark                                                    (capacity)   Mode  Cnt    Score   Error   Units
-JctoolsMPSCQueueBenchmark.queueTest                                1024  thrpt        41,784          ops/us
-JctoolsMPSCQueueBenchmark.queueTest:consume                        1024  thrpt        31,070          ops/us
-JctoolsMPSCQueueBenchmark.queueTest:produce                        1024  thrpt        10,715          ops/us
-JctoolsMPSCQueueBenchmark.queueTest                               65536  thrpt        39,589          ops/us
-JctoolsMPSCQueueBenchmark.queueTest:consume                       65536  thrpt        32,370          ops/us
-JctoolsMPSCQueueBenchmark.queueTest:produce                       65536  thrpt         7,219          ops/us
- */
+Benchmark                                                    (capacity)   Mode  Cnt    Score     Error   Units
+JctoolsMPSCQueueBenchmark.queueTest                                1024  thrpt    3   26,429 ±  24,149  ops/us
+JctoolsMPSCQueueBenchmark.queueTest:consume                        1024  thrpt    3   17,510 ±  23,328  ops/us
+JctoolsMPSCQueueBenchmark.queueTest:produce                        1024  thrpt    3    8,919 ±   3,046  ops/us
+JctoolsMPSCQueueBenchmark.queueTest                               65536  thrpt    3   24,071 ±  71,594  ops/us
+JctoolsMPSCQueueBenchmark.queueTest:consume                       65536  thrpt    3   16,710 ±  88,477  ops/us
+JctoolsMPSCQueueBenchmark.queueTest:produce                       65536  thrpt    3    7,361 ±  18,533  ops/us
+*/
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 3, time = 10)
 @Measurement(iterations = 3, time = 10)
