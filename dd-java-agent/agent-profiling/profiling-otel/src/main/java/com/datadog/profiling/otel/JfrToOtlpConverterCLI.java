@@ -76,7 +76,8 @@ public class JfrToOtlpConverterCLI {
     }
 
     // Apply pretty-printing to JSON output
-    if (prettyPrint && outputKind == JfrToOtlpConverter.Kind.JSON) {
+    // --pretty implies --json
+    if (prettyPrint) {
       outputKind = JfrToOtlpConverter.Kind.JSON_PRETTY;
     }
 
