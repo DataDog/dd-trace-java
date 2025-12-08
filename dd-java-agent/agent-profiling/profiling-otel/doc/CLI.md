@@ -329,6 +329,7 @@ dd-java-agent/agent-profiling/profiling-otel/convert-jfr.sh
 - `--json` - Output in JSON format instead of protobuf
 - `--pretty` - Pretty-print JSON output (implies --json)
 - `--include-payload` - Include original JFR payload in OTLP output
+- `--diagnostics` - Show detailed diagnostics (file sizes, conversion time)
 - `--help` - Show help message
 
 ### Examples
@@ -358,12 +359,33 @@ Combine multiple files:
 ./convert-jfr.sh file1.jfr file2.jfr file3.jfr merged.pb
 ```
 
+Show detailed diagnostics:
+```bash
+./convert-jfr.sh --diagnostics recording.jfr output.pb
+```
+
+Output:
+```
+[INFO] Converting JFR to OTLP format...
+[DIAG] Input: recording.jfr (89.3KB)
+[DIAG] Total input size: 89.3KB
+[SUCCESS] Conversion completed successfully!
+[INFO] Output file: output.pb (45.2KB)
+
+[DIAG] === Conversion Diagnostics ===
+[DIAG] Wall time: 127.3ms
+[DIAG] Output size: 45.2KB
+[DIAG] Size ratio: 50.6% of input
+[DIAG] Savings: 44.1KB (49.4% reduction)
+```
+
 ### Features
 
 - **Automatic compilation**: Compiles code if needed before conversion
 - **Simplified interface**: No need to remember Gradle task paths
 - **Colored output**: Visual feedback for success/errors
 - **File size reporting**: Shows output file size after conversion
+- **Diagnostics mode**: Detailed metrics including input/output sizes, conversion time, and compression ratio
 - **Error handling**: Clear error messages if conversion fails
 
 ### Script Output
