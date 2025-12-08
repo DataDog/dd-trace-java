@@ -4,7 +4,9 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
 import java.util.regex.Pattern;
 
-/** @see <a href="https://www.rfc-editor.org/rfc/rfc1738>Uniform Resource Locators (URL)</a> */
+/**
+ * @see <a href="https://www.rfc-editor.org/rfc/rfc1738>Uniform Resource Locators (URL)</a>
+ */
 public class UrlRegexpTokenizer extends AbstractRegexTokenizer {
 
   private static final String AUTHORITY_GROUP = "AUTHORITY";

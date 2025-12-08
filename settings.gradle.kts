@@ -384,6 +384,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-11.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-17.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-21.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0",
   ":dd-java-agent:instrumentation:java:java-net:java-net-1.8",
   ":dd-java-agent:instrumentation:java:java-net:java-net-11.0",

@@ -24,6 +24,7 @@ public final class Message {
      * @return The id.
      */
     java.lang.String getId();
+
     /**
      * <code>string id = 1;</code>
      *
@@ -37,6 +38,7 @@ public final class Message {
      * @return The value.
      */
     java.lang.String getValue();
+
     /**
      * <code>string value = 2;</code>
      *
@@ -44,12 +46,14 @@ public final class Message {
      */
     com.google.protobuf.ByteString getValueBytes();
   }
+
   /** Protobuf type {@code MyMessage} */
   public static final class MyMessage extends com.google.protobuf.GeneratedMessageV3
       implements
       // @@protoc_insertion_point(message_implements:MyMessage)
       MyMessageOrBuilder {
     private static final long serialVersionUID = 0L;
+
     // Use MyMessage.newBuilder() to construct.
     private MyMessage(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
       super(builder);
@@ -81,6 +85,7 @@ public final class Message {
 
     @SuppressWarnings("serial")
     private volatile java.lang.Object id_ = "";
+
     /**
      * <code>string id = 1;</code>
      *
@@ -98,6 +103,7 @@ public final class Message {
         return s;
       }
     }
+
     /**
      * <code>string id = 1;</code>
      *
@@ -120,6 +126,7 @@ public final class Message {
 
     @SuppressWarnings("serial")
     private volatile java.lang.Object value_ = "";
+
     /**
      * <code>string value = 2;</code>
      *
@@ -137,6 +144,7 @@ public final class Message {
         return s;
       }
     }
+
     /**
      * <code>string value = 2;</code>
      *
@@ -322,6 +330,7 @@ public final class Message {
       Builder builder = new Builder(parent);
       return builder;
     }
+
     /** Protobuf type {@code MyMessage} */
     public static final class Builder
         extends com.google.protobuf.GeneratedMessageV3.Builder<Builder>
@@ -509,6 +518,7 @@ public final class Message {
       private int bitField0_;
 
       private java.lang.Object id_ = "";
+
       /**
        * <code>string id = 1;</code>
        *
@@ -525,6 +535,7 @@ public final class Message {
           return (java.lang.String) ref;
         }
       }
+
       /**
        * <code>string id = 1;</code>
        *
@@ -541,6 +552,7 @@ public final class Message {
           return (com.google.protobuf.ByteString) ref;
         }
       }
+
       /**
        * <code>string id = 1;</code>
        *
@@ -556,6 +568,7 @@ public final class Message {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1;</code>
        *
@@ -567,6 +580,7 @@ public final class Message {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1;</code>
        *
@@ -585,6 +599,7 @@ public final class Message {
       }
 
       private java.lang.Object value_ = "";
+
       /**
        * <code>string value = 2;</code>
        *
@@ -601,6 +616,7 @@ public final class Message {
           return (java.lang.String) ref;
         }
       }
+
       /**
        * <code>string value = 2;</code>
        *
@@ -617,6 +633,7 @@ public final class Message {
           return (com.google.protobuf.ByteString) ref;
         }
       }
+
       /**
        * <code>string value = 2;</code>
        *
@@ -632,6 +649,7 @@ public final class Message {
         onChanged();
         return this;
       }
+
       /**
        * <code>string value = 2;</code>
        *
@@ -643,6 +661,7 @@ public final class Message {
         onChanged();
         return this;
       }
+
       /**
        * <code>string value = 2;</code>
        *

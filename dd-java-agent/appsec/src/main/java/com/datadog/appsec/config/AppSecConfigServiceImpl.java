@@ -55,6 +55,7 @@ import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -100,8 +101,18 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean hasUserWafConfig;
+
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean defaultConfigActivated;
+
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());

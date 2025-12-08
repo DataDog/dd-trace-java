@@ -9,12 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.environment.JavaVirtualMachine;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +29,11 @@ public class HotSpotStackWalkerTest {
   @BeforeAll
   public static void setUp() {
     assumeTrue(isRunningJDK8WithHotSpot());
+    assumeFalse(
+        JavaVirtualMachine.isOracleJDK8(),
+        "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly "
+            + "extract method parameters without args, when the code is compiled on a later JDK (targeting 8). "
+            + "This can manifest when creating mocks.");
   }
 
   @Test

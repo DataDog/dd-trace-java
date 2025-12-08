@@ -109,9 +109,13 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     if (customActions != null) {
       def actions = json.actions as List<Map<String, Object>>
       // remove already existing rules for merge
-      List<Object> customActionNames = customActions.collect { it.id }
+      List<Object> customActionNames = customActions.collect {
+        it.id
+      }
       if( actions != null) {
-        actions.removeIf { it.id in customActionNames }
+        actions.removeIf {
+          it.id in customActionNames
+        }
       }else {
         actions = []
         json.actions = actions
@@ -123,8 +127,12 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     final rules = json.rules as List<Map<String, Object>>
 
     // remove already existing rules for merge
-    List<Object> customRulesNames = customRules.collect { it.id }
-    rules.removeIf { it.id in customRulesNames }
+    List<Object> customRulesNames = customRules.collect {
+      it.id
+    }
+    rules.removeIf {
+      it.id in customRulesNames
+    }
 
     rules.addAll(customRules)
     final gen = new JsonGenerator.Options().build()

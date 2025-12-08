@@ -35,7 +35,6 @@ abstract class IgniteCacheAsyncTest extends AbstractIgniteTest {
       def future = cache.putAsync("abc", "123")
 
       return future.get(1, TimeUnit.SECONDS)
-
     }
 
     then:

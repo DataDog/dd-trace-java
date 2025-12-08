@@ -23,7 +23,6 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +37,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
 
   private final ConfigurationUpdater configurationUpdater;
 
-  private final Map<String, CodeOriginProbe> probesByFingerprint = new HashMap<>();
+  private final Map<String, CodeOriginProbe> probesByFingerprint = new ConcurrentHashMap<>();
 
   private final Map<String, CodeOriginProbe> probes = new ConcurrentHashMap<>();
   private final Map<String, LogProbe> logProbes = new ConcurrentHashMap<>();
@@ -75,8 +74,6 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
               null,
               String.valueOf(element.getLineNumber()));
       probe = createProbe(fingerprint, entry, where);
-
-      LOG.debug("Creating probe for location {}", where);
     }
     return probe.getId();
   }
@@ -110,11 +107,13 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
   }
 
   private CodeOriginProbe createProbe(String fingerPrint, boolean entry, Where where) {
-    CodeOriginProbe probe;
-    AgentSpan span = AgentTracer.activeSpan();
-
-    probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
-    addFingerprint(fingerPrint, probe);
+    CodeOriginProbe probe = new CodeOriginProbe(ProbeId.newId(), entry, where);
+    CodeOriginProbe existing;
+    if ((existing = probesByFingerprint.putIfAbsent(fingerPrint, probe)) != null) {
+      // concurrent calls, considered the probe already installed
+      return existing;
+    }
+    LOG.debug("Creating probe for location {}", where);
     CodeOriginProbe installed = probes.putIfAbsent(probe.getId(), probe);
 
     // i think this check is unnecessary at this point time but leaving for now to be safe
@@ -126,6 +125,7 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
     }
     // committing here manually so that first run probe encounters decorate the span until the
     // instrumentation gets installed
+    AgentSpan span = AgentTracer.activeSpan();
     if (span != null) {
       probe.commit(
           CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
@@ -140,10 +140,6 @@ public class DefaultCodeOriginRecorder implements CodeOriginRecorder {
                 .filter(element -> !DebuggerContext.isClassNameExcluded(element.getClassName()))
                 .findFirst()
                 .orElse(null));
-  }
-
-  void addFingerprint(String fingerprint, CodeOriginProbe probe) {
-    probesByFingerprint.putIfAbsent(fingerprint, probe);
   }
 
   public void installProbes() {

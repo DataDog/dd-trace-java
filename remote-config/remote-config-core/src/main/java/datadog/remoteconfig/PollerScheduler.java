@@ -2,11 +2,13 @@ package datadog.remoteconfig;
 
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Handles scheduling scheme for polling configuration */
+@SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
 class PollerScheduler {
   private static final Logger LOGGER = LoggerFactory.getLogger(PollerScheduler.class);
 

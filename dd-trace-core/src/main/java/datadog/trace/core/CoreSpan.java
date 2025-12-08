@@ -57,11 +57,21 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
+  default <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+    return getTag(name, defaultValue);
+  }
+
+  default <U> U unsafeGetTag(CharSequence name) {
+    return getTag(name);
+  }
+
   boolean hasSamplingPriority();
 
   boolean isMeasured();
 
-  /** @return whether this span has a different service name from its parent, or is a local root. */
+  /**
+   * @return whether this span has a different service name from its parent, or is a local root.
+   */
   boolean isTopLevel();
 
   boolean isForceKeep();

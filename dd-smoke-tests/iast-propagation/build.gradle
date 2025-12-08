@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
   id 'com.gradleup.shadow'
   id 'java'
-  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
+  id 'org.jetbrains.kotlin.jvm'
   id 'scala'
   id 'groovy'
 }

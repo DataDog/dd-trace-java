@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConfigHelper {
+  private ConfigHelper() {}
 
   /** Config Inversion strictness policy for enforcement of undocumented environment variables */
   public enum StrictnessPolicy {
