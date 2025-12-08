@@ -10,8 +10,12 @@ import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConstructorAdvice {
+  private static final Logger log = LoggerFactory.getLogger(ConstructorAdvice.class);
+
   // new - capturing OffsetCommitCallbackInvoker instead of the old ConsumerCoordinator
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void captureGroup(
@@ -52,6 +56,31 @@ public class ConstructorAdvice {
     if (offsetCommitCallbackInvoker != null) {
       InstrumentationContext.get(OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
           .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
+    }
+
+    // Log consumer configuration
+    logConsumerConfiguration(consumerConfig, normalizedConsumerGroup);
+  }
+
+  private static void logConsumerConfiguration(
+      ConsumerConfig consumerConfig, String consumerGroup) {
+    try {
+      log.info("Kafka Consumer started - Group: {}", consumerGroup);
+      log.info("Consumer Configuration (all properties):");
+      
+      // Get all configuration values
+      java.util.Map<String, ?> allConfigs = consumerConfig.values();
+      
+      // Sort by key for consistent output
+      allConfigs.entrySet().stream()
+          .sorted(java.util.Map.Entry.comparingByKey())
+          .forEach(entry -> {
+            log.info("  {}: {}", entry.getKey(), entry.getValue());
+          });
+      
+      // TODO: Add data capture logic here
+    } catch (Exception e) {
+      log.debug("Error logging consumer configuration", e);
     }
   }
 
