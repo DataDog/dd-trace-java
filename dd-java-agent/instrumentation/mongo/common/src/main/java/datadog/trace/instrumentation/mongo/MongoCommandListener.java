@@ -124,6 +124,9 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
     }
+
+    // If DBM comment injection is enabled, the span is created on the connection instrumentation
+    // this is required because the comment injection needs to happen before the command is sent
     AgentSpan span = activeSpan();
     boolean shouldForceCloseSpanScope = true;
     if (span == null || span.getSpanName() != MongoDecorator.OPERATION_NAME) {
