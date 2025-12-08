@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.config
 
 import org.gradle.api.DefaultTask
+import org.gradle.kotlin.dsl.property
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -28,7 +29,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
   val destinationDirectory = objects.directoryProperty()
 
   @Input
-  val className = objects.property(String::class.java)
+  val className = objects.property<String>()
 
   @TaskAction
   fun generate() {
@@ -50,9 +51,9 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     val deprecated = (fileData["deprecations"] as? Map<String, String>) ?: emptyMap()
 
     // Parse supportedConfigurations key to into a V2 format
-    val supported: Map<String, List<SupportedConfiguration>> = supportedRaw.mapValues { (_, configList) ->
+    val supported: Map<String, List<SupportedConfigurationObject>> = supportedRaw.mapValues { (_, configList) ->
       configList.map { configMap ->
-        SupportedConfiguration(
+        SupportedConfigurationObject(
           configMap["version"] as? String,
           configMap["type"] as? String,
           configMap["default"] as? String,
@@ -103,7 +104,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     outputPath: String,
     className: String,
     packageName: String,
-    supported: Map<String, List<SupportedConfiguration>>,
+    supported: Map<String, List<SupportedConfigurationObject>>,
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
     deprecated: Map<String, String>,
@@ -205,7 +206,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     if (s == null) "null" else "\"${esc(s)}\""
 }
 
-data class SupportedConfiguration(
+data class SupportedConfigurationObject(
   val version: String?,
   val type: String?,
   val default: String?,
