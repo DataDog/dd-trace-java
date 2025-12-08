@@ -4,6 +4,19 @@ Command-line tool for converting JFR recordings to OTLP profiles format for test
 
 ## Quick Start
 
+### Using the Convenience Script
+
+The simplest way to convert JFR files:
+
+```bash
+cd dd-java-agent/agent-profiling/profiling-otel
+./convert-jfr.sh recording.jfr output.pb
+```
+
+The script automatically handles compilation and classpath. See [Convenience Script](#convenience-script) section below.
+
+### Using Gradle Directly
+
 Convert a JFR file to OTLP protobuf format:
 
 ```bash
@@ -294,6 +307,85 @@ See [PROFCHECK_INTEGRATION.md](PROFCHECK_INTEGRATION.md) for:
 - Profcheck integration details
 - Integration with CI/CD
 - Validation coverage details
+
+## Convenience Script
+
+The `convert-jfr.sh` script provides a simpler interface that wraps the Gradle task:
+
+### Location
+
+```bash
+dd-java-agent/agent-profiling/profiling-otel/convert-jfr.sh
+```
+
+### Usage
+
+```bash
+./convert-jfr.sh [options] <input.jfr> [input2.jfr ...] <output.pb|output.json>
+```
+
+### Options
+
+- `--json` - Output in JSON format instead of protobuf
+- `--pretty` - Pretty-print JSON output (implies --json)
+- `--include-payload` - Include original JFR payload in OTLP output
+- `--help` - Show help message
+
+### Examples
+
+Basic conversion:
+```bash
+./convert-jfr.sh recording.jfr output.pb
+```
+
+Convert to JSON:
+```bash
+./convert-jfr.sh --json recording.jfr output.json
+```
+
+Convert to pretty-printed JSON:
+```bash
+./convert-jfr.sh --pretty recording.jfr output.json
+```
+
+Include original JFR payload:
+```bash
+./convert-jfr.sh --include-payload recording.jfr output.pb
+```
+
+Combine multiple files:
+```bash
+./convert-jfr.sh file1.jfr file2.jfr file3.jfr merged.pb
+```
+
+### Features
+
+- **Automatic compilation**: Compiles code if needed before conversion
+- **Simplified interface**: No need to remember Gradle task paths
+- **Colored output**: Visual feedback for success/errors
+- **File size reporting**: Shows output file size after conversion
+- **Error handling**: Clear error messages if conversion fails
+
+### Script Output
+
+```
+[INFO] Converting JFR to OTLP format...
+[INFO] Arguments: recording.jfr output.pb
+[SUCCESS] Conversion completed successfully!
+[INFO] Output file: output.pb (45K)
+```
+
+### When to Use
+
+- **Quick conversions**: When you want the simplest interface
+- **Development workflow**: Rapid iteration during development
+- **Testing**: Quick validation of JFR files
+- **Scripting**: Easy to use in shell scripts
+
+Use the Gradle task directly when you need:
+- Integration with build system
+- Custom Gradle configuration
+- CI/CD pipeline integration
 
 ## See Also
 
