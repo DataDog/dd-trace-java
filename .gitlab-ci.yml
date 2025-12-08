@@ -36,7 +36,7 @@ variables:
     value: "false"
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
-    value: "true"
+    value: "false"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
