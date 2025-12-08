@@ -364,19 +364,27 @@ Show detailed diagnostics:
 ./convert-jfr.sh --diagnostics recording.jfr output.pb
 ```
 
-Output:
+Output with diagnostics:
 ```
-[INFO] Converting JFR to OTLP format...
 [DIAG] Input: recording.jfr (89.3KB)
 [DIAG] Total input size: 89.3KB
-[SUCCESS] Conversion completed successfully!
-[INFO] Output file: output.pb (45.2KB)
+Converting 1 JFR file(s) to OTLP format...
+  Adding: recording.jfr
+Conversion complete!
+  Output: output.pb
+  Format: PROTO
+  Size: 45.2 KB
+  Time: 127 ms
 
-[DIAG] === Conversion Diagnostics ===
-[DIAG] Wall time: 127.3ms
-[DIAG] Output size: 45.2KB
-[DIAG] Size ratio: 50.6% of input
-[DIAG] Savings: 44.1KB (49.4% reduction)
+[DIAG] === Enhanced Diagnostics ===
+[DIAG] Input → Output: 89.3KB → 45.2KB
+[DIAG] Compression: 50.6% of original
+[DIAG] Space saved: 44.1KB (49.4% reduction)
+```
+
+Without diagnostics (concise):
+```
+[SUCCESS] Converted: output.pb (45.2KB, 127ms)
 ```
 
 ### Features
@@ -391,11 +399,26 @@ Output:
 
 ### Script Output
 
+Without diagnostics (default):
 ```
-[INFO] Converting JFR to OTLP format...
-[INFO] Arguments: recording.jfr output.pb
-[SUCCESS] Conversion completed successfully!
-[INFO] Output file: output.pb (45K)
+[SUCCESS] Converted: output.pb (45.2KB, 127ms)
+```
+
+With --diagnostics flag:
+```
+[DIAG] Input: recording.jfr (89.3KB)
+Converting 1 JFR file(s) to OTLP format...
+  Adding: recording.jfr
+Conversion complete!
+  Output: output.pb
+  Format: PROTO
+  Size: 45.2 KB
+  Time: 127 ms
+
+[DIAG] === Enhanced Diagnostics ===
+[DIAG] Input → Output: 89.3KB → 45.2KB
+[DIAG] Compression: 50.6% of original
+[DIAG] Space saved: 44.1KB (49.4% reduction)
 ```
 
 ### When to Use
