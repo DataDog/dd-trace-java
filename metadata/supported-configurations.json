@@ -897,6 +897,14 @@
         "aliases": []
       }
     ],
+    "DD_CONFIG_INVERSION_STRICT": [
+      {
+        "version": "A",
+        "type": null,
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_CRASHTRACKING_AGENTLESS": [
       {
         "version": "A",
@@ -3846,7 +3854,7 @@
         "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AEROSPIKE_ENABLED", "DD_INTEGRATION_AEROSPIKE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AEROSPIKE_ENABLED", "DD_TRACE_INTEGRATION_AEROSPIKE_ENABLED"]
       }
     ],
     "DD_TRACE_AGENT_ARGS": [
@@ -3926,7 +3934,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AKKA_ACTOR_RECEIVE_ENABLED", "DD_TRACE_INTEGRATION_AKKA_ACTOR_RECEIVE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AKKA_ACTOR_RECEIVE_ENABLED", "DD_INTEGRATION_AKKA_ACTOR_RECEIVE_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_ACTOR_SEND_ENABLED": [
@@ -3934,7 +3942,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AKKA_ACTOR_SEND_ENABLED", "DD_INTEGRATION_AKKA_ACTOR_SEND_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AKKA_ACTOR_SEND_ENABLED", "DD_TRACE_INTEGRATION_AKKA_ACTOR_SEND_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_CONCURRENT_ENABLED": [
@@ -4014,7 +4022,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_AKKA_HTTP_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AKKA_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_AKKA_HTTP_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_HTTP_ENABLED": [
@@ -4046,7 +4054,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_SERVER_ENABLED", "DD_INTEGRATION_AKKA_HTTP_SERVER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AKKA_HTTP_SERVER_ENABLED", "DD_TRACE_INTEGRATION_AKKA_HTTP_SERVER_ENABLED"]
       }
     ],
     "DD_TRACE_ALLOCATEDIRECT_ENABLED": [
@@ -4054,7 +4062,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_ALLOCATEDIRECT_ENABLED", "DD_TRACE_INTEGRATION_ALLOCATEDIRECT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_ALLOCATEDIRECT_ENABLED", "DD_INTEGRATION_ALLOCATEDIRECT_ENABLED"]
       }
     ],
     "DD_TRACE_AMQP_ANALYTICS_ENABLED": [
@@ -4086,7 +4094,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AMQP_ENABLED", "DD_INTEGRATION_AMQP_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AMQP_ENABLED", "DD_TRACE_INTEGRATION_AMQP_ENABLED"]
       }
     ],
     "DD_TRACE_ANALYTICS_ENABLED": [
@@ -4174,7 +4182,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_APACHE_HTTPCLIENT5_ENABLED", "DD_TRACE_INTEGRATION_APACHE_HTTPCLIENT5_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_APACHE_HTTPCLIENT5_ENABLED", "DD_INTEGRATION_APACHE_HTTPCLIENT5_ENABLED"]
       }
     ],
     "DD_TRACE_APACHE_HTTPCLIENT_ANALYTICS_ENABLED": [
@@ -4214,7 +4222,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_APACHE_HTTPCORE_ENABLED", "DD_TRACE_INTEGRATION_APACHE_HTTPCORE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_APACHE_HTTPCORE_ENABLED", "DD_INTEGRATION_APACHE_HTTPCORE_ENABLED"]
       }
     ],
     "DD_TRACE_APACHE_HTTP_CLIENT5_ANALYTICS_ENABLED": [
@@ -4238,7 +4246,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_APACHE_HTTP_CLIENT5_ENABLED", "DD_INTEGRATION_APACHE_HTTP_CLIENT5_ENABLED"]
+        "aliases": ["DD_INTEGRATION_APACHE_HTTP_CLIENT5_ENABLED", "DD_TRACE_INTEGRATION_APACHE_HTTP_CLIENT5_ENABLED"]
       }
     ],
     "DD_TRACE_APACHE_HTTP_CLIENT_ANALYTICS_ENABLED": [
@@ -4286,7 +4294,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_APACHE_SPARK_ENABLED", "DD_TRACE_INTEGRATION_APACHE_SPARK_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_APACHE_SPARK_ENABLED", "DD_INTEGRATION_APACHE_SPARK_ENABLED"]
       }
     ],
     "DD_TRACE_ARMERIA_ANALYTICS_ENABLED": [
@@ -4310,7 +4318,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_ARMERIA_ENABLED", "DD_INTEGRATION_ARMERIA_ENABLED"]
+        "aliases": ["DD_INTEGRATION_ARMERIA_ENABLED", "DD_TRACE_INTEGRATION_ARMERIA_ENABLED"]
       }
     ],
     "DD_TRACE_ARMERIA_GRPC_ANALYTICS_ENABLED": [
@@ -4350,7 +4358,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_ARMERIA_GRPC_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_ARMERIA_GRPC_CLIENT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_ARMERIA_GRPC_CLIENT_ENABLED", "DD_INTEGRATION_ARMERIA_GRPC_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_ARMERIA_GRPC_ENABLED": [
@@ -4358,7 +4366,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_ARMERIA_GRPC_ENABLED", "DD_INTEGRATION_ARMERIA_GRPC_ENABLED"]
+        "aliases": ["DD_INTEGRATION_ARMERIA_GRPC_ENABLED", "DD_TRACE_INTEGRATION_ARMERIA_GRPC_ENABLED"]
       }
     ],
     "DD_TRACE_ARMERIA_GRPC_MESSAGE_ENABLED": [
@@ -4398,7 +4406,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_ARMERIA_JETTY_ENABLED", "DD_INTEGRATION_ARMERIA_JETTY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_ARMERIA_JETTY_ENABLED", "DD_TRACE_INTEGRATION_ARMERIA_JETTY_ENABLED"]
       }
     ],
     "DD_TRACE_AUTH0_JWT_ENABLED": [
@@ -4406,7 +4414,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AUTH0_JWT_ENABLED", "DD_TRACE_INTEGRATION_AUTH0_JWT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AUTH0_JWT_ENABLED", "DD_INTEGRATION_AUTH0_JWT_ENABLED"]
       }
     ],
     "DD_TRACE_AVRO_ENABLED": [
@@ -4430,7 +4438,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AWS_DYNAMODB_ENABLED", "DD_TRACE_INTEGRATION_AWS_DYNAMODB_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AWS_DYNAMODB_ENABLED", "DD_INTEGRATION_AWS_DYNAMODB_ENABLED"]
       }
     ],
     "DD_TRACE_AWS_LAMBDA_ENABLED": [
@@ -4438,7 +4446,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_INTEGRATION_AWS_LAMBDA_ENABLED"]
       }
     ],
     "DD_TRACE_AWS_PROPAGATION_ENABLED": [
@@ -4454,7 +4462,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AWS_S3_ENABLED", "DD_INTEGRATION_AWS_S3_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AWS_S3_ENABLED", "DD_TRACE_INTEGRATION_AWS_S3_ENABLED"]
       }
     ],
     "DD_TRACE_AWS_SDK_ANALYTICS_ENABLED": [
@@ -4486,7 +4494,7 @@
         "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AWS_SDK_ENABLED", "DD_TRACE_INTEGRATION_AWS_SDK_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AWS_SDK_ENABLED", "DD_INTEGRATION_AWS_SDK_ENABLED"]
       }
     ],
     "DD_TRACE_AWS_SDK_LEGACY_TRACING_ENABLED": [
@@ -4526,7 +4534,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_AXIS2_ENABLED", "DD_TRACE_INTEGRATION_AXIS2_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_AXIS2_ENABLED", "DD_INTEGRATION_AXIS2_ENABLED"]
       }
     ],
     "DD_TRACE_AXIS2_TRANSPORT_ENABLED": [
@@ -4558,7 +4566,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_AXWAY_API_ENABLED", "DD_INTEGRATION_AXWAY_API_ENABLED"]
+        "aliases": ["DD_INTEGRATION_AXWAY_API_ENABLED", "DD_TRACE_INTEGRATION_AXWAY_API_ENABLED"]
       }
     ],
     "DD_TRACE_AXWAY_HTTP_ANALYTICS_ENABLED": [
@@ -4630,7 +4638,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_CAFFEINE_ENABLED", "DD_INTEGRATION_CAFFEINE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_CAFFEINE_ENABLED", "DD_TRACE_INTEGRATION_CAFFEINE_ENABLED"]
       }
     ],
     "DD_TRACE_CASSANDRA_ANALYTICS_ENABLED": [
@@ -4654,7 +4662,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_CASSANDRA_ENABLED", "DD_TRACE_INTEGRATION_CASSANDRA_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_CASSANDRA_ENABLED", "DD_INTEGRATION_CASSANDRA_ENABLED"]
       }
     ],
     "DD_TRACE_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED": [
@@ -4822,7 +4830,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_CONFIG": [
@@ -4854,7 +4862,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_COUCHBASE_3_ENABLED", "DD_INTEGRATION_COUCHBASE_3_ENABLED"]
+        "aliases": ["DD_INTEGRATION_COUCHBASE_3_ENABLED", "DD_TRACE_INTEGRATION_COUCHBASE_3_ENABLED"]
       }
     ],
     "DD_TRACE_COUCHBASE_ANALYTICS_ENABLED": [
@@ -4878,7 +4886,7 @@
         "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_COUCHBASE_ENABLED", "DD_INTEGRATION_COUCHBASE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_COUCHBASE_ENABLED", "DD_TRACE_INTEGRATION_COUCHBASE_ENABLED"]
       }
     ],
     "DD_TRACE_COUCHBASE_INTERNAL_SPANS_ENABLED": [
@@ -4942,7 +4950,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_CXF_ENABLED", "DD_TRACE_INTEGRATION_CXF_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_CXF_ENABLED", "DD_INTEGRATION_CXF_ENABLED"]
       }
     ],
     "DD_TRACE_CXF_INVOKER_ENABLED": [
@@ -4974,7 +4982,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_DATANUCLEUS_ENABLED", "DD_TRACE_INTEGRATION_DATANUCLEUS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_DATANUCLEUS_ENABLED", "DD_INTEGRATION_DATANUCLEUS_ENABLED"]
       }
     ],
     "DD_TRACE_DB2_ENABLED": [
@@ -4998,7 +5006,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_DBM_ENABLED", "DD_INTEGRATION_DBM_ENABLED"]
+        "aliases": ["DD_INTEGRATION_DBM_ENABLED", "DD_TRACE_INTEGRATION_DBM_ENABLED"]
       }
     ],
     "DD_TRACE_DBSTATEMENTRULE_ENABLED": [
@@ -5070,7 +5078,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_DIRECTALLOCATION_ENABLED", "DD_INTEGRATION_DIRECTALLOCATION_ENABLED"]
+        "aliases": ["DD_INTEGRATION_DIRECTALLOCATION_ENABLED", "DD_TRACE_INTEGRATION_DIRECTALLOCATION_ENABLED"]
       }
     ],
     "DD_TRACE_DO_NOT_TRACE_ANNOTATION_ENABLED": [
@@ -5094,7 +5102,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_DROPWIZARD_VIEW_ENABLED", "DD_INTEGRATION_DROPWIZARD_VIEW_ENABLED"]
+        "aliases": ["DD_INTEGRATION_DROPWIZARD_VIEW_ENABLED", "DD_TRACE_INTEGRATION_DROPWIZARD_VIEW_ENABLED"]
       }
     ],
     "DD_TRACE_DYNAMODB_ENABLED": [
@@ -5115,7 +5123,7 @@
     ],
     "DD_TRACE_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -5166,7 +5174,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_ELASTICSEARCH_REST_6_ENABLED", "DD_TRACE_INTEGRATION_ELASTICSEARCH_REST_6_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_ELASTICSEARCH_REST_6_ENABLED", "DD_INTEGRATION_ELASTICSEARCH_REST_6_ENABLED"]
       }
     ],
     "DD_TRACE_ELASTICSEARCH_REST_7_ENABLED": [
@@ -5174,7 +5182,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_ELASTICSEARCH_REST_7_ENABLED", "DD_TRACE_INTEGRATION_ELASTICSEARCH_REST_7_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_ELASTICSEARCH_REST_7_ENABLED", "DD_INTEGRATION_ELASTICSEARCH_REST_7_ENABLED"]
       }
     ],
     "DD_TRACE_ELASTICSEARCH_REST_ENABLED": [
@@ -5214,7 +5222,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_ELASTICSEARCH_TRANSPORT_7_ENABLED", "DD_INTEGRATION_ELASTICSEARCH_TRANSPORT_7_ENABLED"]
+        "aliases": ["DD_INTEGRATION_ELASTICSEARCH_TRANSPORT_7_ENABLED", "DD_TRACE_INTEGRATION_ELASTICSEARCH_TRANSPORT_7_ENABLED"]
       }
     ],
     "DD_TRACE_ELASTICSEARCH_TRANSPORT_ENABLED": [
@@ -5222,7 +5230,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_ELASTICSEARCH_TRANSPORT_ENABLED", "DD_TRACE_INTEGRATION_ELASTICSEARCH_TRANSPORT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_ELASTICSEARCH_TRANSPORT_ENABLED", "DD_INTEGRATION_ELASTICSEARCH_TRANSPORT_ENABLED"]
       }
     ],
     "DD_TRACE_EMR_AWS_SDK_ENABLED": [
@@ -5246,7 +5254,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_EVENTBRIDGE_ENABLED", "DD_TRACE_INTEGRATION_EVENTBRIDGE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_EVENTBRIDGE_ENABLED", "DD_INTEGRATION_EVENTBRIDGE_ENABLED"]
       }
     ],
     "DD_TRACE_EVENTBRIDGE_INJECT_DATADOG_ATTRIBUTE_ENABLED": [
@@ -5350,7 +5358,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_FILEITEMSTREAM_ENABLED", "DD_TRACE_INTEGRATION_FILEITEMSTREAM_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_FILEITEMSTREAM_ENABLED", "DD_INTEGRATION_FILEITEMSTREAM_ENABLED"]
       }
     ],
     "DD_TRACE_FILEITEM_ENABLED": [
@@ -5382,7 +5390,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_FINATRA_ENABLED", "DD_TRACE_INTEGRATION_FINATRA_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_FINATRA_ENABLED", "DD_INTEGRATION_FINATRA_ENABLED"]
       }
     ],
     "DD_TRACE_FJP_ENABLED": [
@@ -5454,7 +5462,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GLASSFISH_ENABLED", "DD_INTEGRATION_GLASSFISH_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GLASSFISH_ENABLED", "DD_TRACE_INTEGRATION_GLASSFISH_ENABLED"]
       }
     ],
     "DD_TRACE_GLOBAL_TAGS": [
@@ -5486,7 +5494,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GOOGLE_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_GOOGLE_HTTP_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GOOGLE_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_GOOGLE_HTTP_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_GOOGLE_PUBSUB_ANALYTICS_ENABLED": [
@@ -5542,7 +5550,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GOOGLE_PUBSUB_PUBLISHER_ENABLED", "DD_TRACE_INTEGRATION_GOOGLE_PUBSUB_PUBLISHER_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GOOGLE_PUBSUB_PUBLISHER_ENABLED", "DD_INTEGRATION_GOOGLE_PUBSUB_PUBLISHER_ENABLED"]
       }
     ],
     "DD_TRACE_GOOGLE_PUBSUB_RECEIVER_ENABLED": [
@@ -5598,7 +5606,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GRADLE_PLUGIN_INJECTOR_ENABLED", "DD_INTEGRATION_GRADLE_PLUGIN_INJECTOR_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GRADLE_PLUGIN_INJECTOR_ENABLED", "DD_TRACE_INTEGRATION_GRADLE_PLUGIN_INJECTOR_ENABLED"]
       }
     ],
     "DD_TRACE_GRAPHQL_JAVA_ANALYTICS_ENABLED": [
@@ -5622,7 +5630,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GRAPHQL_JAVA_ENABLED", "DD_INTEGRATION_GRAPHQL_JAVA_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GRAPHQL_JAVA_ENABLED", "DD_TRACE_INTEGRATION_GRAPHQL_JAVA_ENABLED"]
       }
     ],
     "DD_TRACE_GRIZZLY_ANALYTICS_ENABLED": [
@@ -5670,7 +5678,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GRIZZLY_ENABLED", "DD_TRACE_INTEGRATION_GRIZZLY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GRIZZLY_ENABLED", "DD_INTEGRATION_GRIZZLY_ENABLED"]
       }
     ],
     "DD_TRACE_GRIZZLY_FILTERCHAIN_ENABLED": [
@@ -5678,7 +5686,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GRIZZLY_FILTERCHAIN_ENABLED", "DD_INTEGRATION_GRIZZLY_FILTERCHAIN_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GRIZZLY_FILTERCHAIN_ENABLED", "DD_TRACE_INTEGRATION_GRIZZLY_FILTERCHAIN_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_ANALYTICS_ENABLED": [
@@ -5691,7 +5699,7 @@
     ],
     "DD_TRACE_GRPC_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_GRPC_ANALYTICS_SAMPLE_RATE"]
@@ -5718,7 +5726,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GRPC_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_GRPC_CLIENT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GRPC_CLIENT_ENABLED", "DD_INTEGRATION_GRPC_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_ENABLED": [
@@ -5726,7 +5734,7 @@
         "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GRPC_ENABLED", "DD_TRACE_INTEGRATION_GRPC_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GRPC_ENABLED", "DD_INTEGRATION_GRPC_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_IGNORED_INBOUND_METHODS": [
@@ -5750,7 +5758,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_GRPC_MESSAGE_ENABLED", "DD_INTEGRATION_GRPC_MESSAGE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_GRPC_MESSAGE_ENABLED", "DD_TRACE_INTEGRATION_GRPC_MESSAGE_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_NETTY_ENABLED": [
@@ -5758,7 +5766,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GRPC_NETTY_ENABLED", "DD_TRACE_INTEGRATION_GRPC_NETTY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GRPC_NETTY_ENABLED", "DD_INTEGRATION_GRPC_NETTY_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_SERVER_ANALYTICS_ENABLED": [
@@ -5782,7 +5790,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GRPC_SERVER_CODE_ORIGIN_ENABLED", "DD_TRACE_INTEGRATION_GRPC_SERVER_CODE_ORIGIN_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GRPC_SERVER_CODE_ORIGIN_ENABLED", "DD_INTEGRATION_GRPC_SERVER_CODE_ORIGIN_ENABLED"]
       }
     ],
     "DD_TRACE_GRPC_SERVER_ENABLED": [
@@ -5806,7 +5814,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GSON_ENABLED", "DD_TRACE_INTEGRATION_GSON_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GSON_ENABLED", "DD_INTEGRATION_GSON_ENABLED"]
       }
     ],
     "DD_TRACE_GUAVA_ENABLED": [
@@ -5814,7 +5822,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_GUAVA_ENABLED", "DD_TRACE_INTEGRATION_GUAVA_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_GUAVA_ENABLED", "DD_INTEGRATION_GUAVA_ENABLED"]
       }
     ],
     "DD_TRACE_HAZELCAST_ENABLED": [
@@ -5830,7 +5838,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_HAZELCAST_LEGACY_ENABLED", "DD_TRACE_INTEGRATION_HAZELCAST_LEGACY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_HAZELCAST_LEGACY_ENABLED", "DD_INTEGRATION_HAZELCAST_LEGACY_ENABLED"]
       }
     ],
     "DD_TRACE_HAZELCAST_SDK_ANALYTICS_ENABLED": [
@@ -5926,7 +5934,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HIBERNATE_ENABLED", "DD_INTEGRATION_HIBERNATE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HIBERNATE_ENABLED", "DD_TRACE_INTEGRATION_HIBERNATE_ENABLED"]
       }
     ],
     "DD_TRACE_HIKARI_ENABLED": [
@@ -5934,7 +5942,7 @@
         "version": "A",
         "type": "boolean",
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HIKARI_ENABLED", "DD_INTEGRATION_HIKARI_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HIKARI_ENABLED", "DD_TRACE_INTEGRATION_HIKARI_ENABLED"]
       }
     ],
     "DD_TRACE_HTTPASYNCCLIENT4_LEGACY_TRACING_ENABLED": [
@@ -5974,7 +5982,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HTTPASYNCCLIENT_ENABLED", "DD_INTEGRATION_HTTPASYNCCLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HTTPASYNCCLIENT_ENABLED", "DD_TRACE_INTEGRATION_HTTPASYNCCLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_HTTPCLIENT5_ANALYTICS_ENABLED": [
@@ -6003,7 +6011,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_ENABLED"]
@@ -6011,7 +6019,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_SAMPLE_RATE"]
@@ -6019,10 +6027,10 @@
     ],
     "DD_TRACE_HTTPCLIENT_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HTTPCLIENT_ENABLED", "DD_INTEGRATION_HTTPCLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HTTPCLIENT_ENABLED", "DD_TRACE_INTEGRATION_HTTPCLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_HTTPCLIENT_REDIRECT_ENABLED": [
@@ -6038,7 +6046,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HTTPCORE_5_ENABLED", "DD_INTEGRATION_HTTPCORE_5_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HTTPCORE_5_ENABLED", "DD_TRACE_INTEGRATION_HTTPCORE_5_ENABLED"]
       }
     ],
     "DD_TRACE_HTTPCORE_ENABLED": [
@@ -6142,7 +6150,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_HYSTRIX_ENABLED", "DD_INTEGRATION_HYSTRIX_ENABLED"]
+        "aliases": ["DD_INTEGRATION_HYSTRIX_ENABLED", "DD_TRACE_INTEGRATION_HYSTRIX_ENABLED"]
       }
     ],
     "DD_TRACE_IASTINSTRUMENTATION_ENABLED": [
@@ -6182,7 +6190,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_IGNITE_ENABLED", "DD_INTEGRATION_IGNITE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_IGNITE_ENABLED", "DD_TRACE_INTEGRATION_IGNITE_ENABLED"]
       }
     ],
     "DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED": [
@@ -6302,7 +6310,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_2_12_ENABLED", "DD_INTEGRATION_JACKSON_2_12_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JACKSON_2_12_ENABLED", "DD_TRACE_INTEGRATION_JACKSON_2_12_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_2_16_ENABLED": [
@@ -6310,7 +6318,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JACKSON_2_16_ENABLED", "DD_TRACE_INTEGRATION_JACKSON_2_16_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_2_16_ENABLED", "DD_INTEGRATION_JACKSON_2_16_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_2_6_ENABLED": [
@@ -6318,7 +6326,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JACKSON_2_6_ENABLED", "DD_TRACE_INTEGRATION_JACKSON_2_6_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_2_6_ENABLED", "DD_INTEGRATION_JACKSON_2_6_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_2_8_ENABLED": [
@@ -6334,7 +6342,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JACKSON_2_ENABLED", "DD_TRACE_INTEGRATION_JACKSON_2_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_2_ENABLED", "DD_INTEGRATION_JACKSON_2_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_CORE_ENABLED": [
@@ -6342,7 +6350,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JACKSON_CORE_ENABLED", "DD_TRACE_INTEGRATION_JACKSON_CORE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JACKSON_CORE_ENABLED", "DD_INTEGRATION_JACKSON_CORE_ENABLED"]
       }
     ],
     "DD_TRACE_JACKSON_ENABLED": [
@@ -6366,7 +6374,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAKARTARS_ENABLED", "DD_INTEGRATION_JAKARTARS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAKARTARS_ENABLED", "DD_TRACE_INTEGRATION_JAKARTARS_ENABLED"]
       }
     ],
     "DD_TRACE_JAKARTA_JMS_ENABLED": [
@@ -6398,7 +6406,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAKARTA_MAIL_TRANSPORT_ENABLED", "DD_INTEGRATION_JAKARTA_MAIL_TRANSPORT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAKARTA_MAIL_TRANSPORT_ENABLED", "DD_TRACE_INTEGRATION_JAKARTA_MAIL_TRANSPORT_ENABLED"]
       }
     ],
     "DD_TRACE_JAKARTA_RS_ANNOTATIONS_ENABLED": [
@@ -6406,7 +6414,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAKARTA_RS_ANNOTATIONS_ENABLED", "DD_INTEGRATION_JAKARTA_RS_ANNOTATIONS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAKARTA_RS_ANNOTATIONS_ENABLED", "DD_TRACE_INTEGRATION_JAKARTA_RS_ANNOTATIONS_ENABLED"]
       }
     ],
     "DD_TRACE_JAKARTA_RS_ENABLED": [
@@ -6430,7 +6438,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JAKARTA_WEBSOCKET_ENABLED", "DD_TRACE_INTEGRATION_JAKARTA_WEBSOCKET_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JAKARTA_WEBSOCKET_ENABLED", "DD_INTEGRATION_JAKARTA_WEBSOCKET_ENABLED"]
       }
     ],
     "DD_TRACE_JAKARTA_WS_ANALYTICS_ENABLED": [
@@ -6462,7 +6470,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAVAX_MAIL_BODY_ENABLED", "DD_INTEGRATION_JAVAX_MAIL_BODY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAVAX_MAIL_BODY_ENABLED", "DD_TRACE_INTEGRATION_JAVAX_MAIL_BODY_ENABLED"]
       }
     ],
     "DD_TRACE_JAVAX_MAIL_ENABLED": [
@@ -6470,7 +6478,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAVAX_MAIL_ENABLED", "DD_INTEGRATION_JAVAX_MAIL_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAVAX_MAIL_ENABLED", "DD_TRACE_INTEGRATION_JAVAX_MAIL_ENABLED"]
       }
     ],
     "DD_TRACE_JAVAX_MAIL_TRANSPORT_ENABLED": [
@@ -6478,7 +6486,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JAVAX_MAIL_TRANSPORT_ENABLED", "DD_TRACE_INTEGRATION_JAVAX_MAIL_TRANSPORT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JAVAX_MAIL_TRANSPORT_ENABLED", "DD_INTEGRATION_JAVAX_MAIL_TRANSPORT_ENABLED"]
       }
     ],
     "DD_TRACE_JAVAX_WEBSOCKET_ENABLED": [
@@ -6510,7 +6518,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAVA_CONCURRENT_OTHER_ENABLED", "DD_INTEGRATION_JAVA_CONCURRENT_OTHER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAVA_CONCURRENT_OTHER_ENABLED", "DD_TRACE_INTEGRATION_JAVA_CONCURRENT_OTHER_ENABLED"]
       }
     ],
     "DD_TRACE_JAVA_HTTP_CLIENT_ANALYTICS_ENABLED": [
@@ -6534,7 +6542,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_JAVA_LANG_APPSEC_ENABLED": [
@@ -6550,7 +6558,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAVA_LANG_MANAGEMENT_ENABLED", "DD_INTEGRATION_JAVA_LANG_MANAGEMENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAVA_LANG_MANAGEMENT_ENABLED", "DD_TRACE_INTEGRATION_JAVA_LANG_MANAGEMENT_ENABLED"]
       }
     ],
     "DD_TRACE_JAVA_TIMER_ENABLED": [
@@ -6582,7 +6590,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JAXRS_ENABLED", "DD_INTEGRATION_JAXRS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JAXRS_ENABLED", "DD_TRACE_INTEGRATION_JAXRS_ENABLED"]
       }
     ],
     "DD_TRACE_JAX_RS_ADDITIONAL_ANNOTATIONS": [
@@ -6686,7 +6694,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JAX_WS_ENABLED", "DD_TRACE_INTEGRATION_JAX_WS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JAX_WS_ENABLED", "DD_INTEGRATION_JAX_WS_ENABLED"]
       }
     ],
     "DD_TRACE_JBOSS_LOGMANAGER_ENABLED": [
@@ -6694,7 +6702,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JBOSS_LOGMANAGER_ENABLED", "DD_INTEGRATION_JBOSS_LOGMANAGER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JBOSS_LOGMANAGER_ENABLED", "DD_TRACE_INTEGRATION_JBOSS_LOGMANAGER_ENABLED"]
       }
     ],
     "DD_TRACE_JBOSS_MODULES_ENABLED": [
@@ -6750,7 +6758,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JDBC_DATASOURCE_ENABLED", "DD_TRACE_INTEGRATION_JDBC_DATASOURCE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JDBC_DATASOURCE_ENABLED", "DD_INTEGRATION_JDBC_DATASOURCE_ENABLED"]
       }
     ],
     "DD_TRACE_JDBC_ENABLED": [
@@ -6758,7 +6766,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JDBC_ENABLED", "DD_INTEGRATION_JDBC_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JDBC_ENABLED", "DD_TRACE_INTEGRATION_JDBC_ENABLED"]
       }
     ],
     "DD_TRACE_JDBC_PREPARED_STATEMENT_CLASS_NAME": [
@@ -6798,7 +6806,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JEDIS_ENABLED", "DD_INTEGRATION_JEDIS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JEDIS_ENABLED", "DD_TRACE_INTEGRATION_JEDIS_ENABLED"]
       }
     ],
     "DD_TRACE_JEE_ENV_ENTRY_ENABLED": [
@@ -6854,7 +6862,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JETTY_CLIENT_ENABLED", "DD_INTEGRATION_JETTY_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JETTY_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_JETTY_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_JETTY_CONCURRENT_ENABLED": [
@@ -6878,7 +6886,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JETTY_WEBSOCKET_ENABLED", "DD_TRACE_INTEGRATION_JETTY_WEBSOCKET_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JETTY_WEBSOCKET_ENABLED", "DD_INTEGRATION_JETTY_WEBSOCKET_ENABLED"]
       }
     ],
     "DD_TRACE_JMS_1_ENABLED": [
@@ -6894,7 +6902,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JMS_2_ENABLED", "DD_TRACE_INTEGRATION_JMS_2_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JMS_2_ENABLED", "DD_INTEGRATION_JMS_2_ENABLED"]
       }
     ],
     "DD_TRACE_JMS_ANALYTICS_ENABLED": [
@@ -6926,7 +6934,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JMS_ENABLED", "DD_TRACE_INTEGRATION_JMS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JMS_ENABLED", "DD_INTEGRATION_JMS_ENABLED"]
       }
     ],
     "DD_TRACE_JMS_LEGACY_TRACING_ENABLED": [
@@ -7118,7 +7126,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JOSE_JWT_ENABLED", "DD_INTEGRATION_JOSE_JWT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JOSE_JWT_ENABLED", "DD_TRACE_INTEGRATION_JOSE_JWT_ENABLED"]
       }
     ],
     "DD_TRACE_JSP_ANALYTICS_ENABLED": [
@@ -7142,7 +7150,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JSP_COMPILE_ENABLED", "DD_INTEGRATION_JSP_COMPILE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JSP_COMPILE_ENABLED", "DD_TRACE_INTEGRATION_JSP_COMPILE_ENABLED"]
       }
     ],
     "DD_TRACE_JSP_ENABLED": [
@@ -7190,7 +7198,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_JUNIT_4_ENABLED", "DD_TRACE_INTEGRATION_JUNIT_4_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_JUNIT_4_ENABLED", "DD_INTEGRATION_JUNIT_4_ENABLED"]
       }
     ],
     "DD_TRACE_JUNIT_4_MUNIT_ENABLED": [
@@ -7206,7 +7214,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JUNIT_5_CUCUMBER_ENABLED", "DD_INTEGRATION_JUNIT_5_CUCUMBER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JUNIT_5_CUCUMBER_ENABLED", "DD_TRACE_INTEGRATION_JUNIT_5_CUCUMBER_ENABLED"]
       }
     ],
     "DD_TRACE_JUNIT_5_ENABLED": [
@@ -7214,7 +7222,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JUNIT_5_ENABLED", "DD_INTEGRATION_JUNIT_5_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JUNIT_5_ENABLED", "DD_TRACE_INTEGRATION_JUNIT_5_ENABLED"]
       }
     ],
     "DD_TRACE_JUNIT_5_SPOCK_ENABLED": [
@@ -7222,7 +7230,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_JUNIT_5_SPOCK_ENABLED", "DD_INTEGRATION_JUNIT_5_SPOCK_ENABLED"]
+        "aliases": ["DD_INTEGRATION_JUNIT_5_SPOCK_ENABLED", "DD_TRACE_INTEGRATION_JUNIT_5_SPOCK_ENABLED"]
       }
     ],
     "DD_TRACE_JWT_ENABLED": [
@@ -7259,7 +7267,7 @@
     ],
     "DD_TRACE_KAFKA_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_KAFKA_ANALYTICS_SAMPLE_RATE"]
@@ -7278,7 +7286,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_KAFKA_CONNECT_ENABLED", "DD_TRACE_INTEGRATION_KAFKA_CONNECT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_KAFKA_CONNECT_ENABLED", "DD_INTEGRATION_KAFKA_CONNECT_ENABLED"]
       }
     ],
     "DD_TRACE_KAFKA_E2E_DURATION_ENABLED": [
@@ -7291,10 +7299,10 @@
     ],
     "DD_TRACE_KAFKA_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_KAFKA_ENABLED", "DD_INTEGRATION_KAFKA_ENABLED"]
+        "aliases": ["DD_INTEGRATION_KAFKA_ENABLED", "DD_TRACE_INTEGRATION_KAFKA_ENABLED"]
       }
     ],
     "DD_TRACE_KAFKA_LEGACY_TRACING_ENABLED": [
@@ -7342,7 +7350,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_KAFKA_STREAMS_ENABLED", "DD_TRACE_INTEGRATION_KAFKA_STREAMS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_KAFKA_STREAMS_ENABLED", "DD_INTEGRATION_KAFKA_STREAMS_ENABLED"]
       }
     ],
     "DD_TRACE_KAFKA_TIME_IN_QUEUE_ENABLED": [
@@ -7358,7 +7366,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_KARATE_ENABLED", "DD_TRACE_INTEGRATION_KARATE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_KARATE_ENABLED", "DD_INTEGRATION_KARATE_ENABLED"]
       }
     ],
     "DD_TRACE_KOTLIN_COROUTINE_ENABLED": [
@@ -7398,7 +7406,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_LETTUCE_5_ASYNC_ENABLED", "DD_TRACE_INTEGRATION_LETTUCE_5_ASYNC_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_LETTUCE_5_ASYNC_ENABLED", "DD_INTEGRATION_LETTUCE_5_ASYNC_ENABLED"]
       }
     ],
     "DD_TRACE_LETTUCE_5_ENABLED": [
@@ -7406,7 +7414,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_LETTUCE_5_ENABLED", "DD_TRACE_INTEGRATION_LETTUCE_5_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_LETTUCE_5_ENABLED", "DD_INTEGRATION_LETTUCE_5_ENABLED"]
       }
     ],
     "DD_TRACE_LETTUCE_5_RX_ENABLED": [
@@ -7414,7 +7422,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_LETTUCE_5_RX_ENABLED", "DD_TRACE_INTEGRATION_LETTUCE_5_RX_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_LETTUCE_5_RX_ENABLED", "DD_INTEGRATION_LETTUCE_5_RX_ENABLED"]
       }
     ],
     "DD_TRACE_LETTUCE_ANALYTICS_ENABLED": [
@@ -7438,7 +7446,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_LETTUCE_ENABLED", "DD_INTEGRATION_LETTUCE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_LETTUCE_ENABLED", "DD_TRACE_INTEGRATION_LETTUCE_ENABLED"]
       }
     ],
     "DD_TRACE_LIBERTY_ANALYTICS_ENABLED": [
@@ -7470,7 +7478,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_LIBERTY_ENABLED", "DD_TRACE_INTEGRATION_LIBERTY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_LIBERTY_ENABLED", "DD_INTEGRATION_LIBERTY_ENABLED"]
       }
     ],
     "DD_TRACE_LOG4J_1_ENABLED": [
@@ -7494,7 +7502,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_LOG4J_ENABLED", "DD_INTEGRATION_LOG4J_ENABLED"]
+        "aliases": ["DD_INTEGRATION_LOG4J_ENABLED", "DD_TRACE_INTEGRATION_LOG4J_ENABLED"]
       }
     ],
     "DD_TRACE_LOGBACK_ENABLED": [
@@ -7510,7 +7518,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_LOGS_INTAKE_ENABLED", "DD_INTEGRATION_LOGS_INTAKE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_LOGS_INTAKE_ENABLED", "DD_TRACE_INTEGRATION_LOGS_INTAKE_ENABLED"]
       }
     ],
     "DD_TRACE_LOGS_INTAKE_LOG4J_2_ENABLED": [
@@ -7574,7 +7582,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_3_ENABLED", "DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_3_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_3_ENABLED", "DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_3_ENABLED"]
       }
     ],
     "DD_TRACE_MICRONAUT_HTTP_SERVER_NETTY_4_ENABLED": [
@@ -7582,7 +7590,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_4_ENABLED", "DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_4_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_4_ENABLED", "DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_4_ENABLED"]
       }
     ],
     "DD_TRACE_MICRONAUT_HTTP_SERVER_NETTY_ENABLED": [
@@ -7590,7 +7598,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_ENABLED", "DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_ENABLED", "DD_INTEGRATION_MICRONAUT_HTTP_SERVER_NETTY_ENABLED"]
       }
     ],
     "DD_TRACE_MICRONAUT_SPAN_ORIGIN_ENABLED": [
@@ -7598,7 +7606,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MICRONAUT_SPAN_ORIGIN_ENABLED", "DD_INTEGRATION_MICRONAUT_SPAN_ORIGIN_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MICRONAUT_SPAN_ORIGIN_ENABLED", "DD_TRACE_INTEGRATION_MICRONAUT_SPAN_ORIGIN_ENABLED"]
       }
     ],
     "DD_TRACE_MMAP_ENABLED": [
@@ -7606,7 +7614,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MMAP_ENABLED", "DD_INTEGRATION_MMAP_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MMAP_ENABLED", "DD_TRACE_INTEGRATION_MMAP_ENABLED"]
       }
     ],
     "DD_TRACE_MONGO_3_1_ENABLED": [
@@ -7614,7 +7622,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MONGO_3_1_ENABLED", "DD_INTEGRATION_MONGO_3_1_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MONGO_3_1_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_1_ENABLED"]
       }
     ],
     "DD_TRACE_MONGO_3_4_ENABLED": [
@@ -7622,7 +7630,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MONGO_3_4_ENABLED", "DD_INTEGRATION_MONGO_3_4_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MONGO_3_4_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_4_ENABLED"]
       }
     ],
     "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
@@ -7635,7 +7643,7 @@
     ],
     "DD_TRACE_MONGO_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_MONGO_ANALYTICS_SAMPLE_RATE"]
@@ -7643,7 +7651,7 @@
     ],
     "DD_TRACE_MONGO_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_INTEGRATION_MONGO_ENABLED", "DD_TRACE_INTEGRATION_MONGO_ENABLED"]
@@ -7654,7 +7662,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MONGO_REACTIVESTREAMS_ENABLED", "DD_INTEGRATION_MONGO_REACTIVESTREAMS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MONGO_REACTIVESTREAMS_ENABLED", "DD_TRACE_INTEGRATION_MONGO_REACTIVESTREAMS_ENABLED"]
       }
     ],
     "DD_TRACE_MULE_ANALYTICS_ENABLED": [
@@ -7678,7 +7686,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MULE_ENABLED", "DD_INTEGRATION_MULE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MULE_ENABLED", "DD_TRACE_INTEGRATION_MULE_ENABLED"]
       }
     ],
     "DD_TRACE_MULE_JPMS_ENABLED": [
@@ -7686,7 +7694,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_MULE_JPMS_ENABLED", "DD_TRACE_INTEGRATION_MULE_JPMS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_MULE_JPMS_ENABLED", "DD_INTEGRATION_MULE_JPMS_ENABLED"]
       }
     ],
     "DD_TRACE_MULTIPART_ENABLED": [
@@ -7694,7 +7702,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_MULTIPART_ENABLED", "DD_INTEGRATION_MULTIPART_ENABLED"]
+        "aliases": ["DD_INTEGRATION_MULTIPART_ENABLED", "DD_TRACE_INTEGRATION_MULTIPART_ENABLED"]
       }
     ],
     "DD_TRACE_NATIVE_IMAGE_ENABLED": [
@@ -7702,7 +7710,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_NATIVE_IMAGE_ENABLED", "DD_INTEGRATION_NATIVE_IMAGE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_NATIVE_IMAGE_ENABLED", "DD_TRACE_INTEGRATION_NATIVE_IMAGE_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_3_8_ENABLED": [
@@ -7750,7 +7758,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_NETTY_4_0_ENABLED", "DD_INTEGRATION_NETTY_4_0_ENABLED"]
+        "aliases": ["DD_INTEGRATION_NETTY_4_0_ENABLED", "DD_TRACE_INTEGRATION_NETTY_4_0_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_4_1_ENABLED": [
@@ -7758,7 +7766,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_NETTY_4_1_ENABLED", "DD_TRACE_INTEGRATION_NETTY_4_1_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_NETTY_4_1_ENABLED", "DD_INTEGRATION_NETTY_4_1_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_4_1_HTTP2_ENABLED": [
@@ -7766,7 +7774,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_NETTY_4_1_HTTP2_ENABLED", "DD_INTEGRATION_NETTY_4_1_HTTP2_ENABLED"]
+        "aliases": ["DD_INTEGRATION_NETTY_4_1_HTTP2_ENABLED", "DD_TRACE_INTEGRATION_NETTY_4_1_HTTP2_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_ANALYTICS_ENABLED": [
@@ -7790,7 +7798,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_NETTY_CONCURRENT_ENABLED", "DD_TRACE_INTEGRATION_NETTY_CONCURRENT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_NETTY_CONCURRENT_ENABLED", "DD_INTEGRATION_NETTY_CONCURRENT_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_ENABLED": [
@@ -7798,7 +7806,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_NETTY_ENABLED", "DD_INTEGRATION_NETTY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_NETTY_ENABLED", "DD_TRACE_INTEGRATION_NETTY_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_EVENT_EXECUTOR_ENABLED": [
@@ -7806,7 +7814,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_NETTY_EVENT_EXECUTOR_ENABLED", "DD_INTEGRATION_NETTY_EVENT_EXECUTOR_ENABLED"]
+        "aliases": ["DD_INTEGRATION_NETTY_EVENT_EXECUTOR_ENABLED", "DD_TRACE_INTEGRATION_NETTY_EVENT_EXECUTOR_ENABLED"]
       }
     ],
     "DD_TRACE_NETTY_PROMISE_ENABLED": [
@@ -7854,7 +7862,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_NOT_NOT_TRACE_ENABLED", "DD_TRACE_INTEGRATION_NOT_NOT_TRACE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_NOT_NOT_TRACE_ENABLED", "DD_INTEGRATION_NOT_NOT_TRACE_ENABLED"]
       }
     ],
     "DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP": [
@@ -7870,7 +7878,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_OGNL_ENABLED", "DD_INTEGRATION_OGNL_ENABLED"]
+        "aliases": ["DD_INTEGRATION_OGNL_ENABLED", "DD_TRACE_INTEGRATION_OGNL_ENABLED"]
       }
     ],
     "DD_TRACE_OKHTTP_2_ANALYTICS_ENABLED": [
@@ -7894,7 +7902,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OKHTTP_2_ENABLED", "DD_TRACE_INTEGRATION_OKHTTP_2_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_2_ENABLED", "DD_INTEGRATION_OKHTTP_2_ENABLED"]
       }
     ],
     "DD_TRACE_OKHTTP_3_ANALYTICS_ENABLED": [
@@ -7942,12 +7950,12 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OKHTTP_ENABLED", "DD_TRACE_INTEGRATION_OKHTTP_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_ENABLED", "DD_INTEGRATION_OKHTTP_ENABLED"]
       }
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_OPENSEARCH_ANALYTICS_ENABLED"]
@@ -7955,7 +7963,7 @@
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_OPENSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -7966,7 +7974,7 @@
         "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OPENSEARCH_ENABLED", "DD_TRACE_INTEGRATION_OPENSEARCH_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OPENSEARCH_ENABLED", "DD_INTEGRATION_OPENSEARCH_ENABLED"]
       }
     ],
     "DD_TRACE_OPENSEARCH_REST_ENABLED": [
@@ -7974,7 +7982,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OPENSEARCH_REST_ENABLED", "DD_TRACE_INTEGRATION_OPENSEARCH_REST_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OPENSEARCH_REST_ENABLED", "DD_INTEGRATION_OPENSEARCH_REST_ENABLED"]
       }
     ],
     "DD_TRACE_OPENSEARCH_TRANSPORT_ENABLED": [
@@ -7990,7 +7998,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_1_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_1_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_1_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_1_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTELEMETRY_ANNOTATIONS_1_20_ENABLED": [
@@ -7998,7 +8006,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_ANNOTATIONS_1_20_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_ANNOTATIONS_1_20_ENABLED"]
+        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_ANNOTATIONS_1_20_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_ANNOTATIONS_1_20_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTELEMETRY_ANNOTATIONS_1_26_ENABLED": [
@@ -8078,7 +8086,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_OPENTRACING_GLOBALTRACER_ENABLED", "DD_INTEGRATION_OPENTRACING_GLOBALTRACER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_OPENTRACING_GLOBALTRACER_ENABLED", "DD_TRACE_INTEGRATION_OPENTRACING_GLOBALTRACER_ENABLED"]
       }
     ],
     "DD_TRACE_ORG_JSON_ENABLED": [
@@ -8094,7 +8102,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_OSGI_ENABLED", "DD_TRACE_INTEGRATION_OSGI_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_OSGI_ENABLED", "DD_INTEGRATION_OSGI_ENABLED"]
       }
     ],
     "DD_TRACE_OTEL_ENABLED": [
@@ -8166,7 +8174,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_PEKKO_ACTOR_ENABLED", "DD_TRACE_INTEGRATION_PEKKO_ACTOR_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_ACTOR_ENABLED", "DD_INTEGRATION_PEKKO_ACTOR_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_ACTOR_MAILBOX_ENABLED": [
@@ -8174,7 +8182,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_PEKKO_ACTOR_MAILBOX_ENABLED", "DD_TRACE_INTEGRATION_PEKKO_ACTOR_MAILBOX_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_ACTOR_MAILBOX_ENABLED", "DD_INTEGRATION_PEKKO_ACTOR_MAILBOX_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_ACTOR_RECEIVE_ENABLED": [
@@ -8190,7 +8198,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_PEKKO_ACTOR_SEND_ENABLED", "DD_TRACE_INTEGRATION_PEKKO_ACTOR_SEND_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_ACTOR_SEND_ENABLED", "DD_INTEGRATION_PEKKO_ACTOR_SEND_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_CONCURRENT_ENABLED": [
@@ -8198,7 +8206,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_CONCURRENT_ENABLED", "DD_INTEGRATION_PEKKO_CONCURRENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_PEKKO_CONCURRENT_ENABLED", "DD_TRACE_INTEGRATION_PEKKO_CONCURRENT_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_HTTP2_ENABLED": [
@@ -8310,7 +8318,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_PLAY_ACTION_ENABLED", "DD_TRACE_INTEGRATION_PLAY_ACTION_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_PLAY_ACTION_ENABLED", "DD_INTEGRATION_PLAY_ACTION_ENABLED"]
       }
     ],
     "DD_TRACE_PLAY_ANALYTICS_ENABLED": [
@@ -8334,7 +8342,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_PLAY_ENABLED", "DD_TRACE_INTEGRATION_PLAY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_PLAY_ENABLED", "DD_INTEGRATION_PLAY_ENABLED"]
       }
     ],
     "DD_TRACE_PLAY_REPORT_HTTP_STATUS": [
@@ -8382,7 +8390,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_POWERMOCK_ENABLED", "DD_TRACE_INTEGRATION_POWERMOCK_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_POWERMOCK_ENABLED", "DD_INTEGRATION_POWERMOCK_ENABLED"]
       }
     ],
     "DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT": [
@@ -8582,7 +8590,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED", "DD_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED", "DD_TRACE_INTEGRATION_RATPACK_REQUEST_BODY_ENABLED"]
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_1_ENABLED": [
@@ -8590,7 +8598,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_REACTIVE_STREAMS_1_ENABLED", "DD_TRACE_INTEGRATION_REACTIVE_STREAMS_1_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_REACTIVE_STREAMS_1_ENABLED", "DD_INTEGRATION_REACTIVE_STREAMS_1_ENABLED"]
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_ENABLED": [
@@ -8606,7 +8614,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_REACTOR_CORE_ENABLED", "DD_INTEGRATION_REACTOR_CORE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_REACTOR_CORE_ENABLED", "DD_TRACE_INTEGRATION_REACTOR_CORE_ENABLED"]
       }
     ],
     "DD_TRACE_REACTOR_NETTY_1_ENABLED": [
@@ -8622,7 +8630,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_REACTOR_NETTY_ENABLED", "DD_INTEGRATION_REACTOR_NETTY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_REACTOR_NETTY_ENABLED", "DD_TRACE_INTEGRATION_REACTOR_NETTY_ENABLED"]
       }
     ],
     "DD_TRACE_REDISCALA_ANALYTICS_ENABLED": [
@@ -8678,7 +8686,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_REDISSON_ENABLED", "DD_INTEGRATION_REDISSON_ENABLED"]
+        "aliases": ["DD_INTEGRATION_REDISSON_ENABLED", "DD_TRACE_INTEGRATION_REDISSON_ENABLED"]
       }
     ],
     "DD_TRACE_REDIS_ANALYTICS_ENABLED": [
@@ -8691,7 +8699,7 @@
     ],
     "DD_TRACE_REDIS_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
         "aliases": ["DD_REDIS_ANALYTICS_SAMPLE_RATE"]
@@ -8699,10 +8707,10 @@
     ],
     "DD_TRACE_REDIS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_REDIS_ENABLED", "DD_TRACE_INTEGRATION_REDIS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_REDIS_ENABLED", "DD_INTEGRATION_REDIS_ENABLED"]
       }
     ],
     "DD_TRACE_REJECTED_EXECUTION_HANDLER_ENABLED": [
@@ -8710,7 +8718,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED", "DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED", "DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED"]
       }
     ],
     "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED": [
@@ -8726,7 +8734,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RENAISSANCE_ENABLED", "DD_INTEGRATION_RENAISSANCE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RENAISSANCE_ENABLED", "DD_TRACE_INTEGRATION_RENAISSANCE_ENABLED"]
       }
     ],
     "DD_TRACE_REPORT_HOSTNAME": [
@@ -8790,7 +8798,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RESPONSE_ENABLED", "DD_INTEGRATION_RESPONSE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RESPONSE_ENABLED", "DD_TRACE_INTEGRATION_RESPONSE_ENABLED"]
       }
     ],
     "DD_TRACE_RESPONSE_HEADER_TAGS": [
@@ -8830,7 +8838,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_RESTLET_HTTP_ENABLED", "DD_TRACE_INTEGRATION_RESTLET_HTTP_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_RESTLET_HTTP_ENABLED", "DD_INTEGRATION_RESTLET_HTTP_ENABLED"]
       }
     ],
     "DD_TRACE_RESTLET_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -8854,7 +8862,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RESTLET_HTTP_SERVER_ENABLED", "DD_INTEGRATION_RESTLET_HTTP_SERVER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RESTLET_HTTP_SERVER_ENABLED", "DD_TRACE_INTEGRATION_RESTLET_HTTP_SERVER_ENABLED"]
       }
     ],
     "DD_TRACE_RMI_ANALYTICS_ENABLED": [
@@ -8894,7 +8902,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RMI_CLIENT_CONTEXT_PROPAGATOR_ENABLED", "DD_INTEGRATION_RMI_CLIENT_CONTEXT_PROPAGATOR_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RMI_CLIENT_CONTEXT_PROPAGATOR_ENABLED", "DD_TRACE_INTEGRATION_RMI_CLIENT_CONTEXT_PROPAGATOR_ENABLED"]
       }
     ],
     "DD_TRACE_RMI_CLIENT_ENABLED": [
@@ -8910,7 +8918,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_RMI_CONTEXT_PROPAGATOR_ENABLED", "DD_TRACE_INTEGRATION_RMI_CONTEXT_PROPAGATOR_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_RMI_CONTEXT_PROPAGATOR_ENABLED", "DD_INTEGRATION_RMI_CONTEXT_PROPAGATOR_ENABLED"]
       }
     ],
     "DD_TRACE_RMI_ENABLED": [
@@ -8918,7 +8926,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RMI_ENABLED", "DD_INTEGRATION_RMI_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RMI_ENABLED", "DD_TRACE_INTEGRATION_RMI_ENABLED"]
       }
     ],
     "DD_TRACE_RMI_SERVER_ANALYTICS_ENABLED": [
@@ -8950,7 +8958,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RMI_SERVER_ENABLED", "DD_INTEGRATION_RMI_SERVER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RMI_SERVER_ENABLED", "DD_TRACE_INTEGRATION_RMI_SERVER_ENABLED"]
       }
     ],
     "DD_TRACE_RUNNABLE_ENABLED": [
@@ -8982,7 +8990,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
+        "aliases": ["DD_INTEGRATION_RXJAVA_ENABLED", "DD_TRACE_INTEGRATION_RXJAVA_ENABLED"]
       }
     ],
     "DD_TRACE_S3_ENABLED": [
@@ -9038,7 +9046,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SCALATEST_ENABLED", "DD_INTEGRATION_SCALATEST_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SCALATEST_ENABLED", "DD_TRACE_INTEGRATION_SCALATEST_ENABLED"]
       }
     ],
     "DD_TRACE_SCALA_CONCURRENT_ENABLED": [
@@ -9046,7 +9054,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SCALA_CONCURRENT_ENABLED", "DD_TRACE_INTEGRATION_SCALA_CONCURRENT_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SCALA_CONCURRENT_ENABLED", "DD_INTEGRATION_SCALA_CONCURRENT_ENABLED"]
       }
     ],
     "DD_TRACE_SCALA_FUTURE_OBJECT_ENABLED": [
@@ -9078,7 +9086,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SCALA_PROMISE_RESOLVE_ENABLED", "DD_INTEGRATION_SCALA_PROMISE_RESOLVE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SCALA_PROMISE_RESOLVE_ENABLED", "DD_TRACE_INTEGRATION_SCALA_PROMISE_RESOLVE_ENABLED"]
       }
     ],
     "DD_TRACE_SCOPE_DEPTH_LIMIT": [
@@ -9134,7 +9142,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SERVELET_RESPONSE_ENABLED", "DD_TRACE_INTEGRATION_SERVELET_RESPONSE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SERVELET_RESPONSE_ENABLED", "DD_INTEGRATION_SERVELET_RESPONSE_ENABLED"]
       }
     ],
     "DD_TRACE_SERVICE_DISCOVERY_ENABLED": [
@@ -9166,7 +9174,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SERVICETALK_ENABLED", "DD_INTEGRATION_SERVICETALK_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SERVICETALK_ENABLED", "DD_TRACE_INTEGRATION_SERVICETALK_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLETCONTEXTTAGINTERCEPTOR_ENABLED": [
@@ -9198,7 +9206,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SERVLET_2_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_2_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_2_ENABLED", "DD_INTEGRATION_SERVLET_2_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_3_ANALYTICS_ENABLED": [
@@ -9222,7 +9230,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_3_ASYNC_CONTEXT_ENABLED", "DD_INTEGRATION_SERVLET_3_ASYNC_CONTEXT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SERVLET_3_ASYNC_CONTEXT_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_3_ASYNC_CONTEXT_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_3_ENABLED": [
@@ -9310,7 +9318,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SERVLET_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_ENABLED", "DD_INTEGRATION_SERVLET_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_FILTER_ANALYTICS_ENABLED": [
@@ -9350,7 +9358,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SERVLET_REQUEST_BODY_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_REQUEST_BODY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_REQUEST_BODY_ENABLED", "DD_INTEGRATION_SERVLET_REQUEST_BODY_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_REQUEST_ENABLED": [
@@ -9358,7 +9366,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_REQUEST_ENABLED", "DD_INTEGRATION_SERVLET_REQUEST_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SERVLET_REQUEST_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_REQUEST_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_RESPONSE_ANALYTICS_ENABLED": [
@@ -9382,7 +9390,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SERVLET_RESPONSE_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_RESPONSE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_RESPONSE_ENABLED", "DD_INTEGRATION_SERVLET_RESPONSE_ENABLED"]
       }
     ],
     "DD_TRACE_SERVLET_ROOT_CONTEXT_SERVICE_NAME": [
@@ -9422,7 +9430,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_SESSION_ENABLED", "DD_INTEGRATION_SERVLET_SESSION_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SERVLET_SESSION_ENABLED", "DD_TRACE_INTEGRATION_SERVLET_SESSION_ENABLED"]
       }
     ],
     "DD_TRACE_SETUP_TEARDOWN_ENABLED": [
@@ -9438,7 +9446,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SFN_ENABLED", "DD_INTEGRATION_SFN_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SFN_ENABLED", "DD_TRACE_INTEGRATION_SFN_ENABLED"]
       }
     ],
     "DD_TRACE_SFN_INJECT_DATADOG_ATTRIBUTE_ENABLED": [
@@ -9470,7 +9478,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SNAKEYAML_ENABLED", "DD_TRACE_INTEGRATION_SNAKEYAML_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SNAKEYAML_ENABLED", "DD_INTEGRATION_SNAKEYAML_ENABLED"]
       }
     ],
     "DD_TRACE_SNS_ENABLED": [
@@ -9478,7 +9486,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SNS_ENABLED", "DD_INTEGRATION_SNS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SNS_ENABLED", "DD_TRACE_INTEGRATION_SNS_ENABLED"]
       }
     ],
     "DD_TRACE_SNS_INJECT_DATADOG_ATTRIBUTE_ENABLED": [
@@ -9494,7 +9502,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SOCKET_ENABLED", "DD_INTEGRATION_SOCKET_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SOCKET_ENABLED", "DD_TRACE_INTEGRATION_SOCKET_ENABLED"]
       }
     ],
     "DD_TRACE_SPAN_ATTRIBUTE_SCHEMA": [
@@ -9518,7 +9526,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPARKJAVA_2_4_ENABLED", "DD_INTEGRATION_SPARKJAVA_2_4_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPARKJAVA_2_4_ENABLED", "DD_TRACE_INTEGRATION_SPARKJAVA_2_4_ENABLED"]
       }
     ],
     "DD_TRACE_SPARKJAVA_ENABLED": [
@@ -9534,7 +9542,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPARK_ENABLED", "DD_TRACE_INTEGRATION_SPARK_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPARK_ENABLED", "DD_INTEGRATION_SPARK_ENABLED"]
       }
     ],
     "DD_TRACE_SPARK_EXECUTOR_ANALYTICS_ENABLED": [
@@ -9566,7 +9574,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPARK_EXIT_ENABLED", "DD_INTEGRATION_SPARK_EXIT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPARK_EXIT_ENABLED", "DD_TRACE_INTEGRATION_SPARK_EXIT_ENABLED"]
       }
     ],
     "DD_TRACE_SPARK_OPENLINEAGE_ENABLED": [
@@ -9630,7 +9638,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_BEANS_ENABLED", "DD_INTEGRATION_SPRING_BEANS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_BEANS_ENABLED", "DD_TRACE_INTEGRATION_SPRING_BEANS_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_BOOT_ENABLED": [
@@ -9638,7 +9646,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_BOOT_ENABLED", "DD_INTEGRATION_SPRING_BOOT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_BOOT_ENABLED", "DD_TRACE_INTEGRATION_SPRING_BOOT_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_BOOT_SPAN_ORIGIN_ENABLED": [
@@ -9646,7 +9654,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_BOOT_SPAN_ORIGIN_ENABLED", "DD_TRACE_INTEGRATION_SPRING_BOOT_SPAN_ORIGIN_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_BOOT_SPAN_ORIGIN_ENABLED", "DD_INTEGRATION_SPRING_BOOT_SPAN_ORIGIN_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_CLOUD_ZUUL_ENABLED": [
@@ -9654,7 +9662,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_CLOUD_ZUUL_ENABLED", "DD_TRACE_INTEGRATION_SPRING_CLOUD_ZUUL_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_CLOUD_ZUUL_ENABLED", "DD_INTEGRATION_SPRING_CLOUD_ZUUL_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_CORE_ENABLED": [
@@ -9686,7 +9694,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_DATA_ENABLED", "DD_INTEGRATION_SPRING_DATA_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_DATA_ENABLED", "DD_TRACE_INTEGRATION_SPRING_DATA_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_JMS_ENABLED": [
@@ -9694,7 +9702,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_JMS_ENABLED", "DD_INTEGRATION_SPRING_JMS_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_JMS_ENABLED", "DD_TRACE_INTEGRATION_SPRING_JMS_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_MESSAGING_4_ENABLED": [
@@ -9702,7 +9710,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_4_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_4_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_MESSAGING_4_ENABLED", "DD_TRACE_INTEGRATION_SPRING_MESSAGING_4_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_MESSAGING_ANALYTICS_ENABLED": [
@@ -9734,7 +9742,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_MESSAGING_ENABLED", "DD_TRACE_INTEGRATION_SPRING_MESSAGING_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_PATH_FILTER_ENABLED": [
@@ -9742,7 +9750,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_PATH_FILTER_ENABLED", "DD_TRACE_INTEGRATION_SPRING_PATH_FILTER_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_PATH_FILTER_ENABLED", "DD_INTEGRATION_SPRING_PATH_FILTER_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_RABBIT_ENABLED": [
@@ -9750,7 +9758,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_RABBIT_ENABLED", "DD_INTEGRATION_SPRING_RABBIT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_RABBIT_ENABLED", "DD_TRACE_INTEGRATION_SPRING_RABBIT_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_SCHEDULING_ANALYTICS_ENABLED": [
@@ -9774,7 +9782,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_SCHEDULING_ENABLED", "DD_TRACE_INTEGRATION_SPRING_SCHEDULING_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_SCHEDULING_ENABLED", "DD_INTEGRATION_SPRING_SCHEDULING_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_SCHEDULING_LEGACY_TRACING_ENABLED": [
@@ -9830,7 +9838,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_WEBFLUX_CLIENT_ENABLED", "DD_INTEGRATION_SPRING_WEBFLUX_CLIENT_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_WEBFLUX_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_SPRING_WEBFLUX_CLIENT_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_WEBFLUX_ENABLED": [
@@ -9838,7 +9846,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_WEBFLUX_ENABLED", "DD_INTEGRATION_SPRING_WEBFLUX_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_WEBFLUX_ENABLED", "DD_TRACE_INTEGRATION_SPRING_WEBFLUX_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_WEBFLUX_FUNCTIONAL_ENABLED": [
@@ -9846,7 +9854,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_SPRING_WEBFLUX_FUNCTIONAL_ENABLED", "DD_INTEGRATION_SPRING_WEBFLUX_FUNCTIONAL_ENABLED"]
+        "aliases": ["DD_INTEGRATION_SPRING_WEBFLUX_FUNCTIONAL_ENABLED", "DD_TRACE_INTEGRATION_SPRING_WEBFLUX_FUNCTIONAL_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_WEB_ANALYTICS_ENABLED": [
@@ -9878,7 +9886,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_WEB_ENABLED", "DD_TRACE_INTEGRATION_SPRING_WEB_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_WEB_ENABLED", "DD_INTEGRATION_SPRING_WEB_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_WS_2_ENABLED": [
@@ -9894,7 +9902,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SPRING_WS_ENABLED", "DD_TRACE_INTEGRATION_SPRING_WS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_WS_ENABLED", "DD_INTEGRATION_SPRING_WS_ENABLED"]
       }
     ],
     "DD_TRACE_SPYMEMCACHED_ANALYTICS_ENABLED": [
@@ -9934,7 +9942,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_SQS_ENABLED", "DD_TRACE_INTEGRATION_SQS_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_SQS_ENABLED", "DD_INTEGRATION_SQS_ENABLED"]
       }
     ],
     "DD_TRACE_SQS_INJECT_DATADOG_ATTRIBUTE_ENABLED": [
@@ -10038,7 +10046,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_STRUCTURED_TASK_SCOPE_ENABLED", "DD_INTEGRATION_STRUCTURED_TASK_SCOPE_ENABLED"]
+        "aliases": ["DD_INTEGRATION_STRUCTURED_TASK_SCOPE_ENABLED", "DD_TRACE_INTEGRATION_STRUCTURED_TASK_SCOPE_ENABLED"]
       }
     ],
     "DD_TRACE_SUREFIRE_ENABLED": [
@@ -10110,7 +10118,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_TASK_UNWRAPPING_ENABLED", "DD_TRACE_INTEGRATION_TASK_UNWRAPPING_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_TASK_UNWRAPPING_ENABLED", "DD_INTEGRATION_TASK_UNWRAPPING_ENABLED"]
       }
     ],
     "DD_TRACE_TESTNG_6_ENABLED": [
@@ -10134,7 +10142,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_TESTNG_ENABLED", "DD_TRACE_INTEGRATION_TESTNG_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_TESTNG_ENABLED", "DD_INTEGRATION_TESTNG_ENABLED"]
       }
     ],
     "DD_TRACE_TESTNG_ITR_ENABLED": [
@@ -10142,7 +10150,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_TESTNG_ITR_ENABLED", "DD_TRACE_INTEGRATION_TESTNG_ITR_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_TESTNG_ITR_ENABLED", "DD_INTEGRATION_TESTNG_ITR_ENABLED"]
       }
     ],
     "DD_TRACE_TEST_ORDER_ENABLED": [
@@ -10158,7 +10166,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_TEST_RETRY_ENABLED", "DD_INTEGRATION_TEST_RETRY_ENABLED"]
+        "aliases": ["DD_INTEGRATION_TEST_RETRY_ENABLED", "DD_TRACE_INTEGRATION_TEST_RETRY_ENABLED"]
       }
     ],
     "DD_TRACE_THREAD_POOL_EXECUTORS_EXCLUDE": [
@@ -10190,7 +10198,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_THYMELEAF_ENABLED", "DD_TRACE_INTEGRATION_THYMELEAF_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_THYMELEAF_ENABLED", "DD_INTEGRATION_THYMELEAF_ENABLED"]
       }
     ],
     "DD_TRACE_TIBCO_BW_ANALYTICS_ENABLED": [
@@ -10214,7 +10222,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_TIBCO_BW_ENABLED", "DD_INTEGRATION_TIBCO_BW_ENABLED"]
+        "aliases": ["DD_INTEGRATION_TIBCO_BW_ENABLED", "DD_TRACE_INTEGRATION_TIBCO_BW_ENABLED"]
       }
     ],
     "DD_TRACE_TIBCO_ENABLED": [
@@ -10230,7 +10238,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_TINYLOG_ENABLED", "DD_INTEGRATION_TINYLOG_ENABLED"]
+        "aliases": ["DD_INTEGRATION_TINYLOG_ENABLED", "DD_TRACE_INTEGRATION_TINYLOG_ENABLED"]
       }
     ],
     "DD_TRACE_TOMCAT_ANALYTICS_ENABLED": [
@@ -10358,7 +10366,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_TRACE_CONFIG_ENABLED", "DD_TRACE_INTEGRATION_TRACE_CONFIG_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_TRACE_CONFIG_ENABLED", "DD_INTEGRATION_TRACE_CONFIG_ENABLED"]
       }
     ],
     "DD_TRACE_TRACE_ENABLED": [
@@ -10398,7 +10406,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_TWILIO_SDK_ENABLED", "DD_INTEGRATION_TWILIO_SDK_ENABLED"]
+        "aliases": ["DD_INTEGRATION_TWILIO_SDK_ENABLED", "DD_TRACE_INTEGRATION_TWILIO_SDK_ENABLED"]
       }
     ],
     "DD_TRACE_UNDERTOW_2_0_ENABLED": [
@@ -10406,7 +10414,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_UNDERTOW_2_0_ENABLED", "DD_INTEGRATION_UNDERTOW_2_0_ENABLED"]
+        "aliases": ["DD_INTEGRATION_UNDERTOW_2_0_ENABLED", "DD_TRACE_INTEGRATION_UNDERTOW_2_0_ENABLED"]
       }
     ],
     "DD_TRACE_UNDERTOW_2_2_ENABLED": [
@@ -10470,7 +10478,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_UNDERTOW_REQUEST_PARSE_ENABLED", "DD_TRACE_INTEGRATION_UNDERTOW_REQUEST_PARSE_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_UNDERTOW_REQUEST_PARSE_ENABLED", "DD_INTEGRATION_UNDERTOW_REQUEST_PARSE_ENABLED"]
       }
     ],
     "DD_TRACE_URLASRESOURCENAMERULE_ENABLED": [
@@ -10534,7 +10542,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_VELOCITY_ENABLED", "DD_TRACE_INTEGRATION_VELOCITY_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_VELOCITY_ENABLED", "DD_INTEGRATION_VELOCITY_ENABLED"]
       }
     ],
     "DD_TRACE_VERTX_3_4_ENABLED": [
@@ -10558,7 +10566,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_VERTX_3_9_ENABLED", "DD_TRACE_INTEGRATION_VERTX_3_9_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_VERTX_3_9_ENABLED", "DD_INTEGRATION_VERTX_3_9_ENABLED"]
       }
     ],
     "DD_TRACE_VERTX_4_0_ENABLED": [
@@ -10566,7 +10574,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_VERTX_4_0_ENABLED", "DD_INTEGRATION_VERTX_4_0_ENABLED"]
+        "aliases": ["DD_INTEGRATION_VERTX_4_0_ENABLED", "DD_TRACE_INTEGRATION_VERTX_4_0_ENABLED"]
       }
     ],
     "DD_TRACE_VERTX_5_0_ENABLED": [
@@ -10574,7 +10582,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_VERTX_5_0_ENABLED", "DD_INTEGRATION_VERTX_5_0_ENABLED"]
+        "aliases": ["DD_INTEGRATION_VERTX_5_0_ENABLED", "DD_TRACE_INTEGRATION_VERTX_5_0_ENABLED"]
       }
     ],
     "DD_TRACE_VERTX_ANALYTICS_ENABLED": [
@@ -10670,7 +10678,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_INTEGRATION_WALLCLOCK_ENABLED", "DD_TRACE_INTEGRATION_WALLCLOCK_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_WALLCLOCK_ENABLED", "DD_INTEGRATION_WALLCLOCK_ENABLED"]
       }
     ],
     "DD_TRACE_WEAVER_ENABLED": [
@@ -10678,7 +10686,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_WEAVER_ENABLED", "DD_INTEGRATION_WEAVER_ENABLED"]
+        "aliases": ["DD_INTEGRATION_WEAVER_ENABLED", "DD_TRACE_INTEGRATION_WEAVER_ENABLED"]
       }
     ],
     "DD_TRACE_WEBSOCKET_ANALYTICS_ENABLED": [
@@ -10766,7 +10774,7 @@
         "version": "A",
         "type": null,
         "default": null,
-        "aliases": ["DD_TRACE_INTEGRATION_ZIO_EXPERIMENTAL_ENABLED", "DD_INTEGRATION_ZIO_EXPERIMENTAL_ENABLED"]
+        "aliases": ["DD_INTEGRATION_ZIO_EXPERIMENTAL_ENABLED", "DD_TRACE_INTEGRATION_ZIO_EXPERIMENTAL_ENABLED"]
       }
     ],
     "DD_TRIAGE_REPORT_DIR": [
