@@ -416,7 +416,7 @@ public final class JfrToOtlpConverter {
     int sampleTypeIndex = getSampleTypeAttributeIndex("alloc");
     String className = null;
     try {
-      className = event.objectClass();
+      className = event.objectClass().name();
     } catch (Exception ignored) {
       // objectClass field doesn't exist in this JFR event - skip it
     }
