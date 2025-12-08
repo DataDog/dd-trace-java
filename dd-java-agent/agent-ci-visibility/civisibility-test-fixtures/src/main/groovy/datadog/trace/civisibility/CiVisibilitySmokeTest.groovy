@@ -81,10 +81,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = []
 
-    // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
-    // Some tests can setup arguments on spec level, so `prefsDir` will be `null` during `setupSpec()`.
-    String prefsPath = (prefsDir ?: prefsDirShared).toAbsolutePath()
-    arguments += "-Djava.util.prefs.userRoot=$prefsPath".toString()
+    arguments += preventJulPrefsFileLock()
 
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
@@ -100,6 +97,23 @@ abstract class CiVisibilitySmokeTest extends Specification {
     arguments += "-javaagent:${AGENT_JAR}=${agentArgs}".toString()
 
     return arguments
+  }
+
+  /**
+   * Trick to prevent jul Prefs file lock issue on forked processes.
+   *
+   * Reason: multiple observations of failed job with
+   *
+   * <pre><code>
+   * Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
+   * </code></pre>
+   *
+   * Note, some tests can setup arguments on spec level, so `prefsDir` will be `null` during
+   * `setupSpec()`.
+   */
+  protected String preventJulPrefsFileLock() {
+    String prefsPath = (prefsDir ?: prefsDirShared).toAbsolutePath()
+    return "-Djava.util.prefs.userRoot=$prefsPath".toString()
   }
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
