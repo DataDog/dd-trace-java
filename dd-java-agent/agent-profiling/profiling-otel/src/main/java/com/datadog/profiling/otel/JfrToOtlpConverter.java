@@ -171,7 +171,7 @@ public final class JfrToOtlpConverter {
    * @throws IOException if reading JFR data fails
    */
   public JfrToOtlpConverter addRecording(RecordingData recordingData) throws IOException {
-    Path file = recordingData.getFile();
+    Path file = recordingData.getPath();
     if (file != null) {
       return addFile(file, recordingData.getStart(), recordingData.getEnd());
     }
@@ -416,7 +416,7 @@ public final class JfrToOtlpConverter {
     int sampleTypeIndex = getSampleTypeAttributeIndex("alloc");
     String className = null;
     try {
-      className = event.objectClass();
+      className = event.objectClass().name();
     } catch (Exception ignored) {
       // objectClass field doesn't exist in this JFR event - skip it
     }
