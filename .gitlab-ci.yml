@@ -56,7 +56,7 @@ workflow:
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
-      # - "8"
+      - "8"
       # - "11"
       # - "17"
       # - "21"
@@ -64,9 +64,9 @@ workflow:
       # - "26"
       # - "semeru11"
       - "oracle8"
-      # - "zulu8"
-      # - "semeru8"
-      # - "ibm8"
+      - "zulu8"
+      - "semeru8"
+      - "ibm8"
       # - "zulu11"
       # - "semeru17"
       # - "stable"
