@@ -38,7 +38,7 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return false;
+    return System.getProperty("non-existing") != null;
     // return JavaVirtualMachine.isJavaVersionAtLeast(19) && super.isEnabled();
   }
 
