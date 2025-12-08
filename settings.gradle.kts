@@ -501,7 +501,7 @@ include(
 
   ":dd-java-agent:instrumentation:rocketmq",
   ":dd-java-agent:instrumentation:rocketmq-5.0",
-  ":dd-java-agent:instrumentation:dubbo-apache-2.7",
+  ":dd-java-agent:instrumentation:dubbo-apache:dubbo-apache-2.7",
   ":dd-java-agent:instrumentation:dubbo-apache:dubbo-apache-3.2",
   ":dd-java-agent:instrumentation:dubbo-alibaba",
   ":dd-java-agent:instrumentation:thrift",
