@@ -76,7 +76,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"  : "false",
       "DD_API_KEY"                        : "dummy"
     ])
-    String[] command = ["./gradlew", "--no-daemon", "--info", "--stacktrace"]
+    String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
       command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }

@@ -1,19 +1,19 @@
 include:
   - local: ".gitlab/one-pipeline.locked.yml"
-  # - local: ".gitlab/benchmarks.yml"
-  # - local: ".gitlab/macrobenchmarks.yml"
-  # - local: ".gitlab/exploration-tests.yml"
-  # - local: ".gitlab/ci-visibility-tests.yml"
+  - local: ".gitlab/benchmarks.yml"
+  - local: ".gitlab/macrobenchmarks.yml"
+  - local: ".gitlab/exploration-tests.yml"
+  - local: ".gitlab/ci-visibility-tests.yml"
 
 stages:
   - build
   - publish
   - shared-pipeline
-  # - benchmarks
-  # - macrobenchmarks
+  - benchmarks
+  - macrobenchmarks
   - tests
-  # - exploration-tests
-  # - ci-visibility-tests
+  - exploration-tests
+  - ci-visibility-tests
   - generate-signing-key
 
 variables:
@@ -57,18 +57,18 @@ workflow:
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
       - "8"
-      # - "11"
-      # - "17"
-      # - "21"
-      # - "25"
-      # - "26"
-      # - "semeru11"
+      - "11"
+      - "17"
+      - "21"
+      - "25"
+      - "26"
+      - "semeru11"
       - "oracle8"
       - "zulu8"
       - "semeru8"
       - "ibm8"
-      # - "zulu11"
-      # - "semeru17"
+      - "zulu11"
+      - "semeru17"
       # - "stable"
     CI_SPLIT: ["1/1"]
 
@@ -260,10 +260,8 @@ build:
     DEPENDENCY_CACHE_POLICY: pull
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
-    - echo $HOME
     - ./gradlew --version
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
-    - ls -lah $HOME/.java/.userPrefs
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -305,30 +303,30 @@ build_tests:
     - ./gradlew --version
     - ./gradlew clean $GRADLE_TARGET $GRADLE_PARAMS -PskipTests $GRADLE_ARGS
 
-# populate_dep_cache:
-#   extends: build_tests
-#   variables:
-#     BUILD_CACHE_POLICY: pull
-#     DEPENDENCY_CACHE_POLICY: push
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: on_success
-#     - when: manual
-#       allow_failure: true
-#   parallel:
-#     matrix:
-#       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
-#         CACHE_TYPE: "lib"
-#       - GRADLE_TARGET: ":baseTest"
-#         CACHE_TYPE: "base"
-#       - GRADLE_TARGET: ":profilingTest"
-#         CACHE_TYPE: "profiling"
-#       - GRADLE_TARGET: ":instrumentationTest"
-#         CACHE_TYPE: "inst"
-#       - GRADLE_TARGET: ":instrumentationLatestDepTest"
-#         CACHE_TYPE: "latestdep"
-#       - GRADLE_TARGET: ":smokeTest"
-#         CACHE_TYPE: "smoke"
+populate_dep_cache:
+  extends: build_tests
+  variables:
+    BUILD_CACHE_POLICY: pull
+    DEPENDENCY_CACHE_POLICY: push
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  parallel:
+    matrix:
+      - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
+        CACHE_TYPE: "lib"
+      - GRADLE_TARGET: ":baseTest"
+        CACHE_TYPE: "base"
+      - GRADLE_TARGET: ":profilingTest"
+        CACHE_TYPE: "profiling"
+      - GRADLE_TARGET: ":instrumentationTest"
+        CACHE_TYPE: "inst"
+      - GRADLE_TARGET: ":instrumentationLatestDepTest"
+        CACHE_TYPE: "latestdep"
+      - GRADLE_TARGET: ":smokeTest"
+        CACHE_TYPE: "smoke"
 
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
@@ -362,56 +360,56 @@ publish-artifacts-to-s3:
         - links.json
 
 
-# spotless:
-#   extends: .gradle_build
-#   stage: tests
-#   needs: []
-#   variables:
-#     # TODO: Latest version of spotless is failing with OOM on CI only.
-#     # Setting 8G memory solving this issue, but we need to solve it eventually.
-#     GRADLE_MEM: 8G
-#     KUBERNETES_MEMORY_REQUEST: 18Gi
-#     KUBERNETES_MEMORY_LIMIT: 18Gi
-#   script:
-#     - ./gradlew --version
-#     - ./gradlew spotlessCheck $GRADLE_ARGS
-#
-# config-inversion-linter:
-#   extends: .gradle_build
-#   stage: tests
-#   needs: []
-#   script:
-#     - ./gradlew --version
-#     - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
-#
-# test_published_artifacts:
-#   extends: .gradle_build
-#   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
-#   stage: tests
-#   needs: [ build ]
-#   variables:
-#     CACHE_TYPE: "lib"
-#   script:
-#     - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
-#     - rm -rf "${mvn_local_repo}/com/datadoghq"
-#     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
-#     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-#     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-#     - ./gradlew publishToMavenLocal $GRADLE_ARGS
-#     - cd test-published-dependencies
-#     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-#     - ./gradlew --version
-#     - ./gradlew check --info $GRADLE_ARGS
-#   after_script:
-#     - *cgroup_info
-#     - source .gitlab/gitlab-utils.sh
-#     - gitlab_section_start "collect-reports" "Collecting reports"
-#     - .gitlab/collect_reports.sh
-#     - gitlab_section_end "collect-reports"
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./check_reports
+spotless:
+  extends: .gradle_build
+  stage: tests
+  needs: []
+  variables:
+    # TODO: Latest version of spotless is failing with OOM on CI only.
+    # Setting 8G memory solving this issue, but we need to solve it eventually.
+    GRADLE_MEM: 8G
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
+  script:
+    - ./gradlew --version
+    - ./gradlew spotlessCheck $GRADLE_ARGS
+
+config-inversion-linter:
+  extends: .gradle_build
+  stage: tests
+  needs: []
+  script:
+    - ./gradlew --version
+    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+
+test_published_artifacts:
+  extends: .gradle_build
+  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
+  stage: tests
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  script:
+    - mvn_local_repo=$(./mvnw help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+    - rm -rf "${mvn_local_repo}/com/datadoghq"
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - cd test-published-dependencies
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - ./gradlew --version
+    - ./gradlew check --info $GRADLE_ARGS
+  after_script:
+    - *cgroup_info
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
 
 .check_job:
   extends: .gradle_build
@@ -424,8 +422,6 @@ publish-artifacts-to-s3:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
-    - echo $HOME
-    - ls -lah $HOME/.java/.userPrefs
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -446,83 +442,83 @@ publish-artifacts-to-s3:
       - scheduler_failure
       - data_integrity_failure
 
-# check_build_src:
-#   extends: .check_job
-#   variables:
-#     GRADLE_TARGET: ":buildSrc:build"
-#
-# check_base:
-#   extends: .check_job
-#   variables:
-#     GRADLE_TARGET: ":baseCheck"
-#
-# check_inst:
-#   extends: .check_job
-#   parallel: 4
-#   variables:
-#     GRADLE_TARGET: ":instrumentationCheck"
-#     CACHE_TYPE: "inst"
-#
-# check_smoke:
-#   extends: .check_job
-#   parallel: 4
-#   variables:
-#     GRADLE_TARGET: ":smokeCheck"
-#     CACHE_TYPE: "smoke"
-#
-# check_profiling:
-#   extends: .check_job
-#   variables:
-#     GRADLE_TARGET: ":profilingCheck"
-#
-# check_debugger:
-#   extends: .check_job
-#   variables:
-#     GRADLE_TARGET: ":debuggerCheck"
+check_build_src:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":buildSrc:build"
 
-# muzzle:
-#   extends: .gradle_build
-#   needs: [ build_tests ]
-#   stage: tests
-#   parallel:
-#     matrix:
-#       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
-#   variables:
-#     CACHE_TYPE: "inst"
-#   script:
-#     - export SKIP_BUILDSCAN="true"
-#     - ./gradlew --version
-#     - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
-#   after_script:
-#     - *cgroup_info
-#     - source .gitlab/gitlab-utils.sh
-#     - gitlab_section_start "collect-reports" "Collecting reports"
-#     - .gitlab/collect_reports.sh
-#     - gitlab_section_end "collect-reports"
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./reports
-#       - '.gradle/daemon/*/*.out.log'
-#
-# muzzle-dep-report:
-#   extends: .gradle_build
-#   needs: [ build_tests ]
-#   stage: tests
-#   variables:
-#     CACHE_TYPE: "inst"
-#   script:
-#     - export SKIP_BUILDSCAN="true"
-#     - ./gradlew --version
-#     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
-#   after_script:
-#     - *cgroup_info
-#     - .gitlab/collect_muzzle_deps.sh
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./reports
-#       - '.gradle/daemon/*/*.out.log'
+check_base:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":baseCheck"
+
+check_inst:
+  extends: .check_job
+  parallel: 4
+  variables:
+    GRADLE_TARGET: ":instrumentationCheck"
+    CACHE_TYPE: "inst"
+
+check_smoke:
+  extends: .check_job
+  parallel: 4
+  variables:
+    GRADLE_TARGET: ":smokeCheck"
+    CACHE_TYPE: "smoke"
+
+check_profiling:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":profilingCheck"
+
+check_debugger:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":debuggerCheck"
+
+muzzle:
+  extends: .gradle_build
+  needs: [ build_tests ]
+  stage: tests
+  parallel:
+    matrix:
+      - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+  variables:
+    CACHE_TYPE: "inst"
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - ./gradlew --version
+    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+  after_script:
+    - *cgroup_info
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./reports
+      - '.gradle/daemon/*/*.out.log'
+
+muzzle-dep-report:
+  extends: .gradle_build
+  needs: [ build_tests ]
+  stage: tests
+  variables:
+    CACHE_TYPE: "inst"
+  script:
+    - export SKIP_BUILDSCAN="true"
+    - ./gradlew --version
+    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+  after_script:
+    - *cgroup_info
+    - .gitlab/collect_muzzle_deps.sh
+  artifacts:
+    when: always
+    paths:
+      - ./reports
+      - '.gradle/daemon/*/*.out.log'
 
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
@@ -576,7 +572,6 @@ publish-artifacts-to-s3:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
-    - ls -lah $HOME/.java/.userPrefs
     - *restore_pretest_env
     - *set_datadog_api_keys
     - *cgroup_info
@@ -627,395 +622,395 @@ publish-artifacts-to-s3:
     - !reference [.test_job, script]
     - .gitlab/check_test_agent_results.sh
 
-# agent_integration_tests:
-#   extends: .test_job
-#   tags: [ "arch:amd64" ]
-#   variables:
-#     testJvm: "8"
-#     CI_AGENT_HOST: local-agent
-#     GRADLE_TARGET: "traceAgentTest"
-#     CACHE_TYPE: "base"
-#   services:
-#     - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
-#       alias: local-agent
-#       variables:
-#         DD_APM_ENABLED: "true"
-#         DD_BIND_HOST: "0.0.0.0"
-#         DD_HOSTNAME: "local-agent"
-#         DD_API_KEY: "invalid_key_but_this_is_fine"
-#
-# test_base:
-#   extends: .test_job
-#   variables:
-#     GRADLE_TARGET: ":baseTest"
-#     CACHE_TYPE: "base"
-#   parallel:
-#     matrix: *test_matrix_4
-#   script:
-#     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-#     - !reference [.test_job, script]
-# 
-# test_inst:
-#   extends: .test_job_with_test_agent
-#   variables:
-#     GRADLE_TARGET: ":instrumentationTest"
-#     CACHE_TYPE: "inst"
-#   parallel:
-#     matrix: *test_matrix_6
-#
-# test_inst_latest:
-#   extends: .test_job_with_test_agent
-#   variables:
-#     GRADLE_TARGET: ":instrumentationLatestDepTest"
-#     CACHE_TYPE: "latestdep"
-#   parallel:
-#     matrix:
-#       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
-#         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-#         # This emulates "parallel" by including it in the matrix
-#         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
-#
-# test_flaky:
-#   extends: .test_job_with_test_agent
-#   variables:
-#     GRADLE_PARAMS: "-PrunFlakyTests"
-#     CACHE_TYPE: "smoke"
-#     testJvm: "8"
-#     CONTINUE_ON_FAILURE: "true"
-#   rules:
-#     - *master_only
-#     - if: $RUN_FLAKY_TESTS == "true"
-#       when: on_success
-#   parallel:
-#     matrix:
-#       - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
-#         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-#         # This emulates "parallel" by including it in the matrix
-#         CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
-#
-# test_flaky_inst:
-#   extends: .test_job
-#   variables:
-#     GRADLE_TARGET: ":instrumentationTest"
-#     GRADLE_PARAMS: "-PrunFlakyTests"
-#     CACHE_TYPE: "inst"
-#     testJvm: "8"
-#     CONTINUE_ON_FAILURE: "true"
-#   rules:
-#     - *master_only
-#     - if: $RUN_FLAKY_TESTS == "true"
-#       when: on_success
-#   parallel: 6
-#
-# test_profiling:
-#   extends: .test_job
-#   variables:
-#     GRADLE_TARGET: ":profilingTest"
-#     CACHE_TYPE: "profiling"
-#   parallel:
-#     matrix: *test_matrix
-#
-# # specific jvms list for debugger project because J9-based JVMs have issues with local vars
-# # so need to test at least against one J9-based JVM
-# test_debugger:
-#   extends: .test_job
-#   variables:
-#     GRADLE_TARGET: ":debuggerTest"
-#     CACHE_TYPE: "base"
-#     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "stable" version is LTS v25
-#   parallel:
-#     matrix: *test_matrix
+agent_integration_tests:
+  extends: .test_job
+  tags: [ "arch:amd64" ]
+  variables:
+    testJvm: "8"
+    CI_AGENT_HOST: local-agent
+    GRADLE_TARGET: "traceAgentTest"
+    CACHE_TYPE: "base"
+  services:
+    - name: registry.ddbuild.io/images/mirror/datadog/agent:7.40.1
+      alias: local-agent
+      variables:
+        DD_APM_ENABLED: "true"
+        DD_BIND_HOST: "0.0.0.0"
+        DD_HOSTNAME: "local-agent"
+        DD_API_KEY: "invalid_key_but_this_is_fine"
+
+test_base:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":baseTest"
+    CACHE_TYPE: "base"
+  parallel:
+    matrix: *test_matrix_4
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
+    - !reference [.test_job, script]
+
+test_inst:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
+  parallel:
+    matrix: *test_matrix_6
+
+test_inst_latest:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestdep"
+  parallel:
+    matrix:
+      - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+
+test_flaky:
+  extends: .test_job_with_test_agent
+  variables:
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "smoke"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  rules:
+    - *master_only
+    - if: $RUN_FLAKY_TESTS == "true"
+      when: on_success
+  parallel:
+    matrix:
+      - GRADLE_TARGET: [":baseTest", ":smokeTest", ":debuggerTest"]
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
+test_flaky_inst:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PrunFlakyTests"
+    CACHE_TYPE: "inst"
+    testJvm: "8"
+    CONTINUE_ON_FAILURE: "true"
+  rules:
+    - *master_only
+    - if: $RUN_FLAKY_TESTS == "true"
+      when: on_success
+  parallel: 6
+
+test_profiling:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":profilingTest"
+    CACHE_TYPE: "profiling"
+  parallel:
+    matrix: *test_matrix
+
+# specific jvms list for debugger project because J9-based JVMs have issues with local vars
+# so need to test at least against one J9-based JVM
+test_debugger:
+  extends: .test_job
+  variables:
+    GRADLE_TARGET: ":debuggerTest"
+    CACHE_TYPE: "base"
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "stable" version is LTS v25
+  parallel:
+    matrix: *test_matrix
 
 test_smoke:
   extends: .test_job
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
-    GRADLE_PARAMS: "-PskipFlakyTests --stacktrace"
+    GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
     matrix: *test_matrix_4
 
-# test_ssi_smoke:
-#   extends: .test_job
-#   rules: *master_only
-#   variables:
-#     GRADLE_TARGET: "stageMainDist :smokeTest"
-#     CACHE_TYPE: "smoke"
-#     DD_INJECT_FORCE: "true"
-#     DD_INJECTION_ENABLED: "tracer"
-#   parallel:
-#     matrix: *test_matrix_4
-#
-# test_smoke_graalvm:
-#   extends: .test_job
-#   tags: [ "arch:amd64" ]
-#   variables:
-#     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
-#     CACHE_TYPE: "smoke"
-#     CI_NO_SPLIT: "true"
-#     NON_DEFAULT_JVMS: "true"
-#   parallel:
-#     matrix:
-#       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
-#
-# test_smoke_semeru8_debugger:
-#   extends: .test_job
-#   tags: [ "arch:amd64" ]
-#   variables:
-#     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
-#     CACHE_TYPE: "smoke"
-#     NON_DEFAULT_JVMS: "true"
-#     testJvm: "semeru8"
-#
-# deploy_to_profiling_backend:
-#   stage: publish
-#   needs: [ build ]
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-#       when: on_success
-#     - if: '$CI_COMMIT_TAG =~ /^v.*/'
-#       when: on_success
-#     - when: manual
-#       allow_failure: true
-#   trigger:
-#     project: DataDog/profiling-backend
-#     branch: dogfooding
-#   variables:
-#     UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
-#     UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
-#     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-#     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-#     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-#     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-#     UPSTREAM_TAG: $CI_COMMIT_TAG
-#
-# trigger_tibco_tests:
-#   stage: tests
-#   needs: [ build ]
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-#       when: on_success
-#     - if: '$CI_COMMIT_TAG =~ /^v.*/'
-#       when: on_success
-#     - when: manual
-#       allow_failure: true
-#   trigger:
-#     project: DataDog/tibco-testing
-#     branch: main
-#     strategy: depend
-#   variables:
-#     UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
-#     UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
-#     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-#     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-#     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-#     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-#     UPSTREAM_TAG: $CI_COMMIT_TAG
-#     FORCE_TRIGGER: $FORCE_TRIGGER
-#
-# deploy_to_di_backend:manual:
-#   stage: publish
-#   needs: [ build ]
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - when: manual
-#       allow_failure: true
-#   trigger:
-#     project: DataDog/debugger-demos
-#     branch: main
-#   variables:
-#     UPSTREAM_PACKAGE_JOB: build
-#     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-#     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-#     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-#     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-#     UPSTREAM_TAG: $CI_COMMIT_TAG
-#     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
-#     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
-#
-# # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
-# deploy_to_maven_central:
-#   extends: .gradle_build
-#   stage: publish
-#   needs: [ build ]
-#   variables:
-#     CACHE_TYPE: "lib"
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - if: '$CI_COMMIT_BRANCH == "master"'
-#       when: on_success
-#     # Do not deploy release candidate versions
-#     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-#       when: on_success
-#     - when: manual
-#       allow_failure: true
-#   script:
-#     - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-#     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-#     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
-#     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-#     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
-#   artifacts:
-#     paths:
-#       - 'workspace/dd-java-agent/build/libs/*.jar'
-#       - 'workspace/dd-trace-api/build/libs/*.jar'
-#       - 'workspace/dd-trace-ot/build/libs/*.jar'
-#
-# deploy_artifacts_to_github:
-#   stage: publish
-#   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
-#   tags: [ "arch:amd64" ]
-#   id_tokens:
-#     DDOCTOSTS_ID_TOKEN:
-#       aud: dd-octo-sts
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-#       when: on_success
-#   # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
-#   # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
-#   needs:
-#     - job: deploy_to_maven_central
-#       # The deploy_to_maven_central job is not run for release candidate versions
-#       optional: true
-#   before_script:
-#     - dd-octo-sts version
-#     - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
-#     - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
-#   script:
-#     - gh auth login --with-token < github-token.txt
-#     - gh auth status
-#     - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
-#     - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # upload two filenames
-#     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
-#     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
-#     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
-#     - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
-#   after_script:
-#     - dd-octo-sts revoke -t $(cat github-token.txt)
-#   retry:
-#     max: 2
-#     when: always
-#
-# requirements_json_test:
-#   rules:
-#     - when: on_success
-#   variables:
-#     REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
-#     REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
-#
-# package-oci:
-#   needs: [ build ]
-#
-# override_verify_maven_central:
-#   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
-#   stage: publish
-#   needs: [ ]
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - when: manual
-#       allow_failure: true
-#   script:
-#     - touch OVERRIDE_MAVEN_VERIFY
-#   cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
-#     - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
-#       paths:
-#         - OVERRIDE_MAVEN_VERIFY
-#       policy: push
-#       unprotect: true
-#
-# # Verify Maven Central deployment is publicly available before publishing OCI images
-# verify_maven_central_deployment:
-#   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
-#   stage: publish
-#   needs: [ deploy_to_maven_central ]
-#   rules:
-#     - if: '$POPULATE_CACHE'
-#       when: never
-#     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-#       when: on_success
-#   cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
-#     - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
-#       paths:
-#         - OVERRIDE_MAVEN_VERIFY
-#       policy: pull
-#       unprotect: true
-#   script:
-#     - if [ -f OVERRIDE_MAVEN_VERIFY ]; then echo "SKIPPING MAVEN VERIFICATION"; exit 0; fi
-#     - |
-#       export VERSION=${CI_COMMIT_TAG##v}
-#       ARTIFACT_URLS=(
-#         "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
-#         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
-#         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
-#       )
-#       # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
-#       sleep 300
-#       TRY=0
-#       MAX_TRIES=5
-#       DELAY=60
-#       while [ $TRY -lt $MAX_TRIES ]; do
-#         ARTIFACTS_AVAILABLE=true
-#         for URL in "${ARTIFACT_URLS[@]}"; do
-#           if ! curl --location --fail --silent --show-error -I "$URL"; then
-#             ARTIFACTS_AVAILABLE=false
-#             break
-#           fi
-#         done
-#         if [ "$ARTIFACTS_AVAILABLE" = true ]; then
-#           break
-#         fi
-#         TRY=$((TRY + 1))
-#         if [ $TRY -eq $MAX_TRIES ]; then
-#           echo "The release was not available after 10 mins. Manually re-run the job to try again."
-#           exit 1
-#         fi
-#         sleep $DELAY
-#       done
-#
-# publishing-gate:
-#   stage: publish
-#   needs:
-#     - job: verify_maven_central_deployment
-#       optional: true # Required for releases only
-#
-# configure_system_tests:
-#   variables:
-#     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
-#
-# create_key:
-#   stage: generate-signing-key
-#   when: manual
-#   needs: [ ]
-#   variables:
-#     PROJECT_NAME: "dd-trace-java"
-#     EXPORT_TO_KEYSERVER: "true"
-#   image: $REGISTRY/ci/agent-key-management-tools/gpg:1
-#   script:
-#     - /create.sh
-#   artifacts:
-#     expire_in: 13 mos
-#     paths:
-#       - pubkeys
-#
-# validate_supported_configurations_v2_local_file:
-#   extends: .validate_supported_configurations_v2_local_file
-#   variables:
-#     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-#     BACKFILLED: "false"
-#
-# update_central_configurations_version_range_v2:
-#   extends: .update_central_configurations_version_range_v2
-#   variables:
-#     LOCAL_REPO_NAME: "dd-trace-java"
-#     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-#     LANGUAGE_NAME: "java"
-#     MULTIPLE_RELEASE_LINES: "false"
+test_ssi_smoke:
+  extends: .test_job
+  rules: *master_only
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    CACHE_TYPE: "smoke"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix: *test_matrix_4
+
+test_smoke_graalvm:
+  extends: .test_job
+  tags: [ "arch:amd64" ]
+  variables:
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    CACHE_TYPE: "smoke"
+    CI_NO_SPLIT: "true"
+    NON_DEFAULT_JVMS: "true"
+  parallel:
+    matrix:
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
+
+test_smoke_semeru8_debugger:
+  extends: .test_job
+  tags: [ "arch:amd64" ]
+  variables:
+    GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
+    CACHE_TYPE: "smoke"
+    NON_DEFAULT_JVMS: "true"
+    testJvm: "semeru8"
+
+deploy_to_profiling_backend:
+  stage: publish
+  needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/profiling-backend
+    branch: dogfooding
+  variables:
+    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
+    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+
+trigger_tibco_tests:
+  stage: tests
+  needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/tibco-testing
+    branch: main
+    strategy: depend
+  variables:
+    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
+    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    FORCE_TRIGGER: $FORCE_TRIGGER
+
+deploy_to_di_backend:manual:
+  stage: publish
+  needs: [ build ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/debugger-demos
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $CI_COMMIT_TAG
+    UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
+    UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
+
+# If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
+deploy_to_maven_central:
+  extends: .gradle_build
+  stage: publish
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    # Do not deploy release candidate versions
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
+
+deploy_artifacts_to_github:
+  stage: publish
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+  # Requires the deploy_to_maven_central job to have run first (the UP-TO-DATE gradle check across jobs is broken)
+  # This will deploy the artifacts built from the publishToSonatype task to the GitHub release
+  needs:
+    - job: deploy_to_maven_central
+      # The deploy_to_maven_central job is not run for release candidate versions
+      optional: true
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.release
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.release > github-token.txt
+  script:
+    - gh auth login --with-token < github-token.txt
+    - gh auth status
+    - export VERSION=${CI_COMMIT_TAG##v} # remove "v" from front of tag to get version
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar workspace/dd-java-agent/build/libs/dd-java-agent.jar # upload two filenames
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar
+    - gh release upload --clobber --repo DataDog/dd-trace-java $CI_COMMIT_TAG workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt)
+  retry:
+    max: 2
+    when: always
+
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+
+package-oci:
+  needs: [ build ]
+
+override_verify_maven_central:
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
+  stage: publish
+  needs: [ ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: manual
+      allow_failure: true
+  script:
+    - touch OVERRIDE_MAVEN_VERIFY
+  cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
+    - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
+      paths:
+        - OVERRIDE_MAVEN_VERIFY
+      policy: push
+      unprotect: true
+
+# Verify Maven Central deployment is publicly available before publishing OCI images
+verify_maven_central_deployment:
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
+  stage: publish
+  needs: [ deploy_to_maven_central ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+  cache: # Cache is used to signal between the override_verify_maven_central and verify_maven_central_deployment jobs
+    - key: $CI_PIPELINE_ID-OVERRIDE_SIGNAL
+      paths:
+        - OVERRIDE_MAVEN_VERIFY
+      policy: pull
+      unprotect: true
+  script:
+    - if [ -f OVERRIDE_MAVEN_VERIFY ]; then echo "SKIPPING MAVEN VERIFICATION"; exit 0; fi
+    - |
+      export VERSION=${CI_COMMIT_TAG##v}
+      ARTIFACT_URLS=(
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/${VERSION}/dd-java-agent-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
+        "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
+      )
+      # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
+      sleep 300
+      TRY=0
+      MAX_TRIES=5
+      DELAY=60
+      while [ $TRY -lt $MAX_TRIES ]; do
+        ARTIFACTS_AVAILABLE=true
+        for URL in "${ARTIFACT_URLS[@]}"; do
+          if ! curl --location --fail --silent --show-error -I "$URL"; then
+            ARTIFACTS_AVAILABLE=false
+            break
+          fi
+        done
+        if [ "$ARTIFACTS_AVAILABLE" = true ]; then
+          break
+        fi
+        TRY=$((TRY + 1))
+        if [ $TRY -eq $MAX_TRIES ]; then
+          echo "The release was not available after 10 mins. Manually re-run the job to try again."
+          exit 1
+        fi
+        sleep $DELAY
+      done
+
+publishing-gate:
+  stage: publish
+  needs:
+    - job: verify_maven_central_deployment
+      optional: true # Required for releases only
+
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
+
+create_key:
+  stage: generate-signing-key
+  when: manual
+  needs: [ ]
+  variables:
+    PROJECT_NAME: "dd-trace-java"
+    EXPORT_TO_KEYSERVER: "true"
+  image: $REGISTRY/ci/agent-key-management-tools/gpg:1
+  script:
+    - /create.sh
+  artifacts:
+    expire_in: 13 mos
+    paths:
+      - pubkeys
+
+validate_supported_configurations_v2_local_file:
+  extends: .validate_supported_configurations_v2_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "false"
+
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
+  variables:
+    LOCAL_REPO_NAME: "dd-trace-java"
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    LANGUAGE_NAME: "java"
+    MULTIPLE_RELEASE_LINES: "false"
