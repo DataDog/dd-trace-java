@@ -276,8 +276,6 @@ fi
 # Ensure fat jar is built and get its path
 FAT_JAR=$(ensure_fat_jar)
 
-log_info "Converting JFR to OTLP format..."
-
 # Run conversion using fat jar and capture output
 # Suppress SLF4J warnings (it defaults to NOP logger which is fine for CLI)
 CONVERTER_OUTPUT=$(java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" 2>&1 | grep -vE "^SLF4J:|SLF4JServiceProvider")
@@ -287,41 +285,35 @@ if [ $CONVERTER_EXIT -eq 0 ]; then
     # Extract output file (last argument)
     OUTPUT_FILE="${CONVERTER_ARGS[-1]}"
 
-    # Print converter output
-    echo "$CONVERTER_OUTPUT"
+    if [ "$SHOW_DIAGNOSTICS" = true ]; then
+        # With diagnostics: show converter output plus enhanced metrics
+        echo "$CONVERTER_OUTPUT"
 
-    log_success "Conversion completed successfully!"
-
-    if [ -f "$OUTPUT_FILE" ]; then
         OUTPUT_SIZE=$(get_file_size_bytes "$OUTPUT_FILE")
-        SIZE=$(format_bytes $OUTPUT_SIZE)
-        log_info "Output file: $OUTPUT_FILE ($SIZE)"
 
-        if [ "$SHOW_DIAGNOSTICS" = true ]; then
-            echo ""
-            log_diagnostic "=== Conversion Diagnostics ==="
+        echo ""
+        log_diagnostic "=== Enhanced Diagnostics ==="
 
-            # Extract conversion time from converter output (looks for "Time: XXX ms")
-            CONVERSION_TIME=$(echo "$CONVERTER_OUTPUT" | grep -o 'Time: [0-9]* ms' | grep -o '[0-9]*' | head -1)
-            if [ -n "$CONVERSION_TIME" ] && [ "$CONVERSION_TIME" != "" ]; then
-                log_diagnostic "Conversion time: ${CONVERSION_TIME}ms"
+        # Show size comparison with input
+        if [ ${#INPUT_FILES[@]} -gt 0 ]; then
+            RATIO=$(calc_compression_ratio $TOTAL_INPUT_SIZE $OUTPUT_SIZE)
+            log_diagnostic "Input → Output: $(format_bytes $TOTAL_INPUT_SIZE) → $(format_bytes $OUTPUT_SIZE)"
+            log_diagnostic "Compression: $RATIO of original"
+
+            if [ "$OUTPUT_SIZE" -lt "$TOTAL_INPUT_SIZE" ]; then
+                SAVINGS=$((TOTAL_INPUT_SIZE - OUTPUT_SIZE))
+                SAVINGS_PCT=$(awk "BEGIN {printf \"%.1f%%\", (1 - $OUTPUT_SIZE/$TOTAL_INPUT_SIZE) * 100}")
+                log_diagnostic "Space saved: $(format_bytes $SAVINGS) ($SAVINGS_PCT reduction)"
             fi
-
-            # Show size comparison
-            if [ ${#INPUT_FILES[@]} -gt 0 ]; then
-                RATIO=$(calc_compression_ratio $TOTAL_INPUT_SIZE $OUTPUT_SIZE)
-                log_diagnostic "Output size: $(format_bytes $OUTPUT_SIZE)"
-                log_diagnostic "Size ratio: $RATIO of input"
-
-                if [ "$OUTPUT_SIZE" -lt "$TOTAL_INPUT_SIZE" ]; then
-                    SAVINGS=$((TOTAL_INPUT_SIZE - OUTPUT_SIZE))
-                    SAVINGS_PCT=$(awk "BEGIN {printf \"%.1f%%\", (1 - $OUTPUT_SIZE/$TOTAL_INPUT_SIZE) * 100}")
-                    log_diagnostic "Savings: $(format_bytes $SAVINGS) ($SAVINGS_PCT reduction)"
-                fi
-            fi
-
-            echo ""
         fi
+        echo ""
+    else
+        # Without diagnostics: concise output
+        # Extract just the key info from converter output
+        CONVERSION_TIME=$(echo "$CONVERTER_OUTPUT" | grep -o 'Time: [0-9]* ms' | grep -o '[0-9]*' | head -1)
+        OUTPUT_SIZE=$(get_file_size_bytes "$OUTPUT_FILE")
+
+        log_success "Converted: $OUTPUT_FILE ($(format_bytes $OUTPUT_SIZE), ${CONVERSION_TIME}ms)"
     fi
 else
     echo "$CONVERTER_OUTPUT"
