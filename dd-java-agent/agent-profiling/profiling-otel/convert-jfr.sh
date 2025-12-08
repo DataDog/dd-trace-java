@@ -55,11 +55,13 @@ get_file_size() {
 get_file_size_bytes() {
     local file="$1"
     if [ -f "$file" ]; then
-        # Cross-platform file size in bytes
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            stat -f%z "$file"
+        # Try GNU stat first (Linux, or GNU coreutils on macOS)
+        local size=$(stat -c %s "$file" 2>/dev/null)
+        if [ -n "$size" ] && [ "$size" != "" ]; then
+            echo "$size"
         else
-            stat -c%s "$file"
+            # Fall back to BSD stat (macOS native)
+            stat -f %z "$file" 2>/dev/null || echo "0"
         fi
     else
         echo "0"
@@ -188,18 +190,16 @@ log_info "Converting JFR to OTLP format..."
 
 cd "$PROJECT_ROOT"
 
-# Measure conversion time
-START_TIME=$(date +%s%N)
-START_CPU=$(ps -o cputime= -p $$ | tr -d ' :')
+# Run Gradle task with arguments and capture output
+GRADLE_OUTPUT=$(./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args="$ARGS" 2>&1)
+GRADLE_EXIT=$?
 
-# Run Gradle task with arguments
-if ./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args="$ARGS"; then
-    # Measure end time
-    END_TIME=$(date +%s%N)
-    END_CPU=$(ps -o cputime= -p $$ | tr -d ' :')
-
+if [ $GRADLE_EXIT -eq 0 ]; then
     # Extract output file (last argument)
     OUTPUT_FILE="${CONVERTER_ARGS[-1]}"
+
+    # Print gradle output
+    echo "$GRADLE_OUTPUT"
 
     log_success "Conversion completed successfully!"
 
@@ -212,10 +212,11 @@ if ./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args=
             echo ""
             log_diagnostic "=== Conversion Diagnostics ==="
 
-            # Calculate wall time
-            WALL_TIME_NS=$((END_TIME - START_TIME))
-            WALL_TIME_MS=$(awk "BEGIN {printf \"%.1f\", $WALL_TIME_NS/1000000}")
-            log_diagnostic "Wall time: ${WALL_TIME_MS}ms"
+            # Extract conversion time from converter output (looks for "Time: XXX ms")
+            CONVERSION_TIME=$(echo "$GRADLE_OUTPUT" | grep -o 'Time: [0-9]* ms' | grep -o '[0-9]*' | head -1)
+            if [ -n "$CONVERSION_TIME" ] && [ "$CONVERSION_TIME" != "" ]; then
+                log_diagnostic "Conversion time: ${CONVERSION_TIME}ms"
+            fi
 
             # Show size comparison
             if [ ${#INPUT_FILES[@]} -gt 0 ]; then
@@ -234,7 +235,7 @@ if ./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args=
         fi
     fi
 else
-    EXIT_CODE=$?
-    log_error "Conversion failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
+    echo "$GRADLE_OUTPUT"
+    log_error "Conversion failed with exit code $GRADLE_EXIT"
+    exit $GRADLE_EXIT
 fi
