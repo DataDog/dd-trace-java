@@ -21,7 +21,7 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     // This should go in a common place because today is defined under jctools-channel
     // but here I'd like not to draw that dependency
     lookAheadStep =
-        Math.min(capacity / 4, Integer.getInteger("jctools.spsc.max.lookahead.step", 4096));
+        Math.min(capacity / 4,4096); // 4096 is the default look-ahead in jctools (see `jctools.spsc.max.lookahead.step`)
   }
 
   /**
