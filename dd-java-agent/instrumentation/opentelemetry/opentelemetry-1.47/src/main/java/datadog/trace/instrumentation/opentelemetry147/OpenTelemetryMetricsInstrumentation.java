@@ -15,7 +15,12 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Provides our metrics implementations to OpenTelemetry clients. */
+/**
+ * Provides our metrics implementations to OpenTelemetry clients.
+ *
+ * <p>Note that the minimum version for Datadog support of the OpenTelemetry metrics API is 1.47.
+ * Tracing support is handled by a separate instrumentation under the 'opentelemetry-1.4' module.
+ */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
