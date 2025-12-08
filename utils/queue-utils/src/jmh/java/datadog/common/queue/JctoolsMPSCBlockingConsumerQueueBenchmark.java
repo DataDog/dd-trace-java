@@ -38,7 +38,6 @@ public class JctoolsMPSCBlockingConsumerQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
     MpscBlockingConsumerArrayQueue<Integer> queue;
-    CountDownLatch consumerReady;
 
     @Param({"1024", "65536"})
     int capacity;

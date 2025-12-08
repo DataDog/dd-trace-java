@@ -37,7 +37,6 @@ public class MPSCBlockingConsumerQueueBenchmark {
   @State(Scope.Group)
   public static class QueueState {
     MpscBlockingConsumerArrayQueueVarHandle<Integer> queue;
-    CountDownLatch consumerReady;
 
     @Param({"1024", "65536"})
     int capacity;
