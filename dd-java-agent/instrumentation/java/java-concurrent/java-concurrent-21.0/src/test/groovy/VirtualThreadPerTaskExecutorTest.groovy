@@ -1,14 +1,13 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
-import spock.lang.Shared
-
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorCompletionService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import spock.lang.Shared
 
-class VirtualThreadTest extends InstrumentationSpecification {
+class VirtualThreadPerTaskExecutorTest extends InstrumentationSpecification {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
