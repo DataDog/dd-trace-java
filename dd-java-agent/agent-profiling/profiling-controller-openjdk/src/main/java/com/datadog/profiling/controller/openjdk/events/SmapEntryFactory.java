@@ -27,6 +27,14 @@ public class SmapEntryFactory {
   private static final SmapEntryCache SMAP_ENTRY_CACHE = new SmapEntryCache(Duration.ofMillis(500));
 
   static {
+    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
+    // This prevents a deadlock. See PROF-13025.
+    try {
+      Class.forName("jdk.jfr.events.Handlers");
+    } catch (Exception e) {
+      // Ignore when the class is not found or anything else goes wrong.
+    }
+
     if (!JavaVirtualMachine.isJ9() && !JavaVirtualMachine.isOracleJDK8()) {
       SMAP_ENTRY_EVENT_TYPE = EventType.getEventType(SmapEntryEvent.class);
       AGGREGATED_SMAP_ENTRY_EVENT_TYPE = EventType.getEventType(AggregatedSmapEntryEvent.class);
