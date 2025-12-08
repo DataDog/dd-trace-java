@@ -1,5 +1,6 @@
 plugins {
   `java-library`
+  id("com.gradleup.shadow")
   id("me.champeau.jmh")
 }
 
@@ -57,6 +58,19 @@ tasks.named<JavaCompile>("compileJmhJava") {
   javaCompiler.set(
     javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(17)) }
   )
+}
+
+// Create fat jar for standalone CLI usage
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+  archiveClassifier.set("cli")
+  manifest {
+    attributes["Main-Class"] = "com.datadog.profiling.otel.JfrToOtlpConverterCLI"
+  }
+  // Minimize the jar by only including classes that are actually used
+  minimize()
+
+  // Exclude SLF4J service provider files to avoid warnings
+  exclude("META-INF/services/org.slf4j.spi.SLF4JServiceProvider")
 }
 
 // CLI task for converting JFR files
