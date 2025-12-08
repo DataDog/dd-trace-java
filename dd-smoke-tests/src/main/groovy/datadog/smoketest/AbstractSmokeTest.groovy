@@ -188,6 +188,12 @@ abstract class AbstractSmokeTest extends ProcessManager {
   def javaProperties() {
     def tmpDir = "/tmp"
 
+    // Trick to prevent jul preferences file lock issue on forked processes, in particular in CI which
+    // runs on Linux and have competing processes trying to write to it, including the Gradle daemon.
+    //
+    //   Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
+    def prefsDir = "${tmpDir}/userPrefs/${this.getClass().simpleName}_${System.nanoTime()}"
+
     def ret = [
       "${getMaxMemoryArgumentForFork()}",
       "${getMinMemoryArgumentForFork()}",
@@ -204,7 +210,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
       "-Ddd.profiling.ddprof.alloc.enabled=${isDdprofSafe()}",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=${logLevel()}",
-      "-Ddd.site="
+      "-Ddd.site=",
+      "-Djava.util.prefs.userRoot=${prefsDir}"
     ]
     if (inferServiceName())  {
       ret += "-Ddd.service.name=${SERVICE_NAME}"

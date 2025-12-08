@@ -100,9 +100,8 @@ abstract class CiVisibilitySmokeTest extends Specification {
   }
 
   /**
-   * Trick to prevent jul Prefs file lock issue on forked processes.
-   *
-   * Reason: multiple observations of failed job with
+   * Trick to prevent jul Prefs file lock issue on forked processes, in particular in CI which
+   * runs on Linux and have competing processes trying to write to it, including the Gradle daemon.
    *
    * <pre><code>
    * Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
