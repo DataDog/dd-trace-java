@@ -26,6 +26,11 @@ set -e
 # Script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+MODULE_DIR="$SCRIPT_DIR"
+
+# Fat jar location
+FAT_JAR_DIR="$MODULE_DIR/build/libs"
+FAT_JAR_PATTERN="$FAT_JAR_DIR/profiling-otel-*-cli.jar"
 
 # Colors
 RED='\033[0;31m'
@@ -93,6 +98,88 @@ calc_compression_ratio() {
     fi
 }
 
+# Get modification time of a file (seconds since epoch)
+get_mtime() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "0"
+        return
+    fi
+
+    # Try GNU stat first (Linux, or GNU coreutils on macOS)
+    local mtime=$(stat -c %Y "$file" 2>/dev/null)
+    if [ -n "$mtime" ] && [ "$mtime" != "" ]; then
+        echo "$mtime"
+    else
+        # Fall back to BSD stat (macOS native)
+        stat -f %m "$file" 2>/dev/null || echo "0"
+    fi
+}
+
+# Find the most recent source file in src/main/java
+find_newest_source() {
+    local newest=0
+    while IFS= read -r -d '' file; do
+        local mtime=$(get_mtime "$file")
+        if [ "$mtime" -gt "$newest" ]; then
+            newest="$mtime"
+        fi
+    done < <(find "$MODULE_DIR/src/main/java" -type f -name "*.java" -print0 2>/dev/null)
+    echo "$newest"
+}
+
+# Check if fat jar needs rebuilding
+needs_rebuild() {
+    # Find the fat jar
+    local jar=$(ls -t $FAT_JAR_PATTERN 2>/dev/null | head -1)
+
+    if [ -z "$jar" ] || [ ! -f "$jar" ]; then
+        # Jar doesn't exist
+        return 0
+    fi
+
+    # Get jar modification time
+    local jar_mtime=$(get_mtime "$jar")
+
+    # Get newest source file time
+    local newest_source_mtime=$(find_newest_source)
+
+    # Rebuild if any source is newer than jar
+    if [ "$newest_source_mtime" -gt "$jar_mtime" ]; then
+        return 0
+    fi
+
+    # No rebuild needed
+    return 1
+}
+
+# Ensure fat jar is built and up-to-date
+ensure_fat_jar() {
+    local rebuild_needed=false
+    if needs_rebuild; then
+        rebuild_needed=true
+    fi
+
+    if [ "$rebuild_needed" = true ]; then
+        log_info "Building fat jar (source files changed or jar missing)..." >&2
+        cd "$PROJECT_ROOT"
+        ./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:shadowJar >/dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            log_error "Failed to build fat jar" >&2
+            exit 1
+        fi
+    fi
+
+    # Find and return the fat jar path
+    local jar=$(ls -t $FAT_JAR_PATTERN 2>/dev/null | head -1)
+    if [ -z "$jar" ] || [ ! -f "$jar" ]; then
+        log_error "Fat jar not found after build" >&2
+        exit 1
+    fi
+
+    echo "$jar"
+}
+
 show_help() {
     cat << EOF
 JFR to OTLP Converter
@@ -127,8 +214,8 @@ Examples:
   $(basename "$0") --diagnostics recording.jfr output.pb
 
 Notes:
-  - Uses Gradle's convertJfr task under the hood
-  - Automatically compiles if needed
+  - Uses a fat jar for fast execution (no Gradle overhead)
+  - Automatically rebuilds jar if source files change
   - Output format is detected from extension (.pb or .json)
   - Use --diagnostics to see file sizes and conversion times
 
@@ -186,20 +273,22 @@ if [ "$SHOW_DIAGNOSTICS" = true ]; then
     fi
 fi
 
+# Ensure fat jar is built and get its path
+FAT_JAR=$(ensure_fat_jar)
+
 log_info "Converting JFR to OTLP format..."
 
-cd "$PROJECT_ROOT"
+# Run conversion using fat jar and capture output
+# Suppress SLF4J warnings (it defaults to NOP logger which is fine for CLI)
+CONVERTER_OUTPUT=$(java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" 2>&1 | grep -vE "^SLF4J:|SLF4JServiceProvider")
+CONVERTER_EXIT=${PIPESTATUS[0]}
 
-# Run Gradle task with arguments and capture output
-GRADLE_OUTPUT=$(./gradlew -q :dd-java-agent:agent-profiling:profiling-otel:convertJfr --args="$ARGS" 2>&1)
-GRADLE_EXIT=$?
-
-if [ $GRADLE_EXIT -eq 0 ]; then
+if [ $CONVERTER_EXIT -eq 0 ]; then
     # Extract output file (last argument)
     OUTPUT_FILE="${CONVERTER_ARGS[-1]}"
 
-    # Print gradle output
-    echo "$GRADLE_OUTPUT"
+    # Print converter output
+    echo "$CONVERTER_OUTPUT"
 
     log_success "Conversion completed successfully!"
 
@@ -213,7 +302,7 @@ if [ $GRADLE_EXIT -eq 0 ]; then
             log_diagnostic "=== Conversion Diagnostics ==="
 
             # Extract conversion time from converter output (looks for "Time: XXX ms")
-            CONVERSION_TIME=$(echo "$GRADLE_OUTPUT" | grep -o 'Time: [0-9]* ms' | grep -o '[0-9]*' | head -1)
+            CONVERSION_TIME=$(echo "$CONVERTER_OUTPUT" | grep -o 'Time: [0-9]* ms' | grep -o '[0-9]*' | head -1)
             if [ -n "$CONVERSION_TIME" ] && [ "$CONVERSION_TIME" != "" ]; then
                 log_diagnostic "Conversion time: ${CONVERSION_TIME}ms"
             fi
@@ -235,7 +324,7 @@ if [ $GRADLE_EXIT -eq 0 ]; then
         fi
     fi
 else
-    echo "$GRADLE_OUTPUT"
-    log_error "Conversion failed with exit code $GRADLE_EXIT"
-    exit $GRADLE_EXIT
+    echo "$CONVERTER_OUTPUT"
+    log_error "Conversion failed with exit code $CONVERTER_EXIT"
+    exit $CONVERTER_EXIT
 fi
