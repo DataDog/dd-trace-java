@@ -7,7 +7,6 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import java.nio.file.Paths
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
 import spock.util.environment.Jvm
