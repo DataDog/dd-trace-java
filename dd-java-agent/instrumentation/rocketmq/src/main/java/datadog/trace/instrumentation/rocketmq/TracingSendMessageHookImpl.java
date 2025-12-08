@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.hook.SendMessageHook;
@@ -10,10 +11,11 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
 
   private final RocketMqDecorator rocketMqDecorator;
 
-  private AgentScope scope;
+  private final ContextStore<SendMessageContext, AgentScope> store;
 
-  TracingSendMessageHookImpl() {
+  TracingSendMessageHookImpl(ContextStore<SendMessageContext, AgentScope> store) {
     this.rocketMqDecorator = PRODUCER_DECORATE;
+    this.store = store;
   }
 
   @Override
@@ -26,14 +28,21 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-    scope = rocketMqDecorator.start(context);
+    AgentScope scope = rocketMqDecorator.start(context);
+    store.put(context, scope);
   }
 
   @Override
   public void sendMessageAfter(SendMessageContext context) {
+    AgentScope scope = store.get(context);
+    if (scope == null) {
+      return;
+    }
     if (context == null) {
+      scope.close();
       return;
     }
     rocketMqDecorator.end(context, scope);
+    scope.close();
   }
 }

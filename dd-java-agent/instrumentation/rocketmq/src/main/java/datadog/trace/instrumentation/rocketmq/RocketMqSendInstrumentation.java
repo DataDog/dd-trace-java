@@ -5,11 +5,16 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import java.util.HashMap;
+import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
@@ -29,6 +34,13 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return named(hierarchyMarkerType());
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    Map<String, String> map = new HashMap<>(1);
+    map.put("org.apache.rocketmq.client.hook.SendMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
+    return map;
   }
 
   @Override
@@ -58,7 +70,9 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
         @Advice.FieldValue(value = "defaultMQProducerImpl", declaringType = DefaultMQProducer.class)
         DefaultMQProducerImpl defaultMqProducerImpl) {
 
-      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook());
+      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook(
+          InstrumentationContext.get(SendMessageContext.class, AgentScope.class)
+      ));
     }
   }
 }

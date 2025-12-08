@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rocketmq;
 
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.*;
@@ -133,7 +132,7 @@ public class RocketMqDecorator extends ClientDecorator {
   }
 
   public void end(ConsumeMessageContext context, AgentScope scope) {
-    if (null == scope || null == scope.span()) {
+    if (null == scope.span()) {
       return;
     }
 
@@ -142,10 +141,7 @@ public class RocketMqDecorator extends ClientDecorator {
     AgentSpan span = scope.span();
     span.setTag("status", status);
     beforeFinish(span);
-
     scope.span().finish();
-    scope.close();
-
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
     }
@@ -178,20 +174,17 @@ public class RocketMqDecorator extends ClientDecorator {
     if (brokerAddr != null) {
       span.setTag(MESSAGING_ROCKETMQ_BROKER_ADDRESS, brokerAddr);
     }
-
+    afterStart(span);
     defaultPropagator().inject(span, context, SETTER);
     AgentScope scope = activateSpan(span);
-    afterStart(span);
+
     if (log.isDebugEnabled()) {
-      log.debug("consumer span start topic:{}", topic);
+      log.debug("send span start topic:{}", topic);
     }
     return scope;
   }
 
   public void end(SendMessageContext context, AgentScope scope) {
-    if (scope == null) {
-      return;
-    }
     Exception exception = context.getException();
     AgentSpan span = scope.span();
 
@@ -206,11 +199,10 @@ public class RocketMqDecorator extends ClientDecorator {
     }
 
     beforeFinish(span);
-    scope.span().finish();
-    scope.close();
+    span.finish();
 
     if (log.isDebugEnabled()) {
-      log.debug("consumer span end");
+      log.debug("send span end");
     }
   }
 }
