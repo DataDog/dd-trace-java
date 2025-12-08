@@ -1,5 +1,4 @@
 import groovy.lang.Closure
-import org.gradle.kotlin.dsl.extra
 
 plugins {
   `java-library`
@@ -16,8 +15,17 @@ java {
   }
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
-  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
+fun AbstractCompile.configureCompiler(
+  javaVersionInteger: Int,
+  compatibilityVersion: JavaVersion? = null,
+  unsetReleaseFlagReason: String? = null
+) {
+  (project.extra["configureCompiler"] as Closure<*>).call(
+    this,
+    javaVersionInteger,
+    compatibilityVersion,
+    unsetReleaseFlagReason
+  )
 }
 
 listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
@@ -30,7 +38,8 @@ dependencies {
   api(project(":internal-api"))
   api(libs.jctools)
 
-  testImplementation(libs.junit)
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.slf4j)
 }
 

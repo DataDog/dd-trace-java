@@ -591,18 +591,25 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<
       }
       // pIndex is even (lower bit is 0) -> actual index is (pIndex >> 1), consumer is awake
 
-      // we want 'limit' slots, but will settle for whatever is visible to 'producerLimit'
-      batchLimit =
-          Math.min(producerLimit, pIndex + shiftedBatchSize); //  -> producerLimit >= batchLimit
+      // Calculate available space (similar to reference implementation)
+      long available = producerLimit - pIndex;
 
       // Use producer limit to save a read of the more rapidly mutated consumer index.
       // Assumption: queue is usually empty or near empty
-      if (pIndex >= producerLimit) {
+      if (available < shiftedBatchSize) {
         if (!recalculateProducerLimit(mask, pIndex, producerLimit)) {
           return 0;
         }
-        batchLimit = Math.min(lpProducerLimit(), pIndex + shiftedBatchSize);
+        producerLimit = lpProducerLimit();
+        available = producerLimit - pIndex;
+        if (available <= 0) {
+          return 0; // FULL
+        }
       }
+
+      // we want 'limit' slots, but will settle for whatever is available
+      long claimedShifted = Math.min(available, shiftedBatchSize);
+      batchLimit = pIndex + claimedShifted;
 
       // Claim the index
       if (casProducerIndex(pIndex, batchLimit)) {
