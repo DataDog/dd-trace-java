@@ -21,7 +21,7 @@ public interface ObjectSample {
   long allocationSize();
 
   @JfrField("objectClass")
-  String objectClass();
+  JfrClass objectClass();
 
   @JfrField("size")
   long size();
