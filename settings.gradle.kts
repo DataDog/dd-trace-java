@@ -483,6 +483,7 @@ include(
   ":dd-java-agent:instrumentation:opensearch",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-0.3",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4",
+  ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.26",
   ":dd-java-agent:instrumentation:opentracing:api-0.31",
