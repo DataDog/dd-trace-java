@@ -18,40 +18,29 @@ public final class PaddedThread extends ThreadRhsPadding {
   }
 
   /**
-   * @param newValue value to store with opaque semantics (bitwise atomicity only)
+   * Stores thread with release semantics.
+   *
+   * @param newValue thread to store
    */
-  public void setOpaque(Thread newValue) {
-    VALUE_HANDLE.setOpaque(this, newValue);
+  public void setRelease(Thread newValue) {
+    VALUE_HANDLE.setRelease(this, newValue);
   }
 
   /**
-   * @param newValue value to store with volatile semantics (full visibility)
+   * Loads thread with acquire semantics.
+   *
+   * @return current thread value
    */
-  public void setVolatile(Thread newValue) {
-    VALUE_HANDLE.setVolatile(this, newValue);
+  public Thread getAcquire() {
+    return (Thread) VALUE_HANDLE.getAcquire(this);
   }
 
   /**
-   * @param newValue new value
-   * @return previous value
-   */
-  public Thread getAndSet(Thread newValue) {
-    return (Thread) VALUE_HANDLE.getAndSet(this, newValue);
-  }
-
-  /**
-   * @return value with opaque semantics (bitwise atomicity only)
+   * Loads thread with opaque semantics.
+   *
+   * @return current thread value
    */
   public Thread getOpaque() {
     return (Thread) VALUE_HANDLE.getOpaque(this);
-  }
-
-  /**
-   * @param expectedValue expected current value
-   * @param newValue new value
-   * @return true if successful
-   */
-  public boolean compareAndSet(Thread expectedValue, Thread newValue) {
-    return VALUE_HANDLE.compareAndSet(this, expectedValue, newValue);
   }
 }

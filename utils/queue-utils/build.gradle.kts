@@ -1,14 +1,12 @@
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 import org.gradle.kotlin.dsl.extra
 
 plugins {
   `java-library`
   id("me.champeau.jmh")
+  id("dd-trace-java.test-jvm-contraints")
   idea
 }
-
-val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
 
 apply(from = "$rootDir/gradle/java.gradle")
 
@@ -16,14 +14,6 @@ java {
   toolchain {
     languageVersion = JavaLanguageVersion.of(11)
   }
-}
-/*
-tasks.named<CheckForbiddenApis>("forbiddenApisMain_java11") {
-  failOnMissingClasses = false
-}
-*/
-tasks.withType<Javadoc>().configureEach {
-  javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
 fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
@@ -40,8 +30,12 @@ dependencies {
   api(project(":internal-api"))
   api(libs.jctools)
 
-  testImplementation(project(":dd-java-agent:testing"))
+  testImplementation(libs.junit)
   testImplementation(libs.slf4j)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
 idea {

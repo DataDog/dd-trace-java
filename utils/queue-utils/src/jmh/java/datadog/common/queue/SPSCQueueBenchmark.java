@@ -28,7 +28,7 @@ SPSCQueueBenchmark.queueTest:produce                              65536  thrpt  
  */
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 3, time = 10)
-@Measurement(iterations = 1, time = 30)
+@Measurement(iterations = 3, time = 10)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)

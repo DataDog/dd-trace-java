@@ -42,17 +42,17 @@ public final class PaddedLong extends LongRhsPadding {
   }
 
   /**
+   * @return value with opaque semantics
+   */
+  public long getOpaque() {
+    return (long) VALUE_HANDLE.getOpaque(this);
+  }
+
+  /**
    * @return value with plain semantics (no ordering)
    */
   public long getPlain() {
     return (long) VALUE_HANDLE.get(this);
-  }
-
-  /**
-   * @return value with opaque semantics (bitwise atomicity only)
-   */
-  public long getOpaque() {
-    return (long) VALUE_HANDLE.getOpaque(this);
   }
 
   /**
@@ -74,13 +74,6 @@ public final class PaddedLong extends LongRhsPadding {
    */
   public void setPlain(long newValue) {
     VALUE_HANDLE.set(this, newValue);
-  }
-
-  /**
-   * @param newValue value to store with opaque semantics (bitwise atomicity only)
-   */
-  public void setOpaque(long newValue) {
-    VALUE_HANDLE.setOpaque(this, newValue);
   }
 
   /**

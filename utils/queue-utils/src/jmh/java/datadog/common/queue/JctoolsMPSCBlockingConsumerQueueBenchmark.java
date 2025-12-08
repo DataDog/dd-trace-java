@@ -1,6 +1,5 @@
 package datadog.common.queue;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -29,8 +28,8 @@ JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:consume       65536  thrpt  
 JctoolsMPSCBlockingConsumerQueueBenchmark.queueTest:produce       65536  thrpt         7,733          ops/us
 */
 @BenchmarkMode(Mode.Throughput)
-@Warmup(iterations = 1, time = 30)
-@Measurement(iterations = 1, time = 30)
+@Warmup(iterations = 3, time = 10)
+@Measurement(iterations = 3, time = 10)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)

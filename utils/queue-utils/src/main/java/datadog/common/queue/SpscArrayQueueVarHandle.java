@@ -9,9 +9,8 @@ import java.util.Objects;
  * @param <E> the type of elements held in this queue
  */
 public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
-  private long cachedHead = 0L; // visible only to producer
-  private long cachedTail = 0L; // visible only to consumer
   private final int lookAheadStep;
+  protected long producerLimit;
 
   /**
    * @param requestedCapacity queue capacity (rounded up to power of two)
@@ -21,89 +20,115 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
     // This should go in a common place because today is defined under jctools-channel
     // but here I'd like not to draw that dependency
     lookAheadStep =
-        Math.min(capacity / 4,4096); // 4096 is the default look-ahead in jctools (see `jctools.spsc.max.lookahead.step`)
+        Math.min(
+            capacity / 4, 4096); // 4096 is the default value for "jctools.spsc.max.lookahead.step"
   }
 
   /**
-   * @param e element to add
-   * @return false if full, true if added
+   * Offers element to queue.
+   *
+   * @param e element to add (not null)
+   * @return true if added, false if full
    */
   @Override
   public boolean offer(E e) {
     Objects.requireNonNull(e);
+    // local load of field to avoid repeated loads after volatile reads
+    final E[] buffer = this.buffer;
+    final long producerIndex = this.lpProducerIndex();
 
-    final long currentTail = tail.getPlain();
-    final int index = arrayIndex(currentTail);
-
-    if (currentTail - cachedHead >= capacity) {
-      cachedHead = head.getAcquire(); // Acquire: pairs with consumer's setRelease
-      if (currentTail - cachedHead >= capacity) {
-        return false;
-      }
+    if (producerIndex >= producerLimit && !offerSlowPath(buffer, producerIndex)) {
+      return false;
     }
+    soRefElement(buffer, arrayIndex(producerIndex), e); // Release: publish element to consumer
+    soProducerIndex(producerIndex + 1); // Release: publish tail advance after element write
 
-    ARRAY_HANDLE.setRelease(buffer, index, e); // Release: ensures visibility before tail update
-    tail.setRelease(currentTail + 1); // Release: publishes element to consumer
+    return true;
+  }
+
+  private boolean offerSlowPath(final E[] buffer, final long producerIndex) {
+    final int lookAheadStep = this.lookAheadStep;
+    if (null == lvRefElement(buffer, arrayIndex(producerIndex + lookAheadStep))) {
+      producerLimit = producerIndex + lookAheadStep;
+    } else {
+      return null == lvRefElement(buffer, arrayIndex(producerIndex));
+    }
     return true;
   }
 
   /**
+   * Polls element from queue.
+   *
    * @return head element or null if empty
    */
   @Override
-  @SuppressWarnings("unchecked")
   public E poll() {
-    final long currentHead = head.getPlain();
+    final long currentHead = lpConsumerIndex(); // Plain: single consumer, no contention
     final int index = arrayIndex(currentHead);
 
-    if (currentHead >= cachedTail) {
-      cachedTail = tail.getAcquire(); // Acquire: pairs with producer's setRelease
-      if (currentHead >= cachedTail) {
-        return null;
-      }
+    final E value =
+        lvRefElement(buffer, index); // Volatile: ensure element visibility from producer
+    if (null == value) {
+      return null;
     }
-    // Volatile: ensures visibility of producer writes
-    final E value = (E) ARRAY_HANDLE.getVolatile(buffer, index);
-    // Release: publishes slot availability to producer
-    ARRAY_HANDLE.setRelease(buffer, index, null);
-    // Release: maintains ordering
-    head.setRelease(currentHead + 1);
+    soRefElement(buffer, index, null); // Release: publish slot clear to producer
+    soConsumerIndex(currentHead + 1); // Release: publish head advance after slot clear
 
     return value;
   }
 
   /**
+   * Peeks at head element.
+   *
    * @return head element or null if empty
    */
   @Override
-  @SuppressWarnings("unchecked")
   public E peek() {
-    final long currentHead = head.getPlain();
-
-    if (currentHead >= cachedTail) {
-      cachedTail = tail.getAcquire(); // Acquire: pairs with producer's setRelease
-      if (currentHead >= cachedTail) {
-        return null;
-      }
-    }
-
-    final int index = arrayIndex(currentHead);
-    return (E)
-        ARRAY_HANDLE.getVolatile(buffer, index); // Volatile: ensures visibility of producer writes
+    return lvRefElement(buffer, arrayIndex(lpConsumerIndex()));
   }
 
   /**
-   * Drains up to limit elements from the queue. Optimized batch operation that updates consumer
-   * index per element with release semantics.
+   * Relaxed offer, delegates to offer.
    *
-   * @param consumer element consumer
-   * @param limit max elements to drain
-   * @return actual count drained
+   * @param message element to offer
+   * @return true if added, false if full
    */
   @Override
-  public int drain(Consumer<E> consumer, int limit) {
-    if (null == consumer) {
-      throw new IllegalArgumentException("consumer is null");
+  public boolean relaxedOffer(final E message) {
+    return offer(message);
+  }
+
+  /**
+   * Relaxed poll, delegates to poll.
+   *
+   * @return head element or null if empty
+   */
+  @Override
+  public E relaxedPoll() {
+    return poll();
+  }
+
+  /**
+   * Relaxed peek, delegates to peek.
+   *
+   * @return head element or null if empty
+   */
+  @Override
+  public E relaxedPeek() {
+    return peek();
+  }
+
+  /**
+   * Drains up to limit elements from queue.
+   *
+   * @param c element consumer
+   * @param limit max elements to drain
+   * @return number of elements drained
+   */
+  @Override
+  public int drain(final Consumer<E> c, final int limit) {
+    if (null == c) {
+      throw new IllegalArgumentException("c is null");
     }
     if (limit < 0) {
       throw new IllegalArgumentException("limit is negative: " + limit);
@@ -112,38 +137,33 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       return 0;
     }
 
-    final Object[] localBuffer = this.buffer;
-    final long consumerIndex = head.getPlain();
+    final E[] buffer = this.buffer;
+    final long mask = this.mask;
+    final long consumerIndex = this.lpConsumerIndex();
 
     for (int i = 0; i < limit; i++) {
       final long index = consumerIndex + i;
-      final int offset = arrayIndex(index);
-
-      final E e =
-          (E) ARRAY_HANDLE.getVolatile(localBuffer, offset); // Volatile: sees producer writes
-      if (e == null) {
+      final int arrayIndex = arrayIndex(index);
+      final E e = lvRefElement(buffer, arrayIndex);
+      if (null == e) {
         return i;
       }
-
-      ARRAY_HANDLE.setRelease(localBuffer, offset, null); // Release: publishes slot availability
-      head.setRelease(index + 1); // Release: maintains ordering for size()
-
-      consumer.accept(e);
+      soRefElement(buffer, arrayIndex, null);
+      soConsumerIndex(index + 1); // ordered store -> atomic and ordered for size()
+      c.accept(e);
     }
-
     return limit;
   }
 
   /**
-   * Fills the queue with elements from the supplier up to the specified limit. Uses look-ahead
-   * optimization to batch producer index updates and reduce volatile writes.
+   * Fills queue with up to limit elements from supplier.
    *
-   * @param s supplier of elements
-   * @param limit max elements to add
-   * @return actual count added
+   * @param s element supplier
+   * @param limit max elements to fill
+   * @return number of elements filled
    */
   @Override
-  public int fill(Supplier<E> s, int limit) {
+  public int fill(final Supplier<E> s, final int limit) {
     if (null == s) {
       throw new IllegalArgumentException("supplier is null");
     }
@@ -154,68 +174,111 @@ public final class SpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       return 0;
     }
 
-    final Object[] localBuffer = this.buffer;
+    final E[] buffer = this.buffer;
     final int lookAheadStep = this.lookAheadStep;
-    long producerIndex = tail.getPlain();
+    final long producerIndex = this.lpProducerIndex();
 
     for (int i = 0; i < limit; i++) {
       final long index = producerIndex + i;
-      final int lookAheadOffset = arrayIndex(index + lookAheadStep);
-
-      if (ARRAY_HANDLE.getVolatile(localBuffer, lookAheadOffset)
-          == null) { // Volatile: checks slot availability
-        // Look-ahead optimization for SPSC fill().
-        // If slot N steps ahead is free, we know slots 0..N are also free (SPSC property).
-        // Batch-fill up to N elements, updating tail per element for consumer visibility.
-        // Reduces volatile reads
+      final int lookAheadElementIndex = arrayIndex(index + lookAheadStep);
+      if (null == lvRefElement(buffer, lookAheadElementIndex)) {
         int lookAheadLimit = Math.min(lookAheadStep, limit - i);
-
         for (int j = 0; j < lookAheadLimit; j++) {
-          final int offset = arrayIndex(index + j);
-          E e = s.get();
-          ARRAY_HANDLE.setRelease(localBuffer, offset, e); // Release: ensures visibility
-          tail.setRelease(index + j + 1); // Release: publishes element to consumer
+          final int currentIndex = arrayIndex(index + j);
+          soRefElement(buffer, currentIndex, s.get());
+          soProducerIndex(index + j + 1); // ordered store -> atomic and ordered for size()
         }
-
         i += lookAheadLimit - 1;
       } else {
-        final int offset = arrayIndex(index);
-        if (ARRAY_HANDLE.getVolatile(localBuffer, offset)
-            != null) { // Volatile: checks slot availability
+        final int currentIndex = arrayIndex(index);
+        if (null != lvRefElement(buffer, currentIndex)) {
           return i;
         }
-
-        E e = s.get();
-        ARRAY_HANDLE.setRelease(localBuffer, offset, e); // Release: ensures visibility
-        tail.setRelease(index + 1); // Release: publishes element to consumer
+        soRefElement(buffer, currentIndex, s.get());
+        soProducerIndex(index + 1); // ordered store -> atomic and ordered for size()
       }
     }
-
     return limit;
   }
 
   /**
-   * @param e element to add
-   * @return false if full, true if added
+   * Drains elements using wait strategy and exit condition.
+   *
+   * @param c element consumer
+   * @param w wait strategy
+   * @param exit exit condition
    */
   @Override
-  public boolean relaxedOffer(E e) {
-    return offer(e);
+  public void drain(final Consumer<E> c, final WaitStrategy w, final ExitCondition exit) {
+    if (null == c) {
+      throw new IllegalArgumentException("c is null");
+    }
+    if (null == w) {
+      throw new IllegalArgumentException("wait is null");
+    }
+    if (null == exit) {
+      throw new IllegalArgumentException("exit condition is null");
+    }
+
+    final E[] buffer = this.buffer;
+    long consumerIndex = this.lpConsumerIndex();
+
+    int counter = 0;
+    while (exit.keepRunning()) {
+      for (int i = 0; i < 4096; i++) {
+        final int arrayConsumerIndex = arrayIndex(consumerIndex);
+        final E e = lvRefElement(buffer, arrayConsumerIndex);
+        if (null == e) {
+          counter = w.idle(counter);
+          continue;
+        }
+        consumerIndex++;
+        counter = 0;
+        soRefElement(buffer, arrayConsumerIndex, null);
+        soConsumerIndex(consumerIndex); // ordered store -> atomic and ordered for size()
+        c.accept(e);
+      }
+    }
   }
 
   /**
-   * @return head element or null if empty
+   * Fills queue using wait strategy and exit condition.
+   *
+   * @param s element supplier
+   * @param w wait strategy
+   * @param e exit condition
    */
   @Override
-  public E relaxedPoll() {
-    return poll();
-  }
+  public void fill(final Supplier<E> s, final WaitStrategy w, final ExitCondition e) {
+    if (null == w) throw new IllegalArgumentException("waiter is null");
+    if (null == e) throw new IllegalArgumentException("exit condition is null");
+    if (null == s) throw new IllegalArgumentException("supplier is null");
 
-  /**
-   * @return head element or null if empty
-   */
-  @Override
-  public E relaxedPeek() {
-    return peek();
+    final E[] buffer = this.buffer;
+    final long mask = this.mask;
+    final int lookAheadStep = this.lookAheadStep;
+    long producerIndex = this.lpProducerIndex();
+    int counter = 0;
+    while (e.keepRunning()) {
+      final int lookAheadElementIndex = arrayIndex(producerIndex + lookAheadStep);
+      if (null == lvRefElement(buffer, lookAheadElementIndex)) {
+        for (int j = 0; j < lookAheadStep; j++) {
+          final int arrayProducerIndex = arrayIndex(producerIndex);
+          producerIndex++;
+          soRefElement(buffer, arrayProducerIndex, s.get());
+          soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+        }
+      } else {
+        final int arrayProducerIndex = arrayIndex(producerIndex);
+        if (null != lvRefElement(buffer, arrayProducerIndex)) {
+          counter = w.idle(counter);
+          continue;
+        }
+        producerIndex++;
+        counter = 0;
+        soRefElement(buffer, arrayProducerIndex, s.get());
+        soProducerIndex(producerIndex); // ordered store -> atomic and ordered for size()
+      }
+    }
   }
 }

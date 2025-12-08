@@ -28,8 +28,8 @@ JctoolsMPSCQueueBenchmark.queueTest:consume                       65536  thrpt  
 JctoolsMPSCQueueBenchmark.queueTest:produce                       65536  thrpt         7,219          ops/us
  */
 @BenchmarkMode(Mode.Throughput)
-@Warmup(iterations = 1, time = 30)
-@Measurement(iterations = 1, time = 30)
+@Warmup(iterations = 3, time = 10)
+@Measurement(iterations = 3, time = 10)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)

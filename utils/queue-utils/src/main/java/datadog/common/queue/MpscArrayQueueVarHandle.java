@@ -2,6 +2,8 @@ package datadog.common.queue;
 
 import datadog.common.queue.padding.PaddedLong;
 import java.util.Objects;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MessagePassingQueueUtil;
 
 /**
  * MPSC bounded queue using VarHandles for lock-free producers and wait-free consumer. Producers
@@ -13,7 +15,25 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
    * Cached producer limit to avoid volatile head reads. Updated lazily when exceeded. Memory
    * ordering: getVolatile/setRelease (racy updates benign).
    */
-  protected final PaddedLong producerLimit;
+  private final PaddedLong producerLimit;
+
+  /**
+   * Store producer limit with release semantics.
+   *
+   * @param value new producer limit
+   */
+  private void soProducerLimit(long value) {
+    producerLimit.setRelease(value);
+  }
+
+  /**
+   * Load producer limit with acquire semantics.
+   *
+   * @return current producer limit
+   */
+  private long laProducerLimit() {
+    return producerLimit.getAcquire();
+  }
 
   /**
    * @param requestedCapacity queue capacity (rounded up to power of two)
@@ -24,52 +44,279 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
   }
 
   /**
-   * Inserts element at tail if space available. Lock-free for producers (CAS on tail). Memory
-   * ordering: tail CAS (full barrier), element setRelease pairs with consumer getAcquire.
+   * Offers element if queue size is below threshold.
    *
-   * @param e element to add
-   * @return true if added, false if full
+   * @param e element to offer (not null)
+   * @param threshold maximum allowable size
+   * @return true if offered, false if size exceeds threshold
    */
-  @Override
-  public boolean offer(E e) {
-    Objects.requireNonNull(e);
+  public boolean offerIfBelowThreshold(final E e, int threshold) {
+    if (null == e) {
+      throw new NullPointerException();
+    }
 
-    long pLimit = this.producerLimit.getVolatile();
+    final long mask = this.mask;
+    final long capacity = mask + 1;
+
+    long producerLimit = laProducerLimit(); // Acquire: pairs with other producers' setRelease
     long pIndex;
-
     do {
-      pIndex = tail.getVolatile(); // Volatile: see all prior producer claims
+      pIndex = laProducerIndex(); // Acquire: pairs with other producers' CAS release
+      long available = producerLimit - pIndex;
+      long size = capacity - available;
+      if (size >= threshold) {
+        final long cIndex = laConsumerIndex(); // Acquire: pairs with consumer's setRelease
+        size = pIndex - cIndex;
+        if (size >= threshold) {
+          return false; // the size exceeds threshold
+        } else {
+          // update producer limit to the next index that we must recheck the consumer index
+          producerLimit = cIndex + capacity;
 
-      if (pIndex >= pLimit) {
-        // Producer limit caching optimization.
-        // Cache consumer head to avoid volatile read on every offer.
-        // Racy updates benign: worst case we re-check head unnecessarily.
-        final long cIndex = head.getVolatile(); // Volatile: see consumer progress
-        pLimit = cIndex + capacity;
-
-        if (pIndex >= pLimit) {
-          return false;
+          // this is racy, but the race is benign
+          soProducerLimit(producerLimit); // Release: publish limit to other producers
         }
-
-        this.producerLimit.setRelease(pLimit);
       }
-    } while (!tail.compareAndSet(pIndex, pIndex + 1)); // CAS: claim slot atomically
+    } while (!casProducerIndex(pIndex, pIndex + 1)); // CAS: full barrier
+    /*
+     * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
+     * the index visibility to poll() we would need to handle the case where the element is not visible.
+     */
 
-    final int index = arrayIndex(pIndex);
-    ARRAY_HANDLE.setRelease(buffer, index, e); // Release: ensure element visible to consumer
-    return true;
+    // Won CAS, move on to storing
+    soRefElement(buffer, arrayIndex(pIndex), e); // Release: publish element to consumer
+    return true; // AWESOME :)
   }
 
   /**
-   * Batch insert up to limit elements. Single CAS claims multiple slots for efficiency. Memory
-   * ordering: same as offer, setRelease per element.
+   * {@inheritDoc} <br>
    *
-   * @param s supplier of elements
-   * @param limit max elements to add
-   * @return actual number of elements added
+   * <p>IMPLEMENTATION NOTES:<br>
+   * Lock free offer using a single CAS. As class name suggests access is permitted to many threads
+   * concurrently.
+   *
+   * @see java.util.Queue#offer
+   * @see MessagePassingQueue#offer
    */
   @Override
-  public int fill(Supplier<E> s, int limit) {
+  public boolean offer(final E e) {
+    if (null == e) {
+      throw new NullPointerException();
+    }
+
+    // use a cached view on consumer index (potentially updated in loop)
+    final long mask = this.mask;
+    long producerLimit = laProducerLimit(); // Acquire: pairs with other producers' setRelease
+    long pIndex;
+    do {
+      pIndex = laProducerIndex(); // Acquire: pairs with other producers' CAS release
+      if (pIndex >= producerLimit) {
+        final long cIndex = laConsumerIndex(); // Acquire: pairs with consumer's setRelease
+        producerLimit = cIndex + mask + 1;
+
+        if (pIndex >= producerLimit) {
+          return false; // FULL :(
+        } else {
+          // update producer limit to the next index that we must recheck the consumer index
+          // this is racy, but the race is benign
+          soProducerLimit(producerLimit); // Release: publish limit to other producers
+        }
+      }
+    } while (!casProducerIndex(pIndex, pIndex + 1)); // CAS: full barrier
+    /*
+     * NOTE: the new producer index value is made visible BEFORE the element in the array. If we relied on
+     * the index visibility to poll() we would need to handle the case where the element is not visible.
+     */
+
+    // Won CAS, move on to storing
+    soRefElement(buffer, arrayIndex(pIndex), e); // Release: publish element to consumer
+    return true; // AWESOME :)
+  }
+
+  /**
+   * A wait free alternative to offer which fails on CAS failure.
+   *
+   * @param e new element, not null
+   * @return 1 if next element cannot be filled, -1 if CAS failed, 0 if successful
+   */
+  public final int failFastOffer(final E e) {
+    Objects.requireNonNull(e);
+    final long mask = this.mask;
+    final long capacity = mask + 1;
+    final long pIndex = laProducerIndex(); // Acquire: pairs with other producers' CAS release
+    long producerLimit = laProducerLimit(); // Acquire: pairs with other producers' setRelease
+    if (pIndex >= producerLimit) {
+      final long cIndex = laConsumerIndex(); // Acquire: pairs with consumer's setRelease
+      producerLimit = cIndex + capacity;
+      if (pIndex >= producerLimit) {
+        return 1; // FULL :(
+      } else {
+        // update producer limit to the next index that we must recheck the consumer index
+        soProducerLimit(producerLimit); // Release: publish limit to other producers
+      }
+    }
+
+    // look Ma, no loop!
+    if (!casProducerIndex(pIndex, pIndex + 1)) { // CAS: full barrier
+      return -1; // CAS FAIL :(
+    }
+
+    // Won CAS, move on to storing
+    soRefElement(buffer, arrayIndex(pIndex), e); // Release: publish element to consumer
+    return 0; // AWESOME :)
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>IMPLEMENTATION NOTES:<br>
+   * Lock free poll using ordered loads/stores. As class name suggests access is limited to a single
+   * thread.
+   *
+   * @see java.util.Queue#poll
+   * @see MessagePassingQueue#poll
+   */
+  @Override
+  public E poll() {
+    final long cIndex = lpConsumerIndex(); // Plain: single consumer, no contention
+    final int arrayConsumerIndex = arrayIndex(cIndex);
+    // Copy field to avoid re-reading after volatile load
+    final E[] buffer = this.buffer;
+
+    // If we can't see the next available element we can't poll
+    E e = laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+    if (null == e) {
+      /*
+       * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
+       * winning the CAS on offer but before storing the element in the queue. Other producers may go on
+       * to fill up the queue after this element.
+       */
+      if (cIndex != laProducerIndex()) { // Acquire: pairs with producer's CAS release
+        do {
+          e = laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+        } while (e == null);
+      } else {
+        return null;
+      }
+    }
+
+    spRefElement(buffer, arrayConsumerIndex, null); // Plain: single consumer, no need to publish
+    soConsumerIndex(cIndex + 1); // Release: publish head advance to producers
+    return e;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>IMPLEMENTATION NOTES:<br>
+   * Lock free peek using ordered loads. As class name suggests access is limited to a single
+   * thread.
+   *
+   * @see java.util.Queue#poll
+   * @see MessagePassingQueue#poll
+   */
+  @Override
+  public E peek() {
+    // Copy field to avoid re-reading after volatile load
+    final E[] buffer = this.buffer;
+
+    final long cIndex = lpConsumerIndex(); // Plain: single consumer, no contention
+    final int arrayConsumerIndex = arrayIndex(cIndex);
+    E e = laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+    if (null == e) {
+      /*
+       * NOTE: Queue may not actually be empty in the case of a producer (P1) being interrupted after
+       * winning the CAS on offer but before storing the element in the queue. Other producers may go on
+       * to fill up the queue after this element.
+       */
+      if (cIndex != laProducerIndex()) { // Acquire: pairs with producer's CAS release
+        do {
+          e = laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+        } while (e == null);
+      } else {
+        return null;
+      }
+    }
+    return e;
+  }
+
+  @Override
+  public boolean relaxedOffer(E e) {
+    return offer(e);
+  }
+
+  @Override
+  public E relaxedPoll() {
+    final E[] buffer = this.buffer;
+    final long cIndex = lpConsumerIndex(); // Plain: single consumer, no contention
+    final int arrayConsumerIndex = arrayIndex(cIndex);
+
+    // If we can't see the next available element we can't poll
+    E e = laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+    if (null == e) {
+      return null;
+    }
+
+    spRefElement(buffer, arrayConsumerIndex, null); // Plain: single consumer, no need to publish
+    soConsumerIndex(cIndex + 1); // Release: publish head advance to producers
+    return e;
+  }
+
+  @Override
+  public E relaxedPeek() {
+    final E[] buffer = this.buffer;
+    final long cIndex = lpConsumerIndex(); // Plain: single consumer, no contention
+    return laRefElement(buffer, arrayIndex(cIndex)); // Acquire: pairs with producer's setRelease
+  }
+
+  /**
+   * Drains up to limit elements from the queue.
+   *
+   * @param c element consumer
+   * @param limit max elements to drain
+   * @return number of elements drained
+   */
+  @Override
+  public int drain(final MessagePassingQueue.Consumer<E> c, final int limit) {
+    if (null == c) {
+      throw new IllegalArgumentException("c is null");
+    }
+    if (limit < 0) {
+      throw new IllegalArgumentException("limit is negative: " + limit);
+    }
+    if (limit == 0) {
+      return 0;
+    }
+
+    final E[] buffer = this.buffer;
+    final long cIndex = lpConsumerIndex(); // Plain: single consumer, no contention
+
+    for (int i = 0; i < limit; i++) {
+      final long index = cIndex + i;
+      final int arrayConsumerIndex = arrayIndex(index);
+      final E e =
+          laRefElement(buffer, arrayConsumerIndex); // Acquire: pairs with producer's setRelease
+      if (null == e) {
+        return i;
+      }
+      spRefElement(buffer, arrayConsumerIndex, null); // Plain: single consumer, no need to publish
+      soConsumerIndex(
+          index + 1); // Release: publish head advance to producers (ordered store -> atomic and
+      // ordered for size())
+      c.accept(e);
+    }
+    return limit;
+  }
+
+  /**
+   * Fills queue with up to limit elements from supplier.
+   *
+   * @param s element supplier
+   * @param limit max elements to fill
+   * @return number of elements filled
+   */
+  @Override
+  public int fill(MessagePassingQueue.Supplier<E> s, int limit) {
     if (null == s) {
       throw new IllegalArgumentException("supplier is null");
     }
@@ -80,194 +327,63 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
       return 0;
     }
 
-    long pLimit = this.producerLimit.getVolatile();
+    final long mask = this.mask;
+    final long capacity = mask + 1;
+    long producerLimit = laProducerLimit(); // Acquire: pairs with other producers' setRelease
     long pIndex;
     int actualLimit;
-
     do {
-      pIndex = tail.getVolatile();
-      long available = pLimit - pIndex;
-
+      pIndex = laProducerIndex(); // Acquire: pairs with other producers' CAS release
+      long available = producerLimit - pIndex;
       if (available <= 0) {
-        final long cIndex = head.getVolatile();
-        pLimit = cIndex + capacity;
-        available = pLimit - pIndex;
-
+        final long cIndex = laConsumerIndex(); // Acquire: pairs with consumer's setRelease
+        producerLimit = cIndex + capacity;
+        available = producerLimit - pIndex;
         if (available <= 0) {
-          return 0;
+          return 0; // FULL :(
+        } else {
+          // update producer limit to the next index that we must recheck the consumer index
+          soProducerLimit(producerLimit); // Release: publish limit to other producers
         }
-
-        this.producerLimit.setRelease(pLimit);
       }
-
       actualLimit = Math.min((int) available, limit);
-    } while (!tail.compareAndSet(pIndex, pIndex + actualLimit));
-
+    } while (!casProducerIndex(pIndex, pIndex + actualLimit)); // CAS: full barrier
+    // right, now we claimed a few slots and can fill them with goodness
+    final E[] buffer = this.buffer;
     for (int i = 0; i < actualLimit; i++) {
-      final int index = arrayIndex(pIndex + i);
-      final E e = s.get();
-      ARRAY_HANDLE.setRelease(buffer, index, e); // Release: ensure visibility
+      // Won CAS, move on to storing
+      soRefElement(buffer, arrayIndex(pIndex + i), s.get()); // Release: publish element to consumer
     }
-
     return actualLimit;
   }
 
   /**
-   * Batch drain up to limit elements. Optimized for single consumer. Memory ordering: plain head
-   * read (exclusive), getVolatile for elements, head setRelease per element.
+   * Drains elements using wait strategy and exit condition.
    *
-   * @param consumer element consumer
-   * @param limit max elements to drain
-   * @return actual number of elements drained
+   * @param c element consumer
+   * @param w wait strategy
+   * @param exit exit condition
    */
   @Override
-  public int drain(Consumer<E> consumer, int limit) {
-    if (null == consumer) {
-      throw new IllegalArgumentException("consumer is null");
-    }
-    if (limit < 0) {
-      throw new IllegalArgumentException("limit is negative: " + limit);
-    }
-    if (limit == 0) {
-      return 0;
-    }
-
-    final Object[] localBuffer = this.buffer;
-    final long cIndex = head.getPlain(); // Plain: consumer exclusive
-
-    for (int i = 0; i < limit; i++) {
-      final long index = cIndex + i;
-      final int offset = arrayIndex(index);
-
-      final E e = (E) ARRAY_HANDLE.getVolatile(localBuffer, offset);
-      if (e == null) {
-        return i;
-      }
-
-      ARRAY_HANDLE.set(localBuffer, offset, null); // Plain: consumer exclusive
-      head.setRelease(index + 1); // Release: ensure clear visible before head advances
-
-      consumer.accept(e);
-    }
-
-    return limit;
+  public void drain(
+      MessagePassingQueue.Consumer<E> c,
+      MessagePassingQueue.WaitStrategy w,
+      MessagePassingQueue.ExitCondition exit) {
+    MessagePassingQueueUtil.drain(this, c, w, exit);
   }
 
   /**
-   * Retrieves and removes head element, or null if empty. Wait-free for consumer. Memory ordering:
-   * plain head read (exclusive), getAcquire pairs with producer setRelease, head setRelease ensures
-   * clear visible. Spins on getAcquire if producer claimed slot but hasn't written yet (head !=
-   * tail but element null).
+   * Fills queue using wait strategy and exit condition.
    *
-   * @return head element or null if empty
+   * @param s element supplier
+   * @param wait wait strategy
+   * @param exit exit condition
    */
   @Override
-  @SuppressWarnings("unchecked")
-  public E poll() {
-    final long cIndex = head.getPlain(); // Plain: consumer exclusive
-    final int index = arrayIndex(cIndex);
-    final Object[] buffer = this.buffer;
-
-    Object e = ARRAY_HANDLE.getAcquire(buffer, index); // Acquire: pairs with producer setRelease
-
-    if (e == null) {
-      if (cIndex != tail.getVolatile()) { // Volatile: see latest tail
-        // Producer claimed slot via CAS but hasn't written element yet.
-        // We know element will appear (tail advanced) so spin until visible.
-        // This is wait-free: bounded by producer's write latency.
-        do {
-          e = ARRAY_HANDLE.getAcquire(buffer, index);
-        } while (e == null);
-      } else {
-        return null;
-      }
-    }
-
-    ARRAY_HANDLE.setRelease(
-        buffer, index, null); // Release: ensure clear visible before head advances
-    head.setRelease(cIndex + 1); // Release: cheaper than setVolatile, sufficient for correctness
-
-    return (E) e;
-  }
-
-  /**
-   * Retrieves but does not remove head element, or null if empty. Wait-free for consumer. Memory
-   * ordering: same as poll but no writes. Spins if producer in-flight.
-   *
-   * @return head element or null if empty
-   */
-  @Override
-  @SuppressWarnings("unchecked")
-  public final E peek() {
-    final long cIndex = head.getPlain(); // Plain: consumer exclusive
-    final int index = arrayIndex(cIndex);
-    final Object[] buffer = this.buffer;
-
-    Object e = ARRAY_HANDLE.getAcquire(buffer, index); // Acquire: pairs with producer setRelease
-
-    if (e == null) {
-      if (cIndex != tail.getVolatile()) { // Volatile: check if producer in-flight
-        do {
-          e = ARRAY_HANDLE.getAcquire(buffer, index);
-        } while (e == null);
-      } else {
-        return null;
-      }
-    }
-    return (E) e;
-  }
-
-  /**
-   * Relaxed offer delegates to regular offer for MPSC correctness. Multiple producers require CAS
-   * and release semantics for proper visibility.
-   *
-   * @param e element to add
-   * @return true if added, false if full
-   */
-  @Override
-  public boolean relaxedOffer(E e) {
-    return offer(e);
-  }
-
-  /**
-   * Relaxed poll omits spin-wait. Returns null immediately if element not visible. Memory ordering:
-   * plain head (exclusive), getAcquire for element, setRelease for head.
-   *
-   * @return head element or null if empty/not yet visible
-   */
-  @Override
-  @SuppressWarnings("unchecked")
-  public E relaxedPoll() {
-    final long cIndex = head.getPlain(); // Plain: consumer exclusive
-    final int index = arrayIndex(cIndex);
-    final Object[] buffer = this.buffer;
-
-    Object e = ARRAY_HANDLE.getAcquire(buffer, index); // Acquire: pairs with producer setRelease
-
-    if (e == null) {
-      return null; // No spin-wait in relaxed variant
-    }
-
-    ARRAY_HANDLE.set(buffer, index, null); // Plain: consumer exclusive
-    head.setRelease(cIndex + 1); // Release: ensure clear visible
-
-    return (E) e;
-  }
-
-  /**
-   * Relaxed peek omits spin-wait. Returns null immediately if element not visible. Memory ordering:
-   * plain head (exclusive), getAcquire for element.
-   *
-   * @return head element or null if empty/not yet visible
-   */
-  @Override
-  @SuppressWarnings("unchecked")
-  public E relaxedPeek() {
-    final long cIndex = head.getPlain(); // Plain: consumer exclusive
-    final int index = arrayIndex(cIndex);
-    final Object[] buffer = this.buffer;
-
-    Object e = ARRAY_HANDLE.getAcquire(buffer, index); // Acquire: pairs with producer setRelease
-    return (E) e;
+  public void fill(
+      MessagePassingQueue.Supplier<E> s,
+      MessagePassingQueue.WaitStrategy wait,
+      MessagePassingQueue.ExitCondition exit) {
+    MessagePassingQueueUtil.fill(this, s, wait, exit);
   }
 }
