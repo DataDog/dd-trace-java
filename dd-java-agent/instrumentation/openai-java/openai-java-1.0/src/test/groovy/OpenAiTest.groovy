@@ -10,7 +10,7 @@ import com.openai.models.ChatModel
 import com.openai.models.FunctionDefinition
 import com.openai.models.FunctionParameters
 import com.openai.models.chat.completions.ChatCompletionCreateParams
-import com.openai.models.chat.completions.ChatCompletionTool
+import com.openai.models.chat.completions.ChatCompletionFunctionTool
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
 import com.openai.models.embeddings.EmbeddingModel
@@ -144,7 +144,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
     .addUserMessage("""David Nguyen is a sophomore majoring in computer science at Stanford University and has a GPA of 3.8.
 David is an active member of the university's Chess Club and the South Asian Student Association.
 He hopes to pursue a career in software engineering after graduating.""")
-    .addTool(ChatCompletionTool.builder()
+    .addTool(ChatCompletionFunctionTool.builder()
     .function(FunctionDefinition.builder()
     .name("extract_student_info")
     .description("Get the student information from the body of the input text")

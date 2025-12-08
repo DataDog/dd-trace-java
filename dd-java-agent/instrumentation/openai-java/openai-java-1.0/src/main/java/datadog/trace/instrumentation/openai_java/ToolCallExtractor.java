@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.openai_java;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.openai.models.chat.completions.ChatCompletionMessageFunctionToolCall;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
 import datadog.trace.api.llmobs.LLMObs;
 import java.util.Collections;
@@ -16,11 +17,15 @@ public class ToolCallExtractor {
   private static final TypeReference<Map<String, Object>> MAP_TYPE_REF =
       new TypeReference<Map<String, Object>>() {};
 
-  // TODO add support for v3+
   public static LLMObs.ToolCall getToolCall(ChatCompletionMessageToolCall toolCall) {
+    Optional<ChatCompletionMessageFunctionToolCall> functionToolCallOpt = toolCall.function();
+    if (!functionToolCallOpt.isPresent()) {
+      return null;
+    }
     try {
-      String toolId = toolCall.id();
-      ChatCompletionMessageToolCall.Function function = toolCall.function();
+      ChatCompletionMessageFunctionToolCall functionToolCall = functionToolCallOpt.get();
+      String toolId = functionToolCall.id();
+      ChatCompletionMessageFunctionToolCall.Function function = functionToolCall.function();
       String name = function.name();
       String argumentsJson = function.arguments();
 
@@ -32,7 +37,7 @@ public class ToolCallExtractor {
       }
 
       String type = "function";
-      Optional<String> typeOpt = toolCall._type().asString();
+      Optional<String> typeOpt = functionToolCall._type().asString() ;
       if (typeOpt.isPresent()) {
         type = typeOpt.get();
       }

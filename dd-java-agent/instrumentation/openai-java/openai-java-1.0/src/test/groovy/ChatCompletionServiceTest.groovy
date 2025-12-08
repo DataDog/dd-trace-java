@@ -128,7 +128,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.choices().size() == 1
     resp.choices().get(0).message().toolCalls().isPresent()
     resp.choices().get(0).message().toolCalls().get().size() == 1
-    resp.choices().get(0).message().toolCalls().get().get(0).function().name() == "extract_student_info"
+    resp.choices().get(0).message().toolCalls().get().get(0).function().get().function().name() == "extract_student_info"
     and:
     assertChatCompletionTrace(false)
   }

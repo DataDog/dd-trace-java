@@ -1,23 +1,25 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
+// ChatCompletionMessageFunctionToolCall introduced in v3.0.0
+def minVer = '3.0.0'
+
 muzzle {
   pass {
     group = "com.openai"
     module = "openai-java"
-    versions = "[0.45.0,3)"
-    // TODO com.openai.models.chat.completions.ChatCompletionMessageToolCall changes in v3
-    // assertInverse = true
+    versions = "[$minVer,)"
+    assertInverse = true
   }
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  compileOnly group: 'com.openai', name: 'openai-java', version: '0.45.0'
+  compileOnly group: 'com.openai', name: 'openai-java', version: minVer
   implementation project(':internal-api')
 
-  testImplementation group: 'com.openai', name: 'openai-java', version: '0.45.0'
+  testImplementation group: 'com.openai', name: 'openai-java', version: minVer
   latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
 
   testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
