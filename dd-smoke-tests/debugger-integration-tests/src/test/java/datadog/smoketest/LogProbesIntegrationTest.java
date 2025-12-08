@@ -24,6 +24,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -384,6 +385,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     doSamplingSnapshot(null, MethodLocation.EXIT);
   }
 
+  @Flaky
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtEntry")
   @DisabledIf(

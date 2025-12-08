@@ -20,6 +20,11 @@ public class VirtualThreadSubmitCallableCalculator implements FibonacciCalculato
     return this.executor.submit(task).get();
   }
 
+  @Override
+  public void close() {
+    this.executor.shutdown();
+  }
+
   public class FibonacciSubmitTask implements Callable<Long> {
     private final long n;
 
@@ -38,10 +43,5 @@ public class VirtualThreadSubmitCallableCalculator implements FibonacciCalculato
       Future<Long> future2 = executor.submit(task2);
       return future1.get() + future2.get();
     }
-  }
-
-  @Override
-  public void close() {
-    this.executor.shutdown();
   }
 }

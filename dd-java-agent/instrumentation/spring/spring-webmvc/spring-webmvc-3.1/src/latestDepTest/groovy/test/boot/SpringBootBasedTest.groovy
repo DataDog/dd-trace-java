@@ -130,6 +130,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
+  boolean testRumInjection() {
+    true
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case LOGIN:

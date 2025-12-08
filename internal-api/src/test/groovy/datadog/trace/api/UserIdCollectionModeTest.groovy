@@ -55,7 +55,6 @@ class UserIdCollectionModeTest extends DDSpecification {
     'anon'  | 'disabled' | ANONYMIZATION
     // by default
     null    | null       | IDENTIFICATION
-
   }
 
   void 'test user id collection mode "#mode" with remote config "#rc"'() {

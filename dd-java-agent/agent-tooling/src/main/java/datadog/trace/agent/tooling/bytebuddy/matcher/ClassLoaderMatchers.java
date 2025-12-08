@@ -3,10 +3,9 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 
+import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
@@ -140,7 +139,13 @@ public final class ClassLoaderMatchers {
   static final List<String> hasClassResourceNames = new ArrayList<>();
 
   /** Cache of classloader-instance -> has-class mask. */
-  static final DDCache<ClassLoader, BitSet> hasClassCache = DDCaches.newFixedSizeWeakKeyCache(512);
+  static final ClassLoaderValue<BitSet> hasClassCache =
+      new ClassLoaderValue<BitSet>() {
+        @Override
+        protected BitSet computeValue(ClassLoader cl) {
+          return buildHasClassMask(cl);
+        }
+      };
 
   /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
   static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();
@@ -148,7 +153,7 @@ public final class ClassLoaderMatchers {
   static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
   static BitSet hasClassMask(ClassLoader loader) {
-    return hasClassCache.computeIfAbsent(loader, ClassLoaderMatchers::buildHasClassMask);
+    return hasClassCache.get(loader);
   }
 
   static BitSet buildHasClassMask(ClassLoader loader) {

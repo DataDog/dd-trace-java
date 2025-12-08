@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
@@ -10,7 +11,15 @@ import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.TimeUnit
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 class LongRunningTracesTrackerTest extends DDSpecification {
   Config config = Mock(Config)
   int maxTrackedTraces = 10

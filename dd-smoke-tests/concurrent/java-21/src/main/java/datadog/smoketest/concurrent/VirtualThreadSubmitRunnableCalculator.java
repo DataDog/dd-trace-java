@@ -20,6 +20,11 @@ public class VirtualThreadSubmitRunnableCalculator implements FibonacciCalculato
     return task.result.get();
   }
 
+  @Override
+  public void close() {
+    this.executor.shutdown();
+  }
+
   public class FibonacciSubmitTask implements Runnable {
     private final long n;
     private final CompletableFuture<Long> result;
@@ -45,10 +50,5 @@ public class VirtualThreadSubmitRunnableCalculator implements FibonacciCalculato
         this.result.completeExceptionally(e);
       }
     }
-  }
-
-  @Override
-  public void close() {
-    this.executor.shutdown();
   }
 }
