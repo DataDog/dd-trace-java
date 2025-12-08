@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -39,7 +38,8 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(19) && super.isEnabled();
+    return false;
+    // return JavaVirtualMachine.isJavaVersionAtLeast(19) && super.isEnabled();
   }
 
   @Override

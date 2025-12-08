@@ -51,4 +51,5 @@ tasks.named("check") {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-21.0')
 }
