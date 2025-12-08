@@ -37,7 +37,7 @@ public class ToolCallExtractor {
       }
 
       String type = "function";
-      Optional<String> typeOpt = functionToolCall._type().asString() ;
+      Optional<String> typeOpt = functionToolCall._type().asString();
       if (typeOpt.isPresent()) {
         type = typeOpt.get();
       }
