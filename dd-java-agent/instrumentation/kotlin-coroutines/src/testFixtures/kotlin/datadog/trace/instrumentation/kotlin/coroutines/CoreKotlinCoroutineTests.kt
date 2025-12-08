@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
@@ -28,12 +27,10 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-@SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   open fun tracePreventedByCancellation(): Int {
-
     kotlin.runCatching {
       runTest {
         tracedChild("preLaunch")
@@ -67,7 +64,6 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   @Trace
   open fun traceWithDeferred(): Int = runTest {
-
     val keptPromise = CompletableDeferred<Boolean>()
     val brokenPromise = CompletableDeferred<Boolean>()
     val afterPromise = async(jobName("afterPromise")) {
@@ -100,7 +96,6 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
    */
   @Trace
   open fun tracedWithDeferredFirstCompletions(): Int = runTest {
-
     val children = listOf(
       async(jobName("timeout1")) {
         tracedChild("timeout1")
@@ -218,45 +213,44 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     return spans.get()
   }
 
-  private suspend fun createAndWaitForCoroutines(lazy: Boolean = false, throwing: Boolean = false, spans: AtomicInteger) =
-    coroutineScope {
-      val jobs = mutableListOf<Deferred<Unit>>()
-      val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
+  private suspend fun createAndWaitForCoroutines(lazy: Boolean = false, throwing: Boolean = false, spans: AtomicInteger) = coroutineScope {
+    val jobs = mutableListOf<Deferred<Unit>>()
+    val start = if (lazy) CoroutineStart.LAZY else CoroutineStart.DEFAULT
 
-      childSpan("top-level").activateAndUse {
-        spans.incrementAndGet()
-        async(jobName("first"), start) {
-          childSpan("first-span").activateAndUse {
-            spans.incrementAndGet()
-            if (throwing) {
-              throw IllegalStateException("first")
-            }
-            delay(1)
+    childSpan("top-level").activateAndUse {
+      spans.incrementAndGet()
+      async(jobName("first"), start) {
+        childSpan("first-span").activateAndUse {
+          spans.incrementAndGet()
+          if (throwing) {
+            throw IllegalStateException("first")
           }
-        }.run(jobs::add)
-
-        async(jobName("second"), start) {
-          childSpan("second-span").activateAndUse {
-            spans.incrementAndGet()
-            if (throwing) {
-              throw IllegalStateException("second")
-            }
-            delay(1)
-          }
-        }.run(jobs::add)
-      }
-
-      if (lazy) {
-        jobs.forEach { it.start() }
-      }
-
-      jobs.forEach {
-        try {
-          it.await()
-        } catch (_: Exception) {
+          delay(1)
         }
+      }.run(jobs::add)
+
+      async(jobName("second"), start) {
+        childSpan("second-span").activateAndUse {
+          spans.incrementAndGet()
+          if (throwing) {
+            throw IllegalStateException("second")
+          }
+          delay(1)
+        }
+      }.run(jobs::add)
+    }
+
+    if (lazy) {
+      jobs.forEach { it.start() }
+    }
+
+    jobs.forEach {
+      try {
+        it.await()
+      } catch (_: Exception) {
       }
     }
+  }
 
   open fun withNoParentSpan(lazy: Boolean): Int = runTest {
     val jobs = mutableListOf<Deferred<Unit>>()

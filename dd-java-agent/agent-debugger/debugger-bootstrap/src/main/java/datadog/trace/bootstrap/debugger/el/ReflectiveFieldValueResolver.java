@@ -29,6 +29,7 @@ public class ReflectiveFieldValueResolver {
     }
     TRY_SET_ACCESSIBLE = methodHandle;
   }
+
   // We cannot create a Field instance from scratch to be used as special constant,
   // so need to reflectively access itself
   private static final Field INACCESSIBLE_FIELD;

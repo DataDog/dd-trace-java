@@ -6,10 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import net.bytebuddy.asm.Advice;
+import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 
@@ -20,7 +23,19 @@ import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
  */
 public class RecordsAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter() {
+  public static AgentScope onEnter(@Advice.This ConsumerDelegate consumer) {
+    // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
+    KafkaConsumerInfo kafkaConsumerInfo =
+        InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
+    if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+      String clusterId =
+          KafkaConsumerInstrumentationHelper.extractClusterId(
+              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+      if (clusterId != null) {
+        ClusterIdHolder.set(clusterId);
+      }
+    }
+
     if (traceConfig().isDataStreamsEnabled()) {
       final AgentSpan span = startSpan(KAFKA_POLL);
       return activateSpan(span);
@@ -45,6 +60,9 @@ public class RecordsAdvice {
       }
       recordsCount = records.count();
     }
+    // Clear cluster ID from Schema Registry instrumentation
+    ClusterIdHolder.clear();
+
     if (scope == null) {
       return;
     }

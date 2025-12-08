@@ -156,7 +156,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     return ANY_CLASS_LOADER;
   }
 
-  /** @return A type matcher used to ignore some methods when applying transformation. */
+  /**
+   * @return A type matcher used to ignore some methods when applying transformation.
+   */
   public ElementMatcher<? super MethodDescription> methodIgnoreMatcher() {
     // By default ByteBuddy will skip all methods that are synthetic at the top level, but since
     // we need to instrument some synthetic methods in Scala and changed that, we make the default

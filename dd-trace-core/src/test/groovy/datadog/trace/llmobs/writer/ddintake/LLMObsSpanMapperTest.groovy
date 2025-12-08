@@ -70,7 +70,9 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
         }
 
         @Override
-        boolean isOpen() { return true }
+        boolean isOpen() {
+          return true
+        }
 
         @Override
         void close() throws IOException { }
@@ -128,5 +130,4 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
       captured = buffer
     }
   }
-
 }

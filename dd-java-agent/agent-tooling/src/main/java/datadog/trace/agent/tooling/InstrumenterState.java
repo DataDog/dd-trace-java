@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
+import datadog.instrument.utils.ClassLoaderValue;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
@@ -38,8 +37,13 @@ public final class InstrumenterState {
   private static long[] defaultState = {};
 
   /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
-  private static final DDCache<ClassLoader, AtomicLongArray> classLoaderStates =
-      DDCaches.newFixedSizeWeakKeyCache(512);
+  private static final ClassLoaderValue<AtomicLongArray> classLoaderStates =
+      new ClassLoaderValue<AtomicLongArray>() {
+        @Override
+        protected AtomicLongArray computeValue(ClassLoader cl) {
+          return new AtomicLongArray(defaultState);
+        }
+      };
 
   private static Observer observer;
 
@@ -146,13 +150,7 @@ public final class InstrumenterState {
   }
 
   private static AtomicLongArray classLoaderState(ClassLoader classLoader) {
-    return classLoaderStates.computeIfAbsent(
-        null != classLoader ? classLoader : Utils.getBootstrapProxy(),
-        InstrumenterState::buildClassLoaderState);
-  }
-
-  private static AtomicLongArray buildClassLoaderState(ClassLoader classLoader) {
-    return new AtomicLongArray(defaultState);
+    return classLoaderStates.get(classLoader);
   }
 
   private static int currentState(AtomicLongArray state, int bitIndex) {
@@ -173,7 +171,7 @@ public final class InstrumenterState {
     StringBuilder summary = new StringBuilder();
     classLoaderStates.visit(
         (loader, state) -> {
-          summary.append(loader.getClass().getName());
+          summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
           summarizeState(summary, state);
           summary.append("\n\n");
         });

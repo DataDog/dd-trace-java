@@ -1302,7 +1302,8 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         def actualParsed = jsonSlurper.parseText(actualPlans[i])
 
         // Extract all nodeIds from actual plans and create mapping
-        extractNodeIds(actualParsed).each { nodeId ->
+        extractNodeIds(actualParsed).each {
+          nodeId ->
           if (nodeId != null && nodeId != "any" && !actualToNormalized.containsKey(nodeId)) {
             actualToNormalized[nodeId] = "nodeId_${nodeIdCounter++}"
           }
