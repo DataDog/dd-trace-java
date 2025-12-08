@@ -36,7 +36,7 @@ variables:
     value: "false"
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
-    value: "false"
+    value: "true"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
@@ -56,19 +56,19 @@ workflow:
 
 .test_matrix: &test_matrix
   - testJvm: &test_jvms
-      - "8"
-      - "11"
-      - "17"
-      - "21"
-      - "25"
-      - "26"
-      - "semeru11"
+      # - "8"
+      # - "11"
+      # - "17"
+      # - "21"
+      # - "25"
+      # - "26"
+      # - "semeru11"
       - "oracle8"
-      - "zulu8"
-      - "semeru8"
-      - "ibm8"
-      - "zulu11"
-      - "semeru17"
+      # - "zulu8"
+      # - "semeru8"
+      # - "ibm8"
+      # - "zulu11"
+      # - "semeru17"
       # - "stable"
     CI_SPLIT: ["1/1"]
 
@@ -260,8 +260,10 @@ build:
     DEPENDENCY_CACHE_POLICY: pull
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
+    - echo $HOME
     - ./gradlew --version
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
+    - ls -lah $HOME/.java/.userPrefs
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -422,6 +424,8 @@ publish-artifacts-to-s3:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
   after_script:
+    - echo $HOME
+    - ls -lah $HOME/.java/.userPrefs
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -572,6 +576,7 @@ publish-artifacts-to-s3:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
+    - ls -lah $HOME/.java/.userPrefs
     - *restore_pretest_env
     - *set_datadog_api_keys
     - *cgroup_info
