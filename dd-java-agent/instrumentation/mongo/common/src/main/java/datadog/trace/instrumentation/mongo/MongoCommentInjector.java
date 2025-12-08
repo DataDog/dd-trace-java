@@ -4,6 +4,7 @@ import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import org.bson.BsonArray;
@@ -114,13 +115,10 @@ public class MongoCommentInjector {
 
   static String buildTraceParent(AgentSpan span) {
     // W3C traceparent format: version-traceId-spanId-flags
-    return "00-"
-        + // version
-        span.getTraceId().toHexStringPadded(32)
-        + // traceId
-        '-'
-        + String.format("%016x", span.getSpanId())
-        + // spanId
-        (span.context().getSamplingPriority() > 0 ? "-01" : "-00");
+    return "00-" // version
+        + span.getTraceId().toHexString() // traceId
+        + '-'
+        + DDSpanId.toHexStringPadded(span.getSpanId()) // spanId
+        + (span.context().getSamplingPriority() > 0 ? "-01" : "-00");
   }
 }
