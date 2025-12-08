@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -55,6 +56,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+        packageName + ".ProducerConstructorAdvice");
+
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
