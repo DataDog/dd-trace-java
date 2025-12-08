@@ -6,6 +6,7 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
+import java.nio.file.Paths
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
@@ -27,10 +28,6 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   @TempDir
   protected Path prefsDir
-
-  @Shared
-  @TempDir
-  protected Path prefsDirShared
 
   protected static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
@@ -111,8 +108,14 @@ abstract class CiVisibilitySmokeTest extends Specification {
    * `setupSpec()`.
    */
   protected String preventJulPrefsFileLock() {
-    String prefsPath = (prefsDir ?: prefsDirShared).toAbsolutePath()
+    String prefsPath = (prefsDir ?: tempUserPrefsPath()).toAbsolutePath()
     return "-Djava.util.prefs.userRoot=$prefsPath".toString()
+  }
+
+  private static Path tempUserPrefsPath() {
+    String uniqueId = "${System.currentTimeMillis()}_${System.nanoTime()}_${Thread.currentThread().id}"
+    Path prefsPath = Paths.get(System.getProperty("java.io.tmpdir"), "gradle-test-userPrefs", uniqueId)
+    return prefsPath
   }
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
