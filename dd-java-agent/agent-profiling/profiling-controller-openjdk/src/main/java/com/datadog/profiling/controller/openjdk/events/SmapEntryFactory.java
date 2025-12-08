@@ -30,7 +30,7 @@ public class SmapEntryFactory {
     // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
     // This prevents a deadlock. See PROF-13025.
     try {
-      Class.forName("jdk.jfr.events.Handlers");
+      SmapEntryFactory.class.getClassLoader().loadClass("jdk.jfr.events.Handlers");
     } catch (Exception e) {
       // Ignore when the class is not found or anything else goes wrong.
     }
