@@ -17,6 +17,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -50,10 +51,14 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
+  private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
 
   public KafkaProducerInstrumentation() {
     super("kafka", "kafka-0.11");
@@ -97,6 +102,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+        KafkaProducerInstrumentation.class.getName() + "$ProducerConstructorAdvice");
+
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
@@ -228,6 +240,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     }
   }
 
+  public static class ProducerConstructorAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureConfiguration(@Advice.Argument(0) ProducerConfig producerConfig) {
+      logProducerConfiguration(producerConfig);
+    }
+  }
+
   public static class PayloadSizeAdvice {
 
     /**
@@ -254,6 +273,27 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         // then send the point
         AgentTracer.get().getDataStreamsMonitoring().add(updated);
       }
+    }
+  }
+
+  private static void logProducerConfiguration(ProducerConfig producerConfig) {
+    try {
+      log.info("Kafka Producer started");
+      log.info("Producer Configuration (all properties):");
+
+      // Get all configuration values
+      java.util.Map<String, ?> allConfigs = producerConfig.values();
+
+      // Sort by key for consistent output
+      allConfigs.entrySet().stream()
+          .sorted(java.util.Map.Entry.comparingByKey())
+          .forEach(entry -> {
+            log.info("  {}: {}", entry.getKey(), entry.getValue());
+          });
+
+      // TODO: Add data capture logic here
+    } catch (Exception e) {
+      log.debug("Error logging producer configuration", e);
     }
   }
 }

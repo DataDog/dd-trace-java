@@ -34,6 +34,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -42,6 +44,9 @@ import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
+  private static final Logger log =
+      LoggerFactory.getLogger(KafkaConsumerInfoInstrumentation.class);
 
   public KafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-0.11");
@@ -148,6 +153,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
               .put(coordinator, kafkaConsumerInfo);
         }
       }
+
+      // Log consumer configuration
+      logConsumerConfiguration(consumerConfig, normalizedConsumerGroup);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -191,6 +199,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
               .put(coordinator, kafkaConsumerInfo);
         }
       }
+
+      // Log consumer configuration
+      logConsumerConfigurationFromMap(consumerConfig, normalizedConsumerGroup);
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -254,6 +265,47 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
       span.finish();
       scope.close();
+    }
+  }
+
+  private static void logConsumerConfiguration(
+      ConsumerConfig consumerConfig, String consumerGroup) {
+    try {
+      log.info("Kafka Consumer started - Group: {}", consumerGroup);
+      log.info("Consumer Configuration (all properties):");
+
+      // Get all configuration values
+      java.util.Map<String, ?> allConfigs = consumerConfig.values();
+
+      // Sort by key for consistent output
+      allConfigs.entrySet().stream()
+          .sorted(java.util.Map.Entry.comparingByKey())
+          .forEach(entry -> {
+            log.info("  {}: {}", entry.getKey(), entry.getValue());
+          });
+
+      // TODO: Add data capture logic here
+    } catch (Exception e) {
+      log.debug("Error logging consumer configuration", e);
+    }
+  }
+
+  private static void logConsumerConfigurationFromMap(
+      Map<String, Object> consumerConfig, String consumerGroup) {
+    try {
+      log.info("Kafka Consumer started - Group: {}", consumerGroup);
+      log.info("Consumer Configuration (all properties):");
+
+      // Sort by key for consistent output
+      consumerConfig.entrySet().stream()
+          .sorted(java.util.Map.Entry.comparingByKey())
+          .forEach(entry -> {
+            log.info("  {}: {}", entry.getKey(), entry.getValue());
+          });
+
+      // TODO: Add data capture logic here
+    } catch (Exception e) {
+      log.debug("Error logging consumer configuration", e);
     }
   }
 }
