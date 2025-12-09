@@ -6,6 +6,7 @@ muzzle {
     module = "kafka-schema-registry-client"
     versions = "[7.0.0,)"
     assertInverse = true
+    extraRepository('confluent', 'https://packages.confluent.io/maven/')
   }
 }
 
