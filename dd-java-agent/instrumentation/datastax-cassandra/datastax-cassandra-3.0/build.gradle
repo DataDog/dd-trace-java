@@ -13,7 +13,6 @@ muzzle {
   }
 
   fail {
-    name = "pre-3.0 versions"
     group = "com.datastax.cassandra"
     module = "cassandra-driver-core"
     versions = "[0.0,3.0)"
