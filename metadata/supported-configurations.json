@@ -677,10 +677,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [
-          "main",
-          "test"
-        ],
+        "default": "[\"main\", \"test\"]",
         "aliases": []
       }
     ],
@@ -784,13 +781,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [
-          "/resources/",
-          "/java/",
-          "/groovy/",
-          "/kotlin/",
-          "/scala/"
-        ],
+        "default": "[\"/resources/\", \"/java/\", \"/groovy/\", \"/kotlin/\", \"/scala/\"]",
         "aliases": []
       }
     ],
@@ -1886,7 +1877,7 @@
       {
         "version": "B",
         "type": "string",
-        "default": "[\\\"SHA1\\\", \\\"SHA-1\\\", \\\"MD2\\\", \\\"RIPEMD128\\\", \\\"MD4\\\", \\\"MD5\\\"]",
+        "default": "[\"SHA1\", \"SHA-1\", \"MD2\", \"RIPEMD128\", \"MD4\", \"MD5\"]",
         "aliases": []
       }
     ],
@@ -3790,7 +3781,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [],
+        "default": "[]",
         "aliases": ["DD_THIRD_PARTY_DETECTION_EXCLUDES"]
       }
     ],
@@ -3798,7 +3789,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [],
+        "default": "[]",
         "aliases": ["DD_THIRD_PARTY_DETECTION_INCLUDES"]
       }
     ],
@@ -3806,7 +3797,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [],
+        "default": "[]",
         "aliases": []
       }
     ],
@@ -3814,7 +3805,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [],
+        "default": "[]",
         "aliases": []
       }
     ],
@@ -4638,11 +4629,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [
-          "user.id",
-          "session.id",
-          "account.id"
-        ],
+        "default": "[\"user.id\", \"session.id\", \"account.id\"]",
         "aliases": []
       }
     ],
@@ -4786,7 +4773,7 @@
       {
         "version": "B",
         "type": "string",
-        "default": "[\\\"S3\\\", \\\"Sqs\\\", \\\"Kinesis\\\", \\\"Sns\\\", \\\"DynamoDB\\\", \\\"ApiGatewayV2\\\", \\\"EventBridge\\\", \\\"ApiGateway\\\"]",
+        "default": "[\"S3\", \"Sqs\", \"Kinesis\", \"Sns\", \"DynamoDB\", \"ApiGatewayV2\", \"EventBridge\", \"ApiGateway\"]",
         "aliases": []
       }
     ],
@@ -5546,13 +5533,7 @@
       {
         "version": "A",
         "type": "array",
-        "default": [
-          "google.pubsub.v1.Subscriber/ModifyAckDeadline",
-          "google.pubsub.v1.Subscriber/Acknowledge",
-          "google.pubsub.v1.Subscriber/Pull",
-          "google.pubsub.v1.Subscriber/StreamingPull",
-          "google.pubsub.v1.Publisher/Publish"
-        ],
+        "default": "[\"google.pubsub.v1.Subscriber/ModifyAckDeadline\", \"google.pubsub.v1.Subscriber/Acknowledge\", \"google.pubsub.v1.Subscriber/Pull\", \"google.pubsub.v1.Subscriber/StreamingPull\", \"google.pubsub.v1.Publisher/Publish\"]",
         "aliases": []
       }
     ],
