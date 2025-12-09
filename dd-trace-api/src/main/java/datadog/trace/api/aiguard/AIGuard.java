@@ -143,16 +143,19 @@ public abstract class AIGuard {
 
     final Action action;
     final String reason;
+    final List<String> tags;
 
     /**
      * Creates a new evaluation result.
      *
      * @param action the recommended action for the evaluated content
      * @param reason human-readable explanation for the decision
+     * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
      */
-    public Evaluation(final Action action, final String reason) {
+    public Evaluation(final Action action, final String reason, final List<String> tags) {
       this.action = action;
       this.reason = reason;
+      this.tags = tags;
     }
 
     /**
@@ -171,6 +174,15 @@ public abstract class AIGuard {
      */
     public String getReason() {
       return reason;
+    }
+
+    /**
+     * Returns the list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     *
+     * @return list of tags.
+     */
+    public List<String> getTags() {
+      return tags;
     }
   }
 
