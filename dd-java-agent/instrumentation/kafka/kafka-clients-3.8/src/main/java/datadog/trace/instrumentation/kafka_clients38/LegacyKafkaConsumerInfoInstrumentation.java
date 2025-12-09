@@ -69,6 +69,7 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
     };
   }

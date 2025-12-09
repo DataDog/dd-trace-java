@@ -6,8 +6,12 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
+import java.nio.file.Paths
 import spock.lang.Specification
+import spock.lang.TempDir
 import spock.util.environment.Jvm
+
+import java.nio.file.Path
 
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName
 
@@ -20,6 +24,9 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected static final String JACOCO_PLUGIN_VERSION = Config.get().ciVisibilityJacocoPluginVersion
 
   private static final Map<String,String> DEFAULT_TRACER_CONFIG = defaultJvmArguments()
+
+  @TempDir
+  protected Path prefsDir
 
   protected static String buildJavaHome() {
     if (Jvm.current.isJava8()) {
@@ -69,6 +76,9 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
     List<String> arguments = []
+
+    arguments += preventJulPrefsFileLock()
+
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
     // for convenience when debugging locally
@@ -83,6 +93,28 @@ abstract class CiVisibilitySmokeTest extends Specification {
     arguments += "-javaagent:${AGENT_JAR}=${agentArgs}".toString()
 
     return arguments
+  }
+
+  /**
+   * Trick to prevent jul Prefs file lock issue on forked processes, in particular in CI which
+   * runs on Linux and have competing processes trying to write to it, including the Gradle daemon.
+   *
+   * <pre><code>
+   * Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
+   * </code></pre>
+   *
+   * Note, some tests can setup arguments on spec level, so `prefsDir` will be `null` during
+   * `setupSpec()`.
+   */
+  protected String preventJulPrefsFileLock() {
+    String prefsPath = (prefsDir ?: tempUserPrefsPath()).toAbsolutePath()
+    return "-Djava.util.prefs.userRoot=$prefsPath".toString()
+  }
+
+  private static Path tempUserPrefsPath() {
+    String uniqueId = "${System.currentTimeMillis()}_${System.nanoTime()}_${Thread.currentThread().id}"
+    Path prefsPath = Paths.get(System.getProperty("java.io.tmpdir"), "gradle-test-userPrefs", uniqueId)
+    return prefsPath
   }
 
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
