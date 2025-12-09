@@ -131,9 +131,9 @@ public class BlockingActionHelper {
       return null;
     }
 
-    // Use "NOT AVAILABLE" when securityResponseId is not present
+    // Use empty string when securityResponseId is not present
     String replacementValue = (securityResponseId == null || securityResponseId.isEmpty())
-        ? "NOT AVAILABLE"
+        ? ""
         : securityResponseId;
 
     String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);

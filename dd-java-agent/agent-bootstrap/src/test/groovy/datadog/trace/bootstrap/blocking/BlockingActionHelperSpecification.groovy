@@ -194,7 +194,7 @@ class BlockingActionHelperSpecification extends DDSpecification {
     !templateStr.contains('[security_response_id]')
   }
 
-  void 'getTemplate without security_response_id uses NOT AVAILABLE in HTML template'() {
+  void 'getTemplate without security_response_id uses empty string in HTML template'() {
     when:
     def template = BlockingActionHelper.getTemplate(HTML, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
@@ -202,10 +202,10 @@ class BlockingActionHelperSpecification extends DDSpecification {
     then:
     !templateStr.contains('[security_response_id]')
     templateStr.contains('Security Response ID:')
-    templateStr.contains('NOT AVAILABLE')
+    // The placeholder is replaced with empty string
   }
 
-  void 'getTemplate without security_response_id uses NOT AVAILABLE in JSON template'() {
+  void 'getTemplate without security_response_id uses empty string in JSON template'() {
     when:
     def template = BlockingActionHelper.getTemplate(JSON, null)
     def templateStr = new String(template, StandardCharsets.UTF_8)
@@ -213,19 +213,18 @@ class BlockingActionHelperSpecification extends DDSpecification {
     then:
     !templateStr.contains('[security_response_id]')
     templateStr.contains('"security_response_id"')
-    templateStr.contains('"NOT AVAILABLE"')
+    templateStr.contains('""')  // Empty string value
   }
 
-  void 'getTemplate with empty security_response_id uses NOT AVAILABLE'() {
+  void 'getTemplate with empty security_response_id uses empty string'() {
     when:
     def htmlTemplate = BlockingActionHelper.getTemplate(HTML, '')
     def jsonTemplate = BlockingActionHelper.getTemplate(JSON, '')
 
     then:
     !new String(htmlTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
-    new String(htmlTemplate, StandardCharsets.UTF_8).contains('NOT AVAILABLE')
     !new String(jsonTemplate, StandardCharsets.UTF_8).contains('[security_response_id]')
-    new String(jsonTemplate, StandardCharsets.UTF_8).contains('"NOT AVAILABLE"')
+    // Both templates have placeholders replaced with empty string
   }
 
   void 'getTemplate with security_response_id works with custom HTML template'() {
