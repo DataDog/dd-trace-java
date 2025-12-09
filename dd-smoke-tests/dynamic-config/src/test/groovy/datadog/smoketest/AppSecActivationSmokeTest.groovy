@@ -1,8 +1,10 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.Product
 import datadog.smoketest.dynamicconfig.AppSecApplication
+import datadog.trace.test.util.Flaky
 
 class AppSecActivationSmokeTest extends AbstractSmokeTest {
 
@@ -24,13 +26,17 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
+  @Flaky(value = "Telemetry product change event flakes in oracle8", condition = () ->JavaVirtualMachine.isOracleJDK8())
   void 'test activation via RC workflow'() {
     given:
     final asmRuleProducts = [Product.ASM, Product.ASM_DD, Product.ASM_DATA]
 
     when: 'appsec is enabled but inactive'
-    final request = waitForRcClientRequest {req ->
-      decodeProducts(req).find { asmRuleProducts.contains(it) } == null
+    final request = waitForRcClientRequest {
+      req ->
+      decodeProducts(req).find {
+        asmRuleProducts.contains(it)
+      } == null
     }
     final capabilities = decodeCapabilities(request)
 
@@ -44,7 +50,9 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     then: 'we should receive a product change for appsec'
     waitForTelemetryFlat {
       final configurations = (List<Map<String, Object>>) it?.payload?.configuration ?: []
-      final enabledConfig = configurations.find { it.name == 'appsec_enabled' }
+      final enabledConfig = configurations.find {
+        it.name == 'appsec_enabled'
+      }
       if (!enabledConfig) {
         return false
       }
@@ -52,7 +60,8 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     }
 
     and: 'we should have set the capabilities for ASM rules and data'
-    final newRequest = waitForRcClientRequest {req ->
+    final newRequest = waitForRcClientRequest {
+      req ->
       decodeProducts(req).containsAll(asmRuleProducts)
     }
     final newCapabilities = decodeCapabilities(newRequest)
@@ -60,7 +69,9 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {
-    return request.client.products.collect { Product.valueOf(it)}
+    return request.client.products.collect {
+      Product.valueOf(it)
+    }
   }
 
   private static long decodeCapabilities(final Map<String, Object> request) {

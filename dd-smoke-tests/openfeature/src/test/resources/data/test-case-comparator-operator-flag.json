@@ -1,0 +1,82 @@
+[
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {
+      "size": 5,
+      "country": "US"
+    },
+    "result": {
+      "value": "small",
+      "variant": "small",
+      "flagMetadata": {
+        "allocationKey": "small-size",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "size": 10,
+      "country": "Canada"
+    },
+    "result": {
+      "value": "medium",
+      "variant": "medium",
+      "flagMetadata": {
+        "allocationKey": "medum-size",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "size": 25
+    },
+    "result": {
+      "value": "unknown"
+    }
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "david",
+    "attributes": {
+      "size": 26
+    },
+    "result": {
+      "value": "large",
+      "variant": "large",
+      "flagMetadata": {
+        "allocationKey": "large-size",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "elize",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": "unknown"
+    }
+  }
+]
