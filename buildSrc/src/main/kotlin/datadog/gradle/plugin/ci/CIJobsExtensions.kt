@@ -1,7 +1,9 @@
 package datadog.gradle.plugin.ci
 
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.extra
 
 /**
@@ -45,6 +47,8 @@ private fun Project.createRootTask(
 ) {
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
   tasks.register(rootTaskName) {
+    val includedTestTasks = mutableListOf<Test>()
+
     subprojects.forEach { subproject ->
       val activePartition = subproject.extra.get("activePartition") as Boolean
       if (
@@ -70,6 +74,9 @@ private fun Project.createRootTask(
           }
           if (isAffected) {
             dependsOn(testTask)
+            if (testTask is Test) {
+              includedTestTasks.add(testTask)
+            }
           }
         }
 
@@ -83,6 +90,16 @@ private fun Project.createRootTask(
             dependsOn(verificationTask)
           }
         }
+      }
+    }
+
+    doLast {
+      val failedTests = includedTestTasks.filter { testTask ->
+        testTask.state.failure != null
+      }
+      if (failedTests.isNotEmpty()) {
+        val failedTaskPaths = failedTests.map { "${it.project.path}:${it.name}" }
+        throw GradleException("Tests failed in: ${failedTaskPaths.joinToString(", ")}")
       }
     }
   }
