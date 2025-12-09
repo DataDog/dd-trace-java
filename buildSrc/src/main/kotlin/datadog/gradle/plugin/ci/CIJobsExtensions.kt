@@ -99,7 +99,7 @@ private fun Project.createRootTask(
       }
       if (failedTests.isNotEmpty()) {
         val failedTaskPaths = failedTests.map { "${it.project.path}:${it.name}" }
-        throw GradleException("Tests failed in: ${failedTaskPaths.joinToString(", ")}")
+        throw GradleException("Tests failed in: \n${failedTaskPaths.joinToString("\n")}")
       }
     }
   }
