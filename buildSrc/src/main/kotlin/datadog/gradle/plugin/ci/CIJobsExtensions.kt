@@ -36,6 +36,33 @@ internal fun findAffectedTaskPath(baseTask: Task, affectedProjects: Map<Project,
 }
 
 /**
+ * Recursively finds all Test tasks in the dependency tree
+ */
+private fun collectTestTasks(task: Task): Set<Test> {
+  val testTasks = mutableSetOf<Test>()
+  val visited = mutableSetOf<Task>()
+  val queue = mutableListOf(task)
+
+  while (queue.isNotEmpty()) {
+    val current = queue.removeAt(0)
+    if (visited.contains(current)) {
+      continue
+    }
+    visited.add(current)
+
+    if (current is Test) {
+      testTasks.add(current)
+    }
+
+    current.taskDependencies.getDependencies(current).forEach { dep ->
+      queue.add(dep)
+    }
+  }
+
+  return testTasks
+}
+
+/**
  * Creates a single aggregate root task that depends on matching subproject tasks
  */
 private fun Project.createRootTask(
@@ -47,7 +74,7 @@ private fun Project.createRootTask(
 ) {
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
   val rootTask = tasks.register(rootTaskName) {
-    val includedTestTasks = mutableListOf<Test>()
+    val allTestTasks = mutableSetOf<Test>()
 
     subprojects.forEach { subproject ->
       val activePartition = subproject.extra.get("activePartition") as Boolean
@@ -74,9 +101,8 @@ private fun Project.createRootTask(
           }
           if (isAffected) {
             dependsOn(testTask)
-            if (testTask is Test) {
-              includedTestTasks.add(testTask)
-            }
+            // Collect all Test tasks from this dependency during configuration time
+            allTestTasks.addAll(collectTestTasks(testTask))
           }
         }
 
@@ -93,8 +119,8 @@ private fun Project.createRootTask(
       }
     }
 
-    // Store the list for the finalizer task to access
-    extra.set("includedTestTasks", includedTestTasks)
+    // Store collected test tasks for the finalizer
+    extra.set("collectedTestTasks", allTestTasks.toList())
   }
 
   // Create a finalizer task that always runs and checks for test failures
@@ -104,17 +130,28 @@ private fun Project.createRootTask(
     doLast {
       val mainTask = tasks.named(rootTaskName).get()
       @Suppress("UNCHECKED_CAST")
-      val includedTestTasks = mainTask.extra.get("includedTestTasks") as List<Test>
+      val includedTestTasks = mainTask.extra.get("collectedTestTasks") as List<Test>
+
+      logger.warn("Checking test results for ${includedTestTasks.size} test tasks")
 
       val failedTests = includedTestTasks.filter { testTask ->
-        // Check if task failed or was unsuccessful
-        testTask.state.failure != null ||
-        testTask.state.outcome?.name?.let { it == "FAILED" } == true
+        val didFail = testTask.state.failure != null ||
+                      testTask.state.outcome?.name == "FAILED"
+
+        if (testTask.state.executed) {
+          logger.warn("Task ${testTask.project.path}:${testTask.name} - executed: true, outcome: ${testTask.state.outcome?.name}, failure: ${testTask.state.failure != null}")
+        }
+
+        didFail
       }
 
       if (failedTests.isNotEmpty()) {
         val failedTaskPaths = failedTests.map { "${it.project.path}:${it.name}" }
-        throw GradleException("Tests failed in: \n${failedTaskPaths.joinToString("\n")}")
+        val errorMsg = "Tests failed in: \n${failedTaskPaths.joinToString("\n")}"
+        logger.error(errorMsg)
+        throw GradleException(errorMsg)
+      } else {
+        logger.warn("All ${includedTestTasks.size} test tasks passed")
       }
     }
   }
