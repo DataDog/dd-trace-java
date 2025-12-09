@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ADD_SPAN_POINTERS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
@@ -519,7 +518,6 @@ import static datadog.trace.api.config.RumConfig.RUM_TRACK_LONG_TASKS;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_RESOURCES;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_USER_INTERACTION;
 import static datadog.trace.api.config.RumConfig.RUM_VERSION;
-import static datadog.trace.api.config.TraceInstrumentationConfig.ADD_SPAN_POINTERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
@@ -5261,11 +5259,7 @@ public class Config {
   }
 
   public boolean isAddSpanPointers(final String integrationName) {
-    return configProvider.isEnabled(
-        Collections.singletonList(ADD_SPAN_POINTERS),
-        integrationName,
-        "",
-        DEFAULT_ADD_SPAN_POINTERS);
+    return configProvider.isEnabled(Arrays.asList(integrationName), "", "add.span.pointers", true);
   }
 
   public boolean isEnabled(

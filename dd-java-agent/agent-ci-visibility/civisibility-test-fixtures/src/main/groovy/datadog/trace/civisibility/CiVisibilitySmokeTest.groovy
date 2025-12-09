@@ -75,7 +75,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   }
 
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
-    List<String> arguments = []
+    List<String> arguments = ["-Xms256m", "-Xmx256m"]
 
     arguments += preventJulPrefsFileLock()
 

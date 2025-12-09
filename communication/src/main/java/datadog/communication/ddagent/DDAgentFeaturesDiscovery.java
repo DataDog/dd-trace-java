@@ -87,6 +87,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String dataStreamsEndpoint;
     boolean supportsLongRunning;
     boolean supportsDropping;
+    boolean supportsClientSideStats;
     String state;
     String configEndpoint;
     String debuggerLogEndpoint;
@@ -306,6 +307,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
 
       if (metricsEnabled) {
+        newState.supportsClientSideStats = !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
         Object canDrop = map.get("client_drop_p0s");
         newState.supportsDropping =
             null != canDrop
@@ -358,7 +360,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public boolean supportsMetrics() {
     return metricsEnabled
         && null != discoveryState.metricsEndpoint
-        && discoveryState.supportsDropping;
+        && discoveryState.supportsDropping
+        && discoveryState.supportsClientSideStats;
   }
 
   public boolean supportsDebugger() {
