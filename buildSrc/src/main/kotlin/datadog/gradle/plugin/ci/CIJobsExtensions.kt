@@ -46,7 +46,7 @@ private fun Project.createRootTask(
   forceCoverage: Boolean
 ) {
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
-  tasks.register(rootTaskName) {
+  val rootTask = tasks.register(rootTaskName) {
     val includedTestTasks = mutableListOf<Test>()
 
     subprojects.forEach { subproject ->
@@ -93,15 +93,34 @@ private fun Project.createRootTask(
       }
     }
 
+    // Store the list for the finalizer task to access
+    extra.set("includedTestTasks", includedTestTasks)
+  }
+
+  // Create a finalizer task that always runs and checks for test failures
+  tasks.register("${rootTaskName}Finalizer") {
+    mustRunAfter(rootTask)
+
     doLast {
+      val mainTask = tasks.named(rootTaskName).get()
+      @Suppress("UNCHECKED_CAST")
+      val includedTestTasks = mainTask.extra.get("includedTestTasks") as List<Test>
+
       val failedTests = includedTestTasks.filter { testTask ->
-        testTask.state.failure != null
+        // Check if task failed or was unsuccessful
+        testTask.state.failure != null ||
+        testTask.state.outcome?.name?.let { it == "FAILED" } == true
       }
+
       if (failedTests.isNotEmpty()) {
         val failedTaskPaths = failedTests.map { "${it.project.path}:${it.name}" }
         throw GradleException("Tests failed in: \n${failedTaskPaths.joinToString("\n")}")
       }
     }
+  }
+
+  rootTask.configure {
+    finalizedBy("${rootTaskName}Finalizer")
   }
 }
 
