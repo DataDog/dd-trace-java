@@ -36,7 +36,7 @@ variables:
     value: "false"
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
-    value: "false"
+    value: "true"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
@@ -652,7 +652,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -664,7 +664,7 @@ test_inst_latest:
       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+        CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
 
 test_flaky:
   extends: .test_job_with_test_agent
@@ -724,7 +724,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_8
 
 test_ssi_smoke:
   extends: .test_job
@@ -735,7 +735,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_8
 
 test_smoke_graalvm:
   extends: .test_job
