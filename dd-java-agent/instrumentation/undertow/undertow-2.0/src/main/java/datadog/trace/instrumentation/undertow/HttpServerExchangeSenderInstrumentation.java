@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -62,7 +62,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
         return false;
       }
 
-      AgentScope.Continuation continuation = xchg.getAttachment(DD_UNDERTOW_CONTINUATION);
+      AgentScope.Continuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation == null) {
         return false;
       }
