@@ -29,11 +29,12 @@ public class ToolCallExtractor {
       String name = function.name();
       String argumentsJson = function.arguments();
 
-      Map<String, Object> arguments = Collections.singletonMap("value", argumentsJson);
+      Map<String, Object> arguments;
       try {
-        arguments = MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
+        arguments = parseArguments(argumentsJson);
       } catch (Exception e) {
         log.debug("Failed to parse tool call arguments as JSON: {}", argumentsJson, e);
+        arguments = Collections.singletonMap("value", argumentsJson);
       }
 
       String type = "function";
@@ -47,5 +48,9 @@ public class ToolCallExtractor {
       log.debug("Failed to extract tool call information", e);
     }
     return null;
+  }
+
+  public static Map<String, Object> parseArguments(String argumentsJson) throws Exception {
+    return MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
   }
 }

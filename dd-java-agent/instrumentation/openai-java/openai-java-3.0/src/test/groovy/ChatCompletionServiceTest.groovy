@@ -8,6 +8,7 @@ import com.openai.models.chat.completions.ChatCompletion
 import com.openai.models.chat.completions.ChatCompletionChunk
 import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.openai_java.OpenAiDecorator
 import java.util.concurrent.CompletableFuture
@@ -119,21 +120,65 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   def "create chat/completion test with tool calls"() {
-    ChatCompletion resp = runUnderTrace("parent") {
+    runUnderTrace("parent") {
       openAiClient.chat().completions().create(chatCompletionCreateParamsWithTools())
     }
 
     expect:
-    resp != null
-    resp.choices().size() == 1
-    resp.choices().get(0).message().toolCalls().isPresent()
-    resp.choices().get(0).message().toolCalls().get().size() == 1
-    resp.choices().get(0).message().toolCalls().get().get(0).function().get().function().name() == "extract_student_info"
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(false, outputTag)
     and:
-    assertChatCompletionTrace(false)
+    outputTag.size() == 1
+    LLMObs.LLMMessage outputMsg = outputTag.get(0)
+    outputMsg.toolCalls.size() == 1
+    def toolcall = outputMsg.toolCalls.get(0)
+    toolcall.name == "extract_student_info"
+    toolcall.toolId instanceof String
+    toolcall.type == "function"
+    toolcall.arguments == [
+        name: 'David Nguyen',
+        major: 'computer science',
+        school: 'Stanford University',
+        grades: 3.8,
+        clubs: ['Chess Club', 'South Asian Student Association']
+    ]
+  }
+
+  def "create streaming chat/completion test with tool calls"() {
+    runnableUnderTrace("parent") {
+      StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParamsWithTools())
+      try (Stream stream = streamCompletion.stream()) {
+        stream.forEach { chunk ->
+          // chunks.add(chunk)
+        }
+      }
+    }
+
+    expect:
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(true, outputTag)
+    and:
+    outputTag.size() == 1
+    LLMObs.LLMMessage outputMsg = outputTag.get(0)
+    outputMsg.toolCalls.size() == 1
+    def toolcall = outputMsg.toolCalls.get(0)
+    toolcall.name == "extract_student_info"
+    toolcall.toolId instanceof String
+    toolcall.type == "function"
+    toolcall.arguments == [
+        name: 'David Nguyen',
+        major: 'computer science',
+        school: 'Stanford University',
+        grades: 3.8,
+        clubs: ['Chess Club', 'South Asian Student Association']
+    ]
   }
 
   private void assertChatCompletionTrace(boolean isStreaming) {
+    assertChatCompletionTrace(isStreaming, null)
+  }
+
+  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -155,6 +200,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.metadata" Map
             "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List
+            def outputTags = tag("_ml_obs_tag.output")
+            if (outputTagsOut != null && outputTags != null) {
+              outputTagsOut.addAll(outputTags)
+            }
             if (!isStreaming) {
               // streamed completions missing usage data
               "_ml_obs_metric.input_tokens" Long
