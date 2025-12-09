@@ -51,9 +51,9 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     val deprecated = (fileData["deprecations"] as? Map<String, String>) ?: emptyMap()
 
     // Parse supportedConfigurations key to into a V2 format
-    val supported: Map<String, List<SupportedConfigurationObject>> = supportedRaw.mapValues { (_, configList) ->
+    val supported: Map<String, List<SupportedConfigurationItem>> = supportedRaw.mapValues { (_, configList) ->
       configList.map { configMap ->
-        SupportedConfigurationObject(
+        SupportedConfigurationItem(
           configMap["version"] as? String,
           configMap["type"] as? String,
           configMap["default"] as? String,
@@ -104,7 +104,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     outputPath: String,
     className: String,
     packageName: String,
-    supported: Map<String, List<SupportedConfigurationObject>>,
+    supported: Map<String, List<SupportedConfigurationItem>>,
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
     deprecated: Map<String, String>,
@@ -149,7 +149,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
           out.print(")")
           if (configIter.hasNext()) out.print(", ")
         }
-        out.println(")));\n")
+        out.println(")));")
       }
       out.println("    SUPPORTED = Collections.unmodifiableMap(supportedMap);")
       out.println()
@@ -206,7 +206,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     if (s == null) "null" else "\"${esc(s)}\""
 }
 
-data class SupportedConfigurationObject(
+private data class SupportedConfigurationItem(
   val version: String?,
   val type: String?,
   val default: String?,
