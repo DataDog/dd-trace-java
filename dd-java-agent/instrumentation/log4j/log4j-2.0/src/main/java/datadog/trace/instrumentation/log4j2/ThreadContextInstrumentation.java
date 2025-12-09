@@ -45,6 +45,11 @@ public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  @Override
+  public String muzzleDirective() {
+    return "logs-context";
+  }
+
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized() {
