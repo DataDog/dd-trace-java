@@ -1,0 +1,58 @@
+[
+  {
+    "flag": "numeric_flag",
+    "variationType": "NUMERIC",
+    "defaultValue": 0.0,
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": 3.1415926,
+      "variant": "pi",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric_flag",
+    "variationType": "NUMERIC",
+    "defaultValue": 0.0,
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": 3.1415926,
+      "variant": "pi",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric_flag",
+    "variationType": "NUMERIC",
+    "defaultValue": 0.0,
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": 3.1415926,
+      "variant": "pi",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  }
+]
