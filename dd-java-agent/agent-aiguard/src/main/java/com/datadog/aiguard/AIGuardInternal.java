@@ -134,7 +134,7 @@ public class AIGuardInternal implements Evaluator {
     final List<Message> result = new ArrayList<>(size);
     final int maxContent = config.getAiGuardMaxContentSize();
     boolean contentTruncated = false;
-    for (int i = 0; i < size; i++) {
+    for (int i = messages.size() - size; i < messages.size(); i++) {
       final Message source = messages.get(i);
       String content = source.getContent();
       if (content != null && content.length() > maxContent) {
