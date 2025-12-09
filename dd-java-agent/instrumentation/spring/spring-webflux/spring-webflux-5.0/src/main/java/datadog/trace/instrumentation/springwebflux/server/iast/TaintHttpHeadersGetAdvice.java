@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 
-/** @see org.springframework.http.HttpHeaders#get(Object) */
+/**
+ * @see org.springframework.http.HttpHeaders#get(Object)
+ */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersGetAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
