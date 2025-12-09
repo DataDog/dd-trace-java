@@ -284,10 +284,18 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     println "json log lines: " + jsonLogLines
 
     def stdOutLines = new File(logFilePath).readLines()
-    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FIRSTTRACEID")})
-    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("SECONDTRACEID")})
-    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("THIRDTRACEID")})
-    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FORTHTRACEID")})
+    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("FIRSTTRACEID")
+    })
+    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("SECONDTRACEID")
+    })
+    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("THIRDTRACEID")
+    })
+    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("FORTHTRACEID")
+    })
 
     then:
     exitValue == 0
