@@ -40,9 +40,8 @@ configurations.matching({ it.name.startsWith('test') }).configureEach({
 })
 
 configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
-  it.resolutionStrategy.componentSelection.all { ComponentSelection selection ->
-    if (selection.candidate.group == 'org.spockframework' && selection.candidate.module == 'spock-core' && !selection.candidate.version.endsWith("-groovy-${spockGroovyVersion}")) {
-      selection.reject('Spock groovy version mismatch')
-    }
+  it.resolutionStrategy {
+    // Force latest stable Spock version (2.3), as 2.4-M7-groovy-3.0 is still in milestone stage and incompatible with JUnit 5 version
+    force "org.spockframework:spock-core:2.3-groovy-${spockGroovyVersion}"
   }
 })
