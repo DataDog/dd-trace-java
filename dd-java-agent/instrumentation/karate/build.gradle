@@ -84,7 +84,7 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
-// Latest Karate 1.4.0+ versions require Java 11
+// karate 1.4.0+ requires Java 11: https://github.com/karatelabs/karate/releases/tag/v1.4.0
 tasks.named("latestDepTest", Test) {
   onlyIf { javaVersion.isJava11Compatible() }
 }
