@@ -1,0 +1,78 @@
+[
+  {
+    "flag": "special-characters",
+    "variationType": "JSON",
+    "defaultValue": {},
+    "targetingKey": "ash",
+    "attributes": {},
+    "result": {
+      "value": {
+        "a": "kümmert",
+        "b": "schön"
+      },
+      "variant": "de",
+      "flagMetadata": {
+        "allocationKey": "allocation-test",
+        "variationType": "object",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "special-characters",
+    "variationType": "JSON",
+    "defaultValue": {},
+    "targetingKey": "ben",
+    "attributes": {},
+    "result": {
+      "value": {
+        "a": "піклуватися",
+        "b": "любов"
+      },
+      "variant": "ua",
+      "flagMetadata": {
+        "allocationKey": "allocation-test",
+        "variationType": "object",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "special-characters",
+    "variationType": "JSON",
+    "defaultValue": {},
+    "targetingKey": "cameron",
+    "attributes": {},
+    "result": {
+      "value": {
+        "a": "照顾",
+        "b": "漂亮"
+      },
+      "variant": "zh",
+      "flagMetadata": {
+        "allocationKey": "allocation-test",
+        "variationType": "object",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "special-characters",
+    "variationType": "JSON",
+    "defaultValue": {},
+    "targetingKey": "darryl",
+    "attributes": {},
+    "result": {
+      "value": {
+        "a": "🤗",
+        "b": "🌸"
+      },
+      "variant": "emoji",
+      "flagMetadata": {
+        "allocationKey": "allocation-test",
+        "variationType": "object",
+        "doLog": true
+      }
+    }
+  }
+]
