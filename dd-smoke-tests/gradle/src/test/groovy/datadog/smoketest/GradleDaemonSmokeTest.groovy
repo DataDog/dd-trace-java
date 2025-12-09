@@ -34,10 +34,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   @TempDir
   Path testKitFolder
 
-  def setupSpec() {
-    givenGradleProperties()
-  }
-
   @IgnoreIf(reason = "Jacoco plugin does not work with OpenJ9 in older Gradle versions", value = {
     JavaVirtualMachine.isJ9()
   })
@@ -79,6 +75,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   def "test junit4 class ordering v#gradleVersion"() {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenGradleProjectFiles(projectName)
+    givenGradleProjectProperties()
     ensureDependenciesDownloaded(gradleVersion)
 
     mockBackend.givenKnownTests(true)
@@ -124,6 +121,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion)
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache)
     givenGradleProjectFiles(projectName)
+    givenGradleProjectProperties()
     ensureDependenciesDownloaded(gradleVersion)
 
     mockBackend.givenFlakyRetries(flakyRetries)
@@ -150,7 +148,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
   }
 
-  private void givenGradleProperties() {
+  private void givenGradleProjectProperties() {
     assert new File(AGENT_JAR).isFile()
 
     def ddApiKeyPath = testKitFolder.resolve(".dd.api.key")
@@ -173,7 +171,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     def arguments = buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalArgs)
 
     def gradleProperties = "org.gradle.jvmargs=${arguments.join(" ")}".toString()
-    Files.write(testKitFolder.resolve("gradle.properties"), gradleProperties.getBytes())
+    // Write to projectFolder (per-test) instead of testKitFolder (shared), so each
+    // Gradle daemon gets its own unique preference directory
+    Files.write(projectFolder.resolve("gradle.properties"), gradleProperties.getBytes())
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
