@@ -312,7 +312,7 @@ include(
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5",
   ":dd-java-agent:instrumentation:commons-text-1.0",
-  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-7.0",
+  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
