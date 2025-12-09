@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import org.apache.rocketmq.client.hook.ConsumeMessageContext;
@@ -20,7 +21,8 @@ import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
 public class RocketMqInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public static final String CLASS_NAME = "org.apache.rocketmq.client.consumer.DefaultMQPushConsumer";
+  public static final String CLASS_NAME =
+      "org.apache.rocketmq.client.consumer.DefaultMQPushConsumer";
 
   public RocketMqInstrumentation() {
     super("rocketmq", "rocketmq-client");
@@ -38,45 +40,44 @@ public class RocketMqInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".RocketMqHook",
-        packageName + ".TracingConsumeMessageHookImpl",
-        packageName + ".TracingSendMessageHookImpl",
-        packageName + ".RocketMqDecorator",
-        packageName + ".TextMapExtractAdapter",
-        packageName + ".TextMapInjectAdapter",
+    return new String[] {
+      packageName + ".RocketMqHook",
+      packageName + ".TracingConsumeMessageHookImpl",
+      packageName + ".TracingSendMessageHookImpl",
+      packageName + ".RocketMqDecorator",
+      packageName + ".TextMapExtractAdapter",
+      packageName + ".TextMapInjectAdapter",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> map = new HashMap<>(1);
-    map.put("org.apache.rocketmq.client.hook.ConsumeMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
-    return map;
+    // Map<String, String> map = new HashMap<>(1);
+    // map.put("org.apache.rocketmq.client.hook.ConsumeMessageContext",
+    // "datadog.trace.bootstrap.instrumentation.api.AgentScope");
+    return singletonMap(
+        "org.apache.rocketmq.client.hook.ConsumeMessageContext", AgentScope.class.getName());
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
 
     transformation.applyAdvice(
-        isMethod().
-            and(named("start")).
-            and(takesArguments(0)),
+        isMethod().and(named("start")).and(takesArguments(0)),
         RocketMqInstrumentation.class.getName() + "$AdviceStart");
   }
-
 
   public static class AdviceStart {
     @Advice.OnMethodEnter
     public static void onEnter(
         @Advice.FieldValue(
-            value = "defaultMQPushConsumerImpl", declaringType = DefaultMQPushConsumer.class)
-        DefaultMQPushConsumerImpl defaultMqPushConsumerImpl) {
+                value = "defaultMQPushConsumerImpl",
+                declaringType = DefaultMQPushConsumer.class)
+            DefaultMQPushConsumerImpl defaultMqPushConsumerImpl) {
 
-      defaultMqPushConsumerImpl.registerConsumeMessageHook(RocketMqHook.buildConsumerHook(
-          InstrumentationContext.get(ConsumeMessageContext.class, AgentScope.class))
-      );
-
+      defaultMqPushConsumerImpl.registerConsumeMessageHook(
+          RocketMqHook.buildConsumerHook(
+              InstrumentationContext.get(ConsumeMessageContext.class, AgentScope.class)));
     }
   }
 }

@@ -4,13 +4,15 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import org.apache.rocketmq.client.hook.SendMessageContext;
 import org.apache.rocketmq.client.hook.SendMessageHook;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import static datadog.trace.instrumentation.rocketmq.RocketMqDecorator.PRODUCER_DECORATE;
 
 public final class TracingSendMessageHookImpl implements SendMessageHook {
 
   private final RocketMqDecorator rocketMqDecorator;
-
+  private static final Logger log = LoggerFactory.getLogger(TracingSendMessageHookImpl.class);
   private final ContextStore<SendMessageContext, AgentScope> store;
 
   TracingSendMessageHookImpl(ContextStore<SendMessageContext, AgentScope> store) {
@@ -39,10 +41,12 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
       return;
     }
     if (context == null) {
-      scope.close();
       return;
     }
     rocketMqDecorator.end(context, scope);
     scope.close();
+    if (log.isDebugEnabled()) {
+      log.debug("scope close");
+    }
   }
 }

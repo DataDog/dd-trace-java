@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rocketmq;
 
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
@@ -38,9 +39,8 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> map = new HashMap<>(1);
-    map.put("org.apache.rocketmq.client.hook.SendMessageContext", "datadog.trace.bootstrap.instrumentation.api.AgentScope");
-    return map;
+    return singletonMap(
+        "org.apache.rocketmq.client.hook.SendMessageContext", AgentScope.class.getName());
   }
 
   @Override

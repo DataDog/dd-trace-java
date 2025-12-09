@@ -198,9 +198,8 @@ public class RocketMqDecorator extends ClientDecorator {
       span.setTag(MESSAGING_ROCKETMQ_SEND_RESULT, context.getSendResult().getSendStatus().name());
     }
 
-    beforeFinish(span);
+    // beforeFinish(span);
     span.finish();
-
     if (log.isDebugEnabled()) {
       log.debug("send span end");
     }
