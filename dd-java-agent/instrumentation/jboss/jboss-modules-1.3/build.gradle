@@ -17,5 +17,7 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs +='--add-exports=java.xml/com.sun.org.apache.xerces.internal.jaxp=ALL-UNNAMED'
+  if (it.javaVersion.isJava9Compatible()) {
+    jvmArgs +='--add-exports=java.xml/com.sun.org.apache.xerces.internal.jaxp=ALL-UNNAMED'
+  }
 }
