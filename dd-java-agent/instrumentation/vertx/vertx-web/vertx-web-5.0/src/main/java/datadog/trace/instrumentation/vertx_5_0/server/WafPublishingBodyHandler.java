@@ -69,11 +69,7 @@ public class WafPublishingBodyHandler implements Handler<Buffer> {
           return;
         }
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        blockResponseFunction.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         throw new BlockingException(
             "Blocked request (for Buffer/toString or Buffer/toJson{Object,Array})");
       }
