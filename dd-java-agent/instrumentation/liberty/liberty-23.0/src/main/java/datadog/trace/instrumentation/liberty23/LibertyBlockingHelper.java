@@ -90,7 +90,7 @@ public class LibertyBlockingHelper {
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(
               bct, thiz.getRequest().getHeader("Accept").asString());
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       response.setHeader("Content-length", Integer.toString(template.length));
       response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       WsByteBufferImpl buffer = new WsByteBufferImpl(ByteBuffer.wrap(template));

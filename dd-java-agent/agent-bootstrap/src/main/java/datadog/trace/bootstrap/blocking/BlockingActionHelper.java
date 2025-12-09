@@ -118,12 +118,26 @@ public class BlockingActionHelper {
   }
 
   public static byte[] getTemplate(TemplateType type) {
+    return getTemplate(type, null);
+  }
+
+  public static byte[] getTemplate(TemplateType type, String securityResponseId) {
+    byte[] template;
     if (type == TemplateType.JSON) {
-      return TEMPLATE_JSON;
+      template = TEMPLATE_JSON;
     } else if (type == TemplateType.HTML) {
-      return TEMPLATE_HTML;
+      template = TEMPLATE_HTML;
+    } else {
+      return null;
     }
-    return null;
+
+    // Use empty string when securityResponseId is not present
+    String replacementValue =
+        (securityResponseId == null || securityResponseId.isEmpty()) ? "" : securityResponseId;
+
+    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
+    String replacedTemplate = templateString.replace("[security_response_id]", replacementValue);
+    return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
 
   public static String getContentType(TemplateType type) {

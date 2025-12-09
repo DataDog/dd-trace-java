@@ -127,7 +127,8 @@ public class NettyHttpServerDecorator
         TraceSegment segment,
         int statusCode,
         BlockingContentType templateType,
-        Map<String, String> extraHeaders) {
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -143,7 +144,8 @@ public class NettyHttpServerDecorator
             .addAfter(
                 pipeline.context(handlerBefore).name(),
                 "blocking_handler",
-                new BlockingResponseHandler(segment, statusCode, templateType, extraHeaders))
+                new BlockingResponseHandler(
+                    segment, statusCode, templateType, extraHeaders, securityResponseId))
             .addBefore(
                 "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
       } catch (RuntimeException rte) {
