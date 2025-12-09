@@ -20,7 +20,12 @@ import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
+import com.openai.models.responses.ResponseFunctionToolCall;
+import com.openai.models.responses.ResponseOutputItem;
+import com.openai.models.responses.ResponseOutputMessage;
+import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseStreamEvent;
+import com.openai.models.responses.ResponseUsage;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
@@ -348,7 +353,8 @@ public class OpenAiDecorator extends ClientDecorator {
     }
   }
 
-  public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
+  public void withResponseCreateParams(
+      AgentSpan span, ResponseCreateParams params, boolean stream) {
     span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     span.setResourceName(RESPONSES_CREATE);
     span.setTag("openai.request.endpoint", "v1/responses");
@@ -360,12 +366,77 @@ public class OpenAiDecorator extends ClientDecorator {
     // ResponsesModel to Optional<ResponsesModel> in
     // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
     span.setTag(REQUEST_MODEL, extractResponseModel(params._model()));
+
+    Optional<String> textOpt = params._input().asString();
+    if (textOpt.isPresent()) {
+      LLMObs.LLMMessage msg = LLMObs.LLMMessage.from("user", textOpt.get());
+      span.setTag("_ml_obs_tag.input", Collections.singletonList(msg));
+    }
+
+    Map<String, Object> metadata = new HashMap<>();
+    params.maxOutputTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    if (stream) {
+      metadata.put("stream", true);
+    }
+    span.setTag("_ml_obs_tag.metadata", metadata);
   }
 
   public void withResponse(AgentSpan span, Response response) {
-    span.setTag(RESPONSE_MODEL, extractResponseModel(response._model()));
+    String modelName = extractResponseModel(response._model());
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
 
-    // TODO set LLMObs tags
+    List<LLMObs.LLMMessage> outputMessages = extractResponseOutputMessages(response.output());
+    if (!outputMessages.isEmpty()) {
+      span.setTag("_ml_obs_tag.output", outputMessages);
+    }
+
+    response.usage().ifPresent(usage -> withResponseUsage(span, usage));
+  }
+
+  private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {
+    List<LLMObs.LLMMessage> messages = new ArrayList<>();
+    List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
+    String textContent = null;
+
+    for (ResponseOutputItem item : output) {
+      if (item.isFunctionCall()) {
+        ResponseFunctionToolCall functionCall = item.asFunctionCall();
+        LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(functionCall);
+        if (toolCall != null) {
+          toolCalls.add(toolCall);
+        }
+      } else if (item.isMessage()) {
+        ResponseOutputMessage message = item.asMessage();
+        textContent = extractMessageContent(message);
+      }
+    }
+
+    messages.add(LLMObs.LLMMessage.from("assistant", textContent, toolCalls));
+
+    return messages;
+  }
+
+  private String extractMessageContent(ResponseOutputMessage message) {
+    StringBuilder contentBuilder = new StringBuilder();
+    for (ResponseOutputMessage.Content content : message.content()) {
+      if (content.isOutputText()) {
+        ResponseOutputText outputText = content.asOutputText();
+        contentBuilder.append(outputText.text());
+      }
+    }
+    String result = contentBuilder.toString();
+    return result.isEmpty() ? null : result;
+  }
+
+  private static void withResponseUsage(AgentSpan span, ResponseUsage usage) {
+    span.setTag("_ml_obs_metric.input_tokens", usage.inputTokens());
+    span.setTag("_ml_obs_metric.output_tokens", usage.outputTokens());
+    span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+    span.setTag(
+        "_ml_obs_metric.cache_read_input_tokens", usage.inputTokensDetails().cachedTokens());
   }
 
   private String extractResponseModel(JsonField<ResponsesModel> model) {
@@ -396,11 +467,13 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void withResponseStreamEvent(AgentSpan span, List<ResponseStreamEvent> events) {
-    if (!events.isEmpty()) {
-      // ResponseStreamEvent responseStreamEvent = events.get(0);
-      // span.setTag(RESPONSE_MODEL, responseStreamEvent.res()); // TODO there is no model
+    // Find the completed event which contains the full response
+    for (ResponseStreamEvent event : events) {
+      if (event.isCompleted()) {
+        Response response = event.asCompleted().response();
+        withResponse(span, response);
+        return;
+      }
     }
-
-    // TODO set LLMObs tags
   }
 }

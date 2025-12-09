@@ -52,7 +52,7 @@ public class ResponseServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      DECORATE.withResponseCreateParams(span, params, false);
       return activateSpan(span);
     }
 
@@ -86,7 +86,7 @@ public class ResponseServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      DECORATE.withResponseCreateParams(span, params, true);
       return activateSpan(span);
     }
 

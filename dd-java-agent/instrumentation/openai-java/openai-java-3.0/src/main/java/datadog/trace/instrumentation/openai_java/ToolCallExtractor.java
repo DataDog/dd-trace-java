@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.models.chat.completions.ChatCompletionMessageFunctionToolCall;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
+import com.openai.models.responses.ResponseFunctionToolCall;
 import datadog.trace.api.llmobs.LLMObs;
 import java.util.Collections;
 import java.util.Map;
@@ -29,24 +30,46 @@ public class ToolCallExtractor {
       String name = function.name();
       String argumentsJson = function.arguments();
 
-      Map<String, Object> arguments;
-      try {
-        arguments = MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
-      } catch (Exception e) {
-        log.debug("Failed to parse tool call arguments as JSON: {}", argumentsJson, e);
-        arguments = Collections.singletonMap("value", argumentsJson);
-      }
-
       String type = "function";
       Optional<String> typeOpt = functionToolCall._type().asString();
       if (typeOpt.isPresent()) {
         type = typeOpt.get();
       }
 
+      Map<String, Object> arguments = parseArguments(argumentsJson);
       return LLMObs.ToolCall.from(name, type, toolId, arguments);
     } catch (Exception e) {
       log.debug("Failed to extract tool call information", e);
     }
     return null;
+  }
+
+  public static LLMObs.ToolCall getToolCall(ResponseFunctionToolCall functionCall) {
+    try {
+      String name = functionCall.name();
+      String callId = functionCall.callId();
+      String argumentsJson = functionCall.arguments();
+
+      String type = "function_call";
+      Optional<String> typeOpt = functionCall._type().asString();
+      if (typeOpt.isPresent()) {
+        type = typeOpt.get();
+      }
+
+      Map<String, Object> arguments = parseArguments(argumentsJson);
+      return LLMObs.ToolCall.from(name, type, callId, arguments);
+    } catch (Exception e) {
+      log.debug("Failed to extract tool call information", e);
+    }
+    return null;
+  }
+
+  private static Map<String, Object> parseArguments(String argumentsJson) {
+    try {
+      return MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
+    } catch (Exception e) {
+      log.debug("Failed to parse tool call arguments as JSON: {}", argumentsJson, e);
+      return Collections.singletonMap("value", argumentsJson);
+    }
   }
 }

@@ -132,18 +132,25 @@ class ResponseServiceTest extends OpenAiTest {
           spanType DDSpanTypes.LLMOBS
           tags {
             "_ml_obs_tag.span.kind" "llm"
+            "_ml_obs_tag.model_provider" "openai"
+            "_ml_obs_tag.model_name" String
+            "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.output" List // TODO capture to validate tool calls
+            "_ml_obs_metric.input_tokens" Long
+            "_ml_obs_metric.output_tokens" Long
+            "_ml_obs_metric.total_tokens" Long
+            "_ml_obs_metric.cache_read_input_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/responses"
             "openai.api_base" openAiBaseApi
+            "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-0125"
             if (!isStreaming) {
               // TODO no limit headers when streaming
               "openai.organization.ratelimit.requests.limit" 10000
               "openai.organization.ratelimit.requests.remaining" Integer
               "openai.organization.ratelimit.tokens.limit" 50000000
               "openai.organization.ratelimit.tokens.remaining" Integer
-              // TODO no response model
-              "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-0125"
             }
             "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
             "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo"
