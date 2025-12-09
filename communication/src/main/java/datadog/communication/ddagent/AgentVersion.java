@@ -15,8 +15,7 @@ public class AgentVersion {
    * @param maxMajor maximum major version (exclusive)
    * @param maxMinor maximum minor version (exclusive)
    * @param maxPatch maximum patch version (exclusive)
-   * @return true if version is below the specified maximum, false otherwise (including when version
-   *     is null or unparseable)
+   * @return true if version is below the specified maximum (or if not parseable), false otherwise
    */
   public static boolean isVersionBelow(String version, int maxMajor, int maxMinor, int maxPatch) {
     if (version == null || version.isEmpty()) {
