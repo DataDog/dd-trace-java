@@ -866,14 +866,6 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
-    // This prevents a deadlock. See PROF-13025.
-    try {
-      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
-    } catch (Exception e) {
-      // Ignore when the class is not found or anything else goes wrong.
-    }
-
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
@@ -932,6 +924,15 @@ public class Agent {
 
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
+
+    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
+    // This prevents a deadlock. See PROF-13025.
+    try {
+      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
+    } catch (Exception e) {
+      // Ignore when the class is not found or anything else goes wrong.
+    }
+
     try {
       final Class<?> smapFactoryClass =
           AGENT_CLASSLOADER.loadClass(
