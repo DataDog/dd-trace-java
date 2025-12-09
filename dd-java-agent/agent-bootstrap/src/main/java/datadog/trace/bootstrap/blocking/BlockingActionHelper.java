@@ -23,10 +23,6 @@ public class BlockingActionHelper {
   private static final int DEFAULT_HTTP_CODE = 403;
   private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500; // 500 kiB
 
-  // Pattern for removing security_response_id from HTML template when is null/empty
-  private static final Pattern HTML_SECURITY_RESPONSE_ID_PATTERN =
-      Pattern.compile("<p[^>]*>Security Response ID: \\[security_response_id]</p>\\s*");
-
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
 
@@ -135,26 +131,13 @@ public class BlockingActionHelper {
       return null;
     }
 
+    // Use "NOT AVAILABLE" when securityResponseId is not present
+    String replacementValue = (securityResponseId == null || securityResponseId.isEmpty())
+        ? "NOT AVAILABLE"
+        : securityResponseId;
+
     String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
-
-    if (securityResponseId == null || securityResponseId.isEmpty()) {
-      // Remove the security_response_id field/placeholder entirely when securityResponseId is not
-      // present
-      if (type == TemplateType.JSON) {
-        // Remove the entire security_response_id field from JSON
-        // Template format: }],"security_response_id":"[security_response_id]"}
-        templateString =
-            templateString.replace(",\"security_response_id\":\"[security_response_id]\"", "");
-      } else {
-        // For HTML, remove the entire security_response_id section including any attributes
-        Matcher matcher = HTML_SECURITY_RESPONSE_ID_PATTERN.matcher(templateString);
-        templateString = matcher.replaceFirst("");
-      }
-      return templateString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    // Perform placeholder replacement for [security_response_id]
-    String replacedTemplate = templateString.replace("[security_response_id]", securityResponseId);
+    String replacedTemplate = templateString.replace("[security_response_id]", replacementValue);
     return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
   }
 
