@@ -9,6 +9,7 @@ muzzle {
     group = 'org.jboss.logmanager'
     module = 'jboss-logmanager-embedded'
     versions = '[1.0.0,]'
+    skipVersions += '1.2.0.Final' // TODO: missing jar in Maven Central (https://repo.maven.apache.org/maven2/org/jboss/logmanager/jboss-logmanager-embedded/1.2.0.Final/)
   }
 }
 
