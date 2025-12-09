@@ -27,6 +27,13 @@ muzzle {
   }
 
   pass {
+    name = 'thread-context'
+    group = 'org.apache.logging.log4j'
+    module = 'log4j-core'
+    versions = '[,2.7)'
+  }
+
+  pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-api'
     versions = '[,2.7)'
