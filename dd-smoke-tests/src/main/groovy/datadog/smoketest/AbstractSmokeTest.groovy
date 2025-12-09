@@ -426,7 +426,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
       if (evpProxyMessageDecodingFailure != null) {
         throw evpProxyMessageDecodingFailure
       }
-      assert (message = evpProxyMessages.find { predicate.apply(it) }) != null
+      assert (message = evpProxyMessages.find {
+        predicate.apply(it)
+      }) != null
     }
     return message
   }
