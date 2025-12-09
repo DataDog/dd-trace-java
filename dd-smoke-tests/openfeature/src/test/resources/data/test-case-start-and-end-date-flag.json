@@ -1,0 +1,58 @@
+[
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {
+      "version": "1.15.0",
+      "country": "US"
+    },
+    "result": {
+      "value": "current",
+      "variant": "current",
+      "flagMetadata": {
+        "allocationKey": "current-versions",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "version": "0.20.1",
+      "country": "Canada"
+    },
+    "result": {
+      "value": "current",
+      "variant": "current",
+      "flagMetadata": {
+        "allocationKey": "current-versions",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "version": "2.1.13"
+    },
+    "result": {
+      "value": "current",
+      "variant": "current",
+      "flagMetadata": {
+        "allocationKey": "current-versions",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  }
+]

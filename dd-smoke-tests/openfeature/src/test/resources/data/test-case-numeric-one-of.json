@@ -1,0 +1,122 @@
+[
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "number": 1
+    },
+    "result": {
+      "value": 1,
+      "variant": "1",
+      "flagMetadata": {
+        "allocationKey": "1-for-1",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "bob",
+    "attributes": {
+      "number": 2
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "charlie",
+    "attributes": {
+      "number": 3
+    },
+    "result": {
+      "value": 3,
+      "variant": "3",
+      "flagMetadata": {
+        "allocationKey": "3-for-not-2",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "derek",
+    "attributes": {
+      "number": 4
+    },
+    "result": {
+      "value": 3,
+      "variant": "3",
+      "flagMetadata": {
+        "allocationKey": "3-for-not-2",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "erica",
+    "attributes": {
+      "number": "1"
+    },
+    "result": {
+      "value": 1,
+      "variant": "1",
+      "flagMetadata": {
+        "allocationKey": "1-for-1",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "frank",
+    "attributes": {
+      "number": 1
+    },
+    "result": {
+      "value": 1,
+      "variant": "1",
+      "flagMetadata": {
+        "allocationKey": "1-for-1",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "george",
+    "attributes": {
+      "number": 123456789
+    },
+    "result": {
+      "value": 2,
+      "variant": "2",
+      "flagMetadata": {
+        "allocationKey": "2-for-123456789",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  }
+]

@@ -1,0 +1,153 @@
+plugins {
+  id 'java-test-fixtures'
+}
+apply from: "$rootDir/gradle/java.gradle"
+
+def openlibertyHomeDir = project.layout.buildDirectory.dir("openliberty")
+String testWebAppDir = 'wlp/usr/servers/defaultServer/dropins/war/testapp'
+
+sourceSets {
+  register("webapp") {
+    java {
+      destinationDirectory = openlibertyHomeDir.map {it.dir("$testWebAppDir/WEB-INF/classes") }
+    }
+    output.resourcesDir = openlibertyHomeDir.map { it.dir(testWebAppDir) }
+  }
+}
+
+configurations {
+  register("zipped")
+  register("testLogging")
+}
+
+evaluationDependsOn ':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'
+
+// Since these tasks output are used in dependencies they have to be declared before, they can be configured later
+def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
+  extractDir.set(openlibertyHomeDir)
+}
+def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
+
+dependencies {
+  zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
+  testLogging libs.bundles.test.logging
+
+  compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  compileOnly files(unpackOpenLiberty.map {it.extractedJars.get() })
+  implementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
+
+  testImplementation files(unpackOpenLiberty.map {it.wsServerJar.get() })
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:osgi-4.3')
+  testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+
+  webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+  // compileOnly to avoid bringing all the test dependencies to the test app
+  // these are to be provided by the system classloader on test time
+  webappCompileOnly testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+  // only the testFixtures jar (not its dependencies) and groovy should be included in the webapp
+  add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))) {
+    transitive = false
+  }
+  // use the above instead of:
+  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+  // because using testFixtures() causes some early evaluation of dependencies
+  webappRuntimeOnly libs.groovy
+}
+
+configurations.named("testRuntimeOnly") {
+  exclude group: 'ch.qos.logback', module: 'logback-classic'
+  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
+}
+configurations.named("webappRuntimeClasspath") {
+  exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+
+tasks.named('compileJava', JavaCompile) {
+  // If using higher toolchain for compilation the following failure happens :
+  // > import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
+  // >                  ^
+  // >   Invalid CEN header (invalid extra data field size for tag: 0xbfef size: 445)
+  configureCompiler(it, 8)
+}
+
+// unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
+abstract class UnpackOpenLiberty extends Copy {
+  @Input
+  final Property<String> configurationName = project.objects.property(String).convention("zipped")
+
+  @OutputDirectory
+  final DirectoryProperty extractDir = project.objects.directoryProperty()
+
+  @OutputFiles
+  final Provider<FileTree> extractedJars = project.providers.provider {
+    project.fileTree(extractDir) {
+      include "wlp/lib/*.jar"
+    }
+  }
+
+  @OutputFiles
+  final Provider<FileTree> wsServerJar = project.providers.provider {
+    project.fileTree(extractDir) {
+      include "wlp/bin/tools/ws-server.jar"
+    }
+  }
+
+  @OutputFile
+  final Provider<File> serverXmlFile = project.providers.provider { extractDir.get().file("wlp/usr/servers/defaultServer/server.xml").asFile }
+
+  UnpackOpenLiberty() {
+    from project.zipTree(configurationName.map {
+      project.configurations.named(it).map {
+        it.singleFile
+      }
+    })
+    eachFile { FileCopyDetails fcd ->
+      fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
+    }
+    into extractDir
+  }
+}
+
+def webappCopyJars = tasks.register('webappCopyJars', Sync) {
+  from configurations.named("webappRuntimeClasspath").map { Configuration config ->
+    config.filter { file ->
+      file.name.endsWith('.jar')
+    }
+  }
+
+  into openlibertyHomeDir.map { it.dir("$testWebAppDir/WEB-INF/lib") }
+}
+
+tasks.named('filterLogbackClassic', Sync) {
+  from configurations.named("testLogging").map {
+    it.filter {
+      it.name.contains('logback-')
+    }.collect {zipTree(it) }
+  }
+
+  exclude 'META-INF/**'
+  into project.layout.buildDirectory.dir('tmp/filteredLogback')
+}
+
+["test", "forkedTest"].each {
+  tasks.named(it, Test) {
+    dependsOn(
+      "webappClasses",
+      unpackOpenLiberty,
+      webappCopyJars,
+      filterLogbackClassic
+      )
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          return unpackOpenLiberty.map {["-Dserver.xml=${it.serverXmlFile.get().absolutePath}"] }.get()
+        }
+      })
+  }
+}
+
+tasks.named("forbiddenApisWebapp") {
+  enabled = false
+}

@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 
 @AutoService(InstrumenterModule.class)
 public class SparkExitInstrumentation extends InstrumenterModule.Tracing
@@ -18,7 +18,7 @@ public class SparkExitInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isDataJobsEnabled();
+    return InstrumenterConfig.get().isDataJobsEnabled();
   }
 
   @Override

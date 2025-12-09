@@ -1,5 +1,5 @@
 plugins {
-  id 'com.diffplug.spotless' version '6.13.0'
+  id 'com.diffplug.spotless' version '8.1.0'
 }
 
 def sharedConfigDirectory = "$rootDir/../gradle"

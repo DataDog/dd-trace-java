@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,9 +45,7 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HikariBlockedTracker",
-      packageName
-          + ".HikariConcurrentBagHandoffQueueInstrumentation$BlockedTrackingSynchronousQueue",
+      packageName + ".HikariBlockedTracker", packageName + ".HikariBlockedTrackingSynchronousQueue",
     };
   }
 
@@ -64,20 +61,7 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
     static void after(
         @Advice.FieldValue(value = "handoffQueue", readOnly = false)
             SynchronousQueue handoffQueue) {
-      handoffQueue = new BlockedTrackingSynchronousQueue<>();
-    }
-  }
-
-  public static class BlockedTrackingSynchronousQueue<T> extends SynchronousQueue<T> {
-    public BlockedTrackingSynchronousQueue() {
-      // This assumes the initialization of the SynchronousQueue in ConcurrentBag doesn't change
-      super(true);
-    }
-
-    @Override
-    public T poll(long timeout, TimeUnit unit) throws InterruptedException {
-      HikariBlockedTracker.setBlocked();
-      return super.poll(timeout, unit);
+      handoffQueue = new HikariBlockedTrackingSynchronousQueue<>();
     }
   }
 }
