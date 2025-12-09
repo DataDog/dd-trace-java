@@ -136,11 +136,11 @@ class ChatCompletionServiceTest extends OpenAiTest {
     toolcall.toolId instanceof String
     toolcall.type == "function"
     toolcall.arguments == [
-        name: 'David Nguyen',
-        major: 'computer science',
-        school: 'Stanford University',
-        grades: 3.8,
-        clubs: ['Chess Club', 'South Asian Student Association']
+      name: 'David Nguyen',
+      major: 'computer science',
+      school: 'Stanford University',
+      grades: 3.8,
+      clubs: ['Chess Club', 'South Asian Student Association']
     ]
   }
 
@@ -148,7 +148,8 @@ class ChatCompletionServiceTest extends OpenAiTest {
     runnableUnderTrace("parent") {
       StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParamsWithTools())
       try (Stream stream = streamCompletion.stream()) {
-        stream.forEach { chunk ->
+        stream.forEach {
+          chunk ->
           // chunks.add(chunk)
         }
       }
@@ -166,11 +167,11 @@ class ChatCompletionServiceTest extends OpenAiTest {
     toolcall.toolId instanceof String
     toolcall.type == "function"
     toolcall.arguments == [
-        name: 'David Nguyen',
-        major: 'computer science',
-        school: 'Stanford University',
-        grades: 3.8,
-        clubs: ['Chess Club', 'South Asian Student Association']
+      name: 'David Nguyen',
+      major: 'computer science',
+      school: 'Stanford University',
+      grades: 3.8,
+      clubs: ['Chess Club', 'South Asian Student Association']
     ]
   }
 

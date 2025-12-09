@@ -31,7 +31,7 @@ public class ToolCallExtractor {
 
       Map<String, Object> arguments;
       try {
-        arguments = parseArguments(argumentsJson);
+        arguments = MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
       } catch (Exception e) {
         log.debug("Failed to parse tool call arguments as JSON: {}", argumentsJson, e);
         arguments = Collections.singletonMap("value", argumentsJson);
@@ -48,9 +48,5 @@ public class ToolCallExtractor {
       log.debug("Failed to extract tool call information", e);
     }
     return null;
-  }
-
-  public static Map<String, Object> parseArguments(String argumentsJson) throws Exception {
-    return MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
   }
 }

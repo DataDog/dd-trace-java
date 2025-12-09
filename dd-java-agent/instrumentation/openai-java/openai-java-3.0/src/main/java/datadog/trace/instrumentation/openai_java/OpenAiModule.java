@@ -16,8 +16,6 @@ public class OpenAiModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".OpenAiDecorator",
-      packageName + ".OpenAiDecorator$1",
-      packageName + ".OpenAiDecorator$StreamingToolCallData",
       packageName + ".ResponseWrappers",
       packageName + ".ResponseWrappers$DDHttpResponseFor",
       packageName + ".ResponseWrappers$1",

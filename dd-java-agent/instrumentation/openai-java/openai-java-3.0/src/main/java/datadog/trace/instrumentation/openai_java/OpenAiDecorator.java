@@ -295,122 +295,12 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void withChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
-    if (chunks.isEmpty()) {
-      return;
-    }
-    ChatCompletionChunk firstChunk = chunks.get(0);
-    String modelName = firstChunk.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
-
-    // assume that number of choices is the same for each chunk
-    final int choiceNum = firstChunk.choices().size();
-    // collect roles by choices by the first chunk
-    String[] roles = new String[choiceNum];
-    for (int i = 0; i < choiceNum; i++) {
-      ChatCompletionChunk.Choice choice = firstChunk.choices().get(i);
-      Optional<String> role = choice.delta().role().flatMap(r -> r._value().asString());
-      if (role.isPresent()) {
-        roles[i] = role.get();
-      }
-    }
-    // collect content by choices for all chunks
-    StringBuilder[] contents = new StringBuilder[choiceNum];
-    for (int i = 0; i < choiceNum; i++) {
-      contents[i] = new StringBuilder(128);
-    }
-    // collect tool calls by choices for all chunks
-    // Map from choice index -> (tool call index -> accumulated tool call data)
-    @SuppressWarnings("unchecked")
-    Map<Long, StreamingToolCallData>[] toolCallsByChoice = new Map[choiceNum];
-    for (int i = 0; i < choiceNum; i++) {
-      toolCallsByChoice[i] = new HashMap<>();
-    }
-
-    // Create an accumulator
     ChatCompletionAccumulator accumulator = ChatCompletionAccumulator.create();
-
-// Accumulate each chunk as it arrives
     for (ChatCompletionChunk chunk : chunks) {
       accumulator.accumulate(chunk);
     }
-
-// Get the final ChatCompletion
     ChatCompletion chatCompletion = accumulator.chatCompletion();
-
-    for (ChatCompletionChunk chunk : chunks) {
-      // choices can be empty for the last chunk
-      List<ChatCompletionChunk.Choice> choices = chunk.choices();
-      for (int i = 0; i < choiceNum && i < choices.size(); i++) {
-        ChatCompletionChunk.Choice choice = choices.get(i);
-        ChatCompletionChunk.Choice.Delta delta = choice.delta();
-        delta.content().ifPresent(contents[i]::append);
-
-        // accumulate tool calls
-        Optional<List<ChatCompletionChunk.Choice.Delta.ToolCall>> toolCallsOpt = delta.toolCalls();
-        if (toolCallsOpt.isPresent()) {
-          for (ChatCompletionChunk.Choice.Delta.ToolCall toolCall : toolCallsOpt.get()) {
-            long index = toolCall.index();
-            StreamingToolCallData data =
-                toolCallsByChoice[i].computeIfAbsent(index, k -> new StreamingToolCallData());
-            toolCall.id().ifPresent(id -> data.id = id);
-            toolCall
-                .type()
-                .flatMap(t -> t._value().asString())
-                .ifPresent(type -> data.type = type);
-            toolCall
-                .function()
-                .ifPresent(
-                    fn -> {
-                      fn.name().ifPresent(data.name::append);
-                      fn.arguments().ifPresent(data.arguments::append);
-                    });
-          }
-        }
-      }
-      chunk.usage().ifPresent(usage -> withCompletionUsage(span, usage));
-    }
-    // build LLMMessages
-    List<LLMObs.LLMMessage> llmMessages = new ArrayList<>(choiceNum);
-    for (int i = 0; i < choiceNum; i++) {
-      List<LLMObs.ToolCall> toolCalls = buildToolCallsFromStreamingData(toolCallsByChoice[i]);
-      llmMessages.add(LLMObs.LLMMessage.from(roles[i], contents[i].toString(), toolCalls));
-    }
-    span.setTag("_ml_obs_tag.output", llmMessages);
-  }
-
-  /** Helper class to accumulate streaming tool call data across chunks */
-  private static class StreamingToolCallData {
-    String id;
-    String type = "function";
-    StringBuilder name = new StringBuilder();
-    StringBuilder arguments = new StringBuilder();
-  }
-
-  private List<LLMObs.ToolCall> buildToolCallsFromStreamingData(
-      Map<Long, StreamingToolCallData> toolCallDataMap) {
-    if (toolCallDataMap.isEmpty()) {
-      return Collections.emptyList();
-    }
-    List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
-    // Sort by index to maintain order
-    toolCallDataMap.entrySet().stream()
-        .sorted(Map.Entry.comparingByKey())
-        .forEach(
-            entry -> {
-              StreamingToolCallData data = entry.getValue();
-              String name = data.name.toString();
-              String argumentsJson = data.arguments.toString();
-              Map<String, Object> arguments = Collections.singletonMap("value", argumentsJson);
-              try {
-                arguments = ToolCallExtractor.parseArguments(argumentsJson);
-              } catch (Exception e) {
-                // keep default map with raw value
-              }
-              toolCalls.add(LLMObs.ToolCall.from(name, data.type, data.id, arguments));
-            });
-    return toolCalls;
+    withChatCompletion(span, chatCompletion);
   }
 
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
