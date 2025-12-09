@@ -1,3 +1,5 @@
+import com.github.spotbugs.snom.SpotBugsTask
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
 plugins {
@@ -6,7 +8,6 @@ plugins {
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/tries.gradle")
 
 java {
   toolchain {
@@ -20,6 +21,15 @@ tasks.withType<JavaCompile>().configureEach {
 
 fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
+}
+
+tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
+  // sun.* are accessible in JDK8, but maybe not accessible when this task is running
+  failOnMissingClasses = false
+}
+
+tasks.named<SpotBugsTask>("spotbugsMain") {
+  extraArgs.add("-noClassOk")
 }
 
 val minimumBranchCoverage by extra(0.7)
@@ -68,6 +78,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.datastreams.InboxItem",
     "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
     "datadog.trace.api.datastreams.NoopPathwayContext",
+    "datadog.trace.api.datastreams.SchemaRegistryUsage",
     "datadog.trace.api.datastreams.StatsPoint",
     // Debugger
     "datadog.trace.api.debugger.DebuggerConfigUpdate",
@@ -176,8 +187,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.util.AgentTaskScheduler.ShutdownHook",
     "datadog.trace.util.AgentThreadFactory",
     "datadog.trace.util.AgentThreadFactory.1",
-    "datadog.trace.util.ClassNameTrie.Builder",
-    "datadog.trace.util.ClassNameTrie.JavaGenerator",
     "datadog.trace.util.CollectionUtils",
     "datadog.trace.util.ComparableVersion",
     "datadog.trace.util.ComparableVersion.BigIntegerItem",
@@ -256,10 +265,6 @@ val excludedClassesInstructionCoverage by extra(
     "datadog.trace.util.stacktrace.StackWalkerFactory"
   )
 )
-
-tasks.compileTestJava {
-  dependsOn("generateTestClassNameTries")
-}
 
 dependencies {
   // references TraceScope and Continuation from public api

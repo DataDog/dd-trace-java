@@ -115,6 +115,10 @@
 **/datastreams/                                                              @DataDog/data-streams-monitoring
 **/DataStreams*                                                              @DataDog/data-streams-monitoring
 
+# @DataDog/feature-flagging-and-experimentation-sdk
+/dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk
+/products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
+
 # @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java

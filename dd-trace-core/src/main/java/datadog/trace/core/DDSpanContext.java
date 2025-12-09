@@ -114,10 +114,13 @@ public class DDSpanContext
   private volatile CharSequence resourceName;
 
   private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
+
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
+
   /** The type of the span. If null, the Datadog Agent will report as a custom */
   private volatile CharSequence spanType;
+
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
 
@@ -541,7 +544,9 @@ public class DDSpanContext
     propagationTags.updateDebugPropagation(value);
   }
 
-  /** @return if sampling priority was set by this method invocation */
+  /**
+   * @return if sampling priority was set by this method invocation
+   */
   public boolean setSamplingPriority(final int newPriority, final int newMechanism) {
     DDSpanContext spanContext = getRootSpanContextOrThis();
     // set trace level sampling priority
@@ -1022,12 +1027,16 @@ public class DDSpanContext
     }
   }
 
-  /** @see CoreSpan#getMetaStruct() */
+  /**
+   * @see CoreSpan#getMetaStruct()
+   */
   public Map<String, Object> getMetaStruct() {
     return Collections.unmodifiableMap(metaStruct);
   }
 
-  /** @see CoreSpan#setMetaStruct(String, Object) */
+  /**
+   * @see CoreSpan#setMetaStruct(String, Object)
+   */
   public <T> void setMetaStruct(final String field, final T value) {
     if (null == field) {
       return;

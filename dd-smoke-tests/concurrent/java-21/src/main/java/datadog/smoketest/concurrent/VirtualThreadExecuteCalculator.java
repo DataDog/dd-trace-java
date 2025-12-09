@@ -20,6 +20,11 @@ public class VirtualThreadExecuteCalculator implements FibonacciCalculator {
     return task.result.get();
   }
 
+  @Override
+  public void close() {
+    this.executor.shutdown();
+  }
+
   public class FibonacciExecuteTask implements Runnable {
     private final long n;
     private final CompletableFuture<Long> result;
@@ -45,10 +50,5 @@ public class VirtualThreadExecuteCalculator implements FibonacciCalculator {
         this.result.completeExceptionally(e);
       }
     }
-  }
-
-  @Override
-  public void close() {
-    this.executor.shutdown();
   }
 }

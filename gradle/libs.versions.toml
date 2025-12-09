@@ -3,9 +3,11 @@
 
 # Build
 develocity = "4.2.2"
+forbiddenapis = "3.10"
+spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.34.3"
+ddprof = "1.34.4"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -28,7 +30,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9"
-byte-buddy = "1.17.7"
+byte-buddy = "1.18.1"
 instrument-java = "0.0.3"
 
 # Benchmarks
@@ -38,7 +40,6 @@ jmh = "1.37"
 jmc = "8.1.0"
 
 # Web & Network
-jnr-posix = "3.1.19"
 jnr-unixsocket = "0.38.22"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
@@ -71,6 +72,8 @@ testcontainers = "1.21.3"
 [libraries]
 # Build
 develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
+forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
 ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }
@@ -102,7 +105,7 @@ asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 asm-util = { module = "org.ow2.asm:asm-util", version.ref = "asm" }
 bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
 bytebuddyagent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
-instrumentjava = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrument-java" }
+instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrument-java" }
 
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }

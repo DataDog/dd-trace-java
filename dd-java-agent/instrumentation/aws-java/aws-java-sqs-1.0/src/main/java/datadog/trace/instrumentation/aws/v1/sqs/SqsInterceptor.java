@@ -18,6 +18,7 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
 import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.ContextStore;
@@ -69,7 +70,8 @@ public class SqsInterceptor extends RequestHandler2 {
       }
     } else if (request instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest rmRequest = (ReceiveMessageRequest) request;
-      if (rmRequest.getMessageAttributeNames().size() < 10
+      if (Config.get().isSqsInjectDatadogAttributeEnabled()
+          && rmRequest.getMessageAttributeNames().size() < 10
           && !rmRequest.getMessageAttributeNames().contains(DATADOG_KEY)) {
         List<String> attributeNames = new ArrayList<>(rmRequest.getMessageAttributeNames());
         attributeNames.add(DATADOG_KEY);

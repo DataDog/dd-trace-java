@@ -519,3 +519,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     }
   }
 }
+
+class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
+  @Override
+  boolean testRumInjection() {
+    true
+  }
+}

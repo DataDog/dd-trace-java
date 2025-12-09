@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
   id 'com.gradleup.shadow'
   id 'java'
-  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
+  id 'org.jetbrains.kotlin.jvm'
   id 'scala'
   id 'groovy'
 }
@@ -36,7 +36,7 @@ tasks.named("shadowJar", ShadowJar) {
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
-  implementation libs.scala
+  implementation libs.scala213
   implementation libs.groovy
   implementation libs.kotlin
 

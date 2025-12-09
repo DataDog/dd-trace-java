@@ -134,7 +134,9 @@ public class StoredCharBody implements StoredBodySupplier {
     return this.storedBody.length - this.storedBodyLen;
   }
 
-  /** @param utf16CodeUnit an int in the range 0-0xFFFF */
+  /**
+   * @param utf16CodeUnit an int in the range 0-0xFFFF
+   */
   public synchronized void appendData(int utf16CodeUnit) {
     try {
       if (utf16CodeUnit < 0) {

@@ -61,6 +61,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -171,6 +172,13 @@ default:
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
     - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+    - |
+      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
+      cat >> gradle.properties <<EOF
+      org.gradle.java.installations.auto-detect=false
+      org.gradle.java.installations.auto-download=false
+      org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
@@ -356,6 +364,12 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    # TODO: Latest version of spotless is failing with OOM on CI only.
+    # Setting 8G memory solving this issue, but we need to solve it eventually.
+    GRADLE_MEM: 8G
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -427,6 +441,11 @@ test_published_artifacts:
       - unmet_prerequisites
       - scheduler_failure
       - data_integrity_failure
+
+check_build_src:
+  extends: .check_job
+  variables:
+    GRADLE_TARGET: ":buildSrc:build"
 
 check_base:
   extends: .check_job
@@ -982,13 +1001,14 @@ create_key:
     paths:
       - pubkeys
 
-validate_supported_configurations_local_file:
-  extends: .validate_supported_configurations_local_file
+validate_supported_configurations_v2_local_file:
+  extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "false"
 
-update_central_configurations_version_range:
-  extends: .update_central_configurations_version_range
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
   variables:
     LOCAL_REPO_NAME: "dd-trace-java"
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"

@@ -25,7 +25,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
-import datadog.environment.ThreadUtils;
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -1047,7 +1047,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final ReusableSingleSpanBuilderThreadLocalCache tlCache,
       final String instrumentationName,
       final CharSequence operationName) {
-    if (ThreadUtils.isCurrentThreadVirtual()) {
+    if (ThreadSupport.isVirtual()) {
       // Since virtual threads are created and destroyed often,
       // cautiously decided not to create a thread local for the virtual threads.
 
@@ -1084,21 +1084,31 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
     return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, null, false, CoreSpanBuilder.DEFAULT_TIMESTAMP_MICRO);
+        this,
+        instrumentationName,
+        spanName,
+        null,
+        CoreSpanBuilder.USE_SCOPE,
+        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
   }
 
   @Override
   public AgentSpan startSpan(
       final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
     return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, null, false, startTimeMicros);
+        this, instrumentationName, spanName, null, CoreSpanBuilder.USE_SCOPE, startTimeMicros);
   }
 
   @Override
   public AgentSpan startSpan(
       String instrumentationName, final CharSequence spanName, final AgentSpanContext parent) {
     return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, parent, true, CoreSpanBuilder.DEFAULT_TIMESTAMP_MICRO);
+        this,
+        instrumentationName,
+        spanName,
+        parent,
+        CoreSpanBuilder.IGNORE_SCOPE,
+        CoreSpanBuilder.AUTO_ASSIGN_TIMESTAMP);
   }
 
   @Override
@@ -1108,7 +1118,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final AgentSpanContext parent,
       final long startTimeMicros) {
     return CoreSpanBuilder.startSpan(
-        this, instrumentationName, spanName, parent, true, startTimeMicros);
+        this, instrumentationName, spanName, parent, CoreSpanBuilder.IGNORE_SCOPE, startTimeMicros);
   }
 
   @Override
@@ -1189,13 +1199,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event) {
-    return LambdaHandler.notifyStartInvocation(this, event);
+  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
+    return LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
   }
 
   @Override
-  public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {
-    LambdaHandler.notifyEndInvocation(span, result, isError);
+  public void notifyExtensionEnd(
+      AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
+    LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
   }
 
   @Override
@@ -1516,9 +1527,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   /** Spans are built using this builder */
   public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    protected static final boolean IGNORE_SCOPE_DEFAULT = false;
-    protected static final int SPAN_ID_DEFAULT = 0;
-    protected static final long DEFAULT_TIMESTAMP_MICRO = 0L;
+    protected static final boolean USE_SCOPE = false;
+    protected static final boolean IGNORE_SCOPE = true;
+    protected static final int AUTO_ASSIGN_SPAN_ID = 0;
+    protected static final long AUTO_ASSIGN_TIMESTAMP = 0L;
 
     protected final CoreTracer tracer;
 
@@ -1534,12 +1546,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected String resourceName;
     protected boolean errorFlag;
     protected CharSequence spanType;
-    protected boolean ignoreScope = IGNORE_SCOPE_DEFAULT;
+    protected boolean ignoreScope = USE_SCOPE;
     protected Object builderRequestContextDataAppSec;
     protected Object builderRequestContextDataIast;
     protected Object builderCiVisibilityContextData;
     protected List<AgentSpanLink> links;
-    protected long spanId = SPAN_ID_DEFAULT;
+    protected long spanId = AUTO_ASSIGN_SPAN_ID;
+
     // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
     CoreSpanBuilder(CoreTracer tracer) {
@@ -1684,7 +1697,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         long timestampMicros) {
       return startSpan(
           tracer,
-          SPAN_ID_DEFAULT,
+          AUTO_ASSIGN_SPAN_ID,
           instrumentationName,
           timestampMicros,
           null /* serviceName */,
@@ -1924,7 +1937,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final PathwayContext pathwayContext;
       final PropagationTags propagationTags;
 
-      if (spanId == 0) {
+      if (spanId == AUTO_ASSIGN_SPAN_ID) {
         spanId = tracer.idGenerationStrategy.generateSpanId();
       }
 
@@ -2064,7 +2077,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         serviceName = tracer.serviceName;
       }
 
-      if (operationName == null) operationName = resourceName;
+      if (operationName == null) {
+        operationName = resourceName;
+      }
 
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;

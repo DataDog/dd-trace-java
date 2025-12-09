@@ -2,7 +2,6 @@ plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.4'
   id 'io.spring.dependency-management' version '1.0.14.RELEASE'
-  id 'com.diffplug.spotless' version '6.13.0'
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -10,7 +9,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 
 if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')

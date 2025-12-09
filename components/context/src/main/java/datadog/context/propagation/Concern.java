@@ -8,8 +8,10 @@ import datadog.context.Context;
 public class Concern {
   /** The concern default priority. */
   public static final int DEFAULT_PRIORITY = 100;
+
   /** The concern name, for debugging purpose only. */
   private final String name;
+
   /** The concern priority, lower value means higher priority. */
   private final int priority;
 
