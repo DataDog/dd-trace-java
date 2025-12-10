@@ -1,33 +1,18 @@
-/*
- * This plugin defines a set of tasks to be used in CI. These aggregate tasks support partitioning (to parallelize
- * jobs) with -PtaskPartitionCount and -PtaskPartition, and limiting tasks to those affected by git changes
- * with -PgitBaseRef.
- */
-
+import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
-import kotlin.math.abs
 
-// Set up activePartition property on all projects
+/*
+ * This plugin defines a set of tasks to be used in CI.
+ *
+ * These aggregate tasks support partitioning (to parallelize jobs) with
+ * `-Pslot=x/y`, and limiting tasks to those affected by git changes with
+ * `-PgitBaseRef`.
+ */
 allprojects {
-  extra.set("activePartition", true)
-  
-  val taskPartitionCountProvider = rootProject.providers.gradleProperty("taskPartitionCount")
-  val taskPartitionProvider = rootProject.providers.gradleProperty("taskPartition")
-  if (taskPartitionCountProvider.isPresent && taskPartitionProvider.isPresent) {
-    val taskPartitionCount = taskPartitionCountProvider.get()
-    val taskPartition = taskPartitionProvider.get()
-    val currentTaskPartition = abs(project.path.hashCode() % taskPartitionCount.toInt())
-    extra.set("activePartition", currentTaskPartition == taskPartition.toInt())
-  }
-  
-  // Disable test tasks if not in active partition
-  val activePartitionProvider = providers.provider {
-    project.extra.properties["activePartition"] as? Boolean ?: true
-  }
-  
+  // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
-    enabled = activePartitionProvider.get()
+    enabled = project.isInSelectedSlot.get()
   }
 }
 
@@ -132,8 +117,9 @@ if (gitBaseRefProvider.isPresent) {
 
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
-    val activePartition = p.extra.get("activePartition") as Boolean
-    activePartition && p.plugins.hasPlugin("java") && p.plugins.hasPlugin("dd-trace-java.muzzle")
+    p.isInSelectedSlot.get()
+        && p.plugins.hasPlugin("java")
+        && p.plugins.hasPlugin("dd-trace-java.muzzle")
   }
   dependsOn(muzzleSubprojects.map { p -> "${p.path}:muzzle" })
 }

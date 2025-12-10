@@ -2,7 +2,41 @@ package datadog.gradle.plugin.ci
 
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.extra
+import kotlin.math.abs
+
+/**
+ * Determines if the current project is in the selected slot.
+ *
+ * The "slot" property should be provided in the format "X/Y", where X is the selected slot (1-based)
+ * and Y is the total number of slots.
+ *
+ * If the "slot" property is not provided, all projects are considered to be in the selected slot.
+ */
+val Project.isInSelectedSlot: Provider<Boolean>
+  get() = rootProject.providers.gradleProperty("slot").map { slot ->
+    val parts = slot.split("/")
+    if (parts.size != 2) {
+      project.logger.warn("Invalid slot format '{}', expected 'X/Y'. Treating all projects as selected.", slot)
+      return@map true
+    }
+
+    val selectedSlot = parts[0]
+    val totalSlots = parts[1]
+
+    val currentTaskPartition = abs(project.path.hashCode() % totalSlots.toInt())
+
+    project.logger.info(
+      "Project {} assigned to slot {}/{}, active slot is {}",
+      project.path,
+      currentTaskPartition,
+      totalSlots,
+      selectedSlot,
+    )
+
+    currentTaskPartition == selectedSlot.toInt()
+  }.orElse(true)
 
 /**
  * Returns the task's path, given affected projects, if this task or its dependencies are affected by git changes.
@@ -46,9 +80,8 @@ private fun Project.createRootTask(
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
   tasks.register(rootTaskName) {
     subprojects.forEach { subproject ->
-      val activePartition = subproject.extra.get("activePartition") as Boolean
       if (
-        activePartition &&
+        isInSelectedSlot.get() &&
         includePrefixes.any { subproject.path.startsWith(it) } &&
         !excludePrefixes.any { subproject.path.startsWith(it) }
       ) {
