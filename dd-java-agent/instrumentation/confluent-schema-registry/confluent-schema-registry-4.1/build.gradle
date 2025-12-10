@@ -13,6 +13,12 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
   compileOnly group: 'io.confluent', name: 'kafka-schema-registry-client', version: '4.1.0'
