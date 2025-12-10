@@ -22,8 +22,13 @@ val Project.isInSelectedSlot: Provider<Boolean>
       return@map true
     }
 
-    val selectedSlot = parts[0].toInt()
-    val totalSlots = parts[1].toInt()
+    val selectedSlot = parts[0].toIntOrNull()
+    val totalSlots = parts[1].toIntOrNull()
+
+    if (selectedSlot == null || totalSlots == null || totalSlots <= 0) {
+      project.logger.warn("Invalid slot values '{}', expected numeric 'X/Y' with Y > 0. Treating all projects as selected.", slot)
+      return@map true
+    }
 
     // Distribution numbers when running on rootProject.allprojects indicates
     // bucket sizes are reasonably balanced:
