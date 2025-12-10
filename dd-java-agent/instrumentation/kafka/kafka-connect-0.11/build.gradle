@@ -4,6 +4,9 @@ muzzle {
     module = "connect-runtime"
     versions = "[0.11.0.0,)"
     javaVersion = "17"
+    excludeDependency "io.confluent.cloud:*"
+    excludeDependency "io.confluent.observability:*"
+    excludeDependency "io.confluent.secure.compute:*"
     assertInverse = true
   }
 }
