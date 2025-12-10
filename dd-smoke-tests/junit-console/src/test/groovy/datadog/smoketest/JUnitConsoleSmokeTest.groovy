@@ -220,7 +220,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
   String javaToolOptions(Map<String, String> additionalAgentArgs) {
     additionalAgentArgs.put(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED, "false")
-    return buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalAgentArgs).join("\\ ")
+    return buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalAgentArgs).join(" ")
   }
 
   private static class StreamConsumer extends Thread {
