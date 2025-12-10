@@ -16,6 +16,11 @@ dependencies {
   latestDepTestImplementation group: 'org.jboss.modules', name: 'jboss-modules', version: '+'
 }
 
+// jboss-modules requires Java 11: https://github.com/jboss-modules/jboss-modules/blob/2.x/README.md
+tasks.named("latestDepTest", Test) {
+  onlyIf { javaVersion.isJava11Compatible() }
+}
+
 tasks.withType(Test).configureEach {
   if (it.javaVersion.isJava9Compatible()) {
     jvmArgs +='--add-exports=java.xml/com.sun.org.apache.xerces.internal.jaxp=ALL-UNNAMED'
