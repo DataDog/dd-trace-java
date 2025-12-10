@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
@@ -45,18 +45,14 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
         isMethod()
             .and(named("command"))
             .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("org.bson.BsonDocument")))
-            // there are multiple overload, so we select the first one that matches between version
-            // 4.0 and 5.6
-            .and(takesArguments(6).or(takesArguments(7))),
+            .and(takesArgument(1, named("org.bson.BsonDocument"))),
         DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("commandAsync"))
             .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("org.bson.BsonDocument")))
-            .and(takesArguments(7).or(takesArguments(8))),
+            .and(takesArgument(1, named("org.bson.BsonDocument"))),
         DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
   }
 
@@ -67,6 +63,13 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
         @Advice.Argument(value = 0) String dbName,
         @Advice.Argument(value = 1, readOnly = false) BsonDocument originalBsonDocument) {
       if (!MongoCommentInjector.INJECT_COMMENT) {
+        return;
+      }
+
+      AgentSpan existingSpan = activeSpan();
+      if (existingSpan != null
+          && MongoDecorator.OPERATION_NAME.equals(existingSpan.getOperationName())) {
+        // we don't re-run the advice if the command goes through multiple overloads
         return;
       }
 

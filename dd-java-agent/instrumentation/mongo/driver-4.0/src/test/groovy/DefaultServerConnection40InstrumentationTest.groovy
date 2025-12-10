@@ -1,13 +1,21 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import com.mongodb.ConnectionString
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.MongoClientSettings
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoDatabase
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
+import com.mongodb.internal.build.MongoDriverVersion
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
+import org.bson.BsonString
+import org.bson.Document
+import org.spockframework.util.VersionNumber
 import spock.lang.Shared
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL
 
@@ -43,6 +51,16 @@ abstract class DefaultServerConnection40InstrumentationTest extends MongoBaseTes
     commandListener.commands.clear()
     client = null
   }
+
+  @Shared
+  String query = {
+    def version  = VersionNumber.parse(MongoDriverVersion.VERSION)
+    if (version.major == 4 && version.minor < 3) {
+      // query is returned for versions < 4.3
+      return ',"query":{}'
+    }
+    return ''
+  }.call()
 }
 
 abstract class DefaultServerConnection40InstrumentationEnabledTest extends DefaultServerConnection40InstrumentationTest {
@@ -85,6 +103,104 @@ abstract class DefaultServerConnection40InstrumentationEnabledTest extends Defau
     commentStr.contains("ddh='")
     commentStr.contains("traceparent='")
   }
+
+  def "test insert comment injection"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      return db.getCollection(collectionName)
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    collection.insertOne(new Document("password", "SECRET"))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    estimatedCount == 1
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"documents\":[]}", false, "some-description", null, true)
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+      }
+    }
+  }
+
+  def "test update comment injection"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      def coll = db.getCollection(collectionName)
+      coll.insertOne(new Document("password", "OLDPW"))
+      return coll
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    def result = collection.updateOne(
+      new BsonDocument("password", new BsonString("OLDPW")),
+      new BsonDocument('$set', new BsonDocument("password", new BsonString("NEWPW"))))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    result.modifiedCount == 1
+    estimatedCount == 1
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"updates\":[]}", false, "some-description", null, true)
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+      }
+    }
+  }
+
+  def "test delete comment injection"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      def coll = db.getCollection(collectionName)
+      coll.insertOne(new Document("password", "SECRET"))
+      return coll
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    def result = collection.deleteOne(new BsonDocument("password", new BsonString("SECRET")))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    result.deletedCount == 1
+    estimatedCount == 0
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"deletes\":[]}", false, "some-description", null, true)
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+      }
+    }
+  }
 }
 
 abstract class DefaultServerConnection40InstrumentationDisabledTest extends DefaultServerConnection40InstrumentationTest {
@@ -109,6 +225,104 @@ abstract class DefaultServerConnection40InstrumentationDisabledTest extends Defa
     def createCommand = commandListener.commands.find { it.containsKey("create") }
     createCommand != null
     !createCommand.containsKey("comment")
+  }
+
+  def "test insert comment not injected when disabled"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      return db.getCollection(collectionName)
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    collection.insertOne(new Document("password", "SECRET"))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    estimatedCount == 1
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+      }
+    }
+  }
+
+  def "test update comment not injected when disabled"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      def coll = db.getCollection(collectionName)
+      coll.insertOne(new Document("password", "OLDPW"))
+      return coll
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    def result = collection.updateOne(
+      new BsonDocument("password", new BsonString("OLDPW")),
+      new BsonDocument('$set', new BsonDocument("password", new BsonString("NEWPW"))))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    result.modifiedCount == 1
+    estimatedCount == 1
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+      }
+    }
+  }
+
+  def "test delete comment not injected when disabled"() {
+    setup:
+    String collectionName = randomCollectionName()
+    DDSpan setupSpan = null
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      setupSpan = activeSpan() as DDSpan
+      MongoDatabase db = client.getDatabase(databaseName)
+      db.createCollection(collectionName)
+      def coll = db.getCollection(collectionName)
+      coll.insertOne(new Document("password", "SECRET"))
+      return coll
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
+    TEST_WRITER.clear()
+
+    when:
+    def result = collection.deleteOne(new BsonDocument("password", new BsonString("SECRET")))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    result.deletedCount == 1
+    estimatedCount == 0
+    assertTraces(2) {
+      trace(1) {
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
+      }
+      trace(1) {
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+      }
+    }
   }
 }
 
