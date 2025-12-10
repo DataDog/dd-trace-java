@@ -10965,7 +10965,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": 10000,
+        "default": "10000",
         "aliases": []
       }
     ],
@@ -10973,7 +10973,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": 7500,
+        "default": "7500",
         "aliases": []
       }
     ],
@@ -11005,7 +11005,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": 10000,
+        "default": "10000",
         "aliases": []
       }
     ],
@@ -11037,7 +11037,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": 10000,
+        "default": "10000",
         "aliases": []
       }
     ],
