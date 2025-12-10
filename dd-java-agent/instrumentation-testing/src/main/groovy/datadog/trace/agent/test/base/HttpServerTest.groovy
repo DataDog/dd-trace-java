@@ -2359,7 +2359,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def responseBody = response.body().string()
 
     then:
-    assert response.code() == 200
+    assert response.code() == 100 // will always fail
     assert responseBody.contains(new String(RumInjector.get().getSnippetBytes("UTF-8"), "UTF-8")) == expected
     assert response.header("x-datadog-rum-injected") == (expected ? "1" : null)
 
