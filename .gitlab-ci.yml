@@ -1,6 +1,5 @@
 include:
-  # - local: ".gitlab/one-pipeline.locked.yml"
-  - remote: "https://gitlab-templates.ddbuild.io/libdatadog/include-wip/mhlidd/testing/one-pipeline.yml"
+  - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
@@ -1006,7 +1005,7 @@ validate_supported_configurations_v2_local_file:
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-    BACKFILLED: "false"
+    BACKFILLED: "true"
 
 update_central_configurations_version_range_v2:
   extends: .update_central_configurations_version_range_v2
