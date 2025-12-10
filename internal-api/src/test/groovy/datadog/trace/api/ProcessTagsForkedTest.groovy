@@ -1,11 +1,10 @@
 package datadog.trace.api
 
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
-
 import java.nio.file.Paths
-
-import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
 class ProcessTagsForkedTest extends DDSpecification {
 
@@ -128,5 +127,53 @@ class ProcessTagsForkedTest extends DDSpecification {
     assert size == ProcessTags.tagsAsUTF8ByteStringList.size()
     assert ProcessTags.tagsAsStringList[0] == "0test:value"
     assert ProcessTags.tagsAsUTF8ByteStringList[0].toString() == "0test:value"
+  }
+
+  def 'process tag value normalization'() {
+    setup:
+    ProcessTags.reset()
+    ProcessTags.addTag("test", testValue)
+    expect:
+    assert ProcessTags.tagsAsStringList != null
+    assert ProcessTags.tagsAsStringList.find { it.startsWith("test:") } == "test:${expectedValue}"
+
+    where:
+    testValue                                          | expectedValue
+    "#test_starting_hash"                              | "test_starting_hash"
+    "TestCAPSandSuch"                                  | "testcapsandsuch"
+    "Test Conversion Of Weird !@#\$%^&**() Characters" | "test_conversion_of_weird_characters"
+    "\$#weird_starting"                                | "weird_starting"
+    "disallowed:c0l0ns"                                | "disallowed_c0l0ns"
+    "1love"                                            | "1love"
+    "123456"                                           | "123456"
+    "7.0"                                              | "7.0"
+    "ünicöde"                                          | "ünicöde"
+    "ünicöde:metäl"                                    | "ünicöde_metäl"
+    "Data🐨dog🐶 繋がっ⛰てて"                            | "data_dog_繋がっ_てて"
+    " spaces   "                                       | "spaces"
+    " #hashtag!@#spaces #__<>#  "                      | "hashtag_spaces"
+    ":testing"                                         | "testing"
+    "_foo"                                             | "foo"
+    ":::test"                                          | "test"
+    "contiguous_____underscores"                       | "contiguous_underscores"
+    "foo_"                                             | "foo"
+    ""                                                 | ""
+    " "                                                | ""
+    "ok"                                               | "ok"
+    "AlsO:ök"                                          | "also_ök"
+    ":still_ok"                                        | "still_ok"
+    "___trim"                                          | "trim"
+    "fun:ky__tag/1"                                    | "fun_ky_tag/1"
+    "fun:ky@tag/2"                                     | "fun_ky_tag/2"
+    "fun:ky@@@tag/3"                                   | "fun_ky_tag/3"
+    "tag:1/2.3"                                        | "tag_1/2.3"
+    "---fun:k####y_ta@#g/1_@@#"                        | "fun_k_y_ta_g/1"
+    "AlsO:œ#@ö))œk"                                    | "also_œ_ö_œk"
+    " regulartag "                                     | "regulartag"
+    "\u017Fodd_\u017Fcase\u017F"                       | "\u017Fodd_\u017Fcase\u017F"
+    "™Ö™Ö™™Ö™"                                         | "ö_ö_ö"
+    "a�"                                               | "a"
+    "a��"                                              | "a"
+    "a��b"                                             | "a_b"
   }
 }
