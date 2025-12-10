@@ -926,7 +926,7 @@ public class Agent {
     log.debug("Initializing smap entry scraping");
 
     // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
-    // This prevents a deadlock. See PROF-13025.
+    // This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
     try {
       AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
     } catch (Exception e) {
