@@ -1,5 +1,17 @@
 package datadog.smoketest.concurrent
 
+class VirtualThreadStartTest extends AbstractConcurrentTest {
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadStart']
+  }
+
+  def 'test Thread.startVirtualThread() runnable'() {
+    expect:
+    receivedCorrectTrace()
+  }
+}
+
 class VirtualThreadExecuteTest extends AbstractConcurrentTest {
   @Override
   protected List<String> getTestArguments() {

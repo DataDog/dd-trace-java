@@ -504,7 +504,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     LogStatus logStatus = (LogStatus) status;
     if (!hasCondition()) {
       if (singleProbe) {
-        // sampling was already done in isReadToCapture so we assume that if we are executing the
+        // sampling was already done in isReadyToCapture so we assume that if we are executing the
         // current method it means the status should be sampled
         if (!logStatus.getDebugSessionStatus().isDisabled()) {
           logStatus.setSampled(true);

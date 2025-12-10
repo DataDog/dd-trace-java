@@ -10,7 +10,17 @@ muzzle {
     group = "org.hibernate"
     module = "hibernate-core"
     versions = "[3.3.0.GA,4.0.0.Final)"
-    assertInverse = true
+  }
+  fail {
+    group = "org.hibernate"
+    module = "hibernate-core"
+    versions = "[4.0.0.Final,6)"
+  }
+  // hibernate-core has been moved
+  fail {
+    group = "org.hibernate.orm"
+    module = "hibernate-core"
+    versions = "[6,)"
   }
 }
 
