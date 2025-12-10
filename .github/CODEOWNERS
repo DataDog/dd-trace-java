@@ -4,6 +4,9 @@
 # Default owners, overridden by file/directory specific owners below
 * @DataDog/apm-java
 
+# shared ownership
+/dd-smoke-tests/play-2.6/ @DataDog/asm-java @DataDog/apm-idm-java
+
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/                                                                  @DataDog/apm-idm-java
