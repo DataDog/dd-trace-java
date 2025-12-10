@@ -24,7 +24,11 @@ idea {
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+  if (name.contains("Test")) {
+    configureCompiler(it, 21)
+  } else {
+    configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+  }
 }
 
 dependencies {
