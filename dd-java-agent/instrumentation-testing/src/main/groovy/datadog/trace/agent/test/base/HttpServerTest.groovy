@@ -2348,6 +2348,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   /**
    * This test should be done in a forked test class
    */
+  @Flaky("https://datadoghq.atlassian.net/browse/APMLP-785")
   def "test rum injection in head for mime #mime"() {
     setup:
     assumeTrue(testRumInjection())
