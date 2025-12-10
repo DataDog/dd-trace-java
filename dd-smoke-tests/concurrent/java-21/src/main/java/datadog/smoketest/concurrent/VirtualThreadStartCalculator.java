@@ -13,8 +13,7 @@ public class VirtualThreadStartCalculator implements FibonacciCalculator {
   }
 
   @Override
-  public void close() {
-  }
+  public void close() {}
 
   public static class FibonacciExecuteTask implements Runnable {
     private final long n;

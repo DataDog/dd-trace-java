@@ -25,6 +25,32 @@ val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 
+spotless {
+  // only resolve the spotless dependencies once in the build
+  predeclareDeps()
+}
+
+with(extensions["spotlessPredeclare"] as SpotlessExtension) {
+  java {
+    googleJavaFormat("1.33.0")
+  }
+  kotlin {
+    ktlint("1.8.0")
+  }
+  scala {
+    scalafmt("3.10.2")
+  }
+  groovy {
+    greclipse()
+  }
+  kotlinGradle {
+    ktlint("1.8.0")
+  }
+  groovyGradle {
+    greclipse()
+  }
+}
+
 // List of projects to exclude from processing by Spotless.
 val spotlessExcludedProjects = setOf(":dd-java-agent:agent-jmxfetch")
 
@@ -43,10 +69,12 @@ allprojects {
 
     // Gradle files and other formats we process globally from root
     if (project == rootProject) {
+      val commonExcludes = listOf("build/**", "dd-java-agent/agent-jmxfetch/**")
+
       kotlinGradle {
         toggleOffOn()
         target("**/*.gradle.kts")
-        targetExclude("**/build/**", "**/agent-jmxfetch/**")
+        targetExclude(commonExcludes)
         ktlint("1.8.0").editorConfigOverride(
           mapOf(
             "ktlint_standard_trailing-comma-on-call-site" to "disabled",
@@ -58,13 +86,13 @@ allprojects {
       groovyGradle {
         toggleOffOn()
         target("**/*.gradle")
-        targetExclude("**/build/**", "**/agent-jmxfetch/**")
+        targetExclude(commonExcludes)
         greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
       }
 
       format("markdown") {
         toggleOffOn()
-        target("*.md", ".github/**/*.md", "src/**/*.md", "application/**/*.md")
+        target("*.md", ".github/**/*.md", "src/**/*.md", "app*/**/*.md")
         leadingTabsToSpaces()
         endWithNewline()
       }
@@ -78,21 +106,21 @@ allprojects {
       }
     } else {
       // Configure source code formatting.
-      val commonExcludes = listOf("**/build/**", "**/src/test/resources/**", "**/agent-jmxfetch/**")
+      val commonExcludes = listOf("build/**", "src/test/resources/**")
 
       pluginManager.withPlugin("java") {
         java {
           toggleOffOn()
-          target("src/**/*.java", "application/**/*.java")
+          target("src/**/*.java", "app*/**/*.java")
           targetExclude(commonExcludes)
-          googleJavaFormat("1.32.0")
+          googleJavaFormat("1.33.0")
         }
       }
 
       pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
         kotlin {
           toggleOffOn()
-          target("src/**/*.kt", "application/**/*.kt")
+          target("src/**/*.kt", "app*/**/*.kt")
           targetExclude(commonExcludes)
           ktlint("1.8.0").editorConfigOverride(
             mapOf(
@@ -106,7 +134,7 @@ allprojects {
       pluginManager.withPlugin("scala") {
         scala {
           toggleOffOn()
-          target("src/**/*.scala", "application/**/*.scala")
+          target("src/**/*.scala", "app*/**/*.scala")
           targetExclude(commonExcludes)
           scalafmt("3.10.2").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
         }
@@ -115,7 +143,7 @@ allprojects {
       pluginManager.withPlugin("groovy") {
         groovy {
           toggleOffOn()
-          target("src/**/*.groovy", "application/**/*.groovy")
+          target("src/**/*.groovy", "app*/**/*.groovy")
           targetExclude(commonExcludes)
           greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
         }

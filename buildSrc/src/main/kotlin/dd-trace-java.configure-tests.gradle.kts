@@ -44,7 +44,7 @@ tasks.withType<Test>().configureEach {
 
   // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
   // Use a task-specific user prefs directory
-  systemProperty("java.util.prefs.userRoot", "$buildDir/tmp/userPrefs/${name}")
+  systemProperty("java.util.prefs.userRoot", "$buildDir/tmp/userPrefs/$name")
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
