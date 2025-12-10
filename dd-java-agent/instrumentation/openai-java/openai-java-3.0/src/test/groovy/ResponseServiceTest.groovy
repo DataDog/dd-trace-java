@@ -37,9 +37,9 @@ class ResponseServiceTest extends OpenAiTest {
     assertResponseTrace(false)
   }
 
-  def "create streaming response test"() {
+  def "create streaming response test (#scenario)"() {
     runnableUnderTrace("parent") {
-      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParams())
+      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(params)
       try (Stream stream = streamResponse.stream()) {
         stream.forEach {
           // consume the stream
@@ -49,6 +49,11 @@ class ResponseServiceTest extends OpenAiTest {
 
     expect:
     assertResponseTrace(true)
+
+    where:
+    scenario     | params
+    "complete"   | responseCreateParams()
+    "incomplete" | responseCreateParamsWithMaxOutputTokens()
   }
 
   def "create streaming response test withRawResponse"() {
@@ -146,7 +151,6 @@ class ResponseServiceTest extends OpenAiTest {
             "openai.api_base" openAiBaseApi
             "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-0125"
             if (!isStreaming) {
-              // TODO no limit headers when streaming
               "openai.organization.ratelimit.requests.limit" 10000
               "openai.organization.ratelimit.requests.remaining" Integer
               "openai.organization.ratelimit.tokens.limit" 50000000
