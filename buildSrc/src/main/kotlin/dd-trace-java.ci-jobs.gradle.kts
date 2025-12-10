@@ -1,7 +1,6 @@
 import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
-import kotlin.math.abs
 
 /*
  * This plugin defines a set of tasks to be used in CI.

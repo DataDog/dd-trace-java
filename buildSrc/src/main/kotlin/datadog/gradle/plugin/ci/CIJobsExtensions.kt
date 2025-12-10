@@ -22,8 +22,8 @@ val Project.isInSelectedSlot: Provider<Boolean>
       return@map true
     }
 
-    val selectedSlot = parts[0]
-    val totalSlots = parts[1]
+    val selectedSlot = parts[0].toInt()
+    val totalSlots = parts[1].toInt()
 
     // Distribution numbers when running on rootProject.allprojects indicates
     // bucket sizes are reasonably balanced:
@@ -33,17 +33,17 @@ val Project.isInSelectedSlot: Provider<Boolean>
     // * size  8 distribution: {2=62, 4=72, 0=71, 5=70, 7=78, 6=84, 1=87, 3=67}
     // * size 10 distribution: {8=62, 0=65, 5=70, 9=59, 3=54, 1=56, 6=63, 4=47, 2=52, 7=63}
     // * size 12 distribution: {10=55, 0=47, 4=45, 9=46, 8=51, 3=51, 2=46, 1=59, 5=52, 7=49, 11=45, 6=45}
-    val currentTaskPartition = abs(project.path.hashCode() % totalSlots.toInt())
+    val projectSlot = abs(project.path.hashCode() % totalSlots) + 1 // Convert to 1-based
 
     project.logger.info(
       "Project {} assigned to slot {}/{}, active slot is {}",
       project.path,
-      currentTaskPartition,
+      projectSlot,
       totalSlots,
       selectedSlot,
     )
 
-    currentTaskPartition == selectedSlot.toInt()
+    projectSlot == selectedSlot
   }.orElse(true)
 
 /**
