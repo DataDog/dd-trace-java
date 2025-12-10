@@ -1,11 +1,5 @@
 package datadog.trace.api
 
-import datadog.trace.api.env.FixedCapturedEnvironment
-import datadog.trace.bootstrap.config.provider.AgentArgsInjector
-import datadog.trace.bootstrap.config.provider.ConfigConverter
-import datadog.trace.bootstrap.config.provider.ConfigProvider
-import datadog.trace.test.util.DDSpecification
-import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
@@ -21,10 +15,10 @@ import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.TracePropagationStyle.B3MULTI
 import static datadog.trace.api.TracePropagationStyle.B3SINGLE
+import static datadog.trace.api.TracePropagationStyle.BAGGAGE
 import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
-import static datadog.trace.api.TracePropagationStyle.BAGGAGE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
@@ -50,16 +44,16 @@ import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
-import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
-import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -68,8 +62,8 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED
-import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
@@ -110,10 +104,6 @@ import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
-import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
@@ -126,8 +116,12 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
-import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
+import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
+import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_BEHAVIOR_EXTRACT
+import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_EXTRACT_FIRST
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
@@ -151,6 +145,13 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE
 import datadog.trace.config.inversion.ConfigHelper
+
+import datadog.trace.api.env.FixedCapturedEnvironment
+import datadog.trace.bootstrap.config.provider.AgentArgsInjector
+import datadog.trace.bootstrap.config.provider.ConfigConverter
+import datadog.trace.bootstrap.config.provider.ConfigProvider
+import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 
 class ConfigTest extends DDSpecification {
   private static final String PREFIX = "dd."
@@ -3180,5 +3181,57 @@ class ConfigTest extends DDSpecification {
       configProvider.getInteger("i", 61) == 13
       configProvider.getBoolean("a", true) == true
     }
+  }
+
+  def "db metadata fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.metadata.fetching.on.query", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_QUERY", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbMetadataFetchingOnQueryEnabled() == expected
+
+    where:
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
+  }
+
+  def "db client info fetching enabled with sys = #sys env = #env"() {
+    setup:
+    if (sys != null) {
+      System.setProperty("dd.trace.db.metadata.fetching.on.connect", sys)
+    }
+    if (env != null) {
+      environmentVariables.set("DD_TRACE_DB_METADATA_FETCHING_ON_CONNECT", env)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbMetadataFetchingOnConnectEnabled() == expected
+
+    where:
+    sys     | env     | expected
+    null    | null    | true    // default is true
+    null    | "true"  | true
+    null    | "false" | false
+    "true"  | null    | true
+    "false" | null    | false
+    "true"  | "false" | true    // sys prop takes precedence
+    "false" | "true"  | false   // sys prop takes precedence
   }
 }
