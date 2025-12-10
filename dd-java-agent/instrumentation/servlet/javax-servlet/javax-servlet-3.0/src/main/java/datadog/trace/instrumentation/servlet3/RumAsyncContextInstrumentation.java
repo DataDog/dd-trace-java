@@ -42,6 +42,11 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "servlet-3.x";
+  }
+
+  @Override
   public boolean isEnabled() {
     return super.isEnabled() && InstrumenterConfig.get().isRumEnabled();
   }

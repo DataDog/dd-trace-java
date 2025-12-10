@@ -86,8 +86,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String metricsEndpoint;
     String dataStreamsEndpoint;
     boolean supportsLongRunning;
-    boolean supportsDropping;
     boolean supportsClientSideStats;
+    boolean supportsDropping;
     String state;
     String configEndpoint;
     String debuggerLogEndpoint;
@@ -166,7 +166,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint("info", error);
       }
       if (fallback) {
-        newState.supportsDropping = false;
+        newState.supportsClientSideStats = false;
         newState.supportsLongRunning = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
@@ -307,12 +307,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
 
       if (metricsEnabled) {
-        newState.supportsClientSideStats = !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
         Object canDrop = map.get("client_drop_p0s");
         newState.supportsDropping =
             null != canDrop
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
+
+        newState.supportsClientSideStats =
+            newState.supportsDropping && !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
 
         Object peer_tags = map.get("peer_tags");
         newState.peerTags =
@@ -360,7 +362,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public boolean supportsMetrics() {
     return metricsEnabled
         && null != discoveryState.metricsEndpoint
-        && discoveryState.supportsDropping
         && discoveryState.supportsClientSideStats;
   }
 
@@ -378,10 +379,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsDebuggerDiagnostics() {
     return discoveryState.debuggerDiagnosticsEndpoint != null;
-  }
-
-  public boolean supportsDropping() {
-    return discoveryState.supportsDropping;
   }
 
   public boolean supportsLongRunning() {
