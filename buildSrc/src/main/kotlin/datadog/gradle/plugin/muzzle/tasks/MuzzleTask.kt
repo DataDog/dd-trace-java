@@ -90,26 +90,27 @@ abstract class MuzzleTask @Inject constructor(
   }
 
   private fun assertMuzzle(muzzleDirective: MuzzleDirective? = null) {
-    val workQueue =
-      if (muzzleDirective?.javaVersion != null) {
-        val javaLauncher =
-          javaToolchainService
-            .launcherFor {
-              languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
-            }.get()
-        // Note process isolation leaks gradle dependencies to the child process
-        // and may need additional code on muzzle plugin to filter those out
-        // See https://github.com/gradle/gradle/issues/33987
-        workerExecutor.processIsolation {
-          forkOptions {
-            executable(javaLauncher.executablePath)
+    val workQueue = if (muzzleDirective?.javaVersion != null) {
+      val javaLauncher = javaToolchainService.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
+      }.get()
+      // Note process isolation leaks gradle dependencies to the child process
+      // and may need additional code on muzzle plugin to filter those out
+      // See https://github.com/gradle/gradle/issues/33987
+      workerExecutor.processIsolation {
+        forkOptions {
+          // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
+          if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
+            jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
+          executable(javaLauncher.executablePath)
         }
-      } else {
-        // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
-        // and should not be impacted by the actual running JDK.
-        workerExecutor.noIsolation()
       }
+    } else {
+      // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
+      // and should not be impacted by the actual running JDK.
+      workerExecutor.noIsolation()
+    }
     workQueue.submit(MuzzleAction::class.java) {
       buildStartedTime.set(invocationDetails.buildStartedTime)
       bootstrapClassPath.setFrom(muzzleBootstrap)

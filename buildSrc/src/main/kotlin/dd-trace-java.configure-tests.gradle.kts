@@ -43,6 +43,10 @@ tasks.withType<Test>().configureEach {
     !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
   }
 
+  // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
+  // Use a task-specific user prefs directory
+  systemProperty("java.util.prefs.userRoot", "$buildDir/tmp/userPrefs/${name}")
+
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
@@ -72,11 +76,9 @@ tasks.register("allTests") {
 // Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
-  dependsOn(
-    tasks.withType<Test>().matching { testTask ->
-      !testTask.name.contains("latest", ignoreCase = true)
-    }
-  )
+  dependsOn(tasks.withType<Test>().matching { testTask ->
+    testTask.name.contains("latest", ignoreCase = true)
+  })
 }
 
 // Make the 'check' task depend on all Test tasks in the project.

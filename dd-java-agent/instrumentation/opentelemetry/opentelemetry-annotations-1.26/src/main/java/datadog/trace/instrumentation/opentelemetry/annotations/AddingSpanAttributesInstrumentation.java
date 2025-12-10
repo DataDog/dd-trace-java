@@ -42,6 +42,8 @@ public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Trac
     return new String[] {
       this.packageName + ".WithSpanDecorator",
       this.packageName + ".WithSpanDecorator$1", // Switch over enum generated class
+      "datadog.opentelemetry.shim.trace.OtelConventions",
+      "datadog.opentelemetry.shim.trace.OtelConventions$1",
     };
   }
 
