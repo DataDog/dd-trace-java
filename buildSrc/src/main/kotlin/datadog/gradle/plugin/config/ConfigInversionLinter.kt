@@ -51,9 +51,7 @@ private fun loadConfigFields(
       val supportedSet =
         when (supportedField) {
           is Set<*> -> supportedField as Set<String>
-
           is Map<*, *> -> supportedField.keys as Set<String>
-
           else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
         }
 

@@ -120,7 +120,7 @@ class MuzzlePlugin : Plugin<Project> {
       val muzzleTaskName = taskName.removePrefix(":")
       val projectPath = project.path.removePrefix(":")
       muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName ||
-          muzzleTaskName == "runMuzzle"
+        muzzleTaskName == "runMuzzle"
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.

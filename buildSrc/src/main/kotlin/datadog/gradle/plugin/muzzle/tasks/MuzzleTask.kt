@@ -100,7 +100,7 @@ abstract class MuzzleTask @Inject constructor(
       workerExecutor.processIsolation {
         forkOptions {
           // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
-          if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
+          if (javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
           executable(javaLauncher.executablePath)
