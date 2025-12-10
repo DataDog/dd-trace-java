@@ -193,7 +193,7 @@ class MuzzlePlugin : Plugin<Project> {
       instrumentationProject: Project,
       runAfterTask: TaskProvider<MuzzleTask>,
       muzzleBootstrap: NamedDomainObjectProvider<Configuration>,
-      muzzleTooling: NamedDomainObjectProvider<Configuration>,
+      muzzleTooling: NamedDomainObjectProvider<Configuration>
     ): TaskProvider<MuzzleTask> {
       val muzzleTaskName =
         buildString {

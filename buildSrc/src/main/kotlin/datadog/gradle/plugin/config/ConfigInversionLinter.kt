@@ -54,9 +54,7 @@ private fun loadConfigFields(
 
           is Map<*, *> -> supportedField.keys as Set<String>
 
-          else -> throw IllegalStateException(
-            "SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}",
-          )
+          else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
         }
 
       @Suppress("UNCHECKED_CAST")
@@ -251,7 +249,7 @@ private fun registerCheckConfigStringsTask(
                       val line = varDecl.range.map { it.begin.line }.orElse(1)
                       add(
                         "$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                          "which is missing from '${extension.jsonFile.get()}'",
+                          "which is missing from '${extension.jsonFile.get()}'"
                       )
                     }
                   }
@@ -263,9 +261,7 @@ private fun registerCheckConfigStringsTask(
       if (violations.isNotEmpty()) {
         logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
         violations.forEach { logger.lifecycle(it) }
-        throw GradleException(
-          "Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.",
-        )
+        throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
       } else {
         logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }

@@ -44,7 +44,7 @@ class TracerVersionIntegrationTest {
           """
           
           // uncommitted change this file, 
-          """.trimIndent(),
+          """.trimIndent()
         )
       }
     )

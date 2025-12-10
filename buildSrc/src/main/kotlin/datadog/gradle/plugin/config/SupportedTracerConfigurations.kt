@@ -24,13 +24,9 @@ constructor(
 
   val jsonFile =
     objects.fileProperty().convention(
-      project.rootProject.layout.projectDirectory
-        .file("metadata/supported-configurations.json"),
+      project.rootProject.layout.projectDirectory.file("metadata/supported-configurations.json")
     )
 
   val destinationDirectory =
-    objects.directoryProperty().convention(
-      layout.buildDirectory
-        .dir("generated/supportedConfigurations"),
-    )
+    objects.directoryProperty().convention(layout.buildDirectory.dir("generated/supportedConfigurations"))
 }
