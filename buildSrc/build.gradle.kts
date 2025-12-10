@@ -11,7 +11,7 @@ spotless {
     toggleOffOn()
     target("**/*.java")
 
-    googleJavaFormat("1.32.0")
+    googleJavaFormat("1.33.0")
   }
 
   kotlin {
