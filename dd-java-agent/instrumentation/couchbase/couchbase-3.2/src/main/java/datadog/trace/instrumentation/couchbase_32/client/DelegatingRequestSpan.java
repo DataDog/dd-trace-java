@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.couchbase_32.client;
 import com.couchbase.client.core.cnc.RequestSpan;
 import com.couchbase.client.core.msg.RequestContext;
 import java.time.Instant;
+import javax.annotation.Nonnull;
 
 /** RequestSpan, which delegates all calls to two other RequestSpans */
 public class DelegatingRequestSpan implements RequestSpan {
@@ -10,7 +11,7 @@ public class DelegatingRequestSpan implements RequestSpan {
   private final RequestSpan ddSpan;
   private final RequestSpan cncSpan;
 
-  public DelegatingRequestSpan(RequestSpan ddSpan, RequestSpan cncSpan) {
+  public DelegatingRequestSpan(@Nonnull RequestSpan ddSpan, @Nonnull RequestSpan cncSpan) {
     this.ddSpan = ddSpan;
     this.cncSpan = cncSpan;
   }
@@ -25,7 +26,6 @@ public class DelegatingRequestSpan implements RequestSpan {
 
   @Override
   public void attribute(String key, String value) {
-    // TODO: add null checks
     ddSpan.attribute(key, value);
     cncSpan.attribute(key, value);
   }
