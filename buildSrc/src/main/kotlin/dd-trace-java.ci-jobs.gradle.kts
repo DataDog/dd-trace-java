@@ -1,6 +1,7 @@
 import datadog.gradle.plugin.ci.isInSelectedSlot
 import org.gradle.api.tasks.testing.Test
 import java.io.File
+import kotlin.math.abs
 
 /*
  * This plugin defines a set of tasks to be used in CI.
@@ -9,6 +10,11 @@ import java.io.File
  * `-Pslot=x/y`, and limiting tasks to those affected by git changes with
  * `-PgitBaseRef`.
  */
+
+if (project != rootProject) {
+  logger.error("This plugin has been applied on a non-root project: ${project.path}")
+}
+
 allprojects {
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
