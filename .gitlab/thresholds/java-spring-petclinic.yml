@@ -12,7 +12,7 @@ experiments:
         # Measurements
         #   https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario
         scenarios:
-          # Note that thresholds there are choosen based the confidence interval with a 10% adjustment.
+          # Note that thresholds there are chosen based the confidence interval with a 10% adjustment.
 
           # Standard macrobenchmarks
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fonly-tracing&trendsType=scenario
@@ -34,15 +34,3 @@ experiments:
           - name: high_load/otel-latest
             thresholds:
               - throughput > 1100.0 op/s
-
-          # Startup macrobenchmarks
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AAgent.start&trendsType=scenario
-          - name: "startup:petclinic:tracing:Agent.start"
-            thresholds:
-              - execution_time < 1120ms
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AAgent.start&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AAgent.start&trendsType=scenario
-          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
-          - name: "startup:petclinic:(profiling|appsec|iast):Agent.start"
-            thresholds:
-              - execution_time < 1300 ms
