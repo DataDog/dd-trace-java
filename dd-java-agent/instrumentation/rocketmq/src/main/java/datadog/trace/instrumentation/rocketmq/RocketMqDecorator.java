@@ -1,5 +1,12 @@
 package datadog.trace.instrumentation.rocketmq;
 
+
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
+import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.*;
@@ -11,15 +18,8 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.SocketAddress;
 import java.util.function.Supplier;
-
-import static datadog.context.propagation.Propagators.defaultPropagator;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
-import static datadog.trace.instrumentation.rocketmq.TextMapExtractAdapter.GETTER;
-import static datadog.trace.instrumentation.rocketmq.TextMapInjectAdapter.SETTER;
 
 public class RocketMqDecorator extends ClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(RocketMqDecorator.class);

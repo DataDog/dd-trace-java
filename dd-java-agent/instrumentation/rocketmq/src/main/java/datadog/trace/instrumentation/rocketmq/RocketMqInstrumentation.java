@@ -7,7 +7,6 @@ import org.apache.rocketmq.client.hook.ConsumeMessageContext;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.HashMap;
 import java.util.Map;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -52,9 +51,6 @@ public class RocketMqInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    // Map<String, String> map = new HashMap<>(1);
-    // map.put("org.apache.rocketmq.client.hook.ConsumeMessageContext",
-    // "datadog.trace.bootstrap.instrumentation.api.AgentScope");
     return singletonMap(
         "org.apache.rocketmq.client.hook.ConsumeMessageContext", AgentScope.class.getName());
   }

@@ -19,7 +19,7 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy , Instrumenter.HasMethodAdvice{
+    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public static final String CLASS_NAME = "org.apache.rocketmq.client.producer.DefaultMQProducer";
 
@@ -45,22 +45,20 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".RocketMqHook",
-        packageName + ".TracingSendMessageHookImpl",
-        packageName + ".TracingConsumeMessageHookImpl",
-        packageName + ".RocketMqDecorator",
-        packageName + ".TextMapExtractAdapter",
-        packageName + ".TextMapInjectAdapter",
+    return new String[] {
+      packageName + ".RocketMqHook",
+      packageName + ".TracingSendMessageHookImpl",
+      packageName + ".TracingConsumeMessageHookImpl",
+      packageName + ".RocketMqDecorator",
+      packageName + ".TextMapExtractAdapter",
+      packageName + ".TextMapInjectAdapter",
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
     transformation.applyAdvice(
-        isMethod().
-            and(named("start")).
-            and(takesArguments(0)),
+        isMethod().and(named("start")).and(takesArguments(0)),
         RocketMqSendInstrumentation.class.getName() + "$AdviceStart");
   }
 
@@ -68,11 +66,11 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter
     public static void onEnter(
         @Advice.FieldValue(value = "defaultMQProducerImpl", declaringType = DefaultMQProducer.class)
-        DefaultMQProducerImpl defaultMqProducerImpl) {
+            DefaultMQProducerImpl defaultMqProducerImpl) {
 
-      defaultMqProducerImpl.registerSendMessageHook(RocketMqHook.buildSendHook(
-          InstrumentationContext.get(SendMessageContext.class, AgentScope.class)
-      ));
+      defaultMqProducerImpl.registerSendMessageHook(
+          RocketMqHook.buildSendHook(
+              InstrumentationContext.get(SendMessageContext.class, AgentScope.class)));
     }
   }
 }
