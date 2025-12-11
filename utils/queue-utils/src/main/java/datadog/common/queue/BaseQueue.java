@@ -51,7 +51,7 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
   protected BaseQueue(int capacity, int mask) {
     this.capacity = capacity;
     this.mask = mask;
-    this.buffer = (E[]) new Object[capacity << (CACHE_LINE_SHIFT + 1)];
+    this.buffer = (E[]) new Object[capacity << CACHE_LINE_SHIFT];
   }
 
   /**

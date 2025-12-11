@@ -29,15 +29,6 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<
   private final PaddedThread blocked = new PaddedThread();
 
   /**
-   * Store producer limit with release semantics.
-   *
-   * @param value new producer limit
-   */
-  private void soProducerLimit(long value) {
-    producerLimit.setRelease(value);
-  }
-
-  /**
    * Load producer limit with opaque semantics (best for hot path). Opaque prevents compiler
    * reordering but has no CPU fence overhead. Safe because racy updates are benign - stale reads
    * just trigger recalculation.
@@ -49,14 +40,12 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<
   }
 
   /**
-   * Load producer limit with acquire semantics.
+   * Compare and Swap for the producer limit.
    *
-   * @return current producer limit
+   * @param expect
+   * @param update
+   * @return
    */
-  private long laProducerLimit() {
-    return producerLimit.getAcquire();
-  }
-
   private boolean casProducerLimit(long expect, long update) {
     return producerLimit.compareAndSet(expect, update);
   }
@@ -78,15 +67,6 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<
    */
   private Thread lpBlocked() {
     return blocked.getOpaque();
-  }
-
-  /**
-   * Load blocked thread with acquire semantics.
-   *
-   * @return current blocked thread if any
-   */
-  private Thread laBlocked() {
-    return blocked.getAcquire();
   }
 
   /**
