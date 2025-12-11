@@ -62,7 +62,7 @@ configurations.matching { it.name.startsWith('latestDepTest') }.configureEach {
   it.resolutionStrategy.componentSelection.all { ComponentSelection selection ->
     def version = selection.candidate.version
     if ((selection.candidate.group == 'org.junit.platform' || selection.candidate.group == 'org.junit.jupiter') &&
-        (version.matches('.*-RC.*') || version.matches('.*-M\\d+.*'))) {
+      (version.matches('.*-RC.*') || version.matches('.*-M\\d+.*'))) {
       selection.reject("Skipping pre-release version: ${version}")
     }
   }
