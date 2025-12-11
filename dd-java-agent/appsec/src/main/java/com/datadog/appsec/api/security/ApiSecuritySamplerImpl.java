@@ -4,6 +4,8 @@ import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -73,12 +75,16 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       return false;
     }
     if (counter.tryAcquire()) {
-      log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
       if (!Config.get().isApmTracingEnabled()) {
         // Update immediately to prevent concurrent requests from seeing the same expired state
-        return updateApiAccessIfExpired(hash);
+        boolean sampled = updateApiAccessIfExpired(hash);
+        if (sampled) {
+          logSamplingDecision("preSampleRequest", hash);
+        }
+        return sampled;
       }
+      logSamplingDecision("preSampleRequest", hash);
       return true;
     }
     return false;
@@ -95,7 +101,11 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       // This should never happen, it should have been short-circuited before.
       return false;
     }
-    return Config.get().isApmTracingEnabled() ? updateApiAccessIfExpired(hash) : true;
+    boolean sampled = Config.get().isApmTracingEnabled() ? updateApiAccessIfExpired(hash) : true;
+    if (sampled) {
+      logSamplingDecision("sampleRequest", hash);
+    }
+    return sampled;
   }
 
   @Override
@@ -171,5 +181,30 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     result = 31 * result + method.hashCode();
     result = 31 * result + statusCode;
     return result;
+  }
+
+  private void logSamplingDecision(final String method, final long hash) {
+    if (!log.isDebugEnabled()) {
+      return;
+    }
+
+    final long timestamp = timeSource.getCurrentTimeMillis();
+    AgentSpan activeSpan = AgentTracer.get().activeSpan();
+
+    if (activeSpan != null) {
+      log.debug(
+          "API security sampling decision in {}: hash={}, traceId={}, spanId={}, timestamp={}",
+          method,
+          hash,
+          activeSpan.getTraceId(),
+          activeSpan.getSpanId(),
+          timestamp);
+    } else {
+      log.debug(
+          "API security sampling decision in {}: hash={}, traceId=null, spanId=null, timestamp={}",
+          method,
+          hash,
+          timestamp);
+    }
   }
 }
