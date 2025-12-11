@@ -5115,7 +5115,7 @@
     ],
     "DD_TRACE_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -5691,7 +5691,7 @@
     ],
     "DD_TRACE_GRPC_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_GRPC_ANALYTICS_SAMPLE_RATE"]
@@ -6003,7 +6003,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_ENABLED"]
@@ -6011,7 +6011,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_SAMPLE_RATE"]
@@ -6019,7 +6019,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_TRACE_INTEGRATION_HTTPCLIENT_ENABLED", "DD_INTEGRATION_HTTPCLIENT_ENABLED"]
@@ -7259,7 +7259,7 @@
     ],
     "DD_TRACE_KAFKA_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_KAFKA_ANALYTICS_SAMPLE_RATE"]
@@ -7291,7 +7291,7 @@
     ],
     "DD_TRACE_KAFKA_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_TRACE_INTEGRATION_KAFKA_ENABLED", "DD_INTEGRATION_KAFKA_ENABLED"]
@@ -7635,7 +7635,7 @@
     ],
     "DD_TRACE_MONGO_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_MONGO_ANALYTICS_SAMPLE_RATE"]
@@ -7643,7 +7643,7 @@
     ],
     "DD_TRACE_MONGO_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_INTEGRATION_MONGO_ENABLED", "DD_TRACE_INTEGRATION_MONGO_ENABLED"]
@@ -7947,7 +7947,7 @@
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_OPENSEARCH_ANALYTICS_ENABLED"]
@@ -7955,7 +7955,7 @@
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_OPENSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -8691,7 +8691,7 @@
     ],
     "DD_TRACE_REDIS_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_REDIS_ANALYTICS_SAMPLE_RATE"]
@@ -8699,7 +8699,7 @@
     ],
     "DD_TRACE_REDIS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": null,
         "default": null,
         "aliases": ["DD_INTEGRATION_REDIS_ENABLED", "DD_TRACE_INTEGRATION_REDIS_ENABLED"]
