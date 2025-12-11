@@ -31,30 +31,45 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
 
   @Override
   public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {
+    long timestamp = System.currentTimeMillis();
+    String traceId = span.getTraceId() != null ? span.getTraceId().toString() : "null";
+    String spanId = String.valueOf(span.getSpanId());
+
     final RequestContext ctx_ = span.getRequestContext();
     if (ctx_ == null) {
+      logProcessingDecision(timestamp, traceId, spanId, false, "no request context", "start");
       return;
     }
     final AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
+      logProcessingDecision(timestamp, traceId, spanId, false, "no appsec context", "start");
       return;
     }
 
     if (!ctx.isKeepOpenForApiSecurityPostProcessing()) {
+      logProcessingDecision(
+          timestamp, traceId, spanId, false, "not marked for post-processing", "start");
       return;
     }
 
     try {
       if (timeoutCheck.getAsBoolean()) {
         log.debug("Timeout detected, skipping API security post-processing");
+        logProcessingDecision(
+            timestamp, traceId, spanId, false, "timeout detected", "pre-sampling");
         return;
       }
       if (!sampler.sampleRequest(ctx)) {
         log.debug("Request not sampled, skipping API security post-processing");
+        logProcessingDecision(
+            timestamp, traceId, spanId, false, "request not sampled", "post-sampling");
         return;
       }
       log.debug("Request sampled, processing API security post-processing");
+      logProcessingDecision(
+          timestamp, traceId, spanId, true, "sampled, extracting schemas", "extracting");
       extractSchemas(ctx, ctx_.getTraceSegment());
+      logProcessingDecision(timestamp, traceId, spanId, true, "extraction completed", "completed");
     } finally {
       ctx.setKeepOpenForApiSecurityPostProcessing(false);
       try {
@@ -67,6 +82,7 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
         log.debug("Error closing AppSecRequestContext", e);
       }
       sampler.releaseOne();
+      logProcessingDecision(timestamp, traceId, spanId, false, "cleanup completed", "cleanup");
     }
   }
 
@@ -88,5 +104,22 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
     } catch (ExpiredSubscriberInfoException e) {
       log.debug("Subscriber info expired", e);
     }
+  }
+
+  private void logProcessingDecision(
+      long timestamp,
+      String traceId,
+      String spanId,
+      boolean processed,
+      String reason,
+      String stage) {
+    log.info(
+        "[APPSEC_SPAN_POST_PROCESSING] timestamp={}, traceId={}, spanId={}, processed={}, reason={}, stage={}",
+        timestamp,
+        traceId,
+        spanId,
+        processed,
+        reason,
+        stage);
   }
 }
