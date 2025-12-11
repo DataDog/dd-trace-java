@@ -8,7 +8,6 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SAMPLING_PRIORITY;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
@@ -382,7 +381,7 @@ public class GatewayBridge {
       }
       try {
         final boolean raspActive = Config.get().isAppSecRaspEnabled();
-        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF : null);
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_REQUEST : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientRequestSubInfo = null;
@@ -421,7 +420,8 @@ public class GatewayBridge {
         httpClientResponseSubInfo = subInfo;
       }
       try {
-        GatewayContext gwCtx = new GatewayContext(true);
+        final boolean raspActive = Config.get().isAppSecRaspEnabled();
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_RESPONSE : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientResponseSubInfo = null;
@@ -863,10 +863,11 @@ public class GatewayBridge {
 
       // If detected any events - mark span at appsec.event
       if (!collectedEvents.isEmpty()) {
-        // Set asm keep in case that root span was not available when events are detected
-        traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(SAMPLING_PRIORITY, ctx.getKeepType());
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        if (ctx.isManuallyKept()) {
+          // Set asm keep in case that root span was not available when events are detected
+          traceSeg.setTagTop(Tags.ASM_KEEP, true);
+          traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        }
         traceSeg.setTagTop("appsec.event", true);
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 

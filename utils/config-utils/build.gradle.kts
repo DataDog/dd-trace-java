@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("supported-config-generator")
+  id("dd-trace-java.supported-config-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -16,6 +16,7 @@ val excludedClassesCoverage by extra(
     // tested in internal-api
     "datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider",
     "datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider",
+    "datadog.trace.bootstrap.config.provider.civisibility.CiEnvironmentVariables",
     "datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.ConfigConverter.ValueOfLookup",
     // tested in internal-api
@@ -25,25 +26,30 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
     "datadog.trace.bootstrap.config.provider.ConfigProvider.Source",
     "datadog.trace.bootstrap.config.provider.EnvironmentConfigSource",
+    "datadog.trace.bootstrap.config.provider.MapConfigSource",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
     "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
     // tested in internal-api
     "datadog.trace.bootstrap.config.provider.StableConfigParser",
-    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource",
+    "datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource"
   )
 )
 
 val excludedClassesBranchCoverage by extra(
   listOf(
     "datadog.trace.bootstrap.config.provider.AgentArgsInjector",
+    // Enum
+    "datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy",
     "datadog.trace.util.ConfigStrings"
   )
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.config.inversion.GeneratedSupportedConfigurations"
+    "datadog.trace.api.telemetry.NoOpConfigInversionMetricCollector",
+    "datadog.trace.config.inversion.GeneratedSupportedConfigurations",
+    "datadog.trace.config.inversion.SupportedConfigurationSource"
   )
 )
 
@@ -51,12 +57,10 @@ dependencies {
   implementation(project(":components:environment"))
   implementation(project(":components:yaml"))
   implementation(project(":dd-trace-api"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(libs.slf4j)
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-}
-
-tasks.named("javadoc") {
-  dependsOn("generateSupportedConfigurations")
+  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
 }

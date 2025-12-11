@@ -28,9 +28,7 @@ apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 

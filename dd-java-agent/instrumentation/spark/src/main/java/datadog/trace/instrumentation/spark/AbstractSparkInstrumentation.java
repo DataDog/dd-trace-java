@@ -10,7 +10,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
+import java.lang.reflect.InvocationTargetException;
 import net.bytebuddy.asm.Advice;
+import org.apache.spark.SparkConf;
 import org.apache.spark.deploy.SparkSubmitArguments;
 import org.apache.spark.scheduler.SparkListenerInterface;
 import org.slf4j.Logger;
@@ -36,7 +38,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       "org.apache.spark.deploy.yarn.ApplicationMaster",
       "org.apache.spark.util.Utils",
       "org.apache.spark.util.SparkClassUtils",
-      "org.apache.spark.scheduler.LiveListenerBus"
+      "org.apache.spark.scheduler.LiveListenerBus",
+      "org.apache.spark.sql.execution.SparkPlanInfo$"
     };
   }
 
@@ -127,6 +130,23 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
           && "io.openlineage.spark.agent.OpenLineageSparkListener"
               .equals(listener.getClass().getCanonicalName())) {
         log.debug("Detected OpenLineage listener, skipping adding it to ListenerBus");
+
+        // Spark config does not get captured on databricks env, possibly bcz of other listener's
+        // constructor used.
+        // Reflection is used here to get the config.
+        try {
+          log.debug("Getting OpenLineage conf from the listener");
+          Object openLineageConf = listener.getClass().getMethod("getConf").invoke(listener);
+          if (openLineageConf != null) {
+            InstanceStore.of(SparkConf.class)
+                .put("openLineageSparkConf", (SparkConf) openLineageConf);
+          }
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+          log.warn(
+              "Issue when obtaining OpenLineage conf (possibly unsupported OpenLineage version): {}",
+              e.getMessage());
+        }
+
         InstanceStore.of(SparkListenerInterface.class).put("openLineageListener", listener);
         return true;
       }

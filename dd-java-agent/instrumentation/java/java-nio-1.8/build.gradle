@@ -1,7 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-  excludeJdk = ['SEMERU11', 'SEMERU17']
-}
 muzzle {
   pass {
     coreJdk()
@@ -11,6 +7,15 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+  excludeJdk = ['SEMERU11', 'SEMERU17']
+}
+
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
@@ -19,7 +24,7 @@ apply plugin: "idea"
   }
 }
 
-forbiddenApisMain_java11 {
+tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
 }
 

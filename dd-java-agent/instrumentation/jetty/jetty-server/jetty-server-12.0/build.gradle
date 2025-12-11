@@ -1,7 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -18,6 +14,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_17)
+}
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -44,12 +44,12 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
   }
 }
 
-forbiddenApisMain_java17 {
+tasks.named("forbiddenApisMain_java17") {
   failOnMissingClasses = false
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  javaLauncher = getJavaLauncherFor(17)
+  configureCompiler(it, 17)
 }
 
 dependencies {

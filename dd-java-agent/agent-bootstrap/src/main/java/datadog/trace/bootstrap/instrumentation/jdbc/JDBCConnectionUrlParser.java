@@ -870,7 +870,7 @@ public enum JDBCConnectionUrlParser {
         // Delegate to specific parser
         return typeParsers.get(baseType).doParse(jdbcUrl, parsedProps).build();
       }
-      return GENERIC_URL_LIKE.doParse(connectionUrl, parsedProps).build();
+      return GENERIC_URL_LIKE.doParse(jdbcUrl, parsedProps).build();
     } catch (final Exception e) {
       ExceptionLogger.LOGGER.debug("Error parsing URL", e);
       return parsedProps.build();

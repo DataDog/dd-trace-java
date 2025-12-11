@@ -114,6 +114,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   private void applyExceptionConfiguration(String fingerprint) {
     configurationUpdater.accept(EXCEPTION, exceptionProbeManager.getProbes());
     exceptionProbeManager.addFingerprint(fingerprint);
+    LOGGER.debug("Exception Fingerprint {} added", fingerprint);
   }
 
   protected void addStackFrameTags(
@@ -146,6 +147,15 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
     int maxSnapshotSize = Math.min(snapshots.size(), maxCapturedFrames);
     for (int i = 0; i < maxSnapshotSize; i++) {
       Snapshot snapshot = snapshots.get(i);
+      int chainedExceptionIdx = snapshot.getChainedExceptionIdx();
+      if (chainedExceptionIdx >= chainedExceptions.size()) {
+        LOGGER.debug(
+            "Chained exception for snapshot={} is out of bounds: {}/{}",
+            snapshot.getId(),
+            chainedExceptionIdx,
+            chainedExceptions.size());
+        continue;
+      }
       Throwable currentEx = chainedExceptions.get(snapshot.getChainedExceptionIdx());
       int[] mapping = createThrowableMapping(currentEx, t);
       StackTraceElement[] innerTrace = currentEx.getStackTrace();

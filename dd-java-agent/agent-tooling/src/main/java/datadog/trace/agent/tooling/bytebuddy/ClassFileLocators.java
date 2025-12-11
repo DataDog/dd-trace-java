@@ -3,11 +3,10 @@ package datadog.trace.agent.tooling.bytebuddy;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static datadog.trace.util.Strings.getResourceName;
 
+import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -23,8 +22,13 @@ import net.bytebuddy.utility.StreamDrainer;
  * cannot find the desired resource, check up the classloader hierarchy until a resource is found.
  */
 public final class ClassFileLocators {
-  private static final DDCache<ClassLoader, DDClassFileLocator> classFileLocators =
-      DDCaches.newFixedSizeWeakKeyCache(64);
+  private static final ClassLoaderValue<DDClassFileLocator> classFileLocators =
+      new ClassLoaderValue<DDClassFileLocator>() {
+        @Override
+        protected DDClassFileLocator computeValue(ClassLoader cl) {
+          return new DDClassFileLocator(cl);
+        }
+      };
 
   private static final ClassFileLocator bootClassFileLocator =
       new ClassFileLocator() {
@@ -49,9 +53,7 @@ public final class ClassFileLocators {
       };
 
   public static ClassFileLocator classFileLocator(final ClassLoader classLoader) {
-    return null != classLoader
-        ? classFileLocators.computeIfAbsent(classLoader, DDClassFileLocator::new)
-        : bootClassFileLocator;
+    return null != classLoader ? classFileLocators.get(classLoader) : bootClassFileLocator;
   }
 
   static final class DDClassFileLocator extends WeakReference<ClassLoader>

@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'dd-smoke-tests'
@@ -25,17 +27,22 @@ allprojects {
   }
 }
 
-Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
   subProj.evaluationDependsOn ':dd-java-agent'
   subProj.tasks.withType(Test).configureEach { subTask ->
-    dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+    def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
+    dependsOn agentTaskRef
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
-    jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}"
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          return agentTaskRef.map { ["-Ddatadog.smoketest.agent.shadowJar.path=${it.archiveFile.get()}"] }.get()
+        }
+      })
   }
 }

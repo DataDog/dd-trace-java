@@ -1,12 +1,15 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'RUM Tomcat 10 Smoke Tests'
 
 dependencies {
@@ -33,6 +36,12 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.rum.tomcat10.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.rum.tomcat10.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

@@ -368,11 +368,7 @@ public class DefaultExceptionDebuggerTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addThrowable(exception);
     capturedContext.evaluate(
-        exceptionProbe.getProbeId().getEncodedId(),
-        exceptionProbe,
-        "",
-        System.currentTimeMillis(),
-        MethodLocation.EXIT);
+        exceptionProbe, "", System.currentTimeMillis(), MethodLocation.EXIT, false);
     exceptionProbe.commit(CapturedContext.EMPTY_CAPTURING_CONTEXT, capturedContext, emptyList());
   }
 

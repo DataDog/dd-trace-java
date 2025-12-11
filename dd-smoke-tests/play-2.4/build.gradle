@@ -2,12 +2,13 @@ plugins {
   id 'org.gradle.playframework'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
   // TODO Java 17: This version of play doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+  maxJavaVersion = JavaVersion.VERSION_15
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
 
 def playVer = "2.4.11"
@@ -87,11 +88,9 @@ tasks.withType(ScalaCompile).configureEach {
   configureCompiler(it, 8)
 }
 
-tasks.withType(AbstractCopyTask).each {
+tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
-  it.configure {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-  }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 spotless {

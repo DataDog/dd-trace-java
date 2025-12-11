@@ -11,6 +11,7 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    * called.
    */
   default void onStart() {}
+
   /** Invoked when a trace first propagates to a thread */
   default void onAttach() {}
 

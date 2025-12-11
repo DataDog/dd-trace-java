@@ -38,7 +38,7 @@ public class MoshiSnapshotHelper {
   public static final String CAUGHT_EXCEPTIONS = "caughtExceptions";
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
-  public static final String WATCHES = "watches";
+  public static final String CAPTURE_EXPRESSIONS = "captureExpressions";
   public static final String THROWABLE = "throwable";
   public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
@@ -161,17 +161,18 @@ public class MoshiSnapshotHelper {
         return;
       }
       jsonWriter.beginObject();
-      if (capturedContext.getWatches() != null) {
-        // only watches are serialized into the snapshot
-        jsonWriter.name(WATCHES);
+      if (capturedContext.getCaptureExpressions() != null) {
+        // only capture expressions are serialized into the snapshot
+        jsonWriter.name(CAPTURE_EXPRESSIONS);
         jsonWriter.beginObject();
-        SerializationResult resultWatches =
+        SerializationResult resultCaptureExpressions =
             toJsonCapturedValues(
                 jsonWriter,
-                capturedContext.getWatches(),
+                capturedContext.getCaptureExpressions(),
                 capturedContext.getLimits(),
                 timeoutChecker);
-        jsonWriter.endObject(); // / watches
+        jsonWriter.endObject(); // captureExpressions
+        handleSerializationResult(jsonWriter, resultCaptureExpressions);
         jsonWriter.endObject();
         return;
       }
@@ -243,7 +244,9 @@ public class MoshiSnapshotHelper {
       TIMEOUT
     }
 
-    /** @return true if all items where serialized or whether we reach the max field count */
+    /**
+     * @return true if all items where serialized or whether we reach the max field count
+     */
     private SerializationResult toJsonCapturedValues(
         JsonWriter jsonWriter,
         Map<String, CapturedContext.CapturedValue> map,

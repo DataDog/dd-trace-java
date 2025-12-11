@@ -8,15 +8,14 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
+
 dependencies {
   compileOnly group: 'net.spy', name: 'spymemcached', version: '2.10.4'
 

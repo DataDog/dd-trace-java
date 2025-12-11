@@ -1,22 +1,21 @@
 package datadog.trace.common.metrics
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static java.util.concurrent.TimeUnit.SECONDS
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Shared
-
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.function.Supplier
-
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
-import static java.util.concurrent.TimeUnit.MILLISECONDS
-import static java.util.concurrent.TimeUnit.SECONDS
+import spock.lang.Shared
 
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
@@ -91,6 +90,48 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     reportAndWaitUntilEmpty(aggregator)
     then:
     0 * sink._
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should be resilient to null resource names"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", null, "type", false, true, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "baz")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(new MetricKey(
+      null,
+      "service",
+      "operation",
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "baz",
+      []
+      ), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
+      }
+    1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
     aggregator.close()
@@ -656,45 +697,6 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         })
     }
     1 * writer.finishBucket() >> { latch.countDown() }
-
-    cleanup:
-    aggregator.close()
-  }
-
-  def "aggregator should force keep the first of each key it sees"() {
-    setup:
-    int maxAggregates = 10
-    MetricWriter writer = Mock(MetricWriter)
-    Sink sink = Stub(Sink)
-    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
-    features.supportsMetrics() >> true
-    features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS)
-    long duration = 100
-    aggregator.start()
-
-    when:
-    def overrides = new boolean[10]
-    for (int i = 0; i < 5; ++i) {
-      overrides[i] = aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
-      ])
-    }
-    for (int i = 0; i < 5; ++i) {
-      overrides[i + 5] = aggregator.publish([
-        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
-      ])
-    }
-
-    then: "override only the first of each point in the interval"
-    for (int i = 0; i < 5; ++i) {
-      assert overrides[i]
-    }
-    // these were all repeats, so should be ignored
-    for (int i = 5; i < 10; ++i) {
-      assert !overrides[i]
-    }
 
     cleanup:
     aggregator.close()

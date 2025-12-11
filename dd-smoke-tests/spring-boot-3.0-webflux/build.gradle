@@ -1,8 +1,8 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 description = 'Spring Boot 3.0 Webflux Smoke Tests.'
 
@@ -42,7 +42,7 @@ tasks.named("webfluxBuild30", Exec) {
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'webfluxBuild30'
   outputs.upToDateWhen {
-    !webfluxBuild30.didWork
+    !tasks.named('webfluxBuild30').get().didWork
   }
 }
 

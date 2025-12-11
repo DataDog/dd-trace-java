@@ -3,14 +3,16 @@ import java.nio.file.Paths
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.8"
+  id("de.thetaphi.forbiddenapis") version "3.10"
   id("me.champeau.jmh")
   idea
 }
 
-val minJavaVersionForTests by extra(JavaVersion.VERSION_11)
-
 apply(from = "$rootDir/gradle/java.gradle")
+
+extensions.getByName("tracerJava").withGroovyBuilder {
+  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
+}
 
 java {
   toolchain {
@@ -18,7 +20,7 @@ java {
   }
 }
 
-tasks.withType<Javadoc>().configureEach() {
+tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 

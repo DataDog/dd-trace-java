@@ -1,0 +1,56 @@
+muzzle {
+  pass {
+    name = 'jaxrs'
+    group = "org.jboss.resteasy"
+    module = "resteasy-jaxrs"
+    versions = "[3.0.0.Final,]"
+  }
+  pass {
+    name = 'multipart'
+    group = "org.jboss.resteasy"
+    module = "resteasy-multipart-provider"
+    versions = "[3.0.0.Final,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'java-test-fixtures'
+
+addTestSuite('nettyTest')
+addTestSuite('jettyAsyncTest')
+
+//check.dependsOn nettyTest, jettyAsyncTest
+// CI invocations are only for test/latestDepTest
+tasks.named("test", Test) {
+  finalizedBy(nettyTest, jettyAsyncTest)
+}
+
+configurations.configureEach {
+  resolutionStrategy.deactivateDependencyLocking()
+}
+dependencies {
+  compileOnly group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
+  compileOnly group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'
+
+  testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
+  testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-jackson-provider', version: '3.0.0.Final'
+  testFixturesApi group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'
+  testFixturesImplementation project(':dd-java-agent:instrumentation-testing'), {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation-testing'), {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
+  nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support
+  nettyTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-netty', version :'3.0.0.Final'
+  nettyTestImplementation project(':dd-java-agent:instrumentation:netty:netty-3.8')
+
+  def jettyVersion = '8.2.0.v20160908'
+  jettyAsyncTestImplementation group: 'org.jboss.resteasy', name: 'async-http-servlet-3.0', version :'3.0.0.Final'
+  jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
+  jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
+  jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: jettyVersion
+  jettyAsyncTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
+}

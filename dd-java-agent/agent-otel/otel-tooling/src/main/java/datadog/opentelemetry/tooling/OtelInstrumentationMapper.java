@@ -141,7 +141,9 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       RENAMED_PACKAGES.put(
           "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
 
-      RENAMED_PACKAGES.put("org/objectweb/asm/", "net/bytebuddy/jar/asm/");
+      // we want to keep this package unchanged so it matches against any unshaded extensions
+      // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
+      RENAMED_PACKAGES.put("org|objectweb|asm|".replace('|', '/'), "net/bytebuddy/jar/asm/");
     }
 
     @Override

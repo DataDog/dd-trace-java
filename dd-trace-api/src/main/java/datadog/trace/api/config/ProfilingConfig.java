@@ -33,6 +33,7 @@ public final class ProfilingConfig {
       "profiling.jfr-template-override-file";
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
   public static final int PROFILING_UPLOAD_TIMEOUT_DEFAULT = 30;
+
   /**
    * @deprecated Use {@link #PROFILING_DEBUG_UPLOAD_COMPRESSION} instead. This will be removed in a
    *     future release.
@@ -54,8 +55,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_BACKPRESSURE_SAMPLING_ENABLED =
       "profiling.backpressure.sampling.enabled";
   public static final boolean PROFILING_BACKPRESSURE_SAMPLING_ENABLED_DEFAULT = false;
-  public static final String PROFILING_BACKPRESSURE_SAMPLE_LIMIT =
-      "profiling.backpressure.sample.limit";
+
   public static final int PROFILING_BACKPRESSURE_SAMPLE_LIMIT_DEFAULT = 10_000;
 
   public static final String PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT =
@@ -138,7 +138,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL_DEFAULT = "NONE";
   public static final String PROFILING_DATADOG_PROFILER_STACKDEPTH = "profiling.ddprof.stackdepth";
   public static final String PROFILING_DATADOG_PROFILER_CSTACK = "profiling.ddprof.cstack";
-  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "fp";
+  public static final String PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT = "vm";
   public static final String PROFILING_DATADOG_PROFILER_SAFEMODE = "profiling.ddprof.safemode";
 
   private static final int POP_METHOD = 4;
@@ -201,6 +201,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DEBUG_DUMP_PATH = "profiling.debug.dump_path";
   public static final String PROFILING_DEBUG_JFR_DISABLED = "profiling.debug.jfr.disabled";
+
   // spotless:off
   /**
    * Configuration for profile upload compression.<br><br> Supported values are:

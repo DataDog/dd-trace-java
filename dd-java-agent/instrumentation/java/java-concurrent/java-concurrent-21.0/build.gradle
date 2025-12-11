@@ -1,14 +1,14 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_21
-  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
-  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
-  maxJavaVersionForTests = JavaVersion.VERSION_24
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 // Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
 apply from: "$rootDir/gradle/slf4j-simple.gradle"
 apply plugin: 'idea'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
+  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
+  maxJavaVersion = JavaVersion.VERSION_24
+}
 
 muzzle {
   pass {
@@ -41,7 +41,7 @@ tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-tasks.named("previewTest") {
+tasks.named("previewTest", Test) {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check

@@ -1,13 +1,12 @@
 package datadog.trace.test.util
 
+import datadog.environment.EnvironmentVariables
 import de.thetaphi.forbiddenapis.SuppressForbidden
-import org.junit.Rule
-import spock.lang.Shared
-import spock.lang.Specification
-
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
+import spock.lang.Shared
+import spock.lang.Specification
 
 @SuppressForbidden
 abstract class DDSpecification extends Specification {
@@ -34,12 +33,10 @@ abstract class DDSpecification extends Specification {
   private static isConfigInstanceModifiable = false
   static configModificationFailed = false
 
-  @Rule
-  public final ResetControllableEnvironmentVariables environmentVariables = new ResetControllableEnvironmentVariables()
+  @Shared
+  protected static ControllableEnvironmentVariables environmentVariables = ControllableEnvironmentVariables.setup()
 
-  // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
-  // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
-  // doesn't work because the properties object is not cloned for each invocation
+  // Intentionally saving and restoring System properties.
   private static Properties originalSystemProperties
 
   protected boolean assertThreadsEachCleanup = true
@@ -104,13 +101,11 @@ abstract class DDSpecification extends Specification {
       copy.putAll(originalSystemProperties)
       System.setProperties(copy)
     }
-
-    environmentVariables?.reset()
   }
 
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert EnvironmentVariables.getAll().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
     assert contextTestingAllowed: "Context not ready for testing.  Ensure all test classes extend DDSpecification"
 
@@ -127,7 +122,7 @@ abstract class DDSpecification extends Specification {
   void cleanupSpec() {
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert EnvironmentVariables.getAll().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -150,7 +145,7 @@ abstract class DDSpecification extends Specification {
   void setup() {
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert EnvironmentVariables.getAll().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -159,9 +154,11 @@ abstract class DDSpecification extends Specification {
   }
 
   void cleanup() {
+    environmentVariables.clear()
+
     restoreProperties()
 
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert EnvironmentVariables.getAll().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert systemPropertiesExceptAllowed().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
@@ -232,7 +229,7 @@ abstract class DDSpecification extends Specification {
     checkConfigTransformation()
 
     String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name
-    environmentVariables.clear(prefixedName)
+    environmentVariables.removePrefixed(prefixedName)
     rebuildConfig()
   }
 

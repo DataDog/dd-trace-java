@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
 plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.15'
@@ -5,11 +7,12 @@ plugins {
   id 'java-test-fixtures'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Java 11 Smoke Tests.'
 
@@ -33,5 +36,11 @@ tasks.named("forbiddenApisMain") {
 
 tasks.withType(Test).configureEach {
   dependsOn "bootJar"
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.bootJar.archiveFile.get()}"
+  def bootJarTask = tasks.named('bootJar', BootJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

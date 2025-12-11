@@ -1,10 +1,3 @@
-// Set properties before any plugins get loaded
-ext {
-  // TODO Java 17: The embedded elastic search server doesn't work on Java 17
-  //  This can be changed to use test-containers
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 muzzle {
   pass {
     group = "org.elasticsearch.client"
@@ -23,6 +16,12 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  // TODO Java 17: The embedded elastic search server doesn't work on Java 17
+  //  This can be changed to use test-containers
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 addTestSuite('latestDepTest')
 
@@ -46,6 +45,6 @@ dependencies {
   latestDepTestImplementation group: 'org.elasticsearch.plugin', name: 'transport-netty4-client', version: '6.3.+'
 }
 
-configurations.latestDepTestImplementation {
+configurations.named('latestDepTestImplementation') {
   exclude group: "org.elasticsearch.client", module: "rest"
 }

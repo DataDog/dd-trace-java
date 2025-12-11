@@ -1,13 +1,16 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
 }
 
-ext {
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  maxJavaVersion = JavaVersion.VERSION_15
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -50,5 +53,11 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

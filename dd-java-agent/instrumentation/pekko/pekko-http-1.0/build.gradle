@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // Since we are using different scala versions for different test sets,
 // we put the test classes in the baseTest test set so that the scala
@@ -63,7 +63,7 @@ dependencies {
 
   iastTestImplementation group: 'com.github.pjfanning', name: 'pekko-http-jackson_2.12', version: '2.1.0'
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  iastTestCompileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.4'
+  iastTestCompileOnly libs.forbiddenapis
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
@@ -88,7 +88,7 @@ dependencies {
   latestDepIastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.16')
 }
 
-iastTest {
+tasks.named("iastTest", Test) {
   filter {
     // This class must be excluded from scanning because it references class from "org.apache.pekko.http" package.
     // When JUnit 5 scans this class, it loads every other class that is present in its method signatures (arguments, return types, throws).
@@ -101,33 +101,30 @@ iastTest {
   }
 }
 
-latestDepIastTest {
+tasks.named("latestDepIastTest", Test) {
   filter {
     // Exclude the same problematic class as for iastTest to avoid class loading issues.
     excludeTestsMatching("*PekkoIastTestWebServer*")
   }
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn "baseTest"
   dependsOn "iastTest"
 }
 
-tasks.named('latestDepTest') {
+tasks.named("latestDepTest", Test) {
   dependsOn "latestDepIastTest"
 }
 
-compileBaseTestGroovy {
-  classpath = classpath.plus(files(compileBaseTestScala.destinationDirectory))
-  dependsOn "compileBaseTestScala"
+tasks.named("compileBaseTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileBaseTestScala').map { it.destinationDirectory })
 }
 
-compileLatestDepTestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
-compileLatestPekko10TestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDirectory))
-  dependsOn "compileLatestDepTestScala"
+tasks.named("compileLatestPekko10TestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }

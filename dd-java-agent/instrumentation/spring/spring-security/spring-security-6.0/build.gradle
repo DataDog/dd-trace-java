@@ -1,8 +1,9 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 final springBootVersion = '3.0.0'
@@ -12,7 +13,7 @@ tasks.withType(AbstractCompile).configureEach {
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  javaLauncher = getJavaLauncherFor(17)
+  configureCompiler(it, 17)
 }
 
 dependencies {

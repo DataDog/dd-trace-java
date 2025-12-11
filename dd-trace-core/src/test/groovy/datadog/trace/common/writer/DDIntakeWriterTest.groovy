@@ -212,5 +212,4 @@ class DDIntakeWriterTest extends DDCoreSpecification {
       PropagationTags.factory().empty())
     return new DDSpan("test", 0, context, null)
   }
-
 }

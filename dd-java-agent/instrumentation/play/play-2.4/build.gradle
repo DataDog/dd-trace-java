@@ -1,8 +1,3 @@
-ext {
-  // Play doesn't work with Java 9+ until 2.6.12
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -37,6 +32,11 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
+testJvmConstraints {
+  // Play doesn't work with Java 9+ until 2.6.12
+  maxJavaVersion = JavaVersion.VERSION_1_8
+}
+
 repositories {
   maven {
     // for muzzle because of play-2.3
@@ -46,8 +46,8 @@ repositories {
   }
 }
 
-tasks.withType(org.gradle.api.tasks.scala.ScalaCompile) {
-  it.javaLauncher = getJavaLauncherFor(8)
+tasks.withType(ScalaCompile).configureEach {
+  configureCompiler(it, 8)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -57,13 +57,16 @@ sourceSets {
     java.srcDirs "${project.projectDir}/src/main/java_play25"
   }
 }
-jar {
+
+tasks.named("jar", Jar) {
   from sourceSets.main_play25.output
 }
-project.afterEvaluate { p ->
-  instrumentJava.dependsOn compileMain_play25Java
-  forbiddenApisMain_play25.dependsOn instrumentMain_play25Java
+
+project.afterEvaluate {
+  tasks.named('instrumentJava') { dependsOn 'compileMain_play25Java' }
+  tasks.named('forbiddenApisMain_play25') { dependsOn 'instrumentMain_play25Java' }
 }
+
 instrument {
   additionalClasspath = [
     instrumentJava: compileMain_play25Java.destinationDirectory
@@ -99,13 +102,13 @@ dependencies {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 }
-compileTestGroovy {
-  classpath = classpath + files(compileTestScala.destinationDirectory)
-  dependsOn 'compileTestScala'
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  classpath = classpath + files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
-compileLatestDepTestGroovy {
-  classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
-  dependsOn 'compileLatestDepTestScala'
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 sourceSets {
@@ -125,10 +128,12 @@ sourceSets {
     }
   }
 }
+
 dependencies {
   routeGeneratorImplementation libs.scala211
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
 }
+
 configurations {
   testGeneratedCompileClasspath.extendsFrom testCompileClasspath
   latestDepTestGeneratedCompileClasspath.extendsFrom latestDepTestCompileClasspath
@@ -147,50 +152,48 @@ configurations {
     it.mainClass.set 'generator.CompileRoutes'
     it.args routesFile, outputDir.get().asFile.absolutePath
 
-    it.classpath configurations.routeGeneratorRuntimeClasspath
-    it.classpath compileRouteGeneratorScala.destinationDirectory
+    it.classpath configurations.named('routeGeneratorRuntimeClasspath')
+    it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
 
     if (taskName == 'buildTestRoutes') {
-      it.classpath compileTestScala.destinationDirectory
-      dependsOn compileTestScala
+      it.classpath tasks.named('compileTestScala').map { it.destinationDirectory }
     } else {
-      it.classpath compileLatestDepTestScala.destinationDirectory
-      dependsOn compileLatestDepTestScala
+      it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
     }
-
-    dependsOn compileRouteGeneratorScala
   }
 }
-compileTestGeneratedScala {
-  classpath = classpath + files(compileTestScala.destinationDirectory)
-  dependsOn buildTestRoutes, compileLatestDepTestScala
+
+tasks.named("compileTestGeneratedScala", ScalaCompile) {
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
+  dependsOn 'buildTestRoutes', 'compileLatestDepTestScala'
 }
-compileLatestDepTestGeneratedScala {
-  classpath = classpath + files(compileLatestDepTestScala.destinationDirectory)
-  dependsOn buildLatestDepTestRoutes, compileLatestDepTestScala
+
+tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+  dependsOn 'buildLatestDepTestRoutes'
 }
-compileTestGroovy {
-  classpath = classpath +
-    files(compileTestGeneratedScala.destinationDirectory)
-  dependsOn 'compileTestGeneratedScala'
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
 }
-compileLatestDepTestGroovy {
-  classpath = classpath +
-    files(compileLatestDepTestGeneratedScala.destinationDirectory)
-  dependsOn 'compileLatestDepTestGeneratedScala'
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
 }
 // do it this way rather than through dependencies {} because
 // latestDepTestImplementation extends testImplementation
-test {
-  classpath = classpath + files(compileTestGeneratedScala.destinationDirectory)
-}
-latestDepTest {
-  classpath = classpath + files(compileLatestDepTestGeneratedScala.destinationDirectory)
+tasks.named("test", Test) {
+  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
 }
 
-forbiddenApisTestGenerated {
+tasks.named("latestDepTest", Test) {
+  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
+}
+
+tasks.named("forbiddenApisTestGenerated") {
   enabled = false
 }
-forbiddenApisLatestDepTestGenerated {
+
+tasks.named("forbiddenApisLatestDepTestGenerated") {
   enabled = false
 }

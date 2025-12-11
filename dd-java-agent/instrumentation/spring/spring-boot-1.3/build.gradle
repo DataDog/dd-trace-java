@@ -1,9 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  boot3TestMinJavaVersionForTests = JavaVersion.VERSION_17
-  boot3ForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-}
 muzzle {
   pass {
     group = 'org.springframework.boot'
@@ -31,11 +25,7 @@ addTestSuiteExtendingForDir("boot2LatestDepForkedTest", "boot2LatestDepTest", "t
 addTestSuiteExtendingForDir("boot3ForkedTest", "boot3Test", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
-["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(17)
-  }
-}
+configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy")
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:span-origin')
@@ -54,4 +44,28 @@ dependencies {
   latestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-logging', version: '+'
   latestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-logging', version: '+'
+}
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("boot3Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("boot3ForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
 }

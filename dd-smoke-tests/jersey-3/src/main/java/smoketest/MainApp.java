@@ -71,7 +71,8 @@ public class MainApp {
                     }
                   }));
 
-      System.out.println(String.format("Application started.%nStop the application using CTRL+C"));
+      System.out.println("Application started.");
+      System.out.println("Stop the application using CTRL+C");
 
       // block and wait shut down signal, like CTRL+C
       Thread.currentThread().join();

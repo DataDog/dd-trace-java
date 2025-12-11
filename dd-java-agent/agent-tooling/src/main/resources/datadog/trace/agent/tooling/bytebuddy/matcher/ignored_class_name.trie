@@ -31,6 +31,7 @@
 1 com.sun.*
 0 com.sun.jersey.api.client.*
 0 com.sun.messaging.*
+1 datadog.instrument.*
 1 datadog.opentracing.*
 1 datadog.slf4j.*
 1 datadog.trace.*
@@ -49,6 +50,8 @@
 0 java.lang.ProcessImpl
 # allow Runtime instrumentation for RASP
 0 java.lang.Runtime
+# allow context tracking for VirtualThread
+0 java.lang.VirtualThread
 0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.Socket
@@ -268,6 +271,7 @@
 0 org.springframework.boot.SpringApplicationRunListeners
 1 org.springframework.boot.SpringApplicationShutdownHook$Handlers
 1 org.springframework.boot.autoconfigure.ssl.FileWatcher$WatcherThread
+1 org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController
 2 org.springframework.boot.*
 0 org.apache.xalan.transformer.TransformerImpl
 # More runnables to deal with

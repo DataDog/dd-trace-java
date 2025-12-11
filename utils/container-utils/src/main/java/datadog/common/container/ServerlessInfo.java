@@ -1,6 +1,6 @@
 package datadog.common.container;
 
-import datadog.environment.EnvironmentVariables;
+import datadog.trace.config.inversion.ConfigHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 
@@ -13,7 +13,7 @@ public class ServerlessInfo {
   private final boolean hasExtension;
 
   private ServerlessInfo(final String extensionPath) {
-    this.functionName = EnvironmentVariables.get(AWS_FUNCTION_VARIABLE);
+    this.functionName = ConfigHelper.env(AWS_FUNCTION_VARIABLE);
     if (null == extensionPath) {
       this.hasExtension = false;
     } else {
@@ -22,7 +22,10 @@ public class ServerlessInfo {
     }
   }
 
-  @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
+  @SuppressFBWarnings({
+    "DMI_HARDCODED_ABSOLUTE_FILENAME",
+    "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR"
+  })
   public ServerlessInfo() {
     // TODO add more serverless configuration properties
     // support envs other than AWS lambda

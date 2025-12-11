@@ -1,6 +1,3 @@
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
 apply from: "$rootDir/gradle/java.gradle"
 description = 'JUnit Console Smoke Tests.'
 
@@ -11,7 +8,16 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.junit.console.jar.path=${configurations.runtimeClasspath.find { it.name.contains('junit-platform-console-standalone') }}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def consoleJarFile = configurations.named("runtimeClasspath")
+          .get()
+          .find { it.name.contains("junit-platform-console-standalone") }
+
+        return ["-Ddatadog.smoketest.junit.console.jar.path=${consoleJarFile}"]
+      }
+    })
 
   if (project.hasProperty("mavenRepositoryProxy")) {
     // propagate proxy URL to tests, to then propagate it to nested Gradle builds

@@ -55,7 +55,7 @@ if (version >= 17) {
     inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
   }
 
-  quarkusNativeBuild {
+  tasks.named('quarkusNativeBuild') {
     dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
     dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
   }
@@ -70,7 +70,6 @@ if (version >= 17) {
   tasks.withType(Test).configureEach {
     jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
   }
-
 } else {
   tasks.withType(Test).configureEach {
     enabled = false

@@ -47,6 +47,7 @@ public final class TracerConfig {
 
   @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+
   // JSON rules
   public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
   public static final String SPAN_SAMPLING_RULES = "span.sampling.rules";
@@ -163,6 +164,7 @@ public final class TracerConfig {
       "trace.cloud.payload.tagging.max-depth";
   public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
       "trace.cloud.payload.tagging.max-tags";
+  public static final String TRACE_SERVICE_DISCOVERY_ENABLED = "trace.service.discovery.enabled";
 
   private TracerConfig() {}
 }

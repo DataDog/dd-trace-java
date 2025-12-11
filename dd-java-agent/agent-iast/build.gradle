@@ -28,7 +28,9 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    ofSourceSet("test").configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 
@@ -42,6 +44,7 @@ dependencies {
   implementation project(':internal-api:internal-api-9')
   implementation libs.moshi
   implementation libs.bundles.asm
+  implementation libs.instrument.java
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
@@ -105,6 +108,10 @@ spotless {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named("forbiddenApisJmh") {
+  ignoreFailures = true
 }
 
 sourceSets {

@@ -1,8 +1,3 @@
-ext {
-  // TODO Java 17: The necessary packages are not opened on Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 muzzle {
   pass {
     coreJdk()
@@ -11,12 +6,17 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+testJvmConstraints {
+  // TODO Java 17: The necessary packages are not opened on Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
+
 tasks.withType(JavaCompile).configureEach {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.rmi package")
 }
 
 def rmic = tasks.register('rmic', Exec) {
-  dependsOn testClasses
+  dependsOn 'testClasses'
 
   Provider<JavaLauncher> javaLauncher = getJavaLauncherFor(8)
   def toolchainPath = javaLauncher.get().metadata.installationPath
@@ -32,6 +32,6 @@ def rmic = tasks.register('rmic', Exec) {
     )
 }
 
-tasks.named("test") {
+tasks.named("test", Test) {
   dependsOn rmic
 }

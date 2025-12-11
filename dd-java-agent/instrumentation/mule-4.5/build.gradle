@@ -1,9 +1,3 @@
-ext {
-  forkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  mule46ForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_17
-}
 def muleVersion = '4.5.0'
 def appDir = "$projectDir/application"
 
@@ -100,7 +94,7 @@ sourceSets {
   }
 }
 
-tasks.named("compileMain_java11Java") {
+tasks.named("compileMain_java11Java", JavaCompile) {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
@@ -110,6 +104,12 @@ tasks.named("jar", Jar) {
 
 tasks.named("forbiddenApisMain_java11") {
   failOnMissingClasses = false
+}
+
+tasks.named("forkedTest", Test) {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_11
+  }
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -127,6 +127,19 @@ tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
 
 tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
   configureCompiler(it, 17)
+}
+
+tasks.named("mule46ForkedTest", Test) {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+    maxJavaVersion = JavaVersion.VERSION_17
+  }
 }
 
 dependencies {
@@ -207,29 +220,43 @@ def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
 
 // extract the enabled services into the mule base directory
 tasks.register('extractMuleServices', Sync) {
-  dependsOn configurations.muleServices
+  dependsOn configurations.named('muleServices')
   copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
 }
 tasks.register('extractMule46Services', Sync) {
-  dependsOn configurations.mule46Services
+  dependsOn configurations.named('mule46Services')
   copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
 }
 tasks.register('extractLatestMuleServices', Sync) {
-  dependsOn configurations.latestMuleServices
+  dependsOn configurations.named('latestMuleServices')
   copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
 }
 
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
-  workingDir "$appDir"
+  workingDir("$appDir")
   environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
-  commandLine "$rootDir/mvnw", "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
+
+  List<String> mvnArgs = [
+    "$rootDir/mvnw",
+    "-Ddatadog.builddir=$buildDir",
+    "-Ddatadog.name=mule-test-application",
+    "-Ddatadog.version=$version",
+    "package"
+  ]
+
+  // Specify caches folder on CI.
+  if (providers.environmentVariable("CI").isPresent()) {
+    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+  }
+
+  commandLine(mvnArgs)
+
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")
   inputs.file("$appDir/pom.xml")
   inputs.file("$appDir/mule-artifact.json")
 }
-
 
 // generate a properties file so the test knows where to run mule, and what jar to deploy
 tasks.register('generateAppResources') {

@@ -86,6 +86,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String metricsEndpoint;
     String dataStreamsEndpoint;
     boolean supportsLongRunning;
+    boolean supportsClientSideStats;
     boolean supportsDropping;
     String state;
     String configEndpoint;
@@ -165,7 +166,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint("info", error);
       }
       if (fallback) {
-        newState.supportsDropping = false;
+        newState.supportsClientSideStats = false;
         newState.supportsLongRunning = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         // disable metrics unless the info endpoint is present, which prevents
@@ -312,6 +313,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                 && ("true".equalsIgnoreCase(String.valueOf(canDrop))
                     || Boolean.TRUE.equals(canDrop));
 
+        newState.supportsClientSideStats =
+            newState.supportsDropping && !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
+
         Object peer_tags = map.get("peer_tags");
         newState.peerTags =
             peer_tags instanceof List
@@ -356,7 +360,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsMetrics() {
-    return metricsEnabled && null != discoveryState.metricsEndpoint;
+    return metricsEnabled
+        && null != discoveryState.metricsEndpoint
+        && discoveryState.supportsClientSideStats;
   }
 
   public boolean supportsDebugger() {
@@ -373,10 +379,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsDebuggerDiagnostics() {
     return discoveryState.debuggerDiagnosticsEndpoint != null;
-  }
-
-  public boolean supportsDropping() {
-    return discoveryState.supportsDropping;
   }
 
   public boolean supportsLongRunning() {
@@ -439,7 +441,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   @Override
   public boolean active() {
-    return supportsMetrics() && discoveryState.supportsDropping;
+    return supportsMetrics();
   }
 
   public boolean supportsTelemetryProxy() {

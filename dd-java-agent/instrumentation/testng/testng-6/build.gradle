@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -24,7 +25,7 @@ dependencies {
 
 // gradle can't downgrade the testng dependencies with `strictly`
 // and IntelliJ IDEA reports an error when importing the project
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.testng', name: 'testng', version: '6.4'
   }

@@ -1,42 +1,17 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-// this project will run in isolation under the agent's classloader
-buildscript {
-
-  repositories {
-    mavenLocal()
-    if (project.rootProject.hasProperty("gradlePluginProxy")) {
-      maven {
-        url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
 plugins {
   id 'com.gradleup.shadow'
 }
 apply from: "$rootDir/gradle/java.gradle"
 
 
-tasks.register("latestDepTest")
+tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'instrument'
-  apply plugin: 'muzzle'
+  apply plugin: 'dd-trace-java.instrument'
+  apply plugin: 'dd-trace-java.muzzle'
 
   configurations {
     instrumentPluginClasspath {
@@ -58,13 +33,17 @@ subprojects { Project subProj ->
     if (!plugins.hasPlugin("java")) {
       return
     }
-    String jdkCompile = null
-    if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_8) {
-      def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
-      def name = "java$version.majorVersion"
-      jdkCompile = "main_${name}Implementation"
-    }
-    configurations.muzzleBootstrap {
+
+    // Configures base dependencies for additional sourceSet
+    configurations
+      .matching { it.name.matches("${SourceSet.MAIN_SOURCE_SET_NAME}_java\\d+${JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
+      .configureEach {
+        it.dependencies.add(project.dependencyFactory.create(project(':dd-trace-api')))
+        it.dependencies.add(project.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
+        it.dependencies.addLater(libs.bytebuddy)
+      }
+
+    configurations.named('muzzleBootstrap') {
       exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
     }
     dependencies {
@@ -72,11 +51,6 @@ subprojects { Project subProj ->
       implementation project(':dd-trace-api')
       implementation project(':dd-java-agent:agent-tooling')
       implementation libs.bytebuddy
-      if (jdkCompile) {
-        "$jdkCompile" project(':dd-trace-api')
-        "$jdkCompile" project(':dd-java-agent:agent-tooling')
-        "$jdkCompile" libs.bytebuddy
-      }
 
       annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
       annotationProcessor libs.autoservice.processor
@@ -121,15 +95,18 @@ dependencies {
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  apply plugin: 'muzzle'
-  task("muzzleInstrumentationReport") {
-    dependsOn(project.getAllTasks(true).values().flatten().findAll { it.name.endsWith("generateMuzzleReport") })
+  apply plugin: 'dd-trace-java.muzzle'
+  tasks.register('muzzleInstrumentationReport') {
+    dependsOn(subprojects.collect { p ->
+      p.tasks.matching {
+        it.name == "generateMuzzleReport"
+      }
+    })
     finalizedBy(tasks.named('mergeMuzzleReports'))
   }
 }
 
-
-tasks.named('shadowJar') {
+tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar
@@ -140,44 +117,43 @@ tasks.named('shadowJar') {
   dependencies deps.excludeShared
 }
 
-tasks.register('generateInstrumenterIndex', JavaExec) {
-  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
-
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/instrumenter.index"
-
-  it.group = 'Build'
-  it.description = "Generate instrumenter.index"
-  it.mainClass = 'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
-  it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
-
-  dependsOn 'processResources'
+// temporary config to add slf4j-simple so we get logging from instrumenters while indexing
+project.configurations.register('slf4j-simple') {
+  it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
 }
 
-tasks.register('generateKnownTypesIndex', JavaExec) {
-  // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
-  def slf4jSimple = project.configurations.maybeCreate('slf4j-simple')
-  project.dependencies.add('slf4j-simple', "org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}")
+TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, String description ) {
+  def indexTask = tasks.register(indexTaskName, JavaExec) {
+    def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
 
-  def resourcesDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${resourcesDir}/known-types.index"
-
-  it.group = 'Build'
-  it.description = "Generate known-types.index"
-  it.mainClass = 'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator'
-  it.classpath = project.configurations.runtimeClasspath + slf4jSimple
-  it.inputs.files(it.classpath)
-  it.outputs.files(indexFile)
-  it.args = [resourcesDir]
-
-  dependsOn 'processResources'
+    it.group = LifecycleBasePlugin.BUILD_GROUP
+    it.description = description
+    it.mainClass = indexer
+    it.classpath = objects.fileCollection().tap {
+      it.from(project.configurations.named("runtimeClasspath"))
+      it.from(project.configurations.named('slf4j-simple'))
+    }
+    it.inputs.files(it.classpath)
+    it.outputs.dir(destinationDir)
+    it.argumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          return destinationDir.map { [it.asFile.path] }.get()
+        }
+      })
+  }
+  sourceSets.main.resources.srcDir(indexTask)
+  return indexTask
 }
 
-tasks.named("shadowJar", ShadowJar) {
-  dependsOn('generateInstrumenterIndex', 'generateKnownTypesIndex')
-}
+registerIndexTask(
+  'generateInstrumenterIndex',
+  'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator',
+  'Generate instrumenter.index'
+  )
+
+registerIndexTask(
+  'generateKnownTypesIndex',
+  'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator',
+  'Generate known-types.index'
+  )

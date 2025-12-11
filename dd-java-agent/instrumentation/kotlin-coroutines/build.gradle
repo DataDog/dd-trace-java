@@ -1,5 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
   id 'java-test-fixtures'
+  id 'org.jetbrains.kotlin.jvm'
 }
 
 muzzle {
@@ -24,18 +28,26 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
+
 addTestSuite('latestDepTest')
 
 tasks.named("compileTestFixturesGroovy", GroovyCompile) {
-  classpath += files(compileTestFixturesKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileTestFixturesKotlin').map { it.destinationDirectory })
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath += files(compileTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileTestKotlin').map { it.destinationDirectory })
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(compileLatestDepTestKotlin.destinationDirectory)
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
 }
 
 dependencies {
@@ -48,7 +60,6 @@ dependencies {
   testFixturesApi project(':dd-trace-api')
   testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
   testFixturesApi project(':dd-java-agent:instrumentation-testing')
-  testFixturesApi 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 
   testImplementation libs.kotlin
   testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.0"

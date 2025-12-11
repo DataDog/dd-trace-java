@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.serialization.EncodingCache;
-import datadog.trace.common.writer.ddagent.SimpleUtf8Cache.CacheEntry;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 
@@ -139,6 +138,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   }
 
   /** Updates access time used @link {@link #getUtf8(String, String)} to the provided value */
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void updateAccessTime(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
   }

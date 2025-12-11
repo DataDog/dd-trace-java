@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 def spockGroovyVersion = '3.0'
@@ -28,14 +32,14 @@ dependencies {
   latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
 }
 
-configurations.matching({ it.name.startsWith('test') }).each({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
   }
 })
 
-configurations.matching({ it.name.startsWith('latestDepTest') }).each({
+configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
   it.resolutionStrategy.componentSelection.all { ComponentSelection selection ->
     if (selection.candidate.group == 'org.spockframework' && selection.candidate.module == 'spock-core' && !selection.candidate.version.endsWith("-groovy-${spockGroovyVersion}")) {
       selection.reject('Spock groovy version mismatch')

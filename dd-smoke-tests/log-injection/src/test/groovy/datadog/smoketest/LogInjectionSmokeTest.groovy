@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
 import spock.lang.AutoCleanup
@@ -9,7 +10,6 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
-import static datadog.trace.test.util.Predicates.IBM8
 import static java.util.concurrent.TimeUnit.SECONDS
 
 /**
@@ -256,7 +256,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = IBM8)
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm8())
   def "check raw file injection"() {
     when:
     def count = waitForTraceCount(2)
@@ -284,10 +284,18 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     println "json log lines: " + jsonLogLines
 
     def stdOutLines = new File(logFilePath).readLines()
-    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FIRSTTRACEID")})
-    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("SECONDTRACEID")})
-    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("THIRDTRACEID")})
-    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find { it.contains("FORTHTRACEID")})
+    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("FIRSTTRACEID")
+    })
+    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("SECONDTRACEID")
+    })
+    def (String thirdTraceId, String thirdSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("THIRDTRACEID")
+    })
+    def (String forthTraceId, String forthSpanId) = parseTraceFromStdOut(stdOutLines.find {
+      it.contains("FORTHTRACEID")
+    })
 
     then:
     exitValue == 0
@@ -333,10 +341,16 @@ abstract class JULBackend extends LogInjectionSmokeTest {
   @Shared
   def propertiesFile = File.createTempFile("julConfig", ".properties")
 
-  def backend() { "JUL" }
+  def backend() {
+    "JUL"
+  }
 
-  def injectsRawLogs() { false }
-  def supportsJson() { false }
+  def injectsRawLogs() {
+    false
+  }
+  def supportsJson() {
+    false
+  }
 
   def setupSpec() {
     def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
@@ -369,7 +383,9 @@ class JULInterfaceJULBackend extends JULBackend {
 }
 
 class JULInterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 
   List additionalArguments() {
     return ["-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"]
@@ -381,8 +397,12 @@ class JULInterfaceLog4j2Backend128bTid extends JULInterfaceLog4j2Backend {}
 class JULInterfaceLog4j2LatestBackend extends JULInterfaceLog4j2Backend {}
 
 class JULInterfaceJBossBackend extends LogInjectionSmokeTest {
-  def backend() { "JBoss" }
-  def supportsJson() { false }
+  def backend() {
+    "JBoss"
+  }
+  def supportsJson() {
+    false
+  }
 
   List additionalArguments() {
     return ["-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
@@ -394,12 +414,18 @@ class JULInterfaceJBossBackend128bTid extends JULInterfaceJBossBackend {}
 class JULInterfaceJBossLatestBackend extends JULInterfaceJBossBackend {}
 
 class JCLInterfaceJULBackend extends JULBackend {
-  def backend() { "JUL" }
+  def backend() {
+    "JUL"
+  }
 }
 
 class JCLInterfaceLog4j1Backend extends LogInjectionSmokeTest {
-  def backend() { "Log4j1" }
-  def supportsJson() { false }
+  def backend() {
+    "Log4j1"
+  }
+  def supportsJson() {
+    false
+  }
 }
 
 class JCLInterfaceLog4j1BackendNoTags extends JCLInterfaceLog4j1Backend {}
@@ -407,7 +433,9 @@ class JCLInterfaceLog4j1LatestBackend extends JCLInterfaceLog4j1Backend {}
 class JCLInterfaceLog4j1Backend128bTid extends JCLInterfaceLog4j1Backend {}
 
 class JCLInterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 
   // workaround https://github.com/apache/logging-log4j2/issues/1865
   List additionalArguments() {
@@ -420,8 +448,12 @@ class JCLInterfaceLog4j2Backend128bTid extends JCLInterfaceLog4j2Backend {}
 class JCLInterfaceLog4j2LatestBackend extends JCLInterfaceLog4j2Backend {}
 
 class Log4j1InterfaceLog4j1Backend extends LogInjectionSmokeTest {
-  def backend() { "Log4j1" }
-  def supportsJson() { false }
+  def backend() {
+    "Log4j1"
+  }
+  def supportsJson() {
+    false
+  }
 }
 
 class Log4j1InterfaceLog4j1BackendNoTags extends Log4j1InterfaceLog4j1Backend {}
@@ -429,7 +461,9 @@ class Log4j1InterfaceLog4j1Backend128bTid extends Log4j1InterfaceLog4j1Backend {
 class Log4j1InterfaceLog4j1LatestBackend extends Log4j1InterfaceLog4j1Backend {}
 
 class Log4j1InterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 }
 
 class Log4j1InterfaceLog4j2BackendNoTags extends Log4j1InterfaceLog4j2Backend {}
@@ -437,7 +471,9 @@ class Log4j1InterfaceLog4j2Backend128bTid extends Log4j1InterfaceLog4j2Backend {
 class Log4j1InterfaceLog4j2LatestBackend extends Log4j1InterfaceLog4j2Backend {}
 
 class Log4j2InterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 }
 
 class Log4j2InterfaceLog4j2BackendNoTags extends Log4j2InterfaceLog4j2Backend {}
@@ -445,7 +481,9 @@ class Log4j2InterfaceLog4j2Backend128bTid extends Log4j2InterfaceLog4j2Backend {
 class Log4j2InterfaceLog4j2LatestBackend extends Log4j2InterfaceLog4j2Backend {}
 
 class Slf4jInterfaceLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 }
 
 class Slf4jInterfaceLogbackBackendNoTags extends Slf4jInterfaceLogbackBackend {}
@@ -453,8 +491,12 @@ class Slf4jInterfaceLogbackBackend128bTid extends Slf4jInterfaceLogbackBackend {
 class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
 
 class Slf4jInterfaceLog4j1Backend extends LogInjectionSmokeTest {
-  def backend() { "Log4j1" }
-  def supportsJson() { false }
+  def backend() {
+    "Log4j1"
+  }
+  def supportsJson() {
+    false
+  }
 }
 
 class Slf4jInterfaceLog4j1BackendNoTags extends Slf4jInterfaceLog4j1Backend {}
@@ -462,7 +504,9 @@ class Slf4jInterfaceLog4j1Backend128bTid extends Slf4jInterfaceLog4j1Backend {}
 class Slf4jInterfaceLog4j1LatestBackend extends Slf4jInterfaceLog4j1Backend {}
 
 class Slf4jInterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 }
 
 class Slf4jInterfaceLog4j2BackendNoTags extends Slf4jInterfaceLog4j2Backend {}
@@ -470,9 +514,15 @@ class Slf4jInterfaceLog4j2Backend128bTid extends Slf4jInterfaceLog4j2Backend {}
 class Slf4jInterfaceLog4j2LatestBackend extends Slf4jInterfaceLog4j2Backend {}
 
 class Slf4jInterfaceSlf4jSimpleBackend extends LogInjectionSmokeTest {
-  def backend() { "Slf4jSimple" }
-  def injectsRawLogs() { false }
-  def supportsJson() { false }
+  def backend() {
+    "Slf4jSimple"
+  }
+  def injectsRawLogs() {
+    false
+  }
+  def supportsJson() {
+    false
+  }
 
   List additionalArguments() {
     return ["-Dorg.slf4j.simpleLogger.logFile=${outputLogFile.absolutePath}" as String]
@@ -483,8 +533,12 @@ class Slf4jInterfaceJULBackend extends JULBackend {
 }
 
 class Slf4jInterfaceJCLToLog4j1Backend extends LogInjectionSmokeTest {
-  def backend() { "Log4j1" }
-  def supportsJson() { false }
+  def backend() {
+    "Log4j1"
+  }
+  def supportsJson() {
+    false
+  }
 }
 
 class Slf4jInterfaceJCLToLog4j1BackendNoTags extends Slf4jInterfaceJCLToLog4j1Backend {}
@@ -492,7 +546,9 @@ class Slf4jInterfaceJCLToLog4j1Backend128bTid extends Slf4jInterfaceJCLToLog4j1B
 class Slf4jInterfaceJCLToLog4j1LatestBackend extends Slf4jInterfaceJCLToLog4j1Backend {}
 
 class Slf4jInterfaceJCLToLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 
   // workaround https://github.com/apache/logging-log4j2/issues/1865
   List additionalArguments() {
@@ -508,7 +564,9 @@ class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   @Shared
   def propertiesFile = File.createTempFile("julConfig", ".properties")
 
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 
   def setupSpec() {
     // JUL doesn't support reading a properties file from the classpath so everything needs
@@ -533,7 +591,9 @@ class JULInterfaceSlf4jToLogbackBackend128bTid extends JULInterfaceSlf4jToLogbac
 class JULInterfaceSlf4jToLogbackLatestBackend extends JULInterfaceSlf4jToLogbackBackend {}
 
 class JCLInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 }
 
 class JCLInterfaceSlf4jToLogbackBackendNoTags extends JCLInterfaceSlf4jToLogbackBackend {}
@@ -541,7 +601,9 @@ class JCLInterfaceSlf4jToLogbackBackend128bTid extends JCLInterfaceSlf4jToLogbac
 class JCLInterfaceSlf4jToLogbackLatestBackend extends JCLInterfaceSlf4jToLogbackBackend {}
 
 class Log4j1InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 }
 
 class Log4j1InterfaceSlf4jToLogbackBackendNoTags extends Log4j1InterfaceSlf4jToLogbackBackend {}
@@ -549,7 +611,9 @@ class Log4j1InterfaceSlf4jToLogbackBackend128bTid extends Log4j1InterfaceSlf4jTo
 class Log4j1InterfaceSlf4jToLogbackLatestBackend extends Log4j1InterfaceSlf4jToLogbackBackend {}
 
 class Log4j2InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 }
 
 class Log4j2InterfaceSlf4jToLogbackBackendNoTags extends Log4j2InterfaceSlf4jToLogbackBackend {}
@@ -557,8 +621,12 @@ class Log4j2InterfaceSlf4jToLogbackBackend128bTid extends Log4j2InterfaceSlf4jTo
 class Log4j2InterfaceSlf4jToLogbackLatestBackend extends Log4j2InterfaceSlf4jToLogbackBackend {}
 
 class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
-  def backend() { "JBoss" }
-  def supportsJson() { false }
+  def backend() {
+    "JBoss"
+  }
+  def supportsJson() {
+    false
+  }
 
   List additionalArguments() {
     return ["-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
@@ -570,8 +638,12 @@ class JBossInterfaceJBossBackend128bTid extends JBossInterfaceJBossBackend {}
 class JBossInterfaceJBossLatestBackend extends JBossInterfaceJBossBackend {}
 
 class JBossInterfaceLog4j1Backend extends LogInjectionSmokeTest {
-  def backend() { "Log4j1" }
-  def supportsJson() { false }
+  def backend() {
+    "Log4j1"
+  }
+  def supportsJson() {
+    false
+  }
 }
 
 class JBossInterfaceLog4j1BackendNoTags extends JBossInterfaceLog4j1Backend {}
@@ -579,7 +651,9 @@ class JBossInterfaceLog4j1Backend128bTid extends JBossInterfaceLog4j1Backend {}
 class JBossInterfaceLog4j1LatestBackend extends JBossInterfaceLog4j1Backend {}
 
 class JBossInterfaceLog4j2Backend extends LogInjectionSmokeTest {
-  def backend() { LOG4J2_BACKEND }
+  def backend() {
+    LOG4J2_BACKEND
+  }
 }
 
 class JBossInterfaceLog4j2BackendNoTags extends JBossInterfaceLog4j2Backend {}
@@ -587,7 +661,9 @@ class JBossInterfaceLog4j2Backend128bTid extends JBossInterfaceLog4j2Backend {}
 class JBossInterfaceLog4j2LatestBackend extends JBossInterfaceLog4j2Backend {}
 
 class JBossInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 }
 
 class JBossInterfaceSlf4jToLogbackBackendNoTags extends JBossInterfaceSlf4jToLogbackBackend {}
@@ -599,7 +675,9 @@ class JBossInterfaceJULBackend extends JULBackend {}
 class FloggerInterfaceJULBackend extends JULBackend {}
 
 class FloggerInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
-  def backend() { "Logback" }
+  def backend() {
+    "Logback"
+  }
 
   List additionalArguments() {
     return [

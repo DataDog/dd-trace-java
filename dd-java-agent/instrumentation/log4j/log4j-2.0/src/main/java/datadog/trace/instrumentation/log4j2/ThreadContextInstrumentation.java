@@ -38,6 +38,11 @@ public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String muzzleDirective() {
+    return "default";
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.agent.tooling.log.LogContextScopeListener",

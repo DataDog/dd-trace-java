@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
@@ -14,6 +15,7 @@ import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
+import spock.lang.IgnoreIf
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -28,6 +30,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 import static java.nio.charset.StandardCharsets.UTF_8
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
@@ -95,6 +104,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(span)
     0 * _
@@ -128,6 +138,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -142,6 +153,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     0 * _
   }
@@ -159,6 +171,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
@@ -185,6 +198,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -201,6 +215,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -223,6 +238,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -241,6 +257,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     0 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -270,6 +287,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -298,6 +316,7 @@ class PendingTraceBufferTest extends DDSpecification {
       latch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     0 * _
   }
 
@@ -324,6 +343,7 @@ class PendingTraceBufferTest extends DDSpecification {
       parentLatch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -340,6 +360,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
@@ -419,6 +440,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     1 * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -435,6 +457,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _
@@ -460,36 +483,65 @@ class PendingTraceBufferTest extends DDSpecification {
     def parent2 = newSpanOf(trace2, UNSET, System.currentTimeMillis() * 2000)
     def child2 = newSpanOf(parent2)
 
-    when:
+    when: "first flare dump with two traces"
     parent1.finish()
     parent2.finish()
     buffer.start()
-    def entries = buildAndExtractZip()
+    def entries1 = buildAndExtractZip()
 
     then:
     1 * dumpReporter.prepareForFlare()
     1 * dumpReporter.addReportToFlare(_)
     1 * dumpReporter.cleanupAfterFlare()
-    entries.size() == 1
-    def pendingTraceText = entries["pending_traces.txt"] as String
-    (entries["pending_traces.txt"] as String).startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
+    entries1.size() == 1
+    def pendingTraceText1 = entries1["pending_traces.txt"] as String
+    pendingTraceText1.startsWith('[{"service":"fakeService","name":"fakeOperation","resource":"fakeResource","trace_id":1,"span_id":1,"parent_id":0') // Rest of dump is timestamp specific
 
-    def parsedTraces = pendingTraceText.split('\n').collect { new JsonSlurper().parseText(it) }.flatten()
-    parsedTraces.size() == 2
-    parsedTraces[0]["trace_id"] == 1 //Asserting both traces exist
-    parsedTraces[1]["trace_id"] == 2
-    parsedTraces[0]["start"] < parsedTraces[1]["start"] //Asserting the dump has the oldest trace first
+    def parsedTraces1 = pendingTraceText1.split('\n').collect { new JsonSlurper().parseText(it) }.flatten()
+    parsedTraces1.size() == 2
+    parsedTraces1[0]["trace_id"] == 1 //Asserting both traces exist
+    parsedTraces1[1]["trace_id"] == 2
+    parsedTraces1[0]["start"] < parsedTraces1[1]["start"] //Asserting the dump has the oldest trace first
 
-
-    then:
+    // New pending traces are needed here because generating the first flare takes long enough that the
+    // earlier pending traces are flushed (within 500ms).
+    when: "second flare dump with new pending traces"
+    // Finish the first set of traces
     child1.finish()
     child2.finish()
+    // Create new pending traces
+    def trace3 = factory.create(DDTraceId.from(3))
+    def parent3 = newSpanOf(trace3, UNSET, System.currentTimeMillis() * 3000)
+    def child3 = newSpanOf(parent3)
+    def trace4 = factory.create(DDTraceId.from(4))
+    def parent4 = newSpanOf(trace4, UNSET, System.currentTimeMillis() * 4000)
+    def child4 = newSpanOf(parent4)
+    parent3.finish()
+    parent4.finish()
+    def entries2 = buildAndExtractZip()
+
+    then:
+    1 * dumpReporter.prepareForFlare()
+    1 * dumpReporter.addReportToFlare(_)
+    1 * dumpReporter.cleanupAfterFlare()
+    entries2.size() == 1
+    def pendingTraceText2 = entries2["pending_traces.txt"] as String
+    def parsedTraces2 = pendingTraceText2.split('\n').collect { new JsonSlurper().parseText(it) }.flatten()
+    parsedTraces2.size() == 2
+
+    then:
+    child3.finish()
+    child4.finish()
 
     then:
     trace1.size() == 0
     trace1.pendingReferenceCount == 0
     trace2.size() == 0
     trace2.pendingReferenceCount == 0
+    trace3.size() == 0
+    trace3.pendingReferenceCount == 0
+    trace4.size() == 0
+    trace4.pendingReferenceCount == 0
   }
 
 

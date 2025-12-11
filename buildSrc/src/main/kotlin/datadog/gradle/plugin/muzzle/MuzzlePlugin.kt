@@ -106,7 +106,8 @@ class MuzzlePlugin : Plugin<Project> {
       // removing leading ':' if present
       val muzzleTaskName = taskName.removePrefix(":")
       val projectPath = project.path.removePrefix(":")
-      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName
+      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName ||
+          muzzleTaskName == "runMuzzle"
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.

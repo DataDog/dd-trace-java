@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
@@ -15,12 +19,14 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'latestDepTest')
 // weaver 0.8.4 is the earliest supported version before the org migration
 addTestSuiteForDir('weaver084Test', 'test')
 
 dependencies {
   compileOnly group: 'org.typelevel', name: 'weaver-cats_3', version: '0.9.0'
+  // Weaver is published for Scala > 2.12
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.12.20'
 
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
@@ -30,17 +36,17 @@ dependencies {
   weaver084TestImplementation group: 'com.disneystreaming', name: 'weaver-cats_3', version: '0.8.4'
 }
 
-compileTestGroovy {
-  dependsOn compileTestScala
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn 'compileTestScala'
   classpath += files(sourceSets.test.scala.destinationDirectory)
 }
 
-compileLatestDepTestGroovy {
-  dependsOn compileLatestDepTestScala
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  dependsOn 'compileLatestDepTestScala'
   classpath += files(sourceSets.latestDepTest.scala.destinationDirectory)
 }
 
-compileWeaver084TestGroovy {
-  dependsOn compileWeaver084TestScala
+tasks.named("compileWeaver084TestGroovy", GroovyCompile) {
+  dependsOn 'compileWeaver084TestScala'
   classpath += files(sourceSets.weaver084Test.scala.destinationDirectory)
 }
