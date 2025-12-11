@@ -123,7 +123,7 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     trace.longRunningTrackedState == LongRunningTracesTracker.EXPIRED
   }
 
-  def "agent disabled feature"() {
+  def "trace remains tracked but not written when agent long running feature not available"() {
     given:
     def trace = newTraceToTrack()
     tracker.add(trace)
@@ -133,7 +133,9 @@ class LongRunningTracesTrackerTest extends DDSpecification {
 
     then:
     1 * features.supportsLongRunning() >> false
-    tracker.traceArray.size() == 0
+    tracker.traceArray.size() == 1
+    tracker.traceArray[0].longRunningTrackedState == LongRunningTracesTracker.TRACKED
+    tracker.traceArray[0].getLastWriteTime() == 0
   }
 
   def flushAt(long timeMilli) {
@@ -200,5 +202,44 @@ class LongRunningTracesTrackerTest extends DDSpecification {
     PrioritySampling.USER_DROP | 0 | LongRunningTracesTracker.NOT_TRACKED
     PrioritySampling.USER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
     PrioritySampling.SAMPLER_KEEP | 1 | LongRunningTracesTracker.WRITE_RUNNING_SPANS
+  }
+
+  def "getTracesAsJson with no traces"() {
+    when:
+    def json = tracker.getTracesAsJson()
+
+    then:
+    json == ""
+  }
+
+  def "getTracesAsJson with traces"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+
+    when:
+    def json = tracker.getTracesAsJson()
+
+    then:
+    json != null
+    !json.isEmpty()
+    json.contains('"service"')
+    json.contains('"name"')
+  }
+
+  def "testing tracer flare dump with trace"() {
+    given:
+    def trace = newTraceToTrack()
+    tracker.add(trace)
+
+    when:
+    def entries = PendingTraceBufferTest.buildAndExtractZip()
+
+    then:
+    entries.containsKey("long_running_traces.txt")
+
+    def jsonContent = entries["long_running_traces.txt"] as String
+    jsonContent.contains('"service"')
+    jsonContent.contains('"name"')
   }
 }
