@@ -7,6 +7,10 @@ on:
         description: 'The minor release tag (e.g. v1.54.0)'
         required: true
         type: string
+  # for testing
+  push:
+    branches:
+      - sarahchen6/pin-system-tests-workflow
 
 jobs:
   pin-system-tests:
