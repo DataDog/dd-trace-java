@@ -224,7 +224,6 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
       @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
     if (self == result || !canBeTainted(result)) {
@@ -746,7 +745,6 @@ public class StringModuleImpl implements StringModule {
 
   /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public String onStringReplace(
       @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
     final IastContext ctx = IastContext.Provider.get();
@@ -829,7 +827,6 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringValueOf(Object param, @Nonnull String result) {
     if (param == null || !canBeTainted(result)) {
       return;

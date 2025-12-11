@@ -4,6 +4,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.util.LRUCache;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
@@ -34,6 +35,9 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
   Aggregator(

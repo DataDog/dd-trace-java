@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
@@ -29,7 +28,6 @@ tasks.named("processResources") {
 sourceSets {
   "main_java6" {
     java.srcDirs "${project.projectDir}/src/main/java6"
-
   }
   main.resources.srcDir(includedAgentDir)
 }
@@ -43,7 +41,7 @@ tasks.named("compileJava") {
 }
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
 
@@ -105,6 +103,31 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/io/airlift/compress/lzo/**'
     exclude '**/io/airlift/compress/snappy/**'
     relocate 'io.airlift', 'datadog.io.airlift'
+
+    // Minimize JNA, removing native libraries for unsupported environments
+    exclude '**/com/sun/jna/aix-*/**'
+    exclude '**/com/sun/jna/freebsd-*/**'
+    exclude '**/com/sun/jna/linux-armel/**'
+    exclude '**/com/sun/jna/linux-mips64el/**'
+    exclude '**/com/sun/jna/linux-ppc/**'
+    exclude '**/com/sun/jna/linux-ppc64le/**'
+    exclude '**/com/sun/jna/linux-riscv64/**'
+    exclude '**/com/sun/jna/linux-s390x/**'
+    exclude '**/com/sun/jna/openbsd-*/**'
+    exclude '**/com/sun/jna/sunos-*/**'
+
+    // Minimize JFFI, removing native libraries for unsupported environments
+    exclude '**/jni/*-AIX/**'
+    exclude '**/jni/*-DragonFlyBSD/**'
+    exclude '**/jni/*-FreeBSD/**'
+    exclude '**/jni/loongarch64-Linux/**'
+    exclude '**/jni/mips64el-Linux/**'
+    exclude '**/jni/ppc64-Linux/**'
+    exclude '**/jni/ppc64le-Linux/**'
+    exclude '**/jni/s390x-Linux/**'
+    exclude '**/jni/sparcv9-Linux/**'
+    exclude '**/jni/*-OpenBSD/**'
+    exclude '**/jni/*-SunOS/**'
 
     final String projectName = "${project.name}"
 

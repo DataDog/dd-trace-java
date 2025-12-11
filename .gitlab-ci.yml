@@ -364,6 +364,12 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    # TODO: Latest version of spotless is failing with OOM on CI only.
+    # Setting 8G memory solving this issue, but we need to solve it eventually.
+    GRADLE_MEM: 8G
+    KUBERNETES_MEMORY_REQUEST: 18Gi
+    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -722,7 +728,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_6
 
 test_ssi_smoke:
   extends: .test_job
@@ -733,7 +739,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_4
+    matrix: *test_matrix_6
 
 test_smoke_graalvm:
   extends: .test_job

@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -19,6 +20,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification = "Not a singleton")
 public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
 
@@ -222,6 +226,12 @@ public class AgentTaskScheduler implements Executor {
     } catch (final InterruptedException e) {
       // ignore, we only want to preload queue internals
     }
+    if (this == INSTANCE) {
+      // preload a future no-op task to ensure workQueue.take() will use await with timeout during
+      // premain - otherwise on Java 25 it will load ForkJoinPool which in turn loads ForkJoinTask,
+      // which then means we lose the chance to field-inject context into ForkJoinTask instances
+      workQueue.offer(FUTURE_NOOP_PLACEHOLDER);
+    }
   }
 
   // for testing
@@ -298,6 +308,9 @@ public class AgentTaskScheduler implements Executor {
   }
 
   private static final AtomicInteger TASK_SEQUENCE_GENERATOR = new AtomicInteger();
+
+  private static final PeriodicTask<Object> FUTURE_NOOP_PLACEHOLDER =
+      new PeriodicTask<>(null, new Scheduled<>(null), 10, 0, MINUTES);
 
   private static final class PeriodicTask<T> implements Delayed {
 

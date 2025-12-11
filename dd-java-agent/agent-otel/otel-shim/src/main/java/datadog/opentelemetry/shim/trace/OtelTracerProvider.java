@@ -1,56 +1,47 @@
 package datadog.opentelemetry.shim.trace;
 
+import datadog.trace.util.Strings;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;
 import io.opentelemetry.api.trace.TracerProvider;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
-public class OtelTracerProvider implements TracerProvider {
+public final class OtelTracerProvider implements TracerProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelTracerProvider.class);
   private static final String DEFAULT_TRACER_NAME = "";
+
   public static final TracerProvider INSTANCE = new OtelTracerProvider();
 
-  /** Tracer instances, indexed by instrumentation scope name. */
-  private final Map<String, Tracer> tracers;
-
-  public OtelTracerProvider() {
-    this.tracers = new HashMap<>();
-  }
+  /** Tracer shims, indexed by instrumentation scope name. */
+  private final Map<String, OtelTracer> tracers = new ConcurrentHashMap<>();
 
   @Override
   public Tracer get(String instrumentationScopeName) {
-    Tracer tracer = this.tracers.get(instrumentationScopeName);
-    if (tracer == null) {
-      tracer = tracerBuilder(instrumentationScopeName).build();
-      this.tracers.put(instrumentationScopeName, tracer);
-    }
-    return tracer;
+    return getTracerShim(instrumentationScopeName);
   }
 
   @Override
-  public Tracer get(String instrumentationScopeName, String instrumentationScopeVersion) {
-    Tracer tracer = this.tracers.get(instrumentationScopeName);
-    if (tracer == null) {
-      tracer =
-          tracerBuilder(instrumentationScopeName)
-              .setInstrumentationVersion(instrumentationScopeVersion)
-              .build();
-      this.tracers.put(instrumentationScopeName, tracer);
-    }
-    return tracer;
+  public Tracer get(
+      String instrumentationScopeName,
+      @SuppressWarnings("unused") String instrumentationScopeVersion) {
+    return getTracerShim(instrumentationScopeName);
   }
 
   @Override
   public TracerBuilder tracerBuilder(String instrumentationScopeName) {
-    if (instrumentationScopeName.trim().isEmpty()) {
+    return new OtelTracerBuilder(this, instrumentationScopeName);
+  }
+
+  OtelTracer getTracerShim(String instrumentationScopeName) {
+    if (Strings.isBlank(instrumentationScopeName)) {
       LOGGER.debug("Tracer requested without instrumentation scope name.");
       instrumentationScopeName = DEFAULT_TRACER_NAME;
     }
-    return new OtelTracerBuilder(instrumentationScopeName);
+    return tracers.computeIfAbsent(instrumentationScopeName, OtelTracer::new);
   }
 }

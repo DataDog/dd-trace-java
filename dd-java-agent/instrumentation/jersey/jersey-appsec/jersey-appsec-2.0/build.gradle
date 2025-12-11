@@ -17,7 +17,7 @@ muzzle {
     name = 'jersey_2+3'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
-    versions = '[2,4)'
+    versions = '[2,)'
     assertInverse = true
   }
   pass {

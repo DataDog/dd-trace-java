@@ -75,7 +75,9 @@ public class URICallSite {
     return result;
   }
 
-  /** @see #afterToString(URI, String) */
+  /**
+   * @see #afterToString(URI, String)
+   */
   @CallSite.After("java.lang.String java.net.URI.toASCIIString()")
   public static String afterToASCIIString(
       @CallSite.This final URI url, @CallSite.Return final String result) {
@@ -91,7 +93,9 @@ public class URICallSite {
     return result;
   }
 
-  /** @see #afterToString(URI, String) */
+  /**
+   * @see #afterToString(URI, String)
+   */
   @CallSite.After("java.net.URI java.net.URI.normalize()")
   public static URI afterNormalize(
       @CallSite.This final URI url, @CallSite.Return final URI result) {

@@ -15,10 +15,10 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
       @Nonnull final String qualifiedOperation) {
     // only aws sdk is right now implemented
     switch (qualifiedOperation) {
-        // sdk 1.x format
+      // sdk 1.x format
       case "SQS.SendMessage":
       case "SQS.SendMessageBatch":
-        // sdk 2.x format
+      // sdk 2.x format
       case "Sqs.SendMessage":
       case "Sqs.SendMessageBatch":
         return SpanNaming.instance().namingSchema().messaging().outboundOperation("sqs");

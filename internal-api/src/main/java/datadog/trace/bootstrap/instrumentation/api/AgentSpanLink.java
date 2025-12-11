@@ -9,6 +9,7 @@ import datadog.trace.api.DDTraceId;
 public interface AgentSpanLink {
   /** The default trace flags (no flag enabled). */
   byte DEFAULT_FLAGS = 0;
+
   /** The sampled flag denotes that the caller may have recorded trace data. */
   byte SAMPLED_FLAG = 1;
 
