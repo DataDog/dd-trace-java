@@ -4,8 +4,6 @@ import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -71,21 +69,18 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     }
     long hash = computeApiHash(route, method, statusCode);
     ctx.setApiSecurityEndpointHash(hash);
-
-    long currentTime = timeSource.getCurrentTimeMillis();
-    boolean isExpired = isApiAccessExpired(hash);
-
-    if (!isExpired) {
-      logSamplingDecision("preSampleRequest", currentTime, false, "not expired");
+    if (!isApiAccessExpired(hash)) {
       return false;
     }
     if (counter.tryAcquire()) {
       log.debug("API security sampling is required for this request (presampled)");
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
-      logSamplingDecision("preSampleRequest", currentTime, true, "acquired semaphore");
+      if (!Config.get().isApmTracingEnabled()) {
+        // Update immediately to prevent concurrent requests from seeing the same expired state
+        return updateApiAccessIfExpired(hash);
+      }
       return true;
     }
-    logSamplingDecision("preSampleRequest", currentTime, false, "semaphore full");
     return false;
   }
 
@@ -100,11 +95,7 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
       // This should never happen, it should have been short-circuited before.
       return false;
     }
-    long currentTime = timeSource.getCurrentTimeMillis();
-    boolean decision = updateApiAccessIfExpired(hash);
-    logSamplingDecision(
-        "sampleRequest", currentTime, decision, decision ? "sampled" : "already sampled");
-    return decision;
+    return Config.get().isApmTracingEnabled() ? updateApiAccessIfExpired(hash) : true;
   }
 
   @Override
@@ -180,28 +171,5 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     result = 31 * result + method.hashCode();
     result = 31 * result + statusCode;
     return result;
-  }
-
-  private void logSamplingDecision(String method, long timestamp, boolean decision, String reason) {
-    AgentSpan activeSpan = AgentTracer.get().activeSpan();
-    String traceId = "null";
-    String spanId = "null";
-
-    if (activeSpan != null) {
-      if (activeSpan.getTraceId() != null) {
-        traceId = activeSpan.getTraceId().toString();
-      }
-      spanId = String.valueOf(activeSpan.getSpanId());
-    }
-
-    log.info(
-        "[API_SECURITY_SAMPLING] method={}, timestamp={}, traceId={}, spanId={}, decision={}, reason={}, expirationTimeMs={}",
-        method,
-        timestamp,
-        traceId,
-        spanId,
-        decision,
-        reason,
-        expirationTimeInMs);
   }
 }
