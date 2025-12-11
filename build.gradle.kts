@@ -39,10 +39,10 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     googleJavaFormat("1.32.0")
   }
   groovyGradle {
-    greclipse()
+    greclipse(libs.versions.spotless.greclipse.get())
   }
   groovy {
-    greclipse()
+    greclipse(libs.versions.spotless.greclipse.get())
   }
   kotlinGradle {
     ktlint("1.8.0")

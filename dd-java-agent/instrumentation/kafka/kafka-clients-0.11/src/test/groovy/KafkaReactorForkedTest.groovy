@@ -173,9 +173,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def producerSpan(
-  TraceAssert trace,
-  Map<String, ?> config,
-  DDSpan parentSpan = null) {
+    TraceAssert trace,
+    Map<String, ?> config,
+    DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.produce"
@@ -200,9 +200,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def consumerSpan(
-  TraceAssert trace,
-  Map<String, Object> config,
-  DDSpan parentSpan = null) {
+    TraceAssert trace,
+    Map<String, Object> config,
+    DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.consume"

@@ -95,8 +95,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         handleDistributedRequest()
         String msg = "Hello."
         response.status(200)
-          .addHeader('x-datadog-test-response-header', 'baz')
-          .send(msg)
+        .addHeader('x-datadog-test-response-header', 'baz')
+        .send(msg)
       }
       prefix("/timeout") {
         Thread.sleep(10_000)
@@ -107,10 +107,10 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
           response.status(400).send('Bad content type')
         } else {
           response
-            .status(200)
-            .addHeader('Content-Type', 'application/json')
-            .addHeader('X-AppSec-Test', 'true')
-            .sendWithType('application/json', request.body)
+          .status(200)
+          .addHeader('Content-Type', 'application/json')
+          .addHeader('X-AppSec-Test', 'true')
+          .sendWithType('application/json', request.body)
         }
       }
     }
@@ -146,19 +146,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-        @Override
-        List<Proxy> select(URI uri) {
-          if (uri.fragment == "proxy") {
-            return proxyList
-          }
-          return getDefault().select(uri)
+      @Override
+      List<Proxy> select(URI uri) {
+        if (uri.fragment == "proxy") {
+          return proxyList
         }
-
-        @Override
-        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-          getDefault().connectFailed(uri, sa, ioe)
-        }
+        return getDefault().select(uri)
       }
+
+      @Override
+      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+        getDefault().connectFailed(uri, sa, ioe)
+      }
+    }
 
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)

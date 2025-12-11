@@ -106,33 +106,33 @@ class AppSecSpringBootSmokeTest extends AbstractServerSmokeTest  {
   def prepareCustomRules() {
     // Prepare ruleset with additional test rules
     mergeRules(
-    customRulesPath,
-    [
+      customRulesPath,
       [
-        id          : '__test_ssrf_block',
-        name        : 'Server-side request forgery exploit',
-        enable      : 'true',
-        tags        : [
-          type      : 'ssrf',
-          category  : 'vulnerability_trigger',
-          cwe       : '918',
-          capec     : '1000/225/115/664',
-          confidence: '0',
-          module    : 'rasp'
-        ],
-        conditions  : [
-          [
-            parameters: [
-              resource: [[address: 'server.io.net.url']],
-              params  : [[address: 'server.request.body']],
-            ],
-            operator  : "ssrf_detector",
+        [
+          id          : '__test_ssrf_block',
+          name        : 'Server-side request forgery exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'ssrf',
+            category  : 'vulnerability_trigger',
+            cwe       : '918',
+            capec     : '1000/225/115/664',
+            confidence: '0',
+            module    : 'rasp'
           ],
-        ],
-        transformers: [],
-        on_match    : ['block']
-      ]
-    ])
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.net.url']],
+                params  : [[address: 'server.request.body']],
+              ],
+              operator  : "ssrf_detector",
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ]
+      ])
   }
 
   @Override
@@ -162,9 +162,9 @@ class AppSecSpringBootSmokeTest extends AbstractServerSmokeTest  {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/java-net"
     final body = new FormBody.Builder()
-    .add("url" , "169.254.169.254")
-    .add("async", async)
-    .add("promise", promise ).build()
+      .add("url" , "169.254.169.254")
+      .add("async", async)
+      .add("promise", promise ).build()
     final request = new Request.Builder().url(url).post(body).build()
 
     when:

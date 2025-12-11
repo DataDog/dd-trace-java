@@ -44,8 +44,8 @@ class W3cPropagatorTracestateTest extends InstrumentationSpecification {
 
     when:
     def localSpan = tracer.spanBuilder("some-name")
-    .setParent(context)
-    .startSpan()
+      .setParent(context)
+      .startSpan()
     def scope = localSpan.makeCurrent()
     Map<String, String> injectedHeaders = [:]
     propagator.inject(current(), injectedHeaders, TextMap.INSTANCE)

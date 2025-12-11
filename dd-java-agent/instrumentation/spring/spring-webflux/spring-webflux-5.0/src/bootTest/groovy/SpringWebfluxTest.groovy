@@ -747,17 +747,17 @@ class SpringWebfluxTest extends InstrumentationSpecification {
   }
 
   def clientSpan(
-  TraceAssert trace,
-  Object parentSpan,
-  String operation,
-  String component,
-  String method = "GET",
-  URI uri,
-  Integer status = 200,
-  boolean error = false,
-  Throwable exception = null,
-  boolean tagQueryString = false,
-  Map<String, Serializable> extraTags = null) {
+    TraceAssert trace,
+    Object parentSpan,
+    String operation,
+    String component,
+    String method = "GET",
+    URI uri,
+    Integer status = 200,
+    boolean error = false,
+    Throwable exception = null,
+    boolean tagQueryString = false,
+    Map<String, Serializable> extraTags = null) {
     def ret
 
     def expectedQuery = tagQueryString ? uri.query : null

@@ -63,10 +63,10 @@ class JettyServer implements WebsocketServer {
     ServletContextHandler handler = new ServletContextHandler("/context-path")
     handler.errorHandler = errorHandler
     HttpServerTest.ServerEndpoint.values()
-    .findAll { !(it in [NOT_FOUND, UNKNOWN]) }
-    .each {
-      handler.servletHandler.addServletWithMapping(servlet, it.path)
-    }
+      .findAll { !(it in [NOT_FOUND, UNKNOWN]) }
+      .each {
+        handler.servletHandler.addServletWithMapping(servlet, it.path)
+      }
     handler
   }
 
@@ -163,18 +163,18 @@ class JettyServer implements WebsocketServer {
     @Override
     void onOpen(Session session, EndpointConfig endpointConfig) {
       session.addMessageHandler(new MessageHandler.Partial<String>() {
-        @Override
-        void onMessage(String s, boolean b) {
-          runUnderTrace("onRead", {})
-        }
-      })
+          @Override
+          void onMessage(String s, boolean b) {
+            runUnderTrace("onRead", {})
+          }
+        })
       session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
 
-        @Override
-        void onMessage(ByteBuffer buffer) {
-          runUnderTrace("onRead", {})
-        }
-      })
+          @Override
+          void onMessage(ByteBuffer buffer) {
+            runUnderTrace("onRead", {})
+          }
+        })
       Lock.activeSession = session
       synchronized (Lock) {
         Lock.notifyAll()

@@ -64,17 +64,17 @@ class JettyServer implements WebsocketServer {
     ServletContextHandler handler = new ServletContextHandler(null, "/context-path")
     handler.errorHandler = errorHandler
     HttpServerTest.ServerEndpoint.values()
-    .findAll { !(it in [NOT_FOUND, UNKNOWN]) }
-    .each {
-      handler.servletHandler.addServletWithMapping(servlet, it.path)
-    }
+      .findAll { !(it in [NOT_FOUND, UNKNOWN]) }
+      .each {
+        handler.servletHandler.addServletWithMapping(servlet, it.path)
+      }
     handler
   }
 
   static errorHandler = new ErrorHandler() {
     @Override
     protected void writeErrorPage(HttpServletRequest request, Writer writer, int code,
-    String message, boolean showStacks) throws IOException {
+      String message, boolean showStacks) throws IOException {
       Throwable th = (Throwable) request.getAttribute("jakarta.servlet.error.exception")
       message = th == null ? message : th instanceof ServletException ? th.getRootCause().message : th.message
       if (message) {
@@ -174,18 +174,18 @@ class JettyServer implements WebsocketServer {
     @Override
     void onOpen(Session session, EndpointConfig endpointConfig) {
       session.addMessageHandler(new MessageHandler.Partial<String>() {
-        @Override
-        void onMessage(String s, boolean b) {
-          runUnderTrace("onRead", {})
-        }
-      })
+          @Override
+          void onMessage(String s, boolean b) {
+            runUnderTrace("onRead", {})
+          }
+        })
       session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
 
-        @Override
-        void onMessage(ByteBuffer buffer) {
-          runUnderTrace("onRead", {})
-        }
-      })
+          @Override
+          void onMessage(ByteBuffer buffer) {
+            runUnderTrace("onRead", {})
+          }
+        })
       Lock.activeSession = session
       synchronized (Lock) {
         Lock.notifyAll()

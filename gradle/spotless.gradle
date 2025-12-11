@@ -37,7 +37,7 @@ spotless {
     } else {
       target '*.gradle'
     }
-    greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+    greclipse(libs.versions.spotless.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
 
   kotlinGradle {
@@ -60,7 +60,7 @@ spotless {
         // so it formats Java files by default (unless `excludeJava` is used).
       }
       targetExclude(buildDirectoryFiles)
-      greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+      greclipse(libs.versions.spotless.greclipse.get()).configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }
 

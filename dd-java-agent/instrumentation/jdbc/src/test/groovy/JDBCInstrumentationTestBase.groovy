@@ -1004,12 +1004,12 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
   Driver newDriver(String driverClass) {
     return ((Driver) Class.forName(driverClass)
-    .getDeclaredConstructor().newInstance())
+      .getDeclaredConstructor().newInstance())
   }
 
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
-    .connect(url, properties)
+      .connect(url, properties)
   }
 
   @Override
