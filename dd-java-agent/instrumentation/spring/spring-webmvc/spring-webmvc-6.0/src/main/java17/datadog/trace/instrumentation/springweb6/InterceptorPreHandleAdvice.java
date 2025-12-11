@@ -66,11 +66,7 @@ public class InterceptorPreHandleAdvice {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
-              brf.tryCommitBlockingResponse(
-                  reqCtx.getTraceSegment(),
-                  rba.getStatusCode(),
-                  rba.getBlockingContentType(),
-                  rba.getExtraHeaders());
+              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             }
             t =
                 new BlockingException(

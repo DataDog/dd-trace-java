@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "org.apache.kafka"
     module = "kafka-clients"
-    versions = "[3.8.0,)"
+    versions = "[3.8.0,5),[7.8.0,)"
     assertInverse = true
     javaVersion = "17"
   }

@@ -74,7 +74,7 @@ tasks.register("allTests") {
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
   dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true)
+    testTask.name.contains("latest", ignoreCase = true)
   })
 }
 
