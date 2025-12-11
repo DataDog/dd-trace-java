@@ -28,6 +28,20 @@ class ProcessBuilderHelper {
       String mainClassName,
       String... params) {
 
+    // Trick to prevent jul preferences file lock issue on forked processes, in particular in CI
+    // which runs on Linux and have competing processes trying to write to it, including the
+    // Gradle daemon.
+    //
+    //   Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
+    String prefsDir =
+        System.getProperty("java.io.tmpdir")
+            + File.separator
+            + "userPrefs"
+            + File.separator
+            + mainClassName
+            + "_"
+            + System.nanoTime();
+
     List<String> baseCommand =
         Arrays.asList(
             javaPath(),
@@ -37,7 +51,8 @@ class ProcessBuilderHelper {
             "-javaagent:" + agentShadowJar(),
             "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
             "-Ddd.env=smoketest",
-            "-Ddd.version=99");
+            "-Ddd.version=99",
+            "-Djava.util.prefs.userRoot=" + prefsDir);
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);

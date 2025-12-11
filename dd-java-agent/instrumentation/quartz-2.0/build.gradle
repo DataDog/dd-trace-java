@@ -3,6 +3,7 @@ muzzle {
     group = 'org.quartz-scheduler'
     module = 'quartz'
     versions = "[2.0.0,)"
+    skipVersions = ["1.7.0"] // missing on central
     assertInverse = true
     javaVersion = "11"
   }
