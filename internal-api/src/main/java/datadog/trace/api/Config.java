@@ -370,6 +370,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INSTRUMENTATION_SOURCE;
 import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.LOGS_CAPTURE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
@@ -885,6 +886,7 @@ public class Config {
   private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
+  private final boolean logsCaptureEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -1862,6 +1864,7 @@ public class Config {
           configProvider.getBoolean(
               LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
     }
+    logsCaptureEnabled = configProvider.getBoolean(LOGS_CAPTURE_ENABLED, false);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -3509,6 +3512,10 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public boolean isLogsCaptureEnabled() {
+    return logsCaptureEnabled;
   }
 
   public boolean isReportHostName() {

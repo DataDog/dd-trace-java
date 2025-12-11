@@ -156,6 +156,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     }
     writer.name("data_streams_enabled");
     writer.value(config.isDataStreamsEnabled());
+    writer.name("logs_capture_enabled");
+    writer.value(config.isLogsCaptureEnabled());
     writer.endObject();
   }
 
