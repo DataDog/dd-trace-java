@@ -9,10 +9,11 @@ import java.util.SortedMap
 
 abstract class AbstractMuzzleReportTask : AbstractMuzzleTask() {
   @get:OutputFile
-  val versionsFile: Provider<RegularFile> = project.rootProject
-    .layout
-    .buildDirectory
-    .file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv")
+  val versionsFile: Provider<RegularFile> =
+    project.rootProject
+      .layout
+      .buildDirectory
+      .file("$MUZZLE_DEPS_RESULTS/${project.pathSlug}.csv")
 
   internal fun dumpVersionsToCsv(versions: SortedMap<String, TestedArtifact>) {
     with(project.file(versionsFile)) {

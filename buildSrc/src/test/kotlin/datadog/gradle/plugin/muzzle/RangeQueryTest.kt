@@ -14,10 +14,11 @@ class RangeQueryTest {
   fun `test range request`() {
     // compile group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.0', ext: 'pom'
     val directiveArtifact: Artifact = DefaultArtifact("org.codehaus.groovy", "groovy-all", "jar", "[2.5.0,2.5.8)")
-    val rangeRequest = VersionRangeRequest().apply {
-      repositories = MuzzleMavenRepoUtils.MUZZLE_REPOS
-      artifact = directiveArtifact
-    }
+    val rangeRequest =
+      VersionRangeRequest().apply {
+        repositories = MuzzleMavenRepoUtils.MUZZLE_REPOS
+        artifact = directiveArtifact
+      }
 
     // This call makes an actual network request, which may fail if network access is limited.
     val rangeResult = system.resolveVersionRange(session, rangeRequest)

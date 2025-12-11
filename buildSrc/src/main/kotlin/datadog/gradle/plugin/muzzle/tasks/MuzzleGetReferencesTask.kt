@@ -18,9 +18,8 @@ import javax.inject.Inject
 @CacheableTask
 abstract class MuzzleGetReferencesTask @Inject constructor(
   providers: ProviderFactory,
-  objects: ObjectFactory,
+  objects: ObjectFactory
 ) : AbstractMuzzleTask() {
-
   @get:Inject
   abstract val buildEventsListenerRegistry: BuildEventsListenerRegistry
 
@@ -35,19 +34,22 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
 
   // This output is only used to make the task cacheable, this is not exposed
   @get:OutputFile
-  val outputFile = objects.fileProperty().convention(
-    project.layout.buildDirectory.file("reports/references.txt")
-  )
+  val outputFile =
+    objects.fileProperty().convention(
+      project.layout.buildDirectory.file("reports/references.txt")
+    )
 
   @TaskAction
   fun printMuzzle() {
     val cl = URLClassLoader(classpath.get().map { it.toURI().toURL() }.toTypedArray(), null)
-    val printMethod: Method = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
-      .getMethod(
-        "printMuzzleReferences",
-        ClassLoader::class.java,
-        PrintWriter::class.java,
-      )
+    val printMethod: Method =
+      cl
+        .loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
+        .getMethod(
+          "printMuzzleReferences",
+          ClassLoader::class.java,
+          PrintWriter::class.java,
+        )
     val stringWriter = StringWriter()
     printMethod.invoke(null, cl, PrintWriter(stringWriter))
 

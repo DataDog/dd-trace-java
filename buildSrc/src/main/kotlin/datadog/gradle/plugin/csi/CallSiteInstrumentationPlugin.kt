@@ -17,7 +17,6 @@ import org.gradle.api.tasks.SourceSet.TEST_SOURCE_SET_NAME
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
-import org.gradle.internal.configuration.problems.projectPathFrom
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.apply
@@ -51,15 +50,19 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     configureTestConfigurations(project, csiExtension)
   }
 
-  private fun configureSourceSets(project: Project, extension: CallSiteInstrumentationExtension) {
+  private fun configureSourceSets(
+    project: Project,
+    extension: CallSiteInstrumentationExtension
+  ) {
     // create a new source set for the csi files
     val sourceSets = project.sourceSets
     val mainSourceSet = sourceSets.named(MAIN_SOURCE_SET_NAME).get()
-    val csiSourceSet = sourceSets.create(CSI_SOURCE_SET) {
-      compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
-      annotationProcessorPath += mainSourceSet.annotationProcessorPath
-      java.srcDir(extension.targetFolder)
-    }
+    val csiSourceSet =
+      sourceSets.create(CSI_SOURCE_SET) {
+        compileClasspath += mainSourceSet.output // mainly needed for the plugin tests
+        annotationProcessorPath += mainSourceSet.annotationProcessorPath
+        java.srcDir(extension.targetFolder)
+      }
 
     project.configurations.named(csiSourceSet.compileClasspathConfigurationName) {
       extendsFrom(project.configurations.named(mainSourceSet.compileClasspathConfigurationName).get())
@@ -92,7 +95,10 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     return file
   }
 
-  private fun configureTestConfigurations(project: Project, csiExtension: CallSiteInstrumentationExtension) {
+  private fun configureTestConfigurations(
+    project: Project,
+    csiExtension: CallSiteInstrumentationExtension
+  ) {
     project.pluginManager.withPlugin("jvm-test-suite") {
       project.extensions.getByType<TestingExtension>().suites.withType<JvmTestSuite>().configureEach {
         project.logger.info("Configuring jvm test suite '{}' to use csiExtension.targetFolder", name)
@@ -110,81 +116,87 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     mainCompileTask: TaskProvider<AbstractCompile>
   ) {
     val genTaskName = mainCompileTask.name.replace("compile", "generateCallSite")
-    val pluginJarFile = Paths.get(
-      csiExtension.rootFolder.getOrElse(project.rootDir).toString(),
-      "buildSrc",
-      "call-site-instrumentation-plugin",
-      "build",
-      "libs",
-      "call-site-instrumentation-plugin-all.jar"
-    )
+    val pluginJarFile =
+      Paths.get(
+        csiExtension.rootFolder.getOrElse(project.rootDir).toString(),
+        "buildSrc",
+        "call-site-instrumentation-plugin",
+        "build",
+        "libs",
+        "call-site-instrumentation-plugin-all.jar"
+      )
 
-    val callSiteGeneratorTask = project.tasks.register<JavaExec>(genTaskName) {
-      // Task description
-      group = "call site instrumentation"
-      description = "Generates call sites from ${mainCompileTask.name}"
+    val callSiteGeneratorTask =
+      project.tasks.register<JavaExec>(genTaskName) {
+        // Task description
+        group = "call site instrumentation"
+        description = "Generates call sites from ${mainCompileTask.name}"
 
-      // Remote Debug
-      if (project.providers.gradleProperty("debugCsiJar").isPresent) {
-        jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005")
-      }
+        // Remote Debug
+        if (project.providers.gradleProperty("debugCsiJar").isPresent) {
+          jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005")
+        }
 
-      // Task input & output
-      val output = csiExtension.targetFolder
-      val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
-      inputs.dir(inputProvider)
-      inputs.dir(csiExtension.srcFolder)
-      inputs.dir(csiExtension.rootFolder).optional()
-      inputs.file(pluginJarFile)
-      inputs.property("csi.suffix", csiExtension.suffix)
-      inputs.property("csi.javaVersion", csiExtension.javaVersion)
-      inputs.property("csi.jvmArgs", csiExtension.jvmArgs)
-      inputs.property("csi.reporters", csiExtension.reporters)
-      outputs.dir(output)
+        // Task input & output
+        val output = csiExtension.targetFolder
+        val inputProvider = mainCompileTask.flatMap { it.destinationDirectory }
+        inputs.dir(inputProvider)
+        inputs.dir(csiExtension.srcFolder)
+        inputs.dir(csiExtension.rootFolder).optional()
+        inputs.file(pluginJarFile)
+        inputs.property("csi.suffix", csiExtension.suffix)
+        inputs.property("csi.javaVersion", csiExtension.javaVersion)
+        inputs.property("csi.jvmArgs", csiExtension.jvmArgs)
+        inputs.property("csi.reporters", csiExtension.reporters)
+        outputs.dir(output)
 
-      // JavaExec configuration
-      javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(csiExtension.javaVersion)
-      })
-
-      jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
-      classpath(pluginJarFile)
-      mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
-
-      // Write the call site instrumenter arguments into a temporary file
-      doFirst {
-        val callsitesClassPath = project.files(
-          project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
-          project.defaultConfigurations,
-          csiExtension.additionalPaths,
+        // JavaExec configuration
+        javaLauncher.set(
+          javaToolchains.launcherFor {
+            languageVersion.set(csiExtension.javaVersion)
+          }
         )
 
-        if (logger.isInfoEnabled) {
-          logger.info(
-            "Aggregated CSI classpath:\n{}",
-            callsitesClassPath.toSet().sorted().joinToString("\n") { it.toString() }
-          )
+        jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
+        classpath(pluginJarFile)
+        mainClass.set(CALL_SITE_INSTRUMENTER_MAIN_CLASS)
+
+        // Write the call site instrumenter arguments into a temporary file
+        doFirst {
+          val callSitesClassPath =
+            project.files(
+              project.sourceSets.named(MAIN_SOURCE_SET_NAME).map { it.output },
+              project.defaultConfigurations,
+              csiExtension.additionalPaths,
+            )
+
+          if (logger.isInfoEnabled) {
+            logger.info(
+              "Aggregated CSI classpath:\n{}",
+              callSitesClassPath.toSet().sorted().joinToString("\n") { it.toString() }
+            )
+          }
+
+          val argFile =
+            buildList {
+              add(csiExtension.srcFolder.get().asFile.toString())
+              add(inputProvider.get().asFile.toString())
+              add(output.get().asFile.toString())
+              add(csiExtension.suffix.get())
+              add(csiExtension.reporters.get().joinToString(","))
+
+              // module program classpath
+              addAll(callSitesClassPath.map { it.toString() })
+            }
+
+          val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
+          Files.write(argumentFile.toPath(), argFile)
+          args(argumentFile.toString())
         }
 
-        val argFile = buildList {
-          add(csiExtension.srcFolder.get().asFile.toString())
-          add(inputProvider.get().asFile.toString())
-          add(output.get().asFile.toString())
-          add(csiExtension.suffix.get())
-          add(csiExtension.reporters.get().joinToString(","))
-
-          // module program classpath
-          addAll(callsitesClassPath.map { it.toString() })
-        }
-
-        val argumentFile = newTempFile(temporaryDir, "call-site-arguments")
-        Files.write(argumentFile.toPath(), argFile)
-        args(argumentFile.toString())
+        // make task depends on compile
+        dependsOn(mainCompileTask)
       }
-
-      // make task depends on compile
-      dependsOn(mainCompileTask)
-    }
 
     // Workaround for instrument plugin modifying compile tasks
     project.pluginManager.withPlugin("dd-trace-java.instrument") {
@@ -210,27 +222,30 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
   }
 
   private val Project.defaultConfigurations: NamedDomainObjectSet<Configuration>
-    get() = project.configurations.matching {
-      // Includes all main* source sets, but only the test (as wee don;t want other )
-      // * For main => runtimeClasspath, compileClasspath
-      // * For test => testRuntimeClasspath, testCompileClasspath
-      // * For other main* => "main_javaXXRuntimeClasspath", "main_javaXXCompileClasspath"
+    get() =
+      project.configurations.matching {
+        // Includes all main* source sets, but only the test (as wee don;t want other )
+        // * For main => runtimeClasspath, compileClasspath
+        // * For test => testRuntimeClasspath, testCompileClasspath
+        // * For other main* => "main_javaXXRuntimeClasspath", "main_javaXXCompileClasspath"
 
-      when (it.name) {
-        // Regular main and test source sets
-        RUNTIME_CLASSPATH_CONFIGURATION_NAME,
-        COMPILE_CLASSPATH_CONFIGURATION_NAME,
-        TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
-        TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
+        when (it.name) {
+          // Regular main and test source sets
+          RUNTIME_CLASSPATH_CONFIGURATION_NAME,
+          COMPILE_CLASSPATH_CONFIGURATION_NAME,
+          TEST_SOURCE_SET_NAME + RUNTIME_CLASSPATH_CONFIGURATION_NAME.capitalize(),
+          TEST_SOURCE_SET_NAME + COMPILE_CLASSPATH_CONFIGURATION_NAME.capitalize() -> true
 
-        else -> false
+          else -> false
+        }
       }
-    }
 
   private fun String.capitalize(): String = replaceFirstChar {
-    if (it.isLowerCase()) it.titlecase(
-      Locale.getDefault()
-    ) else it.toString()
+    if (it.isLowerCase()) {
+      it.titlecase(Locale.getDefault())
+    } else {
+      it.toString()
+    }
   }
 
   private val Project.sourceSets: SourceSetContainer
