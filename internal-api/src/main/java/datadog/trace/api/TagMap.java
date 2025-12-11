@@ -2695,8 +2695,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public <T> void forEach(
-      T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(thisObj, TagMap.Entry.newAnyEntry(entry));
     }
