@@ -5,7 +5,7 @@
 * @DataDog/apm-java
 
 # shared ownership
-/dd-smoke-tests/play-2.6/ @DataDog/asm-java @DataDog/apm-idm-java
+/dd-smoke-tests/play-*/ @DataDog/asm-java @DataDog/apm-idm-java
 
 # @DataDog/apm-idm-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
