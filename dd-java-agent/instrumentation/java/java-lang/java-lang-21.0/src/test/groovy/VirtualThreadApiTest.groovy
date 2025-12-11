@@ -6,6 +6,13 @@ import datadog.trace.test.util.Flaky
 // Note: test builder x2 + test factory can be refactored but are kept simple to ease with debugging.
 @Flaky("class loader deadlock on virtual thread clean up while Groovy do dynamic code generation - APMLP-782")
 class VirtualThreadApiTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig('dd.trace.java.lang.21.enabled=true', 'true')
+  }
+
   def "test Thread.Builder.OfVirtual - start()"() {
     setup:
     def threadBuilder = Thread.ofVirtual().name("builder - started")

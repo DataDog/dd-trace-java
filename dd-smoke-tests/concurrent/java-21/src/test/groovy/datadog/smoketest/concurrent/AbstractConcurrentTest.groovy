@@ -18,6 +18,7 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.trace.otel.enabled=true")
+    command.add("-Ddd.trace.java.lang.21.enabled=true")
     command.addAll(["-jar", jarPath])
     command.addAll(getTestArguments())
 
