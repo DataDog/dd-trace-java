@@ -186,24 +186,18 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     if (!log.isDebugEnabled()) {
       return;
     }
-
-    final long timestamp = timeSource.getCurrentTimeMillis();
     AgentSpan activeSpan = AgentTracer.get().activeSpan();
 
     if (activeSpan != null) {
       log.debug(
-          "API security sampling decision in {}: hash={}, traceId={}, spanId={}, timestamp={}",
+          "API security sampling decision in {}: hash={}, traceId={}, spanId={}",
           method,
           hash,
           activeSpan.getTraceId(),
-          activeSpan.getSpanId(),
-          timestamp);
+          activeSpan.getSpanId());
     } else {
       log.debug(
-          "API security sampling decision in {}: hash={}, traceId=null, spanId=null, timestamp={}",
-          method,
-          hash,
-          timestamp);
+          "API security sampling decision in {}: hash={}, traceId=null, spanId=null", method, hash);
     }
   }
 }
