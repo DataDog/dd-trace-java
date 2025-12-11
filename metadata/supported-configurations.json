@@ -139,7 +139,7 @@
     ],
     "DD_API_SECURITY_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_EXPERIMENTAL_API_SECURITY_ENABLED"]
@@ -251,7 +251,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
-        "version": "C",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -259,7 +259,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON": [
       {
-        "version": "C",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -347,7 +347,7 @@
     ],
     "DD_APPSEC_RULES": [
       {
-        "version": "C",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -371,7 +371,7 @@
     ],
     "DD_APPSEC_STACK_TRACE_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_APPSEC_STACKTRACE_ENABLED"]
@@ -2195,7 +2195,7 @@
     ],
     "DD_MEASURE_METHODS": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -2339,7 +2339,7 @@
     ],
     "DD_PROFILING_ALLOCATION_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
@@ -3147,7 +3147,7 @@
     ],
     "DD_PROPAGATION_STYLE_EXTRACT": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3155,7 +3155,7 @@
     ],
     "DD_PROPAGATION_STYLE_INJECT": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3947,7 +3947,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_EXECUTOR_TASK_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3955,7 +3955,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_POOL_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3963,7 +3963,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_TASK_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -4547,7 +4547,7 @@
     ],
     "DD_TRACE_AXIS_TRANSPORT_CLASS_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -5115,7 +5115,7 @@
     ],
     "DD_TRACE_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -5275,7 +5275,7 @@
     ],
     "DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -5691,7 +5691,7 @@
     ],
     "DD_TRACE_GRPC_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_GRPC_ANALYTICS_SAMPLE_RATE"]
@@ -6003,7 +6003,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_ENABLED"]
@@ -6011,7 +6011,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_HTTPCLIENT_ANALYTICS_SAMPLE_RATE"]
@@ -6019,7 +6019,7 @@
     ],
     "DD_TRACE_HTTPCLIENT_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_HTTPCLIENT_ENABLED", "DD_TRACE_INTEGRATION_HTTPCLIENT_ENABLED"]
@@ -6075,7 +6075,7 @@
     ],
     "DD_TRACE_HTTP_CLIENT_ERROR_STATUSES": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "400-499",
         "aliases": ["DD_HTTP_CLIENT_ERROR_STATUSES"]
@@ -6115,7 +6115,7 @@
     ],
     "DD_TRACE_HTTP_SERVER_ERROR_STATUSES": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "500-599",
         "aliases": ["DD_HTTP_SERVER_ERROR_STATUSES"]
@@ -6131,7 +6131,7 @@
     ],
     "DD_TRACE_HTTP_URL_CONNECTION_CLASS_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -6723,7 +6723,7 @@
     ],
     "DD_TRACE_JDBC_CONNECTION_CLASS_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -6763,7 +6763,7 @@
     ],
     "DD_TRACE_JDBC_PREPARED_STATEMENT_CLASS_NAME": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": "",
         "aliases": []
@@ -7259,7 +7259,7 @@
     ],
     "DD_TRACE_KAFKA_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_KAFKA_ANALYTICS_SAMPLE_RATE"]
@@ -7291,7 +7291,7 @@
     ],
     "DD_TRACE_KAFKA_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_KAFKA_ENABLED", "DD_TRACE_INTEGRATION_KAFKA_ENABLED"]
@@ -7635,7 +7635,7 @@
     ],
     "DD_TRACE_MONGO_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_MONGO_ANALYTICS_SAMPLE_RATE"]
@@ -7643,7 +7643,7 @@
     ],
     "DD_TRACE_MONGO_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_MONGO_ENABLED", "DD_TRACE_INTEGRATION_MONGO_ENABLED"]
@@ -7947,7 +7947,7 @@
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_OPENSEARCH_ANALYTICS_ENABLED"]
@@ -7955,7 +7955,7 @@
     ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_OPENSEARCH_ANALYTICS_SAMPLE_RATE"]
@@ -8691,7 +8691,7 @@
     ],
     "DD_TRACE_REDIS_ANALYTICS_SAMPLE_RATE": [
       {
-        "version": "B",
+        "version": "A",
         "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_REDIS_ANALYTICS_SAMPLE_RATE"]
@@ -8699,7 +8699,7 @@
     ],
     "DD_TRACE_REDIS_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_REDIS_ENABLED", "DD_INTEGRATION_REDIS_ENABLED"]
@@ -9987,7 +9987,7 @@
     ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [
       {
-        "version": "C",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
