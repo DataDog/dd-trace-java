@@ -34,6 +34,7 @@ dependencies {
 
 configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
+    force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.spockframework', name: 'spock-core', version: "2.4-M7-groovy-${spockGroovyVersion}"
   }
 })
