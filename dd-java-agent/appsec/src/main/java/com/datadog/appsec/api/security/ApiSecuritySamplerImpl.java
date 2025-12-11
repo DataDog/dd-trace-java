@@ -77,7 +77,6 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
     if (counter.tryAcquire()) {
       ctx.setKeepOpenForApiSecurityPostProcessing(true);
       if (!Config.get().isApmTracingEnabled()) {
-        // Update immediately to prevent concurrent requests from seeing the same expired state
         boolean sampled = updateApiAccessIfExpired(hash);
         if (sampled) {
           logSamplingDecision("preSampleRequest", hash);
