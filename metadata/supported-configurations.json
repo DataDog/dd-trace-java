@@ -173,7 +173,7 @@
       {
         "version": "A",
         "type": "decimal",
-        "default": "30.0",
+        "default": "30",
         "aliases": []
       }
     ],
@@ -2171,7 +2171,7 @@
     ],
     "DD_LOGS_INJECTION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3531,7 +3531,7 @@
     ],
     "DD_SPAN_SAMPLING_RULES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -3707,7 +3707,7 @@
     ],
     "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
       {
-        "version": "A",
+        "version": "B",
         "type": "decimal",
         "default": "60.0",
         "aliases": []
@@ -5051,7 +5051,7 @@
     ],
     "DD_TRACE_DEBUG": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -8995,7 +8995,7 @@
     ],
     "DD_TRACE_SAMPLE_RATE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "decimal",
         "default": null,
         "aliases": []
