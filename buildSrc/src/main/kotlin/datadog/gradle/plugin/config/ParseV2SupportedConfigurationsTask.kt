@@ -236,7 +236,6 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
       out.println("    return Collections.unmodifiableMap(reversePropertyKeysMapping);")
       out.println("  }")
-
       out.println("}")
     }
   }
