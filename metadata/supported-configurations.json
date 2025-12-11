@@ -51,7 +51,7 @@
     ],
     "DD_AGENT_HOST": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -139,7 +139,7 @@
     ],
     "DD_API_SECURITY_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_EXPERIMENTAL_API_SECURITY_ENABLED"]
@@ -219,7 +219,7 @@
     ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -227,7 +227,7 @@
     ],
     "DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -251,7 +251,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -259,7 +259,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -307,7 +307,7 @@
     ],
     "DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP": [
       {
-        "version": "A",
+        "version": "D",
         "type": "string",
         "default": null,
         "aliases": []
@@ -315,7 +315,7 @@
     ],
     "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP": [
       {
-        "version": "A",
+        "version": "D",
         "type": "string",
         "default": null,
         "aliases": []
@@ -347,7 +347,7 @@
     ],
     "DD_APPSEC_RULES": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -371,7 +371,7 @@
     ],
     "DD_APPSEC_STACK_TRACE_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_APPSEC_STACKTRACE_ENABLED"]
@@ -403,7 +403,7 @@
     ],
     "DD_AZURE_APP_SERVICES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -563,7 +563,7 @@
     ],
     "DD_CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -883,7 +883,7 @@
     ],
     "DD_CODE_ORIGIN_FOR_SPANS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -1123,7 +1123,7 @@
     ],
     "DD_DOGSTATSD_HOST": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -1251,7 +1251,7 @@
     ],
     "DD_DYNAMIC_INSTRUMENTATION_PROBE_FILE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -1275,7 +1275,7 @@
     ],
     "DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -1315,7 +1315,7 @@
     ],
     "DD_DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -1427,7 +1427,7 @@
     ],
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -1555,7 +1555,7 @@
     ],
     "DD_GRPC_CLIENT_ERROR_STATUSES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}",
         "aliases": []
@@ -1563,7 +1563,7 @@
     ],
     "DD_GRPC_SERVER_ERROR_STATUSES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}",
         "aliases": []
@@ -1731,7 +1731,7 @@
     ],
     "DD_IAST_MAX_CONCURRENT_REQUESTS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
         "default": "4",
         "aliases": []
@@ -1755,7 +1755,7 @@
     ],
     "DD_IAST_REDACTION_NAME_PATTERN": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)",
         "aliases": []
@@ -1763,7 +1763,7 @@
     ],
     "DD_IAST_REDACTION_VALUE_PATTERN": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))",
         "aliases": []
@@ -1771,7 +1771,7 @@
     ],
     "DD_IAST_REQUEST_SAMPLING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "decimal",
         "default": "33.0",
         "aliases": []
@@ -1819,7 +1819,7 @@
     ],
     "DD_IAST_STACK_TRACE_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_IAST_STACKTRACE_ENABLED"]
@@ -1835,7 +1835,7 @@
     ],
     "DD_IAST_TELEMETRY_VERBOSITY": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "INFORMATION",
         "aliases": []
@@ -1867,7 +1867,7 @@
     ],
     "DD_IAST_WEAK_HASH_ALGORITHMS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "[\"SHA1\", \"SHA-1\", \"MD2\", \"RIPEMD128\", \"MD4\", \"MD5\"]",
         "aliases": []
@@ -1891,7 +1891,7 @@
     ],
     "DD_INJECTION_ENABLED": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -1907,7 +1907,7 @@
     ],
     "DD_INSTRUMENTATION_CONFIG_ID": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -2147,7 +2147,7 @@
     ],
     "DD_LLMOBS_AGENTLESS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -2163,7 +2163,7 @@
     ],
     "DD_LLMOBS_ML_APP": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -2187,7 +2187,7 @@
     ],
     "DD_LOG_LEVEL": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -2195,7 +2195,7 @@
     ],
     "DD_MEASURE_METHODS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -2259,7 +2259,7 @@
     ],
     "DD_OTLP_METRICS_HEADERS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "map",
         "default": null,
         "aliases": []
@@ -2339,7 +2339,7 @@
     ],
     "DD_PROFILING_ALLOCATION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
@@ -3075,7 +3075,7 @@
     ],
     "DD_PROFILING_TEMPDIR": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "System.getProperty(\"java.io.tmpdir\")",
         "aliases": []
@@ -3147,7 +3147,7 @@
     ],
     "DD_PROPAGATION_STYLE_EXTRACT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3155,7 +3155,7 @@
     ],
     "DD_PROPAGATION_STYLE_INJECT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3467,7 +3467,7 @@
     ],
     "DD_RUNTIME_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3475,7 +3475,7 @@
     ],
     "DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3483,7 +3483,7 @@
     ],
     "DD_SERVICE": [
       {
-        "version": "A",
+        "version": "D",
         "type": "string",
         "default": null,
         "aliases": ["DD_SERVICE_NAME"]
@@ -3491,7 +3491,7 @@
     ],
     "DD_SERVICE_MAPPING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "map",
         "default": null,
         "aliases": []
@@ -3515,7 +3515,7 @@
     ],
     "DD_SITE": [
       {
-        "version": "A",
+        "version": "C",
         "type": "string",
         "default": "datadoghq.com",
         "aliases": []
@@ -3867,7 +3867,7 @@
     ],
     "DD_TRACE_AGENT_PORT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
         "default": "-1",
         "aliases": ["DD_AGENT_PORT"]
@@ -3947,7 +3947,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_EXECUTOR_TASK_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3955,7 +3955,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_POOL_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -3963,7 +3963,7 @@
     ],
     "DD_TRACE_AKKA_FORK_JOIN_TASK_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -4547,7 +4547,7 @@
     ],
     "DD_TRACE_AXIS_TRANSPORT_CLASS_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -4619,7 +4619,7 @@
     ],
     "DD_TRACE_BAGGAGE_TAG_KEYS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "array",
         "default": "[\"user.id\", \"session.id\", \"account.id\"]",
         "aliases": []
@@ -4763,7 +4763,7 @@
     ],
     "DD_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "[\"S3\", \"Sqs\", \"Kinesis\", \"Sns\", \"DynamoDB\", \"ApiGatewayV2\", \"EventBridge\", \"ApiGateway\"]",
         "aliases": []
@@ -4987,7 +4987,7 @@
     ],
     "DD_TRACE_DBCP2_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_DBCP2_ENABLED", "DD_TRACE_INTEGRATION_DBCP2_ENABLED"]
@@ -5275,7 +5275,7 @@
     ],
     "DD_TRACE_EXPERIMENTAL_FEATURES_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -5931,7 +5931,7 @@
     ],
     "DD_TRACE_HIKARI_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_HIKARI_ENABLED", "DD_TRACE_INTEGRATION_HIKARI_ENABLED"]
@@ -6075,7 +6075,7 @@
     ],
     "DD_TRACE_HTTP_CLIENT_ERROR_STATUSES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "400-499",
         "aliases": ["DD_HTTP_CLIENT_ERROR_STATUSES"]
@@ -6115,7 +6115,7 @@
     ],
     "DD_TRACE_HTTP_SERVER_ERROR_STATUSES": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "500-599",
         "aliases": ["DD_HTTP_SERVER_ERROR_STATUSES"]
@@ -6131,7 +6131,7 @@
     ],
     "DD_TRACE_HTTP_URL_CONNECTION_CLASS_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -6723,7 +6723,7 @@
     ],
     "DD_TRACE_JDBC_CONNECTION_CLASS_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -6763,7 +6763,7 @@
     ],
     "DD_TRACE_JDBC_PREPARED_STATEMENT_CLASS_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "",
         "aliases": []
@@ -7091,7 +7091,7 @@
     ],
     "DD_TRACE_JMXFETCH_{CHECK_NAME}_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_JMXFETCH_{CHECK_NAME}_ENABLED"]
@@ -7859,7 +7859,7 @@
     ],
     "DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": ["DD_OBFUSCATION_QUERY_STRING_REGEXP"]
@@ -8107,7 +8107,7 @@
     ],
     "DD_TRACE_PARTIAL_FLUSH_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -8115,7 +8115,7 @@
     ],
     "DD_TRACE_PARTIAL_FLUSH_MIN_SPANS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
         "default": "1000",
         "aliases": []
@@ -8387,7 +8387,7 @@
     ],
     "DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "continue",
         "aliases": []
@@ -8403,7 +8403,7 @@
     ],
     "DD_TRACE_PROPAGATION_STYLE": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -8419,7 +8419,7 @@
     ],
     "DD_TRACE_PROPAGATION_STYLE_EXTRACT": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -8427,7 +8427,7 @@
     ],
     "DD_TRACE_PROPAGATION_STYLE_INJECT": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -9019,7 +9019,7 @@
     ],
     "DD_TRACE_SAMPLING_RULES": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -9499,7 +9499,7 @@
     ],
     "DD_TRACE_SPAN_ATTRIBUTE_SCHEMA": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "v0",
         "aliases": []
@@ -9979,7 +9979,7 @@
     ],
     "DD_TRACE_STARTUP_LOGS": [
       {
-        "version": "A",
+        "version": "C",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -9987,7 +9987,7 @@
     ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [
       {
-        "version": "B",
+        "version": "C",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
@@ -10707,7 +10707,7 @@
     ],
     "DD_TRACE_WEBSOCKET_MESSAGES_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -10771,7 +10771,7 @@
     ],
     "DD_TRIAGE_REPORT_DIR": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "getProp(\"java.io.tmpdir\")",
         "aliases": []
@@ -10891,7 +10891,7 @@
     ],
     "OTEL_LOG_LEVEL": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10899,7 +10899,7 @@
     ],
     "OTEL_METRICS_EXPORTER": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10931,7 +10931,7 @@
     ],
     "OTEL_SERVICE_NAME": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10939,7 +10939,7 @@
     ],
     "OTEL_TRACES_EXPORTER": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10947,7 +10947,7 @@
     ],
     "OTEL_TRACES_SAMPLER_ARG": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10955,7 +10955,7 @@
     ],
     "OTEL_TRACES_SAMPLER": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": null,
         "aliases": []
@@ -10987,7 +10987,7 @@
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "map",
         "default": null,
         "aliases": []
@@ -10995,7 +10995,7 @@
     ],
     "OTEL_EXPORTER_OTLP_PROTOCOL": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -11019,7 +11019,7 @@
     ],
     "OTEL_EXPORTER_OTLP_METRICS_HEADERS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -11035,7 +11035,7 @@
     ],
     "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
         "default": "10000",
         "aliases": []
@@ -11043,7 +11043,7 @@
     ],
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
