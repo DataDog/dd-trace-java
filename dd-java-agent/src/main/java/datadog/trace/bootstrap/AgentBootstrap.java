@@ -142,10 +142,17 @@ public final class AgentBootstrap {
       recordInstrumentationSource("cmd_line");
     }
 
+    String agentClassName;
+    if ("aot_training".equalsIgnoreCase(agentArgs)) {
+      agentClassName = "datadog.trace.bootstrap.aot.TrainingAgent";
+    } else {
+      agentClassName = "datadog.trace.bootstrap.Agent";
+    }
+
     final URL agentJarURL = installAgentJar(inst);
     final Class<?> agentClass;
     try {
-      agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+      agentClass = Class.forName(agentClassName, true, null);
     } catch (ClassNotFoundException | LinkageError e) {
       throw new IllegalStateException("Unable to load DD Java Agent.", e);
     }
