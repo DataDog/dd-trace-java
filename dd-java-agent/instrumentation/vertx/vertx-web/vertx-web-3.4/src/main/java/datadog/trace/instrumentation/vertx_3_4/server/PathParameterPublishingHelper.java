@@ -49,11 +49,7 @@ public class PathParameterPublishingHelper {
             log.warn("Can't block. Don't know how to block on this server");
           } else {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            brf.tryCommitBlockingResponse(
-                requestContext.getTraceSegment(),
-                rba.getStatusCode(),
-                rba.getBlockingContentType(),
-                rba.getExtraHeaders());
+            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
 
             be = new BlockingException("Blocked request (for route/matches)");
           }
