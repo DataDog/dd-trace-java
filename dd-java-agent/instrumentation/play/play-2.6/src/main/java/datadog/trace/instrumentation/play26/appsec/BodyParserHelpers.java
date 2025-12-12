@@ -186,11 +186,7 @@ public class BodyParserHelpers {
       BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
       if (blockResponseFunction != null) {
         boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(
-                reqCtx.getTraceSegment(),
-                rba.getStatusCode(),
-                rba.getBlockingContentType(),
-                rba.getExtraHeaders());
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         if (success) {
           throw new BlockingException("Blocked request (for " + details + ")");
         }
