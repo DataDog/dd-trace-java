@@ -545,8 +545,8 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 17Gi
-    KUBERNETES_MEMORY_LIMIT: 17Gi
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     KUBERNETES_CPU_REQUEST: 10
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
@@ -731,7 +731,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_ssi_smoke:
   extends: .test_job
@@ -742,7 +742,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_smoke_graalvm:
   extends: .test_job
@@ -1008,7 +1008,7 @@ validate_supported_configurations_v2_local_file:
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-    BACKFILLED: "false"
+    BACKFILLED: "true"
 
 update_central_configurations_version_range_v2:
   extends: .update_central_configurations_version_range_v2
