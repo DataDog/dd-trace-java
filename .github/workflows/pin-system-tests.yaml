@@ -94,3 +94,4 @@ jobs:
             --label "tag: dependencies" \
             --label "tag: no release notes" \
             --body "This PR pins the system-tests reference for the release branch."
+            --draft
