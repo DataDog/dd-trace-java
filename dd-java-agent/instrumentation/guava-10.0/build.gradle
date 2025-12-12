@@ -24,3 +24,10 @@ dependencies {
 
   latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
 }
+
+// Exclude helper class from test execution to avoid JUnit 5.14+ discovering it as test
+tasks.withType(Test).configureEach {
+  filter {
+    excludeTestsMatching 'annotatedsample.GuavaTracedMethods*'
+  }
+}
