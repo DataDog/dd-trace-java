@@ -1,11 +1,11 @@
 issuer: https://token.actions.githubusercontent.com
 
-subject_pattern: repo:DataDog/dd-trace-java:ref:refs/heads/.+
+subject_pattern: repo:DataDog/dd-trace-java:ref:refs/heads/(master|test/v.+)
 
 claim_pattern:
-  event_name: (push|workflow_dispatch)
-  ref: refs/heads/.+
-  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/pin-system-tests\.yaml@refs/heads/.+
+  event_name: (create|workflow_dispatch)
+  ref: refs/heads/(master|test/v.+)
+  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/pin-system-tests\.yaml@refs/heads/(master|test/v.+)
 
 permissions:
   contents: write
