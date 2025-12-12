@@ -36,7 +36,7 @@ variables:
     value: "false"
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
-    value: "true"
+    value: "false"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
@@ -134,7 +134,7 @@ default:
   stage: build
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_MEM: "70.0"
+    GRADLE_MEM_PERCENTAGE: "70.0"
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 10Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
@@ -183,7 +183,7 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:MaxRAMPercentage=$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:MaxRAMPercentage=$GRADLE_MEM_PERCENTAGE -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -280,7 +280,7 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: "80.0"
+    GRADLE_MEM_PERCENTAGE: "80.0"
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   parallel:
@@ -363,7 +363,7 @@ spotless:
   stage: tests
   needs: []
   variables:
-    GRADLE_MEM: "80.0"
+    GRADLE_MEM_PERCENTAGE: "80.0"
     KUBERNETES_MEMORY_REQUEST: 18Gi
     KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
@@ -563,7 +563,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -Dorg.gradle.jvmargs='-XX:MaxRAMPercentage=$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -Dorg.gradle.jvmargs='-XX:MaxRAMPercentage=$GRADLE_MEM_PERCENTAGE $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - echo "GRADLE_OPTS_DBG4: ${GRADLE_OPTS}"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
@@ -652,7 +652,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_6
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -664,7 +664,7 @@ test_inst_latest:
       - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 test_flaky:
   extends: .test_job_with_test_agent
