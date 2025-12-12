@@ -132,11 +132,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
             boolean committedBlockingResponse =
-                blockResponseFunction.tryCommitBlockingResponse(
-                    reqCtx.getTraceSegment(),
-                    rba.getStatusCode(),
-                    rba.getBlockingContentType(),
-                    rba.getExtraHeaders());
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             if (committedBlockingResponse) {
               if (t == null) {
                 t = new BlockingException("Blocked request (for processParameters)");
