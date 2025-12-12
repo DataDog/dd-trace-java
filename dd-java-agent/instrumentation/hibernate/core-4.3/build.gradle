@@ -2,8 +2,18 @@ muzzle {
   pass {
     group = "org.hibernate"
     module = "hibernate-core"
-    versions = "[4.3.0.Final,)"
-    assertInverse = true
+    versions = "[4.3.0.Final,6)"
+  }
+  fail {
+    group = "org.hibernate"
+    module = "hibernate-core"
+    versions = "(,4.3.0.Final)"
+  }
+  // hibernate-core has been moved
+  pass {
+    group = "org.hibernate.orm"
+    module = "hibernate-core"
+    versions = "[6,)"
   }
 }
 

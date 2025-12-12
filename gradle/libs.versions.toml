@@ -3,9 +3,11 @@
 
 # Build
 develocity = "4.2.2"
+forbiddenapis = "3.10"
+spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.34.3"
+ddprof = "1.34.4"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -39,7 +41,6 @@ jmh = "1.37"
 jmc = "8.1.0"
 
 # Web & Network
-jnr-posix = "3.1.19"
 jnr-unixsocket = "0.38.22"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
@@ -64,16 +65,18 @@ moshi = "1.11.0"
 
 # Testing
 junit4 = "4.13.2"
-junit5 = "5.12.2"
-junit-platform = "1.12.2"
+junit5 = "5.14.1"
+junit-platform = "1.14.1"
 mockito = "4.4.0"
-spock-groovy3 = "2.4-M6-groovy-3.0"
-spock-groovy4 = "2.4-M6-groovy-4.0"
+spock-groovy3 = "2.4-groovy-3.0"
+spock-groovy4 = "2.4-groovy-4.0"
 testcontainers = "1.21.3"
 
 [libraries]
 # Build
 develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
+forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
 ddprof = { module = "com.datadoghq:ddprof", version.ref = "ddprof" }

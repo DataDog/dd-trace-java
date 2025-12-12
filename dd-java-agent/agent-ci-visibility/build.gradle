@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'org.jetbrains.kotlin.jvm' version libs.versions.kotlin.plugin
+  id 'org.jetbrains.kotlin.jvm'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

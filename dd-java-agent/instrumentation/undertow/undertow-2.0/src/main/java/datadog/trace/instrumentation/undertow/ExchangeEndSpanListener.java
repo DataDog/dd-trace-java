@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -18,7 +18,7 @@ public class ExchangeEndSpanListener implements ExchangeCompletionListener {
 
   @Override
   public void exchangeEvent(HttpServerExchange exchange, NextListener nextListener) {
-    AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
+    AgentScope.Continuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
     if (continuation == null) {
       return;
     }

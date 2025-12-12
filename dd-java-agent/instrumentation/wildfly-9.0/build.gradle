@@ -49,7 +49,9 @@ dependencies {
 
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-embedded', version: '+'
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
-  wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
+  // FIXME: Latest wildfly-dist is broken, due to missing dependency on Maven Central
+  // see: https://github.com/wildfly/mvc-krazo-feature-pack/issues/142
+  wildflyLatestDepTest "org.wildfly:wildfly-dist:38.0.0.Final@zip"
 
   latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 }
@@ -120,7 +122,8 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 
 ["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 17)}
+    configureCompiler(it, 17)
+  }
 }
 
 tasks.named("compileTestJava", JavaCompile) {

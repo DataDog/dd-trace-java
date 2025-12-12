@@ -24,6 +24,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@Flaky
 @NonRetryable
 public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test

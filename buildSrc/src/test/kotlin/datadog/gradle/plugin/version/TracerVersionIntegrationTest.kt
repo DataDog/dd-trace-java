@@ -265,7 +265,7 @@ class TracerVersionIntegrationTest {
     File(projectDir, "build.gradle.kts").writeText(
       """
       plugins {
-        id("datadog.tracer-version")
+        id("dd-trace-java.tracer-version")
       }
       
       tasks.register("printVersion") {

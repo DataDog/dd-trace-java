@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
 /**
@@ -75,9 +77,9 @@ public class MuzzleVersionScanPlugin {
           // verify helper consistency
           final String[] helperClassNames = module.helperClassNames();
           if (helperClassNames.length > 0) {
-            HelperClassLoader helperClassLoader = new HelperClassLoader(testApplicationLoader);
+            BiConsumer<String, byte[]> injectClassHelper = injectClassHelper(testApplicationLoader);
             for (Map.Entry<String, byte[]> helper : createHelperMap(module).entrySet()) {
-              helperClassLoader.injectClass(helper.getKey(), helper.getValue());
+              injectClassHelper.accept(helper.getKey(), helper.getValue());
             }
           }
         } catch (final Throwable e) {
@@ -87,6 +89,29 @@ public class MuzzleVersionScanPlugin {
           throw e;
         }
       }
+    }
+  }
+
+  /** Simulates instrumentation-based access to defineClass feature. */
+  private static BiConsumer<String, byte[]> injectClassHelper(ClassLoader cl) {
+    try {
+      Method findLoadedClass = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
+      Method defineClass =
+          ClassLoader.class.getDeclaredMethod(
+              "defineClass", String.class, byte[].class, int.class, int.class);
+      findLoadedClass.setAccessible(true);
+      defineClass.setAccessible(true);
+      return (name, bytes) -> {
+        try {
+          if (findLoadedClass.invoke(cl, name) == null) {
+            defineClass.invoke(cl, name, bytes, 0, bytes.length);
+          }
+        } catch (ReflectiveOperationException e) {
+          throw new RuntimeException(e);
+        }
+      };
+    } catch (ReflectiveOperationException e) {
+      return new HelperClassLoader(cl)::injectClass;
     }
   }
 
@@ -114,7 +139,9 @@ public class MuzzleVersionScanPlugin {
     }
 
     public void injectClass(String name, byte[] bytecode) {
-      defineClass(name, bytecode, 0, bytecode.length);
+      if (findLoadedClass(name) == null) {
+        defineClass(name, bytecode, 0, bytecode.length);
+      }
     }
   }
 

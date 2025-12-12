@@ -70,7 +70,6 @@ def clientBundle = tasks.register('clientBundle', Bundle) {
     attributes('Bundle-Activator': 'datadog.smoketest.osgi.client.Activator')
   }
 }
-clientBundle.get()
 
 def messagingBundle = tasks.register('messagingBundle', Bundle) {
   archiveClassifier = 'messaging'
@@ -97,6 +96,10 @@ def subscribingBundle = tasks.register('subscribingBundle', Bundle) {
   manifest {
     attributes('Bundle-Activator': 'datadog.smoketest.osgi.subscribing.Activator')
   }
+}
+
+tasks.named("check") {
+  dependsOn commonBundle, clientBundle, messagingBundle, publishingBundle, subscribingBundle, jarTask
 }
 
 tasks.withType(Test).configureEach {

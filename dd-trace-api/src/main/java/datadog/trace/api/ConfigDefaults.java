@@ -46,6 +46,7 @@ public final class ConfigDefaults {
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
+  static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
@@ -292,7 +293,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
-  static final boolean DEFAULT_ADD_SPAN_POINTERS = true;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;

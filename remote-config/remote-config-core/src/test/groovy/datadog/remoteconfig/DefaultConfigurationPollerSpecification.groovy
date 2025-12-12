@@ -615,7 +615,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
       task = it[0]
-      scheduled }
+      scheduled
+    }
 
     when:
     task.run(poller)
@@ -1194,7 +1195,6 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
       it['targets'] = Base64.encoder.encodeToString(JsonOutput.toJson(targets).getBytes('UTF-8'))
       JsonOutput.toJson(it)
     } | 'Error reading signature or canonicalizing targets.signed: Invalid scalar representation'
-
   }
 
   void 'reports error during deserialization'() {
@@ -1207,7 +1207,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
       task = it[0]
-      scheduled }
+      scheduled
+    }
 
     when:
     task.run(poller)
@@ -1244,7 +1245,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     then:
     1 * scheduler.scheduleAtFixedRate(_, poller, 0, DEFAULT_POLL_PERIOD, TimeUnit.MILLISECONDS) >> {
       task = it[0]
-      scheduled }
+      scheduled
+    }
 
     when:
     task.run(poller)

@@ -11,7 +11,8 @@ import scala.concurrent.{Await, Future, Promise}
 
 class ScalaConcurrentTests {
 
-  /** @return Number of expected spans in the trace
+  /** @return
+    *   Number of expected spans in the trace
     */
   @Trace
   def traceWithFutureAndCallbacks(): Integer = {
@@ -47,7 +48,8 @@ class ScalaConcurrentTests {
     return 2
   }
 
-  /** @return Number of expected spans in the trace
+  /** @return
+    *   Number of expected spans in the trace
     */
   @Trace
   def traceWithPromises(): Integer = {
@@ -73,7 +75,8 @@ class ScalaConcurrentTests {
     return 5
   }
 
-  /** @return Number of expected spans in the trace
+  /** @return
+    *   Number of expected spans in the trace
     */
   @Trace
   def tracedWithFutureFirstCompletions(): Integer = {
@@ -100,7 +103,8 @@ class ScalaConcurrentTests {
     return 4
   }
 
-  /** @return Number of expected spans in the trace
+  /** @return
+    *   Number of expected spans in the trace
     */
   @Trace
   def tracedTimeout(): Integer = {

@@ -1,0 +1,240 @@
+[
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "one_of_flag": true
+    },
+    "result": {
+      "value": 1,
+      "variant": "1",
+      "flagMetadata": {
+        "allocationKey": "1-for-one-of",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "bob",
+    "attributes": {
+      "one_of_flag": false
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "charlie",
+    "attributes": {
+      "one_of_flag": "True"
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "derek",
+    "attributes": {
+      "matches_flag": true
+    },
+    "result": {
+      "value": 2,
+      "variant": "2",
+      "flagMetadata": {
+        "allocationKey": "2-for-matches",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "erica",
+    "attributes": {
+      "matches_flag": false
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "frank",
+    "attributes": {
+      "not_matches_flag": false
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "george",
+    "attributes": {
+      "not_matches_flag": true
+    },
+    "result": {
+      "value": 4,
+      "variant": "4",
+      "flagMetadata": {
+        "allocationKey": "4-for-not-matches",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "haley",
+    "attributes": {
+      "not_matches_flag": "False"
+    },
+    "result": {
+      "value": 4,
+      "variant": "4",
+      "flagMetadata": {
+        "allocationKey": "4-for-not-matches",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "ivy",
+    "attributes": {
+      "not_one_of_flag": true
+    },
+    "result": {
+      "value": 3,
+      "variant": "3",
+      "flagMetadata": {
+        "allocationKey": "3-for-not-one-of",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "julia",
+    "attributes": {
+      "not_one_of_flag": false
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "kim",
+    "attributes": {
+      "not_one_of_flag": "False"
+    },
+    "result": {
+      "value": 3,
+      "variant": "3",
+      "flagMetadata": {
+        "allocationKey": "3-for-not-one-of",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "lucas",
+    "attributes": {
+      "not_one_of_flag": "true"
+    },
+    "result": {
+      "value": 3,
+      "variant": "3",
+      "flagMetadata": {
+        "allocationKey": "3-for-not-one-of",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "mike",
+    "attributes": {
+      "not_one_of_flag": "false"
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "nicole",
+    "attributes": {
+      "null_flag": "null"
+    },
+    "result": {
+      "value": 5,
+      "variant": "5",
+      "flagMetadata": {
+        "allocationKey": "5-for-matches-null",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "owen",
+    "attributes": {
+      "null_flag": null
+    },
+    "result": {
+      "value": 0
+    }
+  },
+  {
+    "flag": "boolean-one-of-matches",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "pete",
+    "attributes": {},
+    "result": {
+      "value": 0
+    }
+  }
+]

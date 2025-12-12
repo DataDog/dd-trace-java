@@ -134,7 +134,9 @@ public class StoredCharBody implements StoredBodySupplier {
     return this.storedBody.length - this.storedBodyLen;
   }
 
-  /** @param utf16CodeUnit an int in the range 0-0xFFFF */
+  /**
+   * @param utf16CodeUnit an int in the range 0-0xFFFF
+   */
   public synchronized void appendData(int utf16CodeUnit) {
     try {
       if (utf16CodeUnit < 0) {
@@ -178,11 +180,7 @@ public class StoredCharBody implements StoredBodySupplier {
 
       BlockResponseFunction blockResponseFunction = httpContext.getBlockResponseFunction();
       if (blockResponseFunction != null) {
-        blockResponseFunction.tryCommitBlockingResponse(
-            httpContext.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        blockResponseFunction.tryCommitBlockingResponse(httpContext.getTraceSegment(), rba);
       }
       throw new BlockingException("Blocked request (for request body stream read)");
     }

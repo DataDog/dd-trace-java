@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.
 import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstanceStore;
@@ -77,7 +78,8 @@ public class SqsInterceptor implements ExecutionInterceptor {
     } else if (context.request() instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
       if (request.messageAttributeNames().size() < 10
-          && !request.messageAttributeNames().contains(DATADOG_KEY)) {
+          && !request.messageAttributeNames().contains(DATADOG_KEY)
+          && Config.get().isSqsInjectDatadogAttributeEnabled()) {
         List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
         messageAttributeNames.add(DATADOG_KEY);
         return request.toBuilder().messageAttributeNames(messageAttributeNames).build();

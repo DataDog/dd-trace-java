@@ -3,7 +3,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "6.13.0"
+  id("com.diffplug.spotless") version "8.1.0"
 }
 
 java {
@@ -13,46 +13,38 @@ java {
 }
 
 gradlePlugin {
-  // Sorted list of plugins:
   plugins {
+    create("instrument-plugin") {
+      id = "dd-trace-java.instrument"
+      implementationClass = "InstrumentPlugin"
+    }
+    create("muzzle-plugin") {
+      id = "dd-trace-java.muzzle"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
+    }
     create("call-site-instrumentation-plugin") {
-      id = "call-site-instrumentation"
+      id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
-
+    create("tracer-version-plugin") {
+      id = "dd-trace-java.tracer-version"
+      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
+    }
     create("dump-hanged-test-plugin") {
-      id = "datadog.dump-hanged-test"
+      id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
-
+    create("supported-config-generation") {
+      id = "dd-trace-java.supported-config-generator"
+      implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
+    }
+    create("supported-config-linter") {
+      id = "dd-trace-java.config-inversion-linter"
+      implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
+    }
     create("groovy-spock-plugin") {
       id = "datadog.groovy-spock"
       implementationClass = "datadog.gradle.plugin.config.groovy.GroovySpockConventionPlugin"
-    }
-
-    create("instrument-plugin") {
-      id = "instrument"
-      implementationClass = "InstrumentPlugin"
-    }
-
-    create("muzzle-plugin") {
-      id = "muzzle"
-      implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
-    }
-
-    create("supported-config-generation") {
-      id = "datadog.supported-config-generator"
-      implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
-    }
-
-    create("supported-config-linter") {
-      id = "datadog.config-inversion-linter"
-      implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
-    }
-
-    create("tracer-version-plugin") {
-      id = "datadog.tracer-version"
-      implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
   }
 }

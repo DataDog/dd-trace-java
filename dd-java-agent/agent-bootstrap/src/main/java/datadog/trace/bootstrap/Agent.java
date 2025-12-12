@@ -22,6 +22,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
+import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -58,6 +59,7 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -100,6 +102,8 @@ public class Agent {
       "datadog.trace.agent.tooling.AgentInstaller";
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
+
+  private static final long CLASSLOADER_CLEAN_FREQUENCY_SECONDS = 30;
 
   private static final Logger log;
 
@@ -202,6 +206,7 @@ public class Agent {
    * <p>The Agent is considered to start successfully if Instrumentation can be activated. All other
    * pieces are considered optional.
    */
+  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   public static void start(
       final Object bootstrapInitTelemetry,
       final Instrumentation inst,
@@ -325,6 +330,7 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
+
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -408,6 +414,15 @@ public class Agent {
       StaticEventLogger.end("Profiling");
     }
 
+    // This task removes stale ClassLoaderValue entries where the class-loader is gone
+    // It only runs a couple of times a minute since class-loaders are rarely unloaded
+    AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            ClassLoaderValue::removeStaleEntries,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS);
+
     StaticEventLogger.end("Agent.start");
   }
 
@@ -460,6 +475,7 @@ public class Agent {
     }
   }
 
+  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   private static void configureCiVisibility(URL agentJarURL) {
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -908,6 +924,15 @@ public class Agent {
 
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
+
+    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
+    // This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
+    try {
+      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
+    } catch (Exception e) {
+      // Ignore when the class is not found or anything else goes wrong.
+    }
+
     try {
       final Class<?> smapFactoryClass =
           AGENT_CLASSLOADER.loadClass(
@@ -1497,7 +1522,9 @@ public class Agent {
     return false;
   }
 
-  /** @return {@code true} if the agent feature is enabled */
+  /**
+   * @return {@code true} if the agent feature is enabled
+   */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1527,7 +1554,9 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
+  /**
+   * @see datadog.trace.api.ProductActivation#fromString(String)
+   */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1565,7 +1594,9 @@ public class Agent {
     return value;
   }
 
-  /** @return configured JMX start delay in seconds */
+  /**
+   * @return configured JMX start delay in seconds
+   */
   private static int getJmxStartDelay() {
     String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
     if (startDelay == null) {
