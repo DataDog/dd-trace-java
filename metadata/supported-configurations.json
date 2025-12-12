@@ -251,7 +251,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -259,7 +259,7 @@
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
@@ -347,7 +347,7 @@
     ],
     "DD_APPSEC_RULES": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "",
         "aliases": []
