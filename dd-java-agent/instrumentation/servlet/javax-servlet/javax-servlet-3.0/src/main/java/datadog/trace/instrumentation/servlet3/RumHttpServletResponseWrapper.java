@@ -126,6 +126,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       if (isContentLengthHeader(name)) {
         return;
       }
+      checkForContentType(name, value);
       checkForContentSecurityPolicy(name);
     }
     super.setHeader(name, value);
@@ -137,6 +138,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       if (isContentLengthHeader(name)) {
         return;
       }
+      checkForContentType(name, value);
       checkForContentSecurityPolicy(name);
     }
     super.addHeader(name, value);
@@ -205,15 +207,26 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     }
   }
 
-  @Override
-  public void setContentType(String type) {
+  private void handleContentType(String type) {
+    final boolean wasInjecting = shouldInject;
     if (shouldInject) {
       shouldInject = type != null && type.contains("text/html");
     }
-    if (!shouldInject) {
+    if (wasInjecting && !shouldInject) {
       commit();
       stopFiltering();
     }
+  }
+
+  private void checkForContentType(String name, String value) {
+    if ("content-type".equalsIgnoreCase(name)) {
+      handleContentType(value);
+    }
+  }
+
+  @Override
+  public void setContentType(String type) {
+    handleContentType(type);
     super.setContentType(type);
   }
 

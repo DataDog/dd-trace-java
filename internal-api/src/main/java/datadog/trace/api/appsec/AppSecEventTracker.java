@@ -361,11 +361,7 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
       final BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            ctx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
       }
       return true;
     }
