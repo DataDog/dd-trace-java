@@ -45,12 +45,12 @@ jobs:
             echo "Branch $BRANCH does not exist - creating it now"
           fi
 
-      # - name: Create and push branch
-      #   if: steps.check-branch.outputs.creating_new_branch == 'true'
-      #   id: create-branch
-      #   run: |
-      #     git checkout -b "${{ steps.define-branch.outputs.branch }}"
-      #     git push -u origin "${{ steps.define-branch.outputs.branch }}"
+      - name: Create and push branch
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        id: create-branch
+        run: |
+          git checkout -b "${{ steps.define-branch.outputs.branch }}"
+          git push -u origin "${{ steps.define-branch.outputs.branch }}"
       
       - name: Update system-tests references to latest commit SHA on main
         run: ./tooling/update_system_test_reference.sh
@@ -68,44 +68,33 @@ jobs:
             git status -s
           fi
       
+      - name: Commit changes
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        id: create-commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Push changes
+        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
+
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true'
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ steps.octo-sts.outputs.token }}
-          commit-message: "chore: Pin system-tests for release branch"
-          title: "Pin system-tests for release branch"
-          branch: ${{ steps.define-branch.outputs.branch }}
-          base: "master"
-          body: "This PR pins the system-tests reference for the release branch."
-      
-      # - name: Commit changes
-      #   if: steps.check-changes.outputs.commit_changes == 'true'
-      #   id: create-commit
-      #   run: |
-      #     git config user.name "github-actions[bot]"
-      #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      #     git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
-      #     echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-      
-      # - name: Push changes
-      #   uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
-      #   if: steps.check-changes.outputs.commit_changes == 'true'
-      #   with:
-      #     token: "${{ steps.octo-sts.outputs.token }}"
-      #     branch: "${{ steps.define-branch.outputs.branch }}"
-      #     command: push
-      #     commits: "${{ steps.create-commit.outputs.commit }}"
-
-      # - name: Create pull request
-      #   if: steps.check-changes.outputs.commit_changes == 'true'
-      #   env:
-      #     GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-      #   # base may need to be `release/v*`
-      #   run: |
-      #     gh pr create --title "Pin system tests for release branch" \
-      #       --base master \
-      #       --head ${{ steps.define-branch.outputs.branch }} \
-      #       --label "tag: dependencies" \
-      #       --label "tag: no release notes" \
-      #       --body "This PR pins the system-tests reference for the release branch."
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        # base may need to be `release/v*`
+        run: |
+          gh pr create --title "Pin system tests for release branch" \
+            --base master \
+            --head ${{ steps.define-branch.outputs.branch }} \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "This PR pins the system-tests reference for the release branch."
