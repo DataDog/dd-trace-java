@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
 plugins {
   java
@@ -25,7 +24,7 @@ val mainVerticleName = "datadog.vertx_4_2.MainVerticle"
 val launcherClassName = "datadog.vertx_4_2.MainVerticle"
 
 val watchForChange = "src/**/*"
-val doOnChange = "${projectDir}/gradlew classes"
+val doOnChange = "$projectDir/gradlew classes"
 
 application {
   mainClass.set(launcherClassName)

@@ -143,9 +143,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       outputs.dir(output)
 
       // JavaExec configuration
-      javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(csiExtension.javaVersion)
-      })
+      javaLauncher.set(
+        javaToolchains.launcherFor {
+          languageVersion.set(csiExtension.javaVersion)
+        }
+      )
 
       jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
@@ -228,9 +230,13 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     }
 
   private fun String.capitalize(): String = replaceFirstChar {
-    if (it.isLowerCase()) it.titlecase(
-      Locale.getDefault()
-    ) else it.toString()
+    if (it.isLowerCase()) {
+      it.titlecase(
+        Locale.getDefault()
+      )
+    } else {
+      it.toString()
+    }
   }
 
   private val Project.sourceSets: SourceSetContainer
