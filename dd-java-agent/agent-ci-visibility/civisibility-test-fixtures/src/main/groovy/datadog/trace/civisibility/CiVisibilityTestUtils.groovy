@@ -11,12 +11,12 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.core.DDSpan
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import freemarker.core.Environment
 import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import groovy.transform.CompileStatic
 import org.opentest4j.AssertionFailedError
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -368,7 +368,7 @@ abstract class CiVisibilityTestUtils {
     return compiledPaths
   }
 
-  @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
+  @CompileStatic // Workaround for Groovy 4 to not produce false-positive FindBugs warning `UPM_UNCALLED_PRIVATE_METHOD`.
   private static DynamicPath path(String rawPath, boolean unique = true) {
     return new DynamicPath(rawPath, JsonPath.compile(rawPath), unique)
   }
