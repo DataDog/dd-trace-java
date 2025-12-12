@@ -355,7 +355,7 @@
     ],
     "DD_APPSEC_SCA_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": null,
         "aliases": []
@@ -1779,7 +1779,7 @@
     ],
     "DD_IAST_SECURITY_CONTROLS_CONFIGURATION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
