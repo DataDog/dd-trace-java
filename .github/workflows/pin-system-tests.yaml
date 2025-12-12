@@ -3,7 +3,7 @@ name: Pin system tests
 on:
   workflow_dispatch:
     inputs:
-      tag:
+      release-branch-name:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
@@ -26,8 +26,20 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
       
+      - name: Define base branch
+        id: define-base-branch
+        run: |
+          if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
+            BASE_BRANCH=${{ github.event.inputs.release-branch-name }}
+          else
+            BASE_BRANCH=${GITHUB_REF#refs/heads/}
+          fi
+          echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
+      
       - name: Checkout the repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ steps.define-base-branch.outputs.base_branch }}
 
       - name: Define branch name
         id: define-branch
@@ -40,7 +52,6 @@ jobs:
           if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
             echo "creating_new_branch=false" >> "$GITHUB_OUTPUT"
             echo "Branch $BRANCH already exists - please delete it and re-run the workflow."
-            exit 0
           else
             echo "creating_new_branch=true" >> "$GITHUB_OUTPUT"
             echo "Branch $BRANCH does not exist - creating it now"
@@ -55,7 +66,6 @@ jobs:
           if [[ -z "$(git status -s)" ]]; then
             echo "No changes to commit, exiting."
             echo "commit_changes=false" >> "$GITHUB_OUTPUT"
-            exit 0
           else
             echo "commit_changes=true" >> "$GITHUB_OUTPUT"
             echo "Changes to commit:"
@@ -81,16 +91,6 @@ jobs:
           create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
-      
-      - name: Define base branch
-        id: define-base-branch
-        run: |
-          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
-            BASE_BRANCH=${{ github.event.inputs.tag }}
-          else
-            BASE_BRANCH=${GITHUB_REF#refs/heads/}
-          fi
-          echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true' && steps.check-branch.outputs.creating_new_branch == 'true'
