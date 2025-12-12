@@ -4,17 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'The minor release tag (e.g. v1.54.0)'
+        description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # for testing
-  push:
-    branches:
-      - sarahchen6/pin-system-tests-workflow
+  # run workflow when a release branch is created
+  create:
 
 jobs:
   pin-system-tests:
     name: "Pin system tests"
+    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/test/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write # may not be needed
@@ -81,6 +80,16 @@ jobs:
           create-branch: true
           command: push
           commits: "${{ steps.create-commit.outputs.commit }}"
+      
+      - name: Define base branch
+        id: define-base-branch
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            BASE_BRANCH=${{ github.event.inputs.tag }}
+          else
+            BASE_BRANCH=${GITHUB_REF#refs/heads/}
+          fi
+          echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true' && steps.check-branch.outputs.creating_new_branch == 'true'
@@ -89,7 +98,7 @@ jobs:
         # base may need to be `release/v*`
         run: |
           gh pr create --title "Pin system tests for release branch" \
-            --base release/v1.56.x \
+            --base ${{ steps.define-base-branch.outputs.base_branch }} \
             --head ${{ steps.define-branch.outputs.branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
