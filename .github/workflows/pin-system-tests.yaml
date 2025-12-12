@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write # Required for OIDC token federation
+      id-token: write # required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
         id: octo-sts
@@ -49,11 +49,10 @@ jobs:
         run: |
           BRANCH=${{ steps.define-branch.outputs.branch }}
           if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
-            echo "creating_new_branch=false" >> "$GITHUB_OUTPUT"
-            echo "Branch $BRANCH already exists - please delete it and re-run the workflow."
+            echo "ERROR: Branch $BRANCH already exists - please delete it and re-run the workflow."
+            exit 1
           else
-            echo "creating_new_branch=true" >> "$GITHUB_OUTPUT"
-            echo "Branch $BRANCH does not exist - creating it now"
+            echo "Branch $BRANCH does not exist - creating it now."
           fi
       
       - name: Update system-tests references to latest commit SHA on main
@@ -63,16 +62,14 @@ jobs:
         id: check-changes
         run: |
           if [[ -z "$(git status -s)" ]]; then
-            echo "No changes to commit, exiting."
-            echo "commit_changes=false" >> "$GITHUB_OUTPUT"
+            echo "ERROR: No changes to commit - the system-tests reference was not updated."
+            exit 1
           else
-            echo "commit_changes=true" >> "$GITHUB_OUTPUT"
             echo "Changes to commit:"
             git status -s
           fi
       
       - name: Commit changes
-        if: steps.check-changes.outputs.commit_changes == 'true'
         id: create-commit
         run: |
           git config user.name "github-actions[bot]"
@@ -82,7 +79,6 @@ jobs:
       
       - name: Push changes
         uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
-        if: steps.check-changes.outputs.commit_changes == 'true' && steps.check-branch.outputs.creating_new_branch == 'true'
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"
@@ -92,7 +88,6 @@ jobs:
           commits: "${{ steps.create-commit.outputs.commit }}"
 
       - name: Create pull request
-        if: steps.check-changes.outputs.commit_changes == 'true' && steps.check-branch.outputs.creating_new_branch == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
