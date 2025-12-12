@@ -1,4 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import com.diffplug.spotless.npm.PrettierFormatterStep
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
@@ -39,10 +40,10 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     googleJavaFormat("1.32.0")
   }
   groovyGradle {
-    greclipse()
+    prettier(mapOf("prettier" to "3.7.4", "prettier-plugin-groovy" to "0.2.1"))
   }
   groovy {
-    greclipse()
+    prettier(mapOf("prettier" to "3.7.4", "prettier-plugin-groovy" to "0.2.1"))
   }
   kotlinGradle {
     ktlint("1.8.0")

@@ -9,6 +9,7 @@ def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
 
 spotless {
   if (rootProject.hasProperty('skipSpotless')) {
+    logger.warn("This property is going away, use standard Gradle options: '-x spotlessCheck' or '-x spotlessApply' to exclude spotless tasks")
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
     // We disable it in CI, since we have a job dedicated to spotless anyway.
     enforceCheck false
@@ -37,7 +38,7 @@ spotless {
     } else {
       target '*.gradle'
     }
-    greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+    prettier(["prettier" : "3.7.4", "prettier-plugin-groovy" : "0.2.1"]).configFile(configPath + '/enforcement/prettier-groovy.toml')
   }
 
   kotlinGradle {
@@ -54,13 +55,9 @@ spotless {
   project.pluginManager.withPlugin('groovy') {
     groovy {
       toggleOffOn()
-      if (!groovySkipJavaExclude) {
-        excludeJava() // excludes all Java sources within the Groovy source dirs from formatting
-        // the Groovy Eclipse formatter extends the Java Eclipse formatter,
-        // so it formats Java files by default (unless `excludeJava` is used).
-      }
+      target("**/*.groovy")
       targetExclude(buildDirectoryFiles)
-      greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+      prettier(["prettier" : "3.7.4", "prettier-plugin-groovy" : "0.2.1"]).configFile(configPath + '/enforcement/prettier-groovy.toml')
     }
   }
 

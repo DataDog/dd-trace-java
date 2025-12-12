@@ -1,0 +1,10 @@
+# prettier-groovy.toml
+# Reads the .editorconfig file in the project root for base settings
+
+plugins = [
+  "prettier-plugin-groovy", # https://www.npmjs.com/package/prettier-plugin-groovy
+]
+
+[[overrides]]
+files = ["*.groovy"]
+options = { parser = "groovy" }
