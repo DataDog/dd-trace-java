@@ -13,8 +13,8 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 
 # Languages
 ## Groovy
-groovy3 = "3.0.24"
-groovy4 = "4.0.26"
+groovy3 = "3.0.25"
+groovy4 = "4.0.29"
 
 ## Kotlin
 kotlin = "1.6.21"
