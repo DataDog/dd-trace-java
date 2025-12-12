@@ -5,7 +5,7 @@ subject_pattern: repo:DataDog/dd-trace-java:ref:refs/heads/.+
 claim_pattern:
   event_name: (push|workflow_dispatch)
   ref: refs/heads/.+
-  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/pin-system-tests\.yaml@.+
+  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/pin-system-tests\.yaml@refs/heads/.+
 
 permissions:
   contents: write
