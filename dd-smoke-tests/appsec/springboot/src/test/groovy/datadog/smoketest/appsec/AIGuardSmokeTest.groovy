@@ -74,13 +74,13 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     assert span.meta.get('ai_guard.target') == 'prompt'
     final messages = span.metaStruct.get('ai_guard').messages as List<Map<String, Object>>
     assert messages.size() == 2
-    messages[0].with {
-      assert role == 'system'
-      assert content == 'You are a beautiful AI'
+    with(messages[0]) {
+      role == 'system'
+      content == 'You are a beautiful AI'
     }
-    messages[1].with {
-      assert role == 'user'
-      assert content != null
+    with(messages[1]) {
+      role == 'user'
+      content != null
     }
 
     where:
