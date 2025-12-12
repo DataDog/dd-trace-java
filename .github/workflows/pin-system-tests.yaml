@@ -93,7 +93,7 @@ jobs:
         # base may need to be `release/v*`
         run: |
           gh pr create --title "Pin system tests for release branch" \
-            --base master \
+            --base release/v1.56.x \
             --head ${{ steps.define-branch.outputs.branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
