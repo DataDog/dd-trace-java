@@ -93,5 +93,5 @@ jobs:
             --head ${{ steps.define-branch.outputs.branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body "This PR pins the system-tests reference for the release branch."
+            --body "This PR pins the system-tests reference for the release branch." \
             --draft
