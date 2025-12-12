@@ -13,11 +13,10 @@ on:
 jobs:
   pin-system-tests:
     name: "Pin system tests"
-    # CHANGE BACK TO release/v*
-    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/test/v')
+    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/release/v')
     runs-on: ubuntu-latest
     permissions:
-      contents: write # may not be needed
+      contents: write
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -96,7 +95,6 @@ jobs:
         if: steps.check-changes.outputs.commit_changes == 'true' && steps.check-branch.outputs.creating_new_branch == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-        # REMOVE DRAFT
         run: |
           gh pr create --title "Pin system tests for release branch" \
             --base ${{ steps.define-base-branch.outputs.base_branch }} \
@@ -104,4 +102,3 @@ jobs:
             --label "tag: dependencies" \
             --label "tag: no release notes" \
             --body "This PR pins the system-tests reference for the release branch." \
-            --draft
