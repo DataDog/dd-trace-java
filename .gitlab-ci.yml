@@ -4,12 +4,17 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-spring-petclinic.yml'
+    ref: 'sarahchen6/compare-with-latest-shared-commit'
 
 stages:
   - build
   - publish
   - shared-pipeline
   - benchmarks
+  - java-spring-petclinic-tests
+  - java-spring-petclinic-macrobenchmarks
   - macrobenchmarks
   - tests
   - exploration-tests
