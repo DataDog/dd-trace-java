@@ -17,6 +17,12 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+// DSM test suite - tests with Data Streams Monitoring enabled
+addTestSuite('dsmTest')
+addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addTestSuiteForDir('latestDsmTest', 'dsmTest')
+addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
+
 addTestSuite('latestDepTest')
 addTestSuite('iastLatestDepTest3')
 
@@ -36,6 +42,25 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
+
+  // DSM test dependencies - needs access to base test classes
+  dsmTestImplementation sourceSets.test.output
+  dsmTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.8.0'
+  dsmTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.8.0'
+  dsmTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.8.0'
+  dsmTestImplementation group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '1.3.+'
+  dsmTestRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
+  dsmTestRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  dsmTestRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
+
+  latestDsmTestImplementation sourceSets.test.output
+  latestDsmTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
+  latestDsmTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
+  latestDsmTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.+'
+  latestDsmTestImplementation group: 'io.projectreactor.kafka', name: 'reactor-kafka', version: '1.+'
+  latestDsmTestRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
+  latestDsmTestRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  latestDsmTestRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')

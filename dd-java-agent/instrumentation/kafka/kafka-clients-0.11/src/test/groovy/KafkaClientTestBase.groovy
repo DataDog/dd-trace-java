@@ -1337,31 +1337,3 @@ class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForke
   }
 }
 
-class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
-  @Override
-  void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledForkedTest")
-    injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
-  }
-
-  @Override
-  String service() {
-    return "kafka"
-  }
-
-  @Override
-  boolean hasQueueSpan() {
-    return false
-  }
-
-  @Override
-  boolean splitByDestination() {
-    return false
-  }
-
-  @Override
-  boolean isDataStreamsEnabled() {
-    return false
-  }
-}
