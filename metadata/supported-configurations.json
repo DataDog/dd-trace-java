@@ -357,7 +357,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "null",
+        "default": null,
         "aliases": []
       }
     ],
@@ -1781,7 +1781,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "null",
+        "default": null,
         "aliases": []
       }
     ],
