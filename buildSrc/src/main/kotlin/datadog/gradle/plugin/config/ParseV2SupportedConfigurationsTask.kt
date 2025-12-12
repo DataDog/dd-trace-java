@@ -1,7 +1,6 @@
 package datadog.gradle.plugin.config
 
 import org.gradle.api.DefaultTask
-import org.gradle.kotlin.dsl.property
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -12,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.kotlin.dsl.property
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
@@ -131,11 +131,29 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("  public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;")
       out.println()
       out.println("  static {")
+      out.println("    SUPPORTED = initSupported();")
+      out.println("    ALIASES = initAliases();")
+      out.println("    ALIAS_MAPPING = initAliasMapping();")
+      out.println("    DEPRECATED = initDeprecated();")
+      out.println("    REVERSE_PROPERTY_KEYS_MAP = initReversePropertyKeysMap();")
+      out.println("  }")
       out.println()
 
-      // SUPPORTED
+      // initSupported() - split into two helper functions to avoid "code too large" error
+      out.println("  private static Map<String, List<SupportedConfiguration>> initSupported() {")
       out.println("    Map<String, List<SupportedConfiguration>> supportedMap = new HashMap<>();")
-      for ((key, configList) in supported.toSortedMap()) {
+      out.println("    initSupported1(supportedMap);")
+      out.println("    initSupported2(supportedMap);")
+      out.println("    return Collections.unmodifiableMap(supportedMap);")
+      out.println("  }")
+      out.println()
+
+      val sortedSupported = supported.toSortedMap().entries.toList()
+      val midpoint = sortedSupported.size / 2
+
+      // initSupported1() - first half
+      out.println("  private static void initSupported1(Map<String, List<SupportedConfiguration>> supportedMap) {")
+      for ((key, configList) in sortedSupported.take(midpoint)) {
         out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
         val configIter = configList.iterator()
         while (configIter.hasNext()) {
@@ -151,11 +169,33 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
         }
         out.println(")));")
       }
-      out.println("    SUPPORTED = Collections.unmodifiableMap(supportedMap);")
+      out.println("  }")
       out.println()
 
-      // ALIASES
-      out.println("    // Note: This top-level alias mapping will be deprecated once Config Registry is mature enough to understand which version of a config a customer is using")
+      // initSupported2() - second half
+      out.println("  private static void initSupported2(Map<String, List<SupportedConfiguration>> supportedMap) {")
+      for ((key, configList) in sortedSupported.drop(midpoint)) {
+        out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
+        val configIter = configList.iterator()
+        while (configIter.hasNext()) {
+          val config = configIter.next()
+          out.print("new SupportedConfiguration(")
+          out.print("${escNullableString(config.version)}, ")
+          out.print("${escNullableString(config.type)}, ")
+          out.print("${escNullableString(config.default)}, ")
+          out.print("Arrays.asList(${quoteList(config.aliases)}), ")
+          out.print("Arrays.asList(${quoteList(config.propertyKeys)})")
+          out.print(")")
+          if (configIter.hasNext()) out.print(", ")
+        }
+        out.println(")));")
+      }
+      out.println("  }")
+      out.println()
+
+      // initAliases()
+      out.println("  // Note: This top-level alias mapping will be deprecated once Config Registry is mature enough to understand which version of a config a customer is using")
+      out.println("  private static Map<String, List<String>> initAliases() {")
       out.println("    Map<String, List<String>> aliasesMap = new HashMap<>();")
       for ((canonical, list) in aliases.toSortedMap()) {
         out.printf(
@@ -164,33 +204,37 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
           quoteList(list)
         )
       }
-      out.println("    ALIASES = Collections.unmodifiableMap(aliasesMap);")
+      out.println("    return Collections.unmodifiableMap(aliasesMap);")
+      out.println("  }")
       out.println()
 
-      // ALIAS_MAPPING
+      // initAliasMapping()
+      out.println("  private static Map<String, String> initAliasMapping() {")
       out.println("    Map<String, String> aliasMappingMap = new HashMap<>();")
       for ((alias, target) in aliasMapping.toSortedMap()) {
         out.printf("    aliasMappingMap.put(\"%s\", \"%s\");\n", esc(alias), esc(target))
       }
-      out.println("    ALIAS_MAPPING = Collections.unmodifiableMap(aliasMappingMap);")
+      out.println("    return Collections.unmodifiableMap(aliasMappingMap);")
+      out.println("  }")
       out.println()
 
-      // DEPRECATED
+      // initDeprecated()
+      out.println("  private static Map<String, String> initDeprecated() {")
       out.println("    Map<String, String> deprecatedMap = new HashMap<>();")
       for ((oldKey, note) in deprecated.toSortedMap()) {
         out.printf("    deprecatedMap.put(\"%s\", \"%s\");\n", esc(oldKey), esc(note))
       }
-      out.println("    DEPRECATED = Collections.unmodifiableMap(deprecatedMap);")
+      out.println("    return Collections.unmodifiableMap(deprecatedMap);")
+      out.println("  }")
       out.println()
 
-      // REVERSE_PROPERTY_KEYS_MAP
+      // initReversePropertyKeysMap()
+      out.println("  private static Map<String, String> initReversePropertyKeysMap() {")
       out.println("    Map<String, String> reversePropertyKeysMapping = new HashMap<>();")
       for ((propertyKey, config) in reversePropertyKeysMap.toSortedMap()) {
         out.printf("    reversePropertyKeysMapping.put(\"%s\", \"%s\");\n", esc(propertyKey), esc(config))
       }
-      out.println("    REVERSE_PROPERTY_KEYS_MAP = Collections.unmodifiableMap(reversePropertyKeysMapping);")
-      out.println()
-
+      out.println("    return Collections.unmodifiableMap(reversePropertyKeysMapping);")
       out.println("  }")
       out.println("}")
     }

@@ -13,7 +13,7 @@ class SupportedConfigurationSource {
    * @return Set of supported environment variable keys
    */
   public boolean supported(String env) {
-    return GeneratedSupportedConfigurations.SUPPORTED.contains(env);
+    return GeneratedSupportedConfigurations.SUPPORTED.containsKey(env);
   }
 
   /**
@@ -35,5 +35,13 @@ class SupportedConfigurationSource {
    */
   public String primaryEnvFromDeprecated(String deprecated) {
     return GeneratedSupportedConfigurations.DEPRECATED.getOrDefault(deprecated, null);
+  }
+
+  /**
+   * @return Mapping from propertyKey to configuration
+   */
+  public String envFromTelemetryKey(String telemetryKey) {
+    return GeneratedSupportedConfigurations.REVERSE_PROPERTY_KEYS_MAP.getOrDefault(
+        telemetryKey, null);
   }
 }
