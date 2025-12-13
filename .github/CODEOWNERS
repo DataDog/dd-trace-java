@@ -114,6 +114,8 @@
 /internal-api/src/test/groovy/datadog/trace/api/datastreams                  @DataDog/data-streams-monitoring
 **/datastreams/                                                              @DataDog/data-streams-monitoring
 **/DataStreams*                                                              @DataDog/data-streams-monitoring
+# DSM Integration Tests - all dsmTest directories owned by data-streams-monitoring
+**/dsmTest/**                                                                @DataDog/data-streams-monitoring
 
 # @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk
