@@ -23,11 +23,15 @@ tasks.named("processResources") {
   dependsOn(includedJarFileTree)
 }
 
-// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
-// and prevent issues for users that still using them.
 sourceSets {
+  // The special pre-check must be compiled with Java 6 to detect unsupported
+  // Java versions and prevent issues for users that still using them.
   "main_java6" {
     java.srcDirs "${project.projectDir}/src/main/java6"
+  }
+  // Additional checks that use the Java 11 API.
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
   }
   main.resources.srcDir(includedAgentDir)
 }
@@ -36,11 +40,18 @@ def java6CompileTask = tasks.named("compileMain_java6Java") {
   configureCompiler(it, 8, JavaVersion.VERSION_1_6)
 }
 
+def java11CompileTask = tasks.named("compileMain_java11Java") {
+  configureCompiler(it, 11)
+}
+
 tasks.named("compileJava") {
   dependsOn(java6CompileTask)
+  dependsOn(java11CompileTask)
 }
 
 dependencies {
+  implementation sourceSets.main_java11.output
+  main_java11CompileOnly libs.forbiddenapis
   main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
@@ -249,6 +260,8 @@ includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
   from sourceSets.main_java6.output
+  // Include additional checks compiled with Java 11.
+  from sourceSets.main_java11.output
 
   generalShadowJarConfig(it)
 
