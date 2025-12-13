@@ -2,37 +2,47 @@ import datadog.trace.api.Trace
 import datadog.trace.instrumentation.kotlin.coroutines.CoreKotlinCoroutineTests
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
+// Workaround for Groovy 4 breaking Kotlin SAM conversion for FlowCollector
+private suspend inline fun <T> Flow<T>.forEach(crossinline action: suspend (T) -> Unit) = collect(object : FlowCollector<T> {
+  override suspend fun emit(value: T) = action(value)
+})
+
 class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
 
-  // @Trace
-  // fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
-  //   val producer = flow {
-  //     repeat(3) {
-  //       tracedChild("produce_$it")
-  //       if (withModifiedContext) {
-  //         withTimeout(100) {
-  //           emit(it)
-  //         }
-  //       } else {
-  //         emit(it)
-  //       }
-  //     }
-  //   }.flowOn(jobName("producer"))
-  //
-  //   launch(jobName("consumer")) {
-  //     producer.collect {
-  //       tracedChild("consume_$it")
-  //     }
-  //   }
-  //
-  //   7
-  // }
+  @Trace
+  fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
+    // Use channelFlow when emitting from modified context (withTimeout) as regular flow doesn't allow it
+    val producer: Flow<Int> = if (withModifiedContext) {
+      channelFlow {
+        repeat(3) {
+          tracedChild("produce_$it")
+          withTimeout(100) { send(it) }
+        }
+      }
+    } else {
+      flow {
+        repeat(3) {
+          tracedChild("produce_$it")
+          emit(it)
+        }
+      }
+    }.flowOn(jobName("producer"))
+
+    launch(jobName("consumer")) {
+      producer.forEach { tracedChild("consume_$it") }
+    }
+
+    7
+  }
 
   @Trace
   fun traceAfterFlow(): Int = runTest {

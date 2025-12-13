@@ -44,8 +44,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.4')
 
-  // This module still needs JUnit4.
-  testImplementation(libs.junit4) // TODO spock.junit4?
+  // This module still needs Spock with JUnit4.
+  testImplementation(libs.spock.junit4.groovy4)
 
   // Include latest version of kafka itself along with latest version of client libs.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
