@@ -36,10 +36,6 @@ kotlin {
   }
 }
 
-groovySpock {
-  configureDependencies("testFixturesApi")
-}
-
 addTestSuite('latestDepTest')
 
 tasks.named("compileTestFixturesGroovy", GroovyCompile) {
@@ -72,4 +68,7 @@ dependencies {
   latestDepTestImplementation libs.kotlin
   latestDepTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.+"
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:kotlin-coroutines'))
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }

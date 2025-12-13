@@ -28,10 +28,6 @@ def unpackOpenLiberty = tasks.register('unpackOpenLiberty', UnpackOpenLiberty) {
 }
 def filterLogbackClassic = tasks.register('filterLogbackClassic', Sync)
 
-groovySpock {
-  configureDependencies("testImplementation", libs.groovy4.xml)
-}
-
 dependencies {
   zipped group: 'io.openliberty', name: 'openliberty-runtime', version: '21.0.0.3', ext: 'zip'
   testLogging libs.bundles.test.logging
@@ -46,6 +42,8 @@ dependencies {
   testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
+  testImplementation(libs.groovy4.xml)
+
   webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
@@ -54,6 +52,8 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))) {
     transitive = false
   }
+
+  webappCompileOnly(libs.bundles.spock)
 }
 
 configurations.named("testRuntimeOnly") {

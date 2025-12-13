@@ -12,7 +12,6 @@ import org.gradle.kotlin.dsl.property
 import java.io.File
 import javax.inject.Inject
 
-
 /**
  * This extension allows to configure the Call Site Instrumenter plugin execution.
  */

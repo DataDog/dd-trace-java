@@ -23,13 +23,6 @@ tasks.named("iastTest", Test) {
   jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
 }
 
-groovySpock {
-  configureDependencies("testImplementation", libs.spock.spring.groovy4)
-  configureDependencies("bootTestImplementation", libs.spock.spring.groovy4)
-  configureDependencies("latestDepBootTestImplementation", libs.spock.spring.groovy4)
-  configureDependencies("iastTestImplementation", libs.spock.spring.groovy4)
-}
-
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
@@ -67,5 +60,10 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '3.0.0'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '3.0.0'
+
+  testImplementation(libs.spock.spring.groovy4)
+  bootTestImplementation(libs.spock.spring.groovy4)
+  latestDepBootTestImplementation(libs.spock.spring.groovy4)
+  iastTestImplementation(libs.spock.spring.groovy4)
 }
 

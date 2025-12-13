@@ -20,6 +20,9 @@ dependencies {
 
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))
   testFixturesImplementation(libs.javaparser)
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }
 
 tasks.named("compileJava", JavaCompile) {

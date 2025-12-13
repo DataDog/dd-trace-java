@@ -17,17 +17,16 @@ muzzle {
 
 addTestSuite('latestDepTest')
 
-groovySpock {
-  configureDependencies("testFixturesApi")
-}
-
 dependencies {
   compileOnly group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
 
   testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
   testFixturesApi project(':dd-java-agent:instrumentation:junit:junit-5.3')
-  testFixturesApi group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
-  testFixturesApi group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
+  testFixturesApi(libs.junit.platform.launcher)
+  testFixturesApi(libs.junit.jupiter.engine)
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 
   testImplementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
   testImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '2.70.0'

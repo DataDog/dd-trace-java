@@ -3,14 +3,14 @@ package datadog.gradle.plugin.config
 import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
-import com.github.javaparser.ast.expr.StringLiteralExpr
-import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.GradleException
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType

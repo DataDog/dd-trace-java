@@ -45,4 +45,7 @@ dependencies {
 
   latestDepTestImplementation group: 'org.hornetq', name: 'hornetq-jms-client', version: '2.4.7.Final'
   latestDepTestImplementation group: 'org.hornetq', name: 'hornetq-jms-server', version: '2.4.7.Final'
+
+  // For this module Groovy 3 needs `org.junit.rules.ExternalResource` from JUnit4.
+  testImplementation(libs.junit4)
 }

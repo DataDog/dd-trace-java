@@ -1,10 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
-groovySpock {
-  configureDependencies("compileOnly")
-}
-
 dependencies {
   api project(':dd-java-agent:agent-ci-visibility')
   api project(':dd-java-agent:testing')
@@ -16,6 +12,8 @@ dependencies {
   api group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
   api group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
 
-  compileOnly libs.junit.jupiter
+  compileOnly(libs.junit.jupiter)
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 

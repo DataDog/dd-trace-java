@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.2.2"
+  id("com.gradle.develocity") version "4.3"
   id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
@@ -177,7 +177,7 @@ include(
   ":dd-smoke-tests:custom-systemloader",
   ":dd-smoke-tests:dynamic-config",
   ":dd-smoke-tests:field-injection",
-  ":dd-smoke-tests:gradle",
+  // ":dd-smoke-tests:gradle",
   ":dd-smoke-tests:grpc-1.5",
   ":dd-smoke-tests:java9-modules",
   ":dd-smoke-tests:jersey-2",

@@ -4,16 +4,15 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'dd-smoke-tests'
 
-groovySpock {
-  configureDependencies("compileOnly")
-}
-
 dependencies {
   api libs.okhttp
   api project(':dd-java-agent:testing')
   api project(':utils:test-agent-utils:decoder')
 
   compileOnly(libs.junit.jupiter)
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 
 tasks.withType(GroovyCompile).configureEach {

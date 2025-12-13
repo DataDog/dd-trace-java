@@ -7,10 +7,6 @@ configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 
-groovySpock {
-  configureDependencies("testFixturesApi")
-}
-
 dependencies {
   compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
@@ -25,4 +21,7 @@ dependencies {
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
   testFixturesCompileOnly group: 'org.apache.spark', name: 'spark-yarn_2.12', version: '2.4.0'
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }

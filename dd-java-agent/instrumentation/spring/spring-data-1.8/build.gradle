@@ -29,10 +29,6 @@ testJvmConstraints {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-groovySpock {
-  configureDependencies("testImplementation", libs.spock.spring.groovy4)
-}
-
 // DQH - API changes that impact instrumentation occurred in spring-data-commons in March 2014.
 // For now, that limits support to spring-data-commons 1.9.0 (maybe 1.8.0).
 // For testing, chose a couple spring-data modules that are old enough to work with 1.9.0.
@@ -49,6 +45,8 @@ dependencies {
   testImplementation group: 'com.mysema.querydsl', name: 'querydsl-jpa', version: '3.7.4'
   testImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.0.0'
   testImplementation group: 'org.hibernate', name: 'hibernate-entitymanager', version: '4.3.0.Final'
+
+  testImplementation(libs.spock.spring.groovy4)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'

@@ -10,10 +10,6 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'dd-trace-java.call-site-instrumentation'
 
-groovySpock {
-  configureDependencies("testImplementation", libs.spock.spring.groovy4)
-}
-
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '5.3.23'
   compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
@@ -27,6 +23,8 @@ dependencies {
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.7.5'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.5'
+
+  testImplementation(libs.spock.spring.groovy4)
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }

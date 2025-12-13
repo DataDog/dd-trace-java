@@ -29,11 +29,6 @@ configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 
-groovySpock {
-  configureDependencies("testFixturesApi")
-  configureDependencies("testImplementation")
-}
-
 dependencies {
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.0.Final'
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-multipart-provider', version: '3.0.0.Final'
@@ -44,6 +39,8 @@ dependencies {
   testFixturesImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 
   testImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'

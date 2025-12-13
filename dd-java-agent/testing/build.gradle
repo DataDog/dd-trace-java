@@ -31,10 +31,6 @@ configurations.named('api') {
   exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
 }
 
-groovySpock {
-  configureDependencies("compileOnly")
-}
-
 dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent
@@ -53,6 +49,9 @@ dependencies {
 
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 
 tasks.named("shadowJar", ShadowJar) {

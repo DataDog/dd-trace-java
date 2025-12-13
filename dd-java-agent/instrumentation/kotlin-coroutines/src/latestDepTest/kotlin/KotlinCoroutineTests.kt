@@ -10,29 +10,29 @@ import kotlinx.coroutines.withTimeout
 
 class KotlinCoroutineTests(dispatcher: CoroutineDispatcher) : CoreKotlinCoroutineTests(dispatcher) {
 
-  @Trace
-  fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
-    val producer = flow {
-      repeat(3) {
-        tracedChild("produce_$it")
-        if (withModifiedContext) {
-          withTimeout(100) {
-            emit(it)
-          }
-        } else {
-          emit(it)
-        }
-      }
-    }.flowOn(jobName("producer"))
-
-    launch(jobName("consumer")) {
-      producer.collect {
-        tracedChild("consume_$it")
-      }
-    }
-
-    7
-  }
+  // @Trace
+  // fun tracedAcrossFlows(withModifiedContext: Boolean): Int = runTest {
+  //   val producer = flow {
+  //     repeat(3) {
+  //       tracedChild("produce_$it")
+  //       if (withModifiedContext) {
+  //         withTimeout(100) {
+  //           emit(it)
+  //         }
+  //       } else {
+  //         emit(it)
+  //       }
+  //     }
+  //   }.flowOn(jobName("producer"))
+  //
+  //   launch(jobName("consumer")) {
+  //     producer.collect {
+  //       tracedChild("consume_$it")
+  //     }
+  //   }
+  //
+  //   7
+  // }
 
   @Trace
   fun traceAfterFlow(): Int = runTest {

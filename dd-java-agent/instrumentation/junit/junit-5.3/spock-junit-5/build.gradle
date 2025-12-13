@@ -17,11 +17,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-groovySpock {
-  // Must use Groovy 3, as `spock-core` of version `2.0` exists only for Groovy 3.
-  groovyVersion(3)
-}
-
 dependencies {
   implementation project(':dd-java-agent:instrumentation:junit:junit-5.3')
 

@@ -1,10 +1,5 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-groovySpock {
-  configureDependencies("compileOnly")
-  configureDependencies("testImplementation")
-}
-
 dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent
@@ -28,4 +23,7 @@ dependencies {
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor
   testCompileOnly libs.autoservice.annotation
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }

@@ -33,10 +33,6 @@ tasks.named("shadowJar", ShadowJar) {
   configurations = [project.configurations.runtimeClasspath]
 }
 
-groovySpock {
-  configureDependencies("implementation")
-}
-
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
@@ -45,6 +41,8 @@ dependencies {
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
+  implementation(libs.bundles.groovy)
 }
 
 tasks.withType(Test).configureEach {

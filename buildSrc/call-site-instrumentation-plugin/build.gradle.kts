@@ -31,12 +31,11 @@ dependencies {
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)
   implementation(libs.asm.tree)
-  implementation(libs.javaparser.solver)
+  implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.groovy4)
-  testImplementation(libs.spock.core.groovy4)
-  testImplementation(libs.objenesis)
+  testImplementation(libs.bundles.groovy)
+  testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation(libs.spotbugs.annotations)
 }

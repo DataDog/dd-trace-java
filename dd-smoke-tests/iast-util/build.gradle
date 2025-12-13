@@ -6,10 +6,6 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'iast-smoke-tests-utils'
 
-groovySpock {
-  configureDependencies("testFixturesApi")
-}
-
 dependencies {
   api project(':dd-smoke-tests')
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
@@ -29,4 +25,7 @@ dependencies {
   implementation 'com.sun.mail:jakarta.mail:2.0.1'
   // text sanitization
   implementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }
