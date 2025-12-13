@@ -22,7 +22,7 @@ class ResponseServiceTest extends OpenAiTest {
     expect:
     resp != null
     and:
-    assertResponseTrace(false)
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create response test withRawResponse"() {
@@ -34,7 +34,7 @@ class ResponseServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertResponseTrace(false)
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create streaming response test (#scenario)"() {
@@ -48,12 +48,29 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true)
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
 
     where:
     scenario     | params
     "complete"   | responseCreateParams()
     "incomplete" | responseCreateParamsWithMaxOutputTokens()
+  }
+
+  def "create streaming response test (reasoning)"() {
+    runnableUnderTrace("parent") {
+      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParams)
+      try (Stream stream = streamResponse.stream()) {
+        stream.forEach {
+          // consume the stream
+        }
+      }
+    }
+
+    expect:
+    assertResponseTrace(true, "o4-mini", "o4-mini-2025-04-16", [effort: "medium",  summary: "detailed"])
+
+    where:
+    responseCreateParams << [responseCreateParamsWithReasoning(false), responseCreateParamsWithReasoning(true)]
   }
 
   def "create streaming response test withRawResponse"() {
@@ -67,7 +84,7 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true)
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create async response test"() {
@@ -78,7 +95,7 @@ class ResponseServiceTest extends OpenAiTest {
     responseFuture.get()
 
     expect:
-    assertResponseTrace(false)
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create async response test withRawResponse"() {
@@ -90,7 +107,7 @@ class ResponseServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertResponseTrace(false)
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create streaming async response test"() {
@@ -102,7 +119,7 @@ class ResponseServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertResponseTrace(true)
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
   def "create streaming async response test withRawResponse"() {
@@ -117,10 +134,10 @@ class ResponseServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertResponseTrace(true)
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
   }
 
-  private void assertResponseTrace(boolean isStreaming) {
+  private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -146,10 +163,13 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_metric.total_tokens" Long
             "_ml_obs_metric.cache_read_input_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
+            if (reasoning != null) {
+              "_ml_obs_request.reasoning" reasoning
+            }
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/responses"
             "openai.api_base" openAiBaseApi
-            "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-0125"
+            "$OpenAiDecorator.RESPONSE_MODEL" respModel
             if (!isStreaming) {
               "openai.organization.ratelimit.requests.limit" 10000
               "openai.organization.ratelimit.requests.remaining" Integer
@@ -157,7 +177,7 @@ class ResponseServiceTest extends OpenAiTest {
               "openai.organization.ratelimit.tokens.remaining" Integer
             }
             "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
-            "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo"
+            "$OpenAiDecorator.REQUEST_MODEL" reqModel
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

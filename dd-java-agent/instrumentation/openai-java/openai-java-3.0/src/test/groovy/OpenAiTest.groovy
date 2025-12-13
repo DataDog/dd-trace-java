@@ -9,12 +9,15 @@ import com.openai.core.JsonValue
 import com.openai.models.ChatModel
 import com.openai.models.FunctionDefinition
 import com.openai.models.FunctionParameters
+import com.openai.models.Reasoning
+import com.openai.models.ReasoningEffort
 import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.chat.completions.ChatCompletionFunctionTool
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
 import com.openai.models.embeddings.EmbeddingModel
 import com.openai.models.responses.ResponseCreateParams
+import com.openai.models.responses.ResponseIncludable
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.core.util.LRUCache
 import datadog.trace.llmobs.LlmObsSpecification
@@ -143,6 +146,23 @@ abstract class OpenAiTest extends LlmObsSpecification {
     .model("gpt-3.5-turbo")
     .input("Do not continue the Evan Li slander!")
     .maxOutputTokens(30)
+    .build()
+  }
+
+  ResponseCreateParams responseCreateParamsWithReasoning(boolean json) {
+    if (json) {
+      return ResponseCreateParams.builder()
+      .model("o4-mini")
+      .input("If one plus a number is 10, what is the number?")
+      .include(Collections.singletonList(ResponseIncludable.REASONING_ENCRYPTED_CONTENT)) // TODO "include":["reasoning.encrypted_content"]
+      .reasoning(JsonValue.from([effort: "medium", summary: "detailed"]))
+      .build()
+    }
+    return ResponseCreateParams.builder()
+    .model("o4-mini")
+    .input("If one plus a number is 10, what is the number?")
+    .include(Collections.singletonList(ResponseIncludable.REASONING_ENCRYPTED_CONTENT))
+    .reasoning(Reasoning.builder().effort(ReasoningEffort.MEDIUM).summary(Reasoning.Summary.DETAILED).build())
     .build()
   }
 

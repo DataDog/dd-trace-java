@@ -5,6 +5,7 @@ import com.openai.core.JsonField;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponse;
 import com.openai.helpers.ChatCompletionAccumulator;
+import com.openai.models.Reasoning;
 import com.openai.models.ResponsesModel;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
@@ -24,7 +25,9 @@ import com.openai.models.responses.ResponseFunctionToolCall;
 import com.openai.models.responses.ResponseOutputItem;
 import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseOutputText;
+import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
+import datadog.json.JsonWriter;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
@@ -366,13 +369,8 @@ public class OpenAiDecorator extends ClientDecorator {
     String modelName = extractResponseModel(params._model());
     span.setTag(REQUEST_MODEL, modelName);
 
-    // Set model_name and model_provider as fallback (will be overridden by withResponse if called)
-    // span.setTag("_ml_obs_tag.model_name", modelName);
-    // span.setTag("_ml_obs_tag.model_provider", "openai");
-
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
-    // Add instructions as system message first (if present)
     params
         .instructions()
         .ifPresent(
@@ -380,7 +378,6 @@ public class OpenAiDecorator extends ClientDecorator {
               inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
             });
 
-    // Add user input message
     Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
       inputMessages.add(LLMObs.LLMMessage.from("user", textOpt.get()));
@@ -389,6 +386,43 @@ public class OpenAiDecorator extends ClientDecorator {
     if (!inputMessages.isEmpty()) {
       span.setTag("_ml_obs_tag.input", inputMessages);
     }
+
+    extractReasoningFromParams(params)
+        .ifPresent(reasoningMap -> span.setTag("_ml_obs_request.reasoning", reasoningMap));
+  }
+
+  private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
+    com.openai.core.JsonField<Reasoning> reasoningField = params._reasoning();
+    if (reasoningField.isMissing()) {
+      return Optional.empty();
+    }
+
+    Map<String, String> reasoningMap = new HashMap<>();
+
+    Optional<Reasoning> knownReasoning = reasoningField.asKnown();
+    if (knownReasoning.isPresent()) {
+      Reasoning reasoning = knownReasoning.get();
+      reasoning.effort().ifPresent(effort -> reasoningMap.put("effort", effort.asString()));
+      reasoning.summary().ifPresent(summary -> reasoningMap.put("summary", summary.asString()));
+    } else {
+      Optional<Map<String, com.openai.core.JsonValue>> rawObject = reasoningField.asObject();
+      if (rawObject.isPresent()) {
+        Map<String, com.openai.core.JsonValue> obj = rawObject.get();
+        com.openai.core.JsonValue effortVal = obj.get("effort");
+        if (effortVal != null) {
+          effortVal.asString().ifPresent(v -> reasoningMap.put("effort", String.valueOf(v)));
+        }
+        com.openai.core.JsonValue summaryVal = obj.get("summary");
+        if (summaryVal == null) {
+          summaryVal = obj.get("generate_summary");
+        }
+        if (summaryVal != null) {
+          summaryVal.asString().ifPresent(v -> reasoningMap.put("summary", String.valueOf(v)));
+        }
+      }
+    }
+
+    return reasoningMap.isEmpty() ? Optional.empty() : Optional.of(reasoningMap);
   }
 
   public void withResponse(AgentSpan span, Response response) {
@@ -423,11 +457,15 @@ public class OpenAiDecorator extends ClientDecorator {
 
     Map<String, Object> metadata = new HashMap<>();
 
+    Object reasoningTag = span.getTag("_ml_obs_request.reasoning");
+    if (reasoningTag != null) {
+      metadata.put("reasoning", reasoningTag);
+    }
+
     response.maxOutputTokens().ifPresent(v -> metadata.put("max_output_tokens", v));
     response.temperature().ifPresent(v -> metadata.put("temperature", v));
     response.topP().ifPresent(v -> metadata.put("top_p", v));
 
-    // Extract tool_choice as string
     Response.ToolChoice toolChoice = response.toolChoice();
     if (toolChoice.isOptions()) {
       metadata.put("tool_choice", toolChoice.asOptions()._value().asString().orElse(null));
@@ -437,14 +475,12 @@ public class OpenAiDecorator extends ClientDecorator {
       metadata.put("tool_choice", "function");
     }
 
-    // Extract truncation as string
     response
         .truncation()
         .ifPresent(
             (Response.Truncation t) ->
                 metadata.put("truncation", t._value().asString().orElse(null)));
 
-    // Extract text format
     response
         .text()
         .ifPresent(
@@ -491,24 +527,35 @@ public class OpenAiDecorator extends ClientDecorator {
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
-    List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
-    String textContent = null;
 
     for (ResponseOutputItem item : output) {
       if (item.isFunctionCall()) {
         ResponseFunctionToolCall functionCall = item.asFunctionCall();
         LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(functionCall);
         if (toolCall != null) {
-          toolCalls.add(toolCall);
+          List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
+          messages.add(LLMObs.LLMMessage.from("assistant", null, toolCalls));
         }
       } else if (item.isMessage()) {
         ResponseOutputMessage message = item.asMessage();
-        textContent = extractMessageContent(message);
+        String textContent = extractMessageContent(message);
+        Optional<String> roleOpt = message._role().asString();
+        String role = roleOpt.orElse("assistant");
+        messages.add(LLMObs.LLMMessage.from(role, textContent));
+      } else if (item.isReasoning()) {
+        ResponseReasoningItem reasoning = item.asReasoning();
+        try (JsonWriter writer = new JsonWriter()) {
+          writer.beginObject();
+          if (!reasoning.summary().isEmpty()) {
+            writer.name("summary").value(reasoning.summary().get(0).text());
+          }
+          reasoning.encryptedContent().ifPresent(v -> writer.name("encrypted_content").value(v));
+          writer.name("id").value(reasoning.id());
+          writer.endObject();
+          messages.add(LLMObs.LLMMessage.from("reasoning", writer.toString()));
+        }
       }
     }
-
-    messages.add(LLMObs.LLMMessage.from("assistant", textContent, toolCalls));
-
     return messages;
   }
 
