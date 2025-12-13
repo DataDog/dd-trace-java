@@ -209,4 +209,20 @@ public class LLMObs {
       return toolCalls;
     }
   }
+
+  public static class Document {
+    private String text;
+
+    public static Document from(String text) {
+      return new Document(text);
+    }
+
+    private Document(String text) {
+      this.text = text;
+    }
+
+    public String getText() {
+      return text;
+    }
+  }
 }
