@@ -46,9 +46,12 @@ public class AppSecSystem {
   private static final AtomicBoolean API_SECURITY_INITIALIZED = new AtomicBoolean(false);
   private static volatile ApiSecuritySampler API_SECURITY_SAMPLER = new ApiSecuritySampler.NoOp();
 
-  public static void start(SubscriptionService gw, SharedCommunicationObjects sco) {
+  public static void start(
+      java.lang.instrument.Instrumentation inst,
+      SubscriptionService gw,
+      SharedCommunicationObjects sco) {
     try {
-      doStart(gw, sco);
+      doStart(inst, gw, sco);
     } catch (AbortStartupException ase) {
       throw ase;
     } catch (RuntimeException | Error e) {
@@ -58,7 +61,10 @@ public class AppSecSystem {
     }
   }
 
-  private static void doStart(SubscriptionService gw, SharedCommunicationObjects sco) {
+  private static void doStart(
+      java.lang.instrument.Instrumentation inst,
+      SubscriptionService gw,
+      SharedCommunicationObjects sco) {
     final Config config = Config.get();
     ProductActivation appSecEnabledConfig = config.getAppSecActivation();
     if (appSecEnabledConfig == ProductActivation.FULLY_DISABLED) {
@@ -96,6 +102,9 @@ public class AppSecSystem {
     RESET_SUBSCRIPTION_SERVICE = gatewayBridge::reset;
 
     setActive(appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
+
+    // Initialize SCA instrumentation before subscribing to Remote Config
+    APP_SEC_CONFIG_SERVICE.setInstrumentation(inst);
 
     APP_SEC_CONFIG_SERVICE.maybeSubscribeConfigPolling();
 
