@@ -143,7 +143,7 @@ public final class AgentBootstrap {
     }
 
     String agentClassName;
-    if ("aot_training".equalsIgnoreCase(agentArgs)) {
+    if (isAotTraining(agentArgs, inst)) {
       agentClassName = "datadog.trace.bootstrap.aot.TrainingAgent";
     } else {
       agentClassName = "datadog.trace.bootstrap.Agent";
@@ -428,5 +428,16 @@ public final class AgentBootstrap {
             + "' is located in '"
             + jarUrl
             + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
+  }
+
+  /** Returns {@code true} if the JVM is training, i.e. writing to a CDS/AOT archive. */
+  private static boolean isAotTraining(String agentArgs, Instrumentation inst) {
+    if (!JavaVirtualMachine.isJavaVersionAtLeast(25)) {
+      return false; // agent doesn't support training mode before Java 25
+    } else if ("aot_training".equalsIgnoreCase(agentArgs)) {
+      return true; // training mode explicitly enabled via -javaagent
+    } else {
+      return AdvancedAgentChecks.isAotTraining(inst); // check JVM status
+    }
   }
 }
