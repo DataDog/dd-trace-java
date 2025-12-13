@@ -46,4 +46,6 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testFixturesImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+
+  testFixturesCompileOnly(libs.bundles.groovy)
 }
