@@ -9,6 +9,7 @@ import static datadog.trace.common.metrics.EventListener.EventType.ERROR;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,7 +24,7 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
-  private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
+  private final MessagePassingQueue<Request> enqueuedRequests = Queues.spscArrayQueue(16);
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final boolean bufferingEnabled;
@@ -157,9 +158,9 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private static final class Sender implements AgentTaskScheduler.Task<OkHttpSink> {
 
-    private final SpscArrayQueue<Request> inbox;
+    private final MessagePassingQueue<Request> inbox;
 
-    private Sender(SpscArrayQueue<Request> inbox) {
+    private Sender(MessagePassingQueue<Request> inbox) {
       this.inbox = inbox;
     }
 

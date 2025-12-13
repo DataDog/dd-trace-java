@@ -376,6 +376,9 @@ dependencies {
   sharedShadowInclude project(':utils:socket-utils'), {
     transitive = false
   }
+  sharedShadowInclude project(':utils:queue-utils'), {
+    transitive = false
+  }
   sharedShadowInclude project(':utils:version-utils'), {
     transitive = false
   }
