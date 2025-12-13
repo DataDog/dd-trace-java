@@ -60,6 +60,12 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    // Disabled by default until non flaky
+    return false;
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>();
     contextStore.put(Runnable.class.getName(), State.class.getName());
