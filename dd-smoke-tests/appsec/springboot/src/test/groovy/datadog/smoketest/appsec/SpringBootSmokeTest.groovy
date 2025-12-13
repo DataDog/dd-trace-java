@@ -609,7 +609,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     response.code() == 403
-    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+    responseBodyStr.contains('"title":"You\'ve been blocked"')
+    responseBodyStr.contains('"detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."')
+    responseBodyStr.contains('"security_response_id":')
 
     when:
     waitForTraceCount(1)

@@ -363,6 +363,7 @@ public class WAFModule implements AppSecModule {
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
+        String securityResponseId = null;
         for (Map.Entry<String, Map<String, Object>> action : resultWithData.actions.entrySet()) {
           String actionType = action.getKey();
           Map<String, Object> actionParams = action.getValue();
@@ -370,12 +371,16 @@ public class WAFModule implements AppSecModule {
           ActionInfo actionInfo = new ActionInfo(actionType, actionParams);
 
           if ("block_request".equals(actionInfo.type)) {
+            // Extract security_response_id from action parameters for use in triggers
+            securityResponseId = (String) actionInfo.parameters.get("security_response_id");
             Flow.Action.RequestBlockingAction rba =
-                createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
+                createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp, securityResponseId);
             flow.setAction(rba);
           } else if ("redirect_request".equals(actionInfo.type)) {
+            // Extract security_response_id from action parameters for use in triggers
+            securityResponseId = (String) actionInfo.parameters.get("security_response_id");
             Flow.Action.RequestBlockingAction rba =
-                createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp);
+                createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp, securityResponseId);
             flow.setAction(rba);
           } else if ("generate_stack".equals(actionInfo.type)) {
             if (Config.get().isAppSecStackTraceEnabled()) {
@@ -412,7 +417,7 @@ public class WAFModule implements AppSecModule {
             }
           }
         }
-        Collection<AppSecEvent> events = buildEvents(resultWithData);
+        Collection<AppSecEvent> events = buildEvents(resultWithData, securityResponseId);
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);
 
         if (!isThrottled) {
@@ -459,7 +464,10 @@ public class WAFModule implements AppSecModule {
     }
 
     private Flow.Action.RequestBlockingAction createBlockRequestAction(
-        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
+        final ActionInfo actionInfo,
+        final AppSecRequestContext reqCtx,
+        final boolean isRasp,
+        final String securityResponseId) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -477,7 +485,8 @@ public class WAFModule implements AppSecModule {
         } catch (IllegalArgumentException iae) {
           log.warn("Unknown content type: {}; using auto", contentType);
         }
-        return new Flow.Action.RequestBlockingAction(statusCode, blockingContentType);
+        return new Flow.Action.RequestBlockingAction(
+            statusCode, blockingContentType, Collections.emptyMap(), securityResponseId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
@@ -488,7 +497,10 @@ public class WAFModule implements AppSecModule {
     }
 
     private Flow.Action.RequestBlockingAction createRedirectRequestAction(
-        final ActionInfo actionInfo, final AppSecRequestContext reqCtx, final boolean isRasp) {
+        final ActionInfo actionInfo,
+        final AppSecRequestContext reqCtx,
+        final boolean isRasp,
+        final String securityResponseId) {
       try {
         int statusCode;
         Object statusCodeObj = actionInfo.parameters.get("status_code");
@@ -505,6 +517,15 @@ public class WAFModule implements AppSecModule {
         String location = (String) actionInfo.parameters.get("location");
         if (location == null) {
           throw new RuntimeException("redirect_request action has no location");
+        }
+        if (securityResponseId != null && !securityResponseId.isEmpty()) {
+          // For custom redirects, only replace [security_response_id] placeholder if present in the
+          // URL.
+          // The client decides whether to include security_response_id by adding the placeholder.
+          // We don't automatically append security_response_id as a URL parameter.
+          if (location.contains("[security_response_id]")) {
+            location = location.replace("[security_response_id]", securityResponseId);
+          }
         }
         return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
       } catch (RuntimeException cce) {
@@ -572,7 +593,8 @@ public class WAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent> buildEvents(Waf.ResultWithData actionWithData) {
+  private Collection<AppSecEvent> buildEvents(
+      Waf.ResultWithData actionWithData, String securityResponseId) {
     if (actionWithData.data == null) {
       log.debug(SEND_TELEMETRY, "WAF result data is null");
       return Collections.emptyList();
@@ -590,14 +612,14 @@ public class WAFModule implements AppSecModule {
 
     if (listResults != null && !listResults.isEmpty()) {
       return listResults.stream()
-          .map(this::buildEvent)
+          .map(wafResult -> buildEvent(wafResult, securityResponseId))
           .filter(Objects::nonNull)
           .collect(Collectors.toList());
     }
     return emptyList();
   }
 
-  private AppSecEvent buildEvent(WAFResultData wafResult) {
+  private AppSecEvent buildEvent(WAFResultData wafResult, String securityResponseId) {
 
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
@@ -615,6 +637,7 @@ public class WAFModule implements AppSecModule {
         .withRuleMatches(wafResult.rule_matches)
         .withSpanId(spanId)
         .withStackId(wafResult.stack_id)
+        .withSecurityResponseId(securityResponseId)
         .build();
   }
 

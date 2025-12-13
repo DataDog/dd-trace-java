@@ -17,7 +17,8 @@ public interface BlockResponseFunction {
       TraceSegment segment,
       int statusCode,
       BlockingContentType templateType,
-      Map<String, String> extraHeaders);
+      Map<String, String> extraHeaders,
+      String securityResponseId);
 
   /**
    * Commits blocking response using a RequestBlockingAction.
@@ -30,12 +31,17 @@ public interface BlockResponseFunction {
    * finished.
    *
    * @param segment the trace segment
-   * @param action the blocking action containing status code, content type, and headers
+   * @param action the blocking action containing status code, content type, headers, and security
+   *     response ID
    * @return true unless blocking could not be attempted
    */
   default boolean tryCommitBlockingResponse(
       TraceSegment segment, Flow.Action.RequestBlockingAction action) {
     return tryCommitBlockingResponse(
-        segment, action.getStatusCode(), action.getBlockingContentType(), action.getExtraHeaders());
+        segment,
+        action.getStatusCode(),
+        action.getBlockingContentType(),
+        action.getExtraHeaders(),
+        action.getSecurityResponseId());
   }
 }
