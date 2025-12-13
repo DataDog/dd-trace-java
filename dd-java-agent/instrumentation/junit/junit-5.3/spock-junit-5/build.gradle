@@ -32,6 +32,12 @@ dependencies {
   latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
 }
 
+configurations {
+  testImplementation {
+    exclude group: 'org.apache.groovy'
+  }
+}
+
 configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()

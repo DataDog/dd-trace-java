@@ -49,7 +49,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly files(shadowJar.map { it.archiveFile })
 
-  testImplementation(libs.groovy.xml)
+  testImplementation(libs.groovy4.xml)
 
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
@@ -65,7 +65,6 @@ dependencies {
 
 configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'

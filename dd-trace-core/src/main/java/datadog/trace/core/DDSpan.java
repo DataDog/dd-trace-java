@@ -310,7 +310,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    *
    * @return true if root, false otherwise
    */
-  public final boolean isRootSpan() {
+  public final boolean checkRootSpan() {
     return context.getParentId() == DDSpanId.ZERO;
   }
 
@@ -330,7 +330,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    *
    * @return {@literal true} if this span is the same as {@linkplain #getLocalRootSpan()}
    */
-  public boolean isLocalRootSpan() {
+  public boolean checkLocalRootSpan() {
     return getLocalRootSpan().equals(this);
   }
 
@@ -382,7 +382,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     boolean captureOnlyRootSpan =
         (Config.get().isDebuggerExceptionOnlyLocalRoot()
             || !Config.get().isDebuggerExceptionCaptureIntermediateSpansEnabled());
-    if (captureOnlyRootSpan && !isLocalRootSpan()) {
+    if (captureOnlyRootSpan && !checkLocalRootSpan()) {
       return false;
     }
     return true;
