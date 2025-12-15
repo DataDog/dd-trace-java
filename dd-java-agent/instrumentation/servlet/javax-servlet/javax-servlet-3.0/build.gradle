@@ -62,21 +62,6 @@ dependencies {
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.0.41'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '8.0.41'
 
-  constraints {
-    testImplementation('org.eclipse.jetty:jetty-server') {
-      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
-      version {
-        strictly '8.2.0.v20160908'
-      }
-    }
-    testImplementation('org.eclipse.jetty:jetty-servlet') {
-      because(":dd-java-agent:testing comes with a newer version that may cause conflicts")
-      version {
-        strictly '8.2.0.v20160908'
-      }
-    }
-  }
-
   // Jetty 10 seems to refuse to run on java8.
   // TODO: we need to setup separate test for Jetty 10 when that is released.
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'

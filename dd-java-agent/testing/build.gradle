@@ -38,7 +38,10 @@ dependencies {
   api libs.bundles.test.logging
   api libs.guava
 
-  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  // Jetty is bundled (relocated) in the shadow jar, not exposed as transitive dependency
+  // This avoids version conflicts with instrumentation tests that use different jetty versions
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  runtimeOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
   // ^ 9.4 last to support java 8
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
@@ -55,12 +58,34 @@ dependencies {
 }
 
 tasks.named("shadowJar", ShadowJar) {
+  // Only bundle jetty dependencies into the jar (relocated)
+  // All other dependencies remain as transitive dependencies
   dependencies {
     include(dependency {
       it.moduleGroup == 'org.eclipse.jetty'
     })
   }
+
+  // Relocate jetty classes to avoid conflicts with instrumented versions
   relocate "org.eclipse.jetty", "datadog.eclipse.jetty"
+
+  // Make shadowJar replace the main jar in api configuration
+  archiveClassifier = ''
+}
+
+// Remove the regular jar from api elements and use shadow jar instead
+// Also exclude jetty from being exposed as a transitive dependency (it's bundled in the shadow jar)
+configurations {
+  apiElements {
+    outgoing.artifacts.clear()
+    outgoing.artifact(tasks.shadowJar)
+    exclude group: 'org.eclipse.jetty'
+  }
+  runtimeElements {
+    outgoing.artifacts.clear()
+    outgoing.artifact(tasks.shadowJar)
+    exclude group: 'org.eclipse.jetty'
+  }
 }
 
 tasks.withType(Test).configureEach {

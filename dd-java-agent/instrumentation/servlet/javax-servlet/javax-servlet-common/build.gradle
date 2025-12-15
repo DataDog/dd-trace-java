@@ -27,9 +27,3 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 }
 
-configurations.named('testImplementation') {
-  // Don't want to conflict with jetty from the test server.
-  // because :dd-java-agent:testing brings its own version of jetty-server
-  exclude(group: 'org.eclipse.jetty')
-}
-

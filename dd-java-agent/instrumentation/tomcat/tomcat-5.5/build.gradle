@@ -143,12 +143,6 @@ tasks.withType(Test).configureEach {
     )
 }
 
-configurations.named('testImplementation') {
-  // Don't want to conflict with jetty from the test server.
-  // because :dd-java-agent:testing brings its own version of jetty-server
-  exclude(group: 'org.eclipse.jetty')
-}
-
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
 ["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"].each {
   configurations.named(it) {
