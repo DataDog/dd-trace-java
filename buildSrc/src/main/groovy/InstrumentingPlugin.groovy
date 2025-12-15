@@ -37,33 +37,32 @@ class InstrumentingPlugin {
       Plugin.Engine.Source source = new Plugin.Engine.Source.ForFolder(sourceDirectory)
       Plugin.Engine.Target target = new Plugin.Engine.Target.ForFolder(targetDirectory)
 
-      Plugin.Engine engine =
-      Plugin.Engine.Default.of(
-      EntryPoint.Default.REBASE, ClassFileVersion.ofThisVm(), Suffixing.withRandomSuffix())
+      Plugin.Engine engine = Plugin.Engine.Default.of(
+        EntryPoint.Default.REBASE, ClassFileVersion.ofThisVm(), Suffixing.withRandomSuffix())
 
       Plugin.Engine.Summary summary =
-      engine
-      .with(Plugin.Engine.PoolStrategy.Default.FAST)
-      .with(new NonCachingClassFileLocator(instrumentingLoader))
-      .with(new LoggingAdapter())
-      .withErrorHandlers(
-      Plugin.Engine.ErrorHandler.Enforcing.ALL_TYPES_RESOLVED,
-      Plugin.Engine.ErrorHandler.Enforcing.NO_LIVE_INITIALIZERS,
-      new Plugin.Engine.ErrorHandler() {
-        @Delegate
-        Plugin.Engine.ErrorHandler delegate = Plugin.Engine.ErrorHandler.Failing.FAIL_LAST
+        engine
+          .with(Plugin.Engine.PoolStrategy.Default.FAST)
+          .with(new NonCachingClassFileLocator(instrumentingLoader))
+          .with(new LoggingAdapter())
+          .withErrorHandlers(
+            Plugin.Engine.ErrorHandler.Enforcing.ALL_TYPES_RESOLVED,
+            Plugin.Engine.ErrorHandler.Enforcing.NO_LIVE_INITIALIZERS,
+            new Plugin.Engine.ErrorHandler() {
+              @Delegate
+              Plugin.Engine.ErrorHandler delegate = Plugin.Engine.ErrorHandler.Failing.FAIL_LAST
 
-        void onError(Map<TypeDescription, List<Throwable>> throwables) {
-          throw new IllegalStateException("Failed to transform at least one type: " + throwables).tap { ise ->
-            throwables.values().flatten().each {
-              ise.addSuppressed(it)
+              void onError(Map<TypeDescription, List<Throwable>> throwables) {
+                throw new IllegalStateException("Failed to transform at least one type: " + throwables).tap { ise ->
+                  throwables.values().flatten().each {
+                    ise.addSuppressed(it)
+                  }
+                }
+              }
             }
-          }
-        }
-      }
-      )
-      .with(Plugin.Engine.Dispatcher.ForSerialTransformation.Factory.INSTANCE)
-      .apply(source, target, factories)
+          )
+          .with(Plugin.Engine.Dispatcher.ForSerialTransformation.Factory.INSTANCE)
+          .apply(source, target, factories)
 
       if (!summary.getFailed().isEmpty()) {
         throw new IllegalStateException("Failed to transform: " + summary.getFailed())

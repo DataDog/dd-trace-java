@@ -113,8 +113,7 @@ class AssertBuilder<C extends CallSiteAssert> {
     return resolved.@method as Method
   }
 
-  private static CompilationUnit parseJavaFile(final File file)
-  throws FileNotFoundException {
+  private static CompilationUnit parseJavaFile(final File file) throws FileNotFoundException {
     final JavaSymbolSolver solver = new JavaSymbolSolver(typeResolver())
     final JavaParser parser = new JavaParser(new ParserConfiguration().setSymbolResolver(solver))
     return parser.parse(file).getResult().get()

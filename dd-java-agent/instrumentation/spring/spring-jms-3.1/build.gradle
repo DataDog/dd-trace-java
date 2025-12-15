@@ -30,6 +30,9 @@ dependencies {
   testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
 
+  // For this module Groovy 3 needs `org.junit.rules.ExternalResource` from JUnit4.
+  testImplementation(libs.junit4)
+
   latestDepTestImplementation group: 'org.springframework', name: 'spring-jms', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 }

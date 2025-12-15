@@ -224,10 +224,10 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     invokeDynamic = true
     )
     static java.lang.invoke.CallSite around(@CallSite.Argument final MethodHandles.Lookup lookup,
-      @CallSite.Argument final String name,
-      @CallSite.Argument final MethodType concatType,
-      @CallSite.Argument final String recipe,
-      @CallSite.Argument final Object... constants) {
+                                            @CallSite.Argument final String name,
+                                            @CallSite.Argument final MethodType concatType,
+                                            @CallSite.Argument final String recipe,
+                                            @CallSite.Argument final Object... constants) {
       return null
     }
   }
@@ -268,8 +268,8 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] arguments,
-      @CallSite.Return final String result,
-      @CallSite.InvokeDynamicConstants final Object[] constants) {
+                        @CallSite.Return final String result,
+                        @CallSite.InvokeDynamicConstants final Object[] constants) {
       return result
     }
   }

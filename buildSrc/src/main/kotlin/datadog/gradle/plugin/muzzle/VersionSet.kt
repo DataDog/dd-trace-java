@@ -7,7 +7,7 @@ class VersionSet(versions: Collection<Version>) {
   private val sortedVersions: SortedSet<ParsedVersion> = sortedSetOf()
 
   init {
-    versions.forEach { sortedVersions.add(ParsedVersion(it)) }
+      versions.forEach { sortedVersions.add(ParsedVersion(it)) }
   }
 
   val lowAndHighForMajorMinor: List<Version>

@@ -53,9 +53,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
           // insert intermediate 'raw' directory for unprocessed classes
           Directory classesDir = compileTask.destinationDirectory.get()
-          Directory rawClassesDir = classesDir.dir(
-          "../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''
-}/")
+          Directory rawClassesDir = classesDir.dir("../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
           compileTask.destinationDirectory.set(rawClassesDir.asFile)
 
           // insert task between compile and jar, and before test*
