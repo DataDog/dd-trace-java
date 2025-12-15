@@ -1,3 +1,5 @@
+package testdog.trace.instrumentation.java.lang.jdk21;
+
 import datadog.trace.api.Trace;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
