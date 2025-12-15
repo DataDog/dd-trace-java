@@ -2,6 +2,8 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
+  kotlin("jvm") version libs.versions.kotlin.plugin apply false
+
   id("dd-trace-java.gradle-debug")
   id("dd-trace-java.dependency-locking")
   id("dd-trace-java.tracer-version")
@@ -16,7 +18,6 @@ plugins {
   id("com.gradleup.shadow") version "8.3.6" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.13" apply false
-  kotlin("jvm") version libs.versions.kotlin.plugin apply false
 }
 
 description = "dd-trace-java"

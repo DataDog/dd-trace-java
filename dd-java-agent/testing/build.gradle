@@ -35,7 +35,6 @@ dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent
   api libs.slf4j
-  api libs.bundles.spock
   api libs.bundles.test.logging
   api libs.guava
 
@@ -48,10 +47,11 @@ dependencies {
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 
-  api libs.groovy
-
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 
 tasks.named("shadowJar", ShadowJar) {

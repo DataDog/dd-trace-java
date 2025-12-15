@@ -1,23 +1,23 @@
 package datadog.gradle.plugin.config
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.api.DefaultTask
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
 import javax.inject.Inject
 
 @CacheableTask
-abstract class ParseSupportedConfigurationsTask  @Inject constructor(
+abstract class ParseSupportedConfigurationsTask @Inject constructor(
   private val objects: ObjectFactory
 ) : DefaultTask() {
   @InputFile
