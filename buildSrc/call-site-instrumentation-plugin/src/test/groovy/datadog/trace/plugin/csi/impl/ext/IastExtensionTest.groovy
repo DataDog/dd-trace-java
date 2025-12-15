@@ -94,7 +94,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_3);',
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
             'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
-            )
+          )
         }
       }
       advices(1) {
@@ -108,7 +108,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.BIPUSH, 127);',
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
             'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
-            )
+          )
         }
       }
       advices(2) {
@@ -121,7 +121,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
             'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_PROPAGATION", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
             'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
             'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;I)V", false);'
-            )
+          )
         }
       }
     }
@@ -228,9 +228,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
           descriptor: descriptor,
           instrumented : buildMetricAsserter(instrumentedStmt),
           executed: buildMetricAsserter(executedStmt),
-          statements: statements.findAll {
-            !it.isIfStmt()
-          }
+          statements: statements.findAll { !it.isIfStmt() }
         ])
       }
     }
@@ -240,7 +238,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
       return new IastExtensionMetricAsserter(
         metric: condition.getScope().get().toString(),
         statements: ifStmt.getThenStmt().asBlockStmt().statements*.toString()
-        )
+      )
     }
   }
 }

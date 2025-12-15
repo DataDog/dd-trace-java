@@ -198,8 +198,8 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   static class InvokeDynamicBeforeAdvice {
     @CallSite.After(
-    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-    invokeDynamic = true
+      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+      invokeDynamic = true
     )
     static String invokeDynamic(@CallSite.AllArguments final Object[] arguments, @CallSite.Return final String result) {
       return result
@@ -233,14 +233,14 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   static class InvokeDynamicAroundAdvice {
     @CallSite.Around(
-    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-    invokeDynamic = true
+      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+      invokeDynamic = true
     )
     static java.lang.invoke.CallSite invokeDynamic(@CallSite.Argument final MethodHandles.Lookup lookup,
-    @CallSite.Argument final String name,
-    @CallSite.Argument final MethodType concatType,
-    @CallSite.Argument final String recipe,
-    @CallSite.Argument final Object... constants) {
+                                                   @CallSite.Argument final String name,
+                                                   @CallSite.Argument final MethodType concatType,
+                                                   @CallSite.Argument final String recipe,
+                                                   @CallSite.Argument final Object... constants) {
       return null
     }
   }
@@ -270,12 +270,12 @@ final class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
   @CallSite(spi = CallSites)
   static class TestInvokeDynamicConstants {
     @CallSite.After(
-    value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
-    invokeDynamic = true
+      value = 'java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])',
+      invokeDynamic = true
     )
     static String after(@CallSite.AllArguments final Object[] parameter,
-    @CallSite.InvokeDynamicConstants final Object[] constants,
-    @CallSite.Return final String value) {
+                        @CallSite.InvokeDynamicConstants final Object[] constants,
+                        @CallSite.Return final String value) {
       return value
     }
   }

@@ -69,7 +69,7 @@ class InstrumentPlugin implements Plugin<Project> {
             def instrumenterConfiguration = project.configurations.named('instrumentPluginClasspath')
             if (instrumenterConfiguration.present) {
               it.pluginClassPath.from(instrumenterConfiguration.get())
-}
+            }
             it.plugins = extension.plugins
             it.instrumentingClassPath.from(
               findCompileClassPath(project, it.name) +
@@ -79,36 +79,36 @@ class InstrumentPlugin implements Plugin<Project> {
             it.sourceDirectory = rawClassesDir
             // Task output
             it.targetDirectory = classesDir
-}
+          }
           if (javaVersion) {
             project.tasks.named(project.sourceSets."main_java${javaVersion}".classesTaskName) {
               it.dependsOn(instrumentTask)
-}
-} else {
+            }
+          } else {
             project.tasks.named(project.sourceSets.main.classesTaskName) {
               it.dependsOn(instrumentTask)
-}
-}
-}
-}
-}
-}
+            }
+          }
+        }
+      }
+    }
+  }
 
   static findCompileClassPath(Project project, String taskName) {
     def matcher = taskName =~ /instrument([A-Z].+)Java/
     def cfgName = matcher.matches() ? "${matcher.group(1).uncapitalize()}CompileClasspath" : 'compileClasspath'
     project.configurations.named(cfgName).findAll {
       it.name != 'previous-compilation-data.bin' && !it.name.endsWith('.gz')
-}
-}
+    }
+  }
 
   static findAdditionalClassPath(InstrumentExtension extension, String taskName) {
     extension.additionalClasspath.getOrDefault(taskName, []).collect {
       // insert intermediate 'raw' directory for unprocessed classes
       def fileName = it.get().asFile.name
       it.get().dir("../${fileName.replaceFirst('^main', 'raw')}")
-}
-}
+    }
+  }
 }
 
 abstract class InstrumentExtension {
@@ -147,22 +147,22 @@ abstract class InstrumentTask extends DefaultTask {
       parameters.instrumentingClassPath.setFrom(this.instrumentingClassPath)
       parameters.sourceDirectory.set(this.sourceDirectory.asFile)
       parameters.targetDirectory.set(this.targetDirectory.asFile)
-})
-}
+    })
+  }
 
   private workQueue() {
     if (!this.javaVersion) {
       this.javaVersion = "8"
-}
+    }
     def javaLauncher = this.javaToolchainService.launcherFor { spec ->
       spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
-}.get()
+    }.get()
     return this.workerExecutor.processIsolation { spec ->
       spec.forkOptions { fork ->
         fork.executable = javaLauncher.executablePath
-}
-}
-}
+      }
+    }
+  }
 }
 
 interface InstrumentWorkParameters extends WorkParameters {
@@ -194,16 +194,16 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
           pluginCL = createClassLoader(parameters.pluginClassPath)
           classLoaderCache.put(classLoaderKey, pluginCL)
           lastBuildStamp = buildStamp
-}
-}
-}
+        }
+      }
+    }
     File sourceDirectory = parameters.getSourceDirectory().get().asFile
     File targetDirectory = parameters.getTargetDirectory().get().asFile
     ClassLoader instrumentingCL = createClassLoader(parameters.instrumentingClassPath, pluginCL)
     InstrumentingPlugin.instrumentClasses(plugins, instrumentingCL, sourceDirectory, targetDirectory)
-}
+  }
 
   static ClassLoader createClassLoader(cp, parent = InstrumentAction.classLoader) {
     return new URLClassLoader(cp*.toURI()*.toURL() as URL[], parent as ClassLoader)
-}
+  }
 }
