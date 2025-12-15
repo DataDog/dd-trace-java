@@ -79,14 +79,14 @@ tasks.named("shadowJar", ShadowJar) {
 // Remove the regular jar from api elements and use shadow jar instead
 // Also exclude jetty from being exposed as a transitive dependency (it's bundled in the shadow jar)
 configurations {
-  apiElements {
+  named('apiElements') {
     outgoing.artifacts.clear()
-    outgoing.artifact(tasks.shadowJar)
+    outgoing.artifact(tasks.named('shadowJar'))
     exclude group: 'org.eclipse.jetty'
   }
-  runtimeElements {
+  named('runtimeElements') {
     outgoing.artifacts.clear()
-    outgoing.artifact(tasks.shadowJar)
+    outgoing.artifact(tasks.named('shadowJar'))
     exclude group: 'org.eclipse.jetty'
   }
 }
