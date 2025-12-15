@@ -636,7 +636,6 @@ if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) 
   logger.quiet("Omitting :dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6: 'akkaRepositoryToken' not configured")
 }
 
-
 // benchmark
 include(
   ":dd-java-agent:benchmark",
