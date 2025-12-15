@@ -417,7 +417,7 @@ test_published_artifacts:
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
@@ -1002,7 +1002,7 @@ validate_supported_configurations_v2_local_file:
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-    BACKFILLED: "false"
+    BACKFILLED: "true"
 
 update_central_configurations_version_range_v2:
   extends: .update_central_configurations_version_range_v2

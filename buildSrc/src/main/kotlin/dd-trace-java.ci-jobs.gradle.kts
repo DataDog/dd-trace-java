@@ -53,11 +53,11 @@ val gitBaseRefProvider = rootProject.providers.gradleProperty("gitBaseRef")
 if (gitBaseRefProvider.isPresent) {
   val baseRef = gitBaseRefProvider.get()
   val newRef = rootProject.providers.gradleProperty("gitNewRef").orElse("HEAD").get()
-  
+
   val changedFiles = getChangedFiles(baseRef, newRef)
   rootProject.extra.set("changedFiles", changedFiles)
   rootProject.extra.set("useGitChanges", true)
-  
+
   val ignoredFiles = fileTree(rootProject.projectDir) {
     include(".gitignore", ".editorconfig")
     include("*.md", "**/*.md")
@@ -74,13 +74,13 @@ if (gitBaseRefProvider.isPresent) {
 
   val filteredChangedFiles = changedFiles.filter { !ignoredFiles.contains(it) }
   rootProject.extra.set("changedFiles", filteredChangedFiles)
-  
+
   val globalEffectFiles = fileTree(rootProject.projectDir) {
     include(".gitlab/**")
     include("build.gradle")
     include("gradle/**")
   }
-  
+
   for (f in filteredChangedFiles) {
     if (globalEffectFiles.contains(f)) {
       logger.warn("Global effect change: ${relativeToGitRoot(f)} (no tasks will be skipped)")
@@ -88,10 +88,10 @@ if (gitBaseRefProvider.isPresent) {
       break
     }
   }
-  
+
   if (rootProject.extra.get("useGitChanges") as Boolean) {
     logger.warn("Git change tracking is enabled: $baseRef..$newRef")
-    
+
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val affectedProjects = mutableMapOf<Project, MutableSet<String>>()
 
@@ -117,7 +117,7 @@ if (gitBaseRefProvider.isPresent) {
       logger.warn("Changed file: ${relativeToGitRoot(f)} in project ${p.path} ($task)")
       affectedProjects.computeIfAbsent(p) { mutableSetOf() }.add(task)
     }
-    
+
     rootProject.extra.set("affectedProjects", affectedProjects)
   }
 }

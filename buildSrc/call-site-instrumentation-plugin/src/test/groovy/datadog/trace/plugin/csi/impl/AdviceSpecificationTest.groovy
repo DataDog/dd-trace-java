@@ -548,7 +548,7 @@ class AdviceSpecificationTest extends BaseCsiPluginTest {
   class AfterWithVoidWrongAdvice {
     @CallSite.After("void java.lang.String.getChars(int, int, char[], int)")
     static String after(@CallSite.AllArguments final Object[] args, @CallSite.Return final String result) {
-      return result;
+      return result
     }
   }
 

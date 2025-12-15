@@ -76,10 +76,10 @@ class IastPostProcessorFactoryTest extends DDSpecification {
     final metrics = collector.drain()
     assert metrics.size() == 1
     // one method has ben instrumented
-    metrics.first().with {
-      assert it.metric == IastMetric.INSTRUMENTED_SINK
-      assert it.tags == ['vulnerability_type:SQL_INJECTION']
-      assert it.value == 1L
+    with(metrics.first()) {
+      it.metric == IastMetric.INSTRUMENTED_SINK
+      it.tags == ['vulnerability_type:SQL_INJECTION']
+      it.value == 1L
     }
 
     when: 'the advice is used'
