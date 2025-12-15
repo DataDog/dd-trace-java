@@ -105,7 +105,7 @@
         "aliases": []
       }
     ],
-    "DD_AOT_TRAINING": [
+    "DD_DETECT_AOT_TRAINING_MODE": [
       {
         "version": "A",
         "type": "boolean",

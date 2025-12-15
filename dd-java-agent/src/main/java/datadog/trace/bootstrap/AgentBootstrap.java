@@ -436,8 +436,8 @@ public final class AgentBootstrap {
       return false; // agent doesn't support training mode before Java 25
     } else if ("aot_training".equalsIgnoreCase(agentArgs)) {
       return true; // training mode explicitly enabled via -javaagent
-    } else if ("false".equalsIgnoreCase(EnvironmentVariables.get("DD_AOT_TRAINING"))) {
-      return false; // training mode explicitly disabled via DD_AOT_TRAINING=false
+    } else if ("false".equalsIgnoreCase(EnvironmentVariables.get("DD_DETECT_AOT_TRAINING_MODE"))) {
+      return false; // detection of training mode disabled via DD_DETECT_AOT_TRAINING_MODE=false
     } else {
       return AdvancedAgentChecks.isAotTraining(inst); // check JVM status
     }
