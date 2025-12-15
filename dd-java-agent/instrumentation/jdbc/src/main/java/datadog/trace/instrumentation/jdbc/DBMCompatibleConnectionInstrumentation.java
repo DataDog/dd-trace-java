@@ -77,7 +77,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     // IBM Informix
     "com.informix.jdbc.IfmxConnection",
     // 达梦 DB
-    "dm.jdbc.driver.DmdbConnection"
+    "dm.jdbc.driver.DmdbConnection",
+    // kingbase
+    "com.kingbase8.jdbc.KbConnection"
   };
 
   @Override
