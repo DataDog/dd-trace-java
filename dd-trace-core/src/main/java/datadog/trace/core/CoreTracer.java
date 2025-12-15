@@ -1552,6 +1552,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected Object builderCiVisibilityContextData;
     protected List<AgentSpanLink> links;
     protected long spanId = AUTO_ASSIGN_SPAN_ID;
+
     // Make sure any fields added here are also reset properly in ReusableSingleSpanBuilder.reset
 
     CoreSpanBuilder(CoreTracer tracer) {

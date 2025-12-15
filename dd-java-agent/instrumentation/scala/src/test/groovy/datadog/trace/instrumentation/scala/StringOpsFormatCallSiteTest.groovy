@@ -31,8 +31,7 @@ class StringOpsFormatCallSiteTest extends AbstractIastScalaTest {
     result == 'Value: 123.456000'
     // Verify that the unwrapped java.math.BigDecimal is passed, not scala.math.BigDecimal
     1 * iastModule.onStringFormat(
-      'Value: %f',
-      { Object[] args ->
+      'Value: %f', { Object[] args ->
         args.length == 1 &&
           args[0] != null &&
           args[0].getClass() == BigDecimal &&
@@ -55,8 +54,7 @@ class StringOpsFormatCallSiteTest extends AbstractIastScalaTest {
     result == 'Count: 12345'
     // Verify that the unwrapped java.math.BigInteger is passed, not scala.math.BigInt
     1 * iastModule.onStringFormat(
-      'Count: %d',
-      { Object[] args ->
+      'Count: %d', { Object[] args ->
         args.length == 1 &&
           args[0] != null &&
           args[0].getClass() == BigInteger &&
@@ -79,8 +77,7 @@ class StringOpsFormatCallSiteTest extends AbstractIastScalaTest {
     result == 'Decimal: 99.990000, Integer: 42'
     // Verify that both ScalaNumbers are unwrapped
     1 * iastModule.onStringFormat(
-      'Decimal: %f, Integer: %d',
-      { Object[] args ->
+      'Decimal: %f, Integer: %d', { Object[] args ->
         args.length == 2 &&
           args[0] != null &&
           args[0].getClass() == BigDecimal &&
@@ -106,8 +103,7 @@ class StringOpsFormatCallSiteTest extends AbstractIastScalaTest {
     result == 'Value: 3.140000, Text: hello'
     // Verify that BigDecimal is unwrapped but String remains unchanged
     1 * iastModule.onStringFormat(
-      'Value: %f, Text: %s',
-      { Object[] args ->
+      'Value: %f, Text: %s', { Object[] args ->
         args.length == 2 &&
           args[0] != null &&
           args[0].getClass() == BigDecimal &&
@@ -132,8 +128,7 @@ class StringOpsFormatCallSiteTest extends AbstractIastScalaTest {
     result == 'Left: left, Right: right'
     // Verify that String arguments are passed unchanged (no unwrapping needed)
     1 * iastModule.onStringFormat(
-      'Left: %s, Right: %s',
-      { Object[] args ->
+      'Left: %s, Right: %s', { Object[] args ->
         args.length == 2 &&
           args[0] instanceof String &&
           args[0] == 'left' &&

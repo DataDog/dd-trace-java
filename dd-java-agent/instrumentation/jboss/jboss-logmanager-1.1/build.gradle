@@ -1,14 +1,9 @@
 muzzle {
   pass {
+    // jboss-logmanager-embedded has been relocated to jboss-logmanager
     group = 'org.jboss.logmanager'
     module = 'jboss-logmanager'
     versions = '[1.1.0.GA,]'
-  }
-
-  pass {
-    group = 'org.jboss.logmanager'
-    module = 'jboss-logmanager-embedded'
-    versions = '[1.0.0,]'
   }
 }
 

@@ -61,7 +61,9 @@ class AvroDatumReaderTest extends InstrumentationSpecification {
     datum.put("floatField", 7.89f)
     datum.put("doubleField", 1.23e2)
     datum.put("booleanField", true)
-    datum.put("bytesField", ByteBuffer.wrap(new byte[]{0x01, 0x02, 0x03}))
+    datum.put("bytesField", ByteBuffer.wrap(new byte[]{
+      0x01, 0x02, 0x03
+    }))
     datum.put("nullField", null)
     datum.put("enumField", new GenericData.EnumSymbol(schemaDef.getField("enumField").schema(), "A"))
     datum.put("fixedField", new GenericData.Fixed(schemaDef.getField("fixedField").schema(), new byte[16]))
@@ -148,7 +150,9 @@ class AvroDatumReaderTest extends InstrumentationSpecification {
     datum.put("floatField", 7.89f)
     datum.put("doubleField", 1.23e2)
     datum.put("booleanField", true)
-    datum.put("bytesField", ByteBuffer.wrap(new byte[]{0x01, 0x02, 0x03}))
+    datum.put("bytesField", ByteBuffer.wrap(new byte[]{
+      0x01, 0x02, 0x03
+    }))
     datum.put("nullField", null)
     datum.put("enumField", new GenericData.EnumSymbol(schemaDef.getField("enumField").schema(), "A"))
     datum.put("fixedField", new GenericData.Fixed(schemaDef.getField("fixedField").schema(), new byte[16]))

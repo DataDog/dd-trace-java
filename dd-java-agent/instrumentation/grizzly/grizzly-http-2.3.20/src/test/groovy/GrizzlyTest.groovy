@@ -75,5 +75,4 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   Map<String, ?> expectedIGPathParams() {
     [id: ['123']]
   }
-
 }

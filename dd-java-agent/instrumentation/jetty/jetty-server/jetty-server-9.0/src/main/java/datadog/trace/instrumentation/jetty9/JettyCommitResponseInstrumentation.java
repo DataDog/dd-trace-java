@@ -123,12 +123,7 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
           _committed.set(false);
-          boolean res =
-              brf.tryCommitBlockingResponse(
-                  requestContext.getTraceSegment(),
-                  rba.getStatusCode(),
-                  rba.getBlockingContentType(),
-                  rba.getExtraHeaders());
+          boolean res = brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
           if (res && _committed.get()) {
             requestContext.getTraceSegment().effectivelyBlocked();
             return true;

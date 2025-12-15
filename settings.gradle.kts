@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.2.2"
+  id("com.gradle.develocity") version "4.3"
   id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
 }
 
@@ -189,6 +189,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:opentracing",
   ":dd-smoke-tests:opentelemetry",
   ":dd-smoke-tests:osgi",
@@ -311,7 +312,7 @@ include(
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5",
   ":dd-java-agent:instrumentation:commons-text-1.0",
-  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-7.0",
+  ":dd-java-agent:instrumentation:confluent-schema-registry:confluent-schema-registry-4.1",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.0",
   ":dd-java-agent:instrumentation:couchbase:couchbase-2.6",
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.1",
@@ -384,6 +385,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-11.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-17.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-21.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0",
   ":dd-java-agent:instrumentation:java:java-net:java-net-1.8",
   ":dd-java-agent:instrumentation:java:java-net:java-net-11.0",
@@ -482,6 +484,7 @@ include(
   ":dd-java-agent:instrumentation:opensearch",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-0.3",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4",
+  ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.26",
   ":dd-java-agent:instrumentation:opentracing:api-0.31",

@@ -113,6 +113,7 @@ class JavaVirtualMachineTest {
   @EnabledOnJre(JAVA_8)
   void onlyOnIbm8() {
     assertFalse(JavaVirtualMachine.isGraalVM());
+    assertTrue(JavaVirtualMachine.isIbm());
     assertTrue(JavaVirtualMachine.isIbm8());
     assertTrue(JavaVirtualMachine.isJ9());
     assertFalse(JavaVirtualMachine.isOracleJDK8());

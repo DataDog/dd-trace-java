@@ -42,6 +42,8 @@ dependencies {
   testRuntimeOnly files(filterLogbackClassic.map { it.destinationDir })
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
+  testImplementation(libs.groovy.xml)
+
   webappCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
@@ -50,15 +52,12 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))) {
     transitive = false
   }
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-  // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly libs.groovy
+
+  webappCompileOnly(libs.bundles.spock)
 }
 
 configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -98,7 +97,11 @@ abstract class UnpackOpenLiberty extends Copy {
   final Provider<File> serverXmlFile = project.providers.provider { extractDir.get().file("wlp/usr/servers/defaultServer/server.xml").asFile }
 
   UnpackOpenLiberty() {
-    from project.zipTree(configurationName.map {project.configurations.named(it).map { it.singleFile } })
+    from project.zipTree(configurationName.map {
+      project.configurations.named(it).map {
+        it.singleFile
+      }
+    })
     eachFile { FileCopyDetails fcd ->
       fcd.path = fcd.path.replaceAll(/\/templates\/(servers\/defaultServer\/.+)/, '/usr/$1')
     }

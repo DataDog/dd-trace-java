@@ -1,0 +1,420 @@
+[
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": "green",
+      "variant": "green",
+      "flagMetadata": {
+        "allocationKey": "internal users",
+        "variationType": "string",
+        "doLog": false
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "debra",
+    "attributes": {
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "zach",
+    "attributes": {
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": "purple",
+      "variant": "purple",
+      "flagMetadata": {
+        "allocationKey": "id rule",
+        "variationType": "string",
+        "doLog": false
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "zach",
+    "attributes": {
+      "id": "override-id",
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "Zach",
+    "attributes": {
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "1",
+    "attributes": {},
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "2",
+    "attributes": {
+      "country": "Mexico"
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "3",
+    "attributes": {
+      "country": "UK",
+      "age": 33
+    },
+    "result": {
+      "value": "control",
+      "variant": "control",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "4",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": "red",
+      "variant": "red",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "5",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": "yellow",
+      "variant": "yellow",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "6",
+    "attributes": {
+      "country": "Germany"
+    },
+    "result": {
+      "value": "yellow",
+      "variant": "yellow",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "7",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "8",
+    "attributes": {
+      "country": "Italy"
+    },
+    "result": {
+      "value": "red",
+      "variant": "red",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "9",
+    "attributes": {
+      "email": "email@email.com"
+    },
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "10",
+    "attributes": {},
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "11",
+    "attributes": {},
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "12",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "13",
+    "attributes": {
+      "country": "Canada"
+    },
+    "result": {
+      "value": "blue",
+      "variant": "blue",
+      "flagMetadata": {
+        "allocationKey": "rollout",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "14",
+    "attributes": {},
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "15",
+    "attributes": {
+      "country": "Denmark"
+    },
+    "result": {
+      "value": "yellow",
+      "variant": "yellow",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "16",
+    "attributes": {
+      "country": "Norway"
+    },
+    "result": {
+      "value": "control",
+      "variant": "control",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "17",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": "control",
+      "variant": "control",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "18",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": "default"
+    }
+  },
+  {
+    "flag": "new-user-onboarding",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "19",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": "red",
+      "variant": "red",
+      "flagMetadata": {
+        "allocationKey": "experiment",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  }
+]
