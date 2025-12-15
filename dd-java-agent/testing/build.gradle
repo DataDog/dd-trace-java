@@ -38,11 +38,14 @@ dependencies {
   api libs.bundles.test.logging
   api libs.guava
 
-  // Jetty is bundled (relocated) in the shadow jar, not exposed as transitive dependency
-  // This avoids version conflicts with instrumentation tests that use different jetty versions
+  // Do not expose jetty as a transitive dependency, as it conflicts
+  // with versions used to test instrumentions.
+  // Note: 9.4 last to support java 8
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
   runtimeOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
-  // ^ 9.4 last to support java 8
+  // Since jetty-server is shadowed, it is needed to exports the servlet api as well.
+  api group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+  
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
   api project(':dd-java-agent:agent-tooling')
