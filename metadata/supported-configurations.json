@@ -105,6 +105,14 @@
         "aliases": []
       }
     ],
+    "DD_DETECT_AOT_TRAINING_MODE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_API_KEY": [
       {
         "version": "A",

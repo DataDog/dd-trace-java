@@ -109,10 +109,7 @@ default:
 .normalize_node_index: &normalize_node_index
   - if [ "$CI_NO_SPLIT" == "true" ] ; then CI_NODE_INDEX=1; CI_NODE_TOTAL=1; fi # A job uses parallel but doesn't intend to split by index
   - if [ -n "$CI_SPLIT" ]; then CI_NODE_INDEX="${CI_SPLIT%%/*}"; CI_NODE_TOTAL="${CI_SPLIT##*/}"; fi
-  - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
-  - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
-  - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
-  - echo "NORMALIZED_NODE_TOTAL=${NORMALIZED_NODE_TOTAL}, NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
+  - echo "CI_NODE_INDEX=$CI_NODE_INDEX, CI_NODE_TOTAL=${CI_NODE_TOTAL}"
 
 .cgroup_info: &cgroup_info
   - source .gitlab/gitlab-utils.sh
@@ -420,7 +417,7 @@ test_published_artifacts:
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
@@ -488,7 +485,7 @@ muzzle:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
@@ -570,7 +567,7 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
