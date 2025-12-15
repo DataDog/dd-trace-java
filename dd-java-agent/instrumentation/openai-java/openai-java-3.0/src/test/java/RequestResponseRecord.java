@@ -8,13 +8,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 
 public class RequestResponseRecord {
-  public static final String RECORD_FILE_HASH_ALG = "MD5";
+  /**
+   * Turn it on when the tests change to identify which records have been used and which can be
+   * removed. This sets the execution attribute of the record file, so Git recognizes the file as
+   * changed. This is useful for identifying unused records when changing tests.
+   */
+  public static final boolean SET_RECORD_FILE_ATTR_ON_READ = false;
 
+  private static final String RECORD_FILE_HASH_ALG = "MD5";
   private static final String METHOD = "method: ";
   private static final String PATH = "path: ";
   private static final String BEGIN_REQUEST_BODY = "-- begin request body --";
@@ -170,6 +177,10 @@ public class RequestResponseRecord {
           }
           bodyBuilder.append(line);
         }
+      }
+
+      if (SET_RECORD_FILE_ATTR_ON_READ) {
+        Files.setPosixFilePermissions(recFilePath, PosixFilePermissions.fromString("rwxr-xr-x"));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
