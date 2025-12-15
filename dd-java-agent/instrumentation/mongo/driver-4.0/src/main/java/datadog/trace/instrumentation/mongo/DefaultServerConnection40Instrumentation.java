@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,8 +11,8 @@ import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.internal.connection.DefaultServerConnection;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 
@@ -33,9 +32,10 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      SharedDBCommenter.class.getName(),
-      MongoCommentInjector.class.getName(),
-      MongoDecorator.class.getName(),
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+      packageName + ".MongoDecorator",
+      packageName + ".MongoCommentInjector",
+      packageName + ".BsonScrubber",
     };
   }
 
@@ -66,9 +66,7 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
         return;
       }
 
-      AgentSpan existingSpan = activeSpan();
-      if (existingSpan != null
-          && MongoDecorator.OPERATION_NAME.equals(existingSpan.getOperationName())) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(DefaultServerConnection.class) > 0) {
         // we don't re-run the advice if the command goes through multiple overloads
         return;
       }
@@ -87,6 +85,15 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
       if (dbmComment != null) {
         originalBsonDocument = MongoCommentInjector.injectComment(dbmComment, originalBsonDocument);
       }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit() {
+      if (!MongoCommentInjector.INJECT_COMMENT) {
+        return;
+      }
+
+      CallDepthThreadLocalMap.decrementCallDepth(DefaultServerConnection.class);
     }
   }
 }
