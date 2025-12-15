@@ -111,59 +111,96 @@ abstract class OpenAiTest extends LlmObsSpecification {
     constructor.newInstance(clientOptions) as OpenAIClient
   }
 
-  CompletionCreateParams completionCreateParams() {
-    CompletionCreateParams.builder()
-    .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
-    .prompt("Tell me a story about building the best SDK!")
-    .build()
+  CompletionCreateParams completionCreateParams(boolean json) {
+    if (json) {
+      CompletionCreateParams.builder()
+      .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
+      .prompt("Tell me a story about building the best SDK!")
+      .build()
+    } else {
+      CompletionCreateParams.builder()
+      .model("gpt-3.5-turbo-instruct")
+      .prompt("Tell me a story about building the best SDK!")
+      .build()
+    }
   }
 
-  ChatCompletionCreateParams chatCompletionCreateParams() {
-    ChatCompletionCreateParams.builder()
-    .model(ChatModel.GPT_4O_MINI)
-    .addSystemMessage("")
-    .addUserMessage("")
-    .build()
+  ChatCompletionCreateParams chatCompletionCreateParams(boolean json) {
+    if (json) {
+      ChatCompletionCreateParams.builder()
+      .model("gpt-4o-mini")
+      .addSystemMessage("")
+      .addUserMessage("")
+      .build()
+    } else {
+      ChatCompletionCreateParams.builder()
+      .model(ChatModel.GPT_4O_MINI)
+      .addSystemMessage("")
+      .addUserMessage("")
+      .build()
+    }
   }
 
-  EmbeddingCreateParams embeddingCreateParams() {
-    EmbeddingCreateParams.builder()
-    .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
-    .input("hello world")
-    .build()
+  EmbeddingCreateParams embeddingCreateParams(boolean json) {
+    if (json) {
+      EmbeddingCreateParams.builder()
+      .model("text-embedding-ada-002")
+      .input("hello world")
+      .build()
+    } else {
+      EmbeddingCreateParams.builder()
+      .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+      .input("hello world")
+      .build()
+    }
   }
 
-  ResponseCreateParams responseCreateParams() {
-    ResponseCreateParams.builder()
-    // .model(ChatModel.GPT_3_5_TURBO) // TODO add test param
-    .model("gpt-3.5-turbo")
-    .input("Do not continue the Evan Li slander!")
-    .build()
+  ResponseCreateParams responseCreateParams(boolean json) {
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-3.5-turbo")
+      .input("Do not continue the Evan Li slander!")
+      .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_3_5_TURBO)
+      .input("Do not continue the Evan Li slander!")
+      .build()
+    }
   }
 
-  ResponseCreateParams responseCreateParamsWithMaxOutputTokens() {
-    ResponseCreateParams.builder()
-    .model("gpt-3.5-turbo")
-    .input("Do not continue the Evan Li slander!")
-    .maxOutputTokens(30)
-    .build()
+  ResponseCreateParams responseCreateParamsWithMaxOutputTokens(boolean json) {
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-3.5-turbo")
+      .input("Do not continue the Evan Li slander!")
+      .maxOutputTokens(30)
+      .build()
+    }    else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_3_5_TURBO)
+      .input("Do not continue the Evan Li slander!")
+      .maxOutputTokens(30)
+      .build()
+    }
   }
 
   ResponseCreateParams responseCreateParamsWithReasoning(boolean json) {
     if (json) {
-      return ResponseCreateParams.builder()
+      ResponseCreateParams.builder()
       .model("o4-mini")
       .input("If one plus a number is 10, what is the number?")
-      .include(Collections.singletonList(ResponseIncludable.REASONING_ENCRYPTED_CONTENT)) // TODO "include":["reasoning.encrypted_content"]
+      .include(Collections.singletonList(ResponseIncludable.of("reasoning.encrypted_content")))
       .reasoning(JsonValue.from([effort: "medium", summary: "detailed"]))
       .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.O4_MINI)
+      .input("If one plus a number is 10, what is the number?")
+      .include(Collections.singletonList(ResponseIncludable.REASONING_ENCRYPTED_CONTENT))
+      .reasoning(Reasoning.builder().effort(ReasoningEffort.MEDIUM).summary(Reasoning.Summary.DETAILED).build())
+      .build()
     }
-    return ResponseCreateParams.builder()
-    .model("o4-mini")
-    .input("If one plus a number is 10, what is the number?")
-    .include(Collections.singletonList(ResponseIncludable.REASONING_ENCRYPTED_CONTENT))
-    .reasoning(Reasoning.builder().effort(ReasoningEffort.MEDIUM).summary(Reasoning.Summary.DETAILED).build())
-    .build()
   }
 
   ChatCompletionCreateParams chatCompletionCreateParamsWithTools() {

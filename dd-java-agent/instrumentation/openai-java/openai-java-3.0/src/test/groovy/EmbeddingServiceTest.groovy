@@ -11,18 +11,21 @@ class EmbeddingServiceTest extends OpenAiTest {
 
   def "create embedding test"() {
     CreateEmbeddingResponse resp = runUnderTrace("parent") {
-      openAiClient.embeddings().create(embeddingCreateParams())
+      openAiClient.embeddings().create(params)
     }
 
     expect:
     resp != null
     and:
     assertEmbeddingTrace()
+
+    where:
+    params << [embeddingCreateParams(false), embeddingCreateParams(true)]
   }
 
   def "create embedding test withRawResponse"() {
     HttpResponseFor<CreateEmbeddingResponse> resp = runUnderTrace("parent") {
-      openAiClient.embeddings().withRawResponse().create(embeddingCreateParams())
+      openAiClient.embeddings().withRawResponse().create(params)
     }
 
     expect:
@@ -31,6 +34,9 @@ class EmbeddingServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
     assertEmbeddingTrace()
+
+    where:
+    params << [embeddingCreateParams(false), embeddingCreateParams(true)]
   }
 
   private void assertEmbeddingTrace() {

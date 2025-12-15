@@ -16,18 +16,21 @@ class ResponseServiceTest extends OpenAiTest {
 
   def "create response test"() {
     Response resp = runUnderTrace("parent") {
-      openAiClient.responses().create(responseCreateParams())
+      openAiClient.responses().create(params)
     }
 
     expect:
     resp != null
     and:
     assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create response test withRawResponse"() {
     HttpResponseFor<Response> resp = runUnderTrace("parent") {
-      openAiClient.responses().withRawResponse().create(responseCreateParams())
+      openAiClient.responses().withRawResponse().create(params)
     }
 
     expect:
@@ -35,6 +38,9 @@ class ResponseServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
     assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create streaming response test (#scenario)"() {
@@ -52,8 +58,10 @@ class ResponseServiceTest extends OpenAiTest {
 
     where:
     scenario     | params
-    "complete"   | responseCreateParams()
-    "incomplete" | responseCreateParamsWithMaxOutputTokens()
+    "complete"   | responseCreateParams(false)
+    "complete"   | responseCreateParams(true)
+    "incomplete" | responseCreateParamsWithMaxOutputTokens(false)
+    "incomplete" | responseCreateParamsWithMaxOutputTokens(true)
   }
 
   def "create streaming response test (reasoning)"() {
@@ -75,7 +83,7 @@ class ResponseServiceTest extends OpenAiTest {
 
   def "create streaming response test withRawResponse"() {
     runnableUnderTrace("parent") {
-      HttpResponseFor<StreamResponse<ResponseStreamEvent>> streamResponse = openAiClient.responses().withRawResponse().createStreaming(responseCreateParams())
+      HttpResponseFor<StreamResponse<ResponseStreamEvent>> streamResponse = openAiClient.responses().withRawResponse().createStreaming(params)
       try (Stream stream = streamResponse.parse().stream()) {
         stream.forEach {
           // consume the stream
@@ -85,22 +93,28 @@ class ResponseServiceTest extends OpenAiTest {
 
     expect:
     assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create async response test"() {
     CompletableFuture<Response> responseFuture = runUnderTrace("parent") {
-      openAiClient.async().responses().create(responseCreateParams())
+      openAiClient.async().responses().create(params)
     }
 
     responseFuture.get()
 
     expect:
     assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create async response test withRawResponse"() {
     CompletableFuture<HttpResponseFor<Response>> responseFuture = runUnderTrace("parent") {
-      openAiClient.async().responses().withRawResponse().create(responseCreateParams())
+      openAiClient.async().responses().withRawResponse().create(params)
     }
 
     def resp = responseFuture.get()
@@ -108,11 +122,14 @@ class ResponseServiceTest extends OpenAiTest {
 
     expect:
     assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create streaming async response test"() {
     AsyncStreamResponse<ResponseStreamEvent> asyncResp = runUnderTrace("parent") {
-      openAiClient.async().responses().createStreaming(responseCreateParams())
+      openAiClient.async().responses().createStreaming(params)
     }
     asyncResp.subscribe {
       // consume responses
@@ -120,11 +137,14 @@ class ResponseServiceTest extends OpenAiTest {
     asyncResp.onCompleteFuture().get()
     expect:
     assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   def "create streaming async response test withRawResponse"() {
     CompletableFuture<HttpResponseFor<StreamResponse<ResponseStreamEvent>>> future = runUnderTrace("parent") {
-      openAiClient.async().responses().withRawResponse().createStreaming(responseCreateParams())
+      openAiClient.async().responses().withRawResponse().createStreaming(params)
     }
     HttpResponseFor<StreamResponse<ResponseStreamEvent>> resp = future.get()
     try (Stream stream = resp.parse().stream()) {
@@ -135,6 +155,9 @@ class ResponseServiceTest extends OpenAiTest {
     expect:
     resp.statusCode() == 200
     assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+
+    where:
+    params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
   private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
