@@ -176,6 +176,7 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES + PROFILING_FILES)
   }
 
+  @Flaky("java.lang.AssertionError: No flare file created in /tmp/flare-test-profiling-disabled-5064454892910784215 within 30 seconds")
   def "tracer generates flare with profiling disabled"() {
     when:
     // Wait for flare file to be created independently for process 1
