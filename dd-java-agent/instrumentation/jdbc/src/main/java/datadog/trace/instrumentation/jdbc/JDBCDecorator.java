@@ -68,6 +68,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbMetadataFetchingOnQueryEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
+  private volatile boolean loggedInjectionError = false;
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -298,12 +299,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       span.setTag("_dd.dbm_trace_injected", true);
     } catch (Throwable e) {
-      log.debug(
-          "Failed to set extra DBM data in action for trace {}. "
-              + "To disable this behavior, set trace_prepared_statements to 'false'. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. {}",
-          span.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("action", e);
       DECORATE.onError(span, e);
     }
   }
@@ -358,12 +354,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         throw e;
       }
     } catch (Exception e) {
-      log.debug(
-          "Failed to set extra DBM data in context info for trace {}. "
-              + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-          instrumentationSpan.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("context_info", e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
       instrumentationSpan.finish();
@@ -393,14 +384,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       connection.setClientInfo("ApplicationName", traceContext);
     } catch (Throwable e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Failed to set extra DBM data in application_name for trace {}. "
-                + "To disable this behavior, set trace_prepared_statements to 'false'. "
-                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-            span.getTraceId().toHexString(),
-            e);
-      }
+      logInjectionErrorOnce("application_name", e);
       DECORATE.onError(span, e);
     } finally {
       span.setTag(DBM_TRACE_INJECTED, true);
@@ -435,5 +419,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public boolean shouldInjectSQLComment() {
     return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
         || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
+  }
+
+  private void logInjectionErrorOnce(String vessel, Throwable t) {
+    if (!loggedInjectionError) {
+      loggedInjectionError = true;
+      log.warn(
+          "Failed to set extra DBM data in {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. "
+              + "Will not log again for this kind of error.\n{}",
+          vessel,
+          t);
+    }
   }
 }
