@@ -5,6 +5,7 @@ muzzle {
     module = "redisson"
     versions = "[3.10.3,)"
     skipVersions += "0.9.0"
+    skipVersions += "4.0.0" // FIXME: Temporary skip `4.0.0` as we need more time to support it.
     assertInverse = true
   }
 }

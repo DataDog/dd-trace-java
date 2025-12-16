@@ -16,6 +16,7 @@ muzzle {
     group = "org.apache.spark"
     module = "spark-sql_$scalaVersion"
     versions = "[4.0.0,)"
+    skipVersions += "4.1.0" // FIXME: Temporary skip `4.1.0` as we need more time to support it.
     javaVersion = 17
   }
 }
