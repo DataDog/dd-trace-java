@@ -476,7 +476,7 @@ include(
   ":dd-java-agent:instrumentation:netty:netty-common",
   ":dd-java-agent:instrumentation:netty:netty-concurrent-4.0",
   ":dd-java-agent:instrumentation:netty:netty-promise-4.0",
-  ":dd-java-agent:instrumentation:ognl-appsec",
+  ":dd-java-agent:instrumentation:ognl-appsec-3.3.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
   ":dd-java-agent:instrumentation:opensearch:rest",
