@@ -11,6 +11,7 @@ import org.gradle.api.provider.Property
  * instrumentationNaming {
  *   instrumentationsDir.set(file("dd-java-agent/instrumentation"))
  *   exclusions.set(listOf("http-url-connection", "sslsocket"))
+ *   suffixes.set(listOf("-common", "-stubs""))
  * }
  * ```
  */
@@ -27,8 +28,16 @@ abstract class InstrumentationNamingExtension {
    */
   abstract val exclusions: ListProperty<String>
 
+  /**
+   * List of allowed suffixes for module names (e.g., "-common", "-stubs").
+   * Module names must end with either one of these suffixes or a version number.
+   * Defaults to ["-common", "-stubs"].
+   */
+  abstract val suffixes: ListProperty<String>
+
   init {
     instrumentationsDir.convention("dd-java-agent/instrumentation")
     exclusions.convention(emptyList())
+    suffixes.convention(listOf("-common", "-stubs"))
   }
 }

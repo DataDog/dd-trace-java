@@ -6,9 +6,9 @@ A Gradle plugin that validates naming conventions for instrumentation modules un
 
 The plugin enforces the following rules:
 
-1. **Version or Common suffix**: Module names must end with either:
+1. **Version or suffix**: Module names must end with either:
    - A version number (e.g., `2.0`, `3.1`, `4.0.5`)
-   - The suffix `-common`
+   - One of the configured suffixes (default: `-common`, `-stubs`)
 
 2. **Parent directory inclusion**: Module names must include the parent directory name
    - Example: `couchbase/couchbase-2.0` ✓ (module name contains "couchbase")
@@ -47,22 +47,29 @@ instrumentationNaming {
     "sslsocket",
     "classloading"
   ))
+
+  // Optional: configure allowed suffixes (default: ["-common", "-stubs"])
+  suffixes.set(listOf(
+    "-common",
+    "-stubs",
+    "-utils"
+  ))
 }
 ```
 
 ## Examples
 
 ### Valid module names:
-- `couchbase/couchbase-2.0` ✓
-- `couchbase/couchbase-2.6` ✓
-- `couchbase/couchbase-3.1` ✓
-- `kafka/kafka-common` ✓
-- `apache-httpclient/apache-httpclient-4.0` ✓
+- `couchbase/couchbase-2.0` ✓ (ends with version)
+- `couchbase/couchbase-2.6` ✓ (ends with version)
+- `couchbase/couchbase-3.1` ✓ (ends with version)
+- `kafka/kafka-common` ✓ (ends with -common suffix)
+- `apache-httpclient/apache-httpclient-4.0` ✓ (ends with version)
 
 ### Invalid module names:
 - `couchbase/foo-2.0` ✗ (doesn't contain parent name "couchbase")
-- `kafka/kafka` ✗ (missing version or -common suffix)
-- `kafka/kafka-latest` ✗ (not a valid version number)
+- `kafka/kafka` ✗ (missing version or allowed suffix)
+- `kafka/kafka-latest` ✗ (not a valid version number or allowed suffix)
 
 ## Integration with CI
 
