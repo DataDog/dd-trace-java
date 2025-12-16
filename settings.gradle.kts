@@ -627,7 +627,7 @@ include(
 )
 
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
-if (providers.gradleProperty("akkaRepositoryToken").isPresent) {
+if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) {
   include(
     ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6"
   )
