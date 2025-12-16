@@ -13,7 +13,6 @@ import com.mongodb.connection.ConnectionDescription;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 
@@ -33,9 +32,10 @@ public class DefaultServerConnection31Instrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      SharedDBCommenter.class.getName(),
-      MongoCommentInjector.class.getName(),
-      MongoDecorator.class.getName(),
+      packageName + ".BsonScrubber",
+      packageName + ".MongoCommentInjector",
+      packageName + ".MongoDecorator",
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
     };
   }
 
