@@ -1,14 +1,11 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
-import static java.util.Collections.emptyList;
-import static java.util.Comparator.comparing;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
+import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import datadog.trace.core.DDSpan;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
@@ -135,36 +132,20 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
 
     latch.await();
 
-    var trace = getTrace();
-    trace.sort(comparing(DDSpan::getStartTimeNano));
-    assertEquals(4, trace.size());
-    assertEquals("parent", trace.get(0).getOperationName());
-    assertEquals("child", trace.get(1).getOperationName());
-    assertEquals("great-child", trace.get(2).getOperationName());
-    assertEquals("great-great-child", trace.get(3).getOperationName());
-    assertEquals(trace.get(0).getSpanId(), trace.get(1).getParentId());
-    assertEquals(trace.get(1).getSpanId(), trace.get(2).getParentId());
-    assertEquals(trace.get(2).getSpanId(), trace.get(3).getParentId());
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().isRoot().withOperationName("parent"),
+            span().childOfPrevious().withOperationName("child"),
+            span().childOfPrevious().withOperationName("great-child"),
+            span().childOfPrevious().withOperationName("great-great-child")));
   }
 
   /** Verifies the parent / child span relation. */
   void assertConnectedTrace() {
-    var trace = getTrace();
-    trace.sort(comparing(DDSpan::getStartTimeNano));
-    assertEquals(2, trace.size());
-    assertEquals("parent", trace.get(0).getOperationName());
-    assertEquals("asyncChild", trace.get(1).getOperationName());
-    assertEquals(trace.get(0).getSpanId(), trace.get(1).getParentId());
-  }
-
-  List<DDSpan> getTrace() {
-    try {
-      writer.waitForTraces(1);
-      assertEquals(1, writer.size());
-      return writer.getFirst();
-    } catch (InterruptedException | TimeoutException e) {
-      fail("Failed to wait for trace to finish.", e);
-      return emptyList();
-    }
+    assertTraces(
+        trace(
+            span().isRoot().withOperationName("parent"),
+            span().childOfPrevious().withOperationName("asyncChild")));
   }
 }
