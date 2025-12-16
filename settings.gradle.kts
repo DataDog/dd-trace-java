@@ -426,7 +426,7 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.4.21",
   ":dd-java-agent:instrumentation:jetty:jetty-util-9.4.31",
   ":dd-java-agent:instrumentation:jms",
-  ":dd-java-agent:instrumentation:jose-jwt",
+  ":dd-java-agent:instrumentation:jose-jwt-4.0",
   ":dd-java-agent:instrumentation:jsp-2.3",
   ":dd-java-agent:instrumentation:junit:junit-4.10:cucumber-junit-4",
   ":dd-java-agent:instrumentation:junit:junit-4.10:junit-4.13",
