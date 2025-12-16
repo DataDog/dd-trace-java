@@ -1456,9 +1456,15 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
-    String simpleLoggerJsonEnabled = SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
-    if (simpleLoggerJsonEnabled != null && simpleLoggerJsonEnabled.equalsIgnoreCase("true")) {
+
+    String logFormatJson = ddGetProperty("dd.log.format.json");
+    if (null != logFormatJson) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, logFormatJson);
+    } else {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    }
+
+    if (Boolean.parseBoolean(SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY))) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
