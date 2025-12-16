@@ -546,7 +546,7 @@ include(
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast",
-  ":dd-java-agent:instrumentation:slick",
+  ":dd-java-agent:instrumentation:slick-3.2",
   ":dd-java-agent:instrumentation:snakeyaml-1.33",
   ":dd-java-agent:instrumentation:span-origin",
   ":dd-java-agent:instrumentation:spark-executor",
