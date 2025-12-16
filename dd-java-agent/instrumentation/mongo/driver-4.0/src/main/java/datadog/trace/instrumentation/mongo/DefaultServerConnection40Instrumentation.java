@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.internal.connection.DefaultServerConnection;
+import com.mongodb.internal.session.SessionContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -94,6 +95,12 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
       }
 
       CallDepthThreadLocalMap.decrementCallDepth(DefaultServerConnection.class);
+    }
+
+    // unused method to force the advice to run on driver > 4.0 only
+    public static void muzzleCheck(SessionContext sessionContext) {
+      // moved on 4.0.0
+      sessionContext.getSessionId();
     }
   }
 }
