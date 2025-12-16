@@ -374,7 +374,7 @@ include(
   ":dd-java-agent:instrumentation:jackson-core:jackson-core-2.8",
   ":dd-java-agent:instrumentation:jackson-core:jackson-core-2",
   ":dd-java-agent:instrumentation:jackson-core",
-  ":dd-java-agent:instrumentation:jacoco",
+  ":dd-java-agent:instrumentation:jacoco-0.8.9",
   ":dd-java-agent:instrumentation:jakarta-jms",
   ":dd-java-agent:instrumentation:jakarta-mail",
   ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8",
