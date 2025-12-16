@@ -67,7 +67,7 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
       }
 
       if (CallDepthThreadLocalMap.incrementCallDepth(DefaultServerConnection.class) > 0) {
-        // we don't re-run the advice if the command goes through multiple overloads
+        // write commands go through an overload, so we don't run the instrumentation multiple times
         return;
       }
 

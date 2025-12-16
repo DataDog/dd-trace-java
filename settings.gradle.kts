@@ -465,6 +465,7 @@ include(
   ":dd-java-agent:instrumentation:mongo:driver-3.10-sync-test",
   ":dd-java-agent:instrumentation:mongo:driver-3.3-async-test",
   ":dd-java-agent:instrumentation:mongo:driver-3.4",
+  ":dd-java-agent:instrumentation:mongo:driver-3.6",
   ":dd-java-agent:instrumentation:mongo:driver-3.7-core-test",
   ":dd-java-agent:instrumentation:mongo:driver-4.0",
   ":dd-java-agent:instrumentation:mongo",
