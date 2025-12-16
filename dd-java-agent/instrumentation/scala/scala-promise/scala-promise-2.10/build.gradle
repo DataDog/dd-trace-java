@@ -3,7 +3,7 @@ muzzle {
   pass {
     group = 'org.scala-lang'
     module = "scala-library"
-    versions = "[2.13,)"
+    versions = "[2.9.3,2.13)"
     assertInverse = true
   }
 }
@@ -33,26 +33,29 @@ tasks.named("latestDepTest", Test) {
 }
 
 sourceSets {
-  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
-  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
-  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
 
-  test.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
-  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
-  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
+  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
+  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.test.scala.classesDirectory)
+  dependsOn "compileTestScala"
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+  dependsOn "compileLatestDepTestScala"
 }
 
 tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
+  dependsOn "compileLatestDepForkedTestScala"
 }
 
 tasks.withType(ScalaCompile).configureEach {
@@ -63,13 +66,15 @@ tasks.withType(ScalaCompile).configureEach {
   configureCompiler(it, 8)
 }
 
+
 dependencies {
-  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
-  implementation project(':dd-java-agent:instrumentation:scala-promise')
+  // first version that works with the tests on JDK11 (without dependency problems):
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  implementation project(':dd-java-agent:instrumentation:scala:scala-promise')
 
-  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise')
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise')
 
-  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+' // scala-lang 3.x requires scala 3.x compiler
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise')
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise')
 }

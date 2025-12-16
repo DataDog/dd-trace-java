@@ -28,8 +28,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testImplementation project(':dd-java-agent:instrumentation:jdbc')
   testImplementation libs.scala
   testImplementation group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
