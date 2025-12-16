@@ -25,6 +25,9 @@ project.ext.groovySkipJavaExclude = true
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
+// Ensure the common project is evaluated before we access its source sets
+evaluationDependsOn(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
+
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 
@@ -33,14 +36,14 @@ tasks.named("latestDepTest", Test) {
 }
 
 sourceSets {
-  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
+  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
-  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
-  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
 
-  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
-  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
-  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
+  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -70,11 +73,11 @@ tasks.withType(ScalaCompile).configureEach {
 dependencies {
   // first version that works with the tests on JDK11 (without dependency problems):
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  implementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
+  implementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 
   latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 }
