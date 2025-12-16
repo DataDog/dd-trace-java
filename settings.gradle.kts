@@ -546,7 +546,6 @@ include(
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast",
-  ":dd-java-agent:instrumentation:shutdown",
   ":dd-java-agent:instrumentation:slick",
   ":dd-java-agent:instrumentation:snakeyaml",
   ":dd-java-agent:instrumentation:span-origin",

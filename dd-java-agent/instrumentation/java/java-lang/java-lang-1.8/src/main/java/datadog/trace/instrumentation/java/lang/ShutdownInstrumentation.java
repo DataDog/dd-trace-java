@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.shutdown;
+package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
