@@ -52,7 +52,7 @@ public class ResponseServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -67,7 +67,9 @@ public class ResponseServiceAsyncInstrumentation
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::withResponse);
+          future =
+              ResponseWrappers.wrapFutureResponse(
+                  future, span, ResponseDecorator.DECORATE::withResponse);
         } else {
           span.finish();
         }
@@ -86,7 +88,7 @@ public class ResponseServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -104,7 +106,7 @@ public class ResponseServiceAsyncInstrumentation
         if (future != null) {
           future =
               ResponseWrappers.wrapFutureStreamResponse(
-                  future, span, DECORATE::withResponseStreamEvents);
+                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
         } else {
           span.finish();
         }

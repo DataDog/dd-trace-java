@@ -75,6 +75,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_CALL_ARGUMENTS =
       "arguments".getBytes(StandardCharsets.UTF_8);
 
+  private static final byte[] LLM_MESSAGE_TOOL_RESULTS =
+      "tool_results".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
+
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
 
   private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
@@ -301,8 +305,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
             writable.startArray(messages.size());
             for (LLMObs.LLMMessage message : messages) {
               List<LLMObs.ToolCall> toolCalls = message.getToolCalls();
+              List<LLMObs.ToolResult> toolResults = message.getToolResults();
               boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
-              writable.startMap(hasToolCalls ? 3 : 2);
+              boolean hasToolResults = null != toolResults && !toolResults.isEmpty();
+              int mapSize = 2; // role and content
+              if (hasToolCalls) mapSize++;
+              if (hasToolResults) mapSize++;
+              writable.startMap(mapSize);
               writable.writeUTF8(LLM_MESSAGE_ROLE);
               writable.writeString(message.getRole(), null);
               writable.writeUTF8(LLM_MESSAGE_CONTENT);
@@ -328,6 +337,21 @@ public class LLMObsSpanMapper implements RemoteMapper {
                       writable.writeObject(argument.getValue(), null);
                     }
                   }
+                }
+              }
+              if (hasToolResults) {
+                writable.writeUTF8(LLM_MESSAGE_TOOL_RESULTS);
+                writable.startArray(toolResults.size());
+                for (LLMObs.ToolResult toolResult : toolResults) {
+                  writable.startMap(4);
+                  writable.writeUTF8(LLM_TOOL_CALL_NAME);
+                  writable.writeString(toolResult.getName(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TYPE);
+                  writable.writeString(toolResult.getType(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
+                  writable.writeString(toolResult.getToolId(), null);
+                  writable.writeUTF8(LLM_TOOL_RESULT_RESULT);
+                  writable.writeString(toolResult.getResult(), null);
                 }
               }
             }

@@ -54,7 +54,7 @@ public class ResponseServiceInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -70,7 +70,8 @@ public class ResponseServiceInstrumentation
         }
         if (response != null) {
           response =
-              ResponseWrappers.wrapResponse(response, span, OpenAiDecorator.DECORATE::withResponse);
+              ResponseWrappers.wrapResponse(
+                  response, span, ResponseDecorator.DECORATE::withResponse);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -89,7 +90,7 @@ public class ResponseServiceInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withResponseCreateParams(span, params);
+      ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -107,7 +108,7 @@ public class ResponseServiceInstrumentation
         if (response != null) {
           response =
               ResponseWrappers.wrapStreamResponse(
-                  response, span, DECORATE::withResponseStreamEvents);
+                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
         } else {
           span.finish();
         }

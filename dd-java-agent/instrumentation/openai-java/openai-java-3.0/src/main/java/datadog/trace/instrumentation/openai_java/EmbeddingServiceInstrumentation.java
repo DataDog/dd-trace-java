@@ -42,7 +42,7 @@ public class EmbeddingServiceInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withEmbeddingCreateParams(span, params);
+      EmbeddingDecorator.DECORATE.withEmbeddingCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -59,7 +59,7 @@ public class EmbeddingServiceInstrumentation
         if (response != null) {
           response =
               ResponseWrappers.wrapResponse(
-                  response, span, OpenAiDecorator.DECORATE::withCreateEmbeddingResponse);
+                  response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
         }
         DECORATE.beforeFinish(span);
       } finally {

@@ -1,0 +1,144 @@
+package datadog.trace.instrumentation.openai_java;
+
+import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_MODEL;
+import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
+
+import com.openai.helpers.ChatCompletionAccumulator;
+import com.openai.models.chat.completions.ChatCompletion;
+import com.openai.models.chat.completions.ChatCompletionChunk;
+import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionMessageParam;
+import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
+import com.openai.models.completions.CompletionUsage;
+import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+public class ChatCompletionDecorator {
+  public static final ChatCompletionDecorator DECORATE = new ChatCompletionDecorator();
+  private static final CharSequence CHAT_COMPLETIONS_CREATE =
+      UTF8BytesString.create("createChatCompletion");
+
+  public void withChatCompletionCreateParams(
+      AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+    span.setResourceName(CHAT_COMPLETIONS_CREATE);
+    span.setTag("openai.request.endpoint", "v1/chat/completions");
+    span.setTag("openai.request.method", "POST");
+    if (params == null) {
+      return;
+    }
+    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
+
+    span.setTag(
+        "_ml_obs_tag.input",
+        params.messages().stream()
+            .map(ChatCompletionDecorator::llmMessage)
+            .collect(Collectors.toList()));
+
+    Map<String, Object> metadata = new HashMap<>();
+    // maxTokens is deprecated but integration tests missing to provide maxCompletionTokens
+    params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
+    params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    if (stream) {
+      metadata.put("stream", true);
+    }
+    params
+        .streamOptions()
+        .ifPresent(
+            v -> {
+              if (v.includeUsage().orElse(false)) {
+                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+              }
+            });
+    span.setTag("_ml_obs_tag.metadata", metadata);
+  }
+
+  private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
+    String role = "unknown";
+    String content = null;
+    if (m.isAssistant()) {
+      role = "assistant";
+      content = m.asAssistant().content().map(v -> v.text().orElse(null)).orElse(null);
+    } else if (m.isDeveloper()) {
+      role = "developer";
+      content = m.asDeveloper().content().text().orElse(null);
+    } else if (m.isSystem()) {
+      role = "system";
+      content = m.asSystem().content().text().orElse(null);
+    } else if (m.isTool()) {
+      role = "tool";
+      content = m.asTool().content().text().orElse(null);
+    } else if (m.isUser()) {
+      role = "user";
+      content = m.asUser().content().text().orElse(null);
+    }
+    return LLMObs.LLMMessage.from(role, content);
+  }
+
+  public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
+    String modelName = completion.model();
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+
+    List<LLMObs.LLMMessage> output =
+        completion.choices().stream()
+            .map(ChatCompletionDecorator::llmMessage)
+            .collect(Collectors.toList());
+    span.setTag("_ml_obs_tag.output", output);
+
+    completion.usage().ifPresent(usage -> withCompletionUsage(span, usage));
+  }
+
+  private static void withCompletionUsage(AgentSpan span, CompletionUsage usage) {
+    span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
+    span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
+    span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+  }
+
+  private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
+    ChatCompletionMessage msg = choice.message();
+    Optional<?> roleOpt = msg._role().asString();
+    String role = "unknown";
+    if (roleOpt.isPresent()) {
+      role = String.valueOf(roleOpt.get());
+    }
+    String content = msg.content().orElse(null);
+
+    Optional<List<ChatCompletionMessageToolCall>> toolCallsOpt = msg.toolCalls();
+    if (toolCallsOpt.isPresent() && !toolCallsOpt.get().isEmpty()) {
+      List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
+      for (ChatCompletionMessageToolCall toolCall : toolCallsOpt.get()) {
+        LLMObs.ToolCall llmObsToolCall = ToolCallExtractor.getToolCall(toolCall);
+        if (llmObsToolCall != null) {
+          toolCalls.add(llmObsToolCall);
+        }
+      }
+
+      if (!toolCalls.isEmpty()) {
+        return LLMObs.LLMMessage.from(role, content, toolCalls);
+      }
+    }
+
+    return LLMObs.LLMMessage.from(role, content);
+  }
+
+  public void withChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
+    ChatCompletionAccumulator accumulator = ChatCompletionAccumulator.create();
+    for (ChatCompletionChunk chunk : chunks) {
+      accumulator.accumulate(chunk);
+    }
+    ChatCompletion chatCompletion = accumulator.chatCompletion();
+    withChatCompletion(span, chatCompletion);
+  }
+}

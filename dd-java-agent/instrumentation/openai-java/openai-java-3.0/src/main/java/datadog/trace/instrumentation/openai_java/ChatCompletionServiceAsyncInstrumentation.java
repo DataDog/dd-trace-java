@@ -56,7 +56,7 @@ public class ChatCompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withChatCompletionCreateParams(span, params, false);
+      ChatCompletionDecorator.DECORATE.withChatCompletionCreateParams(span, params, false);
       return activateSpan(span);
     }
 
@@ -71,7 +71,9 @@ public class ChatCompletionServiceAsyncInstrumentation
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::withChatCompletion);
+          future =
+              ResponseWrappers.wrapFutureResponse(
+                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
         } else {
           span.finish();
         }
@@ -89,7 +91,7 @@ public class ChatCompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withChatCompletionCreateParams(span, params, true);
+      ChatCompletionDecorator.DECORATE.withChatCompletionCreateParams(span, params, true);
       return activateSpan(span);
     }
 
@@ -107,7 +109,7 @@ public class ChatCompletionServiceAsyncInstrumentation
         if (future != null) {
           future =
               ResponseWrappers.wrapFutureStreamResponse(
-                  future, span, DECORATE::withChatCompletionChunks);
+                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
         } else {
           span.finish();
         }

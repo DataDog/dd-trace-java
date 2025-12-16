@@ -17,7 +17,9 @@ import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
 import com.openai.models.embeddings.EmbeddingModel
 import com.openai.models.responses.ResponseCreateParams
+import com.openai.models.responses.ResponseFunctionToolCall
 import com.openai.models.responses.ResponseIncludable
+import com.openai.models.responses.ResponseInputItem
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.core.util.LRUCache
 import datadog.trace.llmobs.LlmObsSpecification
@@ -29,10 +31,8 @@ import spock.lang.Shared
 abstract class OpenAiTest extends LlmObsSpecification {
 
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
-  // null - will use mockOpenAiBackend and read recorded request/responses
-  String openAiToken() {
-    return null
-  }
+  // empty or null - will use mockOpenAiBackend and read recorded request/responses
+  static final String OPENAI_TOKEN = ""
 
   private static final Path RECORDS_DIR = Paths.get("src/test/resources/http-records")
   private static final String API_VERSION = "v1"
@@ -59,7 +59,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
           def recsDir = RECORDS_DIR.resolve(subpath)
           def recPath = recsDir.resolve(recFile)
           if (!recPath.toFile().exists()) {
-            throw new RuntimeException("The record file: '" + recFile + "' is NOT found at " + RECORDS_DIR)
+            throw new RuntimeException("The record file: '" + recFile + "' is NOT found at " + RECORDS_DIR + ". Set OpenAiTest.OPENAI_TOKEN to make a real request and store the record.")
           } else {
             rec = RequestResponseRecord.read(recPath)
             cache.put(recFile, rec)
@@ -74,7 +74,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
   }
 
   def setupSpec() {
-    if (Strings.isNullOrEmpty(openAiToken())) {
+    if (Strings.isNullOrEmpty(OPENAI_TOKEN)) {
       // mock backend uses request/response records
       OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
@@ -88,7 +88,7 @@ abstract class OpenAiTest extends LlmObsSpecification {
       openAiBaseApi = ClientOptions.PRODUCTION_URL
       httpClientUrlIfExists(httpClient, openAiBaseApi)
       clientOptions.baseUrl(openAiBaseApi)
-      clientOptions.credential(BearerTokenCredential.create(openAiToken()))
+      clientOptions.credential(BearerTokenCredential.create(OPENAI_TOKEN))
       clientOptions.httpClient(new OpenAiHttpClientForTests(httpClient.build(), RECORDS_DIR))
       openAiClient = createOpenAiClient(clientOptions.build())
     }
@@ -229,6 +229,34 @@ He hopes to pursue a career in software engineering after graduating.""")
     .build())
     .build())
     .build())
+    .build()
+  }
+
+  ResponseCreateParams responseCreateParamsWithToolInput() {
+    def functionCall = ResponseFunctionToolCall.builder()
+    .callId("call_123")
+    .name("get_weather")
+    .arguments('{"location": "San Francisco, CA"}')
+    .id("fc_123")
+    .status(ResponseFunctionToolCall.Status.COMPLETED)
+    .build()
+
+    def inputItems = [
+      ResponseInputItem.ofMessage(ResponseInputItem.Message.builder()
+      .role(ResponseInputItem.Message.Role.USER)
+      .addInputTextContent("What's the weather like in San Francisco?")
+      .build()),
+      ResponseInputItem.ofFunctionCall(functionCall),
+      ResponseInputItem.ofFunctionCallOutput(ResponseInputItem.FunctionCallOutput.builder()
+      .callId("call_123")
+      .output('{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}')
+      .build())
+    ]
+
+    ResponseCreateParams.builder()
+    .model(ChatModel.GPT_4_1)
+    .input(ResponseCreateParams.Input.ofResponse(inputItems))
+    .temperature(0.1d)
     .build()
   }
 }

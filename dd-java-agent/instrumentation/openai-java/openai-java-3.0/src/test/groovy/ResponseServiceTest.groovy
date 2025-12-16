@@ -180,6 +180,7 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
             "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List // TODO capture to validate tool calls
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.output_tokens" Long

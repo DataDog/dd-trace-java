@@ -51,7 +51,7 @@ public class CompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withCompletionCreateParams(span, params);
+      CompletionDecorator.DECORATE.withCompletionCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -66,7 +66,9 @@ public class CompletionServiceAsyncInstrumentation
           DECORATE.onError(span, err);
         }
         if (future != null) {
-          future = ResponseWrappers.wrapFutureResponse(future, span, DECORATE::withCompletion);
+          future =
+              ResponseWrappers.wrapFutureResponse(
+                  future, span, CompletionDecorator.DECORATE::withCompletion);
         } else {
           span.finish();
         }
@@ -85,7 +87,7 @@ public class CompletionServiceAsyncInstrumentation
       AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.withClientOptions(span, clientOptions);
-      DECORATE.withCompletionCreateParams(span, params);
+      CompletionDecorator.DECORATE.withCompletionCreateParams(span, params);
       return activateSpan(span);
     }
 
@@ -102,7 +104,8 @@ public class CompletionServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              ResponseWrappers.wrapFutureStreamResponse(future, span, DECORATE::withCompletions);
+              ResponseWrappers.wrapFutureStreamResponse(
+                  future, span, CompletionDecorator.DECORATE::withCompletions);
         } else {
           span.finish();
         }
