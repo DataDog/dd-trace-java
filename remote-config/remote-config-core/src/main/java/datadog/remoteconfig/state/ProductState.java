@@ -58,8 +58,10 @@ public class ProductState {
     errors = null;
 
     List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
+    List<ParsedConfigKey> changedKeys = new ArrayList<>();
     boolean changesDetected = false;
 
+    // Step 1: Detect all changes
     for (ParsedConfigKey configKey : relevantKeys) {
       try {
         RemoteConfigResponse.Targets.ConfigTarget target =
@@ -68,14 +70,26 @@ public class ProductState {
 
         if (isTargetChanged(configKey, target)) {
           changesDetected = true;
-          byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+          changedKeys.add(configKey);
         }
       } catch (ReportableException e) {
         recordError(e);
       }
     }
 
+    // Step 2: For products other than ASM_DD, apply changes immediately
+    if (product != Product.ASM_DD) {
+      for (ParsedConfigKey configKey : changedKeys) {
+        try {
+          byte[] content = getTargetFileContent(fleetResponse, configKey);
+          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+        } catch (ReportableException e) {
+          recordError(e);
+        }
+      }
+    }
+
+    // Step 3: Remove obsolete configurations (for all products)
     List<ParsedConfigKey> keysToRemove =
         cachedTargetFiles.keySet().stream()
             .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
@@ -86,6 +100,19 @@ public class ProductState {
       callListenerRemoveTarget(hinter, configKey);
     }
 
+    // Step 4: For ASM_DD, apply changes AFTER removes
+    if (product == Product.ASM_DD) {
+      for (ParsedConfigKey configKey : changedKeys) {
+        try {
+          byte[] content = getTargetFileContent(fleetResponse, configKey);
+          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+        } catch (ReportableException e) {
+          recordError(e);
+        }
+      }
+    }
+
+    // Step 5: Commit if there were changes
     if (changesDetected) {
       try {
         callListenerCommit(hinter);
