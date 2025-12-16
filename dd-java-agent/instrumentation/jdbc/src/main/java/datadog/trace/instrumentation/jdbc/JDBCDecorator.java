@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -425,6 +426,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (!loggedInjectionError) {
       loggedInjectionError = true;
       log.warn(
+          LogCollector.EXCLUDE_TELEMETRY, // nothing we can do on our side about this
           "Failed to set extra DBM data in {}. "
               + "To disable this behavior, set trace_prepared_statements to 'false'. "
               + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. "
