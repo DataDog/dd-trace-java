@@ -490,7 +490,7 @@ include(
   ":dd-java-agent:instrumentation:opentracing:api-0.31",
   ":dd-java-agent:instrumentation:opentracing:api-0.32",
   ":dd-java-agent:instrumentation:opentracing",
-  ":dd-java-agent:instrumentation:org-json",
+  ":dd-java-agent:instrumentation:org-json-20230227",
   ":dd-java-agent:instrumentation:osgi-4.3",
   ":dd-java-agent:instrumentation:owasp-esapi-2",
   ":dd-java-agent:instrumentation:pekko:pekko-concurrent-1.0",
