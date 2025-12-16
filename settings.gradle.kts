@@ -283,7 +283,7 @@ include(
   ":dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-5.0",
   ":dd-java-agent:instrumentation:armeria:armeria-grpc-0.84",
   ":dd-java-agent:instrumentation:armeria:armeria-jetty-1.24",
-  ":dd-java-agent:instrumentation:avro",
+  ":dd-java-agent:instrumentation:avro-1.11.3",
   ":dd-java-agent:instrumentation:aws-java:aws-java-common",
   ":dd-java-agent:instrumentation:aws-java:aws-java-dynamodb-2.0",
   ":dd-java-agent:instrumentation:aws-java:aws-java-eventbridge-2.0",
