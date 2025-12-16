@@ -33,14 +33,14 @@ tasks.named("latestDepTest", Test) {
 }
 
 sourceSets {
-  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
+  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
-  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
-  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.groovy
 
-  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
-  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
-  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise').sourceSets.test.scala
+  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
+  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise-common').sourceSets.test.scala
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -70,11 +70,11 @@ tasks.withType(ScalaCompile).configureEach {
 dependencies {
   // first version that works with the tests on JDK11 (without dependency problems):
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  implementation project(':dd-java-agent:instrumentation:scala:scala-promise')
+  implementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
 
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
 
   latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise-common')
 }
