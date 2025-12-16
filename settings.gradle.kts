@@ -536,7 +536,7 @@ include(
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13",
   ":dd-java-agent:instrumentation:scala:scala-promise",
   ":dd-java-agent:instrumentation:scala:scala-2.10.7",
-  ":dd-java-agent:instrumentation:scala:scalatest",
+  ":dd-java-agent:instrumentation:scalatest-3.0.8",
   ":dd-java-agent:instrumentation:selenium",
   ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.0",
   ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.56",
