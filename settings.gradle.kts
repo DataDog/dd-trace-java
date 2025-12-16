@@ -344,7 +344,7 @@ include(
   ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub-1.116",
   ":dd-java-agent:instrumentation:graal:native-image",
-  ":dd-java-agent:instrumentation:gradle-testing",
+  ":dd-java-agent:instrumentation:gradle-testing-5.1",
   ":dd-java-agent:instrumentation:gradle:gradle-3.0",
   ":dd-java-agent:instrumentation:gradle:gradle-8.3",
   ":dd-java-agent:instrumentation:graphql-java:graphql-java-14.0",
