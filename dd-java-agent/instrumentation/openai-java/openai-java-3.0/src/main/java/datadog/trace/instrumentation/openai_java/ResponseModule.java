@@ -16,6 +16,7 @@ public class ResponseModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".ResponseDecorator",
+      packageName + ".FunctionCallOutputExtractor",
       packageName + ".OpenAiDecorator",
       packageName + ".HttpResponseWrappers",
       packageName + ".HttpResponseWrappers$DDHttpResponseFor",

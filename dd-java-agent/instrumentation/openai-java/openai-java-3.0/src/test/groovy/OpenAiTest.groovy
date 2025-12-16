@@ -4,6 +4,7 @@ import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
+import com.openai.core.JsonField
 import com.openai.credential.BearerTokenCredential
 import com.openai.core.JsonValue
 import com.openai.models.ChatModel
@@ -232,32 +233,58 @@ He hopes to pursue a career in software engineering after graduating.""")
     .build()
   }
 
-  ResponseCreateParams responseCreateParamsWithToolInput() {
-    def functionCall = ResponseFunctionToolCall.builder()
-    .callId("call_123")
-    .name("get_weather")
-    .arguments('{"location": "San Francisco, CA"}')
-    .id("fc_123")
-    .status(ResponseFunctionToolCall.Status.COMPLETED)
-    .build()
+  ResponseCreateParams responseCreateParamsWithToolInput(boolean json) {
+    if (json) {
+      def rawInputJson = [
+        [
+          role: "user",
+          content: "What's the weather like in San Francisco?"
+        ],
+        [
+          type: "function_call",
+          call_id: "call_123",
+          name: "get_weather",
+          arguments: '{"location": "San Francisco, CA"}'
+        ],
+        [
+          type: "function_call_output",
+          call_id: "call_123",
+          output: '{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}'
+        ]
+      ]
 
-    def inputItems = [
-      ResponseInputItem.ofMessage(ResponseInputItem.Message.builder()
-      .role(ResponseInputItem.Message.Role.USER)
-      .addInputTextContent("What's the weather like in San Francisco?")
-      .build()),
-      ResponseInputItem.ofFunctionCall(functionCall),
-      ResponseInputItem.ofFunctionCallOutput(ResponseInputItem.FunctionCallOutput.builder()
+      ResponseCreateParams.builder()
+      .model("gpt-4.1")
+      .input(com.openai.core.JsonValue.from(rawInputJson))
+      .temperature(0.1d)
+      .build()
+    } else {
+      def functionCall = ResponseFunctionToolCall.builder()
       .callId("call_123")
-      .output('{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}')
-      .build())
-    ]
+      .name("get_weather")
+      .arguments('{"location": "San Francisco, CA"}')
+      .id("fc_123")
+      .status(ResponseFunctionToolCall.Status.COMPLETED)
+      .build()
 
-    ResponseCreateParams.builder()
-    .model(ChatModel.GPT_4_1)
-    .input(ResponseCreateParams.Input.ofResponse(inputItems))
-    .temperature(0.1d)
-    .build()
+      def inputItems = [
+        ResponseInputItem.ofMessage(ResponseInputItem.Message.builder()
+        .role(ResponseInputItem.Message.Role.USER)
+        .addInputTextContent("What's the weather like in San Francisco?")
+        .build()),
+        ResponseInputItem.ofFunctionCall(functionCall),
+        ResponseInputItem.ofFunctionCallOutput(ResponseInputItem.FunctionCallOutput.builder()
+        .callId("call_123")
+        .output('{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}')
+        .build())
+      ]
+
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_4_1)
+      .input(ResponseCreateParams.Input.ofResponse(inputItems))
+      .temperature(0.1d)
+      .build()
+    }
   }
 }
 

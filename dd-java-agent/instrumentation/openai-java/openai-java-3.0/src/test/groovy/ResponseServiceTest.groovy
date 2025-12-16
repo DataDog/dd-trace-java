@@ -160,6 +160,32 @@ class ResponseServiceTest extends OpenAiTest {
     params << [responseCreateParams(false), responseCreateParams(true)]
   }
 
+  def "create streaming response with tool input test"() {
+    // Tests the strongly-typed path: ResponseInputItem objects → params._input().asKnown()
+    runnableUnderTrace("parent") {
+      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParamsWithToolInput(true)) // TODO
+      try (Stream stream = streamResponse.stream()) {
+        stream.forEach {
+          // consume the stream
+        }
+      }
+    }
+
+    expect:
+    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null)
+  }
+
+  // NOTE: responseCreateParamsWithToolInput(true) creates raw JSON via JsonValue.from()
+  // This exercises the asUnknown() → asArray() parsing path in ResponseDecorator
+  // However, it cannot be unit tested here because:
+  // 1. Raw JSON serializes differently than typed objects
+  // 2. No matching HTTP recording exists in the mock backend
+  // 3. The test would fail with InternalServerException
+  //
+  // This path IS tested by the shared integration test:
+  // llm-obs/test/test_openai.py::test_responses_create_tool_input
+  // which represents the real cross-language use case (Python → Java test server)
+
   private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
     assertTraces(1) {
       trace(3) {

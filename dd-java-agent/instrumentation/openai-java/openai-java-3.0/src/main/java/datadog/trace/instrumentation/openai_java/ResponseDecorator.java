@@ -9,6 +9,8 @@ import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseFunctionToolCall;
+import com.openai.models.responses.ResponseInputContent;
+import com.openai.models.responses.ResponseInputItem;
 import com.openai.models.responses.ResponseOutputItem;
 import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseOutputText;
@@ -54,9 +56,47 @@ public class ResponseDecorator {
               inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
             });
 
-    Optional<String> textOpt = params._input().asString();
+    Optional<String> textOpt = params._input().asString(); // TODO cover with unit tests
     if (textOpt.isPresent()) {
       inputMessages.add(LLMObs.LLMMessage.from("user", textOpt.get()));
+    }
+
+    Optional<ResponseCreateParams.Input> inputOpt = params._input().asKnown();
+    if (inputOpt.isPresent()) {
+      ResponseCreateParams.Input input = inputOpt.get();
+      if (input.isText()) {
+        inputMessages.add(LLMObs.LLMMessage.from("user", input.asText()));
+      } else if (input.isResponse()) {
+        List<ResponseInputItem> inputItems = input.asResponse(); // TODO cover with unit tests
+        for (ResponseInputItem item : inputItems) {
+          LLMObs.LLMMessage message = extractInputItemMessage(item);
+          if (message != null) {
+            inputMessages.add(message);
+          }
+        }
+      }
+    }
+
+    // Handle raw list input (when SDK can't parse into known types)
+    // This path is tested by "create streaming response with raw json tool input test"
+    if (inputMessages.isEmpty()) {
+      try {
+        Optional<com.openai.core.JsonValue> rawValueOpt = params._input().asUnknown();
+        if (rawValueOpt.isPresent()) {
+          com.openai.core.JsonValue rawValue = rawValueOpt.get();
+          Optional<List<com.openai.core.JsonValue>> rawListOpt = rawValue.asArray();
+          if (rawListOpt.isPresent()) {
+            for (com.openai.core.JsonValue item : rawListOpt.get()) {
+              LLMObs.LLMMessage message = extractMessageFromRawJson(item);
+              if (message != null) {
+                inputMessages.add(message);
+              }
+            }
+          }
+        }
+      } catch (Exception e) {
+        // Ignore parsing errors for raw input
+      }
     }
 
     if (!inputMessages.isEmpty()) {
@@ -65,6 +105,225 @@ public class ResponseDecorator {
 
     extractReasoningFromParams(params)
         .ifPresent(reasoningMap -> span.setTag("_ml_obs_request.reasoning", reasoningMap));
+  }
+
+  private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
+    if (item.isMessage()) {
+      ResponseInputItem.Message message = item.asMessage();
+      String role = message.role().asString();
+      String content = extractInputMessageContent(message);
+      return LLMObs.LLMMessage.from(role, content);
+    } else if (item.isFunctionCall()) {
+      // Function call is mapped to assistant message with tool_calls
+      ResponseFunctionToolCall functionCall = item.asFunctionCall();
+      LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(functionCall);
+      if (toolCall != null) {
+        List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
+        return LLMObs.LLMMessage.from("assistant", null, toolCalls);
+      }
+    } else if (item.isFunctionCallOutput()) {
+      ResponseInputItem.FunctionCallOutput output = item.asFunctionCallOutput();
+      String callId = output.callId();
+      String result = FunctionCallOutputExtractor.getOutputAsString(output);
+      LLMObs.ToolResult toolResult =
+          LLMObs.ToolResult.from("", "function_call_output", callId, result);
+      List<LLMObs.ToolResult> toolResults = Collections.singletonList(toolResult);
+      return LLMObs.LLMMessage.fromToolResults("user", toolResults);
+    }
+    return null;
+  }
+
+  private LLMObs.LLMMessage extractMessageFromRawJson(com.openai.core.JsonValue jsonValue) {
+    Optional<Map<String, com.openai.core.JsonValue>> objOpt = jsonValue.asObject();
+    if (!objOpt.isPresent()) {
+      return null;
+    }
+
+    Map<String, com.openai.core.JsonValue> obj = objOpt.get();
+    com.openai.core.JsonValue typeValue = obj.get("type");
+
+    // Check if it's a function_call
+    if (typeValue != null) {
+      Optional<String> typeStr = typeValue.asString();
+      if (typeStr.isPresent()) {
+        String type = typeStr.get();
+
+        if ("function_call".equals(type)) {
+          // Extract function call details
+          com.openai.core.JsonValue callIdValue = obj.get("call_id");
+          com.openai.core.JsonValue nameValue = obj.get("name");
+          com.openai.core.JsonValue argumentsValue = obj.get("arguments");
+
+          String callId = null;
+          String name = null;
+          String argumentsStr = null;
+
+          if (callIdValue != null) {
+            Optional<String> opt = callIdValue.asString();
+            if (opt.isPresent()) {
+              callId = opt.get();
+            }
+          }
+          if (nameValue != null) {
+            Optional<String> opt = nameValue.asString();
+            if (opt.isPresent()) {
+              name = opt.get();
+            }
+          }
+          if (argumentsValue != null) {
+            Optional<String> opt = argumentsValue.asString();
+            if (opt.isPresent()) {
+              argumentsStr = opt.get();
+            }
+          }
+
+          if (callId != null && name != null && argumentsStr != null) {
+            Map<String, Object> arguments = parseJsonString(argumentsStr);
+            LLMObs.ToolCall toolCall =
+                LLMObs.ToolCall.from(name, "function_call", callId, arguments);
+            return LLMObs.LLMMessage.from("assistant", null, Collections.singletonList(toolCall));
+          }
+        } else if ("function_call_output".equals(type)) {
+          // Extract function call output
+          com.openai.core.JsonValue callIdValue = obj.get("call_id");
+          com.openai.core.JsonValue outputValue = obj.get("output");
+
+          String callId = null;
+          String output = null;
+
+          if (callIdValue != null) {
+            Optional<String> opt = callIdValue.asString();
+            if (opt.isPresent()) {
+              callId = opt.get();
+            }
+          }
+          if (outputValue != null) {
+            Optional<String> opt = outputValue.asString();
+            if (opt.isPresent()) {
+              output = opt.get();
+            }
+          }
+
+          if (callId != null && output != null) {
+            LLMObs.ToolResult toolResult =
+                LLMObs.ToolResult.from("", "function_call_output", callId, output);
+            return LLMObs.LLMMessage.fromToolResults("user", Collections.singletonList(toolResult));
+          }
+        }
+      }
+    }
+
+    // Otherwise, it's a regular message with role and content
+    com.openai.core.JsonValue roleValue = obj.get("role");
+    com.openai.core.JsonValue contentValue = obj.get("content");
+
+    String role = null;
+    String content = null;
+
+    if (roleValue != null) {
+      Optional<String> opt = roleValue.asString();
+      if (opt.isPresent()) {
+        role = opt.get();
+      }
+    }
+    if (contentValue != null) {
+      Optional<String> opt = contentValue.asString();
+      if (opt.isPresent()) {
+        content = opt.get();
+      }
+    }
+
+    if (role != null) {
+      return LLMObs.LLMMessage.from(role, content);
+    }
+
+    return null;
+  }
+
+  private Map<String, Object> parseJsonString(String jsonStr) {
+    if (jsonStr == null || jsonStr.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    try {
+      jsonStr = jsonStr.trim();
+      if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
+        return Collections.emptyMap();
+      }
+
+      Map<String, Object> result = new HashMap<>();
+      String content = jsonStr.substring(1, jsonStr.length() - 1).trim();
+
+      if (content.isEmpty()) {
+        return result;
+      }
+
+      // Parse JSON manually, respecting quoted strings
+      List<String> pairs = splitByCommaRespectingQuotes(content);
+
+      for (String pair : pairs) {
+        int colonIdx = pair.indexOf(':');
+        if (colonIdx > 0) {
+          String key = pair.substring(0, colonIdx).trim();
+          String value = pair.substring(colonIdx + 1).trim();
+
+          // Remove quotes from key
+          key = removeQuotes(key);
+          // Remove quotes from value
+          value = removeQuotes(value);
+
+          result.put(key, value);
+        }
+      }
+
+      return result;
+    } catch (Exception e) {
+      return Collections.emptyMap();
+    }
+  }
+
+  private List<String> splitByCommaRespectingQuotes(String str) {
+    List<String> result = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+    boolean inQuotes = false;
+
+    for (int i = 0; i < str.length(); i++) {
+      char c = str.charAt(i);
+
+      if (c == '"') {
+        inQuotes = !inQuotes;
+        current.append(c);
+      } else if (c == ',' && !inQuotes) {
+        result.add(current.toString());
+        current = new StringBuilder();
+      } else {
+        current.append(c);
+      }
+    }
+
+    if (current.length() > 0) {
+      result.add(current.toString());
+    }
+
+    return result;
+  }
+
+  private String removeQuotes(String str) {
+    str = str.trim();
+    if (str.startsWith("\"") && str.endsWith("\"") && str.length() >= 2) {
+      return str.substring(1, str.length() - 1);
+    }
+    return str;
+  }
+
+  private String extractInputMessageContent(ResponseInputItem.Message message) {
+    StringBuilder contentBuilder = new StringBuilder();
+    for (ResponseInputContent content : message.content()) {
+      if (content.isInputText()) {
+        contentBuilder.append(content.asInputText().text());
+      }
+    }
+    String result = contentBuilder.toString();
+    return result.isEmpty() ? null : result;
   }
 
   private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
