@@ -319,7 +319,7 @@ include(
   ":dd-java-agent:instrumentation:couchbase:couchbase-3.2",
   ":dd-java-agent:instrumentation:cucumber-5.4",
   ":dd-java-agent:instrumentation:cxf-2.1",
-  ":dd-java-agent:instrumentation:datanucleus-4",
+  ":dd-java-agent:instrumentation:datanucleus-4.0.5",
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.0",
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.8",
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0",
