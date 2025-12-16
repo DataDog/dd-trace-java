@@ -46,11 +46,11 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<Server> {
           @Override
           protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
             final msg = controller.apacheSsrf(
-              VulnerableUrlBuilder.url(req),
-              req.getParameter('clientClassName'),
-              req.getParameter('method'),
-              req.getParameter('requestType'),
-              req.getParameter('scheme')
+            VulnerableUrlBuilder.url(req),
+            req.getParameter('clientClassName'),
+            req.getParameter('method'),
+            req.getParameter('requestType'),
+            req.getParameter('scheme')
             )
             resp.setStatus(200)
             resp.writer.write(msg)
@@ -112,12 +112,12 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<Server> {
   private List<TestSuite> createTestSuite(client, method, request, scheme) {
     return TaintedTarget.values().collect {
       new TestSuite(
-        description: "Tainted ${it.name()} with ${client} client and ${method} method with ${request} and ${scheme} scheme",
-        executedMethod: method.name(),
-        clientImplementation: client,
-        requestType: request.name(),
-        scheme: scheme,
-        tainted: it
+      description: "Tainted ${it.name()} with ${client} client and ${method} method with ${request} and ${scheme} scheme",
+      executedMethod: method.name(),
+      clientImplementation: client,
+      requestType: request.name(),
+      scheme: scheme,
+      tainted: it
       )
     }
   }
@@ -145,14 +145,14 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<Server> {
 
     HttpUrl url(final URI address) {
       final builder = new HttpUrl.Builder()
-        .scheme(address.getScheme())
-        .host(address.getHost())
-        .port(address.getPort())
-        .addPathSegments('ssrf/execute')
-        .addQueryParameter('clientClassName', clientImplementation)
-        .addQueryParameter('method', executedMethod)
-        .addQueryParameter('requestType', requestType)
-        .addQueryParameter('scheme', scheme)
+      .scheme(address.getScheme())
+      .host(address.getHost())
+      .port(address.getPort())
+      .addPathSegments('ssrf/execute')
+      .addQueryParameter('clientClassName', clientImplementation)
+      .addQueryParameter('method', executedMethod)
+      .addQueryParameter('requestType', requestType)
+      .addQueryParameter('scheme', scheme)
       tainted.addTainted(builder, this)
       return builder.build()
     }

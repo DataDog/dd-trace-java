@@ -1,6 +1,5 @@
 package foo.bar;
 
-import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi;
 import javax.servlet.http.HttpServletRequest;
 
 /** Class to be instrumented by IAST call sites containing methods to work with urls */
