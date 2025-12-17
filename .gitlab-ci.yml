@@ -596,7 +596,7 @@ build_tests:
       echo "Java Preferences directory structure:"
       if [ -d ~/.java/.userPrefs ]; then
         echo "Full tree:"
-        find ~/.java/.userPrefs -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g'
+        (cd "$HOME/.java/.userPrefs" && find . -print | sed -e 's|^\./||' -e 's|[^/]*/|│   |g' -e 's|│   \([^│]*\)$|├── \1|')
         echo ""
         echo "All files with details:"
         find ~/.java/.userPrefs -type f -ls
