@@ -82,48 +82,39 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   ): List<NamingViolation> {
     val violations = mutableListOf<NamingViolation>()
 
-    // Get all subdirectories in the instrumentations directory
-    instrumentationsDir.listFiles { file -> file.isDirectory }?.forEach parentLoop@{ parentDir ->
-      val parentName = parentDir.name
+    fun hasBuildFile(dir: File): Boolean = dir.listFiles()?.any {
+      it.name == "build.gradle" || it.name == "build.gradle.kts"
+    } ?: false
 
-      // Skip build directories and other non-instrumentation directories
-      if (parentName in setOf("build", "src", ".gradle")) {
-        return@parentLoop
-      }
+    fun traverseModules(currentDir: File, parentName: String?) {
+      currentDir.listFiles { file -> file.isDirectory }?.forEach childLoop@{ childDir ->
+        val moduleName = childDir.name
 
-      val hasBuildFile = parentDir.listFiles()?.any {
-        it.name == "build.gradle" || it.name == "build.gradle.kts"
-      } ?: false
+        // Skip build directories and other non-instrumentation directories
+        if (moduleName in setOf("build", "src", ".gradle")) {
+          return@childLoop
+        }
 
-      // Check for subdirectories that are modules
-      val subModules = parentDir.listFiles { file -> file.isDirectory }
-        ?.filter { subDir ->
-          val name = subDir.name
-          // Skip build and other non-module directories
-          name !in setOf("build", "src", ".gradle") &&
-          // Check if it has a build file
-          subDir.listFiles()?.any { it.name == "build.gradle" || it.name == "build.gradle.kts" } == true
-        } ?: emptyList()
+        val childHasBuildFile = hasBuildFile(childDir)
+        val nestedModules = childDir.listFiles { file -> file.isDirectory }?.filter { hasBuildFile(it) } ?: emptyList()
 
-      if (subModules.isEmpty()) {
-        // No submodules, this is a leaf module
-        if (hasBuildFile && parentName !in exclusions) {
-          validateLeafModuleName(parentName, parentDir.relativeTo(instrumentationsDir).path, suffixes)?.let {
-            violations.add(it)
+        if (childHasBuildFile && moduleName !in exclusions) {
+          val relativePath = childDir.relativeTo(instrumentationsDir).path
+          if (parentName == null && nestedModules.isEmpty()) {
+            validateLeafModuleName(moduleName, relativePath, suffixes)?.let { violations.add(it) }
+          } else if (parentName != null) {
+            validateModuleName(moduleName, parentName, relativePath, suffixes)?.let { violations.add(it) }
           }
         }
-      } else {
-        // Has submodules, validate each one
-        subModules.forEach { moduleDir ->
-          val moduleName = moduleDir.name
-          if (moduleName !in exclusions) {
-            validateModuleName(moduleName, parentName, moduleDir.relativeTo(instrumentationsDir).path, suffixes)?.let {
-              violations.add(it)
-            }
-          }
+
+        // Continue traversing to validate deeply nested modules
+        if (nestedModules.isNotEmpty() || !childHasBuildFile) {
+          traverseModules(childDir, moduleName)
         }
       }
     }
+
+    traverseModules(instrumentationsDir, null)
 
     return violations
   }
