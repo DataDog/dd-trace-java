@@ -19,13 +19,13 @@ addTestSuiteForDir('latestDepTest', 'latestDepTest')
 dependencies {
   compileOnly group: 'org.elasticsearch', name: 'elasticsearch', version: '2.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:elasticsearch')
+  implementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-common')
 
   // Ensure no cross interference
-  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:rest-5')
-  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:transport-5')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-5.0')
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0')
-  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:transport')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-common')
 
   testImplementation group: 'org.elasticsearch', name: 'elasticsearch', version: '2.0.0'
 

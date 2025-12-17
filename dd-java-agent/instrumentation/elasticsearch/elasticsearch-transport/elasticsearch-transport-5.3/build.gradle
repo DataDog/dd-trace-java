@@ -23,12 +23,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.elasticsearch.client', name: 'transport', version: '5.3.0'
 
-  implementation project(':dd-java-agent:instrumentation:elasticsearch')
+  implementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-common')
 
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-data-1.8')
-  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:transport')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-common')
 
   testImplementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
   testImplementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
