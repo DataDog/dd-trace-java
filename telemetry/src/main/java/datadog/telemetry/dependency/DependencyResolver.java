@@ -1,8 +1,5 @@
 package datadog.telemetry.dependency;
 
-import com.antithesis.sdk.Assert;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,18 +41,6 @@ public class DependencyResolver {
       return Collections.emptyList();
     }
     if (metadata.isDirectory) {
-      // Antithesis: Track when dependencies are extracted from directories
-      ObjectNode directoryDetails = JsonNodeFactory.instance.objectNode();
-      directoryDetails.put("uri", uri.toString());
-      directoryDetails.put("scheme", scheme);
-      directoryDetails.put("is_directory", true);
-      
-      log.debug("ANTITHESIS_ASSERT: Directory dependency extraction attempted (sometimes) - uri: {}", uri);
-      Assert.sometimes(
-          metadata.isDirectory,
-          "Directory dependencies are encountered - tracking unsupported dependency type",
-          directoryDetails);
-      
       log.debug("Extracting dependencies from directories is not supported: {}", uri);
       return Collections.emptyList();
     }

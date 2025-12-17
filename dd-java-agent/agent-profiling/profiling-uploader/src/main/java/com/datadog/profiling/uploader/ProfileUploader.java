@@ -69,7 +69,6 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.antithesis.sdk.Assert;
 
 /** The class for uploading profiles to the backend. */
 public final class ProfileUploader {
@@ -302,8 +301,6 @@ public final class ProfileUploader {
           // But, in any case, we have this safety-break in place to prevent blocking finishing the
           // sync request to a misbehaving server.
           if (handled.compareAndSet(false, true)) {
-            log.debug("ANTITHESIS_ASSERT: Upload timeout (unreachable)");
-            Assert.unreachable("Upload timeout", null);
             handleFailure(call, null, data, onCompletion);
           }
         }
@@ -354,8 +351,6 @@ public final class ProfileUploader {
             "Failed to upload profile, it's too big. Dumping information about the profile");
         JfrCliHelper.invokeOn(data, ioLogger);
       } else {
-        log.debug("ANTITHESIS_ASSERT: Failed to upload profile (unreachable) - response code: {}", response.code());
-        Assert.unreachable("Failed to upload profile", null);
         ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
     }

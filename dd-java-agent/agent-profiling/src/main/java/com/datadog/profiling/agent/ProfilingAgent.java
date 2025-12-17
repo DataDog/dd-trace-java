@@ -37,7 +37,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.antithesis.sdk.Assert;
 
 /** Profiling agent implementation */
 public class ProfilingAgent {
@@ -82,8 +81,6 @@ public class ProfilingAgent {
         log.debug("Debug profile stored as {}", tmp);
       } catch (IOException e) {
         log.debug("Unable to write debug profile dump", e);
-        log.debug("ANTITHESIS_ASSERT: Unable to write debug profile dump (unreachable)");
-        Assert.unreachable("Unable to write debug profile dump", null);
       }
     }
   }
@@ -172,15 +169,11 @@ public class ProfilingAgent {
           This means that if/when we implement functionality to manually shutdown profiler we would
           need to not forget to add code that removes this shutdown hook from JVM.
            */
-          log.debug("ANTITHESIS_ASSERT: Shutdown hook added (always) - uploader != null: {}", (uploader != null));
-          Assert.always(uploader!= null, "Shutdown hook added", null);
           Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader));
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }
       } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
-        log.debug("ANTITHESIS_ASSERT: Failed to initialize profiling agent (unreachable)", e);
-        Assert.unreachable("Failed to initialize profiling agent!", null);
         ProfilerFlareLogger.getInstance().log("Failed to initialize profiling agent!", e);
         ProfilerFlareReporter.reportInitializationException(e);
       }

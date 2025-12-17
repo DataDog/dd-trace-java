@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.antithesis.sdk.Assert;
 
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
@@ -290,8 +289,6 @@ public final class OpenJdkController implements Controller {
         Files.createDirectories(repositoryPath);
       } catch (IOException e) {
         log.error("Failed to create JFR repository directory: {}", repositoryPath, e);
-        log.debug("ANTITHESIS_ASSERT: Failed to create JFR repository directory (unreachable)");
-        Assert.unreachable("Failed to create JFR repository directory", null);
         throw new IllegalStateException(
             "Failed to create JFR repository directory: " + repositoryPath, e);
       }

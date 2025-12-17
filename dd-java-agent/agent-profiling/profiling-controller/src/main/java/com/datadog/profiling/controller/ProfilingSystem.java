@@ -35,7 +35,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.antithesis.sdk.Assert;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
 public final class ProfilingSystem {
@@ -197,12 +196,8 @@ public final class ProfilingSystem {
       if (t != null) {
         if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
           ProfilerFlareLogger.getInstance().log("Shutdown in progress, cannot start profiling");
-          log.debug("ANTITHESIS_ASSERT: Shutdown in progress, cannot start profiling (sometimes)");
-          Assert.sometimes(true, "Shutdown in progress, cannot start profiling", null);
         } else {
           ProfilerFlareLogger.getInstance().log("Failed to start profiling", t);
-          log.debug("ANTITHESIS_ASSERT: Failed to start profiling (unreachable)", t);
-          Assert.unreachable("Failed to start profiling", null);
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }
@@ -279,8 +274,6 @@ public final class ProfilingSystem {
           // the last recording end time plus one nano second. The reason for this is that when
           // JFR is filtering the stream it will only discard earlier chunks that have an end
           // time that is before (not before or equal to) the requested start time of the filter.
-          log.debug("ANTITHESIS_ASSERT: Snapshot created (always) - lastSnapshot != null: {}", (lastSnapshot != null));
-          Assert.always(lastSnapshot != null, "Snapshot created", null);
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
           dataListener.onNewData(recordingType, recordingData, onShutdown);
         } else {
@@ -288,8 +281,6 @@ public final class ProfilingSystem {
         }
       } catch (final Exception e) {
         log.error(SEND_TELEMETRY, "Exception in profiling thread, continuing", e);
-        log.debug("ANTITHESIS_ASSERT: Exception in profiling thread, continuing (unreachable)", e);
-        Assert.unreachable("Exception in profiling thread, continuing", null);
       } catch (final Throwable t) {
         /*
         Try to continue even after fatal exception. It seems to be useful to attempt to store profile when this happens.
@@ -302,8 +293,6 @@ public final class ProfilingSystem {
         } catch (final Throwable t2) {
           // This should almost never happen and there is not much we can do here in cases like
           // OutOfMemoryError, so we will just ignore this.
-          log.debug("ANTITHESIS_ASSERT: Fatal exception in profiling thread, trying to continue (unreachable)");
-          Assert.unreachable("Fatal exception in profiling thread, trying to continue", null);
         }
       }
     }

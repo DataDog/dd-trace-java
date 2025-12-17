@@ -56,7 +56,6 @@ import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.antithesis.sdk.Assert;
 /**
  * It is currently assumed that this class can be initialised early so that Datadog profiler's
  * thread filter captures all tracing activity, which means it must not be modified to depend on
@@ -189,8 +188,6 @@ public final class DatadogProfiler {
       return new DatadogProfilerRecording(this);
     } catch (IOException | IllegalStateException e) {
       log.debug("Failed to start Datadog profiler recording", e);
-      log.debug("ANTITHESIS_ASSERT: Failed to start Datadog profiler recording (unreachable)");
-      Assert.unreachable("Failed to start Datadog profiler recording", null);
       return null;
     }
   }
@@ -205,16 +202,12 @@ public final class DatadogProfiler {
   void stopProfiler() {
     if (recordingFlag.compareAndSet(true, false)) {
       profiler.stop();
-      log.debug("ANTITHESIS_ASSERT: Checking if profiling is still active after stop (sometimes) - active: {}", isActive());
-      Assert.sometimes(isActive(),"Profiling is still active. Waiting to stop.", null);
       if (isActive()) {
         log.debug("Profiling is still active. Waiting to stop.");
         while (isActive()) {
           LockSupport.parkNanos(10_000_000L);
         }
       }
-      log.debug("ANTITHESIS_ASSERT: Profiling should be stopped (always) - active: {}", isActive());
-      Assert.always(!isActive(),"Profiling is stopped", null);
     }
   }
 
@@ -228,8 +221,6 @@ public final class DatadogProfiler {
       log.debug("Datadog Profiler Status = {}", status);
       return !status.contains("not active");
     } catch (IOException ignored) {
-      log.debug("ANTITHESIS_ASSERT: Failed to get Datadog profiler status (unreachable)");
-      Assert.unreachable("Failed to get Datadog profiler status", null);
     }
     return false;
   }
@@ -252,14 +243,10 @@ public final class DatadogProfiler {
           log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
         }
         recordingFlag.set(false);
-        log.debug("ANTITHESIS_ASSERT: Unable to start Datadog profiler recording (unreachable)");
-        Assert.unreachable("Unable to start Datadog profiler recording", null);
         throw e;
       }
       return recFile;
     }
-    log.debug("ANTITHESIS_ASSERT: Datadog profiler session has already been started (unreachable)");
-    Assert.unreachable("Datadog profiler session has already been started", null);
     throw new IllegalStateException("Datadog profiler session has already been started");
   }
 
