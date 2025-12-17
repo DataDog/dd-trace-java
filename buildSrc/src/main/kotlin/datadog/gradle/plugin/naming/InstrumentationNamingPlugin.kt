@@ -91,35 +91,32 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         return@parentLoop
       }
 
-      // Check if this directory has a build.gradle file
-      // If it does, it's a leaf instrumentation module
       val hasBuildFile = parentDir.listFiles()?.any {
         it.name == "build.gradle" || it.name == "build.gradle.kts"
       } ?: false
 
-      if (hasBuildFile) {
-        // This is a leaf module, validate only the version/common suffix requirement
-        if (parentName !in exclusions) {
+      // Check for subdirectories that are modules
+      val subModules = parentDir.listFiles { file -> file.isDirectory }
+        ?.filter { subDir ->
+          val name = subDir.name
+          // Skip build and other non-module directories
+          name !in setOf("build", "src", ".gradle") &&
+          // Check if it has a build file
+          subDir.listFiles()?.any { it.name == "build.gradle" || it.name == "build.gradle.kts" } == true
+        } ?: emptyList()
+
+      if (subModules.isEmpty()) {
+        // No submodules, this is a leaf module
+        if (hasBuildFile && parentName !in exclusions) {
           validateLeafModuleName(parentName, parentDir.relativeTo(instrumentationsDir).path, suffixes)?.let {
             violations.add(it)
           }
         }
       } else {
-        // This directory contains sub-modules, check each one
-        parentDir.listFiles { file -> file.isDirectory }?.forEach moduleLoop@{ moduleDir ->
+        // Has submodules, validate each one
+        subModules.forEach { moduleDir ->
           val moduleName = moduleDir.name
-
-          // Skip build and other non-module directories
-          if (moduleName in setOf("build", "src", ".gradle")) {
-            return@moduleLoop
-          }
-
-          // Check if this is actually a module (has build.gradle)
-          val hasModuleBuildFile = moduleDir.listFiles()?.any {
-            it.name == "build.gradle" || it.name == "build.gradle.kts"
-          } ?: false
-
-          if (hasModuleBuildFile && moduleName !in exclusions) {
+          if (moduleName !in exclusions) {
             validateModuleName(moduleName, parentName, moduleDir.relativeTo(instrumentationsDir).path, suffixes)?.let {
               violations.add(it)
             }
