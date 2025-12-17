@@ -7,6 +7,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -23,6 +24,13 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
+
+  public AgentSpan startSpan(ClientOptions clientOptions) {
+    AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+    afterStart(span);
+    withClientOptions(span, clientOptions);
+    return span;
+  }
 
   @Override
   protected String service() {

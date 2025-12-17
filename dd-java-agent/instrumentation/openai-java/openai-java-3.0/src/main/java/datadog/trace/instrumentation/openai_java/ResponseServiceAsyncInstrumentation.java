@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -49,9 +48,7 @@ public class ResponseServiceAsyncInstrumentation
     public static AgentScope enter(
         @Advice.Argument(0) final ResponseCreateParams params,
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
-      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.withClientOptions(span, clientOptions);
+      AgentSpan span = DECORATE.startSpan(clientOptions);
       ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }
@@ -85,9 +82,7 @@ public class ResponseServiceAsyncInstrumentation
     public static AgentScope enter(
         @Advice.Argument(0) final ResponseCreateParams params,
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
-      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.withClientOptions(span, clientOptions);
+      AgentSpan span = DECORATE.startSpan(clientOptions);
       ResponseDecorator.DECORATE.withResponseCreateParams(span, params);
       return activateSpan(span);
     }

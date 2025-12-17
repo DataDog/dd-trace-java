@@ -92,9 +92,7 @@ public class CompletionServiceInstrumentation
     public static AgentScope enter(
         @Advice.Argument(0) final CompletionCreateParams params,
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
-      AgentSpan span = startSpan(OpenAiDecorator.INSTRUMENTATION_NAME, OpenAiDecorator.SPAN_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.withClientOptions(span, clientOptions);
+      AgentSpan span = DECORATE.startSpan(clientOptions);
       CompletionDecorator.DECORATE.withCompletionCreateParams(span, params);
       return activateSpan(span);
     }
