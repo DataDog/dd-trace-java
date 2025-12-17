@@ -610,7 +610,7 @@ include(
   ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.9",
   ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0",
   ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0",
-  ":dd-java-agent:instrumentation:weaver",
+  ":dd-java-agent:instrumentation:weaver-0.9",
   ":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0",
   ":dd-java-agent:instrumentation:websocket:javax-websocket-1.0",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10",
