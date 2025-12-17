@@ -93,7 +93,7 @@ public abstract class StringUtils {
       String finalReplacement = Matcher.quoteReplacement(replacement);
 
       boolean canAddRange = true;
-      StringBuffer sb = new StringBuffer();
+      StringBuilder sb = new StringBuilder();
       do {
         int start = matcher.start();
         int end = matcher.end();

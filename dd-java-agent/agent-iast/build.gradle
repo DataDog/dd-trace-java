@@ -12,7 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")
+  configureCompiler(it, 11)
 }
 
 // First version with Mac M1 support
