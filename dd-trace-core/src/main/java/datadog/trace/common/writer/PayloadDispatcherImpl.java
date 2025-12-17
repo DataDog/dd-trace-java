@@ -128,7 +128,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         successDetails.put("decision", "sent_success");
         successDetails.put("trace_count", messageCount);
         successDetails.put("payload_size_bytes", sizeInBytes);
-        successDetails.put("http_status", response.status());
+        successDetails.put("http_status", response.status().orElse(-1));
         Assert.sometimes(true, "traces_sent_successfully", successDetails);
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
@@ -140,7 +140,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         failedDetails.put("decision", "dropped_send_failed");
         failedDetails.put("trace_count", messageCount);
         failedDetails.put("payload_size_bytes", sizeInBytes);
-        failedDetails.put("http_status", response.status());
+        failedDetails.put("http_status", response.status().orElse(-1));
         failedDetails.put("has_exception", response.exception() != null);
         Assert.sometimes(true, "traces_failed_to_send", failedDetails);
         if (log.isDebugEnabled()) {
