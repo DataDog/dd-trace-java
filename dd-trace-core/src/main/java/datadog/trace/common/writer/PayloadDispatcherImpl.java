@@ -1,6 +1,8 @@
 package datadog.trace.common.writer;
 
 import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -110,7 +112,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       healthMetrics.onSerialize(sizeInBytes);
       
       // Antithesis: Track all send attempts
-      java.util.Map<String, Object> sendAttemptDetails = new java.util.HashMap<>();
+      ObjectNode sendAttemptDetails = JsonNodeFactory.instance.objectNode();
       sendAttemptDetails.put("trace_count", messageCount);
       sendAttemptDetails.put("payload_size_bytes", sizeInBytes);
       sendAttemptDetails.put("dropped_traces_in_payload", payload.droppedTraces());
@@ -122,7 +124,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
       if (response.success()) {
         // Antithesis: Track successful sends
-        java.util.Map<String, Object> successDetails = new java.util.HashMap<>();
+        ObjectNode successDetails = JsonNodeFactory.instance.objectNode();
         successDetails.put("decision", "sent_success");
         successDetails.put("trace_count", messageCount);
         successDetails.put("payload_size_bytes", sizeInBytes);
@@ -134,7 +136,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
         // Antithesis: Track failed sends
-        java.util.Map<String, Object> failedDetails = new java.util.HashMap<>();
+        ObjectNode failedDetails = JsonNodeFactory.instance.objectNode();
         failedDetails.put("decision", "dropped_send_failed");
         failedDetails.put("trace_count", messageCount);
         failedDetails.put("payload_size_bytes", sizeInBytes);

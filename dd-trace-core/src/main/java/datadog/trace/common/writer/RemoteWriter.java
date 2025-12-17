@@ -4,6 +4,8 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -70,7 +72,7 @@ public abstract class RemoteWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     if (closed) {
       // Antithesis: Track traces dropped during shutdown
-      java.util.Map<String, Object> shutdownDetails = new java.util.HashMap<>();
+      ObjectNode shutdownDetails = JsonNodeFactory.instance.objectNode();
       shutdownDetails.put("decision", "dropped_shutdown");
       shutdownDetails.put("span_count", trace.size());
       Assert.sometimes(true, "trace_dropped_writer_closed", shutdownDetails);
@@ -87,7 +89,7 @@ public abstract class RemoteWriter implements Writer {
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
             // Antithesis: Track traces enqueued for sending
-            java.util.Map<String, Object> enqueuedDetails = new java.util.HashMap<>();
+            ObjectNode enqueuedDetails = JsonNodeFactory.instance.objectNode();
             enqueuedDetails.put("decision", "enqueued");
             enqueuedDetails.put("trace_id", root.getTraceId().toString());
             enqueuedDetails.put("span_count", trace.size());
@@ -101,7 +103,7 @@ public abstract class RemoteWriter implements Writer {
             break;
           case DROPPED_BY_POLICY:
             // Antithesis: Track traces dropped by policy
-            java.util.Map<String, Object> policyDetails = new java.util.HashMap<>();
+            ObjectNode policyDetails = JsonNodeFactory.instance.objectNode();
             policyDetails.put("decision", "dropped_policy");
             policyDetails.put("trace_id", root.getTraceId().toString());
             policyDetails.put("span_count", trace.size());
@@ -112,7 +114,7 @@ public abstract class RemoteWriter implements Writer {
             break;
           case DROPPED_BUFFER_OVERFLOW:
             // Antithesis: Track traces dropped due to buffer overflow
-            java.util.Map<String, Object> overflowDetails = new java.util.HashMap<>();
+            ObjectNode overflowDetails = JsonNodeFactory.instance.objectNode();
             overflowDetails.put("decision", "dropped_buffer_overflow");
             overflowDetails.put("trace_id", root.getTraceId().toString());
             overflowDetails.put("span_count", trace.size());
