@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import com.antithesis.sdk.Assert;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -107,15 +108,51 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       Payload payload = newPayload(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
+      
+      // Antithesis: Track all send attempts
+      Assert.sometimes(
+        true,
+        "trace_payloads_being_sent",
+        java.util.Map.of(
+          "trace_count", messageCount,
+          "payload_size_bytes", sizeInBytes,
+          "dropped_traces_in_payload", payload.droppedTraces(),
+          "dropped_spans_in_payload", payload.droppedSpans()
+        )
+      );
+      
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
 
       if (response.success()) {
+        // Antithesis: Track successful sends
+        Assert.sometimes(
+          true,
+          "traces_sent_successfully",
+          java.util.Map.of(
+            "decision", "sent_success",
+            "trace_count", messageCount,
+            "payload_size_bytes", sizeInBytes,
+            "http_status", response.status()
+          )
+        );
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
+        // Antithesis: Track failed sends
+        Assert.sometimes(
+          true,
+          "traces_failed_to_send",
+          java.util.Map.of(
+            "decision", "dropped_send_failed",
+            "trace_count", messageCount,
+            "payload_size_bytes", sizeInBytes,
+            "http_status", response.status(),
+            "has_exception", response.exception() != null
+          )
+        );
         if (log.isDebugEnabled()) {
           log.debug(
               "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);

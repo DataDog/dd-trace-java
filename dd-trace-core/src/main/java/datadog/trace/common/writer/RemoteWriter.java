@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+import com.antithesis.sdk.Assert;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -68,6 +69,15 @@ public abstract class RemoteWriter implements Writer {
   @Override
   public void write(final List<DDSpan> trace) {
     if (closed) {
+      // Antithesis: Track traces dropped during shutdown
+      Assert.sometimes(
+        true,
+        "trace_dropped_writer_closed",
+        java.util.Map.of(
+          "decision", "dropped_shutdown",
+          "span_count", trace.size()
+        )
+      );
       // We can't add events after shutdown otherwise it will never complete shutting down.
       log.debug("Dropped due to shutdown: {}", trace);
       handleDroppedTrace(trace);
@@ -80,6 +90,17 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
+            // Antithesis: Track traces enqueued for sending
+            Assert.sometimes(
+              true,
+              "trace_enqueued_for_send",
+              java.util.Map.of(
+                "decision", "enqueued",
+                "trace_id", root.getTraceId().toString(),
+                "span_count", trace.size(),
+                "sampling_priority", samplingPriority
+              )
+            );
             log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
@@ -87,10 +108,32 @@ public abstract class RemoteWriter implements Writer {
             log.debug("Enqueued for single span sampling: {}", trace);
             break;
           case DROPPED_BY_POLICY:
+            // Antithesis: Track traces dropped by policy
+            Assert.sometimes(
+              true,
+              "trace_dropped_by_policy",
+              java.util.Map.of(
+                "decision", "dropped_policy",
+                "trace_id", root.getTraceId().toString(),
+                "span_count", trace.size(),
+                "sampling_priority", samplingPriority
+              )
+            );
             log.debug("Dropped by the policy: {}", trace);
             handleDroppedTrace(trace);
             break;
           case DROPPED_BUFFER_OVERFLOW:
+            // Antithesis: Track traces dropped due to buffer overflow
+            Assert.sometimes(
+              true,
+              "trace_dropped_buffer_overflow",
+              java.util.Map.of(
+                "decision", "dropped_buffer_overflow",
+                "trace_id", root.getTraceId().toString(),
+                "span_count", trace.size(),
+                "sampling_priority", samplingPriority
+              )
+            );
             if (log.isDebugEnabled()) {
               log.debug("Dropped due to a buffer overflow: {}", trace);
             } else {
