@@ -90,7 +90,7 @@ dependencies {
   testImplementation group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
   testImplementation group: 'org.springframework', name: 'spring-test', version: '5.0.0.RELEASE'
 
-  testImplementation(libs.spock.spring.groovy4)
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.+'
   // This is the key dep that breaks things, 1.x doesn't work

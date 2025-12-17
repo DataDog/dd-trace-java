@@ -24,7 +24,7 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.7.5'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.7.5'
 
-  testImplementation(libs.spock.spring.groovy4)
+  testImplementation(libs.spock.spring)
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }

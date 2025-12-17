@@ -62,5 +62,5 @@ dependencies {
   testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-netflix-zuul'
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind'
 
-  testImplementation(libs.spock.spring.groovy4)
+  testImplementation(libs.spock.spring)
 }

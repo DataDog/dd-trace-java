@@ -23,7 +23,7 @@ dependencies {
 
   testImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '3.0.0'
 
-  testImplementation(libs.groovy4.templates)
+  testImplementation(libs.groovy.templates)
 
   latestDepTestImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '+'
 }

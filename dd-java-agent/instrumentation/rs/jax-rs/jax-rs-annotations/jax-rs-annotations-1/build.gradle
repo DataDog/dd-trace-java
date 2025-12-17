@@ -20,5 +20,5 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
 
   // This module still needs Spock with JUnit4.
-  testImplementation(libs.spock.junit4.groovy4)
+  testImplementation(libs.spock.junit4)
 }

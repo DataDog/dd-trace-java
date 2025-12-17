@@ -78,7 +78,7 @@ dependencies {
 
   testImplementation group: 'org.jboss.resteasy', name: 'resteasy-spring', version: '3.0.0.Final'
 
-  testImplementation(libs.spock.spring.groovy4)
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.+'

@@ -53,7 +53,7 @@ dependencies {
   testImplementation group: 'org.springframework', name: 'spring-websocket', version: '6.0.2'
   testImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
 
-  testImplementation(libs.spock.spring.groovy4)
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
