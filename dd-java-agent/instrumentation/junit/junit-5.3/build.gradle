@@ -1,5 +1,5 @@
 plugins {
-  id 'datadog.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -62,6 +62,17 @@ configurations.matching { it.name.startsWith('test') }.configureEach {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: libs.versions.junit5.get()
     force group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: libs.versions.junit5.get()
+  }
+}
+
+// Reject RC (Release Candidate) and M (Milestone) versions for latest5Test and latestDepTest configurations
+configurations.matching { it.name.startsWith('latest5Test') || it.name.startsWith('latestDepTest') }.configureEach {
+  it.resolutionStrategy.componentSelection.all { ComponentSelection selection ->
+    def version = selection.candidate.version
+    if ((selection.candidate.group == 'org.junit.platform' || selection.candidate.group == 'org.junit.jupiter') &&
+      (version.matches('.*-RC.*') || version.matches('.*-M\\d+.*'))) {
+      selection.reject("Skipping pre-release version: ${version}")
+    }
   }
 }
 

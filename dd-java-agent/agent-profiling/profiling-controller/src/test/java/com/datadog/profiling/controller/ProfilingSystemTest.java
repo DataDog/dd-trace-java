@@ -20,6 +20,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDI
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -87,6 +89,12 @@ public class ProfilingSystemTest {
   @SuppressWarnings("unchecked")
   @BeforeEach
   public void setup() throws Exception {
+    assumeFalse(
+        JavaVirtualMachine.isOracleJDK8(),
+        "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly "
+            + "extract method parameters without args, when the code is compiled on a later JDK (targeting 8). "
+            + "This can manifest when creating mocks.");
+
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME, context)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());

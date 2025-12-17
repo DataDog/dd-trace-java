@@ -36,14 +36,28 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
-import org.apache.spark.scheduler.*;
+import org.apache.spark.scheduler.AccumulableInfo;
+import org.apache.spark.scheduler.JobFailed;
+import org.apache.spark.scheduler.SparkListener;
+import org.apache.spark.scheduler.SparkListenerApplicationEnd;
+import org.apache.spark.scheduler.SparkListenerApplicationStart;
+import org.apache.spark.scheduler.SparkListenerEvent;
+import org.apache.spark.scheduler.SparkListenerExecutorAdded;
+import org.apache.spark.scheduler.SparkListenerExecutorRemoved;
+import org.apache.spark.scheduler.SparkListenerInterface;
+import org.apache.spark.scheduler.SparkListenerJobEnd;
+import org.apache.spark.scheduler.SparkListenerJobStart;
+import org.apache.spark.scheduler.SparkListenerStageCompleted;
+import org.apache.spark.scheduler.SparkListenerStageSubmitted;
+import org.apache.spark.scheduler.SparkListenerTaskEnd;
+import org.apache.spark.scheduler.StageInfo;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import org.apache.spark.sql.execution.streaming.StreamExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.streaming.SourceProgress;
@@ -77,7 +91,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
   private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
 
-  public volatile SparkListenerInterface openLineageSparkListener = null;
+  volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
 
   private final SparkConf sparkConf;
@@ -244,9 +258,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
+      String ddTags =
+          Config.get().getGlobalTags().entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .map(e -> e.getKey() + ":" + e.getValue())
+              .collect(Collectors.joining(","));
+
       builder
           .withStartTimestamp(applicationStart.time() * 1000)
           .withTag("application_name", applicationStart.appName())
+          .withTag("djm.tags", ddTags)
           .withTag("spark_user", applicationStart.sparkUser());
 
       if (applicationStart.appAttemptId().isDefined()) {
@@ -1034,6 +1055,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withServiceName(databricksServiceName);
     } else if (sparkServiceName != null) {
       builder.withServiceName(sparkServiceName);
+      builder.withTag("service_name", sparkServiceName);
     }
 
     addPropertiesTags(builder, properties);
@@ -1241,7 +1263,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
+    Object queryId = properties.get("sql.streaming.queryId");
     Object batchId = properties.get("streaming.sql.batchId");
 
     if (queryId == null || batchId == null) {

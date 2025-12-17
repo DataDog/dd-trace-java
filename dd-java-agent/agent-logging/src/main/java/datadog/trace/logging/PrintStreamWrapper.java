@@ -16,6 +16,7 @@ public class PrintStreamWrapper extends PrintStream {
   public PrintStreamWrapper(PrintStream ps) {
     super(ps);
   }
+
   // use for tests only
   public OutputStream getOriginalPrintStream() {
     return super.out;

@@ -4,7 +4,6 @@ import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
-import static java.util.Collections.singletonMap;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -64,12 +63,13 @@ public class AIGuardInternal implements Evaluator {
 
   static final String SPAN_NAME = "ai_guard";
   static final String TARGET_TAG = "ai_guard.target";
-  static final String TOOL_TAG = "ai_guard.tool";
+  static final String TOOL_TAG = "ai_guard.tool_name";
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
   static final String META_STRUCT_TAG = "ai_guard";
-  static final String META_STRUCT_KEY = "messages";
+  static final String META_STRUCT_MESSAGES = "messages";
+  static final String META_STRUCT_CATEGORIES = "attack_categories";
 
   public static void install() {
     final Config config = Config.get();
@@ -134,19 +134,18 @@ public class AIGuardInternal implements Evaluator {
     final List<Message> result = new ArrayList<>(size);
     final int maxContent = config.getAiGuardMaxContentSize();
     boolean contentTruncated = false;
-    for (int i = 0; i < size; i++) {
-      Message source = messages.get(i);
-      final String content = source.getContent();
+    for (int i = messages.size() - size; i < messages.size(); i++) {
+      final Message source = messages.get(i);
+      String content = source.getContent();
       if (content != null && content.length() > maxContent) {
         contentTruncated = true;
-        source =
-            new Message(
-                source.getRole(),
-                content.substring(0, maxContent),
-                source.getToolCalls(),
-                source.getToolCallId());
+        content = content.substring(0, maxContent);
       }
-      result.add(source);
+      List<ToolCall> toolCalls = source.getToolCalls();
+      if (toolCalls != null) {
+        toolCalls = new ArrayList<>(toolCalls);
+      }
+      result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
     }
     if (contentTruncated) {
       WafMetricCollector.get().aiGuardTruncated(CONTENT);
@@ -208,8 +207,8 @@ public class AIGuardInternal implements Evaluator {
       } else {
         span.setTag(TARGET_TAG, "prompt");
       }
-      final Map<String, Object> metaStruct =
-          singletonMap(META_STRUCT_KEY, messagesForMetaStruct(messages));
+      final Map<String, Object> metaStruct = new HashMap<>(2);
+      metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
       final Request.Builder request =
           new Request.Builder()
@@ -224,16 +223,23 @@ public class AIGuardInternal implements Evaluator {
         }
         final Action action = Action.valueOf(actionStr);
         final String reason = (String) result.get("reason");
+        @SuppressWarnings("unchecked")
+        final List<String> tags = (List<String>) result.get("tags");
         span.setTag(ACTION_TAG, action);
-        span.setTag(REASON_TAG, reason);
+        if (reason != null) {
+          span.setTag(REASON_TAG, reason);
+        }
+        if (tags != null && !tags.isEmpty()) {
+          metaStruct.put(META_STRUCT_CATEGORIES, tags);
+        }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason);
+          throw new AIGuardAbortError(action, reason, tags);
         }
-        return new Evaluation(action, reason);
+        return new Evaluation(action, reason, tags);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);

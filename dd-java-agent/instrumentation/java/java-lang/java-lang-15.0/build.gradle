@@ -3,7 +3,7 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_15
@@ -28,6 +28,7 @@ csi {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testImplementation(libs.javaparser)
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
 

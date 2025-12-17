@@ -13,14 +13,14 @@ class SupportedConfigPlugin : Plugin<Project> {
 
   private fun generateSupportedConfigurations(targetProject: Project, extension: SupportedTracerConfigurations) {
     val generateTask =
-      targetProject.tasks.register("generateSupportedConfigurations", ParseSupportedConfigurationsTask::class.java) {
+      targetProject.tasks.register("generateSupportedConfigurations", ParseV2SupportedConfigurationsTask::class.java) {
         jsonFile.set(extension.jsonFile)
         destinationDirectory.set(extension.destinationDirectory)
         className.set(extension.className)
       }
 
-    val sourceset = targetProject.extensions.getByType(SourceSetContainer::class.java).named(SourceSet.MAIN_SOURCE_SET_NAME)
-    sourceset.configure {
+    val sourceSet = targetProject.extensions.getByType(SourceSetContainer::class.java).named(SourceSet.MAIN_SOURCE_SET_NAME)
+    sourceSet.configure {
       java.srcDir(generateTask)
     }
 

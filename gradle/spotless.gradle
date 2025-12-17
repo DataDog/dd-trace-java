@@ -9,6 +9,7 @@ def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
 
 spotless {
   if (rootProject.hasProperty('skipSpotless')) {
+    project.logger.quiet("Retiring 'skipSpotless' property, prefer '-x spotlessCheck' or '-x spotlessApply' to exclude spotless tasks.")
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
     // We disable it in CI, since we have a job dedicated to spotless anyway.
     enforceCheck false
@@ -22,7 +23,7 @@ spotless {
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
       // This is the last Google Java Format version that supports Java 8
-      googleJavaFormat('1.7')
+      googleJavaFormat('1.32.0')
     }
   }
 
@@ -44,9 +45,11 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
-    // Newer versions do not work well with the older version of kotlin in this build
-    ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    ktlint('1.8.0').editorConfigOverride([
+      // Disable trailing comma rules to minimize diff.
+      'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+      'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+    ])
   }
 
   project.pluginManager.withPlugin('groovy') {
@@ -66,21 +69,22 @@ spotless {
     scala {
       toggleOffOn()
       targetExclude(buildDirectoryFiles)
-      scalafmt('2.7.5').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      // TODO: For some reason Scala format is working correctly with this version only.
+      scalafmt('3.8.6').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
   format 'markdown', {
     toggleOffOn()
     target '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     endWithNewline()
   }
 
   format 'misc', {
     toggleOffOn()
     target '.gitignore', '*.sh', 'tooling/*.sh', '.gitlab/*.sh'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     trimTrailingWhitespace()
     endWithNewline()
   }
@@ -88,10 +92,12 @@ spotless {
   project.pluginManager.withPlugin('kotlin') {
     kotlin {
       toggleOffOn()
-      // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
       targetExclude(buildDirectoryFiles)
-      // Newer versions do not work well with the older version of kotlin in this build
-      ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+      ktlint('1.8.0').editorConfigOverride([
+        // Disable trailing comma rules to minimize diff.
+        'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+        'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+      ])
     }
   }
 }

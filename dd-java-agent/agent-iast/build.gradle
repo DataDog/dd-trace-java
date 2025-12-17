@@ -44,13 +44,15 @@ dependencies {
   implementation project(':internal-api:internal-api-9')
   implementation libs.moshi
   implementation libs.bundles.asm
+  implementation libs.instrument.java
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
-  testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation libs.groovy.yaml
-  testImplementation libs.guava
+  testImplementation(libs.bytebuddy)
+  testImplementation(libs.guava)
+
+  testImplementation(libs.groovy.yaml)
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion

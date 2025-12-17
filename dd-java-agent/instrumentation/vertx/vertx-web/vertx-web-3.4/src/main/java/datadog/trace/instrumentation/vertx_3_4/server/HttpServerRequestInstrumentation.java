@@ -51,7 +51,9 @@ public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
         HttpServerRequestInstrumentation.class.getName() + "$BodyHandlerAdvice");
   }
 
-  /** @see HttpServerRequest#bodyHandler(Handler) */
+  /**
+   * @see HttpServerRequest#bodyHandler(Handler)
+   */
   static class BodyHandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void after(@Advice.Argument(value = 0, readOnly = false) Handler<Buffer> h) {

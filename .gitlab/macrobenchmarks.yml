@@ -11,11 +11,12 @@ include:
       when: never
     - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
       when: always
+      interruptible: false
     - when: manual
+      interruptible: true
       allow_failure: true
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["build"]
-  interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-petclinic
   script:
@@ -142,4 +143,4 @@ notify-slo-breaches:
       when: never
     - when: always
   variables:
-    CHANNEL: "apm-java"
+    CHANNEL: "apm-java-ops-bot"

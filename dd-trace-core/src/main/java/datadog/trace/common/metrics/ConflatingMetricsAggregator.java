@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.jctools.queues.MpscCompoundQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
@@ -276,7 +277,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
-        if (shouldComputeMetric(span)) {
+        final CharSequence spanKind = span.unsafeGetTag(SPAN_KIND, "");
+        if (shouldComputeMetric(span, spanKind)) {
           final CharSequence resourceName = span.getResourceName();
           if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
@@ -284,30 +286,27 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel);
+          forceKeep |= publish(span, isTopLevel, spanKind);
         }
       }
-      healthMetrics.onClientStatTraceComputed(
-          counted, trace.size(), features.supportsDropping() && !forceKeep);
+      healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
     }
     return forceKeep;
   }
 
-  private boolean shouldComputeMetric(CoreSpan<?> span) {
-    return (span.isMeasured() || span.isTopLevel() || spanKindEligible(span))
+  private boolean shouldComputeMetric(CoreSpan<?> span, @Nonnull CharSequence spanKind) {
+    return (span.isMeasured() || span.isTopLevel() || spanKindEligible(spanKind))
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
   }
 
-  private boolean spanKindEligible(CoreSpan<?> span) {
-    final Object spanKind = span.getTag(SPAN_KIND);
+  private boolean spanKindEligible(@Nonnull CharSequence spanKind) {
     // use toString since it could be a CharSequence...
-    return spanKind != null && ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
+    return ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
-    final CharSequence spanKind = span.getTag(SPAN_KIND, "");
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -353,9 +352,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
     if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
-      List<UTF8BytesString> peerTags = new ArrayList<>();
-      for (String peerTag : features.peerTags()) {
-        Object value = span.getTag(peerTag);
+      final Set<String> eligiblePeerTags = features.peerTags();
+      List<UTF8BytesString> peerTags = new ArrayList<>(eligiblePeerTags.size());
+      for (String peerTag : eligiblePeerTags) {
+        Object value = span.unsafeGetTag(peerTag);
         if (value != null) {
           final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
               cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
@@ -368,7 +368,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       return peerTags;
     } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
       // in this case only the base service should be aggregated if present
-      final Object baseService = span.getTag(BASE_SERVICE);
+      final Object baseService = span.unsafeGetTag(BASE_SERVICE);
       if (baseService != null) {
         final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
             cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);

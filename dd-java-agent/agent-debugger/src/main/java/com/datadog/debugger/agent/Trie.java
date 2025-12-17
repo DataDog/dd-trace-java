@@ -51,23 +51,31 @@ public class Trie {
     }
   }
 
-  /** @return if the string is in the trie. */
+  /**
+   * @return if the string is in the trie.
+   */
   public boolean contains(String str) {
     TrieNode t = searchNode(str, false);
     return t != null && t.isLeaf;
   }
 
-  /** @return if there is any word in the trie that starts with the given prefix */
+  /**
+   * @return if there is any word in the trie that starts with the given prefix
+   */
   public boolean containsPrefix(String prefix) {
     return searchNode(prefix, false) != null;
   }
 
-  /** @return true if str matches one of the prefixes stored into the trie */
+  /**
+   * @return true if str matches one of the prefixes stored into the trie
+   */
   public boolean hasMatchingPrefix(String str) {
     return searchNode(str, true) != null;
   }
 
-  /** @return true is there is no string inserted into the Trie, otherwise false */
+  /**
+   * @return true is there is no string inserted into the Trie, otherwise false
+   */
   public boolean isEmpty() {
     return root.children.isEmpty();
   }

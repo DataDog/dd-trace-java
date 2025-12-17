@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -28,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,8 +63,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
       Config.get().isDbmAlwaysAppendSqlComment();
+  public static final boolean FETCH_DB_METADATA_ON_CONNECT =
+      Config.get().isDbMetadataFetchingOnConnectEnabled();
+  private static final boolean FETCH_DB_METADATA_ON_QUERY =
+      Config.get().isDbMetadataFetchingOnQueryEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
+  private volatile boolean loggedInjectionError = false;
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -183,7 +190,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (Throwable ignore) {
         }
         if (dbInfo == null) {
-          // couldn't find DBInfo anywhere, so fall back to default
+          // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
           dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
@@ -202,7 +209,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null) {
+    if (connection == null || !FETCH_DB_METADATA_ON_QUERY) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
@@ -211,16 +218,19 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       final DatabaseMetaData metaData = connection.getMetaData();
       final String url;
       if (metaData != null && (url = metaData.getURL()) != null) {
+        Properties clientInfo = null;
         try {
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+          clientInfo = connection.getClientInfo();
         } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed.
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          log.debug("Could not get client info from DB", ex);
         }
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
     } catch (final SQLException se) {
+      log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
@@ -290,12 +300,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       span.setTag("_dd.dbm_trace_injected", true);
     } catch (Throwable e) {
-      log.debug(
-          "Failed to set extra DBM data in application_name for trace {}. "
-              + "To disable this behavior, set trace_prepared_statements to 'false'. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. {}",
-          span.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("action", e);
       DECORATE.onError(span, e);
     }
   }
@@ -350,12 +355,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         throw e;
       }
     } catch (Exception e) {
-      log.debug(
-          "Failed to set extra DBM data in context info for trace {}. "
-              + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-          instrumentationSpan.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("context_info", e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
       instrumentationSpan.finish();
@@ -385,14 +385,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
       connection.setClientInfo("ApplicationName", traceContext);
     } catch (Throwable e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Failed to set extra DBM data in application_name for trace {}. "
-                + "To disable this behavior, set trace_prepared_statements to 'false'. "
-                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-            span.getTraceId().toHexString(),
-            e);
-      }
+      logInjectionErrorOnce("application_name", e);
       DECORATE.onError(span, e);
     } finally {
       span.setTag(DBM_TRACE_INJECTED, true);
@@ -427,5 +420,19 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public boolean shouldInjectSQLComment() {
     return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
         || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
+  }
+
+  private void logInjectionErrorOnce(String vessel, Throwable t) {
+    if (!loggedInjectionError) {
+      loggedInjectionError = true;
+      log.warn(
+          LogCollector.EXCLUDE_TELEMETRY, // nothing we can do on our side about this
+          "Failed to set extra DBM data in {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. "
+              + "Will not log again for this kind of error.\n{}",
+          vessel,
+          t);
+    }
   }
 }

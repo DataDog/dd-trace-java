@@ -52,7 +52,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
     final KafkaReceiver<String, String> kafkaReceiver = KafkaReceiver.create(ReceiverOptions.<String, String> create(consumerProperties)
     .subscription([KafkaClientTestBase.SHARED_TOPIC])
     .addAssignListener {
-      it.each { subscriptionReady.countDown() }
+      it.each {
+        subscriptionReady.countDown()
+      }
     })
 
     // create a thread safe queue to store the received message
@@ -60,8 +62,8 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
     kafkaReceiver.receive()
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
-    .flatMap { receiverRecord ->
-      {
+    .flatMap {
+      receiverRecord -> {
         records.add(receiverRecord)
         receiverRecord.receiverOffset().commit()
       }
@@ -75,8 +77,12 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
     String greeting = "Hello Reactor Kafka Sender!"
     runUnderTrace("parent") {
       kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null)))
-      .doOnError { ex -> runUnderTrace("producer exception: " + ex) {} }
-      .doOnNext { runUnderTrace("producer callback") {} }
+      .doOnError {
+        ex -> runUnderTrace("producer exception: " + ex) {}
+      }
+      .doOnNext {
+        runUnderTrace("producer callback") {}
+      }
       .blockFirst()
       blockUntilChildSpansFinished(2)
     }
@@ -114,15 +120,17 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
     final KafkaReceiver<String, String> kafkaReceiver = KafkaReceiver.create(ReceiverOptions.<String, String> create(consumerProperties)
     .subscription([KafkaClientTestBase.SHARED_TOPIC])
     .addAssignListener {
-      it.each { subscriptionReady.countDown() }
+      it.each {
+        subscriptionReady.countDown()
+      }
     })
 
     // create a thread safe queue to store the received message
     kafkaReceiver.receive()
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
-    .flatMap { receiverRecord ->
-      {
+    .flatMap {
+      receiverRecord -> {
         receiverRecord.receiverOffset().commit()
       }
     }
@@ -136,13 +144,16 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
     when:
     String greeting = "Hello Reactor Kafka Sender!"
     Flux.range(0, 100)
-    .flatMap { kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null))) }
+    .flatMap {
+      kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null)))
+    }
     .publishOn(Schedulers.parallel())
     .subscribe()
     then:
     // check that the all the consume (100) and the send (100) are reported
     TEST_WRITER.waitForTraces(200)
-    Map<String, List<DDSpan>> traces = TEST_WRITER.inject([:]) { map, entry ->
+    Map<String, List<DDSpan>> traces = TEST_WRITER.inject([:]) {
+      map, entry ->
       def key = entry.get(0).getTraceId().toString()
       map[key] = (map[key] ?: []) + entry
       return map
@@ -162,9 +173,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def producerSpan(
-    TraceAssert trace,
-    Map<String, ?> config,
-    DDSpan parentSpan = null) {
+  TraceAssert trace,
+  Map<String, ?> config,
+  DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.produce"
@@ -189,9 +200,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def consumerSpan(
-    TraceAssert trace,
-    Map<String, Object> config,
-    DDSpan parentSpan = null) {
+  TraceAssert trace,
+  Map<String, Object> config,
+  DDSpan parentSpan = null) {
     trace.span {
       serviceName "kafka"
       operationName "kafka.consume"

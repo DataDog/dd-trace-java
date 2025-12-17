@@ -50,11 +50,12 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "lambda-request-123")
 
     then:
     objTest.getTraceId().toString() == traceId
     objTest.getSamplingPriority() == samplingPriority
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == "lambda-request-123"
 
     cleanup:
     server.close()
@@ -84,11 +85,12 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "lambda-request-123")
 
     then:
     objTest.getTraceId().toHexString() == traceId
     objTest.getSamplingPriority() == samplingPriority
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == "lambda-request-123"
 
     cleanup:
     server.close()
@@ -115,10 +117,11 @@ class LambdaHandlerTest extends DDCoreSpecification {
     LambdaHandler.setExtensionBaseUrl(server.address.toString())
 
     when:
-    def objTest = LambdaHandler.notifyStartInvocation(ct, obj)
+    def objTest = LambdaHandler.notifyStartInvocation(obj, "my-lambda-request")
 
     then:
     objTest == expected
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == "my-lambda-request"
 
     cleanup:
     server.close()
@@ -148,22 +151,23 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue)
 
     then:
     server.lastRequest.headers.get("x-datadog-invocation-error") == eHeaderValue
     server.lastRequest.headers.get("x-datadog-trace-id") == tIdHeaderValue
     server.lastRequest.headers.get("x-datadog-span-id") == sIdHeaderValue
     server.lastRequest.headers.get("x-datadog-sampling-priority") == sPIdHeaderValue
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == lambdaReqIdHeaderValue
     result == expected
 
     cleanup:
     server.close()
 
     where:
-    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue
-    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true
-    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false
+    expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue | lambdaReqIdHeaderValue
+    true     | "true"       | "1234"         | "5678"         | "2"             | {}           | true      | "request123"
+    true     | null         | "1234"         | "5678"         | "2"             | "12345"      | false     | "request456"
   }
 
   def "test end invocation failure"() {
@@ -185,19 +189,20 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue)
+    def result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue)
 
     then:
     result == expected
     server.lastRequest.headers.get("x-datadog-invocation-error") == headerValue
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == lambdaReqIdHeaderValue
 
     cleanup:
     server.close()
 
     where:
-    expected | headerValue | lambdaResult | boolValue
-    false    | "true"      | {}           | true
-    false    | null        | "12345"      | false
+    expected | headerValue | lambdaResult | boolValue | lambdaReqIdHeaderValue
+    false    | "true"      | {}           | true      | "request123"
+    false    | null        | "12345"      | false     | "request456"
   }
 
   def "test end invocation success with error metadata"() {
@@ -222,13 +227,14 @@ class LambdaHandlerTest extends DDCoreSpecification {
     }
 
     when:
-    LambdaHandler.notifyEndInvocation(span, {}, true)
+    LambdaHandler.notifyEndInvocation(span, {}, true, "lambda-request-123")
 
     then:
     server.lastRequest.headers.get("x-datadog-invocation-error") == "true"
     server.lastRequest.headers.get("x-datadog-invocation-error-msg") == "custom error message"
     server.lastRequest.headers.get("x-datadog-invocation-error-type") == "java.lang.Throwable"
     server.lastRequest.headers.get("x-datadog-invocation-error-stack") == "ZXJyb3JTdGFjawogCXRlc3Q="
+    server.lastRequest.headers.get("lambda-runtime-aws-request-id") == "lambda-request-123"
 
     cleanup:
     server.close()

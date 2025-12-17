@@ -13,7 +13,9 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 // This test currently fails on IBM JVMs
-@Requires({ !JavaVirtualMachine.isJ9() })
+@Requires({
+  !JavaVirtualMachine.isJ9()
+})
 class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Shared

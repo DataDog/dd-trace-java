@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 public class HttpResourceNames {
   public static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
@@ -71,6 +72,9 @@ public class HttpResourceNames {
 
   public static AgentSpan setForServer(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    if (path == null) {
+      return span;
+    }
     Pair<CharSequence, Byte> result = computeForServer(method, path, encoded);
     if (result.hasLeft()) {
       span.setResourceName(result.getLeft(), result.getRight());
@@ -80,7 +84,7 @@ public class HttpResourceNames {
   }
 
   public static Pair<CharSequence, Byte> computeForServer(
-      CharSequence method, CharSequence path, boolean encoded) {
+      CharSequence method, @Nonnull CharSequence path, boolean encoded) {
     byte priority;
 
     String resourcePath =
@@ -96,7 +100,7 @@ public class HttpResourceNames {
   }
 
   public static Pair<CharSequence, Byte> computeForClient(
-      CharSequence method, CharSequence path, boolean encoded) {
+      CharSequence method, @Nonnull CharSequence path, boolean encoded) {
     byte priority;
 
     String resourcePath =
@@ -112,6 +116,9 @@ public class HttpResourceNames {
 
   public static AgentSpan setForClient(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+    if (path == null) {
+      return span;
+    }
     Pair<CharSequence, Byte> result = computeForClient(method, path, encoded);
     if (result.hasLeft()) {
       span.setResourceName(result.getLeft(), result.getRight());

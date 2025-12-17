@@ -1,5 +1,5 @@
 plugins {
-  id 'datadog.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -27,7 +27,7 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
 
   testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
-  testImplementation group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
+  testImplementation group: 'org.spockframework', name: 'spock-core', version: "2.4-groovy-${spockGroovyVersion}"
 
   latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
 }
@@ -35,7 +35,7 @@ dependencies {
 configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
-    force group: 'org.spockframework', name: 'spock-core', version: "2.2-groovy-${spockGroovyVersion}"
+    force group: 'org.spockframework', name: 'spock-core', version: "2.4-groovy-${spockGroovyVersion}"
   }
 })
 

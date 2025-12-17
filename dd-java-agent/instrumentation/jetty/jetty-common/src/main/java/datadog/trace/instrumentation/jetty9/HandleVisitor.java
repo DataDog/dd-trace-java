@@ -109,6 +109,7 @@ import org.slf4j.LoggerFactory;
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
+
   /** Whether the handle() method injection was successful . */
   private boolean success;
 
