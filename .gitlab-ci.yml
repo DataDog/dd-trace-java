@@ -128,7 +128,7 @@ default:
       TIME_PARAMS=""
     fi
 
-    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (expire after 1 hour)${TEXT_CLEAR}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
