@@ -117,6 +117,12 @@ default:
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
 
+.container_info: &container_info
+  - |
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (expire after 1 hour)${TEXT_CLEAR}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}"
+
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
     export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
@@ -165,6 +171,7 @@ default:
       unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    - *container_info
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -195,6 +202,7 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
+    - *container_info
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
