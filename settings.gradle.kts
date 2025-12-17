@@ -467,6 +467,7 @@ include(
   ":dd-java-agent:instrumentation:mongo:driver-3.4",
   ":dd-java-agent:instrumentation:mongo:driver-3.6",
   ":dd-java-agent:instrumentation:mongo:driver-3.7-core-test",
+  ":dd-java-agent:instrumentation:mongo:driver-3.8",
   ":dd-java-agent:instrumentation:mongo:driver-4.0",
   ":dd-java-agent:instrumentation:mongo",
   ":dd-java-agent:instrumentation:mule-4.5",

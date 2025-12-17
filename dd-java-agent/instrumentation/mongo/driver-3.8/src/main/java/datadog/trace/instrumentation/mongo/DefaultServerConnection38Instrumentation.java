@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.internal.connection.DefaultServerConnection;
-import com.mongodb.internal.session.SessionContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -18,11 +17,11 @@ import net.bytebuddy.asm.Advice;
 import org.bson.BsonDocument;
 
 @AutoService(InstrumenterModule.class)
-public class DefaultServerConnection40Instrumentation extends InstrumenterModule.Tracing
+public class DefaultServerConnection38Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public DefaultServerConnection40Instrumentation() {
-    super("mongo", "mongo-reactivestreams");
+  public DefaultServerConnection38Instrumentation() {
+    super("mongo", "mongo-3.8");
   }
 
   @Override
@@ -47,14 +46,14 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
             .and(named("command"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("org.bson.BsonDocument"))),
-        DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
+        DefaultServerConnection38Instrumentation.class.getName() + "$CommandAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("commandAsync"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, named("org.bson.BsonDocument"))),
-        DefaultServerConnection40Instrumentation.class.getName() + "$CommandAdvice");
+        DefaultServerConnection38Instrumentation.class.getName() + "$CommandAdvice");
   }
 
   public static class CommandAdvice {
@@ -95,12 +94,6 @@ public class DefaultServerConnection40Instrumentation extends InstrumenterModule
       }
 
       CallDepthThreadLocalMap.decrementCallDepth(DefaultServerConnection.class);
-    }
-
-    // unused method to force the advice to run on driver > 4.0 only
-    public static void muzzleCheck(SessionContext sessionContext) {
-      // moved on 4.0.0
-      sessionContext.getSessionId();
     }
   }
 }

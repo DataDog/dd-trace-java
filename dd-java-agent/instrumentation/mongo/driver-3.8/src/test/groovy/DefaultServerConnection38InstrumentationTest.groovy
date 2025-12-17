@@ -1,27 +1,26 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
-import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.event.CommandFailedEvent
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
-import com.mongodb.internal.build.MongoDriverVersion
+import com.mongodb.event.CommandSucceededEvent
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
-import org.spockframework.util.VersionNumber
 import spock.lang.Shared
-import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
-abstract class DefaultServerConnection40InstrumentationTest extends MongoBaseTest {
+abstract class DefaultServerConnection38InstrumentationTest extends MongoBaseTest {
   @Shared
   MongoClient client
 
@@ -34,6 +33,14 @@ abstract class DefaultServerConnection40InstrumentationTest extends MongoBaseTes
     @Override
     void commandStarted(CommandStartedEvent event) {
       commands.add(event.getCommand())
+    }
+
+    @Override
+    void commandSucceeded(CommandSucceededEvent commandSucceededEvent) {
+    }
+
+    @Override
+    void commandFailed(CommandFailedEvent commandFailedEvent) {
     }
   }
 
@@ -51,19 +58,9 @@ abstract class DefaultServerConnection40InstrumentationTest extends MongoBaseTes
     commandListener.commands.clear()
     client = null
   }
-
-  @Shared
-  String query = {
-    def version  = VersionNumber.parse(MongoDriverVersion.VERSION)
-    if (version.major == 4 && version.minor < 3) {
-      // query is returned for versions < 4.3
-      return ',"query":{}'
-    }
-    return ''
-  }.call()
 }
 
-abstract class DefaultServerConnection40InstrumentationEnabledTest extends DefaultServerConnection40InstrumentationTest {
+abstract class DefaultServerConnection38InstrumentationEnabledTest extends DefaultServerConnection38InstrumentationTest {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -129,7 +126,7 @@ abstract class DefaultServerConnection40InstrumentationEnabledTest extends Defau
         mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"documents\":[]}", false, "some-description", null, true)
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{},\"comment\":\"?\"}", false, "some-description", null, true)
       }
     }
   }
@@ -164,7 +161,7 @@ abstract class DefaultServerConnection40InstrumentationEnabledTest extends Defau
         mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"updates\":[]}", false, "some-description", null, true)
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{},\"comment\":\"?\"}", false, "some-description", null, true)
       }
     }
   }
@@ -197,13 +194,13 @@ abstract class DefaultServerConnection40InstrumentationEnabledTest extends Defau
         mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"comment\":\"?\",\"deletes\":[]}", false, "some-description", null, true)
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query,\"comment\":\"?\"}", false, "some-description", null, true)
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{},\"comment\":\"?\"}", false, "some-description", null, true)
       }
     }
   }
 }
 
-abstract class DefaultServerConnection40InstrumentationDisabledTest extends DefaultServerConnection40InstrumentationTest {
+abstract class DefaultServerConnection38InstrumentationDisabledTest extends DefaultServerConnection38InstrumentationTest {
   def "test command comment not injected when disabled"() {
     setup:
     injectSysConfig("dd.integration.mongo.dbm_propagation.enabled", "false")
@@ -252,7 +249,7 @@ abstract class DefaultServerConnection40InstrumentationDisabledTest extends Defa
         mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
   }
@@ -287,7 +284,7 @@ abstract class DefaultServerConnection40InstrumentationDisabledTest extends Defa
         mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
   }
@@ -320,14 +317,14 @@ abstract class DefaultServerConnection40InstrumentationDisabledTest extends Defa
         mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\"$query}")
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
   }
 }
 
 // Test class with DBM propagation enabled by default
-class DefaultServerConnection40InstrumentationEnabledV0ForkedTest extends DefaultServerConnection40InstrumentationEnabledTest {
+class DefaultServerConnection38InstrumentationEnabledV0ForkedTest extends DefaultServerConnection38InstrumentationEnabledTest {
   @Override
   int version() {
     return 0
@@ -350,7 +347,7 @@ class DefaultServerConnection40InstrumentationEnabledV0ForkedTest extends Defaul
 }
 
 // Test class with service name mapping
-class DefaultServerConnection40InstrumentationEnabledV1ForkedTest extends DefaultServerConnection40InstrumentationEnabledTest {
+class DefaultServerConnection38InstrumentationEnabledV1ForkedTest extends DefaultServerConnection38InstrumentationEnabledTest {
   @Override
   int version() {
     return 1
@@ -373,7 +370,7 @@ class DefaultServerConnection40InstrumentationEnabledV1ForkedTest extends Defaul
 }
 
 // Test class with DBM propagation enabled by default
-class DefaultServerConnection40InstrumentationDisabledV0Test extends DefaultServerConnection40InstrumentationDisabledTest {
+class DefaultServerConnection38InstrumentationDisabledV0Test extends DefaultServerConnection38InstrumentationDisabledTest {
   @Override
   int version() {
     return 0
@@ -396,7 +393,7 @@ class DefaultServerConnection40InstrumentationDisabledV0Test extends DefaultServ
 }
 
 // Test class with service name mapping
-class DefaultServerConnection40InstrumentationDisabledV1ForkedTest extends DefaultServerConnection40InstrumentationDisabledTest {
+class DefaultServerConnection38InstrumentationDisabledV1ForkedTest extends DefaultServerConnection38InstrumentationDisabledTest {
   @Override
   int version() {
     return 1
