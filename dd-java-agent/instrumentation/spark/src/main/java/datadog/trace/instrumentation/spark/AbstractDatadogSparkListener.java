@@ -58,7 +58,6 @@ import org.apache.spark.scheduler.StageInfo;
 import org.apache.spark.sql.execution.SQLExecution;
 import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
-import org.apache.spark.sql.execution.streaming.StreamExecution;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd;
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.streaming.SourceProgress;
@@ -1264,7 +1263,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    Object queryId = properties.get(StreamExecution.QUERY_ID_KEY());
+    Object queryId = properties.get("sql.streaming.queryId");
     Object batchId = properties.get("streaming.sql.batchId");
 
     if (queryId == null || batchId == null) {
