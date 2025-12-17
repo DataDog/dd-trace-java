@@ -577,7 +577,7 @@ include(
   ":dd-java-agent:instrumentation:testng:testng-6",
   ":dd-java-agent:instrumentation:testng:testng-7",
   ":dd-java-agent:instrumentation:testng",
-  ":dd-java-agent:instrumentation:thymeleaf",
+  ":dd-java-agent:instrumentation:thymeleaf-3.0",
   ":dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-5.14",
   ":dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-6.5",
   ":dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-stubs",
