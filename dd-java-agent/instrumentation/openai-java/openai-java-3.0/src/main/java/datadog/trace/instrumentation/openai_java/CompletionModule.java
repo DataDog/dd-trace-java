@@ -17,11 +17,11 @@ public class CompletionModule extends InstrumenterModule.Tracing {
     return new String[] {
       packageName + ".CompletionDecorator",
       packageName + ".OpenAiDecorator",
-      packageName + ".ResponseWrappers",
-      packageName + ".ResponseWrappers$DDHttpResponseFor",
-      packageName + ".ResponseWrappers$1",
-      packageName + ".ResponseWrappers$2",
-      packageName + ".ResponseWrappers$2$1"
+      packageName + ".HttpResponseWrappers",
+      packageName + ".HttpResponseWrappers$DDHttpResponseFor",
+      packageName + ".HttpResponseWrappers$1",
+      packageName + ".HttpResponseWrappers$2",
+      packageName + ".HttpResponseWrappers$2$1"
     };
   }
 

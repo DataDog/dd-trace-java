@@ -55,7 +55,7 @@ public class EmbeddingServiceInstrumentation
         }
         if (response != null) {
           response =
-              ResponseWrappers.wrapResponse(
+              HttpResponseWrappers.wrapHttpResponse(
                   response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
         }
         DECORATE.beforeFinish(span);

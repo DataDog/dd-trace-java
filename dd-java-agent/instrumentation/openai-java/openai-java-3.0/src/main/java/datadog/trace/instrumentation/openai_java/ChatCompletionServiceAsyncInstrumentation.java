@@ -69,7 +69,7 @@ public class ChatCompletionServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              ResponseWrappers.wrapFutureResponse(
+              HttpResponseWrappers.wrapFutureHttpResponse(
                   future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
         } else {
           span.finish();
@@ -103,7 +103,7 @@ public class ChatCompletionServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              ResponseWrappers.wrapFutureStreamResponse(
+              HttpResponseWrappers.wrapFutureHttpResponseStream(
                   future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
         } else {
           span.finish();

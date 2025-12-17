@@ -14,7 +14,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import org.jetbrains.annotations.NotNull;
 
-public class ResponseWrappers {
+public class HttpResponseWrappers {
 
   abstract static class DDHttpResponseFor<T> implements HttpResponseFor<T> {
     private final HttpResponseFor<T> delegate;
@@ -53,7 +53,7 @@ public class ResponseWrappers {
     }
   }
 
-  public static <T> HttpResponseFor<T> wrapResponse(
+  public static <T> HttpResponseFor<T> wrapHttpResponse(
       HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
     DECORATE.withHttpResponse(span, response);
     return new DDHttpResponseFor<T>(response) {
@@ -65,12 +65,12 @@ public class ResponseWrappers {
     };
   }
 
-  public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureResponse(
+  public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureHttpResponse(
       CompletableFuture<HttpResponseFor<T>> future,
       AgentSpan span,
       BiConsumer<AgentSpan, T> afterParse) {
     return future
-        .thenApply(response -> wrapResponse(response, span, afterParse))
+        .thenApply(response -> wrapHttpResponse(response, span, afterParse))
         .whenComplete(
             (r, t) -> {
               DECORATE.beforeFinish(span);
@@ -78,7 +78,7 @@ public class ResponseWrappers {
             });
   }
 
-  public static <T> HttpResponseFor<StreamResponse<T>> wrapStreamResponse(
+  public static <T> HttpResponseFor<StreamResponse<T>> wrapHttpResponseStream(
       HttpResponseFor<StreamResponse<T>> response,
       final AgentSpan span,
       BiConsumer<AgentSpan, List<T>> decorate) {
@@ -110,10 +110,11 @@ public class ResponseWrappers {
     };
   }
 
-  public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureStreamResponse(
-      CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
-      AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
-    return future.thenApply(r -> wrapStreamResponse(r, span, decorate));
+  public static <T>
+      CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureHttpResponseStream(
+          CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
+          AgentSpan span,
+          BiConsumer<AgentSpan, List<T>> decorate) {
+    return future.thenApply(r -> wrapHttpResponseStream(r, span, decorate));
   }
 }

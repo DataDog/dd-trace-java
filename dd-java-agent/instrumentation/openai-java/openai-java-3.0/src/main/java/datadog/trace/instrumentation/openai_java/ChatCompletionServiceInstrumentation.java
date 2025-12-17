@@ -68,7 +68,7 @@ public class ChatCompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              ResponseWrappers.wrapResponse(
+              HttpResponseWrappers.wrapHttpResponse(
                   response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
         }
         DECORATE.beforeFinish(span);
@@ -103,7 +103,7 @@ public class ChatCompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              ResponseWrappers.wrapStreamResponse(
+              HttpResponseWrappers.wrapHttpResponseStream(
                   response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
         } else {
           span.finish();
