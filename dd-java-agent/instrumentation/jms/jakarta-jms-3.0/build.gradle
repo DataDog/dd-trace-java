@@ -28,7 +28,7 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 }
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:jms')
+  implementation project(':dd-java-agent:instrumentation:jms:javax-jms-1.1')
 
   testImplementation 'jakarta.jms:jakarta.jms-api:3.0.0'
   testImplementation 'jakarta.ejb:jakarta.ejb-api:4.0.0'
