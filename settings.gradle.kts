@@ -507,7 +507,7 @@ include(
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
   ":dd-java-agent:instrumentation:ratpack-1.5",
-  ":dd-java-agent:instrumentation:reactive-streams",
+  ":dd-java-agent:instrumentation:reactive-streams-1.0",
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1.0",
   ":dd-java-agent:instrumentation:rediscala-1.8",
