@@ -1249,29 +1249,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
       // Antithesis: Track traces accepted by sampling
-      Assert.sometimes(
-        true,
-        "trace_accepted_by_sampling",
-        java.util.Map.of(
-          "decision", "accepted",
-          "trace_id", writtenTrace.get(0).getTraceId().toString(),
-          "span_count", writtenTrace.size(),
-          "sampling_priority", spanToSample.samplingPriority()
-        )
-      );
+      java.util.Map<String, Object> acceptedDetails = new java.util.HashMap<>();
+      acceptedDetails.put("decision", "accepted");
+      acceptedDetails.put("trace_id", writtenTrace.get(0).getTraceId().toString());
+      acceptedDetails.put("span_count", writtenTrace.size());
+      acceptedDetails.put("sampling_priority", spanToSample.samplingPriority());
+      Assert.sometimes(true, "trace_accepted_by_sampling", acceptedDetails);
       writer.write(writtenTrace);
     } else {
       // Antithesis: Track traces dropped by sampling
-      Assert.sometimes(
-        true,
-        "trace_dropped_by_sampling",
-        java.util.Map.of(
-          "decision", "dropped_sampling",
-          "trace_id", writtenTrace.get(0).getTraceId().toString(),
-          "span_count", writtenTrace.size(),
-          "sampling_priority", spanToSample.samplingPriority()
-        )
-      );
+      java.util.Map<String, Object> droppedDetails = new java.util.HashMap<>();
+      droppedDetails.put("decision", "dropped_sampling");
+      droppedDetails.put("trace_id", writtenTrace.get(0).getTraceId().toString());
+      droppedDetails.put("span_count", writtenTrace.size());
+      droppedDetails.put("sampling_priority", spanToSample.samplingPriority());
+      Assert.sometimes(true, "trace_dropped_by_sampling", droppedDetails);
       // with span streaming this won't work - it needs to be changed
       // to track an effective sampling rate instead, however, tests
       // checking that a hard reference on a continuation prevents

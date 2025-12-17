@@ -70,14 +70,10 @@ public abstract class RemoteWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     if (closed) {
       // Antithesis: Track traces dropped during shutdown
-      Assert.sometimes(
-        true,
-        "trace_dropped_writer_closed",
-        java.util.Map.of(
-          "decision", "dropped_shutdown",
-          "span_count", trace.size()
-        )
-      );
+      java.util.Map<String, Object> shutdownDetails = new java.util.HashMap<>();
+      shutdownDetails.put("decision", "dropped_shutdown");
+      shutdownDetails.put("span_count", trace.size());
+      Assert.sometimes(true, "trace_dropped_writer_closed", shutdownDetails);
       // We can't add events after shutdown otherwise it will never complete shutting down.
       log.debug("Dropped due to shutdown: {}", trace);
       handleDroppedTrace(trace);
@@ -91,16 +87,12 @@ public abstract class RemoteWriter implements Writer {
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
             // Antithesis: Track traces enqueued for sending
-            Assert.sometimes(
-              true,
-              "trace_enqueued_for_send",
-              java.util.Map.of(
-                "decision", "enqueued",
-                "trace_id", root.getTraceId().toString(),
-                "span_count", trace.size(),
-                "sampling_priority", samplingPriority
-              )
-            );
+            java.util.Map<String, Object> enqueuedDetails = new java.util.HashMap<>();
+            enqueuedDetails.put("decision", "enqueued");
+            enqueuedDetails.put("trace_id", root.getTraceId().toString());
+            enqueuedDetails.put("span_count", trace.size());
+            enqueuedDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_enqueued_for_send", enqueuedDetails);
             log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
@@ -109,31 +101,23 @@ public abstract class RemoteWriter implements Writer {
             break;
           case DROPPED_BY_POLICY:
             // Antithesis: Track traces dropped by policy
-            Assert.sometimes(
-              true,
-              "trace_dropped_by_policy",
-              java.util.Map.of(
-                "decision", "dropped_policy",
-                "trace_id", root.getTraceId().toString(),
-                "span_count", trace.size(),
-                "sampling_priority", samplingPriority
-              )
-            );
+            java.util.Map<String, Object> policyDetails = new java.util.HashMap<>();
+            policyDetails.put("decision", "dropped_policy");
+            policyDetails.put("trace_id", root.getTraceId().toString());
+            policyDetails.put("span_count", trace.size());
+            policyDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_dropped_by_policy", policyDetails);
             log.debug("Dropped by the policy: {}", trace);
             handleDroppedTrace(trace);
             break;
           case DROPPED_BUFFER_OVERFLOW:
             // Antithesis: Track traces dropped due to buffer overflow
-            Assert.sometimes(
-              true,
-              "trace_dropped_buffer_overflow",
-              java.util.Map.of(
-                "decision", "dropped_buffer_overflow",
-                "trace_id", root.getTraceId().toString(),
-                "span_count", trace.size(),
-                "sampling_priority", samplingPriority
-              )
-            );
+            java.util.Map<String, Object> overflowDetails = new java.util.HashMap<>();
+            overflowDetails.put("decision", "dropped_buffer_overflow");
+            overflowDetails.put("trace_id", root.getTraceId().toString());
+            overflowDetails.put("span_count", trace.size());
+            overflowDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_dropped_buffer_overflow", overflowDetails);
             if (log.isDebugEnabled()) {
               log.debug("Dropped due to a buffer overflow: {}", trace);
             } else {

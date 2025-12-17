@@ -110,49 +110,37 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       healthMetrics.onSerialize(sizeInBytes);
       
       // Antithesis: Track all send attempts
-      Assert.sometimes(
-        true,
-        "trace_payloads_being_sent",
-        java.util.Map.of(
-          "trace_count", messageCount,
-          "payload_size_bytes", sizeInBytes,
-          "dropped_traces_in_payload", payload.droppedTraces(),
-          "dropped_spans_in_payload", payload.droppedSpans()
-        )
-      );
+      java.util.Map<String, Object> sendAttemptDetails = new java.util.HashMap<>();
+      sendAttemptDetails.put("trace_count", messageCount);
+      sendAttemptDetails.put("payload_size_bytes", sizeInBytes);
+      sendAttemptDetails.put("dropped_traces_in_payload", payload.droppedTraces());
+      sendAttemptDetails.put("dropped_spans_in_payload", payload.droppedSpans());
+      Assert.sometimes(true, "trace_payloads_being_sent", sendAttemptDetails);
       
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
 
       if (response.success()) {
         // Antithesis: Track successful sends
-        Assert.sometimes(
-          true,
-          "traces_sent_successfully",
-          java.util.Map.of(
-            "decision", "sent_success",
-            "trace_count", messageCount,
-            "payload_size_bytes", sizeInBytes,
-            "http_status", response.status()
-          )
-        );
+        java.util.Map<String, Object> successDetails = new java.util.HashMap<>();
+        successDetails.put("decision", "sent_success");
+        successDetails.put("trace_count", messageCount);
+        successDetails.put("payload_size_bytes", sizeInBytes);
+        successDetails.put("http_status", response.status());
+        Assert.sometimes(true, "traces_sent_successfully", successDetails);
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
         // Antithesis: Track failed sends
-        Assert.sometimes(
-          true,
-          "traces_failed_to_send",
-          java.util.Map.of(
-            "decision", "dropped_send_failed",
-            "trace_count", messageCount,
-            "payload_size_bytes", sizeInBytes,
-            "http_status", response.status(),
-            "has_exception", response.exception() != null
-          )
-        );
+        java.util.Map<String, Object> failedDetails = new java.util.HashMap<>();
+        failedDetails.put("decision", "dropped_send_failed");
+        failedDetails.put("trace_count", messageCount);
+        failedDetails.put("payload_size_bytes", sizeInBytes);
+        failedDetails.put("http_status", response.status());
+        failedDetails.put("has_exception", response.exception() != null);
+        Assert.sometimes(true, "traces_failed_to_send", failedDetails);
         if (log.isDebugEnabled()) {
           log.debug(
               "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);
