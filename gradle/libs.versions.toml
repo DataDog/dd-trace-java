@@ -86,7 +86,6 @@ okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp" }
 groovy = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
 groovy-json = { module = "org.apache.groovy:groovy-json", version.ref = "groovy" }
 groovy-templates = { module = "org.apache.groovy:groovy-templates", version.ref = "groovy" }
-groovy-test-junit5 = { module = "org.apache.groovy:groovy-test-junit5", version.ref = "groovy" }
 groovy-yaml = { module = "org.apache.groovy:groovy-yaml", version.ref = "groovy" }
 groovy-xml = { module = "org.apache.groovy:groovy-xml", version.ref = "groovy" }
 

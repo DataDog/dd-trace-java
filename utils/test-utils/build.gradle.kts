@@ -11,10 +11,10 @@ dependencies {
   api(project(":components:environment"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
+  compileOnly(libs.junit.jupiter)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
 
-  compileOnly(libs.junit.jupiter)
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
 }
