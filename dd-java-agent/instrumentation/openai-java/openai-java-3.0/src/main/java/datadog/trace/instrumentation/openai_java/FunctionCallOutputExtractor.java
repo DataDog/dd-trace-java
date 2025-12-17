@@ -22,8 +22,7 @@ public class FunctionCallOutputExtractor {
   private static final MethodHandle AS_STRING_METHOD;
 
   static {
-    OUTPUT_METHOD =
-        METHOD_HANDLES.method(ResponseInputItem.FunctionCallOutput.class, "output");
+    OUTPUT_METHOD = METHOD_HANDLES.method(ResponseInputItem.FunctionCallOutput.class, "output");
 
     Class<?> outputClass = null;
     try {
@@ -63,8 +62,7 @@ public class FunctionCallOutputExtractor {
         if (Boolean.TRUE.equals(isString)) {
           return METHOD_HANDLES.invoke(AS_STRING_METHOD, output);
         } else {
-          log.debug(
-              "FunctionCallOutput.output() returned non-string Output type, skipping");
+          log.debug("FunctionCallOutput.output() returned non-string Output type, skipping");
           return null;
         }
       }
@@ -80,4 +78,3 @@ public class FunctionCallOutputExtractor {
     }
   }
 }
-
