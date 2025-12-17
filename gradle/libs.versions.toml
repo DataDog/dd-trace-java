@@ -18,7 +18,7 @@ groovy4 = "4.0.29"
 
 ## Kotlin
 kotlin = "1.6.21"
-kotlin-plugin = "1.9.24"
+kotlin-plugin = "2.0.21"
 kotlinx-coroutines = "1.3.0"
 
 ## Scala

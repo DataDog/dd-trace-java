@@ -114,6 +114,23 @@
 /internal-api/src/test/groovy/datadog/trace/api/datastreams                  @DataDog/data-streams-monitoring
 **/datastreams/                                                              @DataDog/data-streams-monitoring
 **/DataStreams*                                                              @DataDog/data-streams-monitoring
+**/dsmTest/**                                                                @DataDog/data-streams-monitoring
+
+/dd-java-agent/instrumentation/confluent-schema-registry/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/avro/                            @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/protobuf-3.0/                    @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/rabbitmq-amqp-2.7/               @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/google-pubsub/                   @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/kafka/kafka-streams-0.11/        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/aws-java/aws-java-sns-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/aws-java/aws-java-sns-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/kafka/kafka-clients-0.11/        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/kafka/kafka-clients-3.8/         @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/kafka/kafka-connect-0.11/        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/aws-java/aws-java-sqs-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/aws-java/aws-java-sqs-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/grpc-1.5/                        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/armeria/armeria-grpc-0.84/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
 # @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk

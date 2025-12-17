@@ -42,7 +42,7 @@ dependencies {
   latest11TestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.11.+'
   latest12TestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
   latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+' // scala-lang 3.x requires scala 3.x compiler
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 }
 
 tasks.named("latestDepTest", Test) {
