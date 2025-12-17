@@ -1,6 +1,6 @@
-import datadog.trace.agent.test.InstrumentationSpecification
-
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+import datadog.trace.agent.test.InstrumentationSpecification
 
 class SocketForkedTest extends InstrumentationSpecification {
 

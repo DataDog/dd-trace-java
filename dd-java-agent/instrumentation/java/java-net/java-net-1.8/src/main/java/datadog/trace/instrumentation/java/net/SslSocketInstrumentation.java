@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocket;
+package datadog.trace.instrumentation.java.net;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.concreteClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;

@@ -1,15 +1,12 @@
-package test
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
+import java.lang.reflect.Field
+import javax.net.ssl.HttpsURLConnection
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-
-import javax.net.ssl.HttpsURLConnection
-import java.lang.reflect.Field
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class SslSocketTest extends InstrumentationSpecification {
   @AutoCleanup

@@ -572,7 +572,6 @@ include(
   ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-6.0",
   ":dd-java-agent:instrumentation:spring:spring-ws-2.0",
   ":dd-java-agent:instrumentation:spymemcached-2.10",
-  ":dd-java-agent:instrumentation:sslsocket",
   ":dd-java-agent:instrumentation:synapse-3.0",
   ":dd-java-agent:instrumentation:testng:testng-6",
   ":dd-java-agent:instrumentation:testng:testng-7",

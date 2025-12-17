@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.sslsocket;
+package datadog.trace.instrumentation.java.net;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
