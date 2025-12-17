@@ -590,6 +590,26 @@ build_tests:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
+    - env
+    - |
+      # Print java preferences directory tree
+      echo "Java Preferences directory structure:"
+      if [ -d ~/.java/.userPrefs ]; then
+        echo "Full tree:"
+        find ~/.java/.userPrefs -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g'
+        echo ""
+        echo "All files with details:"
+        find ~/.java/.userPrefs -type f -ls
+        echo ""
+        echo "Lock files:"
+        find ~/.java/.userPrefs -name "*.lock*" -ls 2>/dev/null || echo "No lock files found"
+        echo ""
+        echo "Directory count: $(find ~/.java/.userPrefs -type d | wc -l)"
+        echo "File count: $(find ~/.java/.userPrefs -type f | wc -l)"
+      else
+        echo "~/.java/.userPrefs does not exist"
+      fi
+
     - *restore_pretest_env
     - *set_datadog_api_keys
     - *container_info
