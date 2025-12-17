@@ -11,10 +11,6 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
-tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 11)
-}
-
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'
 protobuf {
