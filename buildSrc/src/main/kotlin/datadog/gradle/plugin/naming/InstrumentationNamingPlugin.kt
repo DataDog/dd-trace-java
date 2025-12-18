@@ -47,12 +47,16 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         if (violations.isNotEmpty()) {
           val suffixesStr = suffixes.joinToString("', '", "'", "'")
           val errorMessage = buildString {
-            appendLine("\nInstrumentation naming convention violations found:")
-            appendLine()
+            appendLine("""
+            
+            Instrumentation naming convention violations found:
+            
+            """.trimIndent())
             violations.forEach { violation ->
-              appendLine("  • ${violation.path}")
-              appendLine("    ${violation.message}")
-              appendLine()
+              appendLine("""
+                • ${violation.path}
+                  ${violation.message}
+              """.trimEndent())
             }
             append("""
               Naming rules:
