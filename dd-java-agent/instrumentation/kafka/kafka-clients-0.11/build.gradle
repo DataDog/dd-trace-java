@@ -34,7 +34,7 @@ dependencies {
   testRuntimeOnly group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   // IAST testing dependencies
