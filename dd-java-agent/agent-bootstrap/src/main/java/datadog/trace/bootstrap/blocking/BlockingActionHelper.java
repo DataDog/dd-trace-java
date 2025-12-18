@@ -119,13 +119,18 @@ public class BlockingActionHelper {
   }
 
   public static byte[] getTemplate(TemplateType type) {
-    if (type == TemplateType.JSON) {
-      return TEMPLATE_JSON;
-    } else if (type == TemplateType.HTML) {
-      return TEMPLATE_HTML;
-    }
-    return null;
+    return getTemplate(type, null);
   }
+
+  public static byte[] getTemplate(TemplateType type, String securityResponseId) {
+    byte[] template;
+    if (type == TemplateType.JSON) {
+      template = TEMPLATE_JSON;
+    } else if (type == TemplateType.HTML) {
+      template = TEMPLATE_HTML;
+    } else {
+      return null;
+    }
 
     // Use empty string when securityResponseId is not present
     String replacementValue =
