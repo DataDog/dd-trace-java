@@ -24,10 +24,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private val versionPattern : Regex = Regex("""\d+\.\d+(\.\d+)?$""")
 
   override fun apply(target: Project) {
-    val extension = target.extensions.create(
-      "instrumentationNaming",
-      InstrumentationNamingExtension::class.java
-    )
+    val extension = target.extensions.create<InstrumentationNamingExtension>("instrumentationNaming")
 
     target.tasks.register("checkInstrumentationNaming") {
       group = "verification"
