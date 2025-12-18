@@ -56,7 +56,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
               appendLine("""
                 • ${violation.path}
                   ${violation.message}
-              """.trimEndent())
+              """.trimIndent())
             }
             append("""
               Naming rules:
