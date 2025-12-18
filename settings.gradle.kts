@@ -511,7 +511,7 @@ include(
   ":dd-java-agent:instrumentation:redisson:redisson-2.3.0",
   ":dd-java-agent:instrumentation:redisson:redisson-3.10.3",
   ":dd-java-agent:instrumentation:redisson",
-  ":dd-java-agent:instrumentation:renaissance",
+  ":dd-java-agent:instrumentation:renaissance-0.7",
   ":dd-java-agent:instrumentation:resilience4j:resilience4j-2.0",
   ":dd-java-agent:instrumentation:resilience4j:resilience4j-reactor-2.0",
   ":dd-java-agent:instrumentation:resteasy:resteasy-3.0",
