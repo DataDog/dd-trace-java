@@ -3,7 +3,7 @@ apply from: "$rootDir/gradle/java.gradle"
 //addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2')
+  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
   // Don't want to conflict with jetty from the test server.
