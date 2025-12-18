@@ -14,10 +14,10 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:micronaut')
+  implementation project(':dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-common')
 
   // Added to ensure cross compatibility:
-  testImplementation project(':dd-java-agent:instrumentation:micronaut:http-server-netty-3.0')
+  testImplementation project(':dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-3.0')
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
