@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
@@ -151,7 +150,7 @@ public final class MongoCommandListener implements CommandListener {
         // may do a DNS lookup
         ServerAddress serverAddress = event.getConnectionDescription().getServerAddress();
         span.setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
-            .setTag(Tags.PEER_PORT, PORTS.get(serverAddress.getPort()))
+            .setTag(Tags.PEER_PORT, serverAddress.getPort())
             .setTag(
                 Tags.DB_OPERATION,
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
