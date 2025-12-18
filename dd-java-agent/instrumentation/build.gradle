@@ -2,6 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id("dd-trace-java.instrumentation-naming")
 }
 apply from: "$rootDir/gradle/java.gradle"
 
