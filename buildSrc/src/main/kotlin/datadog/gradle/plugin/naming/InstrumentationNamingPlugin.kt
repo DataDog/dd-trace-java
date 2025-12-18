@@ -3,6 +3,7 @@ package datadog.gradle.plugin.naming
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.create
 import java.io.File
 
 /**
@@ -100,7 +101,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
           if (parentName == null && nestedModules.isEmpty()) {
             validateLeafModuleName(moduleName, relativePath, suffixes)?.let { violations.add(it) }
           } else if (parentName != null) {
-            validateModuleName(moduleName, parentName, relativePath, suffixes)?.let { violations.add(it) }
+            violations.addAll(validateModuleName(moduleName, parentName, relativePath, suffixes))
           }
         }
 
@@ -123,7 +124,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     suffixes: List<String>
   ): List<NamingViolation> {
     // Rule 1: Module name must end with version pattern or one of the configured suffixes
-    validateVersionOrSuffix(moduleName, relativePath, suffixes)?.let { return it }
+    validateVersionOrSuffix(moduleName, relativePath, suffixes)?.let { return listOf(it) }
 
     // Rule 2: Module name must contain parent directory name
     if (!moduleName.contains(parentName, ignoreCase = true)) {
