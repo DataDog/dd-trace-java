@@ -117,6 +117,21 @@ default:
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
 
+.container_info: &container_info
+  - |
+    # Containers and processes are limited to a 1-hour window, and expire after 36 hours
+    if [ -n "$CI_JOB_STARTED_AT" ]; then
+      FROM_EPOCH_MS=$(date -d "$CI_JOB_STARTED_AT" +%s)000
+      TO_EPOCH_MS=$((FROM_EPOCH_MS + 3600000))
+      TIME_PARAMS="from_ts=${FROM_EPOCH_MS}&to_ts=${TO_EPOCH_MS}&"
+    else
+      TIME_PARAMS=""
+    fi
+
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
     export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
@@ -165,6 +180,7 @@ default:
       unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    - *container_info
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -195,6 +211,7 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
+    - *container_info
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
@@ -419,6 +436,7 @@ test_published_artifacts:
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -487,6 +505,7 @@ muzzle:
     - ./gradlew --version
     - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -509,6 +528,7 @@ muzzle-dep-report:
     - ./gradlew --version
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - .gitlab/collect_muzzle_deps.sh
   artifacts:
@@ -571,6 +591,7 @@ muzzle-dep-report:
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
