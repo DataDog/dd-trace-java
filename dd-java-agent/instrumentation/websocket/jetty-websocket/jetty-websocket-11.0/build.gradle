@@ -24,11 +24,11 @@ addTestSuite("latestDepTest")
 }
 
 dependencies {
-  implementation project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
+  implementation project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
   testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-jakarta-server', version: '11.0.0'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-jakarta-server', version: '11.+'
 
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0")
 
   configurations.configureEach {
