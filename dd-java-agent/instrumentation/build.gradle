@@ -69,7 +69,7 @@ subprojects { Project subProj ->
       testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
       // FIXME: we should enable this, but currently this fails tests for google http client
       //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
-      testImplementation project(':dd-java-agent:instrumentation:classloading')
+      testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8')
 
       testImplementation project(':dd-java-agent:instrumentation-testing')
     }
