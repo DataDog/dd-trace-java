@@ -121,19 +121,19 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     parentName: String,
     relativePath: String,
     suffixes: List<String>
-  ): NamingViolation? {
+  ): List<NamingViolation> {
     // Rule 1: Module name must end with version pattern or one of the configured suffixes
     validateVersionOrSuffix(moduleName, relativePath, suffixes)?.let { return it }
 
     // Rule 2: Module name must contain parent directory name
     if (!moduleName.contains(parentName, ignoreCase = true)) {
-      return NamingViolation(
+      return listOf(NamingViolation(
         relativePath,
         "Module name '$moduleName' should contain parent directory name '$parentName'"
-      )
+      ))
     }
 
-    return null
+    return emptyList()
   }
 
   /**
