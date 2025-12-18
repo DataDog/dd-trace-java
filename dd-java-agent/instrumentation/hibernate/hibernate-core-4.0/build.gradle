@@ -24,12 +24,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.hibernate', name: 'hibernate-core', version: '4.0.0.Final'
 
-  implementation project(':dd-java-agent:instrumentation:hibernate')
+  implementation project(':dd-java-agent:instrumentation:hibernate:hibernate-common')
 
   testImplementation project(':dd-java-agent:instrumentation:jdbc')
   // Added to ensure cross compatibility:
-  testImplementation project(':dd-java-agent:instrumentation:hibernate:core-3.3')
-  testImplementation project(':dd-java-agent:instrumentation:hibernate:core-4.3')
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-3.3')
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.3')
 
   testImplementation group: 'org.hibernate', name: 'hibernate-core', version: '4.0.0.Final'
   testImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
@@ -41,5 +41,5 @@ dependencies {
   latestDepTestImplementation group: 'org.hibernate', name: 'hibernate-core', version: '4.2.+'
   latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
   // Test that the incremental instrumentation for hibernate 4.3 doesn't cause issues.
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:hibernate:core-4.3')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.3')
 }

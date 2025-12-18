@@ -31,12 +31,12 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.hibernate', name: 'hibernate-core', version: '3.3.0.GA'
 
-  implementation project(':dd-java-agent:instrumentation:hibernate')
+  implementation project(':dd-java-agent:instrumentation:hibernate:hibernate-common')
 
   testImplementation project(':dd-java-agent:instrumentation:jdbc')
   // Added to ensure cross compatibility:
-  testImplementation project(':dd-java-agent:instrumentation:hibernate:core-4.0')
-  testImplementation project(':dd-java-agent:instrumentation:hibernate:core-4.3')
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.3')
 
   testImplementation group: 'org.hibernate', name: 'hibernate-core', version: '3.3.0.SP1'
   testImplementation group: 'org.hibernate', name: 'hibernate-annotations', version: '3.4.0.GA'
