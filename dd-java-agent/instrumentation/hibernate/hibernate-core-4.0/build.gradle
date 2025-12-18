@@ -1,0 +1,45 @@
+muzzle {
+  pass {
+    group = "org.hibernate"
+    module = "hibernate-core"
+    versions = "[4.0.0.Final,6)"
+  }
+  fail {
+    group = "org.hibernate"
+    module = "hibernate-core"
+    versions = "(,4.0.0.Final)"
+  }
+  // hibernate-core has been moved
+  fail {
+    group = "org.hibernate.orm"
+    module = "hibernate-core"
+    versions = "[6,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.hibernate', name: 'hibernate-core', version: '4.0.0.Final'
+
+  implementation project(':dd-java-agent:instrumentation:hibernate:hibernate-common')
+
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  // Added to ensure cross compatibility:
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-3.3')
+  testImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.3')
+
+  testImplementation group: 'org.hibernate', name: 'hibernate-core', version: '4.0.0.Final'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
+  testImplementation "javax.xml.bind:jaxb-api:2.2.11"
+  testImplementation "com.sun.xml.bind:jaxb-core:2.2.11"
+  testImplementation "com.sun.xml.bind:jaxb-impl:2.2.11"
+  testImplementation "javax.activation:activation:1.1.1"
+
+  latestDepTestImplementation group: 'org.hibernate', name: 'hibernate-core', version: '4.2.+'
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
+  // Test that the incremental instrumentation for hibernate 4.3 doesn't cause issues.
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:hibernate:hibernate-core-4.3')
+}

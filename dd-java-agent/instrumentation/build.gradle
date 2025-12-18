@@ -79,7 +79,7 @@ subprojects { Project subProj ->
 
   def path = subProj.getPath()
   subProj.plugins.withId("java") {
-    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')) {
+    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs')) {
       // don't include the redis RequestImpl stub
       parent_project.dependencies {
         implementation project(path)
