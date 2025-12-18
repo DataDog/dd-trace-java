@@ -3,7 +3,6 @@ package datadog.trace.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
@@ -86,6 +85,7 @@ import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
@@ -231,7 +231,7 @@ public class InstrumenterConfig {
 
     codeOriginEnabled =
         configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
@@ -664,6 +664,14 @@ public class InstrumenterConfig {
           Platform.isNativeImageBuilder()
               ? ConfigProvider.withoutCollector()
               : ConfigProvider.getInstance());
+
+  static boolean getDefaultCodeOriginForSpanEnabled() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
+      // activate by default Code Origin only for JDK25+
+      return true;
+    }
+    return false;
+  }
 
   public static InstrumenterConfig get() {
     return INSTANCE;
