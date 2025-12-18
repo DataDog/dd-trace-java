@@ -166,12 +166,16 @@ tasks.register<me.champeau.gradle.japicmp.JapicmpTask>("japicmp") {
   val target = providers.gradleProperty("target").orNull
 
   if (artifact != null && baseline != null && target != null) {
-    oldClasspath.from(configurations.detachedConfiguration(
-      dependencies.create("$artifact:$baseline")
-    ))
-    newClasspath.from(configurations.detachedConfiguration(
-      dependencies.create("$artifact:$target")
-    ))
+    oldClasspath.from(
+      configurations.detachedConfiguration(
+        dependencies.create("$artifact:$baseline")
+      )
+    )
+    newClasspath.from(
+      configurations.detachedConfiguration(
+        dependencies.create("$artifact:$target")
+      )
+    )
     onlyModified.set(true)
     failOnModification.set(false)
     ignoreMissingClasses.set(true)
