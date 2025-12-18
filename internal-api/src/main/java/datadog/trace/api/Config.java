@@ -2596,7 +2596,7 @@ public class Config {
             EXCEPTION_REPLAY_ENABLED);
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
+            CODE_ORIGIN_FOR_SPANS_ENABLED, InstrumenterConfig.getDefaultCodeOriginForSpanEnabled());
     debuggerCodeOriginMaxUserFrames =
         configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
     debuggerMaxExceptionPerSecond =
@@ -2975,14 +2975,6 @@ public class Config {
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
 
     log.debug("New instance: {}", this);
-  }
-
-  private boolean getDefaultCodeOriginForSpanEnabled() {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
-      // activate by default Code Origin only for JDK25+
-      return true;
-    }
-    return false;
   }
 
   private static boolean isValidUrl(String url) {
