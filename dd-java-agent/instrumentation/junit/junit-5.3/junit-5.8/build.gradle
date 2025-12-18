@@ -57,6 +57,17 @@ configurations.matching { it.name.startsWith('test') }.configureEach {
   }
 }
 
+// Reject RC (Release Candidate) and M (Milestone) versions for latestDepTest configurations
+configurations.matching { it.name.startsWith('latestDepTest') }.configureEach {
+  it.resolutionStrategy.componentSelection.all { ComponentSelection selection ->
+    def version = selection.candidate.version
+    if ((selection.candidate.group == 'org.junit.platform' || selection.candidate.group == 'org.junit.jupiter') &&
+      (version.matches('.*-RC.*') || version.matches('.*-M\\d+.*'))) {
+      selection.reject("Skipping pre-release version: ${version}")
+    }
+  }
+}
+
 tasks.named("compileLatestDepTestJava", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_1_8)
 }

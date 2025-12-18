@@ -22,9 +22,9 @@ idea {
   }
 }
 
-// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
-tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+// Set test compile task to use JDK 21 to use the virtual threads API
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, 21)
 }
 
 dependencies {

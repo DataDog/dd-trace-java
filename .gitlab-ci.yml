@@ -109,16 +109,28 @@ default:
 .normalize_node_index: &normalize_node_index
   - if [ "$CI_NO_SPLIT" == "true" ] ; then CI_NODE_INDEX=1; CI_NODE_TOTAL=1; fi # A job uses parallel but doesn't intend to split by index
   - if [ -n "$CI_SPLIT" ]; then CI_NODE_INDEX="${CI_SPLIT%%/*}"; CI_NODE_TOTAL="${CI_SPLIT##*/}"; fi
-  - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
-  - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
-  - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
-  - echo "NORMALIZED_NODE_TOTAL=${NORMALIZED_NODE_TOTAL}, NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
+  - echo "CI_NODE_INDEX=$CI_NODE_INDEX, CI_NODE_TOTAL=${CI_NODE_TOTAL}"
 
 .cgroup_info: &cgroup_info
   - source .gitlab/gitlab-utils.sh
   - gitlab_section_start "cgroup-info" "cgroup info"
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
+
+.container_info: &container_info
+  - |
+    # Containers and processes are limited to a 1-hour window, and expire after 36 hours
+    if [ -n "$CI_JOB_STARTED_AT" ]; then
+      FROM_EPOCH_MS=$(date -d "$CI_JOB_STARTED_AT" +%s)000
+      TO_EPOCH_MS=$((FROM_EPOCH_MS + 3600000))
+      TIME_PARAMS="from_ts=${FROM_EPOCH_MS}&to_ts=${TO_EPOCH_MS}&"
+    else
+      TIME_PARAMS=""
+    fi
+
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
@@ -168,6 +180,7 @@ default:
       unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    - *container_info
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -198,6 +211,7 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
+    - *container_info
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
@@ -420,8 +434,9 @@ test_published_artifacts:
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -488,8 +503,9 @@ muzzle:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -512,6 +528,7 @@ muzzle-dep-report:
     - ./gradlew --version
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - .gitlab/collect_muzzle_deps.sh
   artifacts:
@@ -542,8 +559,8 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 17Gi
-    KUBERNETES_MEMORY_LIMIT: 17Gi
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     KUBERNETES_CPU_REQUEST: 10
     GRADLE_WORKERS: 4
     GRADLE_MEM: 3G
@@ -568,12 +585,13 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -728,7 +746,7 @@ test_smoke:
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_ssi_smoke:
   extends: .test_job
@@ -739,7 +757,7 @@ test_ssi_smoke:
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_smoke_graalvm:
   extends: .test_job

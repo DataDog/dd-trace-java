@@ -209,6 +209,161 @@ class ApiSecuritySamplerTest extends DDSpecification {
     }
   }
 
+  void 'preSampleRequest with tracing disabled updates access map immediately'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'first request is presampled with tracing disabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'request is sampled and access map is updated immediately'
+    preSampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(ctx.getApiSecurityEndpointHash())
+
+    when: 'second request for same endpoint is attempted'
+    def ctx2 = createContext('route1', 'GET', 200)
+    sampler.releaseOne()
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then: 'second request is not sampled because endpoint was already updated in first preSampleRequest'
+    !preSampled2
+  }
+
+  void 'sampleRequest with tracing disabled returns true without updating access map'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    ctx.setApiSecurityEndpointHash(42L)
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'sampleRequest is called with tracing disabled'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'request is sampled without updating access map'
+    sampled
+    sampler.accessMap.size() == 0
+  }
+
+  void 'preSampleRequest with tracing enabled does not update access map immediately'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'true')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'request is presampled with tracing enabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'request is sampled but access map is NOT updated yet'
+    preSampled
+    sampler.accessMap.size() == 0
+
+    when: 'sampleRequest is called to finalize sampling'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'access map is updated in sampleRequest'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(ctx.getApiSecurityEndpointHash())
+  }
+
+  void 'sampleRequest with tracing enabled updates access map'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'true')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    ctx.setApiSecurityEndpointHash(42L)
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'sampleRequest is called with tracing enabled'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'request is sampled and access map is updated'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(42L)
+
+    when: 'second request for same endpoint is made'
+    def sampled2 = sampler.sampleRequest(ctx)
+
+    then: 'second request is not sampled'
+    !sampled2
+  }
+
+  void 'concurrent requests with tracing disabled do not see expired state'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx1 = createContext('route1', 'GET', 200)
+    def ctx2 = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'first request is presampled'
+    def preSampled1 = sampler.preSampleRequest(ctx1)
+
+    then: 'first request is sampled and access map is updated immediately'
+    preSampled1
+    ctx1.getApiSecurityEndpointHash() != null
+    sampler.accessMap.size() == 1
+
+    when: 'concurrent second request tries to presample same endpoint'
+    sampler.releaseOne()
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then: 'second request is not sampled because endpoint is already in access map'
+    !preSampled2
+  }
+
+  void 'full flow with tracing disabled updates map only in preSampleRequest'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'request goes through full sampling flow with tracing disabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'preSampleRequest returns true and updates access map'
+    preSampled
+    sampler.accessMap.size() == 1
+    def hash = ctx.getApiSecurityEndpointHash()
+    sampler.accessMap.containsKey(hash)
+
+    when: 'sampleRequest is called'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'sampleRequest returns true without modifying access map'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.get(hash) == 0L // Still has the value from preSampleRequest
+  }
+
   private static AppSecRequestContext createContext(final String route, final String method, int statusCode) {
     final AppSecRequestContext ctx = new AppSecRequestContext()
     ctx.setRoute(route)
