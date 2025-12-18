@@ -120,7 +120,7 @@ dependencies {
 
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   iastTestCompileOnly libs.forbiddenapis
-  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast')

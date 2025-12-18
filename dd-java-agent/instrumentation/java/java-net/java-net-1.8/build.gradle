@@ -12,3 +12,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }
+
+// IBM8 is having troubles with TLS set up by jetty 9.4.
+// As a temporary workaround we used a lower jetty version for ssl socket tests
+configurations.configureEach {
+  resolutionStrategy {
+    force group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
+  }
+}
