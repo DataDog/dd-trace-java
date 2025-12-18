@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "testng-6",
+      "test.module" : "testng-6.4",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestInheritance",
@@ -51,7 +51,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "testng-6",
+      "test.module" : "testng-6.4",
       "test.name" : "test_succeed",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_succeed()V",
@@ -96,7 +96,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "testng-6",
+      "test.command" : "testng-6.4",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "pass",
@@ -110,7 +110,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "testng.test_session",
-    "resource" : "testng-6",
+    "resource" : "testng-6.4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -130,7 +130,7 @@
       "span.kind" : "test_module_end",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "testng-6",
+      "test.module" : "testng-6.4",
       "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -139,7 +139,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
     },
     "name" : "testng.test_module",
-    "resource" : "testng-6",
+    "resource" : "testng-6.4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},

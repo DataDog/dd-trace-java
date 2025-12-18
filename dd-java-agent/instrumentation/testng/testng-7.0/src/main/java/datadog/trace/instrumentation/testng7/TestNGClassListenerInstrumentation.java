@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.testng.TestNGClassListener;
+import datadog.trace.instrumentation.testng.TestNGInstrumentation;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
@@ -57,6 +58,13 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
       commonPackageName + ".TestNGClassListener",
       commonPackageName + ".TracingListener"
     };
+  }
+
+  @Override
+  public int order() {
+    // Depends on datadog.trace.instrumentation.testng.TestNGInstrumentation,
+    // as it needs datadog.trace.instrumentation.testng.TestEventsHandlerHolder.start to be called;
+    return TestNGInstrumentation.ORDER - 1;
   }
 
   public static class InvokeBeforeClassAdvice {
