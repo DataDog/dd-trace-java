@@ -12,7 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:opentracing')
+  implementation project(':dd-java-agent:instrumentation:opentracing:opentracing-common')
 
   compileOnly group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
