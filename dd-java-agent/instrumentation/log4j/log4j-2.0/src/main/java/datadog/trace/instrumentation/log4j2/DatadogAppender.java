@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.log4j2;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -13,8 +15,11 @@ public class DatadogAppender extends AbstractAppender {
 
   private static final int MAX_STACKTRACE_STRING_LENGTH = 16 * 1_024;
 
-  public DatadogAppender(String name, Filter filter) {
+  private final boolean appLogsCollectionEnabled;
+
+  public DatadogAppender(String name, Filter filter, Config config) {
     super(name, filter, null);
+    this.appLogsCollectionEnabled = config.isAppLogsCollectionEnabled();
   }
 
   @Override
@@ -40,7 +45,6 @@ public class DatadogAppender extends AbstractAppender {
       Map<String, Object> thrownLog = new HashMap<>();
       thrownLog.put("message", thrown.getMessage());
       thrownLog.put("name", thrown.getClass().getCanonicalName());
-
       // TODO consider using structured stack trace layout
       //  (see
       // org.apache.logging.log4j.layout.template.json.resolver.ExceptionResolver#createStackTraceResolver)
@@ -55,19 +59,29 @@ public class DatadogAppender extends AbstractAppender {
 
       log.put("thrown", thrownLog);
     }
-
-    log.put("contextMap", event.getContextMap());
     log.put("endOfBatch", event.isEndOfBatch());
     log.put("loggerFqcn", event.getLoggerFqcn());
-
-    StackTraceElement source = event.getSource();
-    Map<String, Object> sourceLog = new HashMap<>();
-    sourceLog.put("class", source.getClassName());
-    sourceLog.put("method", source.getMethodName());
-    sourceLog.put("file", source.getFileName());
-    sourceLog.put("line", source.getLineNumber());
-    log.put("source", sourceLog);
-
+    if (appLogsCollectionEnabled) {
+      // skip log source for now as this is expensive
+      // will be later introduce with Log Origin and optimisations
+      String traceId = CorrelationIdentifier.getTraceId();
+      if (traceId != null && !traceId.equals("0")) {
+        log.put("dd.trace_id", traceId);
+      }
+      String spanId = CorrelationIdentifier.getSpanId();
+      if (spanId != null && !spanId.equals("0")) {
+        log.put("dd.span_id", spanId);
+      }
+    } else {
+      log.put("contextMap", event.getContextMap());
+      StackTraceElement source = event.getSource();
+      Map<String, Object> sourceLog = new HashMap<>();
+      sourceLog.put("class", source.getClassName());
+      sourceLog.put("method", source.getMethodName());
+      sourceLog.put("file", source.getFileName());
+      sourceLog.put("line", source.getLineNumber());
+      log.put("source", sourceLog);
+    }
     return log;
   }
 }

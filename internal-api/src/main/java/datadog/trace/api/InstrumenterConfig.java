@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
@@ -26,6 +27,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLEC
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
@@ -206,6 +208,8 @@ public class InstrumenterConfig {
   private final boolean agentlessLogSubmissionEnabled;
   private final boolean apiSecurityEndpointCollectionEnabled;
 
+  private final boolean appLogsCollectionEnabled;
+
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
@@ -351,6 +355,9 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
             DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+
+    appLogsCollectionEnabled =
+        configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -656,6 +663,10 @@ public class InstrumenterConfig {
 
   public boolean isApiSecurityEndpointCollectionEnabled() {
     return apiSecurityEndpointCollectionEnabled;
+  }
+
+  public boolean isAppLogsCollectionEnabled() {
+    return appLogsCollectionEnabled;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
