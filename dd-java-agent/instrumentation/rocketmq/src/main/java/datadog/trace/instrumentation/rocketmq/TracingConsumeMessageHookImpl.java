@@ -15,8 +15,6 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     this.rocketMqDecorator = CONSUMER_DECORATE;
   }
 
-  // private AgentScope scope;
-
   private final ContextStore<ConsumeMessageContext, AgentScope> store;
 
   @Override
@@ -29,8 +27,11 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
       return;
     }
-    AgentScope scope = rocketMqDecorator.start(context);
-    store.put(context, scope);
+    AgentScope scope = store.get(context);
+    if (scope == null) {
+      scope = rocketMqDecorator.start(context);
+      store.putIfAbsent(context, scope);
+    }
   }
 
   @Override
@@ -38,10 +39,6 @@ public final class TracingConsumeMessageHookImpl implements ConsumeMessageHook {
     AgentScope scope = store.get(context);
 
     if (scope == null) {
-      return;
-    }
-    if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
-      scope.close();
       return;
     }
 

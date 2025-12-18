@@ -63,7 +63,7 @@ public class RocketMqSendInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class AdviceStart {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.FieldValue(value = "defaultMQProducerImpl", declaringType = DefaultMQProducer.class)
             DefaultMQProducerImpl defaultMqProducerImpl) {

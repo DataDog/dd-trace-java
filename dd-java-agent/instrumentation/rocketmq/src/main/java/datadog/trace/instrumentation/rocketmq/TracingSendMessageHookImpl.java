@@ -30,8 +30,11 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (context == null) {
       return;
     }
-    AgentScope scope = rocketMqDecorator.start(context);
-    store.put(context, scope);
+    AgentScope scope = store.get(context);
+    if (scope == null){
+      scope = rocketMqDecorator.start(context);
+      store.putIfAbsent(context, scope);
+    }
   }
 
   @Override
@@ -40,9 +43,7 @@ public final class TracingSendMessageHookImpl implements SendMessageHook {
     if (scope == null) {
       return;
     }
-    if (context == null) {
-      return;
-    }
+
     rocketMqDecorator.end(context, scope);
     scope.close();
     if (log.isDebugEnabled()) {

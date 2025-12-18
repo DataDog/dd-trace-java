@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rocketmq;
 
-
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.*;
@@ -132,6 +131,10 @@ public class RocketMqDecorator extends ClientDecorator {
   }
 
   public void end(ConsumeMessageContext context, AgentScope scope) {
+    if (context == null || context.getMsgList() == null || context.getMsgList().isEmpty()) {
+      return;
+    }
+
     if (null == scope.span()) {
       return;
     }
@@ -140,8 +143,8 @@ public class RocketMqDecorator extends ClientDecorator {
 
     AgentSpan span = scope.span();
     span.setTag("status", status);
-    beforeFinish(span);
-    scope.span().finish();
+    // beforeFinish(span);
+    span.finish();
     if (log.isDebugEnabled()) {
       log.debug("consumer span end");
     }
@@ -185,6 +188,9 @@ public class RocketMqDecorator extends ClientDecorator {
   }
 
   public void end(SendMessageContext context, AgentScope scope) {
+    if (context == null) {
+      return;
+    }
     Exception exception = context.getException();
     AgentSpan span = scope.span();
 
