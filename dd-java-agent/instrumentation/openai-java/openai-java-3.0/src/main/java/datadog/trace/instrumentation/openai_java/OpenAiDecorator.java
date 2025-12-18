@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.openai_java;
 
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
-import com.openai.core.http.HttpResponse;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -70,9 +69,11 @@ public class OpenAiDecorator extends ClientDecorator {
     return Long.toString(parentLlmSpanId);
   }
 
-  public void withHttpResponse(AgentSpan span, HttpResponse response) {
-    Headers headers = response.headers();
-    setTagFromHeader(span, OPENAI_ORGANIZATION_NAME, headers, "openai-organization");
+  public void withHttpResponse(AgentSpan span, Headers headers) {
+    List<String> values = headers.values("openai-organization");
+    if (!values.isEmpty()) {
+      span.setTag(OPENAI_ORGANIZATION_NAME, values.get(0));
+    }
 
     setMetricFromHeader(
         span,
@@ -91,14 +92,6 @@ public class OpenAiDecorator extends ClientDecorator {
         "openai.organization.ratelimit.tokens.remaining",
         headers,
         "x-ratelimit-remaining-tokens");
-  }
-
-  private static void setTagFromHeader(AgentSpan span, String tag, Headers headers, String header) {
-    List<String> values = headers.values(header);
-    if (values.isEmpty()) {
-      return;
-    }
-    span.setTag(tag, values.get(0));
   }
 
   private static void setMetricFromHeader(
