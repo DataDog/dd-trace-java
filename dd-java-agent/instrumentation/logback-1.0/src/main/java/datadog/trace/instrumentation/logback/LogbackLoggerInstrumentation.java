@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -64,7 +65,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
-    if (Config.get().isAppLogsCollectionEnabled()) {
+    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
       transformer.applyAdvice(
           isMethod()
               .and(isPublic())
@@ -76,7 +77,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class CallAppendersAdvice {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();
 
@@ -88,7 +89,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class CallAppendersAdvice2 {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       LogsIntakeHelper.log(event);
     }
