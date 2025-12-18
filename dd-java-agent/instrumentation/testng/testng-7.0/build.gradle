@@ -35,9 +35,9 @@ tasks.named("latestDepTest", Test) {
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '7.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:testng')
+  implementation project(':dd-java-agent:instrumentation:testng:testng-common')
 
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
   testImplementation group: 'org.testng', name: 'testng', version: '7.0.0'
   testng751TestImplementation group: 'org.testng', name: 'testng', version: '7.5.1'
   latestDepTestImplementation group: 'org.testng', name: 'testng', version: '+'

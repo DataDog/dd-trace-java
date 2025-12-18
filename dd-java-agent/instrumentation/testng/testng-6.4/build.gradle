@@ -17,9 +17,9 @@ muzzle {
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
-  implementation project(':dd-java-agent:instrumentation:testng')
+  implementation project(':dd-java-agent:instrumentation:testng:testng-common')
 
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
   testImplementation group: 'org.testng', name: 'testng', version: '6.4'
 }
 
