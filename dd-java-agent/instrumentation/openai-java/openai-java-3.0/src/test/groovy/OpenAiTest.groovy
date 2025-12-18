@@ -4,7 +4,6 @@ import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
-import com.openai.core.JsonField
 import com.openai.credential.BearerTokenCredential
 import com.openai.core.JsonValue
 import com.openai.models.ChatModel
