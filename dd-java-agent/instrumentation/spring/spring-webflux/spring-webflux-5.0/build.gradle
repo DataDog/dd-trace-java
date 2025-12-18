@@ -115,7 +115,7 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.0.+'
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
 
   latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
