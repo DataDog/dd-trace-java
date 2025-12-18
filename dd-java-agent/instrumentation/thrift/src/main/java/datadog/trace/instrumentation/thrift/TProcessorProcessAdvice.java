@@ -33,12 +33,15 @@ public class TProcessorProcessAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void after(@Advice.Thrown final Throwable throwable) {
-    AgentSpan span = activeSpan();
-    if (span != null) {
-      SERVER_DECORATOR.onError(span, throwable);
-      SERVER_DECORATOR.beforeFinish(span);
-      span.finish();
-      CONTEXT_THREAD.remove();
+    AgentScope scope = CONTEXT_THREAD.get().getAgentScope();
+    if (scope == null) {
+      return;
     }
+    AgentSpan span = scope.span();
+    SERVER_DECORATOR.onError(span, throwable);
+    SERVER_DECORATOR.beforeFinish(span);
+    span.finish();
+    scope.close();
+    CONTEXT_THREAD.remove();
   }
 }

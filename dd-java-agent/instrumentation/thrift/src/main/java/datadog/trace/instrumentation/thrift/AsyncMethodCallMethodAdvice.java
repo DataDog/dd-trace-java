@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.instrumentation.thrift.ThriftClientDecorator.CLIENT_DECORATOR;
 
 public class AsyncMethodCallMethodAdvice {
@@ -21,13 +23,22 @@ public class AsyncMethodCallMethodAdvice {
     AgentSpan agentSpan = CLIENT_DECORATOR.createSpan(methodCall.getClass().getName(), null);
     AgentScope scope = activateSpan(agentSpan);
     try {
-      ThriftConstants.setValue(TAsyncMethodCall.class, methodCall, "callback", new DataDogAsyncMethodCallback<Object>(callback, scope));
+      ThriftConstants.setValue(TAsyncMethodCall.class, methodCall, "callback", new DataDogAsyncMethodCallback<Object>(callback, agentSpan));
     } catch (Exception e) {
       if (logger.isDebugEnabled()){
         logger.debug("set value callback fail",e);
       }
       logger.error("set value callback fail",e);
     }
+    checkpointActiveForRollback();
     return scope;
+  }
+
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void onExit(@Advice.Enter final AgentScope scope) {
+    rollbackActiveToCheckpoint();
+    if (scope != null) {
+      scope.close();
+    }
   }
 }

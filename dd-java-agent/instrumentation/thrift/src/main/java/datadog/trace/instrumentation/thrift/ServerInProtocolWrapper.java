@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.thrift;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.*;
 import org.slf4j.Logger;
@@ -42,8 +42,9 @@ public class ServerInProtocolWrapper extends TProtocolDecorator {
         AbstractContext context = CONTEXT_THREAD.get();
         context.setCreatedSpan(true);
         AgentSpan span = SERVER_DECORATOR.createSpan(header, context);
+        AgentScope agentScope = activateSpan(span);
+        context.setAgentScope(agentScope);
         CONTEXT_THREAD.set(context);
-        activateSpan(span);
       } catch (Throwable throwable) {
         logger.error("readFieldBegin exception", throwable);
         throw throwable;

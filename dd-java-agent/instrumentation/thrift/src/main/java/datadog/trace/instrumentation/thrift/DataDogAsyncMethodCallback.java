@@ -1,54 +1,50 @@
 package datadog.trace.instrumentation.thrift;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.instrumentation.thrift.ThriftClientDecorator.CLIENT_DECORATOR;
+import static datadog.trace.instrumentation.thrift.ThriftConstants.CLIENT_INJECT_THREAD;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
-
-import static datadog.trace.instrumentation.thrift.ThriftClientDecorator.CLIENT_DECORATOR;
-import static datadog.trace.instrumentation.thrift.ThriftConstants.CLIENT_INJECT_THREAD;
-
 public class DataDogAsyncMethodCallback<Object> implements AsyncMethodCallback<Object> {
   public static final Logger logger = LoggerFactory.getLogger(DataDogAsyncMethodCallback.class);
   final AsyncMethodCallback<Object> callback;
-  AgentScope scope;
+  private final AgentSpan span;
+  // private final AgentScope.Continuation continuation;
 
-  public DataDogAsyncMethodCallback(AsyncMethodCallback<Object> callback, AgentScope scope) {
+  public DataDogAsyncMethodCallback(AsyncMethodCallback<Object> callback, AgentSpan span) {
     this.callback = callback;
-    this.scope = scope;
-    logger.debug("init DataDogAsyncMethodCallback");
+    this.span = span;
+    // continuation = captureSpan(span);
   }
 
   @Override
   public void onComplete(final Object response) {
-    logger.debug("do onComplete");
-    if (!Optional.ofNullable(scope).isPresent()) {
-      return;
-    }
     try {
-      logger.debug("onComplete scope is not null,thread:" + Thread.currentThread().getName());
-      CLIENT_DECORATOR.onError(scope.span(), null);
-      CLIENT_DECORATOR.beforeFinish(scope.span());
+      if (span==null) {
+        return;
+      }
+      CLIENT_DECORATOR.onError(span, null);
+      CLIENT_DECORATOR.beforeFinish(span);
       CLIENT_INJECT_THREAD.remove();
-      scope.close();
-      scope.span().finish();
+      span.finish();
     } finally {
       callback.onComplete(response);
     }
+
   }
 
   @Override
   public void onError(final Exception exception) {
-    if (!Optional.ofNullable(scope).isPresent()) {
-      return;
-    }
     try {
-      CLIENT_DECORATOR.onError(scope.span(), exception);
-      CLIENT_DECORATOR.beforeFinish(scope.span());
-      scope.close();
-      scope.span().finish();
+      if (span==null) {
+        return;
+      }
+      CLIENT_DECORATOR.onError(span, exception);
+      CLIENT_DECORATOR.beforeFinish(span);
+      span.finish();
       CLIENT_INJECT_THREAD.remove();
     } finally {
       callback.onError(exception);
