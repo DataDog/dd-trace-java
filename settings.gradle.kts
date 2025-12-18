@@ -395,7 +395,7 @@ include(
   ":dd-java-agent:instrumentation:javax-xml-1.4",
   ":dd-java-agent:instrumentation:jboss:jboss-logmanager-1.1",
   ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3",
-  ":dd-java-agent:instrumentation:jdbc:scalikejdbc",
+  ":dd-java-agent:instrumentation:jdbc:scalikejdbc-3.5",
   ":dd-java-agent:instrumentation:jdbc",
   ":dd-java-agent:instrumentation:jedis:jedis-1.4",
   ":dd-java-agent:instrumentation:jedis:jedis-3.0",
