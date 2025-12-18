@@ -54,16 +54,18 @@ class InstrumentationNamingPlugin : Plugin<Project> {
               appendLine("    ${violation.message}")
               appendLine()
             }
-            appendLine("Naming rules:")
-            appendLine("  1. Module name must end with a version (e.g., '2.0', '3.1') OR one of: $suffixesStr")
-            appendLine("  2. Module name must include the parent directory name")
-            appendLine("     Example: 'couchbase/couchbase-2.0' ✓ (contains 'couchbase')")
-            appendLine()
-            appendLine("To exclude specific modules or customize suffixes, configure the plugin:")
-            appendLine("  instrumentationNaming {")
-            appendLine("    exclusions.set(listOf(\"module-name\"))")
-            appendLine("    suffixes.set(listOf(\"-common\", \"-stubs\"))")
-            appendLine("  }")
+            append("""
+              Naming rules:
+                1. Module name must end with a version (e.g., '2.0', '3.1') OR one of: $suffixesStr
+                2. Module name must include the parent directory name
+                   Example: 'couchbase/couchbase-2.0' ✓ (contains 'couchbase')
+
+              To exclude specific modules or customize suffixes, configure the plugin:
+                instrumentationNaming {
+                  exclusions.set(listOf("module-name"))
+                  suffixes.set(listOf("-common", "-stubs"))
+                }
+              """.trimIndent())
           }
           throw GradleException(errorMessage)
         } else {
