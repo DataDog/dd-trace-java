@@ -33,7 +33,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
 
       doLast {
         val instrumentationsDir = target.rootProject.file(extension.instrumentationsDir)
-        val exclusions = extension.exclusions.get().toSet()
+        val exclusions = extension.exclusions.get()
         val suffixes = extension.suffixes.get()
 
         if (!instrumentationsDir.exists() || !instrumentationsDir.isDirectory) {
@@ -62,8 +62,8 @@ class InstrumentationNamingPlugin : Plugin<Project> {
 
               To exclude specific modules or customize suffixes, configure the plugin:
                 instrumentationNaming {
-                  exclusions.set(listOf("module-name"))
-                  suffixes.set(listOf("-common", "-stubs"))
+                  exclusions.set(setOf("module-name"))
+                  suffixes.set(setOf("-common", "-stubs"))
                 }
               """.trimIndent())
           }
@@ -78,7 +78,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private fun validateInstrumentations(
     instrumentationsDir: File,
     exclusions: Set<String>,
-    suffixes: List<String>
+    suffixes: Set<String>
   ): List<NamingViolation> {
     val violations = mutableListOf<NamingViolation>()
 
@@ -123,7 +123,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     moduleName: String,
     parentName: String,
     relativePath: String,
-    suffixes: List<String>
+    suffixes: Set<String>
   ): List<NamingViolation> {
     // Rule 1: Module name must end with version pattern or one of the configured suffixes
     validateVersionOrSuffix(moduleName, relativePath, suffixes)?.let { return listOf(it) }
@@ -146,7 +146,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private fun validateLeafModuleName(
     moduleName: String,
     relativePath: String,
-    suffixes: List<String>
+    suffixes: Set<String>
   ): NamingViolation? {
     return validateVersionOrSuffix(moduleName, relativePath, suffixes)
   }
@@ -157,7 +157,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
   private fun validateVersionOrSuffix(
     moduleName: String,
     relativePath: String,
-    suffixes: List<String>
+    suffixes: Set<String>
   ): NamingViolation? {
     val endsWithSuffix = suffixes.any { moduleName.endsWith(it) }
     val endsWithVersion = versionPattern.containsMatchIn(moduleName)

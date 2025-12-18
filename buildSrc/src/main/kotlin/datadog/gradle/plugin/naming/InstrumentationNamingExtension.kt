@@ -1,7 +1,7 @@
 package datadog.gradle.plugin.naming
 
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 
 /**
  * Extension for configuring instrumentation naming convention checks.
@@ -10,8 +10,8 @@ import org.gradle.api.provider.Property
  * ```
  * instrumentationNaming {
  *   instrumentationsDir.set(file("dd-java-agent/instrumentation"))
- *   exclusions.set(listOf("http-url-connection", "sslsocket"))
- *   suffixes.set(listOf("-common", "-stubs""))
+ *   exclusions.set(setOf("http-url-connection", "sslsocket"))
+ *   suffixes.set(setOf("-common", "-stubs"))
  * }
  * ```
  */
@@ -23,21 +23,21 @@ abstract class InstrumentationNamingExtension {
   abstract val instrumentationsDir: Property<String>
 
   /**
-   * List of module names to exclude from naming convention checks.
+   * Set of module names to exclude from naming convention checks.
    * These modules will not be validated against the naming rules.
    */
-  abstract val exclusions: ListProperty<String>
+  abstract val exclusions: SetProperty<String>
 
   /**
-   * List of allowed suffixes for module names (e.g., "-common", "-stubs").
+   * Set of allowed suffixes for module names (e.g., "-common", "-stubs").
    * Module names must end with either one of these suffixes or a version number.
    * Defaults to ["-common", "-stubs"].
    */
-  abstract val suffixes: ListProperty<String>
+  abstract val suffixes: SetProperty<String>
 
   init {
     instrumentationsDir.convention("dd-java-agent/instrumentation")
-    exclusions.convention(emptyList())
-    suffixes.convention(listOf("-common", "-stubs"))
+    exclusions.convention(emptySet())
+    suffixes.convention(setOf("-common", "-stubs"))
   }
 }
