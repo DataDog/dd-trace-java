@@ -6,11 +6,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2')
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // First version with DropwizardTestSupport:
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
