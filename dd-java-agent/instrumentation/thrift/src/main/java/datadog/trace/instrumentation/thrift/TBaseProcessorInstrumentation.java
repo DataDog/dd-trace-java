@@ -64,7 +64,6 @@ public class TBaseProcessorInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.This final Object obj
         , @Advice.AllArguments final Object[] args) {
-      System.out.println("do ProcessAdvice onEnter");
       if (obj instanceof TBaseProcessor) {
         try {
           Object in = args[0];
@@ -81,14 +80,16 @@ public class TBaseProcessorInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Thrown final Throwable throwable) {
-      AgentSpan span  = activeSpan();
-      if (span!=null) {
-        System.out.println("finish ProcessAdvice span.");
-        SERVER_DECORATOR.onError(span, throwable);
-        SERVER_DECORATOR.beforeFinish(span);
-        span.finish();
-        CONTEXT_THREAD.remove();
+      AgentScope agentScope = CONTEXT_THREAD.get().getAgentScope();
+      if (agentScope == null) {
+        return;
       }
+      AgentSpan span = agentScope.span();
+      SERVER_DECORATOR.onError(span, throwable);
+      SERVER_DECORATOR.beforeFinish(span);
+      span.finish();
+      CONTEXT_THREAD.remove();
+      agentScope.close();
     }
   }
 }

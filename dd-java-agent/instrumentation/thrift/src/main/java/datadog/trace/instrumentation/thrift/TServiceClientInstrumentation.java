@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -16,6 +17,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TServiceClient;
+import java.util.Collections;
+import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
@@ -73,6 +76,12 @@ public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.apache.thrift.TServiceClient", AgentScope.class.getName());
+  }
+
   public static class SendBaseAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -81,6 +90,7 @@ public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
                                      @Advice.Argument(1) TBase tb) {
       AgentSpan span = CLIENT_DECORATOR.createSpan(methodName, tb);
       AgentScope agentScope = activateSpan(span);
+      InstrumentationContext.get(TServiceClient.class, AgentScope.class).put(tServiceClient, agentScope);
       return agentScope;
     }
 
@@ -103,10 +113,13 @@ public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
   public static class ReceiveBaseAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
+    public static void stopSpan(@Advice.This TServiceClient tServiceClient,
         @Advice.Thrown final Throwable throwable) {
-
-      AgentSpan span = activeSpan();
+      AgentScope scope = InstrumentationContext.get(TServiceClient.class, AgentScope.class).get(tServiceClient);
+      if(scope==null){
+        return;
+      }
+      AgentSpan span = scope.span();
       // AgentScope scope = activeScope();
       if (span==null){
         return;
@@ -115,6 +128,8 @@ public class TServiceClientInstrumentation extends InstrumenterModule.Tracing
       CLIENT_DECORATOR.beforeFinish(span);
       span.finish();
       CLIENT_INJECT_THREAD.remove();
+      scope.close();
+      InstrumentationContext.get(TServiceClient.class, AgentScope.class).remove(tServiceClient);
     }
   }
 }

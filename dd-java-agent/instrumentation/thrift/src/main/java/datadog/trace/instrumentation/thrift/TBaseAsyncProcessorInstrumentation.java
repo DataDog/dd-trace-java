@@ -68,7 +68,6 @@ public class TBaseAsyncProcessorInstrumentation extends InstrumenterModule.Traci
     public static AgentScope onEnter(@Advice.This final TBaseAsyncProcessor tBaseAsyncProcessor
         , @Advice.AllArguments final Object[] args) {
       try {
-        System.out.println("do AsyncProcessAdvice onEnter");
         TProtocol protocol = ((AbstractNonblockingServer.AsyncFrameBuffer) args[0]).getInputProtocol();
         ((ServerInProtocolWrapper) protocol).initial(new AsyncContext(tBaseAsyncProcessor.getProcessMapView()));
       }catch (Exception e){
@@ -79,14 +78,16 @@ public class TBaseAsyncProcessorInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Thrown final Throwable throwable) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        SERVER_DECORATOR.onError(span, throwable);
-        SERVER_DECORATOR.beforeFinish(span);
-
-        span.finish();
-        CONTEXT_THREAD.remove();
+      AgentScope scope = CONTEXT_THREAD.get().getAgentScope();
+      if (scope == null) {
+        return;
       }
+      AgentSpan span = scope.span();
+      SERVER_DECORATOR.onError(span, throwable);
+      SERVER_DECORATOR.beforeFinish(span);
+      span.finish();
+      scope.close();
+      CONTEXT_THREAD.remove();
     }
   }
 }

@@ -51,7 +51,7 @@ public class TAsyncMethodCallInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformation) {
-    transformation.applyAdvice(isConstructor(), packageName + ".AsyncMethodCallConstructorAdvice");
+    // transformation.applyAdvice(isConstructor(), packageName + ".AsyncMethodCallConstructorAdvice");
     transformation.applyAdvice(
         isMethod().and(isProtected()).and(named("prepareMethodCall")),
         packageName + ".AsyncMethodCallMethodAdvice");
