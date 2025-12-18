@@ -17,7 +17,7 @@ addTestSuiteExtendingForDir('redis4xForkedTest', 'redis4xTest', 'test')
 
 
 dependencies {
-  compileOnly project(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')
+  compileOnly project(':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs')
   compileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
 
   // only needed for the rx tests
