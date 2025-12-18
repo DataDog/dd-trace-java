@@ -54,16 +54,6 @@ public class GrizzlyBlockingHelper {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      Context context) {
-    return block(request, response, statusCode, bct, extraHeaders, null, context);
-  }
-
-  public static boolean block(
-      Request request,
-      Response response,
-      int statusCode,
-      BlockingContentType bct,
-      Map<String, String> extraHeaders,
       String securityResponseId,
       Context context) {
     if (GET_OUTPUT_STREAM == null) {

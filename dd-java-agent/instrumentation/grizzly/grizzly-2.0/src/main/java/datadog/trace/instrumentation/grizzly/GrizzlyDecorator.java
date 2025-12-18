@@ -103,6 +103,7 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
           statusCode,
           templateType,
           extraHeaders,
+          securityResponseId,
           agentSpan);
     }
   }

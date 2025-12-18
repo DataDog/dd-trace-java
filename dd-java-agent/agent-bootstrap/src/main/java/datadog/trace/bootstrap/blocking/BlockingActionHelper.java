@@ -12,6 +12,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -135,9 +136,9 @@ public class BlockingActionHelper {
     String replacementValue =
         (securityResponseId == null || securityResponseId.isEmpty()) ? "" : securityResponseId;
 
-    String templateString = new String(template, java.nio.charset.StandardCharsets.UTF_8);
+    String templateString = new String(template, StandardCharsets.UTF_8);
     String replacedTemplate = templateString.replace("[security_response_id]", replacementValue);
-    return replacedTemplate.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    return replacedTemplate.getBytes(StandardCharsets.UTF_8);
   }
 
   public static String getContentType(TemplateType type) {
