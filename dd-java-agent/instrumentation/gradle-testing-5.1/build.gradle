@@ -11,7 +11,3 @@ dependencies {
   compileOnly gradleApi()
   compileOnly project(":dd-java-agent:instrumentation:junit:junit-4.10")
 }
-
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
