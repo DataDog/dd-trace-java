@@ -21,7 +21,7 @@ import java.io.File
  * ```
  */
 class InstrumentationNamingPlugin : Plugin<Project> {
-  val versionPattern : Regex = Regex("""\d+\.\d+(\.\d+)?$""")
+  private val versionPattern : Regex = Regex("""\d+\.\d+(\.\d+)?$""")
 
   override fun apply(target: Project) {
     val extension = target.extensions.create(
