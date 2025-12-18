@@ -31,7 +31,7 @@ class InstrumentationNamingPlugin : Plugin<Project> {
       description = "Validates naming conventions for instrumentation modules"
 
       doLast {
-        val instrumentationsDir = target.rootProject.file(extension.instrumentationsDir.get())
+        val instrumentationsDir = target.rootProject.file(extension.instrumentationsDir)
         val exclusions = extension.exclusions.get().toSet()
         val suffixes = extension.suffixes.get()
 
