@@ -28,7 +28,3 @@ dependencies {
 tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
-
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}

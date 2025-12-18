@@ -44,10 +44,6 @@ tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
 }
 
-tasks.named("forbiddenApisMain", CheckForbiddenApis) {
-  it.failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'
