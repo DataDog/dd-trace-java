@@ -197,7 +197,20 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - |
+      # Try agent, curl it locally
+      # Maven url https://repo1.maven.org/maven2/io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar
+      # MagicMirror url https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current//io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar
+      curl --fail \
+        --silent \
+        --show-error \
+        --location \
+        --output \
+        /tmp/gradle-cgroup2-patcher.jar \
+        ${MAVEN_REPOSITORY_PROXY}/io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar \
+        || echo "No local agent found"
+      file /tmp/gradle-cgroup2-patcher.jar
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -javaagent:/tmp/gradle-cgroup2-patcher.jar -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
