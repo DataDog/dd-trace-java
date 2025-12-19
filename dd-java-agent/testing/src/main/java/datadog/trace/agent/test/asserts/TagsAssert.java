@@ -14,16 +14,66 @@ import java.net.URI;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import groovy.lang.Closure;
+import groovy.lang.GroovyObject;
+import groovy.lang.MetaClass;
+import groovy.lang.GroovySystem;
+import groovy.lang.MissingMethodException;
 
-public class TagsAssert {
+public class TagsAssert implements GroovyObject {
+  private static final Pattern QUEST_MARK_PATTERN = Pattern.compile("\\?");
+  private static final Pattern AMPERSAND_PATTERN = Pattern.compile("&");
+
 
   private final long spanParentId;
   private final Map<String, Object> tags;
   private final Set<String> assertedTags = new TreeSet<>();
+  private transient MetaClass metaClass;
 
   private TagsAssert(DDSpan span) {
     this.spanParentId = span.getParentId();
     this.tags = span.getTags();
+  }
+
+  // --- GroovyObject implementation to enable Groovy-style DSL delegation ---
+  @Override
+  public MetaClass getMetaClass() {
+    if (metaClass == null) {
+      metaClass = GroovySystem.getMetaClassRegistry().getMetaClass(getClass());
+    }
+    return metaClass;
+  }
+
+  @Override
+  public void setMetaClass(MetaClass metaClass) {
+    this.metaClass = metaClass;
+  }
+
+  @Override
+  public Object invokeMethod(String name, Object args) {
+    try {
+      // Try normal dispatch first
+      return getMetaClass().invokeMethod(this, name, args);
+    } catch (MissingMethodException e) {
+      // Fallback to our dynamic tag assertion handler
+      if (args instanceof Object[]) {
+        methodMissing(name, (Object[]) args);
+        return null;
+      } else {
+        methodMissing(name, new Object[] {args});
+        return null;
+      }
+    }
+  }
+
+  @Override
+  public Object getProperty(String property) {
+    return getMetaClass().getProperty(this, property);
+  }
+
+  @Override
+  public void setProperty(String property, Object newValue) {
+    getMetaClass().setProperty(this, property, newValue);
   }
 
   public static void assertTags(
@@ -41,6 +91,24 @@ public class TagsAssert {
     assertTags(span, spec, true);
   }
 
+  // Groovy-friendly overloads to support the tags { } DSL with methodMissing delegation
+  public static void assertTags(
+      DDSpan span, groovy.lang.Closure<?> spec, boolean checkAllTags) {
+
+    TagsAssert asserter = new TagsAssert(span);
+    spec.setDelegate(asserter);
+    spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+    spec.call(asserter);
+    if (checkAllTags) {
+      asserter.assertTagsAllVerified();
+    }
+  }
+
+  public static void assertTags(DDSpan span, groovy.lang.Closure<?> spec) {
+
+    assertTags(span, spec, true);
+  }
+
   /**
    * Check that, if the peer.service tag source has been set, it matches the provided one.
    *
@@ -49,7 +117,7 @@ public class TagsAssert {
   public void peerServiceFrom(String sourceTag) {
     tag(
         DDTags.PEER_SERVICE_SOURCE,
-        value ->
+        (Predicate<Object>)value ->
             SpanNaming.instance().namingSchema().peerService().supports()
                 ? Objects.equals(value, sourceTag)
                 : value == null);
@@ -73,7 +141,7 @@ public class TagsAssert {
   }
 
   public void isPresent(String name) {
-    tag(name, Objects::nonNull);
+    tag(name, (Predicate<Object>)Objects::nonNull);
   }
 
   public void arePresent(Collection<String> tagNames) {
@@ -83,7 +151,7 @@ public class TagsAssert {
   }
 
   public void isNotPresent(String name) {
-    tag(name, Objects::isNull);
+    tag(name, (Predicate<Object>)Objects::isNull);
   }
 
   public void areNotPresent(Collection<String> tagNames) {
@@ -96,6 +164,9 @@ public class TagsAssert {
     defaultTags(false, true);
   }
 
+  public void defaultTags(boolean distributedRootSpan) {
+    defaultTags(distributedRootSpan, true);
+  }
   /**
    * @param distributedRootSpan set to true if current span has a parent span but still considered
    *     'root' for current service
@@ -262,10 +333,10 @@ public class TagsAssert {
     errorTags(errorType, null);
   }
 
-  public void errorTags(Class<? extends Throwable> errorType, String message) {
+  public void errorTags(Class<? extends Throwable> errorType, Object message) {
     tag(
         "error.type",
-        value -> {
+        (Predicate<Object>) value -> {
           if (value == null) return false;
           String typeName = value.toString();
           if (errorType.getName().equals(typeName)) {
@@ -289,9 +360,9 @@ public class TagsAssert {
   public void urlTags(String url, List<String> queryParams) {
     tag(
         "http.url",
-        value -> {
+        (Predicate<Object>)value -> {
           try {
-            String raw = value.toString().split("\\?", 2)[0];
+            String raw = QUEST_MARK_PATTERN.split(value.toString(), 2)[0];
             URI uri = new URI(raw);
             String scheme = uri.getScheme();
             String host = uri.getHost();
@@ -306,11 +377,11 @@ public class TagsAssert {
 
     tag(
         "http.query.string",
-        value -> {
+        (Predicate<Object>)value -> {
           String paramString = value == null ? null : value.toString();
           Set<String> spanQueryParams = new HashSet<>();
           if (paramString != null && !paramString.isEmpty()) {
-            String[] pairs = paramString.split("&");
+            String[] pairs = AMPERSAND_PATTERN.split(paramString);
             for (String pair : pairs) {
               int idx = pair.indexOf('=');
               if (idx > 0) {
@@ -333,60 +404,92 @@ public class TagsAssert {
         });
   }
 
-  public void tag(String name, Pattern expected) {
+  public void tag(String name, Object expected) {
     if (expected == null) {
       return;
     }
     assertedTags.add(name);
     Object value = tag(name);
-    if (value == null || !expected.matcher(value.toString()).find()) {
-      throw new AssertionError(
-          "Tag \"" + name + "\": \"" + value + "\" does not match pattern \"" + expected + "\"");
-    }
-  }
 
-  public void tag(String name, Class<?> expected) {
-    if (expected == null) {
-      return;
-    }
-    assertedTags.add(name);
-    Object value = tag(name);
-    if (!expected.isInstance(value)) {
-      throw new AssertionError(
-          "Tag \""
-              + name
-              + "\": instance check "
-              + expected.getName()
-              + " failed for \""
-              + value
-              + "\" of class \""
-              + (value == null ? "null" : value.getClass())
-              + "\"");
-    }
-  }
-
-  public void tag(String name, Predicate<Object> expected) {
-    if (expected == null) {
-      return;
-    }
-    assertedTags.add(name);
-    Object value = tag(name);
-    if (!expected.test(value)) {
-      throw new AssertionError(
-          "Tag \"" + name + "\": predicate " + expected + " failed with \"" + value + "\"");
-    }
-  }
-
-  public void tag(String name, CharSequence expected) {
-    if (expected == null) {
-      return;
-    }
-    assertedTags.add(name);
-    Object value = tag(name);
-    String expectedStr = expected.toString();
-    if (value == null || !expectedStr.equals(value.toString())) {
-      throw new AssertionError(
-          "Tag \"" + name + "\": \"" + value + "\" != \"" + expectedStr + "\"");
+    if (expected instanceof Pattern) {
+      Pattern pattern = (Pattern) expected;
+      if (value == null || !pattern.matcher(value.toString()).find()) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": \""
+                + value
+                + "\" does not match pattern \""
+                + pattern
+                + "\"");
+      }
+    } else if (expected instanceof Class) {
+      Class<?> type = (Class<?>) expected;
+      if (value == null || !type.isInstance(value)) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": instance check "
+                + type
+                + " failed for \""
+                + value
+                + "\" of class \""
+                + (value == null ? "null" : value.getClass())
+                + "\"");
+      }
+    } else if (expected instanceof Predicate) {
+      Predicate<Object> predicate = (Predicate<Object>) expected;
+      if (!predicate.test(value)) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": predicate "
+                + expected
+                + " failed with \""
+                + value
+                + "\"");
+      }
+    } else if (expected instanceof groovy.lang.Closure) {
+      // Support Groovy closures passed as expected values (e.g., in extraTags)
+      groovy.lang.Closure<?> cl = (groovy.lang.Closure<?>) expected;
+      java.util.function.Predicate<Object> predicate =
+          (v) -> {
+            Object res = cl.call(v);
+            return res instanceof Boolean ? (Boolean) res : res != null;
+          };
+      if (!predicate.test(value)) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": closure predicate "
+                + expected
+                + " failed with \""
+                + value
+                + "\"");
+      }
+    } else if (expected instanceof CharSequence) {
+      String expectedStr = expected.toString();
+      if (value == null || !expectedStr.equals(value.toString())) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": \""
+                + value
+                + "\" != \""
+                + expectedStr
+                + "\"");
+      }
+    } else {
+      if (!Objects.equals(value, expected)) {
+        throw new AssertionError(
+            "Tag \""
+                + name
+                + "\": \""
+                + value
+                + "\" != \""
+                + expected
+                + "\"");
+      }
     }
   }
 
@@ -398,23 +501,49 @@ public class TagsAssert {
     return t;
   }
 
-  /*
-    public void methodMissing(String name, Object[] args) {
-      if (args == null || args.length == 0) {
-        throw new IllegalArgumentException(
-            "No value provided for dynamic tag assertion " + name);
-      }
-      tag(name, args[0]);
+  // Support Groovy-style dynamic method calls inside the tags { } DSL, e.g.
+  //   "$Tags.COMPONENT" "finatra"
+  // which translates to a call to methodMissing("component", ["finatra"]).
+  // Enabling this method ensures unqualified tag names are handled by the
+  // delegate (TagsAssert) instead of being resolved on the test class.
+  public void methodMissing(String name, Object[] args) {
+    if (args == null || args.length == 0) {
+      throw new IllegalArgumentException(
+          "No value provided for dynamic tag assertion " + name);
     }
-  */
+
+    Object arg = args[0];
+    if (arg instanceof java.util.regex.Pattern) {
+      tag(name, (java.util.regex.Pattern) arg);
+      return;
+    }
+    if (arg instanceof Class<?>) {
+      tag(name, (Class<?>) arg);
+      return;
+    }
+    if (arg instanceof java.util.function.Predicate) {
+      // noinspection unchecked
+      tag(name, (java.util.function.Predicate<Object>) arg);
+      return;
+    }
+    if (arg instanceof groovy.lang.Closure) {
+      groovy.lang.Closure<?> cl = (groovy.lang.Closure<?>) arg;
+      tag(
+          name,
+          (java.util.function.Predicate<Object>)
+              (value) -> {
+                Object res = cl.call(value);
+                return res instanceof Boolean ? (Boolean) res : res != null;
+              });
+      return;
+    }
+    // Fallback to string comparison
+    tag(name, arg == null ? null : arg.toString());
+  }
 
   public boolean addTags(Map<String, Serializable> extraTags) {
     for (Map.Entry<String, Serializable> e : extraTags.entrySet()) {
-      if (!(e.getValue() instanceof CharSequence)) {
-        throw new AssertionError(
-            "Unexpected value for tag \"" + e.getKey() + "\" Type: " + e.getValue().getClass());
-      }
-      tag(e.getKey(), (CharSequence) e.getValue());
+      tag(e.getKey(), e.getValue());
     }
     return true;
   }

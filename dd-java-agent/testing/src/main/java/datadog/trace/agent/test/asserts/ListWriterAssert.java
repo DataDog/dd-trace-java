@@ -35,12 +35,47 @@ public class ListWriterAssert {
     assertTraces(writer, expectedSize, false, SORT_TRACES_BY_START, spec);
   }
 
+  // Groovy-friendly overload: allow passing a Closure and set delegate to ListWriterAssert
+  public static void assertTraces(
+      ListWriter writer, int expectedSize, groovy.lang.Closure<?> spec) {
+    assertTraces(
+        writer,
+        expectedSize,
+        false,
+        SORT_TRACES_BY_START,
+        (Consumer<ListWriterAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
+  }
+
   public static void assertTraces(
       ListWriter writer,
       int expectedSize,
       boolean ignoreAdditionalTraces,
       Consumer<ListWriterAssert> spec) {
     assertTraces(writer, expectedSize, ignoreAdditionalTraces, SORT_TRACES_BY_START, spec);
+  }
+
+  // Groovy-friendly overload with ignoreAdditionalTraces
+  public static void assertTraces(
+      ListWriter writer,
+      int expectedSize,
+      boolean ignoreAdditionalTraces,
+      groovy.lang.Closure<?> spec) {
+    assertTraces(
+        writer,
+        expectedSize,
+        ignoreAdditionalTraces,
+        SORT_TRACES_BY_START,
+        (Consumer<ListWriterAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
   }
 
   public static void assertTraces(
@@ -113,6 +148,26 @@ public class ListWriterAssert {
     }
   }
 
+  // Groovy-friendly overload with explicit trace sorter
+  public static void assertTraces(
+      ListWriter writer,
+      int expectedSize,
+      boolean ignoreAdditionalTraces,
+      Comparator<List<DDSpan>> traceSorter,
+      groovy.lang.Closure<?> spec) {
+    assertTraces(
+        writer,
+        expectedSize,
+        ignoreAdditionalTraces,
+        traceSorter,
+        (Consumer<ListWriterAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
+  }
+
   public void sortSpansByStart() {
     this.traces =
         traces.stream()
@@ -133,8 +188,34 @@ public class ListWriterAssert {
     trace(expectedSize, false, spec);
   }
 
+  // Groovy-friendly overload: allow passing a Closure and set delegate to TraceAssert
+  public void trace(int expectedSize, groovy.lang.Closure<?> spec) {
+    trace(
+        expectedSize,
+        false,
+        (Consumer<TraceAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
+  }
+
   public void trace(int expectedSize, boolean sortByName, Consumer<TraceAssert> spec) {
     trace(expectedSize, sortByName ? TraceAssert.NAME_COMPARATOR : null, spec);
+  }
+
+  // Groovy-friendly overload with sortByName flag
+  public void trace(int expectedSize, boolean sortByName, groovy.lang.Closure<?> spec) {
+    trace(
+        expectedSize,
+        sortByName ? TraceAssert.NAME_COMPARATOR : null,
+        (Consumer<TraceAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
   }
 
   public void trace(int expectedSize, Comparator<DDSpan> sorter, Consumer<TraceAssert> spec) {
@@ -147,6 +228,20 @@ public class ListWriterAssert {
     }
     assertedIndexes.add(index);
     assertTrace(trace(index), expectedSize, sorter, spec);
+  }
+
+  // Groovy-friendly overload with explicit sorter
+  public void trace(
+      int expectedSize, Comparator<DDSpan> sorter, groovy.lang.Closure<?> spec) {
+    trace(
+        expectedSize,
+        sorter,
+        (Consumer<TraceAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
   }
 
   public void assertTracesAllVerified() {

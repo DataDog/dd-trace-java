@@ -64,6 +64,17 @@ public class TraceAssert {
     span(nextSpanId(), spec);
   }
 
+  // Groovy-friendly overload: allow a Closure and set its delegate to SpanAssert
+  public void span(groovy.lang.Closure<?> spec) {
+    span(
+        (Consumer<SpanAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
+  }
+
   public void span(int index, Consumer<SpanAssert> spec) {
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index);
@@ -78,6 +89,18 @@ public class TraceAssert {
     } else {
       assertSpan(trace.get(index), spec);
     }
+  }
+
+  // Groovy-friendly overload with explicit index
+  public void span(int index, groovy.lang.Closure<?> spec) {
+    span(
+        index,
+        (Consumer<SpanAssert>)
+            (asserter) -> {
+              spec.setDelegate(asserter);
+              spec.setResolveStrategy(groovy.lang.Closure.DELEGATE_FIRST);
+              spec.call(asserter);
+            });
   }
 
   public void assertSpansAllVerified() {

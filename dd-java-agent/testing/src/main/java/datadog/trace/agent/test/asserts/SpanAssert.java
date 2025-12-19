@@ -79,6 +79,15 @@ public class SpanAssert {
     checked.put("operationName", true);
   }
 
+  // Groovy-friendly overload: allow calling operationName { it -> boolean }
+  public void operationName(groovy.lang.Closure<?> eval) {
+    operationNameMatches(
+        (name) -> {
+          Object res = eval.call(name);
+          return res instanceof Boolean ? (Boolean) res : res != null;
+        });
+  }
+
   public void operationNameContains(String... operationNameParts) {
     assertSpanNameContains(span.getOperationName().toString(), operationNameParts);
     checked.put("operationName", true);
@@ -106,6 +115,15 @@ public class SpanAssert {
       throw new AssertionError("resourceName predicate did not match: " + res);
     }
     checked.put("resourceName", true);
+  }
+
+  // Groovy-friendly overload: allow calling resourceName { it -> boolean }
+  public void resourceName(groovy.lang.Closure<?> eval) {
+    resourceNameMatches(
+        (name) -> {
+          Object res = eval.call(name);
+          return res instanceof Boolean ? (Boolean) res : res != null;
+        });
   }
 
   public void resourceNameContains(String... resourceNameParts) {
@@ -246,6 +264,15 @@ public class SpanAssert {
 
   public void tags(boolean checkAllTags, Consumer<TagsAssert> spec) {
     assertTags(span, spec, checkAllTags);
+  }
+
+  // Groovy-friendly overloads: allow a Closure and set its delegate to TagsAssert
+  public void tags(groovy.lang.Closure<?> spec) {
+    TagsAssert.assertTags(span, spec);
+  }
+
+  public void tags(boolean checkAllTags, groovy.lang.Closure<?> spec) {
+    TagsAssert.assertTags(span, spec, checkAllTags);
   }
 
   public void ignoreSpanLinks() {
