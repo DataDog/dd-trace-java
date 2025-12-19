@@ -90,6 +90,8 @@ public class ProductState {
     }
 
     // Step 3: Remove obsolete configurations (for all products)
+    // For ASM_DD, this is critical: removes MUST happen before applies to prevent
+    // duplicate rule warnings from the ddwaf rule parser and causing memory spikes.
     List<ParsedConfigKey> keysToRemove =
         cachedTargetFiles.keySet().stream()
             .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
@@ -101,6 +103,9 @@ public class ProductState {
     }
 
     // Step 4: For ASM_DD, apply changes AFTER removes
+    // TODO: This is a temporary solution. The proper fix requires better synchronization
+    // between remove and add/update operations. This should be discussed
+    // with the guild to determine the best long-term design approach.
     if (product == Product.ASM_DD) {
       for (ParsedConfigKey configKey : changedKeys) {
         try {
