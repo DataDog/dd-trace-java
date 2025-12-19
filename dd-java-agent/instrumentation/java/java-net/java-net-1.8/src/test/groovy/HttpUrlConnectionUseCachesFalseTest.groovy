@@ -1,7 +1,7 @@
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.Timeout
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
 class HttpUrlConnectionUseCachesFalseTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {

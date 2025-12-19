@@ -1,12 +1,12 @@
-import datadog.trace.agent.test.naming.VersionedNamingTestBase
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.DatadogClassLoader
-import datadog.trace.bootstrap.instrumentation.api.Tags
-
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
+import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.DatadogClassLoader
+import datadog.trace.bootstrap.instrumentation.api.Tags
 
 abstract class UrlConnectionTest extends VersionedNamingTestBase {
 

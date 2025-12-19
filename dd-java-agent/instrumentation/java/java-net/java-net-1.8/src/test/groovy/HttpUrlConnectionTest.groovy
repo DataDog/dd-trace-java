@@ -1,3 +1,7 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
@@ -7,10 +11,6 @@ import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Timeout
 import sun.net.www.protocol.https.HttpsURLConnectionImpl
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
 abstract class HttpUrlConnectionTest extends HttpClientTest {

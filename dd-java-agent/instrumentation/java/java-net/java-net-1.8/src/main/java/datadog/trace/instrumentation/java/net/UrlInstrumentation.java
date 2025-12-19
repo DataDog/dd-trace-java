@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.http_url_connection;
+package datadog.trace.instrumentation.java.net;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
