@@ -74,11 +74,7 @@ class ProductStateSpecification extends Specification {
     changed
 
     and: 'operations happen in order: remove config2 FIRST, then apply config1, then commit'
-    listener.operations == [
-      'remove:org/ASM_DD/config2/foo',
-      'accept:org/ASM_DD/config1/foo',
-      'commit'
-    ]
+    listener.operations == ['remove:org/ASM_DD/config2/foo', 'accept:org/ASM_DD/config1/foo', 'commit']
   }
 
   void 'test ASM_DD with multiple new configs removes before applies all'() {
@@ -222,10 +218,7 @@ class ProductStateSpecification extends Specification {
     productListener.operations.findAll { it.startsWith('accept:') }.size() == 2
 
     and: 'configListener only received config1'
-    configListener.operations == [
-      'accept:org/ASM_DATA/config1/foo',
-      'commit'
-    ]
+    configListener.operations == ['accept:org/ASM_DATA/config1/foo', 'commit']
   }
 
   void 'test remove operations cleanup cached data'() {
