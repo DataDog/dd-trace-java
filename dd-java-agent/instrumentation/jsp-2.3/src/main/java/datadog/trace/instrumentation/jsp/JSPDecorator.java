@@ -67,8 +67,10 @@ public class JSPDecorator extends BaseDecorator {
     try {
       // note: getRequestURL is supposed to always be nonnull - however servlet wrapping can happen
       // and we never know if ever this can happen
-      span.setTag(
-          "jsp.requestURL", (new URI(req.getRequestURL().toString())).normalize().toString());
+      final StringBuffer requestURL = req.getRequestURL();
+      if (requestURL != null && requestURL.length() > 0) {
+        span.setTag("jsp.requestURL", (new URI(requestURL.toString())).normalize().toString());
+      }
     } catch (final Throwable ignored) {
       // logging here will be too verbose
     }
