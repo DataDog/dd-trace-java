@@ -225,6 +225,14 @@
         "aliases": []
       }
     ],
+    "DD_APP_LOGS_COLLECTION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING": [
       {
         "version": "C",

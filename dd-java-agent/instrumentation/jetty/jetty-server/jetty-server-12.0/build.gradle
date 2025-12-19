@@ -44,10 +44,6 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
   }
 }
 
-tasks.named("forbiddenApisMain_java17") {
-  failOnMissingClasses = false
-}
-
 tasks.withType(GroovyCompile).configureEach {
   configureCompiler(it, 17)
 }
