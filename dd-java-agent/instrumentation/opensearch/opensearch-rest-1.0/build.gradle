@@ -15,7 +15,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.opensearch.client', name: 'opensearch-rest-client', version: '1.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:opensearch')
+  implementation project(':dd-java-agent:instrumentation:opensearch:opensearch-common')
 
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0')
