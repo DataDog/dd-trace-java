@@ -74,8 +74,8 @@ public class CompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponse(
-                  response, span, CompletionDecorator.DECORATE::withCompletion, DECORATE::onError);
+              HttpResponseWrapper.wrap(
+                  response, span, CompletionDecorator.DECORATE::withCompletion);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -109,8 +109,8 @@ public class CompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponseStream(
-                  response, span, CompletionDecorator.DECORATE::withCompletions, DECORATE::onError);
+              HttpStreamResponseWrapper.wrap(
+                  response, span, CompletionDecorator.DECORATE::withCompletions);
         } else {
           span.finish();
         }

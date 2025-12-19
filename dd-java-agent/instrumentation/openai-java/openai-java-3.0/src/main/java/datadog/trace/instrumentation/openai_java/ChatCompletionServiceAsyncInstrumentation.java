@@ -69,8 +69,8 @@ public class ChatCompletionServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              HttpResponseWrappers.wrapFutureHttpResponse(
-                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletion, DECORATE::onError);
+              HttpResponseWrapper.wrapFuture(
+                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
         } else {
           span.finish();
         }
@@ -103,8 +103,8 @@ public class ChatCompletionServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              HttpResponseWrappers.wrapFutureHttpResponseStream(
-                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks, DECORATE::onError);
+              HttpStreamResponseWrapper.wrapFuture(
+                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
         } else {
           span.finish();
         }

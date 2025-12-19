@@ -65,8 +65,8 @@ public class ResponseServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              HttpResponseWrappers.wrapFutureHttpResponse(
-                  future, span, ResponseDecorator.DECORATE::withResponse, DECORATE::onError);
+              HttpResponseWrapper.wrapFuture(
+                  future, span, ResponseDecorator.DECORATE::withResponse);
         } else {
           span.finish();
         }
@@ -100,8 +100,8 @@ public class ResponseServiceAsyncInstrumentation
         }
         if (future != null) {
           future =
-              HttpResponseWrappers.wrapFutureHttpResponseStream(
-                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents, DECORATE::onError);
+              HttpStreamResponseWrapper.wrapFuture(
+                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
         } else {
           span.finish();
         }

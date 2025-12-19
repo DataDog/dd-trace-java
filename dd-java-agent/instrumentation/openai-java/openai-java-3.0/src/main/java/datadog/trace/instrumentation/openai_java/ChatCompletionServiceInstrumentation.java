@@ -68,13 +68,13 @@ public class ChatCompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponse(
-                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletion, DECORATE::onError); // TODO withChatCompletion may not be called if parsing failed, or never called b/o it's lazy
+              HttpResponseWrapper.wrap(
+                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
         }
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
-        span.finish(); // TODO so we finish here but decorate withChatCompletion later? should move
+        span.finish();
       }
     }
   }
@@ -103,12 +103,12 @@ public class ChatCompletionServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponseStream(
-                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks, DECORATE::onError);
+              HttpStreamResponseWrapper.wrap(
+                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
         } else {
+          DECORATE.beforeFinish(span);
           span.finish();
         }
-        DECORATE.beforeFinish(span);
       } finally {
         scope.close();
       }

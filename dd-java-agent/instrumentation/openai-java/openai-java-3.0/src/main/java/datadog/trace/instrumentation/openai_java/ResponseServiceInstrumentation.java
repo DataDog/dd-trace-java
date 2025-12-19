@@ -67,8 +67,7 @@ public class ResponseServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponse(
-                  response, span, ResponseDecorator.DECORATE::withResponse, DECORATE::onError);
+              HttpResponseWrapper.wrap(response, span, ResponseDecorator.DECORATE::withResponse);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -102,8 +101,8 @@ public class ResponseServiceInstrumentation
         }
         if (response != null) {
           response =
-              HttpResponseWrappers.wrapHttpResponseStream(
-                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents, DECORATE::onError);
+              HttpStreamResponseWrapper.wrap(
+                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
         } else {
           span.finish();
         }

@@ -17,11 +17,9 @@ public class EmbeddingModule extends InstrumenterModule.Tracing {
     return new String[] {
       packageName + ".EmbeddingDecorator",
       packageName + ".OpenAiDecorator",
-      packageName + ".HttpResponseWrappers",
-      packageName + ".HttpResponseWrappers$DDHttpResponseFor",
-      packageName + ".HttpResponseWrappers$1",
-      packageName + ".HttpResponseWrappers$2",
-      packageName + ".HttpResponseWrappers$2$1"
+      packageName + ".HttpResponseWrapper",
+      packageName + ".HttpStreamResponseWrapper",
+      packageName + ".HttpStreamResponseStreamWrapper",
     };
   }
 
