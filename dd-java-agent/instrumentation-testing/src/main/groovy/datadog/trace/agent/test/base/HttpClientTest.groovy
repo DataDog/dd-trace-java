@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -69,7 +70,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       }
       prefix("redirect") {
         handleDistributedRequest()
-        redirect(server.address.resolve("/success").toURL().toString())
+        redirect(server.address.resolve(request.getHeader('Location') ?: "/success").toURL().toString())
       }
       prefix("another-redirect") {
         handleDistributedRequest()
@@ -95,23 +96,21 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         handleDistributedRequest()
         String msg = "Hello."
         response.status(200)
-          .addHeader('x-datadog-test-response-header', 'baz')
-          .send(msg)
+        .addHeader('x-datadog-test-response-header', 'baz')
+        .send(msg)
       }
       prefix("/timeout") {
         Thread.sleep(10_000)
         throw new IllegalStateException("Should never happen")
       }
       prefix("/json") {
-        if (request.getContentType() != 'application/json') {
-          response.status(400).send('Bad content type')
-        } else {
-          response
-            .status(200)
-            .addHeader('Content-Type', 'application/json')
-            .addHeader('X-AppSec-Test', 'true')
-            .sendWithType('application/json', request.body)
-        }
+        // echo if input is json
+        final responseBody = request.getContentType() == 'application/json' ? request.body : '{"goodbye": "world!"}'.bytes
+        response
+        .status(200)
+        .addHeader('Content-Type', 'application/json')
+        .addHeader('X-AppSec-Test', 'true')
+        .sendWithType('application/json', responseBody)
       }
     }
   }
@@ -146,19 +145,19 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   def setupSpec() {
     List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
     proxySelector = new ProxySelector() {
-        @Override
-        List<Proxy> select(URI uri) {
-          if (uri.fragment == "proxy") {
-            return proxyList
-          }
-          return getDefault().select(uri)
+      @Override
+      List<Proxy> select(URI uri) {
+        if (uri.fragment == "proxy") {
+          return proxyList
         }
-
-        @Override
-        void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-          getDefault().connectFailed(uri, sa, ioe)
-        }
+        return getDefault().select(uri)
       }
+
+      @Override
+      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+        getDefault().connectFailed(uri, sa, ioe)
+      }
+    }
 
     // Register the Instrumentation Gateway callbacks
     def ss = get().getSubscriptionService(RequestContextSlot.APPSEC)
@@ -910,16 +909,9 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
   void 'test appsec client request analysis'() {
     given:
     final url = server.address.resolve(endpoint)
-    final tags = [
-      'downstream.request.url': url.toString(),
-      'downstream.request.method': method,
-      'downstream.request.body': body,
-      'downstream.response.status': 200,
-      'downstream.response.body': body,
-    ]
 
     when:
-    final status = runUnderAppSecTrace {
+    def (ctx, status) = runUnderAppSecTrace {
       doRequest(method, url, ['Content-Type': contentType] + headers, body) {
         InputStream response ->
         assert response.text == body
@@ -928,23 +920,64 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     then:
     status == 200
-    TEST_WRITER.waitForTraces(1)
-    final span = TEST_WRITER.get(0).find {
-      it.spanType == 'http'
-    }
-    tags.each {
-      assert span.getTag(it.key) == it.value
-    }
-    final requestHeaders = new JsonSlurper().parseText(span.getTag("downstream.request.headers") as String) as Map<String, List<String>>
-    final responseHeaders = new JsonSlurper().parseText(span.getTag("downstream.response.headers") as String) as Map<String, List<String>>
+    final request = ctx.requests.first()
+    request.method == method
+    request.url == url.toString()
+    request.body.bytes == body.bytes
     headers.each {
-      assert requestHeaders[it.key] == [it.value]
-      assert responseHeaders[it.key] == [it.value]
+      assert request.headers[it.key] == [it.value]
+    }
+
+    final response = ctx.responses.first()
+    response.status == 200
+    response.body.bytes == body.bytes
+    headers.each {
+      assert response.headers[it.key] == [it.value]
     }
 
     where:
     endpoint | method | contentType        | headers                   | body
     '/json'  | 'POST' | 'application/json' | ['X-AppSec-Test': 'true'] | '{"hello": "world!" }'
+  }
+
+  @IgnoreIf({
+    !instance.testAppSecClientRedirect()
+  })
+  void 'test appsec client redirect analysis'() {
+    given:
+    final url = server.address.resolve(endpoint)
+
+    when:
+    def (ctx, status) = runUnderAppSecTrace {
+      doRequest(method, url, ['Content-Type': contentType] + headers, requestBody)
+    }
+
+    then:
+    status == 200
+
+    def (initialRequest, redirectRequest) = ctx.requests
+    initialRequest.method == method
+    initialRequest.url == url.toString()
+    initialRequest.body.bytes == requestBody.bytes
+    headers.each {
+      assert initialRequest.headers[it.key] == [it.value]
+    }
+
+    redirectRequest.method == 'GET'
+    redirectRequest.url.toString().endsWith('/json')
+    redirectRequest.body == null
+
+    def (redirectResponse, finalResponse) = ctx.responses
+    redirectResponse.status == 302
+    redirectResponse.body == null
+    redirectResponse.headers['Location'][0].endsWith('/json')
+
+    finalResponse.status == 200
+    finalResponse.body.bytes == responseBody.bytes
+
+    where:
+    endpoint    | method | contentType        | headers                                        | requestBody            | responseBody
+    '/redirect' | 'POST' | 'application/json' | ['X-AppSec-Test': 'true', 'Location': '/json'] | '{"hello": "world!" }' | '{"goodbye": "world!"}'
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
@@ -1070,11 +1103,16 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     false
   }
 
-  protected <E> E runUnderAppSecTrace(Closure<E> cl) {
-    final ddctx = new TagContext().withRequestContextDataAppSec(new IGCallbacks.Context())
+  boolean testAppSecClientRedirect() {
+    false
+  }
+
+  protected <E> Tuple2<IGCallbacks.Context, E> runUnderAppSecTrace(Closure<E> cl) {
+    final ctx = new IGCallbacks.Context()
+    final ddctx = new TagContext().withRequestContextDataAppSec(ctx)
     final span = TEST_TRACER.startSpan("test", "test-appsec-span", ddctx)
     try {
-      return AgentTracer.activateSpan(span).withCloseable(cl)
+      return Tuple.tuple(ctx, AgentTracer.activateSpan(span).withCloseable(cl))
     } finally {
       span.finish()
     }
@@ -1084,6 +1122,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     static class Context {
       boolean hasAppSecData
+      List<HttpClientRequest> requests = []
+      List<HttpClientResponse> responses = []
     }
 
     final BiFunction<RequestContext, Long, Flow<Boolean>> httpClientBodySamplingCb = {
@@ -1093,16 +1133,11 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb = {
       RequestContext rqCtxt, HttpClientRequest req ->
-      if (req.headers?.containsKey('X-AppSec-Test')) {
-        final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
-        if (context != null) {
-          context.hasAppSecData = true
-          activeSpan()
-          .setTag('downstream.request.url', req.url)
-          .setTag('downstream.request.method', req.method)
-          .setTag('downstream.request.headers', JsonOutput.toJson(req.headers))
-          .setTag('downstream.request.body', req.body?.text)
-        }
+      final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
+      final boolean isAppSec = req.headers?.containsKey('X-AppSec-Test')
+      if (isAppSec || context?.hasAppSecData) {
+        context.hasAppSecData = true
+        context.requests.add(req)
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, HttpClientRequest, Flow<Void>>
@@ -1111,10 +1146,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       RequestContext rqCtxt, HttpClientResponse res ->
       final context = rqCtxt.getData(RequestContextSlot.APPSEC) as Context
       if (context?.hasAppSecData) {
-        activeSpan()
-        .setTag('downstream.response.status', res.status)
-        .setTag('downstream.response.headers', JsonOutput.toJson(res.headers))
-        .setTag('downstream.response.body', res.body?.text)
+        context.responses.add(res)
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, HttpClientResponse, Flow<Void>>
