@@ -1,4 +1,3 @@
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 import org.gradle.kotlin.dsl.extra
 
