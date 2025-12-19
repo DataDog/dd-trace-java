@@ -1092,11 +1092,21 @@ public class DDSpanContext
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+              httpStatusCode == 0 ? null : shortStatusCodeToString(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization()));
+    }
+  }
+
+  private UTF8BytesString shortStatusCodeToString(short httpStatusCode) {
+    try {
+      return HTTP_STATUSES.get(httpStatusCode);
+    } catch (Throwable t) {
+      // RadixTreeCache seems to have issues on semeru11 - NPE on AtomicReferenceArray cas
+      // skip the cache in those cases and just create a String
+      return UTF8BytesString.create(Short.toString(httpStatusCode));
     }
   }
 
