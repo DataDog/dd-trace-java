@@ -12,7 +12,6 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testImplementation group: 'org.springframework', name: 'spring-web', version: '4.3.7.RELEASE'
-
 }
 
 // IBM8 is having troubles with TLS set up by jetty 9.4.
