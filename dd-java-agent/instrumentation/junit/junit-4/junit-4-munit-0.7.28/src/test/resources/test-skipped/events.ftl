@@ -13,7 +13,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "munit-junit-4",
+      "test.command" : "junit-4-munit-0.7.28",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "skip",
@@ -27,7 +27,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "munit.test_session",
-    "resource" : "munit-junit-4",
+    "resource" : "junit-4-munit-0.7.28",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start},
     "test_session_id" : ${content_test_session_id}
@@ -47,7 +47,7 @@
       "span.kind" : "test_module_end",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "munit-junit-4",
+      "test.module" : "junit-4-munit-0.7.28",
       "test.status" : "skip",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -56,7 +56,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_2}
     },
     "name" : "munit.test_module",
-    "resource" : "munit-junit-4",
+    "resource" : "junit-4-munit-0.7.28",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_2},
     "test_module_id" : ${content_test_module_id},
@@ -78,7 +78,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "munit-junit-4",
+      "test.module" : "junit-4-munit-0.7.28",
       "test.source.file" : "dummy_source_path",
       "test.status" : "skip",
       "test.suite" : "org.example.TestSkippedMUnit",
@@ -117,7 +117,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "munit-junit-4",
+      "test.module" : "junit-4-munit-0.7.28",
       "test.name" : "Calculator.add",
       "test.source.file" : "dummy_source_path",
       "test.status" : "skip",

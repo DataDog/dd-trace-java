@@ -11,7 +11,7 @@
       "span.kind" : "test_suite_end",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "cucumber-junit-5",
+      "test.module" : "junit-5-cucumber-5.4",
       "test.status" : "skip",
       "test.suite" : "classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic",
       "test.type" : "test",
@@ -47,7 +47,7 @@
       "span.kind" : "test",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "cucumber-junit-5",
+      "test.module" : "junit-5-cucumber-5.4",
       "test.name" : "Addition",
       "test.skip_reason" : "Skipped by Datadog Test Impact Analysis",
       "test.skipped_by_itr" : "true",
@@ -92,7 +92,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "cucumber-junit-5",
+      "test.command" : "junit-5-cucumber-5.4",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
@@ -109,7 +109,7 @@
       "test.itr.tests_skipping.count" : 1
     },
     "name" : "cucumber.test_session",
-    "resource" : "cucumber-junit-5",
+    "resource" : "junit-5-cucumber-5.4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -132,7 +132,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
       "test.itr.tests_skipping.type" : "test",
-      "test.module" : "cucumber-junit-5",
+      "test.module" : "junit-5-cucumber-5.4",
       "test.status" : "skip",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -142,7 +142,7 @@
       "test.itr.tests_skipping.count" : 1
     },
     "name" : "cucumber.test_module",
-    "resource" : "cucumber-junit-5",
+    "resource" : "junit-5-cucumber-5.4",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},

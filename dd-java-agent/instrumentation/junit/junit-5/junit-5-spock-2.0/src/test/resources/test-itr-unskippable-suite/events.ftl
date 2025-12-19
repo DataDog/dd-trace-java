@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "spock-junit-5",
+      "test.module" : "junit-5-spock-2.0",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedSpockUnskippableSuite",
@@ -54,7 +54,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.forced_run" : "true",
       "test.itr.unskippable" : "true",
-      "test.module" : "spock-junit-5",
+      "test.module" : "junit-5-spock-2.0",
       "test.name" : "test success",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test success()V",
@@ -100,7 +100,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "spock-junit-5",
+      "test.command" : "junit-5-spock-2.0",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
@@ -117,7 +117,7 @@
       "test.itr.tests_skipping.count" : 0
     },
     "name" : "spock.test_session",
-    "resource" : "spock-junit-5",
+    "resource" : "junit-5-spock-2.0",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -139,7 +139,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
       "test.itr.tests_skipping.type" : "test",
-      "test.module" : "spock-junit-5",
+      "test.module" : "junit-5-spock-2.0",
       "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -149,7 +149,7 @@
       "test.itr.tests_skipping.count" : 0
     },
     "name" : "spock.test_module",
-    "resource" : "spock-junit-5",
+    "resource" : "junit-5-spock-2.0",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},
