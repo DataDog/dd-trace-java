@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
@@ -48,8 +50,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-prepared_statement");
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("jdbc");
-  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
-  public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
@@ -415,11 +415,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       return false;
     }
     return INJECT_TRACE_CONTEXT;
-  }
-
-  public boolean shouldInjectSQLComment() {
-    return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-        || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
   }
 
   private void logInjectionErrorOnce(String vessel, Throwable t) {

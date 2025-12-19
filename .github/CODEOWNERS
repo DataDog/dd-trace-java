@@ -154,6 +154,9 @@ dd-java-agent/agent-llmobs/                          @DataDog/ml-observability
 dd-trace-core/src/main/java/datadog/trace/llmobs/    @DataDog/ml-observability
 dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
 
+# @DataDog/database-monitoring
+datadog/trace/bootstrap/instrumentation/dbm @DataDog/database-monitoring @DataDog/apm-idm-java
+
 # @DataDog/rum
 /internal-api/src/main/java/datadog/trace/api/rum/   @DataDog/rum
 /internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/rum

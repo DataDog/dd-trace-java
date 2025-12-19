@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closeActive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.mongodb.ServerAddress;
@@ -122,7 +124,16 @@ public final class MongoCommandListener implements CommandListener {
     if (listenerAccessor != null) {
       listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
     }
-    final AgentSpan span = startSpan(MongoDecorator.OPERATION_NAME);
+
+    // If DBM comment injection is enabled, the span is created on the connection instrumentation
+    // this is required because the comment injection needs to happen before the command is sent
+    AgentSpan span = activeSpan();
+    boolean shouldForceCloseSpanScope = true;
+    if (span == null || span.getSpanName() != MongoDecorator.OPERATION_NAME) {
+      span = startSpan(MongoDecorator.OPERATION_NAME);
+      shouldForceCloseSpanScope = false;
+    }
+
     try (final AgentScope scope = activateSpan(span)) {
       decorator.afterStart(span);
       decorator.onConnection(span, event);
@@ -147,20 +158,24 @@ public final class MongoCommandListener implements CommandListener {
       }
       decorator.onStatement(span, event.getCommand(), byteBufAccessor);
       spanMap.put(event.getRequestId(), new SpanEntry(span));
+
+      if (shouldForceCloseSpanScope) {
+        closeActive();
+      }
     }
   }
 
   @Override
   public void commandSucceeded(final CommandSucceededEvent event) {
-    finishSpah(event.getRequestId(), null);
+    finishSpan(event.getRequestId(), null);
   }
 
   @Override
   public void commandFailed(final CommandFailedEvent event) {
-    finishSpah(event.getRequestId(), event.getThrowable());
+    finishSpan(event.getRequestId(), event.getThrowable());
   }
 
-  private void finishSpah(int requestId, Throwable t) {
+  private void finishSpan(int requestId, Throwable t) {
     final SpanEntry entry = spanMap.remove(requestId);
     final AgentSpan span = entry != null ? entry.span : null;
     if (span != null) {
