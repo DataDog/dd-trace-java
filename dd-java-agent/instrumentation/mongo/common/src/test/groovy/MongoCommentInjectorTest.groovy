@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.instrumentation.mongo.MongoCommentInjector
 import org.bson.BsonDocument
 import org.bson.BsonString
@@ -18,38 +17,6 @@ abstract class BaseMongoCommentInjectorTest extends InstrumentationSpecification
 }
 
 class MongoCommentInjectorTest extends BaseMongoCommentInjectorTest {
-  def "buildTraceParent with sampled flag (SAMPLER_KEEP)"() {
-    setup:
-    def span = TEST_TRACER.buildSpan("test-op").start()
-    span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, 0)
-
-    when:
-    String traceParent = MongoCommentInjector.buildTraceParent(span)
-
-    then:
-    traceParent != null
-    traceParent ==~ /00-[0-9a-f]{32}-[0-9a-f]{16}-01/
-
-    cleanup:
-    span?.finish()
-  }
-
-  def "buildTraceParent with not sampled flag (SAMPLER_DROP)"() {
-    setup:
-    def span = TEST_TRACER.buildSpan("test-op").start()
-    span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, 0)
-
-    when:
-    String traceParent = MongoCommentInjector.buildTraceParent(span)
-
-    then:
-    traceParent != null
-    traceParent ==~ /00-[0-9a-f]{32}-[0-9a-f]{16}-00/
-
-    cleanup:
-    span?.finish()
-  }
-
   def "injectComment returns null when event is null"() {
     when:
     BsonDocument result = MongoCommentInjector.injectComment("test-comment", null)

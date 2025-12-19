@@ -16,6 +16,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.W3CTraceParent;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -70,13 +71,10 @@ class W3CHttpCodec {
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
-      sb.append("00-");
-      sb.append(context.getTraceId().toHexString());
-      sb.append('-');
-      sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
-      sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
-      setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
+      String traceparent =
+          W3CTraceParent.build(
+              context.getTraceId(), context.getSpanId(), context.getSamplingPriority());
+      setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
     private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {

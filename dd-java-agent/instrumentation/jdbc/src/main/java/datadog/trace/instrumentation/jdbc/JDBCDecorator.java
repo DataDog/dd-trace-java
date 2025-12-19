@@ -8,8 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.IN
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.W3CTraceParent;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
@@ -257,16 +257,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return span.setTag(Tags.COMPONENT, component);
   }
 
-  public String traceParent(AgentSpan span, int samplingPriority) {
-    StringBuilder sb = new StringBuilder(55);
-    sb.append("00-");
-    sb.append(span.getTraceId().toHexString());
-    sb.append('-');
-    sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
-    sb.append(samplingPriority > 0 ? "-01" : "-00");
-    return sb.toString();
-  }
-
   public boolean isOracle(final DBInfo dbInfo) {
     return "oracle".equals(dbInfo.getType());
   }
@@ -294,7 +284,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceContext = DD_INSTRUMENTATION_PREFIX + DECORATE.traceParent(span, priority);
+      final String traceContext =
+          DD_INSTRUMENTATION_PREFIX
+              + W3CTraceParent.build(span.getTraceId(), span.getSpanId(), priority);
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
@@ -380,7 +372,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceParent = DECORATE.traceParent(span, priority);
+      final String traceParent =
+          W3CTraceParent.build(span.getTraceId(), span.getSpanId(), priority);
       final String traceContext = "_DD_" + traceParent;
 
       connection.setClientInfo("ApplicationName", traceContext);

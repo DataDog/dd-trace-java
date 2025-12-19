@@ -17,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.W3CTraceParent;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -119,7 +120,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               if (!isSqlServer) {
-                traceParent = DECORATE.traceParent(span, priority);
+                traceParent = W3CTraceParent.build(span.getTraceId(), span.getSpanId(), priority);
               }
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
