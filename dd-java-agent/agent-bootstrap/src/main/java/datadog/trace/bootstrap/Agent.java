@@ -47,6 +47,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -129,6 +130,7 @@ public class Agent {
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
     FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
@@ -190,6 +192,7 @@ public class Agent {
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
+  private static boolean appLogsCollectionEnabled = false;
   private static boolean featureFlaggingEnabled = false;
 
   private static void safelySetContextClassLoader(ClassLoader classLoader) {
@@ -275,6 +278,7 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
     featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
 
@@ -1131,15 +1135,16 @@ public class Agent {
   }
 
   private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
-    if (agentlessLogSubmissionEnabled) {
+    if (agentlessLogSubmissionEnabled || appLogsCollectionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
         final Method logsIntakeInstallerMethod =
-            logsIntakeSystemClass.getMethod("install", scoClass);
-        logsIntakeInstallerMethod.invoke(null, sco);
+            logsIntakeSystemClass.getMethod("install", scoClass, Intake.class);
+        logsIntakeInstallerMethod.invoke(
+            null, sco, agentlessLogSubmissionEnabled ? Intake.LOGS : Intake.EVENT_PLATFORM);
       } catch (final Throwable e) {
         log.warn("Not installing Logs Intake subsystem", e);
       }

@@ -38,10 +38,6 @@ tasks.named("compileTestJava", JavaCompile) {
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
-tasks.named("forbiddenApisMain", CheckForbiddenApis) {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'
