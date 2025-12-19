@@ -68,7 +68,7 @@ public class ResponseServiceInstrumentation
         if (response != null) {
           response =
               HttpResponseWrappers.wrapHttpResponse(
-                  response, span, ResponseDecorator.DECORATE::withResponse);
+                  response, span, ResponseDecorator.DECORATE::withResponse, DECORATE::onError);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -103,7 +103,7 @@ public class ResponseServiceInstrumentation
         if (response != null) {
           response =
               HttpResponseWrappers.wrapHttpResponseStream(
-                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
+                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents, DECORATE::onError);
         } else {
           span.finish();
         }

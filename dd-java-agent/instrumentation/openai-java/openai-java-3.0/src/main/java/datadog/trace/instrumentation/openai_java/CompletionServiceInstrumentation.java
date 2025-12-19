@@ -75,7 +75,7 @@ public class CompletionServiceInstrumentation
         if (response != null) {
           response =
               HttpResponseWrappers.wrapHttpResponse(
-                  response, span, CompletionDecorator.DECORATE::withCompletion);
+                  response, span, CompletionDecorator.DECORATE::withCompletion, DECORATE::onError);
         }
         DECORATE.beforeFinish(span);
       } finally {
@@ -110,7 +110,7 @@ public class CompletionServiceInstrumentation
         if (response != null) {
           response =
               HttpResponseWrappers.wrapHttpResponseStream(
-                  response, span, CompletionDecorator.DECORATE::withCompletions);
+                  response, span, CompletionDecorator.DECORATE::withCompletions, DECORATE::onError);
         } else {
           span.finish();
         }

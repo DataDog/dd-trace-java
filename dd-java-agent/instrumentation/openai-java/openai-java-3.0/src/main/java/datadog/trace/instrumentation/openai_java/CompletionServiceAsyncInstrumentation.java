@@ -65,7 +65,7 @@ public class CompletionServiceAsyncInstrumentation
         if (future != null) {
           future =
               HttpResponseWrappers.wrapFutureHttpResponse(
-                  future, span, CompletionDecorator.DECORATE::withCompletion);
+                  future, span, CompletionDecorator.DECORATE::withCompletion, DECORATE::onError);
         } else {
           span.finish();
         }
@@ -100,7 +100,7 @@ public class CompletionServiceAsyncInstrumentation
         if (future != null) {
           future =
               HttpResponseWrappers.wrapFutureHttpResponseStream(
-                  future, span, CompletionDecorator.DECORATE::withCompletions);
+                  future, span, CompletionDecorator.DECORATE::withCompletions, DECORATE::onError);
         } else {
           span.finish();
         }

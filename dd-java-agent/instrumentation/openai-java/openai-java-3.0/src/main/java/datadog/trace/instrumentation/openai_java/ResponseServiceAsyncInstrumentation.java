@@ -66,7 +66,7 @@ public class ResponseServiceAsyncInstrumentation
         if (future != null) {
           future =
               HttpResponseWrappers.wrapFutureHttpResponse(
-                  future, span, ResponseDecorator.DECORATE::withResponse);
+                  future, span, ResponseDecorator.DECORATE::withResponse, DECORATE::onError);
         } else {
           span.finish();
         }
@@ -101,7 +101,7 @@ public class ResponseServiceAsyncInstrumentation
         if (future != null) {
           future =
               HttpResponseWrappers.wrapFutureHttpResponseStream(
-                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
+                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents, DECORATE::onError);
         } else {
           span.finish();
         }

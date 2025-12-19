@@ -25,9 +25,16 @@ public class HttpResponseWrappers {
 
     abstract T afterParse(T resp);
 
+    abstract void parseFailed(Throwable ex);
+
     @Override
     public T parse() {
-      return afterParse(delegate.parse());
+      try {
+        return afterParse(delegate.parse());
+      } catch (Throwable t) {
+        parseFailed(t);
+        throw t;
+      }
     }
 
     @Override
@@ -53,8 +60,9 @@ public class HttpResponseWrappers {
     }
   }
 
+  // TODO split to named classes grouped by streamed/single response wrappers
   public static <T> HttpResponseFor<T> wrapHttpResponse(
-      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
+      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse, BiConsumer<AgentSpan, Throwable> parseFailed) {
     DECORATE.withHttpResponse(span, response.headers());
     return new DDHttpResponseFor<T>(response) {
       @Override
@@ -62,15 +70,20 @@ public class HttpResponseWrappers {
         afterParse.accept(span, t);
         return t;
       }
+
+      @Override
+      void parseFailed(Throwable ex) {
+        parseFailed.accept(span, ex);
+      }
     };
   }
 
   public static <T> CompletableFuture<HttpResponseFor<T>> wrapFutureHttpResponse(
       CompletableFuture<HttpResponseFor<T>> future,
       AgentSpan span,
-      BiConsumer<AgentSpan, T> afterParse) {
+      BiConsumer<AgentSpan, T> afterParse, BiConsumer<AgentSpan, Throwable> parseFailed) {
     return future
-        .thenApply(response -> wrapHttpResponse(response, span, afterParse))
+        .thenApply(response -> wrapHttpResponse(response, span, afterParse, parseFailed))
         .whenComplete(
             (r, t) -> {
               DECORATE.beforeFinish(span);
@@ -81,7 +94,7 @@ public class HttpResponseWrappers {
   public static <T> HttpResponseFor<StreamResponse<T>> wrapHttpResponseStream(
       HttpResponseFor<StreamResponse<T>> response,
       final AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
+      BiConsumer<AgentSpan, List<T>> decorate, BiConsumer<AgentSpan, Throwable> parseFailed) {
     DECORATE.withHttpResponse(span, response.headers());
     return new DDHttpResponseFor<StreamResponse<T>>(response) {
       @Override
@@ -107,6 +120,11 @@ public class HttpResponseWrappers {
           }
         };
       }
+
+      @Override
+      void parseFailed(Throwable ex) {
+        parseFailed.accept(span, ex);
+      }
     };
   }
 
@@ -114,7 +132,7 @@ public class HttpResponseWrappers {
       CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFutureHttpResponseStream(
           CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
           AgentSpan span,
-          BiConsumer<AgentSpan, List<T>> decorate) {
-    return future.thenApply(r -> wrapHttpResponseStream(r, span, decorate));
+          BiConsumer<AgentSpan, List<T>> decorate, BiConsumer<AgentSpan, Throwable> parseFailed) {
+    return future.thenApply(r -> wrapHttpResponseStream(r, span, decorate, parseFailed));
   }
 }
