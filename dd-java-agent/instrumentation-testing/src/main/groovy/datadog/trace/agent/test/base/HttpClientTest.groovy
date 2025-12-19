@@ -15,7 +15,6 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -23,8 +22,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.test.util.Flaky
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreIf
 import spock.lang.Requires
@@ -43,7 +40,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TA
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 abstract class HttpClientTest extends VersionedNamingTestBase {

@@ -162,7 +162,7 @@ public class AppSecInterceptor implements Interceptor {
     }
   }
 
-  static boolean sampleRequest(final RequestContext ctx, final long requestId) {
+  public static boolean sampleRequest(final RequestContext ctx, final long requestId) {
     //  Check if the current http request was sampled
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, Long, Flow<Boolean>> samplingCb =

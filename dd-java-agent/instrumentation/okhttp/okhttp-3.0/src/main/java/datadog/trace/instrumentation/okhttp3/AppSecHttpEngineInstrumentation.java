@@ -60,7 +60,8 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      // do not include bodies in the redirect request
+      // increment the number of downstream requests but do not include request/response body
+      AppSecInterceptor.sampleRequest(ctx, span.getSpanId());
       AppSecInterceptor.onResponse(span, false, priorResponse);
       AppSecInterceptor.onRequest(span, false, userRequest.url().toString(), userRequest);
     }
