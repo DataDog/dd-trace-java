@@ -12,6 +12,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -118,12 +119,26 @@ public class BlockingActionHelper {
   }
 
   public static byte[] getTemplate(TemplateType type) {
+    return getTemplate(type, null);
+  }
+
+  public static byte[] getTemplate(TemplateType type, String securityResponseId) {
+    byte[] template;
     if (type == TemplateType.JSON) {
-      return TEMPLATE_JSON;
+      template = TEMPLATE_JSON;
     } else if (type == TemplateType.HTML) {
-      return TEMPLATE_HTML;
+      template = TEMPLATE_HTML;
+    } else {
+      return null;
     }
-    return null;
+
+    // Use empty string when securityResponseId is not present
+    String replacementValue =
+        (securityResponseId == null || securityResponseId.isEmpty()) ? "" : securityResponseId;
+
+    String templateString = new String(template, StandardCharsets.UTF_8);
+    String replacedTemplate = templateString.replace("[security_response_id]", replacementValue);
+    return replacedTemplate.getBytes(StandardCharsets.UTF_8);
   }
 
   public static String getContentType(TemplateType type) {
