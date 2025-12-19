@@ -5,7 +5,7 @@ plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
   id 'com.google.protobuf' version '0.8.18'
-  id 'net.ltgt.errorprone' version '3.1.0'
+  id 'net.ltgt.errorprone' version '4.3.0'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -66,8 +66,8 @@ dependencies {
   jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')
-  errorprone('com.uber.nullaway:nullaway:0.10.15')
-  errorprone('com.google.errorprone:error_prone_core:2.23.0')
+  errorprone('com.uber.nullaway:nullaway:0.11.3') // Last version before NullAway switched to be JSpecify compatible.
+  errorprone('com.google.errorprone:error_prone_core:2.31.0') // Last Java 8 compatible version.
 }
 
 tasks.named("shadowJar", ShadowJar) {
