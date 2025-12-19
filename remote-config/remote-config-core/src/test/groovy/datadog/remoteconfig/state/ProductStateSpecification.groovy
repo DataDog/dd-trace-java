@@ -3,7 +3,6 @@ package datadog.remoteconfig.state
 import datadog.remoteconfig.PollingRateHinter
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.ReportableException
-import datadog.remoteconfig.tuf.RemoteConfigRequest
 import datadog.remoteconfig.tuf.RemoteConfigResponse
 import spock.lang.Specification
 
@@ -113,7 +112,6 @@ class ProductStateSpecification extends Specification {
     listener.operations.findAll { it.startsWith('accept:') }.size() == 2
 
     and: 'removes come before accepts'
-    def firstRemoveIdx = listener.operations.findIndexOf { it.startsWith('remove:') }
     def lastRemoveIdx = listener.operations.findLastIndexOf { it.startsWith('remove:') }
     def firstAcceptIdx = listener.operations.findIndexOf { it.startsWith('accept:') }
     lastRemoveIdx < firstAcceptIdx
