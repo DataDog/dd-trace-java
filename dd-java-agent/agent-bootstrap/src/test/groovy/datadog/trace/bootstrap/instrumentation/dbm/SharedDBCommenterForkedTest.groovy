@@ -1,9 +1,8 @@
-package datadog.trace.core.database
+package datadog.trace.bootstrap.instrumentation.dbm
 
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter
 import spock.lang.Specification
 
-class SharedDBCommenterTest extends Specification {
+class SharedDBCommenterForkedTest extends Specification {
   def setup() {
     System.setProperty("dd.service.name", "test-service")
     System.setProperty("dd.env", "test-env")
