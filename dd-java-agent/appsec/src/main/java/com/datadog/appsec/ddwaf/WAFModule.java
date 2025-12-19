@@ -527,7 +527,8 @@ public class WAFModule implements AppSecModule {
             location = location.replace("[security_response_id]", securityResponseId);
           }
         }
-        return Flow.Action.RequestBlockingAction.forRedirect(statusCode, location);
+        return Flow.Action.RequestBlockingAction.forRedirect(
+            statusCode, location, securityResponseId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
