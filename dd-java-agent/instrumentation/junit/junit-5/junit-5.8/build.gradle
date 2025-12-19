@@ -30,7 +30,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:junit:junit-5.3')
+  implementation project(':dd-java-agent:instrumentation:junit:junit-5:junit-5.3')
 
   compileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: "$platformVersion"
   compileOnly group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: "$jupiterVersion"

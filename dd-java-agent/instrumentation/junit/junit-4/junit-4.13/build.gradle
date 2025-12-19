@@ -15,7 +15,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:junit:junit-4.10')
+  implementation project(':dd-java-agent:instrumentation:junit:junit-4:junit-4.10')
   compileOnly group: 'junit', name: 'junit', version: '4.13'
 
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')

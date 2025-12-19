@@ -16,7 +16,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:junit:junit-5.3')
+  implementation project(':dd-java-agent:instrumentation:junit:junit-5:junit-5.3')
 
   compileOnly group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '5.4.0'
   compileOnly group: 'io.cucumber', name: 'cucumber-java', version: '5.4.0'
