@@ -78,9 +78,7 @@ public abstract class BaseDecorator {
   }
 
   public ContextScope beforeFinish(final ContextScope scope) {
-    if (scope != null) {
-      beforeFinish(scope.context());
-    }
+    beforeFinish(scope.context());
     return scope;
   }
 
