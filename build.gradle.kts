@@ -18,7 +18,7 @@ plugins {
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.9" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
-  id("org.gradle.playframework") version "0.13" apply false
+  id("org.gradle.playframework") version "0.16.0" apply false
 }
 
 description = "dd-trace-java"
