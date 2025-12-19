@@ -47,6 +47,11 @@ gradlePlugin {
       id = "dd-trace-java.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
+
+    create("instrumentation-naming") {
+      id = "dd-trace-java.instrumentation-naming"
+      implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
+    }
   }
 }
 

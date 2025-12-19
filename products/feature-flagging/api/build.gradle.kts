@@ -73,7 +73,3 @@ tasks.withType<JavaCompile>().configureEach {
 tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
-
-tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
-  failOnMissingClasses = false
-}

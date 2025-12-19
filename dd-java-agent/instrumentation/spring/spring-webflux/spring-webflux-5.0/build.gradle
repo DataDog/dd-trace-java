@@ -83,8 +83,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
-  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1.0')
 
   testImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
   testImplementation group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
@@ -115,7 +115,7 @@ dependencies {
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
   iastTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-json', version: '2.0.+'
   iastTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core')
+  iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastTestImplementation project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
 
   latestIast24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
