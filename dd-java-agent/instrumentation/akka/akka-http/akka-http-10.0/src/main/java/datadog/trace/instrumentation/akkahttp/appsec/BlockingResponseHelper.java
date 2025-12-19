@@ -70,7 +70,7 @@ public class BlockingResponseHelper {
     if (bct != BlockingContentType.NONE) {
       BlockingActionHelper.TemplateType tt =
           BlockingActionHelper.determineTemplateType(bct, accept.map(h -> h.value()).orElse(null));
-      byte[] template = BlockingActionHelper.getTemplate(tt);
+      byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
       if (tt == BlockingActionHelper.TemplateType.HTML) {
         entity =
             HttpEntity$.MODULE$.apply(

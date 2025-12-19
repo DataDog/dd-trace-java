@@ -1,7 +1,7 @@
 plugins {
   java
   groovy
-  id("com.gradleup.shadow") version "8.3.6"
+  id("com.gradleup.shadow") version "8.3.9"
 }
 
 java {
