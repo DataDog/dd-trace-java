@@ -2,10 +2,8 @@ package datadog.trace.instrumentation.openai_java;
 
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -27,7 +25,9 @@ public class OpenAiDecorator extends ClientDecorator {
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     afterStart(span);
-    withClientOptions(span, clientOptions);
+    span.setTag("openai.api_base", clientOptions.baseUrl());
+    // TODO api_version (either last part of the URL, or api-version param if Azure)
+    // clientOptions.queryParams().values("api-version")
     return span;
   }
 
@@ -61,20 +61,9 @@ public class OpenAiDecorator extends ClientDecorator {
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    span.setTag("_ml_obs_tag.parent_id", currentLlmParentSpanId());
+    // TODO only if llmobs enabled
+    span.setTag("_ml_obs_tag.parent_id", LLMObsContext.parentSpanId());
     return super.afterStart(span);
-  }
-
-  private String currentLlmParentSpanId() {
-    AgentSpanContext parentLlmContext = LLMObsContext.current();
-    if (parentLlmContext == null) {
-      return LLMObsContext.ROOT_SPAN_ID;
-    }
-    long parentLlmSpanId = parentLlmContext.getSpanId();
-    if (parentLlmSpanId == DDSpanId.ZERO) {
-      return LLMObsContext.ROOT_SPAN_ID;
-    }
-    return Long.toString(parentLlmSpanId);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
@@ -115,12 +104,5 @@ public class OpenAiDecorator extends ClientDecorator {
     } catch (NumberFormatException ex) {
       // ~
     }
-  }
-
-  public void withClientOptions(AgentSpan span, ClientOptions clientOptions) {
-    span.setTag("openai.api_base", clientOptions.baseUrl());
-
-    // TODO api_version (either last part of the URL, or api-version param if Azure)
-    // clientOptions.queryParams().values("api-version")
   }
 }

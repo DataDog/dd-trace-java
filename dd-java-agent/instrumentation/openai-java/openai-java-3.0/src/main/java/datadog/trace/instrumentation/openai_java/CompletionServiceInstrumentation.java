@@ -12,6 +12,7 @@ import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -45,8 +46,12 @@ public class CompletionServiceInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.Argument(0) final CompletionCreateParams params,
-        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions,
+        @Advice.Local("llmScope") ContextScope llmScope) {
       AgentSpan span = DECORATE.startSpan(clientOptions);
+      // llmScope = LLMObsContext.attach(span.context());
+      // TODO why would we ever need to activate llmScope in this instrumentation if we never expect
+      // inner llmobs spans
       CompletionDecorator.DECORATE.withCompletionCreateParams(span, params);
       return activateSpan(span);
     }
@@ -54,6 +59,7 @@ public class CompletionServiceInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Enter final AgentScope scope,
+        @Advice.Local("llmScope") ContextScope llmScope,
         @Advice.Return(readOnly = false) HttpResponseFor<Completion> response,
         @Advice.Thrown final Throwable err) {
       AgentSpan span = scope.span();
@@ -64,6 +70,7 @@ public class CompletionServiceInstrumentation
             HttpResponseWrapper.wrap(response, span, CompletionDecorator.DECORATE::withCompletion);
       }
       scope.close();
+      // llmScope.close();
     }
   }
 
