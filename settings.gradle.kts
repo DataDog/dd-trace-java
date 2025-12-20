@@ -157,6 +157,7 @@ include(
   ":utils:container-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
   ":utils:test-utils",
