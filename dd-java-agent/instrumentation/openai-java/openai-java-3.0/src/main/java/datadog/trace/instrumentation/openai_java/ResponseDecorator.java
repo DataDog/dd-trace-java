@@ -18,6 +18,7 @@ import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
 import datadog.json.JsonWriter;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -34,11 +35,17 @@ public class ResponseDecorator {
 
   private static final CharSequence RESPONSES_CREATE = UTF8BytesString.create("createResponse");
 
+  private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
+
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     span.setResourceName(RESPONSES_CREATE);
     span.setTag("openai.request.endpoint", "v1/responses");
     span.setTag("openai.request.method", "POST");
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -366,6 +373,10 @@ public class ResponseDecorator {
   }
 
   public void withResponseStreamEvents(AgentSpan span, List<ResponseStreamEvent> events) {
+    if (!llmObsEnabled) {
+      return;
+    }
+
     for (ResponseStreamEvent event : events) {
       if (event.isCompleted()) {
         Response response = event.asCompleted().response();
@@ -381,6 +392,10 @@ public class ResponseDecorator {
   }
 
   private void withResponse(AgentSpan span, Response response, boolean stream) {
+    if (!llmObsEnabled) {
+      return;
+    }
+
     String modelName = extractResponseModel(response._model());
     span.setTag(RESPONSE_MODEL, modelName);
     span.setTag("_ml_obs_tag.model_name", modelName);

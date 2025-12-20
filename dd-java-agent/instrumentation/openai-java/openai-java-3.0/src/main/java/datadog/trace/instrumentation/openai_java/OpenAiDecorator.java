@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.openai_java;
 
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -21,6 +22,8 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
+
+  private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
@@ -61,17 +64,20 @@ public class OpenAiDecorator extends ClientDecorator {
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    // TODO only if llmobs enabled
-    span.setTag("_ml_obs_tag.parent_id", LLMObsContext.parentSpanId());
+    if (llmObsEnabled) {
+      span.setTag("_ml_obs_tag.parent_id", LLMObsContext.parentSpanId());
+    }
     return super.afterStart(span);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
+    if (!llmObsEnabled) {
+      return;
+    }
     List<String> values = headers.values("openai-organization");
     if (!values.isEmpty()) {
       span.setTag(OPENAI_ORGANIZATION_NAME, values.get(0));
     }
-
     setMetricFromHeader(
         span,
         "openai.organization.ratelimit.requests.limit",

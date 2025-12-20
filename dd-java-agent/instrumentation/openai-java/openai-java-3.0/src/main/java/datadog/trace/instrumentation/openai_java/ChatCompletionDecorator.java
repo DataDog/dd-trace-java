@@ -10,7 +10,7 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
-import com.openai.models.completions.CompletionUsage;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -28,12 +28,18 @@ public class ChatCompletionDecorator {
   private static final CharSequence CHAT_COMPLETIONS_CREATE =
       UTF8BytesString.create("createChatCompletion");
 
+  private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
+
   public void withChatCompletionCreateParams(
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag("openai.request.endpoint", "v1/chat/completions");
     span.setTag("openai.request.method", "POST");
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -86,6 +92,9 @@ public class ChatCompletionDecorator {
   }
 
   public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
+    if (!llmObsEnabled) {
+      return;
+    }
     String modelName = completion.model();
     span.setTag(RESPONSE_MODEL, modelName);
     span.setTag("_ml_obs_tag.model_name", modelName);
@@ -97,13 +106,14 @@ public class ChatCompletionDecorator {
             .collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
-    completion.usage().ifPresent(usage -> withCompletionUsage(span, usage));
-  }
-
-  private static void withCompletionUsage(AgentSpan span, CompletionUsage usage) {
-    span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
-    span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
-    span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+    completion
+        .usage()
+        .ifPresent(
+            usage -> {
+              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
+              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
+              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+            });
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
@@ -134,6 +144,9 @@ public class ChatCompletionDecorator {
   }
 
   public void withChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
+    if (!llmObsEnabled) {
+      return;
+    }
     ChatCompletionAccumulator accumulator = ChatCompletionAccumulator.create();
     for (ChatCompletionChunk chunk : chunks) {
       accumulator.accumulate(chunk);

@@ -5,7 +5,7 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE
 
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
-import com.openai.models.completions.CompletionUsage;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -21,12 +21,17 @@ public class CompletionDecorator {
 
   private static final CharSequence COMPLETIONS_CREATE = UTF8BytesString.create("createCompletion");
 
-  public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+  private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
+  public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
     span.setTag("openai.request.endpoint", "v1/completions");
     span.setTag("openai.request.method", "POST");
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -48,6 +53,10 @@ public class CompletionDecorator {
   }
 
   public void withCompletion(AgentSpan span, Completion completion) {
+    if (!llmObsEnabled) {
+      return;
+    }
+
     String modelName = completion.model();
     span.setTag(RESPONSE_MODEL, modelName);
     span.setTag("_ml_obs_tag.model_name", modelName);
@@ -59,18 +68,23 @@ public class CompletionDecorator {
             .collect(Collectors.toList());
     span.setTag("_ml_obs_tag.output", output);
 
-    completion.usage().ifPresent(usage -> withCompletionUsage(span, usage));
+    completion
+        .usage()
+        .ifPresent(
+            usage -> {
+              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
+              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
+              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+            });
   }
 
   public void withCompletions(AgentSpan span, List<Completion> completions) {
+    if (!llmObsEnabled) {
+      return;
+    }
+
     if (!completions.isEmpty()) {
       withCompletion(span, completions.get(0));
     }
-  }
-
-  private static void withCompletionUsage(AgentSpan span, CompletionUsage usage) {
-    span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
-    span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
-    span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
   }
 }

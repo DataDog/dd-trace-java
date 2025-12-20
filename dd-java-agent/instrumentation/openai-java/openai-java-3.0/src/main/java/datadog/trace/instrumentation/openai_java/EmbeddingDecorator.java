@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
+import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -22,11 +23,17 @@ public class EmbeddingDecorator {
 
   private static final CharSequence EMBEDDINGS_CREATE = UTF8BytesString.create("createEmbedding");
 
+  private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
+
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     span.setResourceName(EMBEDDINGS_CREATE);
     span.setTag("openai.request.endpoint", "v1/embeddings");
     span.setTag("openai.request.method", "POST");
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -52,6 +59,10 @@ public class EmbeddingDecorator {
   }
 
   public void withCreateEmbeddingResponse(AgentSpan span, CreateEmbeddingResponse response) {
+    if (!llmObsEnabled) {
+      return;
+    }
+
     String modelName = response.model();
     span.setTag(RESPONSE_MODEL, modelName);
     span.setTag("_ml_obs_tag.model_name", modelName);
