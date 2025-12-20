@@ -38,7 +38,15 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         while (enumeration.hasMoreElements()) {
           String key = ((String) enumeration.nextElement());
           String lowerCaseKey = cache.computeIfAbsent(key, KEY_MAPPER);
-          Object value = carrier.getObjectProperty(key);
+          Object value = null;
+          try {
+            value = carrier.getObjectProperty(key);
+          } catch (Throwable t) {
+            // log and ignore if we cannot access this property but don't break the instrumentation
+            if (log.isDebugEnabled()) {
+              log.debug("Error accessing message property {}", key, t);
+            }
+          }
           if (value instanceof String && !classifier.accept(lowerCaseKey, (String) value)) {
             return;
           }
