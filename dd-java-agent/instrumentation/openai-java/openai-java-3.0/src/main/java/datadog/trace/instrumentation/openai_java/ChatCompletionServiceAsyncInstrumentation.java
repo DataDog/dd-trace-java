@@ -62,21 +62,15 @@ public class ChatCompletionServiceAsyncInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<ChatCompletion>> future,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (future != null) {
-          future =
-              HttpResponseWrapper.wrapFuture(
-                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
-        } else {
-          span.finish();
-        }
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || future == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        future =
+            HttpResponseWrapper.wrapFuture(
+                future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
       }
+      scope.close();
     }
   }
 
@@ -96,22 +90,15 @@ public class ChatCompletionServiceAsyncInstrumentation
         @Advice.Return(readOnly = false)
             CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (future != null) {
-          future =
-              HttpStreamResponseWrapper.wrapFuture(
-                  future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
-        } else {
-          span.finish();
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || future == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        future =
+            HttpStreamResponseWrapper.wrapFuture(
+                future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
       }
+      scope.close();
     }
   }
 }

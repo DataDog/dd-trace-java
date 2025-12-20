@@ -48,21 +48,15 @@ public class EmbeddingServiceInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) HttpResponseFor<CreateEmbeddingResponse> response,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (response != null) {
-          response =
-              HttpResponseWrapper.wrap(
-                  response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
+      AgentSpan span = scope.span();
+      if (err != null || response == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        response =
+            HttpResponseWrapper.wrap(
+                response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
       }
+      scope.close();
     }
   }
 }

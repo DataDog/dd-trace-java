@@ -58,21 +58,14 @@ public class ResponseServiceAsyncInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<Response>> future,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (future != null) {
-          future =
-              HttpResponseWrapper.wrapFuture(
-                  future, span, ResponseDecorator.DECORATE::withResponse);
-        } else {
-          span.finish();
-        }
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || future == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        future =
+            HttpResponseWrapper.wrapFuture(future, span, ResponseDecorator.DECORATE::withResponse);
       }
+      scope.close();
     }
   }
 
@@ -93,22 +86,15 @@ public class ResponseServiceAsyncInstrumentation
         @Advice.Return(readOnly = false)
             CompletableFuture<HttpResponseFor<StreamResponse<ResponseStreamEvent>>> future,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (future != null) {
-          future =
-              HttpStreamResponseWrapper.wrapFuture(
-                  future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
-        } else {
-          span.finish();
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || future == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        future =
+            HttpStreamResponseWrapper.wrapFuture(
+                future, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
       }
+      scope.close();
     }
   }
 }

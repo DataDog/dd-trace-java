@@ -61,21 +61,15 @@ public class ChatCompletionServiceInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) HttpResponseFor<ChatCompletion> response,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (response != null) {
-          response =
-              HttpResponseWrapper.wrap(
-                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
+      AgentSpan span = scope.span();
+      if (err != null || response == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        response =
+            HttpResponseWrapper.wrap(
+                response, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
       }
+      scope.close();
     }
   }
 
@@ -96,22 +90,15 @@ public class ChatCompletionServiceInstrumentation
         @Advice.Return(readOnly = false)
             HttpResponseFor<StreamResponse<ChatCompletionChunk>> response,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (response != null) {
-          response =
-              HttpStreamResponseWrapper.wrap(
-                  response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
-        } else {
-          DECORATE.beforeFinish(span);
-          span.finish();
-        }
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || response == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        response =
+            HttpStreamResponseWrapper.wrap(
+                response, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
       }
+      scope.close();
     }
   }
 }

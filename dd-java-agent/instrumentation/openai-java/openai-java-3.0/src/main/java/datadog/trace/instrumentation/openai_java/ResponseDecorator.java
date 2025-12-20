@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
 
 import com.openai.core.JsonField;
+import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
 import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
@@ -81,12 +82,12 @@ public class ResponseDecorator {
     // This path is tested by "create streaming response with raw json tool input test"
     if (inputMessages.isEmpty()) {
       try {
-        Optional<com.openai.core.JsonValue> rawValueOpt = params._input().asUnknown();
+        Optional<JsonValue> rawValueOpt = params._input().asUnknown();
         if (rawValueOpt.isPresent()) {
-          com.openai.core.JsonValue rawValue = rawValueOpt.get();
-          Optional<List<com.openai.core.JsonValue>> rawListOpt = rawValue.asArray();
+          JsonValue rawValue = rawValueOpt.get();
+          Optional<List<JsonValue>> rawListOpt = rawValue.asArray();
           if (rawListOpt.isPresent()) {
-            for (com.openai.core.JsonValue item : rawListOpt.get()) {
+            for (JsonValue item : rawListOpt.get()) {
               LLMObs.LLMMessage message = extractMessageFromRawJson(item);
               if (message != null) {
                 inputMessages.add(message);
@@ -133,14 +134,14 @@ public class ResponseDecorator {
     return null;
   }
 
-  private LLMObs.LLMMessage extractMessageFromRawJson(com.openai.core.JsonValue jsonValue) {
-    Optional<Map<String, com.openai.core.JsonValue>> objOpt = jsonValue.asObject();
+  private LLMObs.LLMMessage extractMessageFromRawJson(JsonValue jsonValue) {
+    Optional<Map<String, JsonValue>> objOpt = jsonValue.asObject();
     if (!objOpt.isPresent()) {
       return null;
     }
 
-    Map<String, com.openai.core.JsonValue> obj = objOpt.get();
-    com.openai.core.JsonValue typeValue = obj.get("type");
+    Map<String, JsonValue> obj = objOpt.get();
+    JsonValue typeValue = obj.get("type");
 
     // Check if it's a function_call
     if (typeValue != null) {
@@ -150,9 +151,9 @@ public class ResponseDecorator {
 
         if ("function_call".equals(type)) {
           // Extract function call details
-          com.openai.core.JsonValue callIdValue = obj.get("call_id");
-          com.openai.core.JsonValue nameValue = obj.get("name");
-          com.openai.core.JsonValue argumentsValue = obj.get("arguments");
+          JsonValue callIdValue = obj.get("call_id");
+          JsonValue nameValue = obj.get("name");
+          JsonValue argumentsValue = obj.get("arguments");
 
           String callId = null;
           String name = null;
@@ -185,8 +186,8 @@ public class ResponseDecorator {
           }
         } else if ("function_call_output".equals(type)) {
           // Extract function call output
-          com.openai.core.JsonValue callIdValue = obj.get("call_id");
-          com.openai.core.JsonValue outputValue = obj.get("output");
+          JsonValue callIdValue = obj.get("call_id");
+          JsonValue outputValue = obj.get("output");
 
           String callId = null;
           String output = null;
@@ -214,8 +215,8 @@ public class ResponseDecorator {
     }
 
     // Otherwise, it's a regular message with role and content
-    com.openai.core.JsonValue roleValue = obj.get("role");
-    com.openai.core.JsonValue contentValue = obj.get("content");
+    JsonValue roleValue = obj.get("role");
+    JsonValue contentValue = obj.get("content");
 
     String role = null;
     String content = null;
@@ -327,7 +328,7 @@ public class ResponseDecorator {
   }
 
   private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
-    com.openai.core.JsonField<Reasoning> reasoningField = params._reasoning();
+    JsonField<Reasoning> reasoningField = params._reasoning();
     if (reasoningField.isMissing()) {
       return Optional.empty();
     }
@@ -340,14 +341,14 @@ public class ResponseDecorator {
       reasoning.effort().ifPresent(effort -> reasoningMap.put("effort", effort.asString()));
       reasoning.summary().ifPresent(summary -> reasoningMap.put("summary", summary.asString()));
     } else {
-      Optional<Map<String, com.openai.core.JsonValue>> rawObject = reasoningField.asObject();
+      Optional<Map<String, JsonValue>> rawObject = reasoningField.asObject();
       if (rawObject.isPresent()) {
-        Map<String, com.openai.core.JsonValue> obj = rawObject.get();
-        com.openai.core.JsonValue effortVal = obj.get("effort");
+        Map<String, JsonValue> obj = rawObject.get();
+        JsonValue effortVal = obj.get("effort");
         if (effortVal != null) {
           effortVal.asString().ifPresent(v -> reasoningMap.put("effort", String.valueOf(v)));
         }
-        com.openai.core.JsonValue summaryVal = obj.get("summary");
+        JsonValue summaryVal = obj.get("summary");
         if (summaryVal == null) {
           summaryVal = obj.get("generate_summary");
         }
@@ -428,11 +429,11 @@ public class ResponseDecorator {
                         Map<String, String> formatMap = new HashMap<>();
                         if (format.isText()) {
                           formatMap.put("type", "text");
-                          // metadata.put("text.format.type", "text");
-                          // } else if (format.isJsonSchema()) {
-                          //   formatMap.put("type", "json_schema");
-                          // } else if (format.isJsonObject()) {
-                          //   formatMap.put("type", "json_object");
+                          metadata.put("text.format.type", "text");
+                        } else if (format.isJsonSchema()) {
+                          formatMap.put("type", "json_schema");
+                        } else if (format.isJsonObject()) {
+                          formatMap.put("type", "json_object");
                         }
                         textMap.put("format", formatMap);
                         metadata.put("text", textMap);

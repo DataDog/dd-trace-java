@@ -31,6 +31,14 @@ public class OpenAiDecorator extends ClientDecorator {
     return span;
   }
 
+  public void finishSpan(AgentSpan span, Throwable err) {
+    if (err != null) {
+      onError(span, err);
+    }
+    DECORATE.beforeFinish(span);
+    span.finish();
+  }
+
   @Override
   protected String service() {
     return null;

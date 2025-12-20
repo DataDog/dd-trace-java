@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,12 +29,18 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
       BiConsumer<AgentSpan, List<T>> decorate) {
     return future
         .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete((_r, t) -> DECORATE.onError(span, t));
+        .whenComplete(
+            (_r, err) -> {
+              if (err != null) {
+                DECORATE.finishSpan(span, err);
+              }
+            });
   }
 
   private final HttpResponseFor<StreamResponse<T>> delegate;
   private final AgentSpan span;
-  private final BiConsumer<AgentSpan, List<T>> afterParse;
+  private final BiConsumer<AgentSpan, List<T>> decorate;
+  private final AtomicBoolean parseCalled = new AtomicBoolean(false);
 
   private HttpStreamResponseWrapper(
       HttpResponseFor<StreamResponse<T>> delegate,
@@ -41,19 +48,19 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
       BiConsumer<AgentSpan, List<T>> decorate) {
     this.delegate = delegate;
     this.span = span;
-    this.afterParse = decorate;
+    this.decorate = decorate;
   }
 
   @Override
   public StreamResponse<T> parse() {
     try {
       StreamResponse<T> parsed = delegate.parse();
-      return new HttpStreamResponseStreamWrapper<>(span, afterParse, parsed);
+      return new HttpStreamResponseStreamWrapper<>(span, decorate, parsed);
     } catch (Throwable err) {
-      DECORATE.onError(span, err);
-      DECORATE.beforeFinish(span);
-      span.finish();
+      DECORATE.finishSpan(span, err);
       throw err;
+    } finally {
+      parseCalled.set(true);
     }
   }
 
@@ -76,7 +83,9 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
 
   @Override
   public void close() {
-    // span finished in HttpStreamResponseStreamWrapper
+    if (parseCalled.compareAndSet(false, true)) {
+      DECORATE.finishSpan(span, null);
+    }
     delegate.close();
   }
 }

@@ -40,9 +40,6 @@ public class ResponseServiceInstrumentation
             .and(takesArgument(0, named("com.openai.models.responses.ResponseCreateParams")))
             .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateStreamingAdvice");
-
-    // TODO retrieve
-    // TODO delete
   }
 
   public static class CreateAdvice {
@@ -60,20 +57,14 @@ public class ResponseServiceInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) HttpResponseFor<Response> response,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (response != null) {
-          response =
-              HttpResponseWrapper.wrap(response, span, ResponseDecorator.DECORATE::withResponse);
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
+      AgentSpan span = scope.span();
+      if (err != null || response == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        response =
+            HttpResponseWrapper.wrap(response, span, ResponseDecorator.DECORATE::withResponse);
       }
+      scope.close();
     }
   }
 
@@ -94,22 +85,15 @@ public class ResponseServiceInstrumentation
         @Advice.Return(readOnly = false)
             HttpResponseFor<StreamResponse<ResponseStreamEvent>> response,
         @Advice.Thrown final Throwable err) {
-      final AgentSpan span = scope.span();
-      try {
-        if (err != null) {
-          DECORATE.onError(span, err);
-        }
-        if (response != null) {
-          response =
-              HttpStreamResponseWrapper.wrap(
-                  response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
-        } else {
-          span.finish();
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
+      AgentSpan span = scope.span();
+      if (err != null || response == null) {
+        DECORATE.finishSpan(span, err);
+      } else {
+        response =
+            HttpStreamResponseWrapper.wrap(
+                response, span, ResponseDecorator.DECORATE::withResponseStreamEvents);
       }
+      scope.close();
     }
   }
 }

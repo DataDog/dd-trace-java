@@ -9,21 +9,24 @@ import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
+  private static final Logger log = LoggerFactory.getLogger(HttpResponseWrapper.class);
 
   public static <T> HttpResponseFor<T> wrap(
-      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
+      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> decorate) {
     DECORATE.withHttpResponse(span, response.headers());
-    return new HttpResponseWrapper<>(response, span, afterParse);
+    return new HttpResponseWrapper<>(response, span, decorate);
   }
 
   public static <T> CompletableFuture<HttpResponseFor<T>> wrapFuture(
       CompletableFuture<HttpResponseFor<T>> future,
       AgentSpan span,
-      BiConsumer<AgentSpan, T> afterParse) {
+      BiConsumer<AgentSpan, T> decorate) {
     return future
-        .thenApply(response -> wrap(response, span, afterParse))
+        .thenApply(response -> wrap(response, span, decorate))
         .whenComplete(
             (r, t) -> {
               try {
@@ -39,25 +42,32 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
 
   private final HttpResponseFor<T> delegate;
   private final AgentSpan span;
-  private final BiConsumer<AgentSpan, T> afterParse;
+  private final BiConsumer<AgentSpan, T> decorate;
 
   private HttpResponseWrapper(
-      HttpResponseFor<T> delegate, AgentSpan span, BiConsumer<AgentSpan, T> afterParse) {
+      HttpResponseFor<T> delegate, AgentSpan span, BiConsumer<AgentSpan, T> decorate) {
     this.delegate = delegate;
     this.span = span;
-    this.afterParse = afterParse;
+    this.decorate = decorate;
   }
 
   @Override
   public T parse() {
+    T parsed;
     try {
-      T parsed = delegate.parse();
-      afterParse.accept(span, parsed);
-      return parsed;
+      parsed = delegate.parse();
     } catch (Throwable err) {
-      DECORATE.onError(span, err);
+      DECORATE.finishSpan(span, err);
       throw err;
     }
+    try {
+      decorate.accept(span, parsed);
+    } catch (Throwable t) {
+      log.debug("Span decorator failed", t);
+    } finally {
+      DECORATE.finishSpan(span, null);
+    }
+    return parsed;
   }
 
   @Override
@@ -79,7 +89,6 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
 
   @Override
   public void close() {
-    // span finished after the response is available
     delegate.close();
   }
 }
