@@ -7,6 +7,7 @@ import com.openai.core.http.HttpResponseFor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
   private final HttpResponseFor<T> delegate;
   private final AgentSpan span;
   private final BiConsumer<AgentSpan, T> decorate;
+  private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private HttpResponseWrapper(
       HttpResponseFor<T> delegate, AgentSpan span, BiConsumer<AgentSpan, T> decorate) {
@@ -58,6 +60,7 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
       parsed = delegate.parse();
     } catch (Throwable err) {
       DECORATE.finishSpan(span, err);
+      finished.set(true);
       throw err;
     }
     try {
@@ -66,6 +69,7 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
       log.debug("Span decorator failed", t);
     } finally {
       DECORATE.finishSpan(span, null);
+      finished.set(true);
     }
     return parsed;
   }
@@ -89,6 +93,9 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
 
   @Override
   public void close() {
+    if (finished.compareAndSet(false, true)) {
+      DECORATE.finishSpan(span, null);
+    }
     delegate.close();
   }
 }
