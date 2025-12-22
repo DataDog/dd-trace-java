@@ -5,7 +5,7 @@
 // 3. Override the ddprof dependency resolution to use the snapshot version
 // 4. Add a qualifier to the dd-trace-java version to avoid overwriting standard snapshots
 
-def ddprofUseSnapshot = project.hasProperty('ddprofUseSnapshot') && project.property('ddprofUseSnapshot').toBoolean()
+def ddprofUseSnapshot = project.hasProperty("ddprofUseSnapshot")
 
 if (ddprofUseSnapshot) {
   def ddprofSnapshotVersion = calculateDdprofSnapshotVersion()
