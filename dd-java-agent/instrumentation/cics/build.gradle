@@ -1,0 +1,148 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+// Configuration for downloading CICS SDK from IBM
+ext {
+  cicsVersion = '9.1'
+  cicsSdkName = 'CICS_TG_SDK_91_Unix'
+}
+
+repositories {
+  ivy {
+    url = 'https://public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/'
+    patternLayout {
+      artifact '[module].[ext]'
+    }
+    metadataSources {
+      it.artifact()
+    }
+  }
+}
+
+configurations {
+  register('cicsSdk') {
+    canBeResolved = true
+    canBeConsumed = false
+  }
+  register('cicsJars') {
+    canBeResolved = true
+    canBeConsumed = false
+  }
+}
+
+// Task to extract the CICS SDK and get the required JARs
+abstract class ExtractCicsJars extends DefaultTask {
+  @InputFiles
+  final ConfigurableFileCollection sdkArchive = project.objects.fileCollection()
+
+  @OutputDirectory
+  final DirectoryProperty outputDir = project.objects.directoryProperty()
+
+  ExtractCicsJars() {
+    outputDir.convention(project.layout.buildDirectory.dir('cics-jars'))
+  }
+
+  @TaskAction
+  def extract() {
+    def sdkFile = sdkArchive.singleFile
+    def buildDir = outputDir.get().asFile
+    buildDir.mkdirs()
+
+    // Extract outer tar.gz to get the inner tar.gz
+    def tempDir = new File(buildDir, 'temp')
+    tempDir.mkdirs()
+
+    project.copy {
+      from project.tarTree(sdkFile)
+      into tempDir
+    }
+
+    // Find and extract the multiplatforms SDK
+    def multiplatformsSdk = new File(tempDir, 'CICS_TG_SDK_91_Multiplatforms.tar.gz')
+    if (!multiplatformsSdk.exists()) {
+      throw new GradleException("Could not find CICS_TG_SDK_91_Multiplatforms.tar.gz in extracted archive")
+    }
+
+    def sdkDir = new File(tempDir, 'sdk')
+    sdkDir.mkdirs()
+
+    project.copy {
+      from project.tarTree(multiplatformsSdk)
+      into sdkDir
+    }
+
+    // Extract cicseci.rar to get cicseci.jar, ctgclient.jar, and ctgserver.jar
+    def cicsEciRar = new File(sdkDir, 'cicstgsdk/api/jee/runtime/managed/cicseci.rar')
+    if (!cicsEciRar.exists()) {
+      throw new GradleException("Could not find cicseci.rar at expected location")
+    }
+
+    project.copy {
+      from project.zipTree(cicsEciRar)
+      into buildDir
+      include 'cicseci.jar'
+      include 'ctgclient.jar'
+      include 'ctgserver.jar'
+    }
+
+    // Copy cicsjee.jar
+    def cicsJeeJar = new File(sdkDir, 'cicstgsdk/api/jee/runtime/nonmanaged/cicsjee.jar')
+    if (!cicsJeeJar.exists()) {
+      throw new GradleException("Could not find cicsjee.jar at expected location")
+    }
+
+    project.copy {
+      from cicsJeeJar
+      into buildDir
+    }
+
+    // Clean up temp directory
+    tempDir.deleteDir()
+
+    logger.lifecycle("Extracted CICS JARs to: ${buildDir.absolutePath}")
+  }
+}
+
+tasks.register('extractCicsJars', ExtractCicsJars) {
+  sdkArchive.from(configurations.named('cicsSdk'))
+
+  // Only extract if the output directory doesn't exist or SDK configuration changed
+  outputs.upToDateWhen {
+    def outputDir = it.outputDir.get().asFile
+    outputDir.exists() &&
+      new File(outputDir, 'cicseci.jar').exists() &&
+      new File(outputDir, 'ctgclient.jar').exists() &&
+      new File(outputDir, 'ctgserver.jar').exists() &&
+      new File(outputDir, 'cicsjee.jar').exists()
+  }
+}
+
+dependencies {
+  // Download the CICS SDK from IBM
+  cicsSdk "${cicsSdkName}:${cicsSdkName}:@tar.gz"
+
+  // Compile-time dependencies (eliminates reflection)
+  compileOnly group: 'javax.resource', name: 'javax.resource-api', version: '1.7.1'
+  compileOnly files(tasks.named('extractCicsJars').map { task ->
+    project.fileTree(task.outputDir) {
+      include 'cicseci.jar'
+    }
+  })
+
+  // Test dependencies
+  testImplementation group: 'javax.resource', name: 'javax.resource-api', version: '1.7.1'
+  testImplementation libs.bundles.mockito
+  testImplementation files(tasks.named('extractCicsJars').map { task ->
+    project.fileTree(task.outputDir) {
+      include '*.jar'
+    }
+  })
+}
+
+// Ensure extraction happens before compilation
+tasks.named('compileJava') {
+  dependsOn 'extractCicsJars'
+}
+
+tasks.named('compileTestGroovy') {
+  dependsOn 'extractCicsJars'
+}
