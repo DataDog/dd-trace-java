@@ -75,8 +75,7 @@ public class MongoCommentInjector {
     String dbService = dbSpan.getServiceName();
     String traceParent =
         Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-            ? W3CTraceParent.build(
-                dbSpan.getTraceId(), dbSpan.getSpanId(), dbSpan.context().getSamplingPriority())
+            ? W3CTraceParent.from(dbSpan)
             : null;
 
     // Use shared comment builder directly

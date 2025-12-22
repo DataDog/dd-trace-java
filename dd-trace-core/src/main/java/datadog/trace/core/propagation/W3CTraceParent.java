@@ -2,6 +2,8 @@ package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.DDSpanContext;
 
 /**
  * Utility class for building W3C traceparent headers.
@@ -22,11 +24,20 @@ public final class W3CTraceParent {
    * @param samplingPriority the sampling priority (positive values result in sampled flag set)
    * @return the W3C traceparent header value
    */
-  public static String build(DDTraceId traceId, long spanId, int samplingPriority) {
+  public static String from(DDTraceId traceId, long spanId, int samplingPriority) {
     return "00-"
         + traceId.toHexString()
         + '-'
         + DDSpanId.toHexStringPadded(spanId)
         + (samplingPriority > 0 ? "-01" : "-00");
+  }
+
+  public static String from(AgentSpan span) {
+    return from(span.getTraceId(), span.getSpanId(), span.context().getSamplingPriority());
+  }
+
+  public static String from(DDSpanContext spanContext) {
+    return from(
+        spanContext.getTraceId(), spanContext.getSpanId(), spanContext.getSamplingPriority());
   }
 }

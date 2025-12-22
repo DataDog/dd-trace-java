@@ -284,9 +284,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceContext =
-          DD_INSTRUMENTATION_PREFIX
-              + W3CTraceParent.build(span.getTraceId(), span.getSpanId(), priority);
+      final String traceContext = DD_INSTRUMENTATION_PREFIX + W3CTraceParent.from(span);
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
@@ -372,8 +370,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceParent =
-          W3CTraceParent.build(span.getTraceId(), span.getSpanId(), priority);
+      final String traceParent = W3CTraceParent.from(span);
       final String traceContext = "_DD_" + traceParent;
 
       connection.setClientInfo("ApplicationName", traceContext);
