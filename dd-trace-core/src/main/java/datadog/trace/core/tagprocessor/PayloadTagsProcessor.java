@@ -1,5 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
 import datadog.trace.api.Config;
@@ -262,7 +263,8 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     @Override
     public void expandValueFailed(PathCursor path, Exception exception) {
-      log.debug("Failed to expand value at path '{}'", path.toString(""), exception);
+      log.debug(
+          EXCLUDE_TELEMETRY, "Failed to expand value at path '{}'", path.toString(""), exception);
     }
   }
 }
