@@ -181,7 +181,7 @@ public class DubboDecorator extends BaseDecorator {
       AgentSpan span = scope.span();
       if (!result.hasException()) {
         Gson gson = new Gson();
-        span.setTag("dubbo_response", gson.toJson(result.getValue()));
+        span.setTag("dubbo_response", null!=result.getValue()?gson.toJson(result.getValue()):"null");
       }
     }
     return scope;
