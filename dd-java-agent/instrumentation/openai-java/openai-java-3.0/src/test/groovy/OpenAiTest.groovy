@@ -20,15 +20,16 @@ import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.ResponseFunctionToolCall
 import com.openai.models.responses.ResponseIncludable
 import com.openai.models.responses.ResponseInputItem
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.config.LlmObsConfig
 import datadog.trace.core.util.LRUCache
-import datadog.trace.llmobs.LlmObsSpecification
 import java.nio.file.Path
 import java.nio.file.Paths
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-abstract class OpenAiTest extends LlmObsSpecification {
+abstract class OpenAiTest extends InstrumentationSpecification {
 
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // empty or null - will use mockOpenAiBackend and read recorded request/responses
@@ -71,6 +72,12 @@ abstract class OpenAiTest extends LlmObsSpecification {
         resp.send(rec.body)
       }
     }
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(LlmObsConfig.LLMOBS_ENABLED, "true")
   }
 
   def setupSpec() {

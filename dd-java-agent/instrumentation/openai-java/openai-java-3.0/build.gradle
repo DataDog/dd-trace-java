@@ -21,7 +21,5 @@ dependencies {
   latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
 
   testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
-
-  testImplementation project(':dd-java-agent:agent-llmobs:llmobs-test-fixtures')
 }
 
