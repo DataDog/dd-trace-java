@@ -4,9 +4,9 @@ import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.W3CTraceParent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import datadog.trace.core.propagation.W3CTraceParent;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;

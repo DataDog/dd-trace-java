@@ -1,12 +1,13 @@
-package datadog.trace.api
+package datadog.trace.core.propagation
 
+import datadog.trace.api.DDTraceId
 import datadog.trace.test.util.DDSpecification
 
 class W3CTraceParentTest extends DDSpecification {
 
   def "build produces correct format with samplingPriority=#samplingPriority"() {
     when:
-    def result = W3CTraceParent.build(traceId, spanId, samplingPriority)
+    def result = W3CTraceParent.from(traceId, spanId, samplingPriority)
 
     then:
     result == expected
@@ -23,7 +24,7 @@ class W3CTraceParentTest extends DDSpecification {
 
   def "build matches W3C traceparent format"() {
     when:
-    def result = W3CTraceParent.build(DDTraceId.from(123456789L), 987654321L, 1)
+    def result = W3CTraceParent.from(DDTraceId.from(123456789L), 987654321L, 1)
 
     then:
     // W3C format: version-traceId(32 hex)-spanId(16 hex)-flags(2 hex)

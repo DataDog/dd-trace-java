@@ -1,4 +1,7 @@
-package datadog.trace.api;
+package datadog.trace.core.propagation;
+
+import datadog.trace.api.DDSpanId;
+import datadog.trace.api.DDTraceId;
 
 /**
  * Utility class for building W3C traceparent headers.
