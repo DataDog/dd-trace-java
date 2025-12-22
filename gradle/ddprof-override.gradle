@@ -1,13 +1,13 @@
 // Configuration for using ddprof snapshot versions
-// When -PuseDdprofSnapshot=true is set, this will:
+// When -PddprofUseSnapshot=true is set, this will:
 // 1. Parse the current ddprof version from libs.versions.toml
 // 2. Calculate the next minor snapshot version: X.Y.Z -> X.(Y+1).0-SNAPSHOT
 // 3. Override the ddprof dependency resolution to use the snapshot version
 // 4. Add a qualifier to the dd-trace-java version to avoid overwriting standard snapshots
 
-def useDdprofSnapshot = project.hasProperty('useDdprofSnapshot') && project.property('useDdprofSnapshot').toBoolean()
+def ddprofUseSnapshot = project.hasProperty('ddprofUseSnapshot') && project.property('ddprofUseSnapshot').toBoolean()
 
-if (useDdprofSnapshot) {
+if (ddprofUseSnapshot) {
   def ddprofSnapshotVersion = calculateDdprofSnapshotVersion()
   logger.lifecycle("Using ddprof snapshot version: ${ddprofSnapshotVersion}")
 
