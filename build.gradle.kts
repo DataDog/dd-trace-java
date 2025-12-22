@@ -26,7 +26,7 @@ description = "dd-trace-java"
 val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
-apply(from = rootDir.resolve("gradle/ddprof-snapshot.gradle"))
+apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
 spotless {
   // only resolve the spotless dependencies once in the build
