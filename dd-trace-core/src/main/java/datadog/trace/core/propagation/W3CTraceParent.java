@@ -12,6 +12,8 @@ import datadog.trace.core.DDSpanContext;
  */
 public final class W3CTraceParent {
 
+  private static final int TRACE_PARENT_LENGTH = 55;
+
   private W3CTraceParent() {}
 
   /**
@@ -25,11 +27,14 @@ public final class W3CTraceParent {
    * @return the W3C traceparent header value
    */
   public static String from(DDTraceId traceId, long spanId, int samplingPriority) {
-    return "00-"
-        + traceId.toHexString()
-        + '-'
-        + DDSpanId.toHexStringPadded(spanId)
-        + (samplingPriority > 0 ? "-01" : "-00");
+    StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
+    sb.append("00-");
+    sb.append(traceId.toHexString());
+    sb.append('-');
+    sb.append(DDSpanId.toHexStringPadded(spanId));
+    sb.append(samplingPriority > 0 ? "-01" : "-00");
+
+    return sb.toString();
   }
 
   public static String from(AgentSpan span) {
