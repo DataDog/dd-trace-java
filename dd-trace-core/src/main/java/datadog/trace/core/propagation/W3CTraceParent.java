@@ -23,26 +23,26 @@ public final class W3CTraceParent {
    *
    * @param traceId the trace id
    * @param spanId the span id
-   * @param samplingPriority the sampling priority (positive values result in sampled flag set)
+   * @param isSampled whether the trace was sampled or not
    * @return the W3C traceparent header value
    */
-  public static String from(DDTraceId traceId, long spanId, int samplingPriority) {
+  public static String from(DDTraceId traceId, long spanId, boolean isSampled) {
     StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
     sb.append("00-");
     sb.append(traceId.toHexString());
     sb.append('-');
     sb.append(DDSpanId.toHexStringPadded(spanId));
-    sb.append(samplingPriority > 0 ? "-01" : "-00");
+    sb.append(isSampled ? "-01" : "-00");
 
     return sb.toString();
   }
 
   public static String from(AgentSpan span) {
-    return from(span.getTraceId(), span.getSpanId(), span.context().getSamplingPriority());
+    return from(span.getTraceId(), span.getSpanId(), span.context().getSamplingPriority() > 0);
   }
 
   public static String from(DDSpanContext spanContext) {
     return from(
-        spanContext.getTraceId(), spanContext.getSpanId(), spanContext.getSamplingPriority());
+        spanContext.getTraceId(), spanContext.getSpanId(), spanContext.getSamplingPriority() > 0);
   }
 }
