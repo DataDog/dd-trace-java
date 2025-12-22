@@ -135,17 +135,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
     assertTraces(
         trace(
             SORT_BY_START_TIME,
-            span().isRoot().withOperationName("parent"),
-            span().childOfPrevious().withOperationName("child"),
-            span().childOfPrevious().withOperationName("great-child"),
-            span().childOfPrevious().withOperationName("great-great-child")));
+            span().isRoot().operationName("parent"),
+            span().childOfPrevious().operationName("child"),
+            span().childOfPrevious().operationName("great-child"),
+            span().childOfPrevious().operationName("great-great-child")));
   }
 
   /** Verifies the parent / child span relation. */
   void assertConnectedTrace() {
     assertTraces(
         trace(
-            span().isRoot().withOperationName("parent"),
-            span().childOfPrevious().withOperationName("asyncChild")));
+            span().isRoot().operationName("parent"),
+            span().childOfPrevious().operationName("asyncChild")));
   }
 }
