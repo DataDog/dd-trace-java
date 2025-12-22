@@ -444,7 +444,6 @@ public class ResponseDecorator {
                         Map<String, String> formatMap = new HashMap<>();
                         if (format.isText()) {
                           formatMap.put("type", "text");
-                          metadata.put("text.format.type", "text");
                         } else if (format.isJsonSchema()) {
                           formatMap.put("type", "json_schema");
                         } else if (format.isJsonObject()) {
