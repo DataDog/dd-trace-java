@@ -906,7 +906,7 @@ deploy_snapshot_with_ddprof_snapshot:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - echo "Publishing dd-trace-java snapshot with ddprof snapshot dependency"
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot=true publishToSonatype -PskipTests $GRADLE_ARGS
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
