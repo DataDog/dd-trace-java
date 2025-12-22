@@ -32,6 +32,7 @@ public class DefaultServerConnection36Instrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      "datadog.trace.core.propagation.W3CTraceParent",
       packageName + ".BsonScrubber",
       packageName + ".MongoCommentInjector",
       packageName + ".MongoDecorator",
