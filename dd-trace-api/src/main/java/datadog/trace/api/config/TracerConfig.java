@@ -162,6 +162,7 @@ public final class TracerConfig {
   public static final String TRACE_RESPONSE_BODY_ENABLED = "trace.response.body.enabled";
 
   public static final String TRACE_RESPONSE_BODY_BLACKLIST_URLS = "trace.response.body.blacklist.urls";
+  public static final String TRACE_RESPONSE_BODY_WHITELIST_URLS = "trace.response.body.whitelist.urls";
 
   public static final String TRACE_RESPONSE_BODY_ENCODING = "trace.response.body.encoding";
 
