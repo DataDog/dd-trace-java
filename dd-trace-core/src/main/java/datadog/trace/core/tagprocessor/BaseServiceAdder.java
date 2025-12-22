@@ -22,7 +22,7 @@ public final class BaseServiceAdder extends TagsPostProcessor {
         && spanContext != null
         && !ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       unsafeTags.put(DDTags.BASE_SERVICE, ddService);
-      unsafeTags.remove("version");
+      // unsafeTags.remove("version"); 中间件也要有version
     }
   }
 }
