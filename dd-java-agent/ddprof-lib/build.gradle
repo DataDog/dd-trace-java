@@ -16,7 +16,7 @@ dependencies {
 
 // Log information about ddprof version being used
 afterEvaluate {
-  if (rootProject.hasProperty('ddprofSnapshotVersion')) {
+  if (rootProject.hasProperty('ddprofUseSnapshot')) {
     logger.lifecycle("${project.name}: Using ddprof SNAPSHOT version ${rootProject.ext.ddprofSnapshotVersion}")
   }
 }

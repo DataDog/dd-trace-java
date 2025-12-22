@@ -10,7 +10,7 @@ This feature allows publishing dd-trace-java snapshot versions that depend on a 
 
 ### Version Qualification
 
-To avoid overwriting standard snapshot artifacts, builds with `-PuseDdprofSnapshot=true` will have a `-ddprof` qualifier added to their version:
+To avoid overwriting standard snapshot artifacts, builds with `-PddprofUseSnapshot=true` will have a `-ddprof` qualifier added to their version:
 
 - Standard snapshot: `1.58.0-SNAPSHOT`
 - With ddprof snapshot: `1.58.0-ddprof-SNAPSHOT`
@@ -24,7 +24,7 @@ This ensures that both versions can coexist in Maven Central Snapshots repositor
 To verify that the ddprof snapshot version is correctly calculated and applied:
 
 ```bash
-./gradlew -PuseDdprofSnapshot=true :dd-java-agent:ddprof-lib:dependencies --configuration runtimeClasspath
+./gradlew -PddprofUseSnapshot=true :dd-java-agent:ddprof-lib:dependencies --configuration runtimeClasspath
 ```
 
 Look for the output:
@@ -38,7 +38,7 @@ Look for the output:
 To build the project with the ddprof snapshot dependency:
 
 ```bash
-./gradlew build -PuseDdprofSnapshot=true
+./gradlew build -PddprofUseSnapshot=true
 ```
 
 ### Publishing to Maven Central Snapshots
@@ -46,7 +46,7 @@ To build the project with the ddprof snapshot dependency:
 To publish artifacts with the ddprof snapshot dependency:
 
 ```bash
-./gradlew publishToSonatype -PuseDdprofSnapshot=true -PskipTests
+./gradlew publishToSonatype -PddprofUseSnapshot=true -PskipTests
 ```
 
 **Note:** You must have the required credentials configured:
@@ -67,7 +67,7 @@ A GitLab CI job named `deploy_snapshot_with_ddprof_snapshot` is available for ma
 3. Click the manual play button to trigger it
 
 **What it does:**
-- Builds dd-trace-java with `-PuseDdprofSnapshot=true`
+- Builds dd-trace-java with `-PddprofUseSnapshot=true`
 - Publishes to Maven Central Snapshots repository
 - Produces artifacts with the ddprof snapshot dependency
 
@@ -87,7 +87,7 @@ A GitLab CI job named `deploy_snapshot_with_ddprof_snapshot` is available for ma
 
 ### How It Works
 
-1. The Gradle property `-PuseDdprofSnapshot=true` activates the feature
+1. The Gradle property `-PddprofUseSnapshot=true` activates the feature
 2. The configuration reads `gradle/libs.versions.toml` to get the current ddprof version
 3. Version is parsed using regex: `ddprof = "X.Y.Z"`
 4. Snapshot version is calculated: `X.(Y+1).0-SNAPSHOT`
@@ -136,6 +136,6 @@ This ensures that even transitive dependencies on ddprof are overridden.
 **Cause:** The property might not be correctly set or parsed.
 
 **Solutions:**
-- Ensure you're using `-PuseDdprofSnapshot=true` (not `-DuseDdprofSnapshot`)
+- Ensure you're using `-PddprofUseSnapshot=true` (not `-DddprofUseSnapshot`)
 - Check Gradle output for "Using ddprof snapshot version" message
 - Run with `--info` flag to see detailed dependency resolution logs
