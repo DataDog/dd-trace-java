@@ -53,6 +53,11 @@ abstract class OkHttp2Test extends HttpClientTest {
   boolean testAppSecClientRequest() {
     true
   }
+
+  @Override
+  boolean testAppSecClientRedirect() {
+    true
+  }
 }
 
 @Timeout(5)

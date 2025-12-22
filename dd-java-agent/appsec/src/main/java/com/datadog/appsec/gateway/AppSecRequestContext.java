@@ -275,6 +275,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public boolean sampleHttpClientRequest(final long id) {
     httpClientRequestCount.incrementAndGet();
     synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.contains(id)) {
+        return true;
+      }
       if (sampledHttpClientRequests.size()
           < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
         sampledHttpClientRequests.add(id);

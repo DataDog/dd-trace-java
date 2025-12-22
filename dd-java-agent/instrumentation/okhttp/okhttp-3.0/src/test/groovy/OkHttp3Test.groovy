@@ -28,6 +28,11 @@ abstract class OkHttp3Test extends HttpClientTest {
   }
 
   @Override
+  boolean testAppSecClientRedirect() {
+    true
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
