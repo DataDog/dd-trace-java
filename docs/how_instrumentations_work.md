@@ -91,14 +91,44 @@ To run muzzle on your instrumentation, run:
 
 > [!WARNING]
 > Muzzle does _not_ run tests.
-> It checks that the types and methods used by the instrumentation are present in particular versions of libraries. 
-> It can be subverted with `MethodHandle` and reflection -- in other words, having the `muzzle` task passing is not enough 
+> It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
+> It can be subverted with `MethodHandle` and reflection -- in other words, having the `muzzle` task passing is not enough
 > to validate an instrumentation.
 
 By default, all the muzzle directives are checked against all the instrumentations included in a module.
-However, there can be situations in which it’s only needed to check one specific directive on an instrumentation.
+However, there can be situations in which it's only needed to check one specific directive on an instrumentation.
 At this point the instrumentation should override the method `muzzleDirective()` by returning the name of the directive to execute.
 
+### Identifying Breaking Changes with JApiCmp
+
+Before defining muzzle version ranges, you can use the JApiCmp plugin to compare different versions of a library and
+identify breaking API changes. This helps determine where to split version ranges in your muzzle directives.
+
+The `japicmp` task compares two versions of a Maven artifact and reports:
+- Removed classes and methods (breaking changes)
+- Added classes and methods (non-breaking changes)
+- Modified methods with binary compatibility status
+
+#### Usage
+
+Compare two versions of any Maven artifact:
+
+```shell
+./gradlew japicmp -Partifact=groupId:artifactId -Pbaseline=oldVersion -Ptarget=newVersion
+```
+
+For example, to compare MongoDB driver versions:
+
+```shell
+./gradlew japicmp -Partifact=org.mongodb:mongodb-driver-sync -Pbaseline=3.11.0 -Ptarget=4.0.0
+```
+
+#### Output
+
+The task generates two reports:
+
+- **Text report**: `build/reports/japicmp.txt` - Detailed line-by-line comparison
+- **HTML report**: `build/reports/japicmp.html` - Browsable visual report
 
 ## Instrumentation classes
 

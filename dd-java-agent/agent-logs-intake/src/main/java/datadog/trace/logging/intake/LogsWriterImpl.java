@@ -27,11 +27,13 @@ public class LogsWriterImpl implements LogsWriter {
 
   private final Map<String, Object> commonTags;
   private final BackendApiFactory apiFactory;
+  private final Intake intake;
   private final BlockingQueue<Map<String, Object>> messageQueue;
   private final Thread messagePollingThread;
 
-  public LogsWriterImpl(Config config, BackendApiFactory apiFactory) {
+  public LogsWriterImpl(Config config, BackendApiFactory apiFactory, Intake intake) {
     this.apiFactory = apiFactory;
+    this.intake = intake;
 
     commonTags = new HashMap<>();
     commonTags.put("ddsource", "java");
@@ -87,7 +89,7 @@ public class LogsWriterImpl implements LogsWriter {
   }
 
   private void logPollingLoop() {
-    BackendApi backendApi = apiFactory.createBackendApi(Intake.LOGS);
+    BackendApi backendApi = apiFactory.createBackendApi(intake);
     LogsDispatcher logsDispatcher = new LogsDispatcher(backendApi);
 
     while (!Thread.currentThread().isInterrupted()) {

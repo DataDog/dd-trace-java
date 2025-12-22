@@ -1,5 +1,4 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
 plugins {
@@ -72,8 +71,4 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
-}
-
-tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
-  failOnMissingClasses = false
 }

@@ -5,9 +5,7 @@ import org.gradle.api.logging.Logging
 
 private val logger = Logging.getLogger("TestJvmConstraintsUtils")
 
-internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean {
-  return withinAllowedRange(version)
-}
+internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean = withinAllowedRange(version)
 
 internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean {
   val testJvmName = testJvmSpec.normalizedTestJvm.get()

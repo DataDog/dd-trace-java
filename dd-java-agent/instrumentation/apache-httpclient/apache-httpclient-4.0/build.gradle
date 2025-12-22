@@ -39,9 +39,12 @@ dependencies {
   // to instrument the integration test
   iastIntegrationTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   iastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'
-  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
+  // Provide real (non-shadowed) jetty for the test server bootstrap
+  iastIntegrationTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  iastIntegrationTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.56.v20240826'
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:apache-httpcore:apache-httpcore-4.0'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common'))
+  iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
   iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')

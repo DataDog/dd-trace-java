@@ -45,7 +45,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'

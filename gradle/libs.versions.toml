@@ -13,11 +13,11 @@ okhttp = "3.12.15" # Datadog fork to support Java 7
 
 # Languages
 ## Groovy
-groovy = "3.0.24"
+groovy = "3.0.25"
 
 ## Kotlin
 kotlin = "1.6.21"
-kotlin-plugin = "1.9.24"
+kotlin-plugin = "2.0.21"
 kotlinx-coroutines = "1.3.0"
 
 ## Scala
@@ -50,6 +50,7 @@ cafe_crypto = "0.1.0"
 # Common utils
 commons = "3.2"
 guava = "[16.0,20.0]" # Last version to support Java 7
+javaparser = "3.24.4"
 jctools = "3.3.0"
 lz4 = "1.7.1"
 
@@ -82,8 +83,11 @@ okhttp = { module = "com.datadoghq.okhttp3:okhttp", version.ref = "okhttp" }
 
 # Languages
 ## Groovy
-groovy = { module = "org.codehaus.groovy:groovy-all", version.ref = "groovy" }
+groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
+groovy-json = { module = "org.codehaus.groovy:groovy-json", version.ref = "groovy" }
+groovy-templates = { module = "org.codehaus.groovy:groovy-templates", version.ref = "groovy" }
 groovy-yaml = { module = "org.codehaus.groovy:groovy-yaml", version.ref = "groovy" }
+groovy-xml = { module = "org.codehaus.groovy:groovy-xml", version.ref = "groovy" }
 
 ## Kotlin
 kotlin = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
@@ -123,6 +127,8 @@ cafe-crypto-curve25519 = { module = "cafe.cryptography:curve25519-elisabeth", ve
 aircompressor = { module = "io.airlift:aircompressor", version = "2.0.2"} # aircompressor v3 requires Java 22
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
+javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
 jctools = { module = "org.jctools:jctools-core", version.ref = "jctools" }
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 
@@ -142,6 +148,7 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
@@ -167,4 +174,5 @@ test-logging = ["logback-classic", "log4j-over-slf4j", "jcl-over-slf4j", "jul-to
 junit5 = ["junit-jupiter", "junit-jupiter-params"]
 junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
+groovy = ["groovy", "groovy-json"]
 spock = ["spock-core", "objenesis"]
