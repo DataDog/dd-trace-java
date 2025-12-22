@@ -2,7 +2,7 @@ package datadog.trace.agent.test.assertions;
 
 import java.util.Optional;
 
-public class NonNull<T> implements Matcher<T> {
+public class IsNull<T> implements Matcher<T> {
   @Override
   public Optional<T> expected() {
     return Optional.empty();
@@ -10,11 +10,11 @@ public class NonNull<T> implements Matcher<T> {
 
   @Override
   public String message() {
-    return "Non-null value expected";
+    return "Null value expected";
   }
 
   @Override
   public boolean test(T t) {
-    return t != null;
+    return t == null;
   }
 }

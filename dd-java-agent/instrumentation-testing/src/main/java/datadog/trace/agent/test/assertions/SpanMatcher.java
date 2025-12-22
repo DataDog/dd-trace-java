@@ -1,17 +1,30 @@
 package datadog.trace.agent.test.assertions;
 
+import static datadog.trace.agent.test.assertions.Matchers.assertValue;
 import static datadog.trace.agent.test.assertions.Matchers.is;
+import static datadog.trace.agent.test.assertions.Matchers.isFalse;
+import static datadog.trace.agent.test.assertions.Matchers.isNull;
+import static datadog.trace.agent.test.assertions.Matchers.isTrue;
 import static datadog.trace.agent.test.assertions.Matchers.matches;
 import static datadog.trace.agent.test.assertions.Matchers.nonNull;
 import static datadog.trace.agent.test.assertions.Matchers.validates;
-import static java.time.temporal.ChronoUnit.NANOS;
+import static datadog.trace.core.DDSpanAccessor.spanLinks;
+import static java.time.Duration.ofNanos;
 
+import datadog.trace.api.TagMap;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
 import java.time.Duration;
-import java.util.Optional;
+import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.opentest4j.AssertionFailedError;
+
+/*
+ * TODO: Dev notes
+ * - inconsistency with "<field><matching-rule>()" vs "has<field>()"
+ * - hasServiceName / withError / withoutError
+ */
 
 public final class SpanMatcher {
   private Matcher<Long> idMatcher;
@@ -20,16 +33,23 @@ public final class SpanMatcher {
   private Matcher<CharSequence> operationNameMatcher;
   private Matcher<CharSequence> resourceNameMatcher;
   private Matcher<Duration> durationMatcher;
+  private Matcher<String> typeMatcher;
+  private Matcher<Boolean> errorMatcher;
+  private SpanLinkMatcher[] linkMatchers;
 
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
-  private SpanMatcher() {}
+  private SpanMatcher() {
+    this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
+    this.typeMatcher = isNull();
+    this.errorMatcher = isFalse();
+  }
 
   public static SpanMatcher span() {
     return new SpanMatcher();
   }
 
-  public SpanMatcher withId(long id) {
+  public SpanMatcher id(long id) {
     this.idMatcher = is(id);
     return this;
   }
@@ -53,32 +73,32 @@ public final class SpanMatcher {
     return this;
   }
 
-  public SpanMatcher withServiceName(String serviceName) {
+  public SpanMatcher serviceName(String serviceName) {
     this.serviceNameMatcher = is(serviceName);
     return this;
   }
 
-  public SpanMatcher withOperationName(String operationName) {
+  public SpanMatcher operationName(String operationName) {
     this.operationNameMatcher = is(operationName);
     return this;
   }
 
-  public SpanMatcher operationNameMatching(Pattern pattern) {
+  public SpanMatcher operationName(Pattern pattern) {
     this.operationNameMatcher = matches(pattern);
     return this;
   }
 
-  public SpanMatcher withResourceName(String resourceName) {
+  public SpanMatcher resourceName(String resourceName) {
     this.resourceNameMatcher = is(resourceName);
     return this;
   }
 
-  public SpanMatcher resourceNameMatching(Pattern pattern) {
+  public SpanMatcher resourceName(Pattern pattern) {
     this.resourceNameMatcher = matches(pattern);
     return this;
   }
 
-  public SpanMatcher resourceNameMatching(Predicate<CharSequence> validator) {
+  public SpanMatcher resourceName(Predicate<CharSequence> validator) {
     this.resourceNameMatcher = validates(validator);
     return this;
   }
@@ -93,12 +113,32 @@ public final class SpanMatcher {
     return this;
   }
 
-  public SpanMatcher durationMatching(Predicate<Duration> validator) {
+  public SpanMatcher duration(Predicate<Duration> validator) {
     this.durationMatcher = validates(validator);
     return this;
   }
 
-  public void assertSpan(DDSpan span, DDSpan previousSpan) {
+  public SpanMatcher type(String type) {
+    this.typeMatcher = is(type);
+    return this;
+  }
+
+  public SpanMatcher withError() {
+    this.errorMatcher = isTrue();
+    return this;
+  }
+
+  public SpanMatcher withoutError() {
+    this.errorMatcher = isFalse();
+    return this;
+  }
+
+  public SpanMatcher links(SpanLinkMatcher... matchers) {
+    this.linkMatchers = matchers;
+    return this;
+  }
+
+  void assertSpan(DDSpan span, DDSpan previousSpan) {
     // Apply parent id matcher from the previous span
     if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
       this.parentIdMatcher = is(previousSpan.getSpanId());
@@ -109,19 +149,27 @@ public final class SpanMatcher {
     assertValue(this.serviceNameMatcher, span.getServiceName(), "Expected service name");
     assertValue(this.operationNameMatcher, span.getOperationName(), "Expected operation name");
     assertValue(this.resourceNameMatcher, span.getResourceName(), "Expected resource name");
-    assertValue(
-        this.durationMatcher, Duration.of(span.getDurationNano(), NANOS), "Expected duration");
-    // TODO Add more values to test (tags, links, ...)
+    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Expected duration");
+    assertValue(this.typeMatcher, span.getSpanType(), "Expected span type");
+    assertValue(this.errorMatcher, span.isError(), "Expected error status");
+    assertSpanTags(span.getTags());
+    assertSpanLinks(spanLinks(span));
   }
 
-  private <T> void assertValue(Matcher<T> matcher, T value, String message) {
-    if (matcher != null && !matcher.test(value)) {
-      Optional<T> expected = matcher.expected();
-      if (expected.isPresent()) {
-        throw new AssertionFailedError(message + ". " + matcher.message(), expected.get(), value);
-      } else {
-        throw new AssertionFailedError(message + ": " + value + ". " + matcher.message());
-      }
+  private void assertSpanTags(TagMap tags) {
+    // TODO Implement span tag assertions
+  }
+
+  private void assertSpanLinks(List<AgentSpanLink> links) {
+    int linkCount = links == null ? 0 : links.size();
+    int expectedLinkCount = this.linkMatchers == null ? 0 : this.linkMatchers.length;
+    if (linkCount != expectedLinkCount) {
+      throw new AssertionFailedError("Unexpected span link count", expectedLinkCount, linkCount);
+    }
+    for (int i = 0; i < expectedLinkCount; i++) {
+      SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];
+      AgentSpanLink link = links.get(i);
+      linkMatcher.assertLink(link);
     }
   }
 }
