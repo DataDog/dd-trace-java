@@ -888,6 +888,31 @@ deploy_to_maven_central:
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
 
+deploy_snapshot_with_ddprof_snapshot:
+  extends: .gradle_build
+  stage: publish
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    # Manual trigger only - for testing with ddprof snapshot versions
+    - when: manual
+      allow_failure: true
+  script:
+    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - echo "Publishing dd-trace-java snapshot with ddprof snapshot dependency"
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PuseDdprofSnapshot=true publishToSonatype -PskipTests $GRADLE_ARGS
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
+
 deploy_artifacts_to_github:
   stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1

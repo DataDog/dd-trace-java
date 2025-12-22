@@ -14,6 +14,13 @@ dependencies {
   api project(':dd-trace-api')
 }
 
+// Log information about ddprof version being used
+afterEvaluate {
+  if (rootProject.hasProperty('ddprofSnapshotVersion')) {
+    logger.lifecycle("${project.name}: Using ddprof SNAPSHOT version ${rootProject.ext.ddprofSnapshotVersion}")
+  }
+}
+
 tasks.named("shadowJar", ShadowJar) {
   dependencies {
     deps.excludeShared
