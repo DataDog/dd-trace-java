@@ -80,7 +80,7 @@ A GitLab CI job named `deploy_snapshot_with_ddprof_snapshot` is available for ma
 
 ### Files Modified
 
-1. **`gradle/ddprof-snapshot.gradle`** - Core logic for version calculation and dependency override
+1. **`gradle/ddprof-override.gradle`** - Core logic for version calculation and dependency override
 2. **`build.gradle.kts`** - Applies the ddprof-snapshot configuration
 3. **`dd-java-agent/ddprof-lib/build.gradle`** - Logging for snapshot version usage
 4. **`.gitlab-ci.yml`** - New CI job for snapshot publishing
