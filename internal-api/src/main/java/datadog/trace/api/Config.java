@@ -674,6 +674,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_REQUEST_BODY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_BLACKLIST_URLS;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_WHITELIST_URLS;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESPONSE_BODY_ENCODING;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
@@ -1295,6 +1296,7 @@ public class Config {
   private final boolean tracerResponseBodyEnabled;
   private final String tracerResponseBodyEncoding;
   private final String tracerResponseBodyBlackListUrls;
+  private final String tracerResponseBodyWhiteListUrls;
   private final boolean axisPromoteResourceName;
   private final float traceFlushIntervalSeconds;
   private final long tracePostProcessingTimeout;
@@ -2716,6 +2718,7 @@ public class Config {
         configProvider.getBoolean(TRACE_REQUEST_BODY_ENABLED, DEFAULT_TRACE_REQUEST_BODY_ENABLED);
 
     tracerResponseBodyBlackListUrls = configProvider.getString(TRACE_RESPONSE_BODY_BLACKLIST_URLS);
+    tracerResponseBodyWhiteListUrls = configProvider.getString(TRACE_RESPONSE_BODY_WHITELIST_URLS);
 
     dubboProviderPropagateEnabled =
         configProvider.getBoolean(
@@ -5662,6 +5665,10 @@ public class Config {
     return tracerResponseBodyBlackListUrls;
   }
 
+  public String getTracerResponseBodyWhiteListUrls() {
+    return tracerResponseBodyWhiteListUrls;
+  }
+
   @Override
   public String toString() {
     return "Config{"
@@ -5766,6 +5773,8 @@ public class Config {
         + tracerResponseBodyEncoding
         + ", tracerResponseBodyBlackListUrls="
         + tracerResponseBodyBlackListUrls
+        + ", tracerResponseBodyWhiteListUrls="
+        + tracerResponseBodyWhiteListUrls
         + ", dbClientSplitByInstance="
         + dbClientSplitByInstance
         + ", dbClientSplitByInstanceTypeSuffix="

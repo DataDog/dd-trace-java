@@ -34,13 +34,13 @@ public class DubboInvokeAdvice {
       }
     }
     return scope;*/
-    if(filter.getClass().getPackage().getName().contains("org.apache.dubbo")){
+    if(filter.getClass().getPackage().getName().contains("org.apache.dubbo") || filter.getClass().getPackage().getName().contains("com.alibaba")){
       // skip
       return null;
     }
     AgentSpanContext parentContext = extractContextAndGetSpanContext(dubboTraceInfo, GETTER);
     if (null != parentContext) {
-      return activateSpan(startSpan("dubbo/filter", parentContext));
+      return activateSpan(startSpan(filter.getClass().getName(), parentContext));
     }
     return null;
   }

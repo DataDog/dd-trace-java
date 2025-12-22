@@ -74,8 +74,17 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
       if (!isEmpty(Config.get().getTracerResponseBodyBlackListUrls())){
         hasBlackList = Arrays.stream(Config.get().getTracerResponseBodyBlackListUrls().split(",")).anyMatch(uri -> uri.equals(url));
       }
+      String whiteList = "";
+      whiteList = Config.get().getTracerResponseBodyWhiteListUrls();
+      boolean hasWhiteList;
+      if (isEmpty(whiteList)){
+        hasWhiteList = true;
+      }else{
+        hasWhiteList = matchPath(url, whiteList.split(","));
+      }
+
       ContentCachingResponseWrapper responseWrapper = null;
-      boolean responseBodyEnabledTmp = responseBodyEnabled && !hasBlackList;
+      boolean responseBodyEnabledTmp = responseBodyEnabled && !hasBlackList && hasWhiteList;
       if (responseBodyEnabledTmp){
         responseWrapper = new ContentCachingResponseWrapper(response);
       }
@@ -97,12 +106,15 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         span.setTag("request_body", new String(requestWrapper.getContentAsByteArray()));
       }
       int dataLength = data==null?0:data.length;
-      log.debug(
-          "traceId:{},spanId:{},dataLength:{},responseBodyEnabled:{}",
-          GlobalTracer.get().getTraceId(),
-          span.getSpanId(),
-          dataLength,
-          responseBodyEnabled);
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "traceId:{},spanId:{},url:{},dataLength:{},responseBodyEnabledTmp:{}",
+            GlobalTracer.get().getTraceId(),
+            span.getSpanId(),
+            url,
+            dataLength,
+            responseBodyEnabledTmp);
+      }
       if (responseBodyEnabledTmp) {
         if (responseWrapper.getContentType() != null
             && (responseWrapper.getContentType().contains("application/json")
@@ -125,6 +137,73 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     } else {
       filterChain.doFilter(request, response);
     }
+  }
+
+  public static boolean matchPath(String requestPath, String[] patterns) {
+    if (!requestPath.startsWith("/")) {
+      requestPath = "/" + requestPath;
+    }
+
+    for (String pattern : patterns) {
+      if (pattern.equals(requestPath)) {
+        return true;
+      }
+
+      // 处理后缀匹配模式，如 *.jsp
+      if (pattern.startsWith("*.")) {
+        String suffix = pattern.substring(1); // 获取 .jsp
+        if (requestPath.endsWith(suffix)) {
+          return true;
+        }
+      }
+      // 处理中间通配符匹配，如 /system/*/get
+      else if (pattern.contains("/*/")) {
+        int wildcardIndex = pattern.indexOf("/*/");
+        String prefix = pattern.substring(0, wildcardIndex);
+        String suffix = pattern.substring(wildcardIndex + 2); // 包括前面的斜杠
+
+        // 检查请求路径是否以指定前缀开始，并以指定后缀结束
+        if (requestPath.startsWith(prefix) && requestPath.endsWith(suffix)) {
+          // 计算中间部分的起始和结束位置
+          int prefixEndIndex = prefix.length();
+          int suffixStartIndex = requestPath.length() - suffix.length();
+
+          // 提取中间部分进行验证
+          if (prefixEndIndex < suffixStartIndex) {
+            String middlePart = requestPath.substring(prefixEndIndex + 1, suffixStartIndex);
+            // 确保中间部分不包含斜杠（即只有一级路径）
+            if (!middlePart.isEmpty() && middlePart.indexOf('/') == -1) {
+              return true;
+            }
+          }
+        }
+      }
+      // 处理前缀匹配模式，如 /admin*
+      else if (pattern.endsWith("*") && !pattern.endsWith("/*")) {
+        String prefix = pattern.substring(0, pattern.length() - 1);
+        if (requestPath.startsWith(prefix)) {
+          return true;
+        }
+      }
+      // 处理目录通配符匹配，如 /user/*
+      else if (pattern.endsWith("/*")) {
+        String basePath = pattern.substring(0, pattern.length() - 2); // 移除 /*
+        if (requestPath.equals(basePath) || requestPath.startsWith(basePath + "/")) {
+          return true;
+        }
+      }
+      // 处理特殊模式 /*/get
+      else if (pattern.startsWith("/*/")) {
+        String suffix = pattern.substring(2);
+        String[] pathSegments = requestPath.split("/");
+        if (pathSegments.length == 3 &&
+            !pathSegments[1].isEmpty() &&
+            pathSegments[2].equals(suffix.substring(1))) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private boolean isEmpty(String str) {
