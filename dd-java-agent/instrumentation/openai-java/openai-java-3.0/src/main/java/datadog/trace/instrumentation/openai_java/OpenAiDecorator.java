@@ -4,6 +4,7 @@ import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -14,6 +15,7 @@ import java.util.List;
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
 
+  public static final String INTEGRATION = "openai";
   public static final String INSTRUMENTATION_NAME = "openai-java";
   public static final CharSequence SPAN_NAME = UTF8BytesString.create("openai.request");
 
@@ -21,7 +23,7 @@ public class OpenAiDecorator extends ClientDecorator {
   public static final String RESPONSE_MODEL = "openai.response.model";
   public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
 
-  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("openai");
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create(INTEGRATION);
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
@@ -29,17 +31,18 @@ public class OpenAiDecorator extends ClientDecorator {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     afterStart(span);
     span.setTag("openai.api_base", clientOptions.baseUrl());
-    // TODO api_version (either last part of the URL, or api-version param if Azure)
-    // clientOptions.queryParams().values("api-version")
     return span;
   }
 
   public void finishSpan(AgentSpan span, Throwable err) {
-    if (err != null) {
-      onError(span, err);
+    try {
+      if (err != null) {
+        onError(span, err);
+      }
+      DECORATE.beforeFinish(span);
+    } finally {
+      span.finish();
     }
-    DECORATE.beforeFinish(span);
-    span.finish();
   }
 
   @Override
@@ -68,6 +71,20 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag("_ml_obs_tag.parent_id", LLMObsContext.parentSpanId());
     }
     return super.afterStart(span);
+  }
+
+  @Override
+  public AgentSpan beforeFinish(AgentSpan span) {
+    if (llmObsEnabled) {
+      Object spanKindTag = span.getTag("_ml_obs_tag.span.kind");
+      if (spanKindTag != null) {
+        String spanKind = spanKindTag.toString();
+        boolean isRootSpan = span.getLocalRootSpan() == span;
+        LLMObsMetricCollector.get()
+            .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError());
+      }
+    }
+    return super.beforeFinish(span);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
