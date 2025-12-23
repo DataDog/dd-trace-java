@@ -1991,7 +1991,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (blockResponseFunction == null) {
           throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
         }
-        blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders)
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders, null)
       }
     }
     Blocking.blockingService = bs

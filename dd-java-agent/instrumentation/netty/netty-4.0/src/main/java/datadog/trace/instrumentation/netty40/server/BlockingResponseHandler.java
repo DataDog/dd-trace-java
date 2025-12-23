@@ -29,6 +29,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
   private final TraceSegment segment;
+  private final String securityResponseId;
 
   private boolean hasBlockedAlready;
 
@@ -36,15 +37,22 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       TraceSegment segment,
       int statusCode,
       BlockingContentType bct,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
+    this.securityResponseId = securityResponseId;
   }
 
   public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
-    this(segment, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+    this(
+        segment,
+        rba.getStatusCode(),
+        rba.getBlockingContentType(),
+        rba.getExtraHeaders(),
+        rba.getSecurityResponseId());
   }
 
   @Override
@@ -98,7 +106,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
 
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, this.securityResponseId);
       setContentLength(response, template.length);
       response.content().writeBytes(template);
     }

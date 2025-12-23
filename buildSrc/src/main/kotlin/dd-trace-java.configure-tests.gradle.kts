@@ -1,12 +1,12 @@
-import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
-import org.gradle.testing.base.TestingExtension
-import org.gradle.api.plugins.jvm.JvmTestSuite
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.junitplatform.JUnitPlatformOptions
 import org.gradle.kotlin.dsl.develocity
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
+import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
@@ -42,6 +42,10 @@ tasks.withType<Test>().configureEach {
     !rootProject.providers.gradleProperty("rerun.tests.${project.name}").isPresent
   }
 
+  // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
+  // Use a task-specific user prefs directory
+  systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("tmp/userPrefs/$name").get().asFile.absolutePath)
+
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())
@@ -70,7 +74,7 @@ tasks.register("allTests") {
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
   dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true)
+    testTask.name.contains("latest", ignoreCase = true)
   })
 }
 

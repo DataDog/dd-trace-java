@@ -50,17 +50,6 @@ public final class AppSecConfig {
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
   public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
       "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
-  @Deprecated public static final String APPSEC_COLLECT_ALL_HEADERS = "appsec.collect.all.headers";
-
-  @Deprecated
-  public static final String APPSEC_MAX_COLLECTED_HEADERS = "appsec.max.collected.headers";
-
-  @Deprecated
-  public static final String APPSEC_HEADER_COLLECTION_REDACTION_ENABLED =
-      "appsec.header.collection.redaction.enabled";
-
-  @Deprecated
-  public static final String APPSEC_RASP_COLLECT_REQUEST_BODY = "appsec.rasp.collect.request.body";
 
   private AppSecConfig() {}
 }

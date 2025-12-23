@@ -1,0 +1,30 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  extraRepository("confluent-releases", "https://packages.confluent.io/maven/")
+  pass {
+    group = "io.confluent"
+    module = "kafka-schema-registry-client"
+    versions = "[4.1.0,)"
+    excludeDependency "org.codehaus.jackson:jackson-mapper-asl" // missing on some releases
+    assertInverse = true
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+dependencies {
+  implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
+  compileOnly group: 'io.confluent', name: 'kafka-schema-registry-client', version: '4.1.0'
+
+  testImplementation group: 'io.confluent', name: 'kafka-avro-serializer', version: '7.4.0'
+
+  latestDepTestImplementation group: 'io.confluent', name: 'kafka-avro-serializer', version: '+'
+}
+

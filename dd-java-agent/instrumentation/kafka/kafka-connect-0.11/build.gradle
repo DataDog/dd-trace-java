@@ -4,6 +4,9 @@ muzzle {
     module = "connect-runtime"
     versions = "[0.11.0.0,)"
     javaVersion = "17"
+    excludeDependency "io.confluent.cloud:*"
+    excludeDependency "io.confluent.observability:*"
+    excludeDependency "io.confluent.secure.compute:*"
     assertInverse = true
   }
 }
@@ -17,7 +20,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation libs.jackson.databind
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'

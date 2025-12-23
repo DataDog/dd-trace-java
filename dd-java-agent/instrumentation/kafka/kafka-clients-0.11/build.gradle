@@ -10,7 +10,7 @@ muzzle {
     name = "before-3.8"
     group = "org.apache.kafka"
     module = "kafka-clients"
-    versions = "[0.11.0.0,3.8.0)"
+    versions = "[0.11.0.0,3.8.0),[5,7.8.0)"
     assertInverse = true
   }
 }
@@ -34,14 +34,14 @@ dependencies {
   testRuntimeOnly group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   // IAST testing dependencies
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
   testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.4')
 
@@ -58,7 +58,7 @@ dependencies {
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
-  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
   iastLatestDepTest3Implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.4')
   iastLatestDepTest3Implementation project(':dd-java-agent:agent-iast:iast-test-fixtures')

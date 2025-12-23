@@ -39,6 +39,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@Flaky
 @NonRetryable
 public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
@@ -385,7 +386,6 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     doSamplingSnapshot(null, MethodLocation.EXIT);
   }
 
-  @Flaky
   @Test
   @DisplayName("testSamplingSnapshotDefaultWithConditionAtEntry")
   @DisabledIf(

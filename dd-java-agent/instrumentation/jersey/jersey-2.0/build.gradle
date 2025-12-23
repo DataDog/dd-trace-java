@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
-    versions = '[2,4)'
+    versions = '[2,)'
     assertInverse = true
   }
 }
@@ -16,6 +16,7 @@ testJvmConstraints {
 // there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
+addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
   configureCompiler(it, 11)
@@ -41,6 +42,9 @@ dependencies {
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jersey3Version
 
+  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '+'
+  latestDepTestImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version:'+'
+
   jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
@@ -54,7 +58,7 @@ dependencies {
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
-  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
 
   jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -72,7 +76,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-3.0')
-  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0')
 }
 
 configurations.named('jersey3JettyTestRuntimeClasspath') {

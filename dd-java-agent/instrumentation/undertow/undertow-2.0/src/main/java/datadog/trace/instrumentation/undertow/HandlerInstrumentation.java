@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpa
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -87,7 +87,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         }
       }
 
-      AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
+      AgentScope.Continuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         // not yet complete, not ready to do final activation of continuation
         scope = continuation.span().attach();
@@ -101,7 +101,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, parentContext);
 
-      exchange.putAttachment(DD_UNDERTOW_CONTINUATION, captureSpan(span));
+      exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, captureSpan(span));
 
       exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
 

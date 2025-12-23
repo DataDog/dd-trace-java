@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_ADD_SPAN_POINTERS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
@@ -21,6 +20,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
@@ -41,7 +41,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
@@ -350,6 +349,7 @@ import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APP_KEY;
+import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AZURE_APP_SERVICES;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
@@ -519,7 +519,6 @@ import static datadog.trace.api.config.RumConfig.RUM_TRACK_LONG_TASKS;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_RESOURCES;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_USER_INTERACTION;
 import static datadog.trace.api.config.RumConfig.RUM_VERSION;
-import static datadog.trace.api.config.TraceInstrumentationConfig.ADD_SPAN_POINTERS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
@@ -887,6 +886,7 @@ public class Config {
   private final boolean traceInferredProxyEnabled;
   private final int clockSyncPeriod;
   private final boolean logsInjectionEnabled;
+  private final boolean appLogsCollectionEnabled;
 
   private final String dogStatsDNamedPipe;
   private final int dogStatsDStartDelay;
@@ -1864,6 +1864,8 @@ public class Config {
           configProvider.getBoolean(
               LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED, LOGS_INJECTION);
     }
+    appLogsCollectionEnabled =
+        configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     dogStatsDNamedPipe = configProvider.getString(DOGSTATSD_NAMED_PIPE);
 
@@ -2599,7 +2601,7 @@ public class Config {
             EXCEPTION_REPLAY_ENABLED);
     debuggerCodeOriginEnabled =
         configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, InstrumenterConfig.getDefaultCodeOriginForSpanEnabled());
     debuggerCodeOriginMaxUserFrames =
         configProvider.getInteger(CODE_ORIGIN_MAX_USER_FRAMES, DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES);
     debuggerMaxExceptionPerSecond =
@@ -3511,6 +3513,10 @@ public class Config {
 
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
+  }
+
+  public boolean isAppLogsCollectionEnabled() {
+    return appLogsCollectionEnabled;
   }
 
   public boolean isReportHostName() {
@@ -5262,11 +5268,7 @@ public class Config {
   }
 
   public boolean isAddSpanPointers(final String integrationName) {
-    return configProvider.isEnabled(
-        Collections.singletonList(ADD_SPAN_POINTERS),
-        integrationName,
-        "",
-        DEFAULT_ADD_SPAN_POINTERS);
+    return configProvider.isEnabled(Arrays.asList(integrationName), "", "add.span.pointers", true);
   }
 
   public boolean isEnabled(
@@ -5293,6 +5295,19 @@ public class Config {
 
   public String getDbmPropagationMode() {
     return dbmPropagationMode;
+  }
+
+  // Database monitoring propagation mode constants
+  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
+  public static final String DBM_PROPAGATION_MODE_FULL = "full";
+
+  // Helper method to check if comment injection is enabled
+  public boolean isDbmCommentInjectionEnabled() {
+    if (dbmPropagationMode == null) {
+      return false;
+    }
+    return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
   }
 
   private void logIgnoredSettingWarning(
