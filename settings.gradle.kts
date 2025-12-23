@@ -106,7 +106,6 @@ include(
   ":components:environment",
   ":components:json",
   ":components:native-loader",
-  ":components:yaml",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",

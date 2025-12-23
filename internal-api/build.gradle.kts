@@ -268,7 +268,6 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
-  api(project(":components:yaml"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 
