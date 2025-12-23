@@ -112,7 +112,7 @@ public abstract class AbstractInstrumentationTest {
   }
 
   /**
-   * Checks the structure of the traces captured from the test agent.
+   * Checks the structure of the traces captured from the test tracer.
    *
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
@@ -121,7 +121,7 @@ public abstract class AbstractInstrumentationTest {
   }
 
   /**
-   * Checks the structure of the traces captured from the test agent.
+   * Checks the structure of the traces captured from the test tracer.
    *
    * @param options The {@link TraceAssertions.Options} to configure the checks.
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
