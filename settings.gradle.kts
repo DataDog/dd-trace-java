@@ -78,6 +78,7 @@ include(
   ":dd-java-agent:agent-profiling:profiling-controller-ddprof",
   ":dd-java-agent:agent-profiling:profiling-controller-openjdk",
   ":dd-java-agent:agent-profiling:profiling-controller-oracle",
+  ":dd-java-agent:agent-profiling:profiling-otel",
   ":dd-java-agent:agent-profiling:profiling-testing",
   ":dd-java-agent:agent-profiling:profiling-uploader",
   ":dd-java-agent:agent-profiling:profiling-utils",
