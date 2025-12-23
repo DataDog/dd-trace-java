@@ -10,6 +10,7 @@ import org.opentest4j.AssertionFailedError;
  * - introduce as few as possible matchers
  * - only have matchers for generic purpose, don't introduce feature / produce / use-case specific matchers
  * - name "ignores" as "any"?
+ * - think about extensibility? Open matchers for inheritance
  */
 
 public class Matchers {
@@ -21,7 +22,7 @@ public class Matchers {
     return new IsNull<>();
   }
 
-  public static <T> Matcher<T> nonNull() {
+  public static <T> Matcher<T> isNonNull() {
     return new IsNonNull<>();
   }
 
