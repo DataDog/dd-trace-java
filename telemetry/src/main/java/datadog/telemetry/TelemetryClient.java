@@ -98,9 +98,11 @@ public class TelemetryClient {
     try (okhttp3.Response response =
         OkHttpUtils.sendWithRetries(okHttpClient, httpRetryPolicy, httpRequest)) {
       if (response.code() == 404) {
+        
         log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
         return Result.NOT_FOUND;
       }
+      
       if (!response.isSuccessful()) {
         log.debug(
             "Telemetry message {} failed with: {} {}.",
@@ -109,6 +111,7 @@ public class TelemetryClient {
             response.message());
         return Result.FAILURE;
       }
+          
     } catch (InterruptedIOException e) {
       log.debug("Telemetry message {} sending interrupted: {}.", requestType, e.toString());
       return Result.INTERRUPTED;

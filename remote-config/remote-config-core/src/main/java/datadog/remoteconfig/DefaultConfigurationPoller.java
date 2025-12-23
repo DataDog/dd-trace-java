@@ -281,8 +281,8 @@ public class DefaultConfigurationPoller
           new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
     } catch (Exception e) {
       // We can't recover from this, so we'll not try to initialize again.
-      fatalOnInitialization = true;
       log.error("Remote configuration poller initialization failed", e);
+      fatalOnInitialization = true;
     }
     return true;
   }
