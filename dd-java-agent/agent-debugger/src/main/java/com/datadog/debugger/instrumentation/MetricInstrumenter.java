@@ -82,6 +82,7 @@ public class MetricInstrumenter extends Instrumenter {
   private final MetricProbe metricProbe;
   private int durationStartVar = -1;
   private LabelNode durationStartLabel;
+  private InstrumentationResult.Status status = InstrumentationResult.Status.INSTALLED;
 
   public MetricInstrumenter(
       MetricProbe metricProbe,
@@ -116,7 +117,13 @@ public class MetricInstrumenter extends Instrumenter {
         throw new IllegalArgumentException(
             "Invalid evaluateAt attribute: " + definition.getEvaluateAt());
     }
-    return InstrumentationResult.Status.INSTALLED;
+    return status;
+  }
+
+  @Override
+  protected void reportError(String message) {
+    super.reportError(message);
+    status = InstrumentationResult.Status.ERROR;
   }
 
   private void addFinallyHandler(LabelNode endLabel) {
@@ -185,7 +192,7 @@ public class MetricInstrumenter extends Instrumenter {
       case Opcodes.ARETURN:
         storeOpCode = Opcodes.ASTORE;
         loadOpCode = Opcodes.ALOAD;
-        returnType = OBJECT_TYPE;
+        returnType = Type.getReturnType(this.methodNode.desc);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported opcode: " + node.getOpcode());

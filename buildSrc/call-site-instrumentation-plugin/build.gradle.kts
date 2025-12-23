@@ -2,7 +2,7 @@ plugins {
   java
   groovy
   id("com.diffplug.spotless") version "8.1.0"
-  id("com.gradleup.shadow") version "8.3.6"
+  id("com.gradleup.shadow") version "8.3.9"
 }
 
 java {
@@ -31,10 +31,10 @@ dependencies {
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)
   implementation(libs.asm.tree)
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.groovy)
+  testImplementation(libs.bundles.groovy)
   testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation(libs.spotbugs.annotations)

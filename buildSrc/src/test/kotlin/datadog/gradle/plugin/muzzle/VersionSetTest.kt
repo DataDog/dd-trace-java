@@ -92,8 +92,7 @@ class VersionSetTest {
       return 1
     }
 
-    override fun equals(other: Any?): Boolean =
-      other is TestVersion && v == other.v
+    override fun equals(other: Any?): Boolean = other is TestVersion && v == other.v
 
     override fun hashCode(): Int = v.hashCode()
 

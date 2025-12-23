@@ -67,11 +67,7 @@ public class PathBindingPublishingHandler implements Handler {
         return true;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(
-          requestContext.getTraceSegment(),
-          rba.getStatusCode(),
-          rba.getBlockingContentType(),
-          rba.getExtraHeaders());
+      blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
       return false;
     }
 

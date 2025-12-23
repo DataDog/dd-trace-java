@@ -135,6 +135,11 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
+  AgentSpan setTag(String key, float value) {
+    return delegate.setTag(key, value)
+  }
+
+  @Override
   AgentSpan setTag(String key, double value) {
     return delegate.setTag(key, value)
   }

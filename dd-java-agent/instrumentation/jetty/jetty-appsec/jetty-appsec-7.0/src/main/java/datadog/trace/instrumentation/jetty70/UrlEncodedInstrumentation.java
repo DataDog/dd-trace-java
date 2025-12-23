@@ -100,11 +100,7 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(
-                reqCtx.getTraceSegment(),
-                rba.getStatusCode(),
-                rba.getBlockingContentType(),
-                rba.getExtraHeaders());
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             if (t == null) {
               t = new BlockingException("Blocked request (for UrlEncoded/decodeTo)");
               reqCtx.getTraceSegment().effectivelyBlocked();

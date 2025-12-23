@@ -91,7 +91,9 @@ public abstract class BaseDecorator {
   }
 
   public AgentScope onError(final AgentScope scope, final Throwable throwable) {
-    onError(scope.span(), throwable);
+    if (scope != null) {
+      onError(scope.span(), throwable);
+    }
     return scope;
   }
 
@@ -100,7 +102,7 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
-    if (throwable != null) {
+    if (throwable != null && span != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           errorPriority);
@@ -109,7 +111,9 @@ public abstract class BaseDecorator {
   }
 
   public ContextScope onError(final ContextScope scope, final Throwable throwable) {
-    onError(AgentSpan.fromContext(scope.context()), throwable);
+    if (scope != null) {
+      onError(AgentSpan.fromContext(scope.context()), throwable);
+    }
     return scope;
   }
 

@@ -18,6 +18,7 @@ gradlePlugin {
       id = "dd-trace-java.instrument"
       implementationClass = "InstrumentPlugin"
     }
+
     create("muzzle-plugin") {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
@@ -26,21 +27,30 @@ gradlePlugin {
       id = "dd-trace-java.call-site-instrumentation"
       implementationClass = "datadog.gradle.plugin.csi.CallSiteInstrumentationPlugin"
     }
+
     create("tracer-version-plugin") {
       id = "dd-trace-java.tracer-version"
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
+
     create("dump-hanged-test-plugin") {
       id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
+
     create("supported-config-generation") {
       id = "dd-trace-java.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
     }
+
     create("supported-config-linter") {
       id = "dd-trace-java.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
+    }
+
+    create("instrumentation-naming") {
+      id = "dd-trace-java.instrumentation-naming"
+      implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
   }
 }

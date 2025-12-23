@@ -36,7 +36,7 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.9.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.9.0'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
 }

@@ -45,11 +45,7 @@ public class ResultsStatusApplyAdvice {
         return;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(
-          reqCtx.getTraceSegment(),
-          rba.getStatusCode(),
-          rba.getBlockingContentType(),
-          rba.getExtraHeaders());
+      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
 
       throw new BlockingException("Blocked request (for Results$Status/apply)");
     }

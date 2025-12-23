@@ -128,11 +128,7 @@ public class UnmarshallerHelpers {
       BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
       if (blockResponseFunction != null) {
         boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(
-                reqCtx.getTraceSegment(),
-                rba.getStatusCode(),
-                rba.getBlockingContentType(),
-                rba.getExtraHeaders());
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         if (success) {
           if (blockResponseFunction instanceof AkkaBlockResponseFunction) {
             AkkaBlockResponseFunction abrf = (AkkaBlockResponseFunction) blockResponseFunction;

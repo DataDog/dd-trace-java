@@ -42,11 +42,7 @@ public class JsonRendererAdvice {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
 
         throw new BlockingException("Blocked request (for JsonRenderer/render)");
       }

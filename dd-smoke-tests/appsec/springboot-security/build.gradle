@@ -16,10 +16,6 @@ tasks.named("jar", Jar) {
   }
 }
 
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
-
 // Use Java 17 to build application
 tasks.withType(JavaCompile).configureEach {
   configureCompiler(delegate, 17)

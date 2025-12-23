@@ -45,11 +45,7 @@ public class ContextParseAdvice {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
 
         t = new BlockingException("Blocked request (for DefaultContext/parse)");
       }

@@ -6,7 +6,6 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import org.apache.jasper.JasperException
-import org.eclipse.jetty.http.HttpStatus
 
 class JSPInstrumentationBasicTests extends JSPTestBase {
   def "non-erroneous GET #test test"() {
@@ -72,7 +71,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
 
     cleanup:
     res.close()
@@ -149,7 +148,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
 
     cleanup:
     res.close()
@@ -222,7 +221,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
 
     cleanup:
     res.close()
@@ -305,7 +304,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.INTERNAL_SERVER_ERROR_500
+    res.code() == HTTP_INTERNAL_ERROR
 
     cleanup:
     res.close()
@@ -380,7 +379,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
 
     cleanup:
     res.close()
@@ -503,7 +502,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
 
     cleanup:
     res.close()
@@ -561,7 +560,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HttpStatus.INTERNAL_SERVER_ERROR_500
+    res.code() == HTTP_INTERNAL_ERROR
 
     cleanup:
     res.close()
@@ -581,7 +580,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
     Response res = client.newCall(req).execute()
 
     then:
-    res.code() == HttpStatus.OK_200
+    res.code() == HTTP_OK
     assertTraces(1) {
       trace(1) {
         span {

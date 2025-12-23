@@ -142,10 +142,17 @@ public final class AgentBootstrap {
       recordInstrumentationSource("cmd_line");
     }
 
+    String agentClassName;
+    if (isAotTraining(agentArgs, inst)) {
+      agentClassName = "datadog.trace.bootstrap.aot.TrainingAgent";
+    } else {
+      agentClassName = "datadog.trace.bootstrap.Agent";
+    }
+
     final URL agentJarURL = installAgentJar(inst);
     final Class<?> agentClass;
     try {
-      agentClass = Class.forName("datadog.trace.bootstrap.Agent", true, null);
+      agentClass = Class.forName(agentClassName, true, null);
     } catch (ClassNotFoundException | LinkageError e) {
       throw new IllegalStateException("Unable to load DD Java Agent.", e);
     }
@@ -421,5 +428,18 @@ public final class AgentBootstrap {
             + "' is located in '"
             + jarUrl
             + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
+  }
+
+  /** Returns {@code true} if the JVM is training, i.e. writing to a CDS/AOT archive. */
+  private static boolean isAotTraining(String agentArgs, Instrumentation inst) {
+    if (!JavaVirtualMachine.isJavaVersionAtLeast(25)) {
+      return false; // agent doesn't support training mode before Java 25
+    } else if ("aot_training".equalsIgnoreCase(agentArgs)) {
+      return true; // training mode explicitly enabled via -javaagent
+    } else if ("false".equalsIgnoreCase(EnvironmentVariables.get("DD_DETECT_AOT_TRAINING_MODE"))) {
+      return false; // detection of training mode disabled via DD_DETECT_AOT_TRAINING_MODE=false
+    } else {
+      return AdvancedAgentChecks.isAotTraining(inst); // check JVM status
+    }
   }
 }

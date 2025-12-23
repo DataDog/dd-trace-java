@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -72,6 +73,9 @@ public class SnapshotSinkTest {
 
   @ParameterizedTest(name = "Process tags enabled ''{0}''")
   @ValueSource(booleans = {true, false})
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
   public void addHighRateSnapshot(boolean processTagsEnabled) throws IOException {
     when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
     ProcessTags.reset(config);

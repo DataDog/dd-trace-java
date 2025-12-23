@@ -13,6 +13,9 @@ dependencies {
   testImplementation(project(':dd-java-agent:instrumentation:mongo:driver-3.4')) {
     transitive = false
   }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:driver-3.6')) {
+    transitive = false
+  }
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()

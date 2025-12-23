@@ -27,6 +27,11 @@ public abstract class ImmutableSpan implements AgentSpan {
   }
 
   @Override
+  public AgentSpan setTag(String key, float value) {
+    return this;
+  }
+
+  @Override
   public AgentSpan setTag(String key, double value) {
     return this;
   }

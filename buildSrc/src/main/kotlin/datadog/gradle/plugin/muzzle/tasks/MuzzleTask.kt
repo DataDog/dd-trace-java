@@ -31,12 +31,10 @@ abstract class MuzzleTask @Inject constructor(
   objects: ObjectFactory,
   providers: ProviderFactory,
 ) : AbstractMuzzleTask() {
-  override fun getDescription(): String {
-    return if (muzzleDirective.isPresent) {
-      "Run instrumentation muzzle on ${muzzleDirective.get().name} dependency"
-    } else {
-      "Run instrumentation muzzle on compile time dependencies"
-    }
+  override fun getDescription(): String = if (muzzleDirective.isPresent) {
+    "Run instrumentation muzzle on ${muzzleDirective.get().name} dependency"
+  } else {
+    "Run instrumentation muzzle on compile time dependencies"
   }
 
   @get:Inject
@@ -72,7 +70,7 @@ abstract class MuzzleTask @Inject constructor(
   @get:OutputFile
   @get:Optional
   protected val result: RegularFileProperty = objects.fileProperty().convention(
-    project.layout.buildDirectory.file("reports/${name}.txt")
+    project.layout.buildDirectory.file("reports/$name.txt")
   )
 
   @TaskAction

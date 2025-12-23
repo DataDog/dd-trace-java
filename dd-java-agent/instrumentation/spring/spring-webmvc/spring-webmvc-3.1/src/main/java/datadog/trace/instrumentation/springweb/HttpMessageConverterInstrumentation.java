@@ -129,11 +129,7 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(
-              reqCtx.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         }
         t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
       }
@@ -162,11 +158,7 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(
-              reqCtx.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         }
         throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
       }

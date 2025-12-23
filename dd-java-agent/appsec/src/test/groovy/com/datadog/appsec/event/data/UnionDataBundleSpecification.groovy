@@ -26,15 +26,15 @@ class UnionDataBundleSpecification extends Specification {
     expect:
     assert it.hasNext() == true
 
-    it.next().with { e ->
-      assert e.key == KnownAddresses.REQUEST_URI_RAW
-      assert e.value == '/'
+    with(it.next()) { e ->
+      e.key == KnownAddresses.REQUEST_URI_RAW
+      e.value == '/'
     }
 
     assert it.hasNext() == true
-    it.next().with { e ->
-      assert e.key == KnownAddresses.REQUEST_SCHEME
-      assert e.value == 'http'
+    with(it.next()) { e ->
+      e.key == KnownAddresses.REQUEST_SCHEME
+      e.value == 'http'
     }
 
     assert it.hasNext() == false

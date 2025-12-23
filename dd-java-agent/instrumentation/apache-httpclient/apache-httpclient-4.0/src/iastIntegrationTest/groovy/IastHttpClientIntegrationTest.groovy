@@ -5,10 +5,16 @@ import datadog.trace.agent.test.base.HttpServer
 import foo.bar.VulnerableUrlBuilder
 import okhttp3.HttpUrl
 import okhttp3.Request
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
+import org.eclipse.jetty.servlet.ServletContextHandler
+import org.eclipse.jetty.servlet.ServletHolder
 
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import javax.servlet.http.HttpServlet
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
-class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
+class IastHttpClientIntegrationTest extends IastHttpServerTest<Server> {
 
   static final CLIENTS = [
     'org.apache.http.impl.client.AutoRetryHttpClient',
@@ -20,27 +26,57 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
   @Override
   HttpServer server() {
     final controller = new SsrfController()
-    return httpServer {
-      handlers {
-        prefix('/ssrf/execute') {
-          final msg = controller.apacheSsrf(
-          VulnerableUrlBuilder.url(request),
-          (String) request.getParameter('clientClassName'),
-          (String) request.getParameter('method'),
-          (String) request.getParameter('requestType'),
-          (String) request.getParameter('scheme')
-          )
-          response.status(200).send(msg)
-        }
+
+    // Use _raw_ jetty API, so the jetty instrumentation is applied
+    // (the :dd-java-agent:testing has a shadowed jetty server.)
+    return new HttpServer() {
+      Server jettyServer
+      int port
+
+      @Override
+      void start() {
+        jettyServer = new Server(0) // 0 = random port
+
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS)
+        context.setContextPath('/')
+        jettyServer.setHandler(context)
+
+        // Add servlet for the /ssrf/execute endpoint
+        context.addServlet(new ServletHolder(new HttpServlet() {
+          @Override
+          protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+            final msg = controller.apacheSsrf(
+            VulnerableUrlBuilder.url(req),
+            req.getParameter('clientClassName'),
+            req.getParameter('method'),
+            req.getParameter('requestType'),
+            req.getParameter('scheme')
+            )
+            resp.setStatus(200)
+            resp.writer.write(msg)
+          }
+        }), '/ssrf/execute')
+
+        jettyServer.start()
+        port = ((ServerConnector) jettyServer.connectors[0]).localPort
       }
-    }.asHttpServer()
+
+      @Override
+      void stop() {
+        jettyServer?.stop()
+      }
+
+      @Override
+      URI address() {
+        return new URI("http://localhost:${port}/")
+      }
+    }
   }
 
   void 'ssrf is present: #suite'() {
     setup:
     final url = suite.url(address)
     final request = new Request.Builder().url(url).get().build()
-
 
     when:
     def response = client.newCall(request).execute()
@@ -51,6 +87,9 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
     def to = getFinReqTaintedObjects()
     assert to != null
     hasVulnerability(vul -> vul.type == VulnerabilityType.SSRF && suite.evidenceMatches(vul.evidence))
+
+    cleanup:
+    response?.close()
 
     where:
     suite << createTestSuite()
@@ -129,7 +168,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
   }
 
   private static enum TaintedTarget {
-    URL{
+    URL {
       void addTainted(HttpUrl.Builder builder, TestSuite suite) {
         builder.addQueryParameter('url', suite.scheme + '://inexistent/test?1=1')
       }
@@ -138,7 +177,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
         return assertTainted(evidence, 'url', suite.scheme + '://inexistent/test?1=1')
       }
     },
-    SCHEME{
+    SCHEME {
       void addTainted(HttpUrl.Builder builder, TestSuite suite) {
         // already added by the test
       }
@@ -147,7 +186,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
         return assertTainted(evidence, 'scheme', suite.scheme)
       }
     },
-    HOST{
+    HOST {
       void addTainted(HttpUrl.Builder builder, TestSuite suite) {
         builder.addQueryParameter('host', 'inexistent')
       }
@@ -156,7 +195,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
         return assertTainted(evidence, 'host', 'inexistent')
       }
     },
-    PATH{
+    PATH {
       void addTainted(HttpUrl.Builder builder, TestSuite suite) {
         builder.addQueryParameter('path', '/test')
       }
@@ -165,7 +204,7 @@ class IastHttpClientIntegrationTest extends IastHttpServerTest<HttpServer> {
         return assertTainted(evidence, 'path', '/test')
       }
     },
-    QUERY{
+    QUERY {
       void addTainted(HttpUrl.Builder builder, TestSuite suite) {
         builder.addQueryParameter('query', '?1=1')
       }

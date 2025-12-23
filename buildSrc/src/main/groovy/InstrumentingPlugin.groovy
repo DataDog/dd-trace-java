@@ -58,7 +58,7 @@ class InstrumentingPlugin {
                   throwables.values().flatten().each {
                     ise.addSuppressed(it)
                   }
-                };
+                }
               }
             }
           )

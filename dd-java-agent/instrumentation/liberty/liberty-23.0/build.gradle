@@ -49,6 +49,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly files(shadowJar.map { it.archiveFile })
 
+  testImplementation(libs.groovy.xml)
+
   webappCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   // compileOnly to avoid bringing all the test dependencies to the test app
   // these are to be provided by the system classloader on test time
@@ -57,10 +59,8 @@ dependencies {
   add("webappImplementation", testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))) {
     transitive = false
   }
-  // use the above instead of:
-  //  webappImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
-  // because using testFixtures() causes some early evaluation of dependencies
-  webappRuntimeOnly libs.groovy
+
+  webappCompileOnly(libs.bundles.spock)
 }
 
 configurations.named("testRuntimeOnly") {

@@ -91,12 +91,9 @@ open class MuzzleDirective : Serializable {
   val nameSlug: String
     get() = name?.trim()?.replace(Regex("[^a-zA-Z0-9]+"), "-") ?: ""
 
-  override fun toString(): String {
-    return if (isCoreJdk) {
-      "${if (assertPass) "Pass" else "Fail"}-core-jdk"
-    } else {
-      "${if (assertPass) "pass" else "fail"} $group:$module:$versions"
-    }
+  override fun toString(): String = if (isCoreJdk) {
+    "${if (assertPass) "Pass" else "Fail"}-core-jdk"
+  } else {
+    "${if (assertPass) "pass" else "fail"} $group:$module:$versions"
   }
 }
-

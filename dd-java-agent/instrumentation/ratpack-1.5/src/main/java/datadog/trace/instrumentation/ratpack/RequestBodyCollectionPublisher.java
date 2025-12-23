@@ -82,11 +82,7 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
             if (blockResponseFunction == null) {
               return;
             }
-            blockResponseFunction.tryCommitBlockingResponse(
-                requestContext.getTraceSegment(),
-                rba.getStatusCode(),
-                rba.getBlockingContentType(),
-                rba.getExtraHeaders());
+            blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
 
             // we can't directly interrupt user code here by throwing an exception
             // user code must listen for errors and implement its own logic to prevent

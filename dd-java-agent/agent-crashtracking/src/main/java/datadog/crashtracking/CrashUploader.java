@@ -180,7 +180,9 @@ public final class CrashUploader {
 
   public void notifyCrashStarted(String error) {
     sendPingToTelemetry(error);
-    sendPingToErrorTracking(error);
+    if (storedConfig.sendToErrorTracking) {
+      sendPingToErrorTracking(error);
+    }
   }
 
   // @VisibleForTesting

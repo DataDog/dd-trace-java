@@ -107,11 +107,7 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          return brf.tryCommitBlockingResponse(
-              requestContext.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          return brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
         }
       }
 

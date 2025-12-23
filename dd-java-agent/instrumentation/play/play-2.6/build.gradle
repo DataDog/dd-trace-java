@@ -114,9 +114,9 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-concurrent')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 
   latestDepTestRuntimeOnly sourceSets.baseTest.output
   latestDepTestImplementation libs.scala213

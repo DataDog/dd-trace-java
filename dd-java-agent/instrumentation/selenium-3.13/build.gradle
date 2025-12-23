@@ -1,0 +1,54 @@
+plugins {
+  id 'java-test-fixtures'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.seleniumhq.selenium'
+    module = 'selenium-java'
+    versions = '[3.13.0,)'
+    skipVersions += ["4.10.0", "4.11.0"] // depends on non-existent io.netty:netty-transport-native-epoll:4.1.92.Final
+    skipVersions += "4.16.0" // depends on non-existent org.seleniumhq.selenium:selenium-devtools-v119:4.16.0
+  }
+}
+
+addTestSuite('latestDepTest')
+
+dependencies {
+  compileOnly group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
+
+  testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
+  testFixturesApi project(':dd-java-agent:instrumentation:junit:junit-5:junit-5.3')
+  testFixturesApi(libs.junit.platform.launcher)
+  testFixturesApi(libs.junit.jupiter.engine)
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
+
+  testImplementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
+  testImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '2.70.0'
+
+  latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '+'
+  latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '+'
+}
+
+configurations.matching({ it.name.startsWith('test') || it.name.startsWith('latestDepTest') }).configureEach({
+  it.resolutionStrategy {
+    // There is a conflict between the version used by HTMLUnit and the one used by :dd-java-agent:testing
+    force group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.50.v20221201'
+  }
+})
+
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+

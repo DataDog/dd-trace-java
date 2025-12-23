@@ -1,5 +1,3 @@
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
-
 // Set properties before any plugins get loaded
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
@@ -42,10 +40,6 @@ excludedClassesCoverage += [
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-tasks.named("forbiddenApisMain", CheckForbiddenApis) {
-  it.failOnMissingClasses = false
 }
 
 idea {

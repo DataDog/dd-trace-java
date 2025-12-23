@@ -114,11 +114,7 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(
-              requestContext.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
           thiz.action(ActionCode.ACTION_CLOSE, null);
           return true;
         }

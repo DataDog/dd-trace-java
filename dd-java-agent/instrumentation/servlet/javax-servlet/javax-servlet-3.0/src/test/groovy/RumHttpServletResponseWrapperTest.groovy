@@ -54,15 +54,36 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     1 * mockResponse.getOutputStream()
   }
 
-  void 'getWriter with non-HTML content reports skipped'() {
-    setup:
-    wrapper.setContentType("text/plain")
-
+  void 'getWriter with non-HTML content reports skipped (setContentType)'() {
     when:
+    wrapper.setContentType("text/plain")
     wrapper.getWriter()
 
     then:
     1 * mockTelemetryCollector.onInjectionSkipped(SERVLET_VERSION)
+    1 * mockResponse.setContentType("text/plain")
+    1 * mockResponse.getWriter()
+  }
+
+  void 'getWriter with non-HTML content reports skipped (setHeader)'() {
+    when:
+    wrapper.setHeader("Content-Type", "text/plain")
+    wrapper.getWriter()
+
+    then:
+    1 * mockTelemetryCollector.onInjectionSkipped(SERVLET_VERSION)
+    1 * mockResponse.setHeader("Content-Type", "text/plain")
+    1 * mockResponse.getWriter()
+  }
+
+  void 'getWriter with non-HTML content reports skipped (addHeader)'() {
+    when:
+    wrapper.addHeader("Content-Type", "text/plain")
+    wrapper.getWriter()
+
+    then:
+    1 * mockTelemetryCollector.onInjectionSkipped(SERVLET_VERSION)
+    1 * mockResponse.addHeader("Content-Type", "text/plain")
     1 * mockResponse.getWriter()
   }
 

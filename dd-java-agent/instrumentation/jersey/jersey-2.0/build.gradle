@@ -58,7 +58,7 @@ dependencies {
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4')
   jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
-  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
 
   jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
@@ -76,7 +76,7 @@ dependencies {
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
   jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-3.0')
-  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0')
 }
 
 configurations.named('jersey3JettyTestRuntimeClasspath') {

@@ -66,6 +66,8 @@ public interface AgentSpan
 
   AgentSpan setTag(String key, long value);
 
+  AgentSpan setTag(String key, float value);
+
   AgentSpan setTag(String key, double value);
 
   @Override

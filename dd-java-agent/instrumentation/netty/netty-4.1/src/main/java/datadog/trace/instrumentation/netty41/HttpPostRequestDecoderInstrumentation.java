@@ -120,11 +120,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(
-              requestContext.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
         }
         thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
       }

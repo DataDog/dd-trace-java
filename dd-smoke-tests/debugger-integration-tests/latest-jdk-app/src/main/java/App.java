@@ -12,18 +12,18 @@ public class App {
   private static final String LOG_FILENAME = System.getenv().get("DD_LOG_FILE");
 
   public String getGreeting() {
-        return "Hello World!";
-    }
+    return "Hello World!";
+  }
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("Waiting for instrumentation...");
-        waitForInstrumentation();
-        System.out.println("Executing method getGreeting");
-        System.out.println(new App().getGreeting());
-        System.out.println("Executed");
-        waitForSnapshotUpload(1);
-        System.out.println("Exiting...");
-    }
+  public static void main(String[] args) throws Exception {
+    System.out.println("Waiting for instrumentation...");
+    waitForInstrumentation();
+    System.out.println("Executing method getGreeting");
+    System.out.println(new App().getGreeting());
+    System.out.println("Executed");
+    waitForSnapshotUpload(1);
+    System.out.println("Exiting...");
+  }
 
   private static void waitForInstrumentation() throws IOException {
     AtomicBoolean generatingByteCode = new AtomicBoolean();
@@ -99,5 +99,4 @@ public class App {
       System.out.println("waitForSpecificLogLine timed out!");
     }
   }
-
 }
