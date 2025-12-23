@@ -33,6 +33,7 @@ public class DefaultServerConnection38Instrumentation extends InstrumenterModule
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+      "datadog.trace.core.propagation.W3CTraceParent",
       packageName + ".MongoDecorator",
       packageName + ".MongoCommentInjector",
       packageName + ".BsonScrubber",

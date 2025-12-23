@@ -4,9 +4,9 @@ import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import datadog.trace.core.propagation.W3CTraceParent;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
@@ -75,7 +75,7 @@ public class MongoCommentInjector {
     String dbService = dbSpan.getServiceName();
     String traceParent =
         Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-            ? buildTraceParent(dbSpan)
+            ? W3CTraceParent.from(dbSpan)
             : null;
 
     // Use shared comment builder directly
@@ -111,14 +111,5 @@ public class MongoCommentInjector {
 
     // Incompatible type, preserve existing comment unchanged
     return existingComment;
-  }
-
-  static String buildTraceParent(AgentSpan span) {
-    // W3C traceparent format: version-traceId-spanId-flags
-    return "00-" // version
-        + span.getTraceId().toHexString() // traceId
-        + '-'
-        + DDSpanId.toHexStringPadded(span.getSpanId()) // spanId
-        + (span.context().getSamplingPriority() > 0 ? "-01" : "-00");
   }
 }
