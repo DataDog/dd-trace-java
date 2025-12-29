@@ -43,6 +43,11 @@ public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
+  public String muzzleDirective() {
+    return "driver-only";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$ExposeBuffer");
   }
