@@ -61,7 +61,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   public AgentSpan setRaw(AgentSpan span, String raw) {
     if (RedisCommandRaw){
-      span.setTag("redis.command.raw",raw);
+      span.setTag("redis.command.args",raw);
     }
     return span;
   }

@@ -65,34 +65,31 @@ public class RedissonClientDecorator
   }
 
   public AgentSpan onArgs(final AgentSpan span, Object[] args) {
-    if (RedisCommandRaw&& args.length>0){
-      StringBuilder sb = new StringBuilder();
-      for (Object val : args) {
-        if (val instanceof ByteBuf) {
-          ByteBuf buf = (ByteBuf) val;
-          if (buf.hasArray()) {
-            String data = new String(buf.array(), buf.arrayOffset() + buf.readerIndex(), buf.readableBytes(), StandardCharsets.UTF_8);
-            sb.append(data).append(" ");
-          } else {
-            byte[] bytes = new byte[buf.readableBytes()];
-            buf.getBytes(buf.readerIndex(), bytes);
-            try{
-              byte[] result = new byte[bytes.length - 1];
-              System.arraycopy(bytes, 1, result, 0, bytes.length - 2);
-              result[result.length - 1] = (byte) (bytes[bytes.length - 1] & 0x7F);
-              String data = new String(result, StandardCharsets.UTF_8);
-              sb.append(data).append(" ");
-            }catch (Exception e){
-              System.out.println(e);
-            }
-          }
-        } else {
-          sb.append(val.toString()).append(" ");
-        }
-      }
-      span.setTag("redis.command.args",sb.toString());
+    if (RedisCommandRaw){
+      span.setTag("redis.command.args",getReadableParams(args));
     }
-
     return span;
+  }
+  public String getReadableParams(Object[] params) {
+    if (params == null) return "[]";
+
+    StringBuilder sb = new StringBuilder("[");
+    for (int i = 0; i < params.length; i++) {
+      Object param = params[i];
+
+      if (param instanceof io.netty.buffer.ByteBuf) {
+        io.netty.buffer.ByteBuf buf = (io.netty.buffer.ByteBuf) param;
+        // 使用 copy() 避免影响原始 Buf 的读写索引
+        // 使用 UTF_8 编码（假设你的数据是文本）
+        sb.append(buf.toString(java.nio.charset.StandardCharsets.UTF_8));
+      } else {
+        sb.append(param);
+      }
+
+      if (i < params.length - 1) {
+        sb.append(", ");
+      }
+    }
+    return sb.append("]").toString();
   }
 }

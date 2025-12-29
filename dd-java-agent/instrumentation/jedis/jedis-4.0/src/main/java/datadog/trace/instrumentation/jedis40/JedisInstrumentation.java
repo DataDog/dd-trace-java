@@ -21,6 +21,7 @@ import redis.clients.jedis.JedisClientDecorator;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.args.Rawable;
 import redis.clients.jedis.commands.ProtocolCommand;
+import java.util.Iterator;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
@@ -41,7 +42,6 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       "redis.clients.jedis.JedisClientDecorator",
     };
   }
-
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
@@ -63,12 +63,14 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       DECORATE.onConnection(span, thiz);
 
       final ProtocolCommand command = commandObject.getArguments().getCommand();
-      final CommandArguments args = commandObject.getArguments();
-      StringBuilder args1 = new StringBuilder();
-      for (Rawable arg : args) {
-        args1.append(new String(arg.getRaw()));
+      StringBuilder sb = new StringBuilder();
+
+      for(Rawable raw : commandObject.getArguments()){
+        sb.append(new String(raw.getRaw(),java.nio.charset.StandardCharsets.UTF_8))
+            .append(",");
       }
-      DECORATE.setRaw(span, args1.toString());
+
+      DECORATE.setRaw(span,sb.toString());
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {
