@@ -182,7 +182,7 @@ public class SerialVersionUIDAdder extends ClassVisitor {
       final String[] interfaces) {
     // Get the class name, access flags, and interfaces information (step 1, 2 and 3) for SVUID
     // computation.
-    computeSvuid = (access & Opcodes.ACC_ENUM) == 0;
+    computeSvuid = name != null && (access & Opcodes.ACC_ENUM) == 0;
 
     if (computeSvuid) {
       this.name = name;
