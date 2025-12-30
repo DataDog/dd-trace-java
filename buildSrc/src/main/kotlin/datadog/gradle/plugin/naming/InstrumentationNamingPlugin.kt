@@ -132,11 +132,11 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     // Rule 1: Module name must end with version pattern or one of the configured suffixes
     validateVersionOrSuffix(moduleName, relativePath, suffixes)?.let { return listOf(it) }
 
-    // Rule 2: Module name must contain parent directory name
-    if (!moduleName.contains(parentName, ignoreCase = true)) {
+    // Rule 2: Module name must contain parent directory name (all characters in any order)
+    if (!containsAllChars(moduleName, parentName)) {
       return listOf(NamingViolation(
         relativePath,
-        "Module name '$moduleName' should contain parent directory name '$parentName'"
+        "Module name '$moduleName' should contain all characters from parent directory name '$parentName'"
       ))
     }
 
@@ -175,6 +175,20 @@ class InstrumentationNamingPlugin : Plugin<Project> {
     }
 
     return null
+  }
+
+  /**
+   * Checks if all characters from 'required' string appear in 'source' string (case-insensitive).
+   * Characters can appear in any order.
+   */
+  private fun containsAllChars(source: String, required: String): Boolean {
+    val sourceChars = source.lowercase().toList()
+    val requiredChars = required.lowercase().groupingBy { it }.eachCount()
+    val sourceCharCounts = sourceChars.groupingBy { it }.eachCount()
+
+    return requiredChars.all { (char, count) ->
+      sourceCharCounts.getOrDefault(char, 0) >= count
+    }
   }
 
   private data class NamingViolation(
