@@ -1,3 +1,5 @@
+package datadog.gradle.plugin.instrument
+
 import net.bytebuddy.ClassFileVersion
 import net.bytebuddy.build.EntryPoint
 import net.bytebuddy.build.Plugin
@@ -12,8 +14,8 @@ import org.slf4j.LoggerFactory
  * Performs build-time instrumentation of classes, called indirectly from InstrumentPlugin.
  * (This is the byte-buddy side of the task; InstrumentPlugin contains the Gradle pieces.)
  */
-class InstrumentingPlugin {
-  static final Logger log = LoggerFactory.getLogger(InstrumentingPlugin.class)
+class ByteBuddyInstrumenter {
+  static final Logger log = LoggerFactory.getLogger(ByteBuddyInstrumenter.class)
 
   static void instrumentClasses(
     String[] plugins, ClassLoader instrumentingLoader, File sourceDirectory, File targetDirectory)
