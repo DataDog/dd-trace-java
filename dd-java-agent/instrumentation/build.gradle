@@ -149,6 +149,11 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
   return indexTask
 }
 
+instrumentationNaming {
+  exclusions = ["org-json-20230227"] // org-json does not use semver
+  suffixes = ["-common", "-stubs", "-iast"]
+}
+
 registerIndexTask(
   'generateInstrumenterIndex',
   'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator',
