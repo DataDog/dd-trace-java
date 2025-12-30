@@ -30,12 +30,6 @@ class InstrumentPluginTest {
       compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3' // just to build TestPlugin
     }
 
-    configurations {
-      instrumentPluginClasspath {
-        canBeResolved = true
-      }
-    }
-
     instrument.plugins = [
       'TestPlugin'
     ]
