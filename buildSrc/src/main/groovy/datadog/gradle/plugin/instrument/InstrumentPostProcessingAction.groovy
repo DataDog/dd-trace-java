@@ -30,7 +30,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
   abstract WorkerExecutor getWorkerExecutor()
 
   // Those cannot be private other wise Groovy will fail at runtime with a missing property ex
-  final String javaVersion
+  final JavaLanguageVersion javaVersion
   final ListProperty<String> plugins
   final FileCollection instrumentingClassPath
   final DirectoryProperty compilerOutputDirectory
@@ -44,7 +44,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
       DirectoryProperty compilerOutputDirectory,
       DirectoryProperty tmpDirectory
   ) {
-    this.javaVersion = javaVersion != InstrumentPlugin.DEFAULT_JAVA_VERSION ? "8" : javaVersion
+    this.javaVersion = javaVersion == InstrumentPlugin.DEFAULT_JAVA_VERSION ? JavaLanguageVersion.current() : JavaLanguageVersion.of(javaVersion)
     this.plugins = plugins
     this.instrumentingClassPath = instrumentingClassPath
     this.compilerOutputDirectory = compilerOutputDirectory
@@ -75,7 +75,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
 
   private workQueue() {
     def javaLauncher = this.javaToolchainService.launcherFor { spec ->
-      spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
+      spec.languageVersion.set(this.javaVersion)
     }.get()
     return this.workerExecutor.processIsolation { spec ->
       spec.forkOptions { fork ->
