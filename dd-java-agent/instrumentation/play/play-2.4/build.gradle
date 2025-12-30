@@ -65,10 +65,8 @@ tasks.named("jar", Jar) {
 tasks.named('compileMain_play25Java') {
   dependsOn(tasks.named('compileJava'))
 }
-project.afterEvaluate {
-  tasks.named('forbiddenApisMain_play25') {
-    dependsOn(tasks.named('compileMain_play25Java'))
-  }
+tasks.named('forbiddenApisMain_play25') {
+  dependsOn(tasks.named('compileMain_play25Java'))
 }
 
 instrument {
