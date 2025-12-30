@@ -103,7 +103,6 @@
 
 # @DataDog/data-jobs-monitoring
 /dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
-/dd-java-agent/instrumentation/spark-executor/  @DataDog/data-jobs-monitoring
 
 # @DataDog/data-streams-monitoring
 /dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/datastreams  @DataDog/data-streams-monitoring
