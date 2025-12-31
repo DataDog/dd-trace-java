@@ -21,6 +21,7 @@ public class RedissonClientDecorator
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public boolean RedisCommandRaw = Config.get().getRedisCommandArgs();
+
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"redisson", "redis"};
@@ -62,11 +63,12 @@ public class RedissonClientDecorator
   }
 
   public AgentSpan onArgs(final AgentSpan span, Object[] args) {
-    if (RedisCommandRaw){
-      span.setTag("redis.command.args",getReadableParams(args));
+    if (RedisCommandRaw) {
+      span.setTag("redis.command.args", getReadableParams(args));
     }
     return span;
   }
+
   public String getReadableParams(Object[] params) {
     if (params == null) return "[]";
 
@@ -74,7 +76,10 @@ public class RedissonClientDecorator
     for (int i = 0; i < params.length; i++) {
       Object param = params[i];
 
-      if (param instanceof io.netty.buffer.ByteBuf) {
+      if (param instanceof byte[]) {
+        // 将字节数组转为 UTF-8 字符串
+        sb.append(new String((byte[]) param, java.nio.charset.StandardCharsets.UTF_8));
+      } else if (param instanceof io.netty.buffer.ByteBuf) {
         io.netty.buffer.ByteBuf buf = (io.netty.buffer.ByteBuf) param;
         // 使用 copy() 避免影响原始 Buf 的读写索引
         // 使用 UTF_8 编码（假设你的数据是文本）
