@@ -9,18 +9,12 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
+public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public FormUrlEncodedInstrumentation() {
+  public TolerantTextInstrumentation() {
     super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play25only";
   }
 
   @Override
@@ -30,7 +24,7 @@ public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String instrumentedType() {
-    return "play.mvc.BodyParser$FormUrlEncoded";
+    return "play.mvc.BodyParser$TolerantText";
   }
 
   @Override
@@ -47,7 +41,7 @@ public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
             .and(takesArguments(2))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
             .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(Map.class)),
-        packageName + ".BodyParserFormUrlEncodedParseAdvice");
+            .and(returns(String.class)),
+        packageName + ".BodyParserTolerantTextParseAdvice");
   }
 }

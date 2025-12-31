@@ -2,7 +2,6 @@ muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
   pass {
-    name = "play25only"
     group = 'com.typesafe.play'
     module = 'play_2.11'
     versions = '[2.5.0,2.6)'
@@ -34,8 +33,6 @@ tasks.withType(ScalaCompile).configureEach {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:play:play-2.5')
-
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')

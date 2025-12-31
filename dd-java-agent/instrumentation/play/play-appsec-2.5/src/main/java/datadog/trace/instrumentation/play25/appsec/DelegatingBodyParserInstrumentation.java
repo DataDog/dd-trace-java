@@ -5,26 +5,21 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import akka.util.ByteString;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import play.mvc.Http;
 
-/**
- * @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString)
- */
 @AutoService(InstrumenterModule.class)
-public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
+public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TolerantJsonInstrumentation() {
+  public DelegatingBodyParserInstrumentation() {
     super("play");
   }
 
   @Override
-  public String muzzleDirective() {
-    return "play25only";
+  public String instrumentedType() {
+    return "play.mvc.BodyParser$DelegatingBodyParser";
   }
 
   @Override
@@ -33,25 +28,19 @@ public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantJson";
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BodyParserHelpers",
+      packageName + ".JavaMultipartFormDataRegisterExcF",
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
+        named("apply")
+            .and(takesArguments(1))
             .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
-        packageName + ".BodyParserTolerantJsonParseAdvice");
+            .and(returns(named("play.libs.streams.Accumulator"))),
+        packageName + ".BodyParserDelegatingBodyParserApplyAdvice");
   }
 }

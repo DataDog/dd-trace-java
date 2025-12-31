@@ -2,20 +2,17 @@ muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
   pass {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.11'
     versions = '[2.4.0,2.6)'
     assertInverse = true
   }
   fail {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.12'
     versions = '[,]'
   }
   fail {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.13'
     versions = '[,]'
