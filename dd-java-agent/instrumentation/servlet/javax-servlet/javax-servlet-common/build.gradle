@@ -17,7 +17,7 @@ apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
 

@@ -33,7 +33,7 @@ tasks.named("latestDepTest", Test) {
 dependencies {
   compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'

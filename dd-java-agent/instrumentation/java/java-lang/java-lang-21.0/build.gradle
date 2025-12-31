@@ -28,5 +28,5 @@ tasks.named("compileTestJava", JavaCompile) {
 }
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
