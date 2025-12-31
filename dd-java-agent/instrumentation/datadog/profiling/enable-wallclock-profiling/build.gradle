@@ -23,7 +23,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.108.Final'
   testImplementation group: 'io.netty', name: 'netty-transport', version: '4.1.108.Final'
 

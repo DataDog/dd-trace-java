@@ -47,7 +47,7 @@ dependencies {
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8'))
   iastIntegrationTestRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
-  iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastIntegrationTestRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   v41IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.1'
   v42IastIntegrationTestImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.2'

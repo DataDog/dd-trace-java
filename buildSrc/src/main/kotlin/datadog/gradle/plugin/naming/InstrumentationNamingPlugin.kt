@@ -98,6 +98,10 @@ class InstrumentationNamingPlugin : Plugin<Project> {
         if (moduleName in setOf("build", "src", ".gradle")) {
           return@childLoop
         }
+        // skip the special datadog top level instrumentation directory
+        if (parentName == null && moduleName == "datadog") {
+          return@childLoop
+        }
 
         val childHasBuildFile = hasBuildFile(childDir)
         val nestedModules = childDir.listFiles { file -> file.isDirectory }?.filter { hasBuildFile(it) } ?: emptyList()
