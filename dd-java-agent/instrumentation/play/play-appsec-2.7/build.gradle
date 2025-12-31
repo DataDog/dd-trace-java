@@ -1,0 +1,149 @@
+def scalaVersion = '2.11'
+def playVersion = '2.7.0'
+
+muzzle {
+  extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
+
+  pass {
+    name = 'play27'
+    group = 'com.typesafe.play'
+    module = 'play-java_2.11'
+    versions = "[2.7.0,)"
+    assertInverse = true
+    javaVersion = 11
+  }
+  pass {
+    name = 'play27'
+    group = 'com.typesafe.play'
+    module = 'play-java_2.12'
+    versions = "[2.7.0,)"
+    assertInverse = true
+    javaVersion = 11
+  }
+  pass {
+    name = 'play27'
+    group = 'com.typesafe.play'
+    module = 'play-java_2.13'
+    versions = "[2.7.0,)"
+    assertInverse = true
+    javaVersion = 11
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+repositories {
+  maven {
+    name = 'typesafe'
+    url = 'https://repo.typesafe.com/typesafe/maven-releases/'
+  }
+}
+
+addTestSuite('latestDepTest')
+
+dependencies {
+  compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
+
+  latestDepTestImplementation libs.scala213
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:play:play-2.6').sourceSets.baseTest.output
+  latestDepTestImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
+  latestDepTestImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
+  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
+}
+
+configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
+  it.resolutionStrategy {
+    // logback-classic 1.4.11 doesn't like being loaded in the bootstrap classloader (NPE)
+    force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
+  }
+})
+
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, 11)
+}
+
+tasks.named("compileLatestDepTestScala", ScalaCompile) {
+  configureCompiler(it, 11)
+}
+
+tasks.named("latestDepTest", Test) {
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+final generatedRoutes = layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
+sourceSets {
+  routeGenerator {
+    scala {
+      srcDir "${project.projectDir}/src/routeGenerator/scala"
+    }
+  }
+  latestDepTestGenerated {
+    scala {
+      srcDir generatedRoutes
+    }
+  }
+}
+
+dependencies {
+  routeGeneratorImplementation libs.scala213
+  routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.13", version: '2.+'
+}
+
+configurations {
+  latestDepTestGeneratedCompileClasspath.extendsFrom(latestDepTestCompileClasspath)
+}
+
+tasks.register('buildLatestDepTestRoutes', JavaExec) {
+  String routesFile = "${project.projectDir}/src/latestDepTest/routes/conf/routes"
+  def outputDir = generatedRoutes
+
+  it.inputs.file routesFile
+  it.outputs.dir outputDir
+
+  it.mainClass = 'generator.CompileRoutes'
+  it.args routesFile, outputDir.get().asFile.absolutePath
+
+  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
+  it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
+  it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
+
+  it.javaLauncher = getJavaLauncherFor(11)
+}
+
+tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
+  configureCompiler(it, 11)
+  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+  dependsOn 'buildLatestDepTestRoutes'
+}
+
+tasks.named("forbiddenApisLatestDepTestGenerated") {
+  enabled = false
+}
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+  classpath = classpath +
+    files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }) +
+    files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
+}
+
+dependencies {
+  latestDepTestRuntimeOnly sourceSets.latestDepTestGenerated.output
+}
