@@ -33,35 +33,10 @@ tasks.withType(ScalaCompile).configureEach {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-sourceSets {
-  main_play25 {
-    java.srcDirs "${project.projectDir}/src/main/java_play25"
-  }
-}
-
-tasks.named("jar", Jar) {
-  from sourceSets.main_play25.output
-}
-
-project.afterEvaluate {
-  tasks.named('instrumentJava') { dependsOn 'compileMain_play25Java' }
-  tasks.named('forbiddenApisMain_play25') { dependsOn 'instrumentMain_play25Java' }
-}
-
-instrument {
-  additionalClasspath = [
-    instrumentJava: compileMain_play25Java.destinationDirectory
-  ]
-}
-
 dependencies {
   implementation project(':dd-java-agent:instrumentation:play:play-2.5')
 
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
-  main_play25CompileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
-  main_play25CompileOnly project(':internal-api')
-  main_play25CompileOnly project(':dd-java-agent:agent-tooling')
-  main_play25CompileOnly project(':dd-java-agent:agent-bootstrap')
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
@@ -79,7 +54,6 @@ dependencies {
   testImplementation(group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.0') {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
-  testRuntimeOnly sourceSets.main_play25.output
 
   latestDepTestImplementation group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.+'
   latestDepTestImplementation group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.+'
