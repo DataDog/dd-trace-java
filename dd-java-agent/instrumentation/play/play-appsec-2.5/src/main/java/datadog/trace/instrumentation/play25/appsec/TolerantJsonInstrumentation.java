@@ -1,29 +1,25 @@
 package datadog.trace.instrumentation.play25.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import akka.util.ByteString;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import play.mvc.Http;
 
 /**
- * @see play.api.routing.sird.PathExtractor
+ * @see play.mvc.BodyParser.TolerantJson#parse(Http.RequestHeader, ByteString)
  */
 @AutoService(InstrumenterModule.class)
-public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
+public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SirdPathExtractorInstrumentation() {
+  public TolerantJsonInstrumentation() {
     super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play25only";
   }
 
   @Override
@@ -33,23 +29,24 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String instrumentedType() {
-    return "play.api.routing.sird.PathExtractor";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        namedOneOf("extract", "play$api$routing$sird$PathExtractor$$extract")
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        packageName + ".SirdPathExtractorExtractAdvice");
+    return "play.mvc.BodyParser$TolerantJson";
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PathExtractionHelpers",
+      packageName + ".BodyParserHelpers",
     };
+  }
+
+  @Override
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        named("parse")
+            .and(takesArguments(2))
+            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+            .and(takesArgument(1, named("akka.util.ByteString")))
+            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
+        packageName + ".BodyParserTolerantJsonParseAdvice");
   }
 }

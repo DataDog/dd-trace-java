@@ -24,11 +24,6 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String muzzleDirective() {
-    return "play25only";
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return MuzzleReferences.PLAY_25_ONLY;
   }

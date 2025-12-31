@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.play25.appsec;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -10,21 +12,14 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 
+/**
+ * @see play.core.routing.PathPattern#apply(String)
+ */
 @AutoService(InstrumenterModule.class)
-public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppSec
+public class PathPatternInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public DelegatingBodyParserInstrumentation() {
+  public PathPatternInstrumentation() {
     super("play");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$DelegatingBodyParser";
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play25only";
   }
 
   @Override
@@ -35,17 +30,23 @@ public class DelegatingBodyParserInstrumentation extends InstrumenterModule.AppS
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JavaMultipartFormDataRegisterExcF",
+      packageName + ".PathExtractionHelpers",
     };
+  }
+
+  @Override
+  public String instrumentedType() {
+    return "play.core.routing.PathPattern";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
+            .and(not(isStatic()))
             .and(takesArguments(1))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(returns(named("play.libs.streams.Accumulator"))),
-        packageName + ".BodyParserDelegatingBodyParserApplyAdvice");
+            .and(takesArgument(0, String.class))
+            .and(returns(named("scala.Option"))),
+        packageName + ".PathPatternApplyAdvice");
   }
 }
