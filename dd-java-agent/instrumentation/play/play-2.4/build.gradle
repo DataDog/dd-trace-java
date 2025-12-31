@@ -71,8 +71,10 @@ tasks.named('forbiddenApisMain_play25') {
 
 instrument {
   additionalClasspath.add(
-    tasks.named('compileMain_play25Java', AbstractCompile).map { it.destinationDirectory }
-  )
+    tasks.named('compileMain_play25Java', AbstractCompile).map {
+      it.destinationDirectory
+    }
+    )
 }
 
 dependencies {

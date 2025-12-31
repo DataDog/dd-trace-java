@@ -26,10 +26,12 @@ class InstrumentPlugin implements Plugin<Project> {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
     project.configurations.register(INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
 
-    project.pluginManager.withPlugin("java") { configurePostCompilationInstrumentation("java", project, extension) }
-    project.pluginManager.withPlugin("kotlin") { configurePostCompilationInstrumentation("kotlin", project, extension) }
-    project.pluginManager.withPlugin("scala") { configurePostCompilationInstrumentation("scala", project, extension) }
-    project.pluginManager.withPlugin("groovy") { configurePostCompilationInstrumentation("groovy", project, extension) }
+
+    ['java', 'kotlin', 'scala', 'groovy'].each { langPluginId ->
+      project.pluginManager.withPlugin(langPluginId) {
+        configurePostCompilationInstrumentation(langPluginId, project, extension)
+      }
+    }
   }
 
   private void configurePostCompilationInstrumentation(String language, Project project, InstrumentExtension extension) {

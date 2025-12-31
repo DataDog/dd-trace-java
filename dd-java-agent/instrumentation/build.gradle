@@ -30,9 +30,9 @@ subprojects { Project subProj ->
       it.canBeResolved = true
 
       it.dependencies.add(subProj.dependencies.project(
-          path: ':dd-java-agent:agent-tooling',
-          configuration: 'instrumentPluginClasspath'
-      ))
+        path: ':dd-java-agent:agent-tooling',
+        configuration: 'instrumentPluginClasspath'
+        ))
     }
   }
 
