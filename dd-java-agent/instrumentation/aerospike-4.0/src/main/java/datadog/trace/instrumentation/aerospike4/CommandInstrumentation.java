@@ -10,30 +10,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class CommandInstrumentation extends InstrumenterModule.Tracing
+public final class CommandInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CommandInstrumentation() {
-    super("aerospike");
-  }
 
   @Override
   public String instrumentedType() {
     return "com.aerospike.client.command.Command";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AerospikeClientDecorator",
-    };
   }
 
   @Override

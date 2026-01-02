@@ -15,11 +15,8 @@ import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public final class NioEventLoopInstrumentation extends InstrumenterModule.Tracing
+public final class NioEventLoopInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public NioEventLoopInstrumentation() {
-    super("aerospike", "java_concurrent");
-  }
 
   @Override
   public String instrumentedType() {
