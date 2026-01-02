@@ -5,48 +5,21 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ScalaTraitMatchers.i
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import net.bytebuddy.asm.Advice;
 
 // TODO: move to separate module and have better support
-@AutoService(InstrumenterModule.class)
-public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
+public class SprayUnmarshallerInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport";
-
-  public SprayUnmarshallerInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       TRAIT_NAME, TRAIT_NAME + "$class",
     };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override

@@ -7,11 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.stream.Materializer;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
 import scala.Function1;
 import scala.concurrent.Future;
@@ -20,38 +16,12 @@ import scala.concurrent.Future;
  * Http2 support in akka-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@AutoService(InstrumenterModule.class)
-public final class AkkaHttp2ServerInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaHttp2ServerInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public AkkaHttp2ServerInstrumentation() {
-    super("akka-http2", "akka-http", "akka-http-server");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {"akka.http.scaladsl.Http2Ext", "akka.http.impl.engine.http2.Http2Ext"};
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogAsyncHandlerWrapper",
-      packageName + ".DatadogAsyncHandlerWrapper$1",
-      packageName + ".DatadogAsyncHandlerWrapper$2",
-      packageName + ".AkkaHttpServerHeaders",
-      packageName + ".AkkaHttpServerDecorator",
-      packageName + ".RecoverFromBlockedExceptionPF",
-      packageName + ".UriAdapter",
-      packageName + ".appsec.AkkaBlockResponseFunction",
-      packageName + ".appsec.BlockingResponseHelper",
-      packageName + ".appsec.ScalaListCollector",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override

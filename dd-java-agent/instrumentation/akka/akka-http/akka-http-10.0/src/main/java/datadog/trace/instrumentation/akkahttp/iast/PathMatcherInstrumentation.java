@@ -5,11 +5,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -23,13 +21,8 @@ import net.bytebuddy.asm.Advice;
  * Taints request uri parameters by instrumenting the constructor of {@link
  * akka.http.scaladsl.server.PathMatcher.Matched}.
  */
-@AutoService(InstrumenterModule.class)
-public class PathMatcherInstrumentation extends InstrumenterModule.Iast
+public class PathMatcherInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PathMatcherInstrumentation() {
-    super("akka-http");
-  }
-
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.server.PathMatcher$Matched";

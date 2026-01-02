@@ -4,9 +4,7 @@ import static datadog.trace.instrumentation.akkahttp.iast.TraitMethodMatchers.is
 
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintCookieFunction;
@@ -20,26 +18,14 @@ import net.bytebuddy.asm.Advice;
  * <p>These directives are used when fetching a specific cookie by name. For tainting when fetching
  * all the cookies, see {@link CookieHeaderInstrumentation}.
  */
-@AutoService(InstrumenterModule.class)
-public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
+public class CookieDirectivesInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public CookieDirectivesInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "akka.http.scaladsl.server.directives.CookieDirectives$class", // scala 2.11
       "akka.http.scaladsl.server.directives.CookieDirectives", // scala 2.12+ (default methods)
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintCookieFunction",
-      packageName + ".helpers.TaintOptionalCookieFunction",
     };
   }
 

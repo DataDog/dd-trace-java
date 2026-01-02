@@ -10,11 +10,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -32,12 +30,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @see HttpRequestInstrumentation propagates taint from {@link HttpRequest} to the headers, when
  *     they're retrieved
  */
-@AutoService(InstrumenterModule.class)
-public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
+public class HttpHeaderSubclassesInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public HttpHeaderSubclassesInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String hierarchyMarkerType() {

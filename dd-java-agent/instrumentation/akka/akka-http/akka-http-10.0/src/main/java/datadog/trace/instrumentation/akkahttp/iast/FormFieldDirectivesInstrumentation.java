@@ -12,9 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.directives.FormFieldDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintSingleParameterFunction;
@@ -28,32 +26,16 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  * @see FormFieldDirectives
  * @see ParameterDirectivesInstrumentation with which most of the implementation is shared
  */
-@AutoService(InstrumenterModule.class)
-public class FormFieldDirectivesInstrumentation extends InstrumenterModule.Iast
+public class FormFieldDirectivesInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String TRAIT_CLASS =
       "akka.http.scaladsl.server.directives.FormFieldDirectives";
 
-  public FormFieldDirectivesInstrumentation() {
-    super("akka-http");
-  }
-
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       TRAIT_CLASS + "$class", TRAIT_CLASS,
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.ScalaToJava",
-      packageName + ".helpers.TaintMultiMapFunction",
-      packageName + ".helpers.TaintMapFunction",
-      packageName + ".helpers.TaintSeqFunction",
-      packageName + ".helpers.TaintSingleParameterFunction",
     };
   }
 

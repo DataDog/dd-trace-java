@@ -11,9 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.directives.ParameterDirectives;
 import akka.http.scaladsl.server.util.Tupler$;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp.iast.helpers.TaintMapFunction;
@@ -28,31 +26,15 @@ import net.bytebuddy.asm.Advice;
  *
  * @see akka.http.scaladsl.server.directives.ParameterDirectives
  */
-@AutoService(InstrumenterModule.class)
-public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
+public class ParameterDirectivesInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.server.directives.ParameterDirectives";
-
-  public ParameterDirectivesInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       TRAIT_NAME + "$class", TRAIT_NAME,
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.ScalaToJava",
-      packageName + ".helpers.TaintMultiMapFunction",
-      packageName + ".helpers.TaintMapFunction",
-      packageName + ".helpers.TaintSeqFunction",
-      packageName + ".helpers.TaintSingleParameterFunction",
     };
   }
 

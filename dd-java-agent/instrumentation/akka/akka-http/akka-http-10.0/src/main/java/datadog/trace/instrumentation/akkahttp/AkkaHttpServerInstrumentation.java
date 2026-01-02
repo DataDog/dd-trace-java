@@ -9,11 +9,7 @@ import akka.http.scaladsl.model.HttpResponse;
 import akka.http.scaladsl.settings.ServerSettings;
 import akka.stream.javadsl.BidiFlow;
 import akka.stream.scaladsl.Flow;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleReferences;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -49,41 +45,12 @@ import net.bytebuddy.asm.Advice;
  * closed by cleanup code in the message processing instrumentation for the {@code Actor} and its
  * {@code Mailbox}.
  */
-@AutoService(InstrumenterModule.class)
-public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaHttpServerInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AkkaHttpServerInstrumentation() {
-    super("akka-http", "akka-http-server");
-  }
 
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.HttpExt";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
-      packageName + ".AkkaHttpServerHeaders",
-      packageName + ".AkkaHttpServerDecorator",
-      packageName + ".UriAdapter",
-      packageName + ".RecoverFromBlockedExceptionPF",
-      packageName + ".appsec.BlockingResponseHelper",
-      packageName + ".appsec.ScalaListCollector",
-      packageName + ".appsec.AkkaBlockResponseFunction",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override

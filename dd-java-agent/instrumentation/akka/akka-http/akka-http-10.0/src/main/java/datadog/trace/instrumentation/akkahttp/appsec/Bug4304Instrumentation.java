@@ -7,11 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import akka.stream.stage.GraphStageLogic;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -23,35 +20,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** See https://github.com/akka/akka-http/issues/4304 */
-@AutoService(InstrumenterModule.class)
-public class Bug4304Instrumentation extends InstrumenterModule.AppSec
+public class Bug4304Instrumentation
     implements Instrumenter.ForTypeHierarchy,
         Instrumenter.WithTypeStructure,
         Instrumenter.HasMethodAdvice {
-  public Bug4304Instrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String hierarchyMarkerType() {
     return "akka.http.impl.engine.server.HttpServerBluePrint";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }
 
   @Override

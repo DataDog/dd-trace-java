@@ -10,9 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.server.directives.MarshallingDirectives$;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -26,26 +24,14 @@ import net.bytebuddy.asm.Advice;
  *
  * @see UnmarshallerInstrumentation unconditionally taints marshaller output if its input is tainted
  */
-@AutoService(InstrumenterModule.class)
-public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
+public class MarshallingDirectivesInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  public MarshallingDirectivesInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "akka.http.scaladsl.server.directives.MarshallingDirectives$class",
       "akka.http.scaladsl.server.directives.MarshallingDirectives",
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintUnmarshaller",
     };
   }
 

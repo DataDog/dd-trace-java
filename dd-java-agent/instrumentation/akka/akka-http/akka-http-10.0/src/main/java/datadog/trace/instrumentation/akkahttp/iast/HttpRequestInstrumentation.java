@@ -11,11 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -33,12 +31,8 @@ import scala.collection.immutable.Seq;
  *
  * @see MakeTaintableInstrumentation makes {@link HttpRequest} taintable
  */
-@AutoService(InstrumenterModule.class)
-public class HttpRequestInstrumentation extends InstrumenterModule.Iast
+public class HttpRequestInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public HttpRequestInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String instrumentedType() {

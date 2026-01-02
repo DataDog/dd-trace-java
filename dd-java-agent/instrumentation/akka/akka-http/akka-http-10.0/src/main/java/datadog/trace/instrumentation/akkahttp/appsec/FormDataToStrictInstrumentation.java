@@ -9,38 +9,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.stream.Materializer;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
  * @see akka.http.scaladsl.model.Multipart.FormData#toStrict(FiniteDuration, Materializer)
  */
-@AutoService(InstrumenterModule.class)
-public class FormDataToStrictInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        ScalaListCollectorMuzzleReferences {
-  public FormDataToStrictInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
-    };
-  }
-
+public class FormDataToStrictInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.model.Multipart$FormData";

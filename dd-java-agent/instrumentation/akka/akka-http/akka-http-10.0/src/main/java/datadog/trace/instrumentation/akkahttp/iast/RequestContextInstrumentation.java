@@ -9,11 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.server.RequestContext;
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -22,12 +20,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
-@AutoService(InstrumenterModule.class)
-public class RequestContextInstrumentation extends InstrumenterModule.Iast
+public class RequestContextInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RequestContextInstrumentation() {
-    super("akka-http");
-  }
 
   @Override
   public String instrumentedType() {

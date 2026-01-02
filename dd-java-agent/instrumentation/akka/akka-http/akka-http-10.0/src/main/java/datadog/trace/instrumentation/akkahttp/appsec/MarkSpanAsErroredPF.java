@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.akkahttp;
+package datadog.trace.instrumentation.akkahttp.appsec;
 
 import akka.http.scaladsl.server.RequestContext;
 import akka.http.scaladsl.server.RouteResult;

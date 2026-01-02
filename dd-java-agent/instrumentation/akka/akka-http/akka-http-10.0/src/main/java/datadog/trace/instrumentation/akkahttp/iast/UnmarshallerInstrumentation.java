@@ -11,9 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.javadsl.unmarshalling.Unmarshaller;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -32,23 +30,11 @@ import scala.concurrent.Future;
  * If, on the other hand, the unmarshallers transform input before passing it to their inner
  * unmarshallers, this propagation mechanism will not work.
  */
-@AutoService(InstrumenterModule.class)
-public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
+public class UnmarshallerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public UnmarshallerInstrumentation() {
-    super("akka-http");
-  }
-
   @Override
   public String hierarchyMarkerType() {
     return "akka.http.scaladsl.unmarshalling.Unmarshaller";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintFutureHelper",
-    };
   }
 
   @Override

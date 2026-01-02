@@ -1,20 +1,13 @@
 package datadog.trace.instrumentation.akkahttp.iast;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 
-@AutoService(InstrumenterModule.class)
-public class MakeTaintableInstrumentation extends InstrumenterModule.Iast
+public class MakeTaintableInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
-  public MakeTaintableInstrumentation() {
-    super("akka-http");
-  }
-
   /**
-   * @see akka.http.scaladsl.model.HttpHeader
    * @return the matching types
+   * @see akka.http.scaladsl.model.HttpHeader
    */
   @Override
   public String[] knownMatchingTypes() {

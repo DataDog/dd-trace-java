@@ -9,11 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.model.Uri;
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -27,13 +25,8 @@ import scala.Tuple2;
 import scala.collection.Iterator;
 
 /** Propagates taint from a {@link Uri} to query strings fetched from it. */
-@AutoService(InstrumenterModule.class)
-public class UriInstrumentation extends InstrumenterModule.Iast
+public class UriInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public UriInstrumentation() {
-    super("akka-http");
-  }
-
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.model.Uri";
