@@ -84,6 +84,3 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 }
 
-// tasks.named('forbiddenApisTestFixtures') {
-//   enabled = false
-// }

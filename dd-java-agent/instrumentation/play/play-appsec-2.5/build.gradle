@@ -12,6 +12,21 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
+def buildTestRoutes = tasks.register('buildTestRoutes', JavaExec)
+
+sourceSets {
+  test {
+    scala {
+      srcDir buildTestRoutes
+    }
+  }
+  routeGenerator {
+    scala {
+      srcDir 'src/routeGenerator/scala'
+    }
+  }
+}
+
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12
   maxJavaVersion = JavaVersion.VERSION_1_8
@@ -31,10 +46,21 @@ tasks.withType(ScalaCompile).configureEach {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+def buildLatestDepTestRoutes = tasks.register('buildLatestDepTestRoutes', JavaExec)
+sourceSets {
+  latestDepTest {
+    scala {
+      srcDir buildLatestDepTestRoutes
+    }
+  }
+}
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
+
+  routeGeneratorImplementation libs.scala211
+  routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
@@ -60,97 +86,40 @@ dependencies {
   }
 }
 
-tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath = classpath + files(tasks.named('compileTestScala').map { it.destinationDirectory })
+buildTestRoutes.configure {
+  String routesFile = "${project.projectDir}/src/test/routes/conf/routes"
+  def outputDir = layout.buildDirectory.dir('generated/sources/testRoutes/scala')
+
+  it.inputs.file routesFile
+  it.outputs.dir outputDir
+
+  it.mainClass.set 'generator.CompileRoutes'
+  it.args routesFile, outputDir.get().asFile.absolutePath
+
+  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
+  it.classpath tasks.named('compileRouteGeneratorScala')
 }
 
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-}
+buildLatestDepTestRoutes.configure {
+  String routesFile = "${project.projectDir}/src/test/routes/conf/routes"
+  def outputDir = layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
 
-sourceSets {
-  routeGenerator {
-    scala {
-      srcDir "${project.projectDir}/src/routeGenerator/scala"
-    }
-  }
-  testGenerated {
-    scala {
-      srcDir layout.buildDirectory.dir('generated/sources/testRoutes/scala')
-    }
-  }
-  latestDepTestGenerated {
-    scala {
-      srcDir layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
-    }
-  }
-}
+  it.inputs.file routesFile
+  it.outputs.dir outputDir
 
-dependencies {
-  routeGeneratorImplementation libs.scala211
-  routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
-}
+  it.mainClass.set 'generator.CompileRoutes'
+  it.args routesFile, outputDir.get().asFile.absolutePath
 
-configurations {
-  testGeneratedCompileClasspath.extendsFrom testCompileClasspath
-  latestDepTestGeneratedCompileClasspath.extendsFrom latestDepTestCompileClasspath
-}
-
-['buildTestRoutes', 'buildLatestDepTestRoutes'].each { taskName ->
-  tasks.register(taskName, JavaExec) {
-    String routesFile = "${project.projectDir}/src/test/routes/conf/routes"
-    def subdir = taskName == 'buildTestRoutes' ? 'testRoutes' : 'latestDepTestRoutes'
-    def outputDir =
-      layout.buildDirectory.dir("generated/sources/$subdir/scala")
-
-    it.inputs.file routesFile
-    it.outputs.dir outputDir
-
-    it.mainClass.set 'generator.CompileRoutes'
-    it.args routesFile, outputDir.get().asFile.absolutePath
-
-    it.classpath configurations.named('routeGeneratorRuntimeClasspath')
-    it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
-
-    if (taskName == 'buildTestRoutes') {
-      it.classpath tasks.named('compileTestScala').map { it.destinationDirectory }
-    } else {
-      it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
-    }
-  }
-}
-
-tasks.named("compileTestGeneratedScala", ScalaCompile) {
-  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
-  dependsOn 'buildTestRoutes', 'compileLatestDepTestScala'
-}
-
-tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
-  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-  dependsOn 'buildLatestDepTestRoutes'
+  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
+  it.classpath tasks.named('compileRouteGeneratorScala')
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
+  // Groovy tests need access to generated routes compiled by Scala
+  classpath += files(tasks.named('compileTestScala'))
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
-}
-// do it this way rather than through dependencies {} because
-// latestDepTestImplementation extends testImplementation
-tasks.named("test", Test) {
-  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
-}
-
-tasks.named("latestDepTest", Test) {
-  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
-}
-
-tasks.named("forbiddenApisTestGenerated") {
-  enabled = false
-}
-
-tasks.named("forbiddenApisLatestDepTestGenerated") {
-  enabled = false
+  // Groovy tests need access to generated routes compiled by Scala
+  classpath += files(tasks.named('compileLatestDepTestScala'))
 }
