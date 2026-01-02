@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @AutoService(InstrumenterModule.class)
-public class AerospikeModule extends InstrumenterModule {
+public final class AerospikeModule extends InstrumenterModule {
   public AerospikeModule() {
     super("aerospike");
   }
@@ -27,7 +27,7 @@ public class AerospikeModule extends InstrumenterModule {
     final List<Instrumenter> ret = new ArrayList<>(4);
     ret.add(new AerospikeClientInstrumentation());
     ret.add(new CommandInstrumentation());
-    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("java-concurrent"), true)) {
+    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("java_concurrent"), true)) {
       ret.add(new NioEventLoopInstrumentation());
     }
     ret.add(new PartitionInstrumentation());
