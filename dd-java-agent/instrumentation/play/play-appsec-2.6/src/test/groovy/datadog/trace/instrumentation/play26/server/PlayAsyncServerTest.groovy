@@ -6,7 +6,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
-class PlayAsyncServerTest extends PlayServerTest {
+class PlayAsyncServerTest extends AbstractPlayServerTest {
   @Shared
   def executor
 

@@ -51,11 +51,8 @@ dependencies {
   compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
-  // TODO
-  //  * replace with testFixtures when we migrate this module to use java-test-fixtures plugin
-  //  * replace 'baseTest' by 'test'
-
   testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
   testImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
   testImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
