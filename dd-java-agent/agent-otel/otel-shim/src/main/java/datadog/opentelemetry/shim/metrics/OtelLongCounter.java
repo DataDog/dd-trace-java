@@ -2,6 +2,8 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
@@ -15,13 +17,19 @@ import java.util.function.Consumer;
 final class OtelLongCounter implements LongCounter {
 
   @Override
-  public void add(long value) {}
+  public void add(long value) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void add(long value, Attributes attributes) {}
+  public void add(long value, Attributes attributes) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void add(long value, Attributes attributes, Context context) {}
+  public void add(long value, Attributes attributes, Context context) {
+    // FIXME: implement recording
+  }
 
   static final class Builder implements LongCounterBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
@@ -54,12 +62,14 @@ final class OtelLongCounter implements LongCounter {
 
     @Override
     public ObservableLongCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
-      throw new UnsupportedOperationException("buildWithCallback is not yet supported");
+      // FIXME: implement callback
+      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
-      throw new UnsupportedOperationException("buildObserver is not yet supported");
+      // FIXME: implement observer
+      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
     }
   }
 }

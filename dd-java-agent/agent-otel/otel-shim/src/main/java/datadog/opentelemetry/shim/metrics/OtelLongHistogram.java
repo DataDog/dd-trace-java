@@ -10,14 +10,21 @@ import io.opentelemetry.context.Context;
 import java.util.List;
 
 final class OtelLongHistogram implements LongHistogram {
-  @Override
-  public void record(long value) {}
 
   @Override
-  public void record(long value, Attributes attributes) {}
+  public void record(long value) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void record(long value, Attributes attributes, Context context) {}
+  public void record(long value, Attributes attributes) {
+    // FIXME: implement recording
+  }
+
+  @Override
+  public void record(long value, Attributes attributes, Context context) {
+    // FIXME: implement recording
+  }
 
   static final class Builder implements LongHistogramBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
@@ -40,8 +47,8 @@ final class OtelLongHistogram implements LongHistogram {
 
     @Override
     public LongHistogramBuilder setExplicitBucketBoundariesAdvice(List<Long> bucketBoundaries) {
-      throw new UnsupportedOperationException(
-          "setExplicitBucketBoundariesAdvice is not yet supported");
+      // FIXME: implement boundary advice
+      return this;
     }
 
     @Override

@@ -22,8 +22,8 @@ final class OtelMeter implements Meter {
   private static final Pattern VALID_INSTRUMENT_NAME_PATTERN =
       Pattern.compile("([A-Za-z])([A-Za-z0-9_\\-./]){0,254}");
 
-  private static final Meter NOOP_METER = MeterProvider.noop().get("noop");
-  private static final String NOOP_INSTRUMENT_NAME = "noop";
+  static final Meter NOOP_METER = MeterProvider.noop().get("noop");
+  static final String NOOP_INSTRUMENT_NAME = "noop";
 
   private final OtelInstrumentationScope instrumentationScope;
 
@@ -68,7 +68,8 @@ final class OtelMeter implements Meter {
       Runnable callback,
       ObservableMeasurement observableMeasurement,
       ObservableMeasurement... additionalMeasurements) {
-    throw new UnsupportedOperationException("batchCallback is not yet supported");
+    // FIXME: implement callback
+    return NOOP_METER.batchCallback(callback, observableMeasurement, additionalMeasurements);
   }
 
   @Override

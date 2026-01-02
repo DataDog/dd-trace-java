@@ -2,6 +2,8 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounter;
@@ -14,13 +16,19 @@ import java.util.function.Consumer;
 final class OtelDoubleUpDownCounter implements DoubleUpDownCounter {
 
   @Override
-  public void add(double value) {}
+  public void add(double value) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void add(double value, Attributes attributes) {}
+  public void add(double value, Attributes attributes) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void add(double value, Attributes attributes, Context context) {}
+  public void add(double value, Attributes attributes, Context context) {
+    // FIXME: implement recording
+  }
 
   static final class Builder implements DoubleUpDownCounterBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
@@ -49,12 +57,17 @@ final class OtelDoubleUpDownCounter implements DoubleUpDownCounter {
     @Override
     public ObservableDoubleUpDownCounter buildWithCallback(
         Consumer<ObservableDoubleMeasurement> callback) {
-      throw new UnsupportedOperationException("buildWithCallback is not yet supported");
+      // FIXME: implement callback
+      return NOOP_METER
+          .upDownCounterBuilder(NOOP_INSTRUMENT_NAME)
+          .ofDoubles()
+          .buildWithCallback(callback);
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
-      throw new UnsupportedOperationException("buildObserver is not yet supported");
+      // FIXME: implement observer
+      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME).ofDoubles().buildObserver();
     }
   }
 }

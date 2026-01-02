@@ -2,6 +2,8 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
+import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
@@ -15,13 +17,19 @@ import java.util.function.Consumer;
 final class OtelDoubleGauge implements DoubleGauge {
 
   @Override
-  public void set(double value) {}
+  public void set(double value) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void set(double value, Attributes attributes) {}
+  public void set(double value, Attributes attributes) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void set(double value, Attributes attributes, Context context) {}
+  public void set(double value, Attributes attributes, Context context) {
+    // FIXME: implement recording
+  }
 
   static final class Builder implements DoubleGaugeBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
@@ -54,12 +62,14 @@ final class OtelDoubleGauge implements DoubleGauge {
 
     @Override
     public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
-      throw new UnsupportedOperationException("buildWithCallback is not yet supported");
+      // FIXME: implement callback
+      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
-      throw new UnsupportedOperationException("buildObserver is not yet supported");
+      // FIXME: implement observer
+      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
     }
   }
 }

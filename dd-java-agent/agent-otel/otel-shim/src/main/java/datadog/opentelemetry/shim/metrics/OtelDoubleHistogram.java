@@ -11,14 +11,21 @@ import io.opentelemetry.context.Context;
 import java.util.List;
 
 final class OtelDoubleHistogram implements DoubleHistogram {
-  @Override
-  public void record(double value) {}
 
   @Override
-  public void record(double value, Attributes attributes) {}
+  public void record(double value) {
+    // FIXME: implement recording
+  }
 
   @Override
-  public void record(double value, Attributes attributes, Context context) {}
+  public void record(double value, Attributes attributes) {
+    // FIXME: implement recording
+  }
+
+  @Override
+  public void record(double value, Attributes attributes, Context context) {
+    // FIXME: implement recording
+  }
 
   static final class Builder implements DoubleHistogramBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
@@ -41,8 +48,8 @@ final class OtelDoubleHistogram implements DoubleHistogram {
 
     @Override
     public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
-      throw new UnsupportedOperationException(
-          "setExplicitBucketBoundariesAdvice is not yet supported");
+      // FIXME: implement boundary advice
+      return this;
     }
 
     @Override
