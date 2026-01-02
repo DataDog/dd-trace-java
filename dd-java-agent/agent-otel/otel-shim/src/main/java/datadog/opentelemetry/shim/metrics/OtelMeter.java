@@ -36,7 +36,7 @@ final class OtelMeter implements Meter {
     if (!validInstrumentName(instrumentName)) {
       return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME);
     }
-    throw new UnsupportedOperationException("counterBuilder is not yet supported");
+    return new OtelLongCounter.Builder(this, instrumentName);
   }
 
   @Override
@@ -44,7 +44,7 @@ final class OtelMeter implements Meter {
     if (!validInstrumentName(instrumentName)) {
       return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME);
     }
-    throw new UnsupportedOperationException("upDownCounterBuilder is not yet supported");
+    return new OtelLongUpDownCounter.Builder(this, instrumentName);
   }
 
   @Override
@@ -52,7 +52,7 @@ final class OtelMeter implements Meter {
     if (!validInstrumentName(instrumentName)) {
       return NOOP_METER.histogramBuilder(NOOP_INSTRUMENT_NAME);
     }
-    throw new UnsupportedOperationException("histogramBuilder is not yet supported");
+    return new OtelDoubleHistogram.Builder(this, instrumentName);
   }
 
   @Override
@@ -60,7 +60,7 @@ final class OtelMeter implements Meter {
     if (!validInstrumentName(instrumentName)) {
       return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME);
     }
-    throw new UnsupportedOperationException("gaugeBuilder is not yet supported");
+    return new OtelDoubleGauge.Builder(this, instrumentName);
   }
 
   @Override
