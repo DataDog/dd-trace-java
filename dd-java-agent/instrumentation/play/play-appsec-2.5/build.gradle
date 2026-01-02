@@ -34,6 +34,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
+  implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')

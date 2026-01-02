@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.instrumentation.play.appsec.PathExtractionHelpers;
 import datadog.trace.instrumentation.play26.MuzzleReferences;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PathExtractionHelpers",
+      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
     };
   }
 

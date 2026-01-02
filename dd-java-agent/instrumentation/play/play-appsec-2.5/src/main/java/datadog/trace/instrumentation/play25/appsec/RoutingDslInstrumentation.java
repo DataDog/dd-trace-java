@@ -36,7 +36,7 @@ public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
       packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction",
       packageName + ".ArgumentCaptureWrappers$ArgumentCaptureBiFunction",
       packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction3",
-      packageName + ".PathExtractionHelpers",
+      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
     };
   }
 

@@ -39,25 +39,36 @@ testJvmConstraints {
 
 repositories {
   maven {
+    // for muzzle because of play-2.3
+    // only place that has 'com.typesafe.netty:netty-http-pipelining:1.1.2' publicly accessible
     name = 'typesafe'
     url = 'https://repo.typesafe.com/typesafe/maven-releases/'
   }
 }
 
-addTestSuite('latestDepTest')
-
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
-  compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
+  implementation project(':dd-java-agent:instrumentation:play:play-2.6')
+  implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
-  latestDepTestImplementation libs.scala213
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:play:play-2.6').sourceSets.baseTest.output
-  latestDepTestImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
-  latestDepTestImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
+  // TODO
+  //  * [x] replace 'latestDepTest' by 'test'
+  //  * [x] ensure test fixture is used in 'test' instead of 'latestDepTest'
+  //  * [x] use the introduced 'Abstract*Test' classes
+  //  * [ ] router.Routes is generated code, find a way to generate it for tests
+
+  testImplementation libs.scala213
+  testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
+  // Inherited tests needs play-appsec-2.6 instrumentation
+  testImplementation project(':dd-java-agent:instrumentation:play:play-appsec-2.6')
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
+
+  testImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
+  testImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
-  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
+  testImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
+
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
@@ -68,33 +79,33 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 }
 
-configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
+configurations.matching({ it.name.startsWith('test') }).configureEach({
   it.resolutionStrategy {
     // logback-classic 1.4.11 doesn't like being loaded in the bootstrap classloader (NPE)
     force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
   }
 })
 
-tasks.named("compileLatestDepTestJava", JavaCompile) {
+tasks.named("compileTestJava", JavaCompile) {
   configureCompiler(it, 11)
 }
 
-tasks.named("compileLatestDepTestScala", ScalaCompile) {
+tasks.named("compileTestScala", ScalaCompile) {
   configureCompiler(it, 11)
 }
 
-tasks.named("latestDepTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
+// tasks.named("latestDepTest", Test) {
+//   javaLauncher = getJavaLauncherFor(11)
+// }
 
-final generatedRoutes = layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
+final generatedRoutes = layout.buildDirectory.dir('generated/sources/testRoutes/scala')
 sourceSets {
   routeGenerator {
     scala {
       srcDir "${project.projectDir}/src/routeGenerator/scala"
     }
   }
-  latestDepTestGenerated {
+  testGenerated {
     scala {
       srcDir generatedRoutes
     }
@@ -107,11 +118,11 @@ dependencies {
 }
 
 configurations {
-  latestDepTestGeneratedCompileClasspath.extendsFrom(latestDepTestCompileClasspath)
+  testGeneratedCompileClasspath.extendsFrom(testCompileClasspath)
 }
 
-tasks.register('buildLatestDepTestRoutes', JavaExec) {
-  String routesFile = "${project.projectDir}/src/latestDepTest/routes/conf/routes"
+tasks.register('buildTestRoutes', JavaExec) {
+  String routesFile = "${project.projectDir}/src/test/routes/conf/routes"
   def outputDir = generatedRoutes
 
   it.inputs.file routesFile
@@ -122,28 +133,28 @@ tasks.register('buildLatestDepTestRoutes', JavaExec) {
 
   it.classpath configurations.named('routeGeneratorRuntimeClasspath')
   it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
-  it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
+  it.classpath tasks.named('compileTestScala').map { it.destinationDirectory }
 
   it.javaLauncher = getJavaLauncherFor(11)
 }
 
-tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
+tasks.named("compileTestGeneratedScala", ScalaCompile) {
   configureCompiler(it, 11)
-  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-  dependsOn 'buildLatestDepTestRoutes'
+  classpath = classpath + files(tasks.named('compileTestScala').map { it.destinationDirectory })
+  dependsOn 'buildTestRoutes'
 }
 
-tasks.named("forbiddenApisLatestDepTestGenerated") {
+tasks.named("forbiddenApisTestGenerated") {
   enabled = false
 }
 
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+tasks.named("compileTestGroovy", GroovyCompile) {
   configureCompiler(it, 11)
   classpath = classpath +
-    files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }) +
-    files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
+    files(tasks.named('compileTestScala').map { it.destinationDirectory }) +
+    files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
 }
 
 dependencies {
-  latestDepTestRuntimeOnly sourceSets.latestDepTestGenerated.output
+  testRuntimeOnly sourceSets.testGenerated.output
 }

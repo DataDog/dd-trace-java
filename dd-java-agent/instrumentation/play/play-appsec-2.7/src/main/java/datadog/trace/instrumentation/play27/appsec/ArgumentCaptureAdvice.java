@@ -6,7 +6,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.play26.appsec.PathExtractionHelpers;
+import datadog.trace.instrumentation.play.appsec.PathExtractionHelpers;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

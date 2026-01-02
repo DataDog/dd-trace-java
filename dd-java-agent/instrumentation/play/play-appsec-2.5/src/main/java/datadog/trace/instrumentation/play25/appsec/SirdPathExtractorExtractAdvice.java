@@ -4,6 +4,7 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.instrumentation.play.appsec.PathExtractionHelpers;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;

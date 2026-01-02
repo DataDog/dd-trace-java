@@ -39,6 +39,7 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
+apply plugin: 'groovy'
 apply plugin: 'java-test-fixtures'
 
 testJvmConstraints {
@@ -55,15 +56,22 @@ repositories {
   }
 }
 
-addTestSuite('baseTest')
-
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play_$scalaVersion", version: playVersion
   compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
 
-  baseTestImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  testFixturesCompileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
   // TODO: Play WS is a separately versioned library starting with 2.6 and needs separate instrumentation.
-  baseTestImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
+  testFixturesCompileOnly(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
+  testFixturesApi libs.spock.core
+
+  testImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
+  testImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  testImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 
@@ -75,3 +83,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 }
+
+// tasks.named('forbiddenApisTestFixtures') {
+//   enabled = false
+// }

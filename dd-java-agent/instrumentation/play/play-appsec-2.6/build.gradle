@@ -45,16 +45,19 @@ repositories {
   }
 }
 
-addTestSuite('baseTest')
-
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play_$scalaVersion", version: playVersion
   compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
   compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
+  implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
-  baseTestImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
-  baseTestImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
-  baseTestImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
+  // TODO
+  //  * replace with testFixtures when we migrate this module to use java-test-fixtures plugin
+  //  * replace 'baseTest' by 'test'
+
+  testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
+  testImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  testImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 
