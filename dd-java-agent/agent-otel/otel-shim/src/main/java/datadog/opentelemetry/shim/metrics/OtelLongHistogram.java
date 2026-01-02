@@ -8,7 +8,9 @@ import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.metrics.LongHistogramBuilder;
 import io.opentelemetry.context.Context;
 import java.util.List;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 final class OtelLongHistogram implements LongHistogram {
 
   @Override
@@ -29,8 +31,8 @@ final class OtelLongHistogram implements LongHistogram {
   static final class Builder implements LongHistogramBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
-    Builder(OtelInstrumentBuilder instrumentBuilder) {
-      this.instrumentBuilder = ofLongs(instrumentBuilder, HISTOGRAM);
+    Builder(OtelInstrumentBuilder builder) {
+      this.instrumentBuilder = ofLongs(builder, HISTOGRAM);
     }
 
     @Override

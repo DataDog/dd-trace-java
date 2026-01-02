@@ -13,7 +13,9 @@ import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 final class OtelLongUpDownCounter implements LongUpDownCounter {
 
   @Override

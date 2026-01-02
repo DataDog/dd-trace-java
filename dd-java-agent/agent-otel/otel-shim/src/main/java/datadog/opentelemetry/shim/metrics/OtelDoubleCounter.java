@@ -12,7 +12,9 @@ import io.opentelemetry.api.metrics.ObservableDoubleCounter;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 final class OtelDoubleCounter implements DoubleCounter {
 
   @Override
@@ -33,8 +35,8 @@ final class OtelDoubleCounter implements DoubleCounter {
   static final class Builder implements DoubleCounterBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
-    Builder(OtelInstrumentBuilder instrumentBuilder) {
-      this.instrumentBuilder = ofDoubles(instrumentBuilder, COUNTER);
+    Builder(OtelInstrumentBuilder builder) {
+      this.instrumentBuilder = ofDoubles(builder, COUNTER);
     }
 
     @Override

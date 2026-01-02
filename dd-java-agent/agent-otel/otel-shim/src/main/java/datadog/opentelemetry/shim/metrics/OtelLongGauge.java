@@ -12,7 +12,9 @@ import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 final class OtelLongGauge implements LongGauge {
 
   @Override
@@ -33,8 +35,8 @@ final class OtelLongGauge implements LongGauge {
   static final class Builder implements LongGaugeBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
-    Builder(OtelInstrumentBuilder instrumentBuilder) {
-      this.instrumentBuilder = ofLongs(instrumentBuilder, GAUGE);
+    Builder(OtelInstrumentBuilder builder) {
+      this.instrumentBuilder = ofLongs(builder, GAUGE);
     }
 
     @Override
