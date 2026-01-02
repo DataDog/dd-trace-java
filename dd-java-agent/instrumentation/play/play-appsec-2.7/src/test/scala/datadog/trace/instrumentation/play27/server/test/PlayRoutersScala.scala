@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.play26.server.latestdep
+package datadog.trace.instrumentation.play27.server.test
 
 import datadog.appsec.api.blocking.Blocking
 import datadog.trace.agent.test.base.HttpServerTest
@@ -9,7 +9,7 @@ import datadog.trace.agent.test.base.HttpServerTest.{
 }
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.instrumentation.play26.server.TestHttpErrorHandler.CustomRuntimeException
-import datadog.trace.instrumentation.play26.server.latestdep.ImplicitConversions.MapExtensions
+import datadog.trace.instrumentation.play27.server.test.ImplicitConversions.MapExtensions
 import groovy.lang.Closure
 import play.api.BuiltInComponents
 import play.api.libs.json._

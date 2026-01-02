@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.play26.server.latestdep
+package datadog.trace.instrumentation.play27.server.test
 
 object ImplicitConversions {
   implicit class MapExtensions[A](m: Iterable[(String, A)]) {

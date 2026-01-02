@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.play26.server.latestdep
+package datadog.trace.instrumentation.play27.server.test
 
 import com.fasterxml.jackson.databind.JsonNode
 import datadog.appsec.api.blocking.Blocking

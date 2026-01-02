@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.play26.server.latestdep
+package datadog.trace.instrumentation.play27.server.test
 
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.instrumentation.play26.server.AbstractPlayServerWithErrorHandlerTest
