@@ -13,35 +13,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import akka.http.scaladsl.HttpExt;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future;
 
-@AutoService(InstrumenterModule.class)
-public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaHttpSingleRequestInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AkkaHttpSingleRequestInstrumentation() {
-    super("akka-http", "akka-http-client");
-  }
 
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.HttpExt";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AkkaHttpClientHelpers",
-      packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
-      packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
-      packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
-      packageName + ".AkkaHttpClientDecorator",
-    };
   }
 
   @Override

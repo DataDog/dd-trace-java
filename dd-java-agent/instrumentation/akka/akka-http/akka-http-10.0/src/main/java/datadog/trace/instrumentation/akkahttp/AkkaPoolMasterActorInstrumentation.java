@@ -4,18 +4,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class AkkaPoolMasterActorInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaPoolMasterActorInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AkkaPoolMasterActorInstrumentation() {
-    super("akka-http", "akka-http-client");
-  }
 
   @Override
   public String instrumentedType() {

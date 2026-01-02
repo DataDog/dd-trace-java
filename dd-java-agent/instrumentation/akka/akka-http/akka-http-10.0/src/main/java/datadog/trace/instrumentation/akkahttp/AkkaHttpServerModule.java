@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.akkahttp;
 
 import static java.util.Collections.singleton;
 
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
@@ -10,6 +11,7 @@ import datadog.trace.instrumentation.akkahttp.appsec.ScalaListCollectorMuzzleRef
 import java.util.ArrayList;
 import java.util.List;
 
+@AutoService(InstrumenterModule.class)
 public class AkkaHttpServerModule extends InstrumenterModule.Tracing {
   public AkkaHttpServerModule() {
     super("akka-http", "akka-http-server");
