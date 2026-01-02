@@ -3,11 +3,22 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.HISTOGRAM;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.metrics.LongHistogramBuilder;
+import io.opentelemetry.context.Context;
 import java.util.List;
 
-final class OtelLongHistogram {
+final class OtelLongHistogram implements LongHistogram {
+  @Override
+  public void record(long value) {}
+
+  @Override
+  public void record(long value, Attributes attributes) {}
+
+  @Override
+  public void record(long value, Attributes attributes, Context context) {}
+
   static final class Builder implements LongHistogramBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -35,7 +46,7 @@ final class OtelLongHistogram {
 
     @Override
     public LongHistogram build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelLongHistogram();
     }
   }
 }

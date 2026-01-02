@@ -3,14 +3,26 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
 import io.opentelemetry.api.metrics.LongGaugeBuilder;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
+import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
 
-final class OtelDoubleGauge {
+final class OtelDoubleGauge implements DoubleGauge {
+
+  @Override
+  public void set(double value) {}
+
+  @Override
+  public void set(double value, Attributes attributes) {}
+
+  @Override
+  public void set(double value, Attributes attributes, Context context) {}
+
   static final class Builder implements DoubleGaugeBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -37,7 +49,7 @@ final class OtelDoubleGauge {
 
     @Override
     public DoubleGauge build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelDoubleGauge();
     }
 
     @Override

@@ -3,14 +3,26 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongCounterBuilder;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
 
-final class OtelLongCounter {
+final class OtelLongCounter implements LongCounter {
+
+  @Override
+  public void add(long value) {}
+
+  @Override
+  public void add(long value, Attributes attributes) {}
+
+  @Override
+  public void add(long value, Attributes attributes, Context context) {}
+
   static final class Builder implements LongCounterBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -37,7 +49,7 @@ final class OtelLongCounter {
 
     @Override
     public LongCounter build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelLongCounter();
     }
 
     @Override

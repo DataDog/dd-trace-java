@@ -3,13 +3,24 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongGauge;
 import io.opentelemetry.api.metrics.LongGaugeBuilder;
 import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
 
-final class OtelLongGauge {
+final class OtelLongGauge implements LongGauge {
+  @Override
+  public void set(long value) {}
+
+  @Override
+  public void set(long value, Attributes attributes) {}
+
+  @Override
+  public void set(long value, Attributes attributes, Context context) {}
+
   static final class Builder implements LongGaugeBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -31,7 +42,7 @@ final class OtelLongGauge {
 
     @Override
     public LongGauge build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelLongGauge();
     }
 
     @Override

@@ -3,13 +3,25 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
 import io.opentelemetry.api.metrics.ObservableDoubleCounter;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
+import io.opentelemetry.context.Context;
 import java.util.function.Consumer;
 
-final class OtelDoubleCounter {
+final class OtelDoubleCounter implements DoubleCounter {
+
+  @Override
+  public void add(double value) {}
+
+  @Override
+  public void add(double value, Attributes attributes) {}
+
+  @Override
+  public void add(double value, Attributes attributes, Context context) {}
+
   static final class Builder implements DoubleCounterBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -31,7 +43,7 @@ final class OtelDoubleCounter {
 
     @Override
     public DoubleCounter build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelDoubleCounter();
     }
 
     @Override

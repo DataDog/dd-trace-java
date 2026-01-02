@@ -3,12 +3,23 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.HISTOGRAM;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
 import io.opentelemetry.api.metrics.LongHistogramBuilder;
+import io.opentelemetry.context.Context;
 import java.util.List;
 
-final class OtelDoubleHistogram {
+final class OtelDoubleHistogram implements DoubleHistogram {
+  @Override
+  public void record(double value) {}
+
+  @Override
+  public void record(double value, Attributes attributes) {}
+
+  @Override
+  public void record(double value, Attributes attributes, Context context) {}
+
   static final class Builder implements DoubleHistogramBuilder {
     private final OtelInstrumentBuilder instrumentBuilder;
 
@@ -41,7 +52,7 @@ final class OtelDoubleHistogram {
 
     @Override
     public DoubleHistogram build() {
-      throw new UnsupportedOperationException("build is not yet supported");
+      return new OtelDoubleHistogram();
     }
   }
 }
