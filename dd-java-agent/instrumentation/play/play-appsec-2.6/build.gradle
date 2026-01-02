@@ -7,26 +7,9 @@ muzzle {
   pass {
     name = 'play26Only'
     group = 'com.typesafe.play'
-    module = "play_$scalaVersion"
+    module = 'play-java_2.11'
     versions = "[2.6.0,2.7.0)"
     assertInverse = true
-    javaVersion = 11
-  }
-  pass {
-    name = 'play26Only'
-    group = 'com.typesafe.play'
-    module = 'play_2.12'
-    versions = "[2.6.0,2.7.0)"
-    assertInverse = true
-    javaVersion = 11
-  }
-  pass {
-    name = 'play26Only'
-    group = 'com.typesafe.play'
-    module = 'play_2.13'
-    versions = "[2.6.0,2.7.0)"
-    assertInverse = true
-    javaVersion = 11
   }
 }
 
