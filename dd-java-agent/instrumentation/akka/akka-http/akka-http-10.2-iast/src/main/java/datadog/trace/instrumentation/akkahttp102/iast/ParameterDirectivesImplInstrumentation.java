@@ -10,12 +10,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -24,29 +21,11 @@ import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.instrumentation.akkahttp102.iast.helpers.TaintParametersFunction;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
+public class ParameterDirectivesImplInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ParameterDirectivesImplInstrumentation() {
-    super("akka-http");
-  }
-
   @Override
   public String instrumentedType() {
     return "akka.http.scaladsl.server.directives.ParameterDirectives$Impl$";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintParametersFunction",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    // just so we can use assertInverse in the muzzle directive
-    return new Reference[] {new Reference.Builder(instrumentedType()).build()};
   }
 
   @Override
