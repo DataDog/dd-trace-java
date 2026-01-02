@@ -51,6 +51,7 @@ public class AkkaHttpIastModule extends InstrumenterModule.Iast {
         new HttpHeaderSubclassesInstrumentation(),
         new HttpRequestInstrumentation(),
         new MakeTaintableInstrumentation(),
+        new MarshallingDirectivesInstrumentation(),
         new ParameterDirectivesInstrumentation(),
         new PathMatcherInstrumentation(),
         new RequestContextInstrumentation(),
