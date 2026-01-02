@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -14,25 +13,15 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
+public class AkkaRoutedActorCellInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public AkkaRoutedActorCellInstrumentation() {
-    super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
-  }
 
   @Override
   public String instrumentedType() {
     return "akka.routing.RoutedActorCell";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.Envelope", State.class.getName());
   }
 
   @Override

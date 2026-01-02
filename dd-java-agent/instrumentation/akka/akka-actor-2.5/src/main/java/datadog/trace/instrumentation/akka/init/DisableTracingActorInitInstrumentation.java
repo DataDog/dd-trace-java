@@ -5,19 +5,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 
 import akka.actor.ActorSystem$;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class DisableTracingActorInitInstrumentation extends InstrumenterModule.Tracing
+public final class DisableTracingActorInitInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public DisableTracingActorInitInstrumentation() {
-    super("akka_concurrent");
-  }
 
   @Override
   public String instrumentedType() {

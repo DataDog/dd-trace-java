@@ -6,10 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackAc
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -17,13 +15,8 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class AkkaMailboxInstrumentation extends InstrumenterModule.Tracing
+public class AkkaMailboxInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
-  public AkkaMailboxInstrumentation() {
-    super("akka_actor_mailbox", "akka_actor", "akka_concurrent", "java_concurrent");
-  }
 
   @Override
   public String instrumentedType() {

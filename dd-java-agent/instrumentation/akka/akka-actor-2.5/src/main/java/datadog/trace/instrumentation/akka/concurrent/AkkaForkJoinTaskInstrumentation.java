@@ -11,14 +11,11 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import akka.dispatch.forkjoin.ForkJoinTask;
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -38,18 +35,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>Note: There are quite a few separate implementations of {@code ForkJoinTask}/{@code
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Akka version.
  */
-@AutoService(InstrumenterModule.class)
-public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaForkJoinTaskInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
-  public AkkaForkJoinTaskInstrumentation() {
-    super("java_concurrent", "akka_concurrent");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
-  }
 
   @Override
   public String hierarchyMarkerType() {
