@@ -30,13 +30,46 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
-def buildTestRoutes = tasks.register('buildTestRoutes', JavaExec)
-sourceSets {
-  test {
+def configureRoutesCompilation(String sourceSetName) {
+  def capitalizedName = sourceSetName.capitalize()
+  def buildRoutesTask = tasks.register("build${capitalizedName}Routes", JavaExec) {
+    def routesFile = "${project.projectDir}/src/test/routes/conf/routes"
+    def outputDir = layout.buildDirectory.dir("generated/sources/${sourceSetName}Routes/scala")
+
+    inputs.file routesFile
+    outputs.dir outputDir
+
+    mainClass = 'generator.CompileRoutes'
+    args routesFile, outputDir.get().asFile.absolutePath
+
+    classpath configurations.named('routeGeneratorRuntimeClasspath')
+    classpath tasks.named('compileRouteGeneratorScala')
+
+    javaLauncher = getJavaLauncherFor(11)
+  }
+
+  sourceSets.named(sourceSetName) {
     scala {
-      srcDir buildTestRoutes
+      srcDir buildRoutesTask
     }
   }
+
+  tasks.named("compile${capitalizedName}Java", JavaCompile) {
+    configureCompiler(it, 11)
+  }
+
+  tasks.named("compile${capitalizedName}Scala", ScalaCompile) {
+    configureCompiler(it, 11)
+    dependsOn buildRoutesTask
+  }
+
+  tasks.named("compile${capitalizedName}Groovy", GroovyCompile) {
+    configureCompiler(it, 11)
+    classpath += files(tasks.named("compile${capitalizedName}Scala"))
+  }
+}
+
+sourceSets {
   routeGenerator {
     scala {
       srcDir 'src/routeGenerator/scala'
@@ -57,6 +90,8 @@ repositories {
   }
 }
 
+addTestSuiteForDir('latestDepTest', 'test')
+
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.7.0'
   implementation project(':dd-java-agent:instrumentation:play:play-2.6')
@@ -71,12 +106,11 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:play:play-appsec-2.6')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
 
-  testImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
-  testImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
+  testImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.7.+'
+  testImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.7.+') {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
   testImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
-
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
@@ -85,6 +119,13 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
   testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
+
+  latestDepTestImplementation libs.scala213
+  latestDepTestImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
+  latestDepTestImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
+  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
 }
 
 configurations.matching({ it.name.startsWith('test') }).configureEach({
@@ -94,37 +135,5 @@ configurations.matching({ it.name.startsWith('test') }).configureEach({
   }
 })
 
-tasks.named("compileTestJava", JavaCompile) {
-  configureCompiler(it, 11)
-}
-
-tasks.named("compileTestScala", ScalaCompile) {
-  configureCompiler(it, 11)
-}
-
-buildTestRoutes.configure {
-  def routesFile = "${project.projectDir}/src/test/routes/conf/routes"
-  def outputDir = layout.buildDirectory.dir('generated/sources/testRoutes/scala')
-
-  it.inputs.file routesFile
-  it.outputs.dir outputDir
-
-  it.mainClass = 'generator.CompileRoutes'
-  it.args routesFile, outputDir.get().asFile.absolutePath
-
-  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
-  it.classpath tasks.named('compileRouteGeneratorScala')
-
-  it.javaLauncher = getJavaLauncherFor(11)
-}
-
-tasks.named("compileTestScala", ScalaCompile) {
-  configureCompiler(it, 11)
-  dependsOn 'buildTestRoutes'
-}
-
-tasks.named("compileTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
-  // Groovy tests need access to generated routes compiled by Scala
-  classpath += files(tasks.named('compileTestScala'))
-}
+configureRoutesCompilation('test')
+configureRoutesCompilation('latestDepTest')
