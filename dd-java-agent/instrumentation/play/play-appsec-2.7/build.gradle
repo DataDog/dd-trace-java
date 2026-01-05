@@ -1,6 +1,3 @@
-def scalaVersion = '2.11'
-def playVersion = '2.7.0'
-
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -61,7 +58,7 @@ repositories {
 }
 
 dependencies {
-  compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  compileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.7.0'
   implementation project(':dd-java-agent:instrumentation:play:play-2.6')
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 

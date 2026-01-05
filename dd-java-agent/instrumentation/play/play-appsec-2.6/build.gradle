@@ -1,6 +1,3 @@
-def scalaVersion = '2.11'
-def playVersion = '2.6.0'
-
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -29,15 +26,15 @@ repositories {
 }
 
 dependencies {
-  compileOnly group: 'com.typesafe.play', name: "play_$scalaVersion", version: playVersion
-  compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  compileOnly group: 'com.typesafe.play', name: "play_2.11", version: '2.6.0'
+  compileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
   compileOnly project(':dd-java-agent:instrumentation:play:play-2.6')
   implementation(project(':dd-java-agent:instrumentation:play:play-appsec-common'))
 
   testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
-  testImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
-  testImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
+  testImplementation group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
+  testImplementation(group: 'com.typesafe.play', name: "play-test_2.11", version: '2.6.0') {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 
