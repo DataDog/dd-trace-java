@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.play26.server
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_XML
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
@@ -13,7 +11,9 @@ import groovy.transform.CompileStatic
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import play.server.Server
+import spock.lang.IgnoreIf
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_XML
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -152,6 +152,11 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
     }
   }
 
+  boolean testBodyXml() {
+    true
+  }
+
+  @IgnoreIf({ !instance.testBodyXml() })
   def 'test instrumentation gateway xml request body'() {
     setup:
     def request = request(
