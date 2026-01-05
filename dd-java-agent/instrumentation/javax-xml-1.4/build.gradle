@@ -22,6 +22,6 @@ configurations.configureEach {
 }
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testImplementation group: 'xalan', name: 'xalan', version: '2.7.0'
 }

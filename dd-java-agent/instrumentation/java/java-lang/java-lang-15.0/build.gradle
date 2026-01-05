@@ -29,7 +29,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   testImplementation(libs.javaparser)
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 }
 
 tasks.withType(AbstractCompile).configureEach {

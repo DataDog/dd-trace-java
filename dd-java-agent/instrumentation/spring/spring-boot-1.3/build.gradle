@@ -28,7 +28,7 @@ addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy", "compileBoot3ForkedTestGroovy", "compileLatestDepForkedTestGroovy")
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:span-origin')
+  implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
 
   compileOnly group: 'org.springframework.boot', name: 'spring-boot', version: '1.3.0.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '1.3.0.RELEASE'

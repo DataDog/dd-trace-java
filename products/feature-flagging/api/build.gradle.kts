@@ -1,5 +1,4 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
 plugins {

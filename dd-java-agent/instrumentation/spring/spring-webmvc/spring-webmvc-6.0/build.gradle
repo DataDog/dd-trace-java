@@ -31,8 +31,8 @@ dependencies {
   main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
   main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:span-origin')
-  main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
+  implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
+  main_java17Implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
 
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude(module: 'jetty-server') // incompatible servlet api

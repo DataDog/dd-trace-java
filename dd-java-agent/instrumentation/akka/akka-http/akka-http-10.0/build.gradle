@@ -104,7 +104,7 @@ dependencies {
 
   // These are the common dependencies that are inherited by the other test sets
   testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
@@ -122,7 +122,7 @@ dependencies {
   iastTestCompileOnly libs.forbiddenapis
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
-  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast')
 
   // There are some internal API changes in 10.1 that we would like to test separately for

@@ -2209,6 +2209,14 @@
         "aliases": []
       }
     ],
+    "DD_LOG_FORMAT_JSON": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_MEASURE_METHODS": [
       {
         "version": "A",
