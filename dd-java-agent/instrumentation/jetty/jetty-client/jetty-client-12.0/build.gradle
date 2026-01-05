@@ -20,8 +20,6 @@ tasks.named("compileMain_java17Java", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_17)
 }
 
-configureGroovyCompiler(17, "compileTestGroovy", "compileLatestDepTestGroovy")
-
 configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {
   it.resolutionStrategy {
     force group: 'org.slf4j', name: 'slf4j-api', version: libs.versions.slf4j.get()

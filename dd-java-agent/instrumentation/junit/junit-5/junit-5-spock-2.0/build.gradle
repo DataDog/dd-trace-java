@@ -32,6 +32,8 @@ dependencies {
   latestDepTestImplementation group: 'org.spockframework', name: 'spock-core', version: '2.+'
 }
 
+// Exclude Groovy 4 to test old Spock versions, compatible with Groovy 3.
+// TODO: Check if we can either drop old versions or support both Groovy 3 & Groovy 4.
 configurations {
   testImplementation {
     exclude group: 'org.apache.groovy'

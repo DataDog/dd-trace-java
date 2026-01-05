@@ -39,5 +39,3 @@ dependencies {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
-
-configureGroovyCompiler(21, "compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy")
