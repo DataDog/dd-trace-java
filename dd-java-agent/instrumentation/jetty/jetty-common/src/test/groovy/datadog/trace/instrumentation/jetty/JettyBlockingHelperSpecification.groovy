@@ -20,7 +20,7 @@ class JettyBlockingHelperSpecification extends DDSpecification {
     def rba = new Flow.Action.RequestBlockingAction(402, AUTO)
 
     when:
-    JettyBlockingHelper.block(seg, req, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders())
+    JettyBlockingHelper.block(seg, req, resp, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders(), rba.getSecurityResponseId())
 
     then:
     1 * resp.isCommitted() >> false

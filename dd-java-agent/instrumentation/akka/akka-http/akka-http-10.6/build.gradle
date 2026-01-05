@@ -64,7 +64,7 @@ dependencies {
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.13', version: '10.6.0'
   testImplementation libs.scala213
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')

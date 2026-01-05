@@ -9,6 +9,6 @@ dependencies {
   testImplementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
   testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   latestDepTestImplementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.+'
 }

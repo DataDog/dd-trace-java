@@ -1,3 +1,6 @@
+import static org.gradle.api.plugins.JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME
+import static org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
+
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
@@ -11,63 +14,62 @@ tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: 'dd-trace-java.instrument'
-  apply plugin: 'dd-trace-java.muzzle'
+  subProj.pluginManager.withPlugin("dd-trace-java.instrument") {
+    subProj.extensions.configure(InstrumentExtension) {
+      it.plugins.addAll(
+        'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+        'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
+        )
+    }
 
-  configurations {
-    instrumentPluginClasspath {
-      visible = false
-      canBeConsumed = false
-      canBeResolved = true
+    subProj.configurations.register("instrumentPluginClasspath") {
+      it.visible = false
+      it.canBeConsumed = false
+      it.canBeResolved = true
+
+      it.dependencies.add(subProj.dependencies.project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath'))
     }
   }
 
-  instrument.plugins = [
-    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
-    'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
-  ]
-
-  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-  subProj.afterEvaluate {
-    if (!plugins.hasPlugin("java")) {
-      return
+  subProj.pluginManager.withPlugin("java") {
+    subProj.pluginManager.withPlugin("dd-trace-java.muzzle") {
+      subProj.configurations.matching { it.name == 'muzzleBootstrap' }.configureEach {
+        exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+      }
     }
 
+    subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
     // Configures base dependencies for additional sourceSet
-    configurations
-      .matching { it.name.matches("${SourceSet.MAIN_SOURCE_SET_NAME}_java\\d+${JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
+    subProj.configurations
+      .matching { it.name.matches("${MAIN_SOURCE_SET_NAME}_java\\d+${IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
       .configureEach {
-        it.dependencies.add(project.dependencyFactory.create(project(':dd-trace-api')))
-        it.dependencies.add(project.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
+        it.dependencies.add(subProj.dependencyFactory.create(project(':dd-trace-api')))
+        it.dependencies.add(subProj.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
         it.dependencies.addLater(libs.bytebuddy)
       }
 
-    configurations.named('muzzleBootstrap') {
-      exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
-    }
     dependencies {
+      // Main
+      annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
+      annotationProcessor libs.autoservice.processor
+      compileOnly libs.autoservice.annotation
+
       // Apply common dependencies for instrumentation.
       implementation project(':dd-trace-api')
       implementation project(':dd-java-agent:agent-tooling')
       implementation libs.bytebuddy
 
-      annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
-      annotationProcessor libs.autoservice.processor
-      compileOnly libs.autoservice.annotation
-
-      // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
-      testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
-      // FIXME: we should enable this, but currently this fails tests for google http client
-      //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
-      testImplementation project(':dd-java-agent:instrumentation:classloading')
-
-      testImplementation project(':dd-java-agent:instrumentation-testing')
+      // Tests
       testAnnotationProcessor libs.autoservice.processor
       testCompileOnly libs.autoservice.annotation
 
-      instrumentPluginClasspath project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath')
+      // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
+      testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+      testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8')
+
+      testImplementation project(':dd-java-agent:instrumentation-testing')
     }
 
     subProj.tasks.withType(Test).configureEach { subTask ->
@@ -75,17 +77,17 @@ subprojects { Project subProj ->
         subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
       }
     }
-  }
 
-  def path = subProj.getPath()
-  subProj.plugins.withId("java") {
-    if (!path.equals(':dd-java-agent:instrumentation:vertx:vertx-redis-client-3.9:stubs')) {
-      // don't include the redis RequestImpl stub
+    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs') {
+      // don't include the redis RequestImpl stubs
       parent_project.dependencies {
-        implementation project(path)
+        addProvider("implementation", providers.provider { project(subProj.path) })
       }
     }
   }
+
+  subProj.apply plugin: 'dd-trace-java.instrument'
+  subProj.apply plugin: 'dd-trace-java.muzzle'
 }
 
 dependencies {
@@ -145,6 +147,11 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
   }
   sourceSets.main.resources.srcDir(indexTask)
   return indexTask
+}
+
+instrumentationNaming {
+  exclusions = ["org-json-20230227"] // org-json does not use semver
+  suffixes = ["-common", "-stubs", "-iast"]
 }
 
 registerIndexTask(
