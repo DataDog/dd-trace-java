@@ -13,18 +13,59 @@ import org.gradle.api.tasks.compile.AbstractCompile
 import java.util.regex.Matcher
 
 /**
- * instrument<Language> task plugin which performs build-time instrumentation of classes.
+ * Gradle plugin that applies ByteBuddy plugins to perform build-time bytecode instrumentation.
+ *
+ * <p>This plugin appends a post-processing action to existing <strong>main</strong> compilation
+ * tasks. This plugin allows to apply one or more ByteBuddy {@link net.bytebuddy.build.Plugin}
+ * implementations.
+ *
+ * <h3>Configuration:</h3>
+ * There are two main configuration points:
+ * <ul>
+ *   <li>The {@code buildTimeInstrumentation} extension, which allows to specify:
+ *   <ul>
+ *     <li>The list of ByteBuddy plugin class names to apply</li>
+ *     <li>Additional classpath entries required to load the plugins</li>
+ *   </ul>
+ *   </li>
+ *   <li>The {@code buildTimeInstrumentationPlugin} configuration, which allows to specify
+ *   dependencies containing the ByteBuddy plugin implementations</li>
+ * </ul>
+ * <p>Example configuration:
+ *
+ * <pre>
+ * buildTimeInstrumentation {
+ *   plugins = ['com.example.MyByteBuddyPlugin', 'com.example.AnotherPlugin']
+ *   additionalClasspath = [file('path/to/additional/classes')]
+ * }
+ *
+ * dependencies {
+ *   buildTimeInstrumentationPlugin 'com.example:my-bytebuddy-plugin:1.0.0'
+ *   buildTimeInstrumentationPlugin project(path: ':some:project', configuration: 'buildTimeInstrumentationPlugin')
+ * }
+ * </pre>
+ *
+ * <h3>Requirements for ByteBuddy plugins:</h3>
+ * <ul>
+ *   <li>Must implement {@link net.bytebuddy.build.Plugin}</li>
+ *   <li>Must have a constructor accepting a {@link File} parameter (the target directory)</li>
+ *   <li>Plugin classes must be available on the {@code buildTimeInstrumentationPlugin} configuration</li>
+ * </ul>
+ *
+ * @see BuildTimeInstrumentationExtension
+ * @see InstrumentPostProcessingAction
+ * @see ByteBuddyInstrumenter
  */
 @SuppressWarnings('unused')
-class InstrumentPlugin implements Plugin<Project> {
+class BuildTimeInstrumentationPlugin implements Plugin<Project> {
   public static final String DEFAULT_JAVA_VERSION = 'default'
-  public static final String INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION = 'instrumentPluginClasspath'
-  private final Logger logger = Logging.getLogger(InstrumentPlugin)
+  public static final String BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION = 'buildTimeInstrumentationPlugin'
+  private final Logger logger = Logging.getLogger(BuildTimeInstrumentationPlugin)
 
   @Override
   void apply(Project project) {
-    InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
-    project.configurations.register(INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
+    BuildTimeInstrumentationExtension extension = project.extensions.create('buildTimeInstrumentation', BuildTimeInstrumentationExtension)
+    project.configurations.register(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
 
 
     ['java', 'kotlin', 'scala', 'groovy'].each { langPluginId ->
@@ -34,22 +75,22 @@ class InstrumentPlugin implements Plugin<Project> {
     }
   }
 
-  private void configurePostCompilationInstrumentation(String language, Project project, InstrumentExtension extension) {
+  private void configurePostCompilationInstrumentation(String language, Project project, BuildTimeInstrumentationExtension extension) {
     project.extensions.configure(SourceSetContainer) { SourceSetContainer sourceSets ->
       // For any "main" source-set configure its compile task
       sourceSets.configureEach { SourceSet sourceSet ->
         def sourceSetName = sourceSet.name
-        logger.info("[InstrumentPlugin] source-set: $sourceSetName, language: $language")
+        logger.info("[BuildTimeInstrumentationPlugin] source-set: $sourceSetName, language: $language")
 
         if (!sourceSetName.startsWith(SourceSet.MAIN_SOURCE_SET_NAME)) {
-          logger.debug("[InstrumentPlugin] Skipping non-main source set {} for language {}", sourceSetName, language)
+          logger.debug("[BuildTimeInstrumentationPlugin] Skipping non-main source set {} for language {}", sourceSetName, language)
           return
         }
 
         def compileTaskName = sourceSet.getCompileTaskName(language)
-        logger.info("[InstrumentPlugin] compile task name: " + compileTaskName)
+        logger.info("[BuildTimeInstrumentationPlugin] compile task name: " + compileTaskName)
 
-        // For each compile task, append an instrumenting post-processing step
+        // For each _main_ compile task, append an instrumenting post-processing step
         // Examples of compile tasks:
         // - compileJava,
         // - compileMain_java17Java,
@@ -61,11 +102,11 @@ class InstrumentPlugin implements Plugin<Project> {
         project.tasks.withType(AbstractCompile).matching {
           it.name == compileTaskName && !it.source.isEmpty()
         }.configureEach {
-          logger.info('[InstrumentPlugin] Applying instrumentPluginClasspath configuration as compile task input')
-          it.inputs.files(project.configurations.named(INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION))
+          logger.info('[BuildTimeInstrumentationPlugin] Applying buildTimeInstrumentationPlugin configuration as compile task input')
+          it.inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
 
           if (it.source.isEmpty()) {
-            logger.debug("[InstrumentPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
+            logger.debug("[BuildTimeInstrumentationPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
             return
           }
 
@@ -111,7 +152,7 @@ class InstrumentPlugin implements Plugin<Project> {
               tmpUninstrumentedClasses
             )
           )
-          logger.info("[InstrumentPlugin] Configured post-compile instrumentation for $compileTaskName for source-set $sourceSetName")
+          logger.info("[BuildTimeInstrumentationPlugin] Configured post-compile instrumentation for $compileTaskName for source-set $sourceSetName")
         }
       }
     }

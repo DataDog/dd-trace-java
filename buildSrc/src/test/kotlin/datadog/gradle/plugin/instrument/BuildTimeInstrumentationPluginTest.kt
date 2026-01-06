@@ -11,14 +11,14 @@ import org.objectweb.asm.FieldVisitor
 import java.io.File
 import java.io.FileInputStream
 
-class InstrumentPluginTest {
+class BuildTimeInstrumentationPluginTest {
 
   private val buildGradle = """
     plugins {
       id 'java'
-      id 'dd-trace-java.instrument'
+      id 'dd-trace-java.build-time-instrumentation'
     }
-    
+
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
@@ -30,7 +30,7 @@ class InstrumentPluginTest {
       compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3' // just to build TestPlugin
     }
 
-    instrument.plugins = [
+    buildTimeInstrumentation.plugins = [
       'TestPlugin'
     ]
   """.trimIndent()

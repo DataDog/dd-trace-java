@@ -11,8 +11,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Performs build-time instrumentation of classes, called indirectly from InstrumentPlugin.
- * (This is the byte-buddy side of the task; InstrumentPlugin contains the Gradle pieces.)
+ * Performs build-time instrumentation of classes, called indirectly from BuildTimeInstrumentationPlugin.
+ * (This is the byte-buddy side of the task; BuildTimeInstrumentationPlugin contains the Gradle pieces.)
  */
 class ByteBuddyInstrumenter {
   static final Logger log = LoggerFactory.getLogger(ByteBuddyInstrumenter.class)

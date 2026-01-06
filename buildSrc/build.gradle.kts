@@ -15,8 +15,8 @@ java {
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "dd-trace-java.instrument"
-      implementationClass = "datadog.gradle.plugin.instrument.InstrumentPlugin"
+      id = "dd-trace-java.build-time-instrumentation"
+      implementationClass = "datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin"
     }
 
     create("muzzle-plugin") {

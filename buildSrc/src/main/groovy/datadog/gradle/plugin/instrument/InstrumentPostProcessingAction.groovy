@@ -44,7 +44,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
       DirectoryProperty compilerOutputDirectory,
       DirectoryProperty tmpDirectory
   ) {
-    this.javaVersion = javaVersion == InstrumentPlugin.DEFAULT_JAVA_VERSION ? JavaLanguageVersion.current() : JavaLanguageVersion.of(javaVersion)
+    this.javaVersion = javaVersion == BuildTimeInstrumentationPlugin.DEFAULT_JAVA_VERSION ? JavaLanguageVersion.current() : JavaLanguageVersion.of(javaVersion)
     this.plugins = plugins
     this.instrumentingClassPath = instrumentingClassPath
     this.compilerOutputDirectory = compilerOutputDirectory
@@ -64,7 +64,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
     workQueue().submit(InstrumentAction.class, parameters -> {
       parameters.buildStartedTime.set(invocationDetails.buildStartedTime)
       parameters.pluginClassPath.from(
-          project.configurations.named(InstrumentPlugin.INSTRUMENT_PLUGIN_CLASSPATH_CONFIGURATION)
+          project.configurations.named(BuildTimeInstrumentationPlugin.BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
       )
       parameters.plugins.set(postCompileAction.plugins)
       parameters.instrumentingClassPath.setFrom(postCompileAction.instrumentingClassPath)

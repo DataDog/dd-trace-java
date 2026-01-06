@@ -2,7 +2,7 @@ import static org.gradle.api.plugins.JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAM
 import static org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import datadog.gradle.plugin.instrument.InstrumentExtension
+import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 
 plugins {
   id 'com.gradleup.shadow'
@@ -15,8 +15,8 @@ tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  subProj.pluginManager.withPlugin("dd-trace-java.instrument") {
-    subProj.extensions.configure(InstrumentExtension) {
+  subProj.pluginManager.withPlugin("dd-trace-java.build-time-instrumentation") {
+    subProj.extensions.configure(BuildTimeInstrumentationExtension) {
       it.plugins.addAll(
         'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
         'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
@@ -24,14 +24,14 @@ subprojects { Project subProj ->
         )
     }
 
-    subProj.configurations.named('instrumentPluginClasspath') {
+    subProj.configurations.named('buildTimeInstrumentationPlugin') {
       it.visible = false
       it.canBeConsumed = false
       it.canBeResolved = true
 
       it.dependencies.add(subProj.dependencies.project(
         path: ':dd-java-agent:agent-tooling',
-        configuration: 'instrumentPluginClasspath'
+        configuration: 'buildTimeInstrumentationPlugin'
         ))
     }
   }
@@ -90,7 +90,7 @@ subprojects { Project subProj ->
     }
   }
 
-  subProj.apply plugin: 'dd-trace-java.instrument'
+  subProj.apply plugin: 'dd-trace-java.build-time-instrumentation'
   subProj.apply plugin: 'dd-trace-java.muzzle'
 }
 
