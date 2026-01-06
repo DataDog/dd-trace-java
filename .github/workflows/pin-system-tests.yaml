@@ -27,7 +27,8 @@ jobs:
 
       # temporary
       - name: Print github.ref
-        run: echo "github.ref: ${{ github.ref }}"
+        run: |
+          echo "github.ref: ${{ github.ref }}"
       
       - name: Define base branch
         id: define-base-branch
