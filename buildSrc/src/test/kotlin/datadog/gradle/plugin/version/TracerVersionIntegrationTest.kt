@@ -41,10 +41,12 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "add", "-A")
         exec(projectDir, "git", "commit", "-m", "A commit")
 
-        File(projectDir, "settings.gradle.kts").appendText("""
+        File(projectDir, "settings.gradle.kts").appendText(
+          """
           
           // uncommitted change this file, 
-        """.trimIndent())
+          """.trimIndent()
+        )
       }
     )
   }
@@ -101,10 +103,12 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "commit", "-m", "A commit")
         exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
 
-        File(projectDir, "settings.gradle.kts").appendText("""
+        File(projectDir, "settings.gradle.kts").appendText(
+          """
           
           // uncommitted change this file, 
-        """.trimIndent())
+          """.trimIndent()
+        )
       }
     )
   }
@@ -126,7 +130,7 @@ class TracerVersionIntegrationTest {
           """
           
           // Committed change this file, 
-        """.trimIndent()
+          """.trimIndent()
         )
         exec(projectDir, "git", "commit", "-am", "Another commit")
       }
@@ -153,16 +157,20 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
 
         val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText("""
+        settingsFile.appendText(
+          """
           
           // uncommitted change 
-        """.trimIndent())
+          """.trimIndent()
+        )
 
         exec(projectDir, "git", "commit", "-am", "Another commit")
 
-        settingsFile.appendText("""
+        settingsFile.appendText(
+          """
           // An uncommitted modification
-        """.trimIndent())
+          """.trimIndent()
+        )
       }
     )
   }
@@ -181,10 +189,12 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
 
         val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText("""
+        settingsFile.appendText(
+          """
           
           // Committed change 
-        """.trimIndent())
+          """.trimIndent()
+        )
 
         exec(projectDir, "git", "commit", "-am", "Another commit")
         exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
@@ -207,17 +217,21 @@ class TracerVersionIntegrationTest {
         exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
 
         val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText("""
+        settingsFile.appendText(
+          """
           
           // Committed change 
-        """.trimIndent())
+          """.trimIndent()
+        )
         exec(projectDir, "git", "commit", "-am", "Another commit")
         exec(projectDir, "git", "tag", "v1.52.1", "-m", "")
 
-        settingsFile.appendText("""
+        settingsFile.appendText(
+          """
           
           // Another committed change 
-        """.trimIndent())
+          """.trimIndent()
+        )
         exec(projectDir, "git", "commit", "-am", "Another commit")
       }
     )
@@ -243,7 +257,7 @@ class TracerVersionIntegrationTest {
           """
           
           // Committed change this file, 
-        """.trimIndent()
+          """.trimIndent()
         )
         exec(workTreeDir, "git", "commit", "-am", "Another commit")
       },

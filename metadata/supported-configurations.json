@@ -105,6 +105,14 @@
         "aliases": []
       }
     ],
+    "DD_DETECT_AOT_TRAINING_MODE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_API_KEY": [
       {
         "version": "A",
@@ -210,6 +218,14 @@
       }
     ],
     "DD_APP_CUSTOMJMXBUILDER": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_APP_LOGS_COLLECTION_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -2189,6 +2205,14 @@
       {
         "version": "B",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_LOG_FORMAT_JSON": [
+      {
+        "version": "A",
+        "type": "boolean",
         "default": null,
         "aliases": []
       }

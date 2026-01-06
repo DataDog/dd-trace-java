@@ -1,14 +1,11 @@
-def scalaVersion = '2.11'
-def playVersion = '2.6.0'
-
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
   pass {
     name = 'play26Plus'
     group = 'com.typesafe.play'
-    module = "play_$scalaVersion"
-    versions = "[$playVersion,)"
+    module = "play_2.11"
+    versions = "[2.6.0,)"
     assertInverse = true
     javaVersion = 11
   }
@@ -16,7 +13,7 @@ muzzle {
     name = 'play26Plus'
     group = 'com.typesafe.play'
     module = 'play_2.12'
-    versions = "[$playVersion,)"
+    versions = "[2.6.0,)"
     assertInverse = true
     javaVersion = 11
   }
@@ -24,11 +21,10 @@ muzzle {
     name = 'play26Plus'
     group = 'com.typesafe.play'
     module = 'play_2.13'
-    versions = "[$playVersion,)"
+    versions = "[2.6.0,)"
     assertInverse = true
     javaVersion = 11
   }
-
   pass {
     name = 'play26Only'
     group = 'com.typesafe.play'
@@ -36,19 +32,12 @@ muzzle {
     versions = "[2.6.0,2.7.0)"
     assertInverse = true
   }
-
-  pass {
-    name = 'play27'
-    group = 'com.typesafe.play'
-    module = 'play-java_2.13'
-    versions = "[2.7.0,)"
-    assertInverse = true
-    javaVersion = 11
-  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
+apply plugin: 'groovy'
+apply plugin: 'java-test-fixtures'
 
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12
@@ -64,49 +53,22 @@ repositories {
   }
 }
 
-addTestSuite('baseTest')
-addTestSuite('latestDepTest')
-
-sourceSets {
-  main_play27 {
-    java.srcDirs "${project.projectDir}/src/main/java_play27"
-  }
-}
-
-tasks.named("jar", Jar) {
-  from sourceSets.main_play27.output
-}
-
-tasks.named("compileMain_play27Java", JavaCompile) {
-  dependsOn(compileJava)
-}
-
-project.afterEvaluate {
-  tasks.named('instrumentJava') { dependsOn 'compileMain_play27Java' }
-  tasks.named('forbiddenApisMain_play27') { dependsOn 'instrumentMain_play27Java' }
-}
-
-instrument {
-  additionalClasspath = [
-    instrumentJava: compileMain_play27Java.destinationDirectory
-  ]
-}
-
 dependencies {
-  compileOnly group: 'com.typesafe.play', name: "play_$scalaVersion", version: playVersion
-  compileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  compileOnly group: 'com.typesafe.play', name: "play_2.11", version: '2.6.0'
+  compileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
 
-  main_play27CompileOnly group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: '2.7.0'
-  main_play27CompileOnly project(':internal-api')
-  main_play27CompileOnly project(':dd-java-agent:agent-tooling')
-  main_play27CompileOnly project(':dd-java-agent:agent-bootstrap')
-  main_play27CompileOnly files("${project.buildDir}/classes/java/raw") {
-    builtBy = ['compileJava']
-  }
-
-  baseTestImplementation group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
+  testFixturesCompileOnly group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
   // TODO: Play WS is a separately versioned library starting with 2.6 and needs separate instrumentation.
-  baseTestImplementation(group: 'com.typesafe.play', name: "play-test_$scalaVersion", version: playVersion) {
+  testFixturesCompileOnly(group: 'com.typesafe.play', name: "play-test_2.11", version: '2.6.0') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
+  testFixturesApi libs.spock.core
+
+  testImplementation group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:play:play-2.6'))
+  testImplementation group: 'com.typesafe.play', name: "play-java_2.11", version: '2.6.0'
+  testImplementation(group: 'com.typesafe.play', name: "play-test_2.11", version: '2.6.0') {
     exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
   }
 
@@ -114,99 +76,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-concurrent')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
-
-  latestDepTestRuntimeOnly sourceSets.baseTest.output
-  latestDepTestImplementation libs.scala213
-  latestDepTestImplementation group: 'com.typesafe.play', name: "play-java_2.13", version: '2.+'
-  latestDepTestImplementation(group: 'com.typesafe.play', name: "play-test_2.13", version: '2.+') {
-    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
-  }
-  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-akka-http-server_2.13', version: '2.+'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 }
 
-configurations.matching({ it.name.startsWith('latestDepTest') }).configureEach({
-  it.resolutionStrategy {
-    // logback-classic 1.4.11 doesn't like being loaded in the bootstrap classloader (NPE)
-    force group: 'ch.qos.logback', name: 'logback-classic', version: '1.4.5'
-  }
-})
-
-tasks.named("compileLatestDepTestJava", JavaCompile) {
-  configureCompiler(it, 11)
-}
-
-tasks.named("compileLatestDepTestScala", ScalaCompile) {
-  configureCompiler(it, 11)
-  classpath = classpath + files(tasks.named('compileBaseTestJava').map { it.destinationDirectory })
-}
-
-tasks.named("latestDepTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-  testClassesDirs = testClassesDirs + sourceSets.baseTest.output.classesDirs
-}
-
-final generatedRoutes = layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
-sourceSets {
-  routeGenerator {
-    scala {
-      srcDir "${project.projectDir}/src/routeGenerator/scala"
-    }
-  }
-  latestDepTestGenerated {
-    scala {
-      srcDir generatedRoutes
-    }
-  }
-}
-
-dependencies {
-  routeGeneratorImplementation libs.scala213
-  routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.13", version: '2.+'
-}
-
-configurations {
-  latestDepTestGeneratedCompileClasspath.extendsFrom(latestDepTestCompileClasspath)
-}
-
-tasks.register('buildLatestDepTestRoutes', JavaExec) {
-  String routesFile = "${project.projectDir}/src/latestDepTest/routes/conf/routes"
-  def outputDir = generatedRoutes
-
-  it.inputs.file routesFile
-  it.outputs.dir outputDir
-
-  it.mainClass = 'generator.CompileRoutes'
-  it.args routesFile, outputDir.get().asFile.absolutePath
-
-  it.classpath configurations.named('routeGeneratorRuntimeClasspath')
-  it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
-  it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
-
-  it.javaLauncher = getJavaLauncherFor(11)
-}
-
-tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
-  configureCompiler(it, 11)
-  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-  dependsOn 'buildLatestDepTestRoutes'
-}
-
-tasks.named("forbiddenApisLatestDepTestGenerated") {
-  enabled = false
-}
-
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
-  classpath = classpath +
-    files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }) +
-    files(tasks.named('compileBaseTestGroovy').map { it.destinationDirectory }) +
-    files(tasks.named('compileBaseTestJava').map { it.destinationDirectory }) +
-    files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
-}
-
-dependencies {
-  latestDepTestRuntimeOnly sourceSets.latestDepTestGenerated.output
-}

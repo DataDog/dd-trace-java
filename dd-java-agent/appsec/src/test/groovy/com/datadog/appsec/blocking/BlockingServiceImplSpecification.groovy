@@ -108,7 +108,7 @@ class BlockingServiceImplSpecification extends DDSpecification {
 
     then:
     res == true
-    1 * brf.tryCommitBlockingResponse(mts, 405, BlockingContentType.HTML, [:],) >> true
+    1 * brf.tryCommitBlockingResponse(mts, 405, BlockingContentType.HTML, [:], null) >> true
     1 * mts.effectivelyBlocked()
   }
 

@@ -1,14 +1,14 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
-    id 'application'
-    id 'com.gradleup.shadow'
+  // Apply the application plugin to add support for building a CLI application in Java.
+  id 'application'
+  id 'com.gradleup.shadow'
 }
 
 tasks.named("shadowJar", ShadowJar) {
-    // Define the main class for the application.
-    mainClass = 'App'
+  // Define the main class for the application.
+  mainClass = 'App'
 }
 
 def latestJdk = 17

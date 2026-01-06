@@ -656,6 +656,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     assert taggedHeaders != null;
     assert baggageMapping != null;
 
+    // preload this enum to avoid triggering classloading on the hot path
+    TraceCollector.PublishState.values();
+
     if (reportInTracerFlare) {
       TracerFlare.addReporter(this);
     }

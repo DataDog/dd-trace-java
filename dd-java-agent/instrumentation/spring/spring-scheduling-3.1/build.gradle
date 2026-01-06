@@ -47,7 +47,7 @@ dependencies {
   compileOnly group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
 
   testImplementation group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.21.0'
   testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.21.0'

@@ -29,6 +29,8 @@ public class ServerDebuggerTestApplication {
   public static void main(String[] args) throws Exception {
     System.out.println(ServerDebuggerTestApplication.class.getName());
     try {
+      new LargeInnerClasses();
+      new HugeInnerClasses();
       registerMethods();
       ServerDebuggerTestApplication serverTestApplication =
           new ServerDebuggerTestApplication(args[0]);

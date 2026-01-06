@@ -102,11 +102,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LOG.info("feature {} stopped", feature);
   }
 
-  private void waitForSpecificLine(String appUrl, String line) throws IOException {
-    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
-    sendRequest(url);
-  }
-
   private static ConfigOverrides createConfigOverrides(
       boolean dynamicInstrumentationEnabled, boolean exceptionReplayEnabled) {
     ConfigOverrides config = new ConfigOverrides();

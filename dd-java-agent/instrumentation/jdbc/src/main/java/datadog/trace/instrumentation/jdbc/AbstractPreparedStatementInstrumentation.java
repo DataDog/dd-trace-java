@@ -40,7 +40,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator",
+      "datadog.trace.core.propagation.W3CTraceParent", packageName + ".JDBCDecorator",
     };
   }
 

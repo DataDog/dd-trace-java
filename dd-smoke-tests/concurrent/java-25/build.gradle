@@ -37,14 +37,6 @@ tasks.named('compileTestGroovy') {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8)
 }
 
-// Disable plugin tasks that do not support Java 25:
-// * forbiddenApis is missing classes
-// * spotless as the google-java-format version does not support Java 25 and can't be changed once applied
-// * spotbugs failed to read class using newer bytecode versions
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
-
 application {
   mainClass = 'datadog.smoketest.concurrent.ConcurrentApp'
 }

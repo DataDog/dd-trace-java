@@ -5,12 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.HttpJspPage;
 import org.apache.jasper.JspCompilationContext;
-import org.slf4j.LoggerFactory;
 
 public class JSPDecorator extends BaseDecorator {
   public static final CharSequence JSP_COMPILE = UTF8BytesString.create("jsp.compile");
@@ -68,11 +65,14 @@ public class JSPDecorator extends BaseDecorator {
     // HttpServletRequest#getRequestURL(),
     // normalizing the URL should remove those symbols for readability and consistency
     try {
-      span.setTag(
-          "jsp.requestURL", (new URI(req.getRequestURL().toString())).normalize().toString());
-    } catch (final URISyntaxException uriSE) {
-      LoggerFactory.getLogger(HttpJspPage.class)
-          .debug("Failed to get and normalize request URL: {}", uriSE.getMessage());
+      // note: getRequestURL is supposed to always be nonnull - however servlet wrapping can happen
+      // and we never know if ever this can happen
+      final StringBuffer requestURL = req.getRequestURL();
+      if (requestURL != null && requestURL.length() > 0) {
+        span.setTag("jsp.requestURL", (new URI(requestURL.toString())).normalize().toString());
+      }
+    } catch (final Throwable ignored) {
+      // logging here will be too verbose
     }
   }
 }

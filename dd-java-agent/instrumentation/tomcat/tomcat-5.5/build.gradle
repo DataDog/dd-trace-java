@@ -90,10 +90,6 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // Required jars for embedded tomcat:
   testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
   testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion

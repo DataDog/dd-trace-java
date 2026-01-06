@@ -11,7 +11,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.4.31.v20200723'
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.4.31.v20200723'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.+' // 10+ requires Java 11
 }

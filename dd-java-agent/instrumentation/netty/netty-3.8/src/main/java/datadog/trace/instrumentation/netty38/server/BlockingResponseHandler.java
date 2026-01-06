@@ -27,6 +27,7 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
+  private final String securityResponseId;
 
   private static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
@@ -37,15 +38,22 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
       TraceSegment segment,
       int statusCode,
       BlockingContentType bct,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
+    this.securityResponseId = securityResponseId;
   }
 
   public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
-    this(segment, rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+    this(
+        segment,
+        rba.getStatusCode(),
+        rba.getBlockingContentType(),
+        rba.getExtraHeaders(),
+        rba.getSecurityResponseId());
   }
 
   @Override
@@ -117,7 +125,7 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, this.securityResponseId);
       setContentLength(response, template.length);
       ChannelBuffer buf = ChannelBuffers.wrappedBuffer(template);
       response.setContent(buf);

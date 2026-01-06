@@ -24,7 +24,7 @@ class JvmOptions {
   final String[] PROCFS_CMDLINE = readProcFsCmdLine();
   final List<String> VM_OPTIONS = findVmOptions();
 
-  @SuppressForbidden // split on single-character uses fast path
+  @SuppressForbidden // split on single-character uses a fast path
   private String[] readProcFsCmdLine() {
     if (isLinux()) {
       try {
@@ -85,7 +85,7 @@ class JvmOptions {
       return ManagementFactory.getRuntimeMXBean().getInputArguments();
     } catch (final Throwable t) {
       // Throws InvocationTargetException on modularized applications
-      // with non-opened java.management module
+      // with a non-opened java.management module
       System.err.println("WARNING: Unable to get VM args using managed beans");
     }
     return emptyList();
@@ -95,9 +95,9 @@ class JvmOptions {
   // executable
   // Visible for testing
   List<String> findVmOptionsFromProcFs(String[] procfsCmdline) {
-    // Create list of VM options
+    // Create the list of VM options
     List<String> vmOptions = new ArrayList<>();
-    // Look for first self-standing argument that is not prefixed with "-" or end of VM options
+    // Look for the first self-standing argument that is not prefixed with "-" or end of VM options
     // while simultaneously, collect all arguments in the VM options
     // Starts from 1 as 0 is the java command itself (or native-image)
     for (int index = 1; index < procfsCmdline.length; index++) {
@@ -115,7 +115,7 @@ class JvmOptions {
         // End of VM options
         break;
       }
-      // Otherwise add as VM option
+      // Otherwise add as a VM option
       else {
         vmOptions.add(argument);
       }
@@ -142,7 +142,7 @@ class JvmOptions {
     List<String> args = new ArrayList<>();
     try {
       for (String line : Files.readAllLines(path)) {
-        // Use default delimiters that matches argfiles separator specification
+        // Use default delimiters that match argfiles separator specification
         StringTokenizer tokenizer = new StringTokenizer(line);
         while (tokenizer.hasMoreTokens()) {
           args.add(tokenizer.nextToken());
@@ -206,14 +206,5 @@ class JvmOptions {
       options.add(option.toString());
     }
     return options;
-  }
-
-  private static List<String> split(String str, String delimiter) {
-    List<String> parts = new ArrayList<>();
-    StringTokenizer tokenizer = new StringTokenizer(str, delimiter);
-    while (tokenizer.hasMoreTokens()) {
-      parts.add(tokenizer.nextToken());
-    }
-    return parts;
   }
 }

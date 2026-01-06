@@ -14,6 +14,6 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-beans', version: '3.2.2.RELEASE'
   testImplementation group: 'org.springframework', name: 'spring-beans', version: '3.2.2.RELEASE'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   latestDepTestImplementation group: 'org.unbescape', name: 'unbescape', version: '+'
 }

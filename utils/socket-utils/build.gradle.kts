@@ -1,4 +1,3 @@
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 import org.gradle.kotlin.dsl.extra
 
@@ -19,10 +18,6 @@ dependencies {
   implementation(project(":utils:filesystem-utils"))
   implementation(libs.jnr.unixsocket)
   testImplementation(files(sourceSets["main_java17"].output))
-}
-
-tasks.named<CheckForbiddenApis>("forbiddenApisMain_java17") {
-  failOnMissingClasses = false
 }
 
 fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {

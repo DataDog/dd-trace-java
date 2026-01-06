@@ -48,7 +48,7 @@ public class ErrorReportValueAdvice {
       return;
     }
 
-    byte[] template = BlockingActionHelper.getTemplate(HTML);
+    byte[] template = BlockingActionHelper.getTemplate(HTML, null);
     if (template == null) {
       return;
     }

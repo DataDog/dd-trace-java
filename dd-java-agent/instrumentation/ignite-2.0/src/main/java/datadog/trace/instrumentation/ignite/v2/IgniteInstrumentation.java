@@ -78,8 +78,9 @@ public class IgniteInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Ignite that,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final IgniteCache<?, ?> cache) {
-
-      InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      if (cache != null) {
+        InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      }
     }
   }
 
@@ -91,8 +92,10 @@ public class IgniteInstrumentation extends InstrumenterModule.Tracing
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final Collection<IgniteCache<?, ?>> caches) {
 
-      for (IgniteCache<?, ?> cache : caches) {
-        InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      if (caches != null) {
+        for (IgniteCache<?, ?> cache : caches) {
+          InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+        }
       }
     }
   }

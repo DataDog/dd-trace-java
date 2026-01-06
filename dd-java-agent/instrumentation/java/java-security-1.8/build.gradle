@@ -15,6 +15,6 @@ tasks.withType(Test).configureEach {
 
 dependencies {
   testImplementation project(':dd-java-agent:agent-iast')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testImplementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.70'
 }

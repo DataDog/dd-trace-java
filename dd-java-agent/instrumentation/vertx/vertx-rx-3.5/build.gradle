@@ -9,7 +9,7 @@ tasks.named("latestDepTest", Test) {
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.4')
   testImplementation project(path: '::dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.4', configuration: 'testArtifacts')
 

@@ -67,7 +67,7 @@ dependencies {
   // Include all websocket instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0')
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'

@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = 'org.thymeleaf'
+    module = 'thymeleaf'
+    versions = '[3.0.0.RELEASE,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+
+  compileOnly group: 'org.thymeleaf', name: 'thymeleaf', version: '3.0.0.RELEASE'
+
+  testImplementation group: 'org.thymeleaf', name: 'thymeleaf', version: '3.0.0.RELEASE'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.thymeleaf', name: 'thymeleaf', version: '+'
+}

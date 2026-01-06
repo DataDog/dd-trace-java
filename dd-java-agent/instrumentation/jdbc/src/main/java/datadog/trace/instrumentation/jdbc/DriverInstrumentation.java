@@ -49,7 +49,7 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator",
+      "datadog.trace.core.propagation.W3CTraceParent", packageName + ".JDBCDecorator",
     };
   }
 

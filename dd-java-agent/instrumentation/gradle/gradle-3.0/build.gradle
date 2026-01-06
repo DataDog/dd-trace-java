@@ -9,7 +9,3 @@ repositories {
 dependencies {
   compileOnly gradleApi()
 }
-
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}

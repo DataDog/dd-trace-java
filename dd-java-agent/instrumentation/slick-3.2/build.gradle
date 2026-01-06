@@ -1,0 +1,41 @@
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn "compileTestScala"
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
+}
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  dependsOn "compileLatestDepTestScala"
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+}
+
+dependencies {
+  // first version that works with the tests and can build on JDK11 (without dependency problems):
+  compileOnly libs.scala
+  compileOnly group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  testImplementation libs.scala
+  testImplementation group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
+
+  // Slick 3.4+ pulls in slf4j-2.+ which doesn't work with the test harness
+  latestDepTestImplementation group: 'com.typesafe.slick', name: 'slick_2.13', version: '[+,3.4.0)'
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.+'
+}

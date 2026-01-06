@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.core.propagation.W3CTraceParent;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -58,7 +59,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
+    return new String[] {
+      "datadog.trace.core.propagation.W3CTraceParent",
+      packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+    };
   }
 
   @Override
@@ -115,7 +121,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               if (!isSqlServer) {
-                traceParent = DECORATE.traceParent(span, priority);
+                traceParent = W3CTraceParent.from(span);
               }
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);

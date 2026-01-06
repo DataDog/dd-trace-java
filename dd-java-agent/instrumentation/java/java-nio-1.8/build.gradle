@@ -24,10 +24,6 @@ testJvmConstraints {
   }
 }
 
-tasks.named("forbiddenApisMain_java11") {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

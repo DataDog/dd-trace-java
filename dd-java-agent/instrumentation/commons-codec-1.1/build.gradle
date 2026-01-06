@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'commons-codec', name: 'commons-codec', version: '1.1'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'commons-codec', name: 'commons-codec', version: '(1.0,10000000]'
 }

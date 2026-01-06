@@ -39,12 +39,12 @@ configurations.configureEach {
 }
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:spark')
+  implementation project(':dd-java-agent:instrumentation:spark:spark-common')
 
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
 
-  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
+  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark:spark-common")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"

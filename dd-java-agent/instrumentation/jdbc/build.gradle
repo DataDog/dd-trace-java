@@ -45,7 +45,7 @@ dependencies {
   testImplementation group: 'org.testcontainers', name:'mssqlserver', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'oracle-xe', version: '1.20.4'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {

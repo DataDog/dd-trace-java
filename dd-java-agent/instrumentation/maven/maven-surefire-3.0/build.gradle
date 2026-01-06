@@ -20,5 +20,5 @@ muzzle {
 dependencies {
   compileOnly group: 'org.apache.maven.surefire', name: 'surefire-junit4', version: '3.0.0'
   compileOnly group: 'org.apache.maven.surefire', name: 'surefire-junit47', version: '3.0.0' // parallel provider
-  implementation project(":dd-java-agent:instrumentation:junit:junit-4.10")
+  implementation project(":dd-java-agent:instrumentation:junit:junit-4:junit-4.10")
 }

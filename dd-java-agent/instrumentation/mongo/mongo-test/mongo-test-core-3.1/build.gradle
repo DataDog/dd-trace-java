@@ -1,0 +1,24 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
+
+  // We need to pull in this dependency to get the 'suspend span' instrumentation for spock tests
+  // as well as to test the instrumentaiton 'layering' (3.4 instrumentation should take precedence
+  // over 3.1 - otherwise the tests here should fail)
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1')) {
+    transitive = false
+  }
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
+
+
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver', version: '3.1.0'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver', version: '3.6+'
+}
+

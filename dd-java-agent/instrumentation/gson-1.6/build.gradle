@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'com.google.code.gson', name: 'gson', version: '1.6'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
 }

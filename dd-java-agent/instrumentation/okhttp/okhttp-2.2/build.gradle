@@ -39,7 +39,7 @@ dependencies {
   }
   testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
-  testRuntimeOnly(project(':dd-java-agent:instrumentation:iast-instrumenter'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
 
   latestDepTestImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'

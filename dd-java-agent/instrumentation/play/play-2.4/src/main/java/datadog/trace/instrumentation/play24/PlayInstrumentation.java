@@ -20,11 +20,6 @@ public final class PlayInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String muzzleDirective() {
-    return "play24and25";
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "play.api.mvc.Action";
   }

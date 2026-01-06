@@ -23,7 +23,7 @@ addTestSuiteExtendingForDir('latest22ForkedTest', 'latest22Test', 'test')
 
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
-  implementation project(':dd-java-agent:instrumentation:undertow')
+  implementation project(':dd-java-agent:instrumentation:undertow:undertow-common')
 
   testImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
   testImplementation group: 'io.undertow', name: 'undertow-websockets-jsr-jakarta', version: '2.2.14.Final'

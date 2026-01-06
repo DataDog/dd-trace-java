@@ -1,5 +1,7 @@
 package datadog.trace.relocate.api
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY
+
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 
@@ -21,7 +23,7 @@ class IOLoggerTest extends DDSpecification {
     ioLogger.success("test {}", "message")
 
     then:
-    1 * log.debug("test {}", "message")
+    1 * log.debug(EXCLUDE_TELEMETRY, "test {}", "message")
   }
 
   def "Success - Info level"() {
@@ -46,7 +48,7 @@ class IOLoggerTest extends DDSpecification {
     ioLogger.error("test message")
 
     then:
-    1 * log.debug("test message")
+    1 * log.debug(EXCLUDE_TELEMETRY, "test message")
   }
 
   def "Error - Debug level - Response"() {
@@ -59,6 +61,7 @@ class IOLoggerTest extends DDSpecification {
 
     then:
     1 * log.debug(
+      EXCLUDE_TELEMETRY,
       _,
       "test message",
       404,
@@ -76,7 +79,7 @@ class IOLoggerTest extends DDSpecification {
     ioLogger.error("test message", exception)
 
     then:
-    1 * log.debug(
+    1 * log.debug(EXCLUDE_TELEMETRY,
       "test message",
       exception
       )
@@ -104,6 +107,7 @@ class IOLoggerTest extends DDSpecification {
 
     then:
     1 * rateLimitedLogger.warn(
+      EXCLUDE_TELEMETRY,
       _,
       "test message",
       404,
@@ -121,6 +125,7 @@ class IOLoggerTest extends DDSpecification {
 
     then:
     1 * rateLimitedLogger.warn(
+      EXCLUDE_TELEMETRY,
       _,
       "test message",
       "java.lang.RuntimeException",
@@ -140,8 +145,8 @@ class IOLoggerTest extends DDSpecification {
 
     then:
     1 * rateLimitedLogger.warn("test message") >> true
-    1 * log.info("very successful")
-    0 * log.info("very successful again")
+    1 * log.info(EXCLUDE_TELEMETRY,"very successful")
+    0 * log.info(EXCLUDE_TELEMETRY,"very successful again")
   }
 
   def "Unlogged Error Then Success - Info level"() {

@@ -52,8 +52,8 @@ fun printJdkForProjectTasks(project: Project, logFile: File) {
       val launcher = task.javaLauncher.get()
       data["jdk"] = launcher.metadata.languageVersion.toString()
     } else if (task is Exec) {
-      val java_home = task.environment.get("JAVA_HOME")?.toString()
-      data["jdk"] = inferJdkFromJavaHome(java_home)
+      val javaHome = task.environment.get("JAVA_HOME")?.toString()
+      data["jdk"] = inferJdkFromJavaHome(javaHome)
     } else if (task is JavaCompile) {
       val compiler = task.javaCompiler.get()
       data["jdk"] = compiler.metadata.languageVersion.toString()
@@ -94,7 +94,7 @@ class DebugBuildListener : org.gradle.BuildListener {
     val logFile = logPath.get().asFile
     logFile.writeText("")
     gradle.rootProject.allprojects.forEach { project ->
-        printJdkForProjectTasks(project, logFile)
+      printJdkForProjectTasks(project, logFile)
     }
   }
 }

@@ -1,0 +1,20 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1')) {
+    transitive = false
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
+
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'
+}

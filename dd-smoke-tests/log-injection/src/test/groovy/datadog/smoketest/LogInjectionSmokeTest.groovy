@@ -3,8 +3,11 @@ package datadog.smoketest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.environment.JavaVirtualMachine
+import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
@@ -44,6 +47,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   boolean trace128bits = true
 
   @Shared
+  boolean appLogCollection = false
+
+  @Shared
   @AutoCleanup
   MockBackend mockBackend = new MockBackend()
 
@@ -62,6 +68,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     if (trace128bits) {
       jarName = jarName.substring(0, jarName.length() - 7)
     }
+    appLogCollection = jarName.endsWith("AppLogCollection")
+    if (appLogCollection) {
+      jarName = jarName.substring(0, jarName.length() - "AppLogCollection".length())
+    }
     def loggingJar = buildDirectory + "/libs/" +  jarName + ".jar"
 
     assert new File(loggingJar).isFile()
@@ -75,7 +85,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     // turn off these features as their debug output can break up our expected logging lines on IBM JVMs
     // causing random test failures (we are not testing these features here so they don't need to be on)
     command.add("-Ddd.instrumentation.telemetry.enabled=false")
-    command.removeAll { it.startsWith("-Ddd.profiling")}
+    command.removeAll {
+      it.startsWith("-Ddd.profiling")
+    }
     command.add("-Ddd.profiling.enabled=false")
     command.add("-Ddd.remote_config.enabled=true")
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
@@ -95,6 +107,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     if (supportsDirectLogSubmission()) {
       command.add("-Ddd.$GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED=true" as String)
       command.add("-Ddd.$GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL=${mockBackend.intakeUrl}" as String)
+    }
+    if (supportsAppLogCollection()) {
+      command.add("-Ddd.$GeneralConfig.APP_LOGS_COLLECTION_ENABLED=true" as String)
     }
     command.addAll(additionalArguments())
     command.addAll((String[]) ["-jar", loggingJar])
@@ -126,6 +141,37 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return "debug"
   }
 
+  @Override
+  Closure decodedEvpProxyMessageCallback() {
+    return {
+      String path, RequestApi request ->
+      try {
+        boolean isCompressed = request.getHeader("Content-Encoding").contains("gzip")
+        byte[] body = request.body
+        if (body != null) {
+          if (isCompressed) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream()
+            byte[] buffer = new byte[4096]
+            try (GZIPInputStream input = new GZIPInputStream(new ByteArrayInputStream(body))) {
+              int bytesRead = input.read(buffer, 0, buffer.length)
+              output.write(buffer, 0, bytesRead)
+            }
+            body = output.toByteArray()
+          }
+          final strBody = new String(body, StandardCharsets.UTF_8)
+          println("evp mesg: " + strBody)
+          final jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, Types.newParameterizedType(Map, String, Object)))
+          List<Map<String, Object>> msg = jsonAdapter.fromJson(strBody)
+          msg
+        }
+      } catch (Throwable t) {
+        println("=== Failure during EvP proxy decoding ===")
+        t.printStackTrace(System.out)
+        throw t
+      }
+    }
+  }
+
   List additionalArguments() {
     return []
   }
@@ -142,6 +188,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return backend() == LOG4J2_BACKEND
   }
 
+  def supportsAppLogCollection() {
+    false
+  }
+
   abstract backend()
 
   def cleanupSpec() {
@@ -150,10 +200,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def assertRawLogLinesWithoutInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
-    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
+  String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
     // Assert log line starts with backend name.
     // This avoids tests inadvertently passing because the incorrect backend is logging
-    logLines.every { it.startsWith(backend())}
+    logLines.every {
+      it.startsWith(backend())
+    }
     assert logLines.size() == 7
     assert logLines[0].endsWith("- BEFORE FIRST SPAN")
     assert logLines[1].endsWith("- INSIDE FIRST SPAN")
@@ -167,10 +219,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def assertRawLogLinesWithInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
-    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
+  String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
     // Assert log line starts with backend name.
     // This avoids tests inadvertently passing because the incorrect backend is logging
-    logLines.every { it.startsWith(backend()) }
+    logLines.every {
+      it.startsWith(backend())
+    }
     def tagsPart = noTags ? "  " : "${SERVICE_NAME} ${ENV} ${VERSION}"
     assert logLines.size() == 7
     assert logLines[0].endsWith("- ${tagsPart}   - BEFORE FIRST SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - BEFORE FIRST SPAN")
@@ -184,23 +238,33 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def assertJsonLinesWithInjection(List<String> rawLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId,
-    String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
-    def logLines = rawLines.collect { println it; jsonAdapter.fromJson(it) as Map}
+  String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
+    def logLines = rawLines.collect {
+      println it; jsonAdapter.fromJson(it) as Map
+    }
 
     assert logLines.size() == 7
 
     // Log4j2's KeyValuePair for injecting static values into Json only exists in later versions of Log4j2
     // Its tested with Log4j2LatestBackend
     if (!getClass().simpleName.contains("Log4j2Backend")) {
-      assert logLines.every { it["backend"] == backend() }
+      assert logLines.every {
+        it["backend"] == backend()
+      }
     }
     return assertParsedJsonLinesWithInjection(logLines, firstTraceId, firstSpanId, secondTraceId, secondSpanId, forthTraceId, forthSpanId)
   }
 
   private assertParsedJsonLinesWithInjection(List<Map> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId, String forthTraceId, String forthSpanId) {
-    assert logLines.every { getFromContext(it, "dd.service") == noTags ? null : SERVICE_NAME }
-    assert logLines.every { getFromContext(it, "dd.version") == noTags ? null : VERSION }
-    assert logLines.every { getFromContext(it, "dd.env") == noTags ? null : ENV }
+    assert logLines.every {
+      getFromContext(it, "dd.service") == noTags ? null : SERVICE_NAME
+    }
+    assert logLines.every {
+      getFromContext(it, "dd.version") == noTags ? null : VERSION
+    }
+    assert logLines.every {
+      getFromContext(it, "dd.env") == noTags ? null : ENV
+    }
 
     assert getFromContext(logLines[0], "dd.trace_id") == null
     assert getFromContext(logLines[0], "dd.span_id") == null
@@ -220,6 +284,48 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     assert getFromContext(logLines[4], "dd.trace_id") == null
     assert getFromContext(logLines[4], "dd.span_id") == null
+    assert logLines[4]["message"] == "INSIDE THIRD SPAN"
+
+    assert getFromContext(logLines[5], "dd.trace_id") == forthTraceId
+    assert getFromContext(logLines[5], "dd.span_id") == forthSpanId
+    assert logLines[5]["message"] == "INSIDE FORTH SPAN"
+
+    assert getFromContext(logLines[6], "dd.trace_id") == null
+    assert getFromContext(logLines[6], "dd.span_id") == null
+    assert logLines[6]["message"] == "AFTER FORTH SPAN"
+
+    return true
+  }
+
+  private assertParsedJsonLinesWithAppLogCollection(List<Map> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId, String thirdTraceId, String thirdSpanId, String forthTraceId, String forthSpanId) {
+    assert logLines.every {
+      getFromContext(it, "dd.service") == noTags ? null : SERVICE_NAME
+    }
+    assert logLines.every {
+      getFromContext(it, "dd.version") == noTags ? null : VERSION
+    }
+    assert logLines.every {
+      getFromContext(it, "dd.env") == noTags ? null : ENV
+    }
+
+    assert getFromContext(logLines[0], "dd.trace_id") == null
+    assert getFromContext(logLines[0], "dd.span_id") == null
+    assert logLines[0]["message"] == "BEFORE FIRST SPAN"
+
+    assert getFromContext(logLines[1], "dd.trace_id") == firstTraceId
+    assert getFromContext(logLines[1], "dd.span_id") == firstSpanId
+    assert logLines[1]["message"] == "INSIDE FIRST SPAN"
+
+    assert getFromContext(logLines[2], "dd.trace_id") == null
+    assert getFromContext(logLines[2], "dd.span_id") == null
+    assert logLines[2]["message"] == "AFTER FIRST SPAN"
+
+    assert getFromContext(logLines[3], "dd.trace_id") == secondTraceId
+    assert getFromContext(logLines[3], "dd.span_id") == secondSpanId
+    assert logLines[3]["message"] == "INSIDE SECOND SPAN"
+
+    assert getFromContext(logLines[4], "dd.trace_id") == thirdTraceId
+    assert getFromContext(logLines[4], "dd.span_id") == thirdSpanId
     assert logLines[4]["message"] == "INSIDE THIRD SPAN"
 
     assert getFromContext(logLines[5], "dd.trace_id") == forthTraceId
@@ -325,6 +431,13 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     if (supportsDirectLogSubmission()) {
       assertParsedJsonLinesWithInjection(mockBackend.waitForLogs(7), firstTraceId, firstSpanId, secondTraceId, secondSpanId, forthTraceId, forthSpanId)
+    }
+
+    if (supportsAppLogCollection()) {
+      def lines = evpProxyMessages.collect {
+        it.v2
+      }.flatten() as List<Map<String, Object>>
+      assertParsedJsonLinesWithAppLogCollection(lines, firstTraceId, firstSpanId, secondTraceId, secondSpanId, thirdTraceId, thirdSpanId, forthTraceId, forthSpanId)
     }
   }
 
@@ -486,6 +599,18 @@ class Slf4jInterfaceLogbackBackend extends LogInjectionSmokeTest {
   }
 }
 
+class Slf4jInterfaceLogbackBackendAppLogCollection extends Slf4jInterfaceLogbackBackend {
+  @Override
+  def supportsDirectLogSubmission() {
+    false
+  }
+
+  @Override
+  def supportsAppLogCollection() {
+    true
+  }
+}
+
 class Slf4jInterfaceLogbackBackendNoTags extends Slf4jInterfaceLogbackBackend {}
 class Slf4jInterfaceLogbackBackend128bTid extends Slf4jInterfaceLogbackBackend {}
 class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
@@ -512,6 +637,18 @@ class Slf4jInterfaceLog4j2Backend extends LogInjectionSmokeTest {
 class Slf4jInterfaceLog4j2BackendNoTags extends Slf4jInterfaceLog4j2Backend {}
 class Slf4jInterfaceLog4j2Backend128bTid extends Slf4jInterfaceLog4j2Backend {}
 class Slf4jInterfaceLog4j2LatestBackend extends Slf4jInterfaceLog4j2Backend {}
+class Slf4jInterfaceLog4j2BackendAppLogCollection extends Slf4jInterfaceLog4j2Backend {
+  @Override
+  def supportsDirectLogSubmission() {
+    false
+  }
+
+  @Override
+  def supportsAppLogCollection() {
+    true
+  }
+}
+
 
 class Slf4jInterfaceSlf4jSimpleBackend extends LogInjectionSmokeTest {
   def backend() {

@@ -37,6 +37,7 @@ forbiddenApis {
 }
 
 spotbugs {
+  // To avoid massive report on `io.opentelemetry.*` and `net.bytebbuddy.*` classes.
   onlyAnalyze = ['none']
 }
 
