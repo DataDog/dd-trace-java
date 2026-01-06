@@ -18,6 +18,7 @@ stages:
   - java-spring-petclinic-macrobenchmarks
   - java-spring-petclinic-microbenchmarks
   - java-insecure-bank-microbenchmarks
+  - generate-slos
   - macrobenchmarks
   - tests
   - exploration-tests
