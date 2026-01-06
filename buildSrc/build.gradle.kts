@@ -47,6 +47,11 @@ gradlePlugin {
       id = "dd-trace-java.config-inversion-linter"
       implementationClass = "datadog.gradle.plugin.config.ConfigInversionLinter"
     }
+
+    create("instrumentation-naming") {
+      id = "dd-trace-java.instrumentation-naming"
+      implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
+    }
   }
 }
 
@@ -62,7 +67,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.1")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

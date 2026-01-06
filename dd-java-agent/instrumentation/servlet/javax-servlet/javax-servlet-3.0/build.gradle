@@ -31,7 +31,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   // build against 3.1 so we can wrap its additions to ServletInputStream,
   // but all the other advice in this module is still compatible with 3.0+
@@ -42,13 +42,9 @@ dependencies {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
   testFixturesCompileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
-
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.0') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0') // See if there's any conflicts.

@@ -1,12 +1,13 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.telemetry.LogCollector;
@@ -21,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import datadog.trace.core.propagation.W3CTraceParent;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -48,8 +50,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-prepared_statement");
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("jdbc");
-  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
-  public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
@@ -257,16 +257,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return span.setTag(Tags.COMPONENT, component);
   }
 
-  public String traceParent(AgentSpan span, int samplingPriority) {
-    StringBuilder sb = new StringBuilder(55);
-    sb.append("00-");
-    sb.append(span.getTraceId().toHexString());
-    sb.append('-');
-    sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
-    sb.append(samplingPriority > 0 ? "-01" : "-00");
-    return sb.toString();
-  }
-
   public boolean isOracle(final DBInfo dbInfo) {
     return "oracle".equals(dbInfo.getType());
   }
@@ -294,7 +284,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceContext = DD_INSTRUMENTATION_PREFIX + DECORATE.traceParent(span, priority);
+      final String traceContext = DD_INSTRUMENTATION_PREFIX + W3CTraceParent.from(span);
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
@@ -380,7 +370,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceParent = DECORATE.traceParent(span, priority);
+      final String traceParent = W3CTraceParent.from(span);
       final String traceContext = "_DD_" + traceParent;
 
       connection.setClientInfo("ApplicationName", traceContext);
@@ -415,11 +405,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       return false;
     }
     return INJECT_TRACE_CONTEXT;
-  }
-
-  public boolean shouldInjectSQLComment() {
-    return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-        || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
   }
 
   private void logInjectionErrorOnce(String vessel, Throwable t) {

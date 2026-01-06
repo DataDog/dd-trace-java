@@ -22,7 +22,7 @@ dependencies {
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
   testImplementation project(':dd-java-agent:instrumentation:aws-java:aws-java-sdk-2.2')
-  testImplementation project(':dd-java-agent:instrumentation:jms')
+  testImplementation project(':dd-java-agent:instrumentation:jms:javax-jms-1.1')
 
   // SQS<->JMS testing:
   testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.4.7'

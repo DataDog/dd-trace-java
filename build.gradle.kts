@@ -12,12 +12,13 @@ plugins {
   id("dd-trace-java.ci-jobs")
 
   id("com.diffplug.spotless") version "8.1.0"
-  id("com.github.spotbugs") version "6.4.7"
+  id("me.champeau.gradle.japicmp") version "0.4.3"
+  id("com.github.spotbugs") version "6.4.8"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-  id("com.gradleup.shadow") version "8.3.6" apply false
+  id("com.gradleup.shadow") version "8.3.9" apply false
   id("me.champeau.jmh") version "0.7.3" apply false
-  id("org.gradle.playframework") version "0.13" apply false
+  id("org.gradle.playframework") version "0.16.0" apply false
 }
 
 description = "dd-trace-java"
@@ -156,3 +157,29 @@ testAggregate(
     ":dd-java-agent:agent-debugger"
   )
 )
+
+// JApiCmp configuration example
+// Usage: ./gradlew japicmp -Partifact=groupId:artifactId -Pbaseline=1.0.0 -Ptarget=2.0.0
+tasks.register<me.champeau.gradle.japicmp.JapicmpTask>("japicmp") {
+  val artifact = providers.gradleProperty("artifact").orNull
+  val baseline = providers.gradleProperty("baseline").orNull
+  val target = providers.gradleProperty("target").orNull
+
+  if (artifact != null && baseline != null && target != null) {
+    oldClasspath.from(
+      configurations.detachedConfiguration(
+        dependencies.create("$artifact:$baseline")
+      )
+    )
+    newClasspath.from(
+      configurations.detachedConfiguration(
+        dependencies.create("$artifact:$target")
+      )
+    )
+    onlyModified.set(true)
+    failOnModification.set(false)
+    ignoreMissingClasses.set(true)
+    txtOutputFile.set(layout.buildDirectory.file("reports/japicmp.txt"))
+    htmlOutputFile.set(layout.buildDirectory.file("reports/japicmp.html"))
+  }
+}

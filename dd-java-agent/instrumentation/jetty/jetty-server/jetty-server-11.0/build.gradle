@@ -55,8 +55,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11.0")
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '11.+',  {
     exclude group: 'org.slf4j', module: 'slf4j-api'

@@ -24,7 +24,7 @@ dependencies {
 
   testImplementation group: 'org.owasp.esapi', name: 'esapi', version: '2.1.0'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.owasp.esapi', name: 'esapi', version: '+'
 }

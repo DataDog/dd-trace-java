@@ -13,7 +13,7 @@ on:
 jobs:
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/release/v')
+    if: github.event_name != 'create' || contains(github.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,6 +24,10 @@ jobs:
         with:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
+
+      # temporary
+      - name: Print github.ref
+        run: echo "github.ref: ${{ github.ref }}"
       
       - name: Define base branch
         id: define-base-branch
@@ -83,7 +87,7 @@ jobs:
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
       - name: Push changes
-        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"

@@ -83,7 +83,7 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
       include("**/src/main/java/**/*.java")
       exclude("**/build/**", "**/dd-smoke-tests/**")
       // Undertow uses DD_UNDERTOW_CONTINUATION as a legacy key to store an AgentScope. It is not related to an environment variable
-      exclude("dd-java-agent/instrumentation/undertow/src/main/java/datadog/trace/instrumentation/undertow/UndertowDecorator.java")
+      exclude("dd-java-agent/instrumentation/undertow/undertow-common/src/main/java/datadog/trace/instrumentation/undertow/UndertowDecorator.java")
     }
     inputs.files(javaFiles)
     outputs.upToDateWhen { true }

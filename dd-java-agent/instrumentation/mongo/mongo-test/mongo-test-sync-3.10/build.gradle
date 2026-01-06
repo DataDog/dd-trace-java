@@ -1,0 +1,27 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.4')) {
+    transitive = false
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.6')) {
+    transitive = false
+  }
+
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
+  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
+
+
+  testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '3.10.0'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '3.+'
+}
