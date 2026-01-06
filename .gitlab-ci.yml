@@ -388,6 +388,14 @@ spotless:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
 
+check-instrumentation-naming:
+  extends: .gradle_build
+  stage: tests
+  needs: [ ]
+  script:
+    - ./gradlew --version
+    - ./gradlew checkInstrumentationNaming
+
 config-inversion-linter:
   extends: .gradle_build
   stage: tests

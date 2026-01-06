@@ -11,7 +11,7 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   compileOnly 'javax.mail:javax.mail-api:1.4.4'
   compileOnly 'com.sun.mail:javax.mail:1.4.4'
   testImplementation 'com.sun.mail:javax.mail:1.4.4'

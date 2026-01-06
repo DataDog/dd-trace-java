@@ -2,27 +2,17 @@ muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
   pass {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.11'
     versions = '[2.4.0,2.6)'
     assertInverse = true
   }
-  pass {
-    name = "play25only"
-    group = 'com.typesafe.play'
-    module = 'play_2.11'
-    versions = '[2.5.0,2.6)'
-    assertInverse = true
-  }
   fail {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.12'
     versions = '[,]'
   }
   fail {
-    name = "play24and25"
     group = 'com.typesafe.play'
     module = 'play_2.13'
     versions = '[,]'
@@ -30,7 +20,6 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
 
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12
@@ -46,158 +35,6 @@ repositories {
   }
 }
 
-tasks.withType(ScalaCompile).configureEach {
-  configureCompiler(it, 8)
-}
-
-addTestSuiteForDir('latestDepTest', 'test')
-
-sourceSets {
-  main_play25 {
-    java.srcDirs "${project.projectDir}/src/main/java_play25"
-  }
-}
-
-tasks.named("jar", Jar) {
-  from sourceSets.main_play25.output
-}
-
-tasks.named('compileMain_play25Java') {
-  dependsOn(tasks.named('compileJava'))
-}
-tasks.named('forbiddenApisMain_play25') {
-  dependsOn(tasks.named('compileMain_play25Java'))
-}
-
-instrument {
-  additionalClasspath.add(
-    tasks.named('compileMain_play25Java', AbstractCompile).map {
-      it.destinationDirectory
-    }
-    )
-}
-
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.4.0'
-  main_play25CompileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.5.0'
-  main_play25CompileOnly project(':internal-api')
-  main_play25CompileOnly project(':dd-java-agent:agent-tooling')
-  main_play25CompileOnly project(':dd-java-agent:agent-bootstrap')
-
-  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
-
-  // Before 2.5, play used netty 3.x which isn't supported, so for better test consistency, we test with just 2.5
-  testImplementation group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.0'
-  testImplementation group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.0'
-  testImplementation(group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.0') {
-    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
-  }
-  testRuntimeOnly sourceSets.main_play25.output
-
-  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.+'
-  latestDepTestImplementation group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.+'
-  latestDepTestImplementation(group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.+') {
-    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
-  }
-}
-
-tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath = classpath + files(tasks.named('compileTestScala').map { it.destinationDirectory })
-}
-
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath = classpath + files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-}
-
-sourceSets {
-  routeGenerator {
-    scala {
-      srcDir "${project.projectDir}/src/routeGenerator/scala"
-    }
-  }
-  testGenerated {
-    scala {
-      srcDir layout.buildDirectory.dir('generated/sources/testRoutes/scala')
-    }
-  }
-  latestDepTestGenerated {
-    scala {
-      srcDir layout.buildDirectory.dir('generated/sources/latestDepTestRoutes/scala')
-    }
-  }
-}
-
-dependencies {
-  routeGeneratorImplementation libs.scala211
-  routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.11", version: '2.5.0'
-}
-
-configurations {
-  testGeneratedCompileClasspath.extendsFrom testCompileClasspath
-  latestDepTestGeneratedCompileClasspath.extendsFrom latestDepTestCompileClasspath
-}
-
-['buildTestRoutes', 'buildLatestDepTestRoutes'].each { taskName ->
-  tasks.register(taskName, JavaExec) {
-    String routesFile = "${project.projectDir}/src/test/routes/conf/routes"
-    def subdir = taskName == 'buildTestRoutes' ? 'testRoutes' : 'latestDepTestRoutes'
-    def outputDir =
-      layout.buildDirectory.dir("generated/sources/$subdir/scala")
-
-    it.inputs.file routesFile
-    it.outputs.dir outputDir
-
-    it.mainClass.set 'generator.CompileRoutes'
-    it.args routesFile, outputDir.get().asFile.absolutePath
-
-    it.classpath configurations.named('routeGeneratorRuntimeClasspath')
-    it.classpath tasks.named('compileRouteGeneratorScala').map { it.destinationDirectory }
-
-    if (taskName == 'buildTestRoutes') {
-      it.classpath tasks.named('compileTestScala').map { it.destinationDirectory }
-    } else {
-      it.classpath tasks.named('compileLatestDepTestScala').map { it.destinationDirectory }
-    }
-  }
-}
-
-tasks.named("compileTestGeneratedScala", ScalaCompile) {
-  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
-  dependsOn 'buildTestRoutes', 'compileLatestDepTestScala'
-}
-
-tasks.named("compileLatestDepTestGeneratedScala", ScalaCompile) {
-  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
-  dependsOn 'buildLatestDepTestRoutes'
-}
-
-tasks.named("compileTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
-}
-
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
-}
-// do it this way rather than through dependencies {} because
-// latestDepTestImplementation extends testImplementation
-tasks.named("test", Test) {
-  classpath += files(tasks.named('compileTestGeneratedScala').map { it.destinationDirectory })
-}
-
-tasks.named("latestDepTest", Test) {
-  classpath += files(tasks.named('compileLatestDepTestGeneratedScala').map { it.destinationDirectory })
-}
-
-tasks.named("forbiddenApisTestGenerated") {
-  enabled = false
-}
-
-tasks.named("forbiddenApisLatestDepTestGenerated") {
-  enabled = false
 }

@@ -225,6 +225,28 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
+    int classCount = classesToBeTransformed.size();
+    if (classCount <= 10) {
+      retransformIndividualClasses(classesToBeTransformed);
+    } else if (classCount <= 1000) {
+      retransformClassesAtOnce(classesToBeTransformed);
+    } else {
+      throw new IllegalStateException("Too many classes to retransform: " + classCount);
+    }
+  }
+
+  private void retransformClassesAtOnce(List<Class<?>> classesToBeTransformed) {
+    LOGGER.debug("Re-transforming classes: {}", classesToBeTransformed);
+    try {
+      instrumentation.retransformClasses(classesToBeTransformed.toArray(new Class[0]));
+    } catch (Exception ex) {
+      ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
+    } catch (Throwable ex) {
+      ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
+    }
+  }
+
+  private void retransformIndividualClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {
         LOGGER.debug("Re-transforming class: {}", clazz.getTypeName());
