@@ -11,7 +11,7 @@ on:
   create:
 
 jobs:
-  # temporary
+  # TODO: Remove this job after confirming the github.ref when a release branch is created
   print-github-ref:
     name: "Print github.ref"
     runs-on: ubuntu-latest
@@ -22,7 +22,6 @@ jobs:
 
   pin-system-tests:
     name: "Pin system tests"
-    # temporary
     needs:
       - print-github-ref
     if: github.event_name != 'create' || contains(github.ref, 'release/v')
