@@ -11,8 +11,20 @@ on:
   create:
 
 jobs:
+  # temporary
+  print-github-ref:
+    name: "Print github.ref"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print github.ref
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+
   pin-system-tests:
     name: "Pin system tests"
+    # temporary
+    needs:
+      - print-github-ref
     if: github.event_name != 'create' || contains(github.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
@@ -24,11 +36,6 @@ jobs:
         with:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
-
-      # temporary
-      - name: Print github.ref
-        run: |
-          echo "github.ref: ${{ github.ref }}"
       
       - name: Define base branch
         id: define-base-branch
