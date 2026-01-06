@@ -13,7 +13,7 @@ on:
 jobs:
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/release/v')
+    if: github.event_name != 'create' || contains(github.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
