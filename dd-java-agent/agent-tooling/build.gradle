@@ -133,8 +133,17 @@ tasks.named("compileTest_java21Java") {
     )
 }
 
+tasks.named("compileTest_java25Java") {
+  configureCompiler(
+    it,
+    25,
+    JavaVersion.VERSION_1_8,
+    "Java 25 test sourceset, compiled with Java 25 but targeting Java 8 bytecode."
+    )
+}
+
 tasks.register("test_java25", Test) {
-  description = "Runs tests from test_java21 sourceset that require Java 21+"
+  description = "Runs tests from test_java25 sourceset that require Java 25+"
   group = "verification"
   testClassesDirs = sourceSets.test_java25.output.classesDirs
   classpath = sourceSets.test_java25.runtimeClasspath
@@ -142,12 +151,6 @@ tasks.register("test_java25", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_25
   }
-  configureCompiler(
-    it,
-    25,
-    JavaVersion.VERSION_1_8,
-    "Needs to compile against 25"
-    )
 }
 
 tasks.named("test") {
