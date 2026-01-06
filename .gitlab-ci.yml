@@ -13,6 +13,7 @@ stages:
   - publish
   - shared-pipeline
   - benchmarks
+  - infrastructure
   - java-spring-petclinic-tests
   - java-spring-petclinic-macrobenchmarks
   - java-spring-petclinic-microbenchmarks
