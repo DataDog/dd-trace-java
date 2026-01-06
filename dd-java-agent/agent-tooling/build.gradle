@@ -9,6 +9,11 @@ minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 sourceSets {
+  register("main_java25") {
+    java {
+      srcDirs = [file('src/main/java25')]
+    }
+  }
   register("test_java11") {
     java {
       srcDirs = [file('src/test/java11')]
@@ -17,6 +22,11 @@ sourceSets {
   register("test_java21") {
     java {
       srcDirs = [file('src/test/java21')]
+    }
+  }
+  register("test_java25") {
+    java {
+      srcDirs = [file('src/test/java25')]
     }
   }
   named("test") {
@@ -37,7 +47,12 @@ configurations {
   named("test_java11Implementation") {
     extendsFrom testImplementation
   }
+
+  named("test_java25Implementation") {
+    extendsFrom testImplementation
+  }
 }
+
 
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
@@ -53,12 +68,16 @@ dependencies {
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
   api project(':dd-trace-core')
-
   implementation project(':dd-java-agent:agent-crashtracking')
+
+  main_java25Implementation project(':dd-trace-core')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
+
+  test_java25Implementation libs.bundles.junit5
+  test_java25Implementation sourceSets.main_java25.output
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
 }
@@ -66,6 +85,10 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   includeTests = true
+}
+
+tasks.named("jar") {
+  from(sourceSets.main_java25.output)
 }
 
 tasks.named("compileJava") { dependsOn 'generateClassNameTries' }
@@ -88,6 +111,14 @@ tasks.named("compileTestGroovy") {
     " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
     )
 }
+tasks.named("compileMain_java25Java") {
+  configureCompiler(
+    it,
+    25,
+    JavaVersion.VERSION_1_8,
+    "Java 21 sourceset for Foreign Function & Memory API, compiled with Java 25 but targeting Java 8 bytecode."
+    )
+}
 tasks.named("compileTest_java11Java") {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
@@ -100,6 +131,27 @@ tasks.named("compileTest_java21Java") {
     "bytecode that emit `invokeinterface` for `java.lang.Object` methods on an interface type. " +
     "See https://bugs.openjdk.org/browse/JDK-8272715."
     )
+}
+
+tasks.register("test_java25", Test) {
+  description = "Runs tests from test_java21 sourceset that require Java 21+"
+  group = "verification"
+  testClassesDirs = sourceSets.test_java25.output.classesDirs
+  classpath = sourceSets.test_java25.runtimeClasspath
+  useJUnitPlatform()
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_25
+  }
+  configureCompiler(
+    it,
+    25,
+    JavaVersion.VERSION_1_8,
+    "Needs to compile against 25"
+    )
+}
+
+tasks.named("test") {
+  dependsOn(tasks.named("test_java25"))
 }
 
 tasks.named("jmh") {

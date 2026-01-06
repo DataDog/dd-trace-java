@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
@@ -63,8 +64,13 @@ public class TracerInstaller {
       // use reflection to load MemFDUnixWriter so it doesn't get picked up when we
       // transitively look for all tracer class dependencies to install in GraalVM via
       // VMRuntimeInstrumentation
-      Class<?> memFdClass =
-          Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
+      final Class<?> memFdClass;
+      if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
+        memFdClass =
+            Class.forName("datadog.trace.agent.tooling.servicediscovery.ForeignMemoryWriterImpl");
+      } else {
+        memFdClass = Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
+      }
       ForeignMemoryWriter memFd = (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
       return new ServiceDiscovery(memFd);
     } catch (Throwable e) {
