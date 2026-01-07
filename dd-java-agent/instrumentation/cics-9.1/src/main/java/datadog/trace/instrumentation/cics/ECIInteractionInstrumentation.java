@@ -6,29 +6,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.ECI_EXECUTE_OPERATION;
 
-import com.google.auto.service.AutoService;
 import com.ibm.connector2.cics.ECIInteraction;
 import com.ibm.connector2.cics.ECIInteractionSpec;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class ECIInteractionInstrumentation extends InstrumenterModule.Tracing
+public final class ECIInteractionInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ECIInteractionInstrumentation() {
-    super("cics");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".CicsDecorator"};
-  }
-
   @Override
   public String instrumentedType() {
     return "com.ibm.connector2.cics.ECIInteraction";

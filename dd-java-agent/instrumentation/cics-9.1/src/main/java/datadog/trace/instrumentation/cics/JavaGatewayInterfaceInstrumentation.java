@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.cics;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -7,12 +8,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.GATEWAY_FLOW_OPERATION;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 
-import com.google.auto.service.AutoService;
 import com.ibm.connector2.cics.ECIInteraction;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -24,19 +22,10 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class JavaGatewayInterfaceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public JavaGatewayInterfaceInstrumentation() {
-    super("cics");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".CicsDecorator"};
-  }
-
+public final class JavaGatewayInterfaceInstrumentation
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithTypeStructure {
   @Override
   public String hierarchyMarkerType() {
     return "com.ibm.ctg.client.JavaGatewayInterface";
@@ -44,8 +33,13 @@ public final class JavaGatewayInterfaceInstrumentation extends InstrumenterModul
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
+    return extendsClass(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
     // Only instrument subclasses that have a socket field (TcpJavaGateway, SslJavaGateway)
-    return extendsClass(named(hierarchyMarkerType())).and(declaresField(named("socJGate")));
+    return declaresField(named("socJGate"));
   }
 
   @Override
