@@ -80,39 +80,56 @@ A GitLab CI job named `deploy_snapshot_with_ddprof_snapshot` is available for ma
 
 ### Files Modified
 
-1. **`gradle/ddprof-override.gradle`** - Core logic for version calculation and dependency override
+1. **`gradle/ddprof-override.gradle`** - Calculates snapshot version and stores it for convention plugins
 2. **`build.gradle.kts`** - Applies the ddprof-snapshot configuration
-3. **`dd-java-agent/ddprof-lib/build.gradle`** - Logging for snapshot version usage
-4. **`.gitlab-ci.yml`** - New CI job for snapshot publishing
+3. **`buildSrc/src/main/kotlin/dd-trace-java.profiling-ddprof-override.gradle.kts`** - Convention plugin for dependency override
+4. **`buildSrc/src/main/kotlin/datadog/gradle/plugin/version/TracerVersionPlugin.kt`** - Enhanced to support version qualifiers
+5. **`dd-java-agent/ddprof-lib/build.gradle`** - Applies the convention plugin
+6. **`.gitlab-ci.yml`** - New CI job for snapshot publishing
 
 ### How It Works
 
 1. The Gradle property `-PddprofUseSnapshot` activates the feature
 2. The configuration reads `gradle/libs.versions.toml` to get the current ddprof version
 3. Version is parsed using regex: `ddprof = "X.Y.Z"`
-4. Snapshot version is calculated: `X.(Y+1).0-SNAPSHOT`
+4. Snapshot version is calculated: `X.(Y+1).0-SNAPSHOT` and stored in `rootProject.ext.ddprofSnapshotVersion`
 5. **The dd-trace-java version is modified** to add a `-ddprof` qualifier:
    - `1.58.0-SNAPSHOT` → `1.58.0-ddprof-SNAPSHOT`
    - This prevents overwriting standard snapshot artifacts
-6. Gradle's `resolutionStrategy.eachDependency` overrides all ddprof dependencies to use the snapshot version
-7. The build and publish proceed with the modified version and overridden dependency
+   - Users can also explicitly set this via `-PtracerVersion.qualifier=ddprof`
+6. The `dd-trace-java.profiling-ddprof-override` convention plugin is applied to projects that depend on ddprof
+7. The convention plugin overrides ddprof dependencies to use the snapshot version
+8. The build and publish proceed with the modified version and overridden dependency
 
 ### Dependency Resolution Override
 
-The override is applied globally to all configurations in all projects:
+The override is applied via a convention plugin to only the projects that need it:
 
-```groovy
-configurations.all {
-  resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-    if (details.requested.group == 'com.datadoghq' && details.requested.name == 'ddprof') {
-      details.useVersion(ddprofSnapshotVersion)
-      details.because("Using ddprof snapshot version for integration testing")
+```kotlin
+// Convention plugin: dd-trace-java.profiling-ddprof-override
+if (rootProject.hasProperty("ddprofUseSnapshot")) {
+  val ddprofSnapshotVersion = rootProject.property("ddprofSnapshotVersion").toString()
+
+  configurations.all {
+    resolutionStrategy.eachDependency {
+      if (requested.group == "com.datadoghq" && requested.name == "ddprof") {
+        useVersion(ddprofSnapshotVersion)
+        because("Using ddprof snapshot version for integration testing")
+      }
     }
   }
 }
 ```
 
-This ensures that even transitive dependencies on ddprof are overridden.
+Projects apply this plugin explicitly in their build files:
+
+```groovy
+plugins {
+  id "dd-trace-java.profiling-ddprof-override"
+}
+```
+
+This ensures that only projects that actually depend on ddprof are affected by the override.
 
 ## Limitations
 
