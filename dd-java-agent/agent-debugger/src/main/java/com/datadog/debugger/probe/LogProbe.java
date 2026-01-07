@@ -811,9 +811,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Override
     public boolean shouldFreezeContext() {
-      return sampled
-          && ((CapturedContextProbe) probeImplementation).isCaptureSnapshot()
-          && shouldSend();
+      return sampled && (((LogProbe) probeImplementation).isFullSnapshot()) && shouldSend();
     }
 
     @Override
