@@ -7,7 +7,9 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 
 public final class MemFDUnixWriterJNA extends MemFDUnixWriter {
-  private final LibC libc = Native.load("c", LibC.class);
+  private static final class Lazy {
+    static final LibC LIBC = Native.load("c", LibC.class);
+  }
 
   private interface LibC extends Library {
     long syscall(long number, Object... args);
@@ -19,19 +21,19 @@ public final class MemFDUnixWriterJNA extends MemFDUnixWriter {
 
   @Override
   protected long syscall(long number, String name, int flags) {
-    return libc.syscall(number, name, flags);
+    return Lazy.LIBC.syscall(number, name, flags);
   }
 
   @Override
   protected long write(int fd, byte[] payload) {
     Memory buf = new Memory(payload.length);
     buf.write(0, payload, 0, payload.length);
-    return libc.write(fd, buf, new NativeLong(payload.length)).longValue();
+    return Lazy.LIBC.write(fd, buf, new NativeLong(payload.length)).longValue();
   }
 
   @Override
   protected int fcntl(int fd, int cmd, int arg) {
-    return libc.fcntl(fd, cmd, arg);
+    return Lazy.LIBC.fcntl(fd, cmd, arg);
   }
 
   @Override
