@@ -24,16 +24,17 @@ sourceSets {
       srcDirs = [file('src/test/java21')]
     }
   }
-  register("test_java25") {
-    java {
-      srcDirs = [file('src/test/java25')]
-    }
+  named("main_java25") {
+    compileClasspath += sourceSets.main.output
+    runtimeClasspath += sourceSets.main.output
   }
   named("test") {
     compileClasspath += sourceSets.test_java11.output
     runtimeClasspath += sourceSets.test_java11.output
     compileClasspath += sourceSets.test_java21.output
     runtimeClasspath += sourceSets.test_java21.output
+    compileClasspath += sourceSets.main_java25.output
+    runtimeClasspath += sourceSets.main_java25.output
   }
 }
 
@@ -45,10 +46,6 @@ configurations {
   }
 
   named("test_java11Implementation") {
-    extendsFrom testImplementation
-  }
-
-  named("test_java25Implementation") {
     extendsFrom testImplementation
   }
 }
@@ -76,8 +73,6 @@ dependencies {
   testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
-  test_java25Implementation libs.bundles.junit5
-  test_java25Implementation sourceSets.main_java25.output
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
 }
@@ -131,30 +126,6 @@ tasks.named("compileTest_java21Java") {
     "bytecode that emit `invokeinterface` for `java.lang.Object` methods on an interface type. " +
     "See https://bugs.openjdk.org/browse/JDK-8272715."
     )
-}
-
-tasks.named("compileTest_java25Java") {
-  configureCompiler(
-    it,
-    25,
-    JavaVersion.VERSION_1_8,
-    "Java 25 test sourceset, compiled with Java 25 but targeting Java 8 bytecode."
-    )
-}
-
-tasks.register("test_java25", Test) {
-  description = "Runs tests from test_java25 sourceset that require Java 25+"
-  group = "verification"
-  testClassesDirs = sourceSets.test_java25.output.classesDirs
-  classpath = sourceSets.test_java25.runtimeClasspath
-  useJUnitPlatform()
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_25
-  }
-}
-
-tasks.named("test") {
-  dependsOn(tasks.named("test_java25"))
 }
 
 tasks.named("jmh") {
