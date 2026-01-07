@@ -88,11 +88,11 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
     try {
       runUnderTrace("parent") {
         // Simulate being inside ECIInteraction.execute() (cics.execute operation)
-        CallDepthThreadLocalMap.incrementCallDepth(ECIInteraction.class)
+        CallDepthThreadLocalMap.incrementCallDepth(ECIInteraction)
         try {
           new JavaGateway("127.0.0.1", port) // use IPv4 address so we can make sure peer.ipv4 is in the tags
         } finally {
-          CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class)
+          CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction)
         }
       }
     } catch (IOException ignored) {
