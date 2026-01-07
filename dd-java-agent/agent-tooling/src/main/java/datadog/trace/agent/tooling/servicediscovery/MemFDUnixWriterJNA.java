@@ -5,9 +5,12 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
+import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Tracer;
+import datadog.trace.context.TraceScope;
 
 public final class MemFDUnixWriterJNA extends MemFDUnixWriter {
-  private final LibC libc = Native.load("c", LibC.class);
+  private final LibC libc;
 
   private interface LibC extends Library {
     long syscall(long number, Object... args);
@@ -15,6 +18,14 @@ public final class MemFDUnixWriterJNA extends MemFDUnixWriter {
     NativeLong write(int fd, Pointer buf, NativeLong count);
 
     int fcntl(int fd, int cmd, int arg);
+  }
+
+  public MemFDUnixWriterJNA() {
+    final Tracer tracer = GlobalTracer.get();
+    // JNA initialisation can do ldconfig and other commands. Those are hidden since internal.
+    try (TraceScope closeme = tracer != null ? tracer.muteTracing() : null) {
+      libc = Native.load("c", LibC.class);
+    }
   }
 
   @Override

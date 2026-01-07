@@ -5,9 +5,6 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
-import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.Tracer;
-import datadog.trace.context.TraceScope;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -28,9 +25,7 @@ public final class ForeignMemoryWriterFactory implements Supplier<ForeignMemoryW
 
   @SuppressForbidden // intentional Class.forName to force loading
   private ForeignMemoryWriter createForLinux() {
-    final Tracer tracer = GlobalTracer.get();
-    // JNA initialisation can do ldconfig and other commands. Those are hidden since internal.
-    try (TraceScope closeme = tracer != null ? tracer.muteTracing() : null) {
+    try {
       // first check if the arch is supported
       if (OperatingSystem.architecture() == OperatingSystem.Architecture.UNKNOWN) {
         log.debug(
