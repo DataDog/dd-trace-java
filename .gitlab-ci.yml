@@ -7,6 +7,9 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic.yml'
     ref: 'sarahchen6/run-java-microbenchmarks'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-insecure-bank.yml'
+    ref: 'sarahchen6/run-java-microbenchmarks'
 
 stages:
   - build
