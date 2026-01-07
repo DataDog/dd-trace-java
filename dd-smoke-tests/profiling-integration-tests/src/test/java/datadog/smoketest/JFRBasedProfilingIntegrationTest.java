@@ -492,6 +492,80 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @DisplayName("Test wallclock profiling without tracing")
+  public void testWallclockProfilingWithoutTracing(final TestInfo testInfo) throws Exception {
+    Assumptions.assumeTrue(OperatingSystem.isLinux());
+    testWithRetry(
+        () -> {
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        profilingServer.getPort(),
+                        tracingServer.getPort(),
+                        VALID_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        false,
+                        true,
+                        "on",
+                        0,
+                        logFilePath,
+                        false)
+                    .start();
+
+            Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+
+            final RecordedRequest request = retrieveRequest();
+            assertNotNull(request);
+
+            final List<FileItem> items =
+                FileUpload.parse(
+                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+
+            FileItem rawJfr = items.get(1);
+            assertEquals("main.jfr", rawJfr.getName());
+
+            assertFalse(logHasErrors(logFilePath));
+            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+            eventStream = decompressStream("on", eventStream);
+            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+            assertTrue(events.hasItems());
+
+            IItemCollection wallclockSamples =
+                events.apply(ItemFilters.type("datadog.MethodSample"));
+            assertTrue(
+                wallclockSamples.hasItems(), "Expected wallclock samples when tracing is disabled");
+
+            // Verify span context is not present
+            for (IItemIterable event : wallclockSamples) {
+              IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+                  LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+              IMemberAccessor<IQuantity, IItem> spanIdAccessor =
+                  SPAN_ID.getAccessor(event.getType());
+              for (IItem sample : event) {
+                assertEquals(
+                    0,
+                    rootSpanIdAccessor.getMember(sample).longValue(),
+                    "rootSpanId should be 0 when tracing is disabled");
+                assertEquals(
+                    0,
+                    spanIdAccessor.getMember(sample).longValue(),
+                    "spanId should be 0 when tracing is disabled");
+              }
+            }
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+            }
+            targetProcess = null;
+          }
+        },
+        testInfo,
+        3);
+  }
+
+  @Test
   @DisplayName("Test shutdown")
   @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   void testShutdown(final TestInfo testInfo) throws Exception {
@@ -771,7 +845,8 @@ class JFRBasedProfilingIntegrationTest {
         asyncProfilerEnabled,
         withCompression,
         exitDelay,
-        logFilePath);
+        logFilePath,
+        true);
   }
 
   private static ProcessBuilder createProcessBuilder(
@@ -785,50 +860,60 @@ class JFRBasedProfilingIntegrationTest {
       final boolean asyncProfilerEnabled,
       final String withCompression,
       final int exitDelay,
-      final Path logFilePath) {
+      final Path logFilePath,
+      final boolean tracingEnabled) {
     final String templateOverride =
         JFRBasedProfilingIntegrationTest.class
             .getClassLoader()
             .getResource("overrides.jfp")
             .getFile();
 
-    final List<String> command =
-        Arrays.asList(
-            javaPath(),
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-            "-javaagent:" + agentShadowJar(),
-            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-            "-Ddd.trace.agent.port=" + tracerPort,
-            "-Ddd.service.name=smoke-test-java-app",
-            "-Ddd.env=smoketest",
-            "-Ddd.version=99",
-            "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT,
-            "-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled,
-            "-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled,
-            "-Ddd.profiling.agentless=" + (apiKey != null),
-            "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
-            "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
-            "-Ddd.profiling.url=http://localhost:" + profilerPort,
-            "-Ddd.profiling.hotspots.enabled=true",
-            "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
-            "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
-            "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
-            "-Ddd.profiling.queueing.time.enabled=true",
-            "-Ddd.profiling.queueing.time.threshold.millis=0",
-            "-Ddd.profiling.debug.upload.compression=" + withCompression,
-            "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-Ddd.profiling.context.attributes=foo,bar",
-            "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-XX:+IgnoreUnrecognizedVMOptions",
-            "-XX:+UnlockCommercialFeatures",
-            "-XX:+FlightRecorder",
-            "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride,
-            "-Ddd.jmxfetch.start-delay=" + jmxFetchDelaySecs,
-            "-jar",
-            profilingShadowJar(),
-            Integer.toString(exitDelay));
+    final List<String> command = new java.util.ArrayList<>();
+    command.add(javaPath());
+    command.add("-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"));
+    command.add("-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"));
+    command.add("-javaagent:" + agentShadowJar());
+    command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
+    command.add("-Ddd.trace.agent.port=" + tracerPort);
+    if (!tracingEnabled) {
+      command.add("-Ddd.trace.enabled=false");
+    }
+    command.add("-Ddd.service.name=smoke-test-java-app");
+    command.add("-Ddd.env=smoketest");
+    command.add("-Ddd.version=99");
+    command.add("-Ddd.profiling.enabled=true");
+    command.add("-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT);
+    command.add("-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled);
+    command.add("-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled);
+    if (!tracingEnabled && asyncProfilerEnabled) {
+      command.add("-Ddd.profiling.ddprof.wall.enabled=true");
+    }
+    command.add("-Ddd.profiling.agentless=" + (apiKey != null));
+    command.add("-Ddd.profiling.start-delay=" + profilingStartDelaySecs);
+    command.add("-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs);
+    command.add("-Ddd.profiling.url=http://localhost:" + profilerPort);
+    command.add("-Ddd.profiling.hotspots.enabled=true");
+    command.add("-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled);
+    command.add("-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS);
+    command.add("-Ddd.profiling.debug.dump_path=/tmp/dd-profiler");
+    if (tracingEnabled) {
+      command.add("-Ddd.profiling.queueing.time.enabled=true");
+      command.add("-Ddd.profiling.queueing.time.threshold.millis=0");
+      command.add("-Ddd.profiling.context.attributes=foo,bar");
+    }
+    command.add("-Ddd.profiling.debug.upload.compression=" + withCompression);
+    command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug");
+    command.add("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug");
+    command.add("-XX:+IgnoreUnrecognizedVMOptions");
+    command.add("-XX:+UnlockCommercialFeatures");
+    command.add("-XX:+FlightRecorder");
+    command.add(
+        "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride);
+    command.add("-Ddd.jmxfetch.start-delay=" + jmxFetchDelaySecs);
+    command.add("-jar");
+    command.add(profilingShadowJar());
+    command.add(Integer.toString(exitDelay));
+
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
 
