@@ -2,6 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id "com.gradleup.shadow"
+  id "dd-trace-java.profiling-ddprof-override"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -12,13 +13,6 @@ dependencies {
   implementation project.hasProperty('ddprof.jar') ? files(project.findProperty('ddprof.jar')) : libs.ddprof
   api project(':internal-api')
   api project(':dd-trace-api')
-}
-
-// Log information about ddprof version being used
-afterEvaluate {
-  if (rootProject.hasProperty('ddprofUseSnapshot')) {
-    logger.lifecycle("${project.name}: Using ddprof SNAPSHOT version ${rootProject.ext.ddprofSnapshotVersion}")
-  }
 }
 
 tasks.named("shadowJar", ShadowJar) {

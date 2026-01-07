@@ -2,8 +2,10 @@
 // When -PddprofUseSnapshot=true is set, this will:
 // 1. Parse the current ddprof version from libs.versions.toml
 // 2. Calculate the next minor snapshot version: X.Y.Z -> X.(Y+1).0-SNAPSHOT
-// 3. Override the ddprof dependency resolution to use the snapshot version
-// 4. Add a qualifier to the dd-trace-java version to avoid overwriting standard snapshots
+// 3. Store the snapshot version for use by convention plugins
+// 4. Set the version qualifier property to add "ddprof" to the version
+//    This ensures we don't overwrite the regular SNAPSHOT artifacts
+//    The version will become: X.Y.Z-ddprof-SNAPSHOT instead of X.Y.Z-SNAPSHOT
 
 def ddprofUseSnapshot = project.hasProperty("ddprofUseSnapshot")
 
@@ -11,35 +13,23 @@ if (ddprofUseSnapshot) {
   def ddprofSnapshotVersion = calculateDdprofSnapshotVersion()
   logger.lifecycle("Using ddprof snapshot version: ${ddprofSnapshotVersion}")
 
-  // Store the calculated version as an extra property for use in subprojects
+  // Store the calculated version as an extra property for use in convention plugins
   rootProject.ext.ddprofSnapshotVersion = ddprofSnapshotVersion
 
-  // Add qualifier to the project version to differentiate from standard snapshots
-  // This ensures we don't overwrite the regular SNAPSHOT artifacts
-  allprojects {
-    def originalVersion = version.toString()
-    if (originalVersion.contains('-SNAPSHOT')) {
-      // Insert qualifier before -SNAPSHOT: X.Y.Z-SNAPSHOT -> X.Y.Z-ddprof-SNAPSHOT
-      version = originalVersion.replace('-SNAPSHOT', '-ddprof-SNAPSHOT')
-    } else if (originalVersion.contains('-')) {
-      // For versions with trailer: X.Y.Z-12-g8ab3f42d -> X.Y.Z-ddprof-12-g8ab3f42d
-      def parts = originalVersion.split('-', 2)
-      version = "${parts[0]}-ddprof-${parts[1]}"
-    } else {
-      // For release versions (shouldn't happen, but handle it): X.Y.Z -> X.Y.Z-ddprof
-      version = "${originalVersion}-ddprof"
-    }
-    logger.lifecycle("Modified version for ${project.name}: ${originalVersion} -> ${version}")
-  }
-
-  // Override the ddprof dependency resolution for all configurations
-  allprojects {
-    configurations.all {
-      resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-        if (details.requested.group == 'com.datadoghq' && details.requested.name == 'ddprof') {
-          details.useVersion(ddprofSnapshotVersion)
-          details.because("Using ddprof snapshot version for integration testing")
-        }
+  // Set the version qualifier property that TracerVersionPlugin will read
+  // Note: Users can also explicitly set this via -PtracerVersion.qualifier=ddprof
+  if (!project.hasProperty("tracerVersion.qualifier")) {
+    // Add the qualifier to the version after it has been calculated
+    // This is a workaround since we can't set gradle properties programmatically
+    allprojects {
+      def originalVersion = it.version.toString()
+      if (originalVersion.contains('-SNAPSHOT')) {
+        it.version = originalVersion.replace('-SNAPSHOT', '-ddprof-SNAPSHOT')
+      } else if (originalVersion.contains('-')) {
+        def parts = originalVersion.split('-', 2)
+        it.version = "${parts[0]}-ddprof-${parts[1]}"
+      } else {
+        it.version = "${originalVersion}-ddprof"
       }
     }
   }
