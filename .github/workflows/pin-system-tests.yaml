@@ -7,7 +7,7 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # run workflow when a release branch is created
+  # run workflow when any branch is created
   create:
 
 jobs:
