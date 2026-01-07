@@ -37,7 +37,7 @@ dependencies {
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   latest11TestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.11.+'
   latest12TestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'

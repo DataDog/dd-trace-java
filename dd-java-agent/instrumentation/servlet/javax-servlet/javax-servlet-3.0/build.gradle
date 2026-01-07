@@ -31,7 +31,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   // build against 3.1 so we can wrap its additions to ServletInputStream,
   // but all the other advice in this module is still compatible with 3.0+

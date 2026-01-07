@@ -38,7 +38,7 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   // IAST testing dependencies
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
@@ -55,7 +55,7 @@ dependencies {
   // Add kafka version 3.x for IAST
   iastLatestDepTest3Implementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.+'
   iastLatestDepTest3Implementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.+'
-  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
   iastLatestDepTest3RuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')

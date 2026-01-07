@@ -58,7 +58,7 @@ dependencies {
   testFixturesImplementation libs.kotlin
   testFixturesImplementation libs.coroutines
   testFixturesApi project(':dd-trace-api')
-  testFixturesApi project(':dd-java-agent:instrumentation:trace-annotation')
+  testFixturesApi project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testFixturesApi project(':dd-java-agent:instrumentation-testing')
 
   testImplementation libs.kotlin

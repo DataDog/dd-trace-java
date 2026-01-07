@@ -51,7 +51,7 @@ dependencies {
 
   // These are the common dependencies that are inherited by the other test sets
   testImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:pekko:pekko-concurrent-1.0')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
@@ -66,7 +66,7 @@ dependencies {
   iastTestCompileOnly libs.forbiddenapis
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   iastTestRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.12')
-  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  iastTestRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestPekko10TestImplementation libs.scala213
   latestPekko10TestImplementation group: 'org.apache.pekko', name: 'pekko-http_2.13', version: '1.0.+'

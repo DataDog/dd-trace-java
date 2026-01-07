@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'org.thymeleaf', name: 'thymeleaf', version: '3.0.0.RELEASE'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.thymeleaf', name: 'thymeleaf', version: '+'
 }

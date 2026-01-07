@@ -55,6 +55,7 @@
 /dd-java-agent/instrumentation/snakeyaml-1.33/                  @DataDog/asm-java
 /dd-java-agent/instrumentation/velocity-1.5/                    @DataDog/asm-java
 /dd-java-agent/instrumentation/freemarker/                      @DataDog/asm-java
+/dd-java-agent/instrumentation/datadog/asm/                     @DataDog/asm-java
 /dd-smoke-tests/iast-util/                                      @DataDog/asm-java
 /dd-smoke-tests/spring-security/                                @DataDog/asm-java
 /dd-java-agent/instrumentation/commons-fileupload/              @DataDog/asm-java
@@ -97,13 +98,14 @@
 **/CiVisibility*.groovy                             @DataDog/ci-app-libraries-java
 
 # @DataDog/debugger-java (Live Debugger)
-/dd-java-agent/agent-debugger/                          @DataDog/debugger-java
-/dd-smoke-tests/debugger-integration-tests/             @DataDog/debugger-java
-/internal-api/src/main/java/datadog/trace/api/debugger/ @DataDog/debugger-java
+/dd-java-agent/agent-debugger/                                  @DataDog/debugger-java
+/dd-smoke-tests/debugger-integration-tests/                     @DataDog/debugger-java
+/internal-api/src/main/java/datadog/trace/api/debugger/         @DataDog/debugger-java
+/dd-java-agent/instrumentation/datadog/dynamic-instrumentation/ @DataDog/debugger-java
+
 
 # @DataDog/data-jobs-monitoring
 /dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
-/dd-java-agent/instrumentation/spark-executor/  @DataDog/data-jobs-monitoring
 
 # @DataDog/data-streams-monitoring
 /dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/datastreams  @DataDog/data-streams-monitoring
@@ -138,7 +140,7 @@
 # @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
 /dd-java-agent/agent-crashtracking/                                                         @DataDog/profiling-java
-/dd-java-agent/instrumentation/exception-profiling/                                         @DataDog/profiling-java
+/dd-java-agent/instrumentation/datadog/profiling/                                           @DataDog/profiling-java
 /dd-java-agent/instrumentation/java/java-nio-1.8/                                           @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/jfr/   @DataDog/profiling-java
 /dd-java-agent/agent-bootstrap/src/main/java11/datadog/trace/bootstrap/instrumentation/jfr/ @DataDog/profiling-java
