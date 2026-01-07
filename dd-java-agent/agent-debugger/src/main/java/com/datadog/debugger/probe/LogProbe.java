@@ -756,7 +756,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isCaptureSnapshot()) {
+        if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
               Duration.of(
