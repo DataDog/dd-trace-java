@@ -32,12 +32,12 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
       MethodHandle fcntl = null;
       try {
         final Linker linker = Linker.nativeLinker();
-        final SymbolLookup LIBC = linker.defaultLookup();
+        final SymbolLookup lookup = linker.defaultLookup();
         // long syscall(long number, ...)
         // Note: variadic functions require special handling, we'll use a fixed signature
         syscall =
             linker.downcallHandle(
-                LIBC.find("syscall").orElseThrow(),
+                lookup.find("syscall").orElseThrow(),
                 FunctionDescriptor.of(
                     ValueLayout.JAVA_LONG, // return type: long
                     ValueLayout.JAVA_LONG, // syscall number
@@ -49,7 +49,7 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
         // ssize_t write(int fd, const void *buf, size_t count)
         write =
             linker.downcallHandle(
-                LIBC.find("write").orElseThrow(),
+                lookup.find("write").orElseThrow(),
                 FunctionDescriptor.of(
                     ValueLayout.JAVA_LONG, // return type: ssize_t
                     ValueLayout.JAVA_INT, // int fd
@@ -61,7 +61,7 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
         // int fcntl(int fd, int cmd, ... /* arg */)
         fcntl =
             linker.downcallHandle(
-                LIBC.find("fcntl").orElseThrow(),
+                lookup.find("fcntl").orElseThrow(),
                 FunctionDescriptor.of(
                     ValueLayout.JAVA_INT, // return type: int
                     ValueLayout.JAVA_INT, // int fd
@@ -77,6 +77,11 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
         fcntlMH = fcntl;
       }
     }
+
+    static boolean isAvailable() {
+      // just check the first - either all null or all non-null.
+      return syscallMH != null;
+    }
   }
 
   private final MemorySegment captureState;
@@ -88,7 +93,7 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
 
   @Override
   protected long syscall(long number, String name, int flags) {
-    if (Lazy.syscallMH == null) {
+    if (!Lazy.isAvailable()) {
       return -1;
     }
     try (Arena arena = Arena.ofConfined()) {
@@ -104,7 +109,7 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
 
   @Override
   protected long write(int fd, byte[] payload) {
-    if (Lazy.writeMH == null) {
+    if (!Lazy.isAvailable()) {
       return -1;
     }
     try (Arena arena = Arena.ofConfined()) {
@@ -122,7 +127,7 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
 
   @Override
   protected int fcntl(int fd, int cmd, int arg) {
-    if (Lazy.fcntlMH == null) {
+    if (!Lazy.isAvailable()) {
       return -1;
     }
     try {
@@ -135,6 +140,9 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
 
   @Override
   protected int getLastError() {
+    if (!Lazy.isAvailable()) {
+      return -1;
+    }
     try {
       // Read errno from the captured state memory segment
       return captureState.get(ValueLayout.JAVA_INT, ERRNO_OFFSET);
