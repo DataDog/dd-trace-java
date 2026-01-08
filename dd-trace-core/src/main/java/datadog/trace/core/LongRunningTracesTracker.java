@@ -50,9 +50,11 @@ public class LongRunningTracesTracker {
     if (!features.supportsLongRunning()) {
       LOGGER.warn(
           "Long running trace tracking is enabled via {}, however the Datadog Agent version {} does not support receiving long running traces. "
-              + "Long running traces will not be tracked.",
+              + "Long running traces will be tracked locally in memory (up to {} traces) but will NOT be sent to the agent. "
+              + "Long running traces are included in tracer flares.",
           "dd." + TracerConfig.TRACE_LONG_RUNNING_ENABLED,
-          features.getVersion() != null ? features.getVersion() : "unknown");
+          features.getVersion() != null ? features.getVersion() : "unknown",
+          maxTrackedTraces);
     }
   }
 
@@ -91,7 +93,7 @@ public class LongRunningTracesTracker {
         cleanSlot(i);
         continue;
       }
-      if (trace.empty() || !features.supportsLongRunning()) {
+      if (trace.empty()) {
         trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, NOT_TRACKED);
         cleanSlot(i);
         continue;
@@ -108,9 +110,11 @@ public class LongRunningTracesTracker {
           cleanSlot(i);
           continue;
         }
-        trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
-        write++;
-        trace.write();
+        if (features.supportsLongRunning()) {
+          trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
+          write++;
+          trace.write();
+        }
       }
       i++;
     }
