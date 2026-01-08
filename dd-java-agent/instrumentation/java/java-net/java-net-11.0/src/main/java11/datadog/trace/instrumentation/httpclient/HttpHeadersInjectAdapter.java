@@ -6,18 +6,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
 
-public class HttpHeadersInjectAdapter
-    implements CarrierSetter<Map<CaseInsensitiveKey, List<String>>> {
+public class HttpHeadersInjectAdapter implements CarrierSetter<Map<String, List<String>>> {
 
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
   public static final BiPredicate<String, String> KEEP = HttpHeadersInjectAdapter::keep;
 
-  public static boolean keep(String key, String value) {
-    return true;
+  @Override
+  public void set(final Map<String, List<String>> carrier, final String key, final String value) {
+    carrier.put(key, Collections.singletonList(value));
   }
 
-  @Override
-  public void set(Map<CaseInsensitiveKey, List<String>> carrier, String key, String value) {
-    carrier.put(new CaseInsensitiveKey(key), Collections.singletonList(value));
+  public static boolean keep(String key, String value) {
+    return true;
   }
 }
