@@ -194,6 +194,23 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
 
+  // Pattern to match Kafka Connect schema-derived suffixes like _messagebody_0, _text_0, _bytes_0
+  // These suffixes are added by Kafka Connect converters when handling union/optional fields
+  private static final java.util.regex.Pattern KAFKA_CONNECT_SCHEMA_SUFFIX_PATTERN =
+      java.util.regex.Pattern.compile("_(?:messagebody|text|bytes|map|value)_\\d+$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+  /**
+   * Sanitizes destination names to remove Kafka Connect schema-derived suffixes.
+   * When Kafka Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema),
+   * union or optional fields may get index suffixes like _messagebody_0 appended to the queue name.
+   */
+  private static String sanitizeDestinationName(String name) {
+    if (name == null) {
+      return null;
+    }
+    return KAFKA_CONNECT_SCHEMA_SUFFIX_PATTERN.matcher(name).replaceFirst("");
+  }
+
   public CharSequence toResourceName(String destinationName, boolean isQueue) {
     if (null == destinationName) {
       return isQueue ? queueTempResourceName : topicTempResourceName;
@@ -229,7 +246,11 @@ public final class JMSDecorator extends MessagingClientDecorator {
     } catch (Exception e) {
       log.debug("Unable to get jms destination name", e);
     }
-    return null != name && !name.startsWith(TIBCO_TMP_PREFIX) ? name : null;
+    if (null != name && !name.startsWith(TIBCO_TMP_PREFIX)) {
+      // Sanitize Kafka Connect schema-derived suffixes from queue/topic names
+      return sanitizeDestinationName(name);
+    }
+    return null;
   }
 
   public boolean isQueue(Destination destination) {
