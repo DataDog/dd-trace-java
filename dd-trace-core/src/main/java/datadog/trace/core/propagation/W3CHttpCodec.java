@@ -70,13 +70,8 @@ class W3CHttpCodec {
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
-      sb.append("00-");
-      sb.append(context.getTraceId().toHexString());
-      sb.append('-');
-      sb.append(DDSpanId.toHexStringPadded(context.getSpanId()));
-      sb.append(context.getSamplingPriority() > 0 ? "-01" : "-00");
-      setter.set(carrier, TRACE_PARENT_KEY, sb.toString());
+      String traceparent = W3CTraceParent.from(context);
+      setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
     private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {

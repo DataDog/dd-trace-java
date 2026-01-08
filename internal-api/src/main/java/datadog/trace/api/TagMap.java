@@ -290,7 +290,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     }
 
     public final boolean matches(String tag) {
-      return this.tag.equals(tag);
+      return (this.tag == tag) || this.tag.equals(tag);
     }
 
     public abstract boolean isRemoval();

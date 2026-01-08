@@ -1,5 +1,3 @@
-import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
-
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
@@ -50,10 +48,6 @@ dependencies {
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-tasks.named("forbiddenApisMain_java11", CheckForbiddenApis) {
-  failOnMissingClasses = false
 }
 
 idea {

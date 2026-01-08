@@ -15,11 +15,11 @@ dependencies {
   compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
 
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4')
   testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
-  testImplementation project (':dd-java-agent:instrumentation:opentracing:api-0.32')
+  testImplementation project (':dd-java-agent:instrumentation:opentracing:opentracing-0.32')
 
   testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.1.0.RELEASE'
   testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'

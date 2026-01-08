@@ -1,0 +1,113 @@
+name: Pin system tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-branch-name:
+        description: 'The minor release branch name (e.g. release/v1.54.x)'
+        required: true
+        type: string
+  # run workflow when any branch is created
+  create:
+
+jobs:
+  # TODO: Remove this job after confirming the github.ref when a release branch is created
+  print-github-ref:
+    name: "Print full github.ref"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print github.ref
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+
+  pin-system-tests:
+    name: "Pin system tests"
+    if: github.event_name != 'create' || contains(github.ref, 'release/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # required for OIDC token federation
+    steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.pin-system-tests.create-pr
+
+      - name: Define base branch
+        id: define-base-branch
+        run: |
+          if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
+            BASE_BRANCH=${{ github.event.inputs.release-branch-name }}
+          else
+            BASE_BRANCH=${GITHUB_REF#refs/heads/}
+          fi
+          echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
+      
+      - name: Checkout the repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ steps.define-base-branch.outputs.base_branch }}
+      
+      - name: Get latest commit SHA of base branch
+        id: get-latest-commit-sha
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Define branch name
+        id: define-branch
+        run: echo "branch=ci/pin-system-tests-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Check if branch already exists
+        id: check-branch
+        run: |
+          BRANCH=${{ steps.define-branch.outputs.branch }}
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "ERROR: Branch $BRANCH already exists - please delete it and re-run the workflow."
+            exit 1
+          else
+            echo "Branch $BRANCH does not exist - creating it now."
+          fi
+      
+      - name: Update system-tests references to latest commit SHA on main
+        run: ./tooling/update_system_test_reference.sh
+      
+      - name: Check if changes should be committed
+        id: check-changes
+        run: |
+          if [[ -z "$(git status -s)" ]]; then
+            echo "ERROR: No changes to commit - the system-tests reference was not updated."
+            exit 1
+          else
+            echo "Changes to commit:"
+            git status -s
+          fi
+      
+      - name: Commit changes
+        id: create-commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Push changes
+        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          head-sha: "${{ steps.get-latest-commit-sha.outputs.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          gh pr create --title "Pin system tests for release branch" \
+            --base ${{ steps.define-base-branch.outputs.base_branch }} \
+            --head ${{ steps.define-branch.outputs.branch }} \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "This PR pins the system-tests reference for the release branch." \

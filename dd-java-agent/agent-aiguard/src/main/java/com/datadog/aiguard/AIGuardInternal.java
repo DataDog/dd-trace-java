@@ -63,7 +63,7 @@ public class AIGuardInternal implements Evaluator {
 
   static final String SPAN_NAME = "ai_guard";
   static final String TARGET_TAG = "ai_guard.target";
-  static final String TOOL_TAG = "ai_guard.tool";
+  static final String TOOL_TAG = "ai_guard.tool_name";
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";

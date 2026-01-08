@@ -122,6 +122,8 @@ public final class ConfigDefaults {
   // value to false if config is under breaking changes flag
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
 
+  static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
+
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
@@ -243,7 +245,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
-  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = true;
   static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;

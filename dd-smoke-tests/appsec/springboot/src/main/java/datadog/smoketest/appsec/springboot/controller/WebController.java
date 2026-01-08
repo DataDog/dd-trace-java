@@ -14,6 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -289,7 +291,11 @@ public class WebController {
   public ResponseEntity<String> apiSecurityHttpClientOkHttp2(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
-    final String url = getEchoUrl(request);
+    String url = getEchoUrl(request);
+    final String redirect = request.getParameter("redirect");
+    if (redirect != null) {
+      url += "?redirect=true";
+    }
     Request.Builder clientRequest = new Request.Builder().url(url);
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
@@ -324,8 +330,12 @@ public class WebController {
   public ResponseEntity<String> apiSecurityHttpClientOkHttp3(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
-    final String url = getEchoUrl(request);
-    okhttp3.Request.Builder clientRequest = new okhttp3.Request.Builder().url(url);
+    final okhttp3.HttpUrl.Builder url = okhttp3.HttpUrl.parse(getEchoUrl(request)).newBuilder();
+    final String redirect = request.getParameter("redirect");
+    if (redirect != null) {
+      url.addQueryParameter("redirect", "true");
+    }
+    okhttp3.Request.Builder clientRequest = new okhttp3.Request.Builder().url(url.build());
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
@@ -356,7 +366,12 @@ public class WebController {
   @RequestMapping(
       value = "/echo",
       method = {POST, GET, PUT})
-  public ResponseEntity<String> echo(final HttpServletRequest request) throws IOException {
+  public ResponseEntity<String> echo(final HttpServletRequest request)
+      throws IOException, URISyntaxException {
+    final String redirect = request.getParameter("redirect");
+    if (redirect != null) {
+      return ResponseEntity.status(HttpStatus.FOUND).location(new URI("/echo")).build();
+    }
     final String statusHeader = request.getHeader("Status");
     final int statusCode = statusHeader == null ? 200 : Integer.parseInt(statusHeader);
     ResponseEntity.BodyBuilder response = ResponseEntity.status(statusCode);
