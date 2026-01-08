@@ -1,24 +1,29 @@
 package datadog.trace.core.scopemanager
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
+import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
+import static datadog.trace.core.scopemanager.EVENT.CLOSE
+import static datadog.trace.test.util.GCUtils.awaitGC
+
 import datadog.context.Context
 import datadog.context.ContextKey
-import datadog.trace.test.util.ThreadUtils
+import datadog.context.ContextScope
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.Stateful
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.api.scopemanager.ExtendedScopeListener
+import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.api.scopemanager.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import spock.lang.Shared
-
+import datadog.trace.test.util.ThreadUtils
 import java.lang.ref.WeakReference
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -26,12 +31,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
-import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
-import static datadog.trace.core.scopemanager.EVENT.CLOSE
-import static datadog.trace.test.util.GCUtils.awaitGC
+import spock.lang.Shared
 
 enum EVENT {
   ACTIVATE, CLOSE
@@ -1072,8 +1072,9 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.activeSpan() == null
   }
 
-  def "rollback stops at most recent checkpoint"() {
+  def "swap can be used to checkpoint and rollback"() {
     when:
+    def span0 = tracer.buildSpan("test0", "test0").start()
     def span1 = tracer.buildSpan("test1", "test1").start()
     def span2 = tracer.buildSpan("test2", "test2").start()
     def span3 = tracer.buildSpan("test3", "test3").start()
@@ -1081,17 +1082,18 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.activeSpan() == null
 
     when:
-    tracer.checkpointActiveForRollback()
+    ContextScope scope0 = tracer.activateSpan(span0)
+    Context c0 = Context.current().swap()
     tracer.activateSpan(span1)
-    tracer.checkpointActiveForRollback()
+    Context c1 = Context.current().swap()
     tracer.activateSpan(span2)
-    tracer.checkpointActiveForRollback()
+    Context c2 = Context.current().swap()
     tracer.activateSpan(span1)
-    tracer.checkpointActiveForRollback()
+    Context c3 = Context.current().swap()
     tracer.activateSpan(span2)
-    tracer.checkpointActiveForRollback()
+    Context c4 = Context.current().swap()
     tracer.activateSpan(span2)
-    tracer.checkpointActiveForRollback()
+    Context c5 = Context.current().swap()
     tracer.activateSpan(span1)
     tracer.activateSpan(span2)
     tracer.activateSpan(span3)
@@ -1099,32 +1101,37 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager.activeSpan() == span3
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c5.swap()
     then:
     scopeManager.activeSpan() == span2
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c4.swap()
     then:
     scopeManager.activeSpan() == span2
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c3.swap()
     then:
     scopeManager.activeSpan() == span1
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c2.swap()
     then:
     scopeManager.activeSpan() == span2
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c1.swap()
     then:
     scopeManager.activeSpan() == span1
 
     when:
-    tracer.rollbackActiveToCheckpoint()
+    c0.swap()
+    then:
+    scopeManager.activeSpan() == span0
+
+    when:
+    scope0.close()
     then:
     scopeManager.activeSpan() == null
   }

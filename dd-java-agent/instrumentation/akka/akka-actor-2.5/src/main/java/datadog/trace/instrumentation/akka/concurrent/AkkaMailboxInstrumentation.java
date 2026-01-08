@@ -1,15 +1,15 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -59,15 +59,15 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.Tracing
    */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter() {
-      // remember the currently active scope so we can roll back to this point
-      checkpointActiveForRollback();
+    public static Context enter() {
+      // Use swap to checkpoint the active context so we can roll back to this point
+      return Java8BytecodeBridge.getCurrentContext().swap();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit() {
+    public static void exit(@Advice.Enter Context checkpoint) {
       // Clean up any leaking scopes from akka-streams/akka-http etc.
-      rollbackActiveToCheckpoint();
+      checkpoint.swap();
     }
   }
 }

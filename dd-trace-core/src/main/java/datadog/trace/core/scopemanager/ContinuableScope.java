@@ -21,8 +21,6 @@ class ContinuableScope implements AgentScope {
 
   private boolean asyncPropagating;
 
-  private short checkpointCount = 0;
-
   private final byte source;
 
   private short referenceCount = 1;
@@ -138,19 +136,6 @@ class ContinuableScope implements AgentScope {
   @Override
   public final String toString() {
     return super.toString() + "->" + context;
-  }
-
-  public void checkpoint() {
-    checkpointCount++;
-  }
-
-  public boolean rollback() {
-    if (checkpointCount > 0) {
-      checkpointCount--;
-      return false; // stop rollback at checkpoint
-    } else {
-      return true;
-    }
   }
 
   public final void beforeActivated() {

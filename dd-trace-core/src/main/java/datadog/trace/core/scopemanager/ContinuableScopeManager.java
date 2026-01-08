@@ -284,24 +284,6 @@ public final class ContinuableScopeManager implements ContextManager {
     return scopeStack().active();
   }
 
-  public void checkpointActiveForRollback() {
-    ContinuableScope active = scopeStack().active();
-    if (active != null) {
-      active.checkpoint();
-    }
-  }
-
-  public void rollbackActiveToCheckpoint() {
-    ContinuableScope active;
-    while ((active = scopeStack().active()) != null) {
-      if (active.rollback()) {
-        active.close();
-      } else {
-        break; // stop at the most recent checkpointed scope
-      }
-    }
-  }
-
   public AgentSpan activeSpan() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? null : active.span();

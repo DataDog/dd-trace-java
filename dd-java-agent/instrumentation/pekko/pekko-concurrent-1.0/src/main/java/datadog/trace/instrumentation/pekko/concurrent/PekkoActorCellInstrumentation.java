@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.pekko.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -54,24 +53,25 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.Tracing
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(value = 0) Envelope envelope) {
+    public static Context enter(
+        @Advice.Argument(value = 0) Envelope envelope,
+        @Advice.Local("taskScope") AgentScope taskScope) {
 
       // do this before checkpointing, as the envelope's task scope may already be active
-      AgentScope taskScope =
+      taskScope =
           AdviceUtils.startTaskScope(
               InstrumentationContext.get(Envelope.class, State.class), envelope);
 
-      // remember the currently active scope so we can roll back to this point
-      checkpointActiveForRollback();
-
-      return taskScope;
+      // Use swap to checkpoint the active context so we can roll back to this point
+      return Context.current().swap();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter AgentScope taskScope) {
+    public static void exit(
+        @Advice.Enter Context checkpoint, @Advice.Local("taskScope") AgentScope taskScope) {
 
       // Clean up any leaking scopes from pekko-streams/pekko-http etc.
-      rollbackActiveToCheckpoint();
+      checkpoint.swap();
 
       // close envelope's task scope if we previously started it
       if (taskScope != null) {

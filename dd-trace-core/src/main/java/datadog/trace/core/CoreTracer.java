@@ -1184,16 +1184,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void checkpointActiveForRollback() {
-    this.scopeManager.checkpointActiveForRollback();
-  }
-
-  @Override
-  public void rollbackActiveToCheckpoint() {
-    this.scopeManager.rollbackActiveToCheckpoint();
-  }
-
-  @Override
   public void closeActive() {
     AgentScope activeScope = this.scopeManager.active();
     if (activeScope != null) {

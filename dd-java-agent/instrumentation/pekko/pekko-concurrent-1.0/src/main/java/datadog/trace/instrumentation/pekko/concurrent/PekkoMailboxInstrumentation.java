@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.pekko.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -59,15 +58,15 @@ public class PekkoMailboxInstrumentation extends InstrumenterModule.Tracing
    */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter() {
-      // remember the currently active scope so we can roll back to this point
-      checkpointActiveForRollback();
+    public static Context enter() {
+      // Use swap to checkpoint the active context so we can roll back to this point
+      return Context.current().swap();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit() {
+    public static void exit(@Advice.Enter Context checkpoint) {
       // Clean up any leaking scopes from pekko-streams/pekko-http etc.
-      rollbackActiveToCheckpoint();
+      checkpoint.swap();
     }
   }
 }
