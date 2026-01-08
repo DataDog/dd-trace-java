@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.resilience4j.timelimiter;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -27,7 +26,6 @@ public final class TimeLimiterInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(named("decorateFutureSupplier")))
             .and(named("decorateFutureSupplier"))
             .and(takesArgument(0, named(Supplier.class.getName())))
             .and(returns(named(Supplier.class.getName()))),

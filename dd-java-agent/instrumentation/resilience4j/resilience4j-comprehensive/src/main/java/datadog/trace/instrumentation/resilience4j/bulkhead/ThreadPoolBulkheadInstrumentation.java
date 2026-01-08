@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.resilience4j.bulkhead;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -28,7 +27,6 @@ public final class ThreadPoolBulkheadInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(named("decorateSupplier")))
             .and(named("decorateCallable"))
             .and(takesArgument(0, named(Callable.class.getName())))
             .and(returns(named(Callable.class.getName()))),
