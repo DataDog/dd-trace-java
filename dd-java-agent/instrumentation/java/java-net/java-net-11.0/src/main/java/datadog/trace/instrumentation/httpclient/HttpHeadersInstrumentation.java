@@ -48,7 +48,9 @@ public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpHeadersInjectAdapter", packageName + ".JavaNetClientDecorator",
+      packageName + ".CaseInsensitiveKey",
+      packageName + ".HttpHeadersInjectAdapter",
+      packageName + ".JavaNetClientDecorator",
     };
   }
 
