@@ -3,12 +3,17 @@ package datadog.trace.core;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LongRunningTracesTracker {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LongRunningTracesTracker.class);
+
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private long lastFlushMilli = 0;
@@ -41,6 +46,14 @@ public class LongRunningTracesTracker {
         (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
+
+    if (!features.supportsLongRunning()) {
+      LOGGER.warn(
+          "Long running trace tracking is enabled via {}, however the Datadog Agent version {} does not support receiving long running traces. "
+              + "Long running traces will not be tracked.",
+          "dd." + TracerConfig.TRACE_LONG_RUNNING_ENABLED,
+          features.getVersion() != null ? features.getVersion() : "unknown");
+    }
   }
 
   public boolean add(PendingTraceBuffer.Element element) {
