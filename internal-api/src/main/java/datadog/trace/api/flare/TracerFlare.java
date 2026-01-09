@@ -4,6 +4,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +67,19 @@ public final class TracerFlare {
 
   public static void addReporter(Reporter reporter) {
     reporters.put(reporter.getClass(), reporter);
+  }
+
+  public static Collection<Reporter> getReporters() {
+    return Collections.unmodifiableCollection(reporters.values());
+  }
+
+  public static Reporter getReporter(String className) {
+    for (Reporter reporter : getReporters()) {
+      if (reporter.getClass().getName().equals(className)) {
+        return reporter;
+      }
+    }
+    return null;
   }
 
   public static void addText(ZipOutputStream zip, String section, String text) throws IOException {
