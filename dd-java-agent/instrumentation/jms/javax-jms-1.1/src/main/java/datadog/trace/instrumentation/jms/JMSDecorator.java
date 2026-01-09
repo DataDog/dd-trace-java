@@ -194,21 +194,59 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
 
-  // Pattern to match Kafka Connect schema-derived suffixes like _messagebody_0, _text_0, _bytes_0
-  // These suffixes are added by Kafka Connect converters when handling union/optional fields
-  private static final java.util.regex.Pattern KAFKA_CONNECT_SCHEMA_SUFFIX_PATTERN =
-      java.util.regex.Pattern.compile("_(?:messagebody|text|bytes|map|value)_\\d+$", java.util.regex.Pattern.CASE_INSENSITIVE);
-
   /**
-   * Sanitizes destination names to remove Kafka Connect schema-derived suffixes.
-   * When Kafka Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema),
-   * union or optional fields may get index suffixes like _messagebody_0 appended to the queue name.
+   * Sanitizes destination names to remove Kafka Connect schema-derived suffixes. When Kafka
+   * Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema), union or
+   * optional fields may get index suffixes like _messagebody_0 appended to the queue name.
    */
   private static String sanitizeDestinationName(String name) {
-    if (name == null) {
-      return null;
+    if (name == null || name.isEmpty()) {
+      return name;
     }
-    return KAFKA_CONNECT_SCHEMA_SUFFIX_PATTERN.matcher(name).replaceFirst("");
+
+    int len = name.length();
+
+    // Check if name ends with digits (the schema index suffix)
+    if (!Character.isDigit(name.charAt(len - 1))) {
+      return name;
+    }
+
+    // Find the underscore before the trailing digits
+    int underscoreBeforeDigits = name.lastIndexOf('_');
+    if (underscoreBeforeDigits <= 0) {
+      return name;
+    }
+
+    // Verify all characters after the underscore are digits
+    for (int i = underscoreBeforeDigits + 1; i < len; i++) {
+      if (!Character.isDigit(name.charAt(i))) {
+        return name;
+      }
+    }
+
+    // Find the underscore before the suffix word
+    int underscoreBeforeSuffix = name.lastIndexOf('_', underscoreBeforeDigits - 1);
+    if (underscoreBeforeSuffix < 0) {
+      return name;
+    }
+
+    // Check if the suffix word is one of our known Kafka Connect schema suffixes (case insensitive)
+    int suffixStart = underscoreBeforeSuffix + 1;
+    int suffixLen = underscoreBeforeDigits - suffixStart;
+
+    if (isKnownKafkaConnectSuffix(name, suffixStart, suffixLen)) {
+      return name.substring(0, underscoreBeforeSuffix);
+    }
+
+    return name;
+  }
+
+  private static boolean isKnownKafkaConnectSuffix(String name, int start, int len) {
+    return (len == 11 && name.regionMatches(true, start, "messagebody", 0, 11))
+        || (len == 4 && name.regionMatches(true, start, "text", 0, 4))
+        || (len == 5 && name.regionMatches(true, start, "bytes", 0, 5))
+        || (len == 3 && name.regionMatches(true, start, "map", 0, 3))
+        || (len == 5 && name.regionMatches(true, start, "value", 0, 5));
   }
 
   public CharSequence toResourceName(String destinationName, boolean isQueue) {
