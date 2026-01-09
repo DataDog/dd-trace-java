@@ -8,7 +8,8 @@ import com.google.cloud.pubsub.v1.MessageReceiver;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 
-public class ReceiverInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class ReceiverInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

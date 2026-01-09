@@ -21,10 +21,10 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class GrpcServerBuilderInstrumentation
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("grpc", "grpc-server"), true);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("grpc", "grpc-server"), true);
   }
 
   @Override

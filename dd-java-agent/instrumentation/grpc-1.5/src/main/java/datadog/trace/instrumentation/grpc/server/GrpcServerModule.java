@@ -20,13 +20,13 @@ public class GrpcServerModule extends InstrumenterModule.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".GrpcServerDecorator",
-        packageName + ".GrpcServerDecorator$1",
-        packageName + ".GrpcExtractAdapter",
-        packageName + ".TracingServerInterceptor",
-        packageName + ".TracingServerInterceptor$TracingServerCall",
-        packageName + ".TracingServerInterceptor$TracingServerCallListener",
+    return new String[] {
+      packageName + ".GrpcServerDecorator",
+      packageName + ".GrpcServerDecorator$1",
+      packageName + ".GrpcExtractAdapter",
+      packageName + ".TracingServerInterceptor",
+      packageName + ".TracingServerInterceptor$TracingServerCall",
+      packageName + ".TracingServerInterceptor$TracingServerCallListener",
     };
   }
 
@@ -39,7 +39,9 @@ public class GrpcServerModule extends InstrumenterModule.Tracing {
   public List<Instrumenter> typeInstrumentations() {
     final List<Instrumenter> ret = new ArrayList<>(2);
     ret.add(new GrpcServerBuilderInstrumentation());
-    if (!JavaVirtualMachine.isGraalVM() && InstrumenterConfig.get().isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
+    if (!JavaVirtualMachine.isGraalVM()
+        && InstrumenterConfig.get()
+            .isIntegrationEnabled(singleton("grpc-server-code-origin"), true)) {
       ret.add(new MethodHandlersInstrumentation());
     }
     return ret;
