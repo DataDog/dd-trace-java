@@ -7,11 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_FIND_OBJECT;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
+import static java.util.Collections.singleton;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -24,7 +26,8 @@ public class ExecutionContextInstrumentation
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(singleton("datanucleus"), false);
   }
 
   @Override
