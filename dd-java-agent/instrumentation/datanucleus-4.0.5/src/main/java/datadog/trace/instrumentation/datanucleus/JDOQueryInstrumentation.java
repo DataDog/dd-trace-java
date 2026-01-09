@@ -8,9 +8,7 @@ import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DAT
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,24 +16,12 @@ import net.bytebuddy.asm.Advice;
 import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
-@AutoService(InstrumenterModule.class)
-public class JDOQueryInstrumentation extends InstrumenterModule.Tracing
+public class JDOQueryInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public JDOQueryInstrumentation() {
-    super("datanucleus");
-  }
 
   @Override
   public String instrumentedType() {
     return "org.datanucleus.api.jdo.JDOQuery";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatanucleusDecorator",
-    };
   }
 
   @Override
