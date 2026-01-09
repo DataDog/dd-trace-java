@@ -9,7 +9,7 @@ public final class DiagnosticMessage {
   public enum Kind {
     INFO,
     WARN,
-    ERROR;
+    ERROR
   }
 
   private final long timestamp;
