@@ -1,4 +1,16 @@
 ---
 schema-version: v1
-kind: mergequeue
-enable: false
+kind: mergequeue # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue
+enable: true
+merge_method: squash
+branches:
+  master:
+    allow_skip_checks: true
+    require_reason_for_skip_checks: true
+---
+schema-version: v1
+kind: mergegate # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/4948100574/MergeGate
+rules:
+  - require: labels
+  - require: commit-signatures
+  - require: reviewers-approval
