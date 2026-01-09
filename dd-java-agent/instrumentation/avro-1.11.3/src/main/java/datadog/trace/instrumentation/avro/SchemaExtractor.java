@@ -49,7 +49,6 @@ public class SchemaExtractor implements SchemaIterator {
           if (!extractSchema(field.schema().getElementType(), builder, depth)) {
             return false;
           }
-          ;
         }
         break;
       case MAP:
@@ -61,7 +60,6 @@ public class SchemaExtractor implements SchemaIterator {
           if (!extractSchema(field.schema().getValueType(), builder, depth)) {
             return false;
           }
-          ;
         }
         description = "Map type with " + keys + " keys and " + values + " values";
         break;
