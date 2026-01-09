@@ -577,6 +577,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
+    } catch (Exception ex) {
+      // catch all for unexpected exceptions
+      status.addError(new EvaluationError(probeCondition.getDslExpression(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
     }
     return true;
   }
@@ -684,6 +689,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         }
       } catch (EvaluationException ex) {
         logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+        logStatus.setLogTemplateErrors(true);
+      } catch (Exception ex) {
+        // catch all for unexpected exceptions
+        logStatus.addError(
+            new EvaluationError(captureExpression.getExpr().getDsl(), ex.getMessage()));
         logStatus.setLogTemplateErrors(true);
       }
     }
