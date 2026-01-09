@@ -17,6 +17,7 @@ dependencies {
   implementation project(':telemetry')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.3.0'
   implementation libs.moshi
+  implementation libs.bundles.asm
 
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
@@ -80,6 +81,7 @@ ext {
     'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
+    'com.datadog.appsec.config.AppSecSCAConfig',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
