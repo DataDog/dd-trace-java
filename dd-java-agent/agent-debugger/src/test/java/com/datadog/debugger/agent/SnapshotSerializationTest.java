@@ -952,7 +952,7 @@ public class SnapshotSerializationTest {
   enum MyEnum {
     ONE,
     TWO,
-    THREE;
+    THREE
   }
 
   @Test
