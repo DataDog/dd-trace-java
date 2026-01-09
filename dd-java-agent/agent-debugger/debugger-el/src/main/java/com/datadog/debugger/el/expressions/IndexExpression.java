@@ -1,5 +1,8 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedList;
+import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
+
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
@@ -41,17 +44,21 @@ public class IndexExpression implements ValueExpression<Value<?>> {
         if (objKey instanceof String && Redaction.isRedactedKeyword((String) objKey)) {
           ExpressionHelper.throwRedactedException(this);
         } else {
-          result = ((MapValue) targetValue).get(objKey);
+          MapValue mapValue = (MapValue) targetValue;
+          checkSupportedMap(mapValue, this);
+          result = mapValue.get(objKey);
         }
       } else if (targetValue instanceof ListValue) {
-        result = ((ListValue) targetValue).get(keyValue.getValue());
+        ListValue listValue = (ListValue) targetValue;
+        checkSupportedList(listValue, this);
+        result = listValue.get(keyValue.getValue());
       } else {
         throw new EvaluationException(
             "Cannot evaluate the expression for unsupported type: "
                 + targetValue.getClass().getTypeName(),
             PrettyPrintVisitor.print(this));
       }
-    } catch (IllegalArgumentException ex) {
+    } catch (IllegalArgumentException | UnsupportedOperationException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
     Object obj = result.getValue();
