@@ -1,9 +1,12 @@
 package datadog.trace.agent.test;
 
+import static java.util.function.Function.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.instrument.classinject.ClassInjector;
+import datadog.trace.agent.test.assertions.TraceAssertions;
+import datadog.trace.agent.test.assertions.TraceMatcher;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.TracerInstaller;
@@ -22,11 +25,19 @@ import java.lang.instrument.Instrumentation;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.opentest4j.AssertionFailedError;
 
+/**
+ * This class is an experimental base to run instrumentation tests using JUnit Jupiter. It is still
+ * early development, and the overall API is expected to change to leverage its extension model. The
+ * current implementation is inspired and kept close to it Groovy / Spock counterpart, the {@code
+ * InstrumentationSpecification}.
+ */
 @ExtendWith(TestClassShadowingExtension.class)
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
@@ -98,6 +109,33 @@ public abstract class AbstractInstrumentationTest {
     // If not, a failing assertion may prevent cleanup
     this.transformerLister.verify();
     this.transformerLister = null;
+  }
+
+  /**
+   * Checks the structure of the traces captured from the test tracer.
+   *
+   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+   */
+  protected void assertTraces(TraceMatcher... matchers) {
+    assertTraces(identity(), matchers);
+  }
+
+  /**
+   * Checks the structure of the traces captured from the test tracer.
+   *
+   * @param options The {@link TraceAssertions.Options} to configure the checks.
+   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+   */
+  protected void assertTraces(
+      Function<TraceAssertions.Options, TraceAssertions.Options> options,
+      TraceMatcher... matchers) {
+    int expectedTraceCount = matchers.length;
+    try {
+      this.writer.waitForTraces(expectedTraceCount);
+    } catch (InterruptedException | TimeoutException e) {
+      throw new AssertionFailedError("Timeout while waiting for traces", e);
+    }
+    TraceAssertions.assertTraces(this.writer, options, matchers);
   }
 
   protected void blockUntilChildSpansFinished(final int numberOfSpans) {
