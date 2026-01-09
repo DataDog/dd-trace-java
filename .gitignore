@@ -70,6 +70,9 @@ replay_pid*
 !dd-java-agent/benchmark/releases/*.jar
 **/errors/*.log
 
+# Fuzz testing logs #
+fuzz-logs/
+
 # Magic for local JMC built
 /vendor/jmc-libs
 

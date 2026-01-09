@@ -198,7 +198,6 @@ public final class ProfilingSystem {
           ProfilerFlareLogger.getInstance().log("Shutdown in progress, cannot start profiling");
         } else {
           ProfilerFlareLogger.getInstance().log("Failed to start profiling", t);
-
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }

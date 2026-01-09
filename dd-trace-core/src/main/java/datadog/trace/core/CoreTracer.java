@@ -19,6 +19,10 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -1249,8 +1253,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
+      // Antithesis: Track traces accepted by sampling
+      ObjectNode acceptedDetails = JsonNodeFactory.instance.objectNode();
+      acceptedDetails.put("decision", "accepted");
+      acceptedDetails.put("trace_id", writtenTrace.get(0).getTraceId().toString());
+      acceptedDetails.put("span_count", writtenTrace.size());
+      acceptedDetails.put("sampling_priority", spanToSample.samplingPriority());
+      Assert.sometimes(true, "trace_accepted_by_sampling", acceptedDetails);
       writer.write(writtenTrace);
     } else {
+      // Antithesis: Track traces dropped by sampling
+      ObjectNode droppedDetails = JsonNodeFactory.instance.objectNode();
+      droppedDetails.put("decision", "dropped_sampling");
+      droppedDetails.put("trace_id", writtenTrace.get(0).getTraceId().toString());
+      droppedDetails.put("span_count", writtenTrace.size());
+      droppedDetails.put("sampling_priority", spanToSample.samplingPriority());
+      Assert.sometimes(true, "trace_dropped_by_sampling", droppedDetails);
       // with span streaming this won't work - it needs to be changed
       // to track an effective sampling rate instead, however, tests
       // checking that a hard reference on a continuation prevents
