@@ -63,7 +63,7 @@ public class AIGuardInternal implements Evaluator {
 
   static final String SPAN_NAME = "ai_guard";
   static final String TARGET_TAG = "ai_guard.target";
-  static final String TOOL_TAG = "ai_guard.tool";
+  static final String TOOL_TAG = "ai_guard.tool_name";
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
@@ -134,19 +134,18 @@ public class AIGuardInternal implements Evaluator {
     final List<Message> result = new ArrayList<>(size);
     final int maxContent = config.getAiGuardMaxContentSize();
     boolean contentTruncated = false;
-    for (int i = 0; i < size; i++) {
-      Message source = messages.get(i);
-      final String content = source.getContent();
+    for (int i = messages.size() - size; i < messages.size(); i++) {
+      final Message source = messages.get(i);
+      String content = source.getContent();
       if (content != null && content.length() > maxContent) {
         contentTruncated = true;
-        source =
-            new Message(
-                source.getRole(),
-                content.substring(0, maxContent),
-                source.getToolCalls(),
-                source.getToolCallId());
+        content = content.substring(0, maxContent);
       }
-      result.add(source);
+      List<ToolCall> toolCalls = source.getToolCalls();
+      if (toolCalls != null) {
+        toolCalls = new ArrayList<>(toolCalls);
+      }
+      result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
     }
     if (contentTruncated) {
       WafMetricCollector.get().aiGuardTruncated(CONTENT);
@@ -240,7 +239,7 @@ public class AIGuardInternal implements Evaluator {
           span.setTag(BLOCKED_TAG, true);
           throw new AIGuardAbortError(action, reason, tags);
         }
-        return new Evaluation(action, reason);
+        return new Evaluation(action, reason, tags);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);

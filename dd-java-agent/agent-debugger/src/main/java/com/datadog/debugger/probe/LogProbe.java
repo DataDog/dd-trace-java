@@ -504,7 +504,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     LogStatus logStatus = (LogStatus) status;
     if (!hasCondition()) {
       if (singleProbe) {
-        // sampling was already done in isReadToCapture so we assume that if we are executing the
+        // sampling was already done in isReadyToCapture so we assume that if we are executing the
         // current method it means the status should be sampled
         if (!logStatus.getDebugSessionStatus().isDisabled()) {
           logStatus.setSampled(true);
@@ -756,7 +756,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isCaptureSnapshot()) {
+        if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
               Duration.of(
@@ -811,9 +811,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Override
     public boolean shouldFreezeContext() {
-      return sampled
-          && ((CapturedContextProbe) probeImplementation).isCaptureSnapshot()
-          && shouldSend();
+      return sampled && (((LogProbe) probeImplementation).isFullSnapshot()) && shouldSend();
     }
 
     @Override

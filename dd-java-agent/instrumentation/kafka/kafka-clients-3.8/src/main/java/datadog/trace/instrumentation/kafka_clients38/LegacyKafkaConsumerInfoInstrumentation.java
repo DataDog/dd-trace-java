@@ -25,7 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithTypeStructure {
 
   public LegacyKafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-3.8");
@@ -60,8 +62,12 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
   // new - we are instrumenting the ConsumerDelegate class instead of the KafkaConsumer class
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(declaresField(named("coordinator")));
+    return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresField(named("coordinator"));
   }
 
   @Override

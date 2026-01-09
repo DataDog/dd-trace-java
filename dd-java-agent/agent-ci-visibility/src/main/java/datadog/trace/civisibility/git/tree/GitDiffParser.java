@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public class GitDiffParser {
 
   private static final Pattern CHANGED_FILE_PATTERN =
-      Pattern.compile("^diff --git a/(?<oldfilename>.+) b/(?<newfilename>.+)$");
+      Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$");
   private static final Pattern CHANGED_LINES_PATTERN =
       Pattern.compile("^@@ -\\d+(,\\d+)? \\+(?<startline>\\d+)(,(?<count>\\d+))? @@");
 

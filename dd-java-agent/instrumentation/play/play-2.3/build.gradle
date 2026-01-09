@@ -43,9 +43,9 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-3.8')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
-  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
   testImplementation group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.3.9'
   testImplementation group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.3.9'
   testImplementation(group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.3.9') {
@@ -60,5 +60,5 @@ dependencies {
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
+  classpath += files(tasks.named('compileLatestDepTestScala'))
 }

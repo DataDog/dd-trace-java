@@ -104,6 +104,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(span)
     0 * _
@@ -137,6 +138,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -151,6 +153,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     0 * _
   }
@@ -168,6 +171,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
@@ -194,6 +198,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -210,6 +215,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -232,6 +238,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -250,6 +257,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     0 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -279,6 +287,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -307,6 +316,7 @@ class PendingTraceBufferTest extends DDSpecification {
       latch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     0 * _
   }
 
@@ -333,6 +343,7 @@ class PendingTraceBufferTest extends DDSpecification {
       parentLatch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -349,6 +360,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
@@ -428,6 +440,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     1 * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -444,6 +457,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _

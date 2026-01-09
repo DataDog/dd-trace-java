@@ -1,0 +1,327 @@
+package datadog.smoketest.appsec
+
+import datadog.trace.agent.test.utils.OkHttpUtils
+import okhttp3.Request
+import spock.lang.Shared
+
+import java.util.regex.Pattern
+
+class SecurityResponseIdSmokeTest extends AbstractAppSecServerSmokeTest {
+
+  @Shared
+  String buildDir = new File(System.getProperty("datadog.smoketest.builddir")).absolutePath
+  @Shared
+  String customRulesPath = "${buildDir}/appsec_blockid_rules.json"
+
+  // UUID v4 pattern: 8-4-4-4-12 hexadecimal characters
+  private static final Pattern UUID_PATTERN = Pattern.compile(
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  )
+
+  def prepareCustomConfiguration() {
+    // Create custom rules with custom actions to test security_response_id
+    def customRules = [
+      [
+        id: '__test_security_response_id_trigger',
+        name: 'Security Response ID Test Rule',
+        tags: [
+          type: 'block_test',
+          category: 'attack_attempt'
+        ],
+        conditions: [
+          [
+            parameters: [
+              inputs: [[address: 'server.request.headers.no_cookies']],
+              key_path: ['user-agent'],
+              regex: 'SecurityResponseIdTestAgent.*'
+            ],
+            operator: 'match_regex'
+          ]
+        ],
+        transformers: ['lowercase'],
+        on_match: ['block_action']
+      ],
+      [
+        id: '__test_security_response_id_redirect_no_placeholder',
+        name: 'Security Response ID Redirect Test Rule Without Placeholder',
+        tags: [
+          type: 'redirect_test_no_placeholder',
+          category: 'attack_attempt'
+        ],
+        conditions: [
+          [
+            parameters: [
+              inputs: [[address: 'server.request.headers.no_cookies']],
+              key_path: ['user-agent'],
+              regex: 'RedirectTestAgent.*'
+            ],
+            operator: 'match_regex'
+          ]
+        ],
+        transformers: ['lowercase'],
+        on_match: ['redirect_action_no_placeholder']
+      ]
+    ]
+
+    def customActions = [
+      [
+        id: 'block_action',
+        type: 'block_request',
+        parameters: [
+          status_code: 403,
+          type: 'auto'
+        ]
+      ],
+      [
+        id: 'redirect_action_no_placeholder',
+        type: 'redirect_request',
+        parameters: [
+          status_code: 303,
+          location: 'https://custom.example.com/redirect'
+        ]
+      ]
+    ]
+
+    // Write the custom configuration using mergeRules
+    mergeRules(customRulesPath, customRules, customActions)
+  }
+
+  @Override
+  ProcessBuilder createProcessBuilder() {
+    // Prepare custom configuration before starting the process
+    prepareCustomConfiguration()
+
+    String springBootShadowJar = System.getProperty("datadog.smoketest.appsec.springboot.shadowJar.path")
+
+    List<String> command = new ArrayList<>()
+    command.add(javaPath())
+    command.addAll(defaultJavaProperties)
+    command.addAll(defaultAppSecProperties)
+    command.addAll((String[]) ["-jar", springBootShadowJar, "--server.port=${httpPort}"])
+
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(new File(buildDirectory))
+  }
+
+  void 'test security_response_id is present in JSON blocking response'() {
+    setup:
+    // Clear previous traces/spans from other tests
+    rootSpans.clear()
+
+    and: 'a request that triggers blocking'
+    def url = "http://localhost:${httpPort}/greeting"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
+      .header('Accept', 'application/json')
+      .get()
+      .build()
+
+    when: 'the request is sent'
+    def response = client.newCall(request).execute()
+
+    then: 'the request is blocked with 403'
+    response.code() == 403
+
+    and: 'the response is JSON'
+    response.header('Content-Type').contains('application/json')
+
+    and: 'the response body contains security_response_id with valid UUID format'
+    def body = response.body().string()
+    body.contains('"security_response_id"')
+    def matcher = UUID_PATTERN.matcher(body)
+    assert matcher.find(), "security_response_id with valid UUID format not found in response: ${body}"
+    def securityResponseIdFromResponse = matcher.group()
+
+    // Verify it's in the expected JSON structure
+    body.contains('"errors"')
+    body.contains('"You\'ve been blocked"')
+
+    and: 'the trace contains the same security_response_id in _dd.appsec.json triggers'
+    waitForTraceCount(1) == 1
+    rootSpans.size() == 1
+    def rootSpan = rootSpans.first()
+    assert rootSpan != null, "Root span not found in trace"
+
+    def appsecJson = rootSpan.meta?.'_dd.appsec.json'
+    assert appsecJson != null, "_dd.appsec.json not found in trace"
+
+    // Parse the appsec JSON to verify security_response_id is in the trigger
+    def appsecData = new groovy.json.JsonSlurper().parseText(appsecJson)
+    assert appsecData.triggers != null && !appsecData.triggers.isEmpty(), "No triggers found in _dd.appsec.json: ${appsecJson}"
+    def trigger = appsecData.triggers[0]
+    assert trigger.security_response_id != null, "security_response_id not found in trigger: ${appsecJson}"
+    assert trigger.security_response_id == securityResponseIdFromResponse, "security_response_id in trace (${trigger.security_response_id}) does not match response (${securityResponseIdFromResponse})"
+    assert UUID_PATTERN.matcher(trigger.security_response_id).matches(), "security_response_id in trace is not a valid UUID: ${trigger.security_response_id}"
+  }
+
+  void 'test security_response_id is present in HTML blocking response'() {
+    setup:
+    // Clear previous traces/spans from other tests
+    rootSpans.clear()
+
+    and: 'a request that triggers blocking'
+    def url = "http://localhost:${httpPort}/greeting"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
+      .header('Accept', 'text/html')
+      .get()
+      .build()
+
+    when: 'the request is sent'
+    def response = client.newCall(request).execute()
+
+    then: 'the request is blocked with 403'
+    response.code() == 403
+
+    and: 'the response is HTML'
+    response.header('Content-Type').contains('text/html')
+
+    and: 'the response body contains security_response_id with valid UUID format'
+    def body = response.body().string()
+    body.contains('Security Response ID:')
+    def matcher = UUID_PATTERN.matcher(body)
+    assert matcher.find(), "security_response_id with valid UUID format not found in response: ${body}"
+    def securityResponseIdFromResponse = matcher.group()
+
+    // Verify the placeholder [security_response_id] was replaced (should not be present)
+    assert !body.contains('[security_response_id]'), "Placeholder [security_response_id] was not replaced in HTML response"
+
+    // Verify it's in the expected HTML structure
+    body.contains('You\'ve been blocked')
+    body.contains('<html')
+
+    and: 'the trace contains the same security_response_id in _dd.appsec.json triggers'
+    waitForTraceCount(1) == 1
+    rootSpans.size() == 1
+    def rootSpan = rootSpans.first()
+    assert rootSpan != null, "Root span not found in trace"
+
+    def appsecJson = rootSpan.meta?.'_dd.appsec.json'
+    assert appsecJson != null, "_dd.appsec.json not found in trace"
+
+    // Parse the appsec JSON to verify security_response_id is in the trigger
+    def appsecData = new groovy.json.JsonSlurper().parseText(appsecJson)
+    assert appsecData.triggers != null && !appsecData.triggers.isEmpty(), "No triggers found in _dd.appsec.json: ${appsecJson}"
+    def trigger = appsecData.triggers[0]
+    assert trigger.security_response_id != null, "security_response_id not found in trigger: ${appsecJson}"
+    assert trigger.security_response_id == securityResponseIdFromResponse, "security_response_id in trace (${trigger.security_response_id}) does not match response (${securityResponseIdFromResponse})"
+    assert UUID_PATTERN.matcher(trigger.security_response_id).matches(), "security_response_id in trace is not a valid UUID: ${trigger.security_response_id}"
+  }
+
+  void 'test redirect without placeholder does not add security_response_id'() {
+    setup:
+    // Clear previous traces/spans from other tests
+    rootSpans.clear()
+
+    and: 'a request that triggers redirect without placeholder'
+    def url = "http://localhost:${httpPort}/greeting"
+    def client = OkHttpUtils.clientBuilder()
+      .followRedirects(false) // Don't follow redirects automatically
+      .build()
+    def request = new Request.Builder()
+      .url(url)
+      .header('User-Agent', 'RedirectTestAgent/1.0')
+      .get()
+      .build()
+
+    when: 'the request is sent'
+    def response = client.newCall(request).execute()
+
+    then: 'the request is redirected with 303'
+    response.code() == 303
+
+    and: 'the Location header contains the unmodified redirect URL without security_response_id'
+    def location = response.header('Location')
+    assert location != null, 'Location header not present in redirect response'
+    assert location == 'https://custom.example.com/redirect', "URL should not be modified: ${location}"
+
+    // Verify security_response_id was NOT added to the URL
+    assert !location.contains('security_response_id'), "security_response_id should not be added when placeholder is not present: ${location}"
+  }
+
+  void 'test security_response_id format is consistent across requests'() {
+    setup:
+    // Clear previous traces/spans from other tests
+    rootSpans.clear()
+
+    and: 'multiple blocking requests'
+    def url = "http://localhost:${httpPort}/greeting"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .header('User-Agent', 'SecurityResponseIdTestAgent/1.0')
+      .header('Accept', 'application/json')
+      .get()
+      .build()
+
+    when: 'the first request is sent'
+    def response1 = client.newCall(request).execute()
+    def body1 = response1.body().string()
+    def matcher1 = UUID_PATTERN.matcher(body1)
+    matcher1.find()
+    def securityResponseId1 = matcher1.group()
+
+    and: 'a second request is sent'
+    def response2 = client.newCall(request).execute()
+    def body2 = response2.body().string()
+    def matcher2 = UUID_PATTERN.matcher(body2)
+    matcher2.find()
+    def securityResponseId2 = matcher2.group()
+
+    then: 'both requests return valid security_response_ids'
+    response1.code() == 403
+    response2.code() == 403
+    securityResponseId1 != null
+    securityResponseId2 != null
+
+    and: 'each security_response_id is unique (different UUIDs for different requests)'
+    securityResponseId1 != securityResponseId2
+
+    and: 'both follow UUID v4 format'
+    UUID_PATTERN.matcher(securityResponseId1).matches()
+    UUID_PATTERN.matcher(securityResponseId2).matches()
+  }
+
+  void 'test security_response_id is not present in trace when request is not blocked'() {
+    setup:
+    // Clear previous traces/spans from other tests
+    rootSpans.clear()
+
+    and: 'a normal request that does not trigger blocking'
+    def url = "http://localhost:${httpPort}/custom-headers"
+    def client = OkHttpUtils.clientBuilder().build()
+    def request = new Request.Builder()
+      .url(url)
+      .header('User-Agent', 'NormalAgent/1.0')
+      .header('Accept', 'application/json')
+      .get()
+      .build()
+
+    when: 'the request is sent'
+    def response = client.newCall(request).execute()
+
+    then: 'the request is successful'
+    response.code() == 200
+
+    when: 'waiting for traces'
+    waitForTraceCount(1)
+
+    then: 'the trace does not contain security_response_id in _dd.appsec.json'
+    def spans = rootSpans.toList()
+    // Find the span for the custom-headers endpoint (not greeting which other tests use)
+    def normalSpan = spans.find { it.meta?.get('http.route') == '/custom-headers' }
+    assert normalSpan != null, "Root span for /custom-headers endpoint not found in trace. Available spans: ${spans.collect { it.meta?.get('http.route') }}"
+
+    // When the request is not blocked, there should be no triggers at all
+    def appsecJson = normalSpan.meta?.'_dd.appsec.json'
+    if (appsecJson != null) {
+      def appsecData = new groovy.json.JsonSlurper().parseText(appsecJson)
+      // For a non-blocked request, there should be no triggers
+      assert appsecData.triggers == null || appsecData.triggers.isEmpty(), "No triggers should be present for non-blocked request, but found triggers: ${appsecData.triggers}"
+    }
+  }
+}

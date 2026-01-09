@@ -121,7 +121,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);
       response.content().writeBytes(template);
     }

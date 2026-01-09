@@ -76,6 +76,8 @@ public class DDSpanContext
   /** The collection of all span related to this one */
   private final TraceCollector traceCollector;
 
+  private final TagInterceptor tagInterceptor;
+
   /** Baggage is associated with the whole trace and shared with other spans */
   private volatile Map<String, String> baggageItems;
 
@@ -330,6 +332,7 @@ public class DDSpanContext
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
+    this.tagInterceptor = this.traceCollector.getTracer().getTagInterceptor();
 
     assert traceId != null;
     this.traceId = traceId;
@@ -527,10 +530,9 @@ public class DDSpanContext
   private void forceKeepThisSpan(byte samplingMechanism) {
     // if the user really wants to keep this trace chunk, we will let them,
     // even if the old sampling priority and mechanism have already propagated
-    if (SAMPLING_PRIORITY_UPDATER.getAndSet(this, PrioritySampling.USER_KEEP)
-        == PrioritySampling.UNSET) {
-      propagationTags.updateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
-    }
+    SAMPLING_PRIORITY_UPDATER.set(this, PrioritySampling.USER_KEEP);
+    // record force keep decision for future distributed trace propagation
+    propagationTags.forceKeep(samplingMechanism);
   }
 
   public void addPropagatedTraceSource(final int value) {
@@ -766,9 +768,122 @@ public class DDSpanContext
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!traceCollector.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
-        unsafeSetTag(tag, value);
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final String value) {
+    if (null == tag) {
+      return;
+    }
+    if (null == value) {
+      synchronized (unsafeTags) {
+        unsafeTags.remove(tag);
+      }
+    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  /*
+   * Uses to determine if there's an opportunity to avoid primitve boxing.
+   * If the underlying map doesn't support efficient primitives, then boxing is used.
+   * If the tag may be intercepted, then boxing is also used.
+   */
+  private boolean precheckIntercept(String tag) {
+    // Usually only a single instanceof TagMap will be loaded,
+    // so isOptimized is turned into a direct call and then inlines to a constant
+    // Since isOptimized just returns a constant - doesn't require synchronization
+    return !unsafeTags.isOptimized() || tagInterceptor.needsIntercept(tag);
+  }
+
+  /*
+   * Used when precheckIntercept determines that boxing is unavoidable
+   *
+   * Either because the tagInterceptor needs to be fully checked (which requires boxing)
+   * In that case, a box has already been created so it makes sense to pass the box
+   * onto TagMap, since optimized TagMap will cache the box
+   *
+   * -- OR --
+   *
+   * The TagMap isn't optimized and will need to box the primitive regardless of
+   * tag interception
+   */
+  private void setBox(String tag, Object box) {
+    if (!tagInterceptor.interceptTag(this, tag, box)) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, box);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final boolean value) {
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final int value) {
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final long value) {
+    if (null == tag) {
+      return;
+    }
+    // check needsIntercept first to avoid unnecessary boxing
+    boolean intercepted =
+        tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final float value) {
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(final String tag, final double value) {
+    if (null == tag) {
+      return;
+    }
+    if (precheckIntercept(tag)) {
+      this.setBox(tag, value);
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tag, value);
       }
     }
   }
@@ -789,12 +904,11 @@ public class DDSpanContext
         // to avoid using a capturing lambda
         map.forEach(
             this,
-            traceCollector.getTracer().getTagInterceptor(),
-            (ctx, tagInterceptor, tagEntry) -> {
+            (ctx, tagEntry) -> {
               String tag = tagEntry.tag();
               Object value = tagEntry.objectValue();
 
-              if (!tagInterceptor.interceptTag(ctx, tag, value)) {
+              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
                 ctx.unsafeTags.set(tagEntry);
               }
             });
@@ -809,7 +923,6 @@ public class DDSpanContext
       return;
     }
 
-    TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
         if (entryChange.isRemoval()) {
@@ -834,7 +947,6 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      TagInterceptor tagInterceptor = traceCollector.getTracer().getTagInterceptor();
       synchronized (unsafeTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
           if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
@@ -846,7 +958,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    unsafeTags.put(tag, value);
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final CharSequence value) {
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final byte value) {
+    unsafeTags.set(tag, value);
+  }
+
+  void unsafeSetTag(final String tag, final double value) {
+    unsafeTags.set(tag, value);
   }
 
   Object getTag(final String key) {

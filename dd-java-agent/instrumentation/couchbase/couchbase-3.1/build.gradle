@@ -20,7 +20,7 @@ dependencies {
   testImplementation group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'
   testImplementation group: 'org.testcontainers', name: 'couchbase', version: libs.versions.testcontainers.get()
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
 
   latestDepTestImplementation group: 'com.couchbase.client', name: 'java-client', version: '3.1.+'
 }

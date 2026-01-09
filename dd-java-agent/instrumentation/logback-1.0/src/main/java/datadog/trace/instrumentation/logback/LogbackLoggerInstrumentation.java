@@ -18,10 +18,13 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -29,7 +32,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LogbackLoggerInstrumentation() {
-    super("logback");
+    super("logback", "logs-intake", "logs-intake-logback");
   }
 
   @Override
@@ -44,6 +47,16 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return super.isApplicable(enabledSystems) || Config.get().isAppLogsCollectionEnabled();
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {LogsIntakeHelper.class.getName()};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -52,10 +65,19 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
+    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(isPublic())
+              .and(named("callAppenders"))
+              .and(takesArguments(1))
+              .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
+          LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice2");
+    }
   }
 
   public static class CallAppendersAdvice {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
       AgentSpan span = activeSpan();
 
@@ -63,6 +85,13 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
             .put(event, span.context());
       }
+    }
+  }
+
+  public static class CallAppendersAdvice2 {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+      LogsIntakeHelper.log(event);
     }
   }
 }
