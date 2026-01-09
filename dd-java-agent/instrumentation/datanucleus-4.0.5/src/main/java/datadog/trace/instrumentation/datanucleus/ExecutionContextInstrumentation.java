@@ -7,13 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_FIND_OBJECT;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
+import static java.util.Collections.singleton;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -21,16 +21,13 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
-@AutoService(InstrumenterModule.class)
-public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
+public class ExecutionContextInstrumentation
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-  public ExecutionContextInstrumentation() {
-    super("datanucleus");
-  }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(singleton("datanucleus"), false);
   }
 
   @Override
@@ -48,13 +45,6 @@ public class ExecutionContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatanucleusDecorator",
-    };
   }
 
   @Override

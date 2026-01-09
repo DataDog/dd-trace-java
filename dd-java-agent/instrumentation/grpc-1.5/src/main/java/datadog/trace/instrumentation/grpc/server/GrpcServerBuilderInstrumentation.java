@@ -3,34 +3,28 @@ package datadog.trace.instrumentation.grpc.server;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.CallDepthThreadLocalMap.incrementCallDepth;
-import static java.util.Collections.singletonMap;
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.grpc.ServerBuilder;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public class GrpcServerBuilderInstrumentation extends InstrumenterModule.Tracing
+public class GrpcServerBuilderInstrumentation
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
-  public GrpcServerBuilderInstrumentation() {
-    super("grpc", "grpc-server");
-  }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(true);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("grpc", "grpc-server"), true);
   }
 
   @Override
@@ -54,23 +48,6 @@ public class GrpcServerBuilderInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.grpc.ServerBuilder", Boolean.class.getName());
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcServerDecorator",
-      packageName + ".GrpcServerDecorator$1",
-      packageName + ".GrpcExtractAdapter",
-      packageName + ".TracingServerInterceptor",
-      packageName + ".TracingServerInterceptor$TracingServerCall",
-      packageName + ".TracingServerInterceptor$TracingServerCallListener",
-    };
   }
 
   @Override
