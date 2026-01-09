@@ -399,6 +399,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
+      log.error("[CHARLES] addDatabricksSpecificTags databricksJobId: '{}'", databricksJobId);
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
@@ -1085,6 +1086,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
   private static String getDatabricksJobId(Properties properties) {
     String jobId = properties.getProperty("spark.databricks.job.id");
+    log.error("[CHARLES] getDatabricksJobId spark.databricks.job.id: '{}'", jobId);
     if (jobId != null) {
       return jobId;
     }
@@ -1092,6 +1094,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // First fallback, use spark.jobGroup.id with the pattern
     // <scheduler_id>_job-<job_id>-run-<task_run_id>-action-<action_id>
     String jobGroupId = properties.getProperty("spark.jobGroup.id");
+    log.error("[CHARLES] getDatabricksJobId spark.jobGroup.id: '{}'", jobGroupId);
     if (jobGroupId != null) {
       int startIndex = jobGroupId.indexOf("job-");
       int endIndex = jobGroupId.indexOf("-run", startIndex);
@@ -1103,6 +1106,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // Second fallback, use spark.databricks.workload.id with pattern
     // <org_id>-<job_id>-<task_run_id>
     String workloadId = properties.getProperty("spark.databricks.workload.id");
+    log.error("[CHARLES] getDatabricksJobId spark.databricks.workload.id: '{}'", workloadId);
     if (workloadId != null) {
       String[] parts = workloadId.split("-");
       if (parts.length > 1) {

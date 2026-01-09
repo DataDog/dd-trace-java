@@ -59,7 +59,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       @Nonnull DDSpanContext context,
       final List<AgentSpanLink> links) {
     final DDSpan span = new DDSpan(instrumentationName, timestampMicro, context, links);
-    log.debug("Started span: {}", span);
+    log.error("Started span: {}", span);
     context.getTraceCollector().registerSpan(span);
     return span;
   }
@@ -160,9 +160,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       }
       this.metrics.onSpanFinished();
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
-      log.debug("Finished span ({}): {}", publishState, this);
+      log.error("Finished span ({}): {}", publishState, this);
     } else {
-      log.debug("Already finished: {}", this);
+      log.error("Already finished: {}", this);
     }
   }
 
@@ -224,7 +224,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       try {
         e2eStart = null != value ? MILLISECONDS.toNanos(Long.parseLong(value)) : 0;
       } catch (RuntimeException e) {
-        log.debug("Ignoring invalid end-to-end start time {}", value, e);
+        log.error("Ignoring invalid end-to-end start time {}", value, e);
         e2eStart = 0;
       }
     } else {
@@ -254,10 +254,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
-      log.debug("Finished span (PHASED): {}", this);
+      log.error("Finished span (PHASED): {}", this);
       return true;
     } else {
-      log.debug("Already finished: {}", this);
+      log.error("Already finished: {}", this);
       return false;
     }
   }
@@ -266,13 +266,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public final void publish() {
     long durationNano = this.durationNano;
     if (durationNano == 0) {
-      log.debug("Can't publish unfinished span: {}", this);
+      log.error("Can't publish unfinished span: {}", this);
     } else if (durationNano > 0) {
-      log.debug("Already published: {}", this);
+      log.error("Already published: {}", this);
     } else if (DURATION_NANO_UPDATER.compareAndSet(
         this, durationNano, durationNano & Long.MAX_VALUE)) {
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
-      log.debug("Published span ({}): {}", publishState, this);
+      log.error("Published span ({}): {}", publishState, this);
     }
   }
 
