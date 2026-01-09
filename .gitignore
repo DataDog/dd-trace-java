@@ -45,6 +45,7 @@ out/
 # Visual Studio Code #
 ######################
 .vscode
+.cursor
 
 # Cursor #
 ##########

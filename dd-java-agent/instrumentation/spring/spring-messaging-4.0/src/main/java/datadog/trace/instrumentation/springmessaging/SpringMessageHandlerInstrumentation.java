@@ -8,15 +8,19 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -53,12 +57,33 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     };
   }
 
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("org.springframework.messaging.Message", State.class.getName());
+  }
+
   public static class HandleMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.This InvocableHandlerMethod thiz, @Advice.Argument(0) Message<?> message) {
       AgentSpanContext parentContext;
       AgentSpan parent = activeSpan();
+
+      // First try to get context from continuation (preferred method)
+      State state = InstrumentationContext.get(Message.class, State.class).get(message);
+      if (null != state) {
+        AgentScope.Continuation continuation = state.getAndResetContinuation();
+        if (null != continuation) {
+          try (AgentScope scope = continuation.activate()) {
+            AgentSpan span = startSpan(SPRING_INBOUND);
+            DECORATE.afterStart(span);
+            span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
+            return activateSpan(span);
+          }
+        }
+      }
+
+      // Fallback to existing context or header extraction
       if (null != parent) {
         // prefer existing context, assume it was already extracted from this message
         parentContext = parent.context();
