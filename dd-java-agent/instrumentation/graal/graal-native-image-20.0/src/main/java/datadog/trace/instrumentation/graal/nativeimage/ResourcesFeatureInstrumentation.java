@@ -3,10 +3,8 @@ package datadog.trace.instrumentation.graal.nativeimage;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import com.oracle.svm.core.jdk.Resources;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -14,9 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
 public final class ResourcesFeatureInstrumentation extends AbstractNativeImageInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType {
 
   @Override
   public String instrumentedType() {
