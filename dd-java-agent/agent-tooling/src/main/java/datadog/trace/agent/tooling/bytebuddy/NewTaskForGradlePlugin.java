@@ -12,7 +12,14 @@ import net.bytebuddy.dynamic.DynamicType;
 /**
  * Bytebuddy gradle plugin which rewrites placeholder calls in 'NewTaskFor' advice at compile time.
  *
- * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
+ * <p>Used for {@code
+ * datadog.trace.instrumentation.java.concurrent.WrapRunnableAsNewTaskInstrumentation}
+ * instrumentation, to replace {@code
+ * datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder#newTaskFor} by
+ * {@code java.util.concurrent.AbstractExecutorService#newTaskFor(java.lang.Runnable, T)} which is
+ * protected and not accessible during compilation.
+ *
+ * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;

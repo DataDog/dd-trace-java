@@ -9,6 +9,12 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatchers;
 
+/**
+ * Bytebuddy gradle plugin which injects request context handling into classes annotated with {@link
+ * RequiresRequestContext}.
+ *
+ * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
+ */
 public class RewriteRequestContextAdvicePlugin extends Plugin.ForElementMatcher {
   public RewriteRequestContextAdvicePlugin(File targetDir) {
     super(ElementMatchers.isAnnotatedWith(RequiresRequestContext.class));

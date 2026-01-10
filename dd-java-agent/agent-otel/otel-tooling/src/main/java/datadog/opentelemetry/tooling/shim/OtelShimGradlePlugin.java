@@ -13,7 +13,7 @@ import net.bytebuddy.dynamic.DynamicType;
 /**
  * Bytebuddy gradle plugin which injects our OpenTelemetry shim into the target API.
  *
- * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
+ * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class OtelShimGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;

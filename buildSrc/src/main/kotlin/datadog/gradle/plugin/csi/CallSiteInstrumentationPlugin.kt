@@ -188,14 +188,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       dependsOn(mainCompileTask)
     }
 
-    // Workaround for instrument plugin modifying compile tasks
-    project.pluginManager.withPlugin("dd-trace-java.instrument") {
-      callSiteGeneratorTask.configure {
-        dependsOn("instrumentJava")
-      }
-    }
-
-    // make all sourcesets' class tasks depend on call site generator
+    // make all sourceSets class tasks depend on call site generator
     val sourceSets = project.sourceSets
     sourceSets.named(MAIN_SOURCE_SET_NAME) {
       project.tasks.named(classesTaskName) {
