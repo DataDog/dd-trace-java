@@ -1,0 +1,25 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+def minVer = '3.0.0'
+
+muzzle {
+  pass {
+    group = "com.openai"
+    module = "openai-java"
+    versions = "[$minVer,)"
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.openai', name: 'openai-java', version: minVer
+  implementation project(':internal-api')
+
+  testImplementation group: 'com.openai', name: 'openai-java', version: minVer
+  latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
+
+  testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
+}
+

@@ -405,6 +405,7 @@ class TestHttpServer implements AutoCloseable {
       final contentLength
       final contentType
       final byte[] body
+      final String method
 
       RequestApi(Request req) {
         this.orig = req
@@ -413,6 +414,7 @@ class TestHttpServer implements AutoCloseable {
         this.contentLength = req.contentLength
         this.contentType = req.contentType?.split(";")
         this.body = req.inputStream.bytes
+        this.method = req.method
       }
 
       def getPath() {

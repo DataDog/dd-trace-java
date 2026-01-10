@@ -5,6 +5,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -81,8 +82,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
 
-    AgentSpanContext parent = LLMObsState.getLLMObsParentContext();
-    String parentSpanID = LLMObsState.ROOT_SPAN_ID;
+    AgentSpanContext parent = LLMObsContext.current();
+    String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
       if (parent.getTraceId() != this.span.getTraceId()) {
         LOGGER.error(
@@ -96,8 +97,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
     this.span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    this.scope = LLMObsState.attach();
-    LLMObsState.setLLMObsParentContext(this.span.context());
+    this.scope = LLMObsContext.attach(this.span.context());
   }
 
   @Override
