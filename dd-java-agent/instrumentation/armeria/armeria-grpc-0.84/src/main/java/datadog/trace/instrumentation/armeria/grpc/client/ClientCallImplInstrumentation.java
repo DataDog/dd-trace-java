@@ -14,10 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -28,49 +25,13 @@ import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class ClientCallImplInstrumentation extends InstrumenterModule.Tracing
+public final class ClientCallImplInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientCallImplInstrumentation() {
-    super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("io.grpc.ClientCall", AgentSpan.class.getName());
-  }
-
   @Override
   public String instrumentedType() {
     return "com.linecorp.armeria.internal.client.grpc.ArmeriaClientCall";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference(
-          new String[0],
-          1,
-          "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
-          null,
-          new String[0],
-          new Reference.Field[0],
-          new Reference.Method[0])
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
   }
 
   @Override

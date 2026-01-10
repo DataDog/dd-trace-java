@@ -7,29 +7,17 @@ import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_TRA
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
-@AutoService(InstrumenterModule.class)
-public final class WebSphereAsyncInstrumentation extends InstrumenterModule.Tracing
+public final class WebSphereAsyncInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public WebSphereAsyncInstrumentation() {
-    super("axis2", "axis2-transport");
-  }
 
   @Override
   public String instrumentedType() {
     return "com.ibm.ws.websvcs.transport.http.SOAPOverHTTPSender";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".AxisMessageDecorator"};
   }
 
   @Override

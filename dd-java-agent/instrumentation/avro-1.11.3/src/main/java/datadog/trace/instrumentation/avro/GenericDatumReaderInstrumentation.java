@@ -5,9 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -15,20 +13,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.avro.generic.GenericDatumReader;
 
-@AutoService(InstrumenterModule.class)
-public final class GenericDatumReaderInstrumentation extends InstrumenterModule.Tracing
+public final class GenericDatumReaderInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public GenericDatumReaderInstrumentation() {
-    super("avro");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SchemaExtractor", packageName + ".SchemaExtractor$1",
-    };
-  }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {

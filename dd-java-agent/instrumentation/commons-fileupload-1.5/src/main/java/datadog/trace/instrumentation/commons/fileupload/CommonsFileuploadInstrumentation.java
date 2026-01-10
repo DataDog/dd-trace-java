@@ -6,11 +6,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -21,13 +19,8 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class CommonsFileuploadInstrumentation extends InstrumenterModule.Iast
+public class CommonsFileuploadInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  public CommonsFileuploadInstrumentation() {
-    super("commons-fileupload");
-  }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {

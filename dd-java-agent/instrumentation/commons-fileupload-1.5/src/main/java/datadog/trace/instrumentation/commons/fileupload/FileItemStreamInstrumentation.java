@@ -5,11 +5,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -21,13 +19,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.commons.fileupload.FileItemStream;
 
-@AutoService(InstrumenterModule.class)
-public class FileItemStreamInstrumentation extends InstrumenterModule.Iast
+public class FileItemStreamInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public FileItemStreamInstrumentation() {
-    super("commons-fileupload", "fileitemstream");
-  }
 
   @Override
   public String hierarchyMarkerType() {
