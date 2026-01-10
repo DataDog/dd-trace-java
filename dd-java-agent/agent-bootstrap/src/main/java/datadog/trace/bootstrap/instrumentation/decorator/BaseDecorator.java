@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
@@ -153,9 +152,8 @@ public abstract class BaseDecorator {
 
   public AgentSpan setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, PORTS.get(port));
+      span.setTag(Tags.PEER_PORT, port);
     }
-
     return span;
   }
 
