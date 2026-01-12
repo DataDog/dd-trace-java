@@ -370,7 +370,7 @@ ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
   }
 } as Closure<Void>
 
-ext.getJavaLauncherFor = (javaVersionInteger) -> {
+ext.getJavaLauncherFor = (int javaVersionInteger) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
@@ -378,6 +378,20 @@ ext.getJavaLauncherFor = (javaVersionInteger) -> {
     throw new GradleException("Unable to find launcher for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
   }
   return launcher
+} as Closure<Provider<JavaLauncher>>
+
+ext.getLazyJavaHomeFor = (int javaVersionInteger, int hasNativeImage = false) -> {
+  def launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    nativeImageCapable = hasNativeImage
+  }
+  return new Object() {
+    @Override
+    String toString() {
+      println("Using Java $javaVersionInteger from toolchain at: " + launcher.get().metadata.installationPath.asFile.absolutePath)
+      return launcher.get().metadata.installationPath.asFile.absolutePath
+    }
+  }
 } as Closure<Provider<JavaLauncher>>
 
 

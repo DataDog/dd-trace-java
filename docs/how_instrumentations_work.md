@@ -792,7 +792,7 @@ Sometimes it is necessary to force Gradle to discard cached test results and [re
 ./gradle test --rerun-tasks
 ```
 
-Running tests that require JDK-21 will require the `JAVA_21_HOME` env var set and can be done like this:
+Running tests that require JDK-21 to be installed, use the `-PtestJvm=21` flag, for example:
 
 ```shell
 ./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21

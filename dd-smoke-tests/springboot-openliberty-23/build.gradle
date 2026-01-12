@@ -14,7 +14,10 @@ def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
   workingDir("$appDir")
-  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
+  environment += [
+      "MAVEN_OPTS": "-Xmx512M",
+      "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
 
   List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
 
