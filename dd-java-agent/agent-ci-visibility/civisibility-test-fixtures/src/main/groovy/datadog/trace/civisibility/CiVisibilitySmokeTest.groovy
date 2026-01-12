@@ -9,7 +9,6 @@ import datadog.trace.api.config.TracerConfig
 import java.nio.file.Paths
 import spock.lang.Specification
 import spock.lang.TempDir
-import spock.util.environment.Jvm
 
 import java.nio.file.Path
 
@@ -29,10 +28,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected Path prefsDir
 
   protected static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
-    }
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+    return System.getProperty("java.home")
   }
 
   protected static String javaPath() {
