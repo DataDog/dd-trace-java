@@ -30,7 +30,7 @@ public final class HotspotCrashLogParser {
 
   // all lowercased
   private static final String[] KNOWN_LIBRARY_NAMES =
-      new String[] {"libjavaprofiler", "libddwaf", "libsqreen"};
+      {"libjavaprofiler", "libddwaf", "libsqreen"};
 
   enum State {
     NEW,
