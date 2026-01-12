@@ -9,44 +9,22 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
-import com.google.auto.service.AutoService;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class DistributedObjectInstrumentation extends InstrumenterModule.Tracing
+public final class DistributedObjectInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";
-
-  public DistributedObjectInstrumentation() {
-    super("hazelcast_legacy");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DistributedObjectDecorator",
-      packageName + ".DistributedObjectDecorator$1",
-      packageName + ".SpanFinishingExecutionCallback",
-      packageName + ".HazelcastConstants"
-    };
-  }
 
   @Override
   public String[] knownMatchingTypes() {
