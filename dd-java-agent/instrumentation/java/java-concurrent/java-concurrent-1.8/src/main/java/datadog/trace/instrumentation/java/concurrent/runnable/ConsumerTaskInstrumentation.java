@@ -4,13 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -24,21 +21,11 @@ import net.bytebuddy.asm.Advice;
  * parent class is already instrumented by {@link
  * datadog.trace.instrumentation.java.concurrent.forkjoin.JavaForkJoinTaskInstrumentation}
  */
-@AutoService(InstrumenterModule.class)
-public class ConsumerTaskInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ConsumerTaskInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, "consumer-task");
-  }
+public class ConsumerTaskInstrumentation implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {
     return "java.util.concurrent.SubmissionPublisher$ConsumerTask";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 
   @Override

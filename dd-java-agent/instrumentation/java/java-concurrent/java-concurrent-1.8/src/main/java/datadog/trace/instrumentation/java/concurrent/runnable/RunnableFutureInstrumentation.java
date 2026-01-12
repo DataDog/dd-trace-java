@@ -11,17 +11,14 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -35,15 +32,10 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public final class RunnableFutureInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-  public RunnableFutureInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, "runnable-future");
-  }
+public final class RunnableFutureInstrumentation implements Instrumenter.ForBootstrap,
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
 
   @Override
   public String hierarchyMarkerType() {
@@ -63,11 +55,6 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.RunnableFuture", State.class.getName());
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // instrument any FutureTask or TrustedListenableFutureTask constructor,
     // but only instrument the PromiseTask constructor with a Callable argument
@@ -75,10 +62,10 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Trac
         isConstructor()
             .and(
                 isDeclaredBy(
-                        named("java.util.concurrent.FutureTask")
-                            .or(
-                                nameEndsWith(
-                                    "com.google.common.util.concurrent.TrustedListenableFutureTask")))
+                    named("java.util.concurrent.FutureTask")
+                        .or(
+                            nameEndsWith(
+                                "com.google.common.util.concurrent.TrustedListenableFutureTask")))
                     .or(
                         isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
                             .and(takesArgument(1, named(Callable.class.getName()))))),

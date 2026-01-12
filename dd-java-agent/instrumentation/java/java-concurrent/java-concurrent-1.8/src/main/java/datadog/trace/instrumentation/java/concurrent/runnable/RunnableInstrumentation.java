@@ -4,37 +4,28 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.RUNNABLE_INSTRUMENTATION_NAME;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Instrument {@link Runnable} */
-@AutoService(InstrumenterModule.class)
-public final class RunnableInstrumentation extends InstrumenterModule.Tracing
+/**
+ * Instrument {@link Runnable}
+ */
+public final class RunnableInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
-  public RunnableInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
-  }
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {
@@ -46,11 +37,6 @@ public final class RunnableInstrumentation extends InstrumenterModule.Tracing
     return notExcludedByName(RUNNABLE)
         .and(implementsInterface(named(Runnable.class.getName())))
         .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override
