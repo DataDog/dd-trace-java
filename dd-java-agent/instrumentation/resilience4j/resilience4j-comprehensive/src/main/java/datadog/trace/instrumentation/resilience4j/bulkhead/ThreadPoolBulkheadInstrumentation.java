@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.instrumentation.resilience4j.common.WrapperWithContext;
 import io.github.resilience4j.bulkhead.ThreadPoolBulkhead;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
@@ -31,6 +32,20 @@ public final class ThreadPoolBulkheadInstrumentation
             .and(takesArgument(0, named(Callable.class.getName())))
             .and(returns(named(Callable.class.getName()))),
         THIS_CLASS + "$CallableAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("decorateSupplier"))
+            .and(takesArgument(0, named(Supplier.class.getName())))
+            .and(returns(named(Supplier.class.getName()))),
+        THIS_CLASS + "$SupplierAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("decorateCompletionStage"))
+            .and(takesArgument(0, named(Supplier.class.getName())))
+            .and(returns(named(Supplier.class.getName()))),
+        THIS_CLASS + "$CompletionStageAdvice");
   }
 
   public static class CallableAdvice {
@@ -39,6 +54,26 @@ public final class ThreadPoolBulkheadInstrumentation
         @Advice.This ThreadPoolBulkhead bulkhead,
         @Advice.Return(readOnly = false) Callable<?> result) {
       result = new WrapperWithContext.CallableWithContext<>(
+          result, ThreadPoolBulkheadDecorator.DECORATE, bulkhead);
+    }
+  }
+
+  public static class SupplierAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.This ThreadPoolBulkhead bulkhead,
+        @Advice.Return(readOnly = false) Supplier<?> result) {
+      result = new WrapperWithContext.SupplierWithContext<>(
+          result, ThreadPoolBulkheadDecorator.DECORATE, bulkhead);
+    }
+  }
+
+  public static class CompletionStageAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.This ThreadPoolBulkhead bulkhead,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> result) {
+      result = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
           result, ThreadPoolBulkheadDecorator.DECORATE, bulkhead);
     }
   }

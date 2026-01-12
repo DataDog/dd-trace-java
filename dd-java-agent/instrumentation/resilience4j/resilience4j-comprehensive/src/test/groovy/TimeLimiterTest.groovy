@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.github.resilience4j.timelimiter.TimeLimiter
 import io.github.resilience4j.timelimiter.TimeLimiterConfig
@@ -109,7 +110,7 @@ class TimeLimiterTest extends InstrumentationSpecification {
     }
   }
 
-  def "time limiter with timeout scenario"() {
+  def "time limiter with pre-completed future"() {
     setup:
     def config = TimeLimiterConfig.custom()
       .timeoutDuration(Duration.ofMillis(100))
@@ -120,20 +121,40 @@ class TimeLimiterTest extends InstrumentationSpecification {
     timeLimiter.getTimeLimiterConfig() >> config
 
     when:
+    // Use a pre-completed future to avoid timing-dependent test behavior
     Supplier<Future<String>> futureSupplier = TimeLimiter.decorateFutureSupplier(timeLimiter) {
-      CompletableFuture.supplyAsync {
-        Thread.sleep(200) // Sleep longer than timeout
-        serviceCall("delayed-result")
-      }
+      CompletableFuture.completedFuture(serviceCall("immediate-result"))
     }
 
     then:
-    // This test demonstrates the pattern but would need actual timeout handling
-    def future
+    def result
     runUnderTrace("parent") {
-      future = futureSupplier.get()
+      result = futureSupplier.get().get()
     }
-    future != null
+    result == "immediate-result"
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+        }
+        span(1) {
+          operationName "resilience4j"
+          childOf(span(0))
+          tags {
+            "resilience4j.time_limiter.name" "time-limiter-timeout"
+            "resilience4j.time_limiter.timeout_duration_ms" 100L
+            "resilience4j.time_limiter.cancel_running_future" true
+          }
+        }
+        span(2) {
+          operationName "service-call"
+          childOf(span(1))
+        }
+      }
+    }
   }
 
   String serviceCall(String value) {

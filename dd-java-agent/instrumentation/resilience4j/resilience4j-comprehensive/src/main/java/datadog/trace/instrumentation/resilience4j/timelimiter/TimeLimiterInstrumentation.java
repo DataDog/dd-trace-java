@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.instrumentation.resilience4j.common.WrapperWithContext;
 import io.github.resilience4j.timelimiter.TimeLimiter;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -30,6 +31,13 @@ public final class TimeLimiterInstrumentation
             .and(takesArgument(0, named(Supplier.class.getName())))
             .and(returns(named(Supplier.class.getName()))),
         THIS_CLASS + "$FutureSupplierAdvice");
+
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("decorateCompletionStage"))
+            .and(takesArgument(0, named(Supplier.class.getName())))
+            .and(returns(named(Supplier.class.getName()))),
+        THIS_CLASS + "$CompletionStageAdvice");
   }
 
   public static class FutureSupplierAdvice {
@@ -38,6 +46,16 @@ public final class TimeLimiterInstrumentation
         @Advice.This TimeLimiter timeLimiter,
         @Advice.Return(readOnly = false) Supplier<Future<?>> result) {
       result = new WrapperWithContext.SupplierOfFutureWithContext<>(
+          result, TimeLimiterDecorator.DECORATE, timeLimiter);
+    }
+  }
+
+  public static class CompletionStageAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterExecute(
+        @Advice.This TimeLimiter timeLimiter,
+        @Advice.Return(readOnly = false) Supplier<CompletionStage<?>> result) {
+      result = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
           result, TimeLimiterDecorator.DECORATE, timeLimiter);
     }
   }
