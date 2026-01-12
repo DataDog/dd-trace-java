@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.instrumentation.java.concurrent.TaskUnwrappingInstrumentation;
 import datadog.trace.instrumentation.java.concurrent.forkjoin.JavaForkJoinWorkQueueInstrumentation;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,9 +24,9 @@ public class ProfilingQueuingModule extends InstrumenterModule.Profiling {
   public boolean isEnabled() {
     return super.isEnabled()
         && ConfigProvider.getInstance()
-        .getBoolean(
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+            .getBoolean(
+                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   @Override

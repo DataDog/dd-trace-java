@@ -4,15 +4,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.concurrent.AbstractExecutorService;
@@ -22,12 +19,8 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
-@AutoService(InstrumenterModule.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
+public final class WrapRunnableAsNewTaskInstrumentation
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public WrapRunnableAsNewTaskInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, "new-task-for");
-  }
 
   @Override
   public String[] knownMatchingTypes() {

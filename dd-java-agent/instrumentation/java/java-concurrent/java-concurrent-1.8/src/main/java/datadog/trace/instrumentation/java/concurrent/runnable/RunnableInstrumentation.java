@@ -19,13 +19,11 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/**
- * Instrument {@link Runnable}
- */
+/** Instrument {@link Runnable} */
 public final class RunnableInstrumentation
     implements Instrumenter.ForBootstrap,
-    Instrumenter.ForTypeHierarchy,
-    Instrumenter.HasMethodAdvice {
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {

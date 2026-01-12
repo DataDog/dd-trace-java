@@ -25,8 +25,8 @@ import java.util.Map;
  * CompletableFuture f = ...
  * f.thenApplyAsync({ r -> ... })
  * }</pre>
- * <p>
- * The general idea is to capture the current scope at the time of creation of the {@code
+ *
+ * <p>The general idea is to capture the current scope at the time of creation of the {@code
  * UniCompletion} and then activate that scope around the processing that happens in the {@code
  * tryFire} method.
  *
@@ -43,9 +43,9 @@ import java.util.Map;
  */
 public class CompletableFutureUniCompletionInstrumentation
     implements Instrumenter.ForBootstrap,
-    Instrumenter.ForSingleType,
-    Instrumenter.HasMethodAdvice,
-    ExcludeFilterProvider {
+        Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
@@ -64,32 +64,32 @@ public class CompletableFutureUniCompletionInstrumentation
   @Override
   public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
     String[] classes = {
-        // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-        "java.util.concurrent.CompletableFuture$Completion",
-        "java.util.concurrent.CompletableFuture$UniCompletion",
-        "java.util.concurrent.CompletableFuture$UniApply",
-        "java.util.concurrent.CompletableFuture$UniAccept",
-        "java.util.concurrent.CompletableFuture$UniRun",
-        "java.util.concurrent.CompletableFuture$UniWhenComplete",
-        "java.util.concurrent.CompletableFuture$UniHandle",
-        "java.util.concurrent.CompletableFuture$UniExceptionally",
-        "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
-        "java.util.concurrent.CompletableFuture$UniRelay",
-        "java.util.concurrent.CompletableFuture$UniCompose",
-        "java.util.concurrent.CompletableFuture$BiCompletion",
-        // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-        // "java.util.concurrent.CompletableFuture$CoCompletion",
-        "java.util.concurrent.CompletableFuture$BiApply",
-        "java.util.concurrent.CompletableFuture$BiAccept",
-        "java.util.concurrent.CompletableFuture$BiRun",
-        "java.util.concurrent.CompletableFuture$BiRelay",
-        "java.util.concurrent.CompletableFuture$OrApply",
-        "java.util.concurrent.CompletableFuture$OrAccept",
-        "java.util.concurrent.CompletableFuture$OrRun",
-        // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-        // "java.util.concurrent.CompletableFuture$AnyOf",
-        // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-        // "java.util.concurrent.CompletableFuture$Signaller",
+      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
+      "java.util.concurrent.CompletableFuture$Completion",
+      "java.util.concurrent.CompletableFuture$UniCompletion",
+      "java.util.concurrent.CompletableFuture$UniApply",
+      "java.util.concurrent.CompletableFuture$UniAccept",
+      "java.util.concurrent.CompletableFuture$UniRun",
+      "java.util.concurrent.CompletableFuture$UniWhenComplete",
+      "java.util.concurrent.CompletableFuture$UniHandle",
+      "java.util.concurrent.CompletableFuture$UniExceptionally",
+      "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
+      "java.util.concurrent.CompletableFuture$UniRelay",
+      "java.util.concurrent.CompletableFuture$UniCompose",
+      "java.util.concurrent.CompletableFuture$BiCompletion",
+      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
+      // "java.util.concurrent.CompletableFuture$CoCompletion",
+      "java.util.concurrent.CompletableFuture$BiApply",
+      "java.util.concurrent.CompletableFuture$BiAccept",
+      "java.util.concurrent.CompletableFuture$BiRun",
+      "java.util.concurrent.CompletableFuture$BiRelay",
+      "java.util.concurrent.CompletableFuture$OrApply",
+      "java.util.concurrent.CompletableFuture$OrAccept",
+      "java.util.concurrent.CompletableFuture$OrRun",
+      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
+      // "java.util.concurrent.CompletableFuture$AnyOf",
+      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
+      // "java.util.concurrent.CompletableFuture$Signaller",
     };
     List<String> excludedClasses = Arrays.asList(classes);
     EnumMap<ExcludeType, Collection<String>> excludedTypes = new EnumMap<>(ExcludeType.class);

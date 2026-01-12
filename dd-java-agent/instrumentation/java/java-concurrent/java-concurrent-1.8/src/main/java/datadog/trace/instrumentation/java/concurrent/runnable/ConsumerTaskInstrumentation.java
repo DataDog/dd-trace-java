@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -12,7 +11,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
@@ -21,7 +19,8 @@ import net.bytebuddy.asm.Advice;
  * parent class is already instrumented by {@link
  * datadog.trace.instrumentation.java.concurrent.forkjoin.JavaForkJoinTaskInstrumentation}
  */
-public class ConsumerTaskInstrumentation implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class ConsumerTaskInstrumentation
+    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

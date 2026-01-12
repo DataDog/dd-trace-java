@@ -6,17 +6,13 @@ import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrument
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Groups the instrumentations for ForkJoinPool, ForkJoinTask, and WorkQueue.
- */
+/** Groups the instrumentations for ForkJoinPool, ForkJoinTask, and WorkQueue. */
 @AutoService(InstrumenterModule.class)
 public final class ForkJoinModule extends InstrumenterModule.Tracing {
   public ForkJoinModule() {
@@ -30,16 +26,9 @@ public final class ForkJoinModule extends InstrumenterModule.Tracing {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    List<Instrumenter> instrumenters = new ArrayList<>(3);
+    List<Instrumenter> instrumenters = new ArrayList<>(2);
     instrumenters.add(new JavaForkJoinPoolInstrumentation());
     instrumenters.add(new JavaForkJoinTaskInstrumentation());
-    // WorkQueue instrumentation is conditionally enabled based on profiling config
-    if (ConfigProvider.getInstance()
-        .getBoolean(
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-            ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT)) {
-      instrumenters.add(new JavaForkJoinWorkQueueInstrumentation());
-    }
     return instrumenters;
   }
 }

@@ -32,10 +32,11 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public final class RunnableFutureInstrumentation implements Instrumenter.ForBootstrap,
-    Instrumenter.ForTypeHierarchy,
-    Instrumenter.HasMethodAdvice,
-    ExcludeFilterProvider {
+public final class RunnableFutureInstrumentation
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   @Override
   public String hierarchyMarkerType() {
@@ -62,10 +63,10 @@ public final class RunnableFutureInstrumentation implements Instrumenter.ForBoot
         isConstructor()
             .and(
                 isDeclaredBy(
-                    named("java.util.concurrent.FutureTask")
-                        .or(
-                            nameEndsWith(
-                                "com.google.common.util.concurrent.TrustedListenableFutureTask")))
+                        named("java.util.concurrent.FutureTask")
+                            .or(
+                                nameEndsWith(
+                                    "com.google.common.util.concurrent.TrustedListenableFutureTask")))
                     .or(
                         isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
                             .and(takesArgument(1, named(Callable.class.getName()))))),
