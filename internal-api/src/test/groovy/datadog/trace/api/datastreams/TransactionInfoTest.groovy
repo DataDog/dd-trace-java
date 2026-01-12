@@ -46,7 +46,9 @@ class TransactionInfoTest extends Specification {
     def bytes = TransactionInfo.getCheckpointIdCacheBytes()
     expect:
     bytes.size() == 12
-    bytes == new byte[] {1, 10, 99, 104, 101, 99, 107, 112, 111, 105, 110, 116}
+    bytes == new byte[] {
+      1, 10, 99, 104, 101, 99, 107, 112, 111, 105, 110, 116
+    }
   }
 
   def "test transaction id serialization"() {
@@ -56,6 +58,8 @@ class TransactionInfoTest extends Specification {
     def bytes = test.getBytes()
     expect:
     bytes.size() == 12
-    bytes == new byte[] {1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 105, 100}
+    bytes == new byte[] {
+      1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 105, 100
+    }
   }
 }

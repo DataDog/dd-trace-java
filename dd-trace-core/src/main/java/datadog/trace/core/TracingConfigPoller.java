@@ -418,6 +418,7 @@ final class TracingConfigPoller {
 
     @Json(name = "data_streams_transaction_extractors")
     public DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
+
     /**
      * Merges a list of LibConfig objects by taking the first non-null value for each field.
      *

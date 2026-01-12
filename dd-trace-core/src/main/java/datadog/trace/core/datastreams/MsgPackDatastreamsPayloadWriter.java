@@ -136,7 +136,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       boolean hasTransactions = !bucket.getTransactions().isEmpty();
 
       boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0) + (hasTransactions ? 2 : 0) + (hasSchemaRegistryUsages ? 1: 0));
+      writer.startMap(
+          3
+              + (hasBacklogs ? 1 : 0)
+              + (hasTransactions ? 2 : 0)
+              + (hasSchemaRegistryUsages ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);

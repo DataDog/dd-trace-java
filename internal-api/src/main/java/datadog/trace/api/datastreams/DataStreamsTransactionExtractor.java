@@ -15,8 +15,10 @@ public interface DataStreamsTransactionExtractor {
 
   /** getName returns transaction extractor name */
   String getName();
+
   /** getType returns transaction extractor type */
   Type getType();
+
   /** getType returns transaction extractor value */
   String getValue();
 }
