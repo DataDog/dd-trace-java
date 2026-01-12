@@ -168,7 +168,7 @@ public final class StatusLogger extends JsonAdapter<Config>
       try (Socket s = new Socket()) {
         s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
         return true;
-      } catch (IOException ex) {
+      } catch (Throwable ex) {
         return false;
       }
     }
