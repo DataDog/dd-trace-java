@@ -47,7 +47,6 @@ public final class HazelcastModule extends InstrumenterModule.Tracing {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new ClientInvocationInstrumentation(), new ClientMessageInstrumentation());
+    return Arrays.asList(new ClientInvocationInstrumentation(), new ClientMessageInstrumentation());
   }
 }

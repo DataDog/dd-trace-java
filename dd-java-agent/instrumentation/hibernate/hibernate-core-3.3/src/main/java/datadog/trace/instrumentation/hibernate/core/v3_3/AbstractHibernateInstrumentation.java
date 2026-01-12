@@ -12,6 +12,7 @@ public abstract class AbstractHibernateInstrumentation
 
   @Override
   public final boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 }

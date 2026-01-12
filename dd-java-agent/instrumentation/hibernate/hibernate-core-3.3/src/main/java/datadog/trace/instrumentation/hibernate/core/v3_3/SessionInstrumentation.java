@@ -31,8 +31,8 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 public final class SessionInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{
-        "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
+    return new String[] {
+      "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
     };
   }
 

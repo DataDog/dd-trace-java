@@ -20,8 +20,8 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 public final class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{
-        "org.hibernate.impl.CriteriaImpl", "org.hibernate.impl.CriteriaImpl$Subcriteria"
+    return new String[] {
+      "org.hibernate.impl.CriteriaImpl", "org.hibernate.impl.CriteriaImpl$Subcriteria"
     };
   }
 

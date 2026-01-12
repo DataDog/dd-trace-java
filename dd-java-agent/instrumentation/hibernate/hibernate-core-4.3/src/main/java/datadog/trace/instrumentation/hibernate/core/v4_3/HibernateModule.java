@@ -43,8 +43,6 @@ public final class HibernateModule extends InstrumenterModule.Tracing {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new SessionInstrumentation(),
-        new ProcedureCallInstrumentation());
+    return Arrays.asList(new SessionInstrumentation(), new ProcedureCallInstrumentation());
   }
 }

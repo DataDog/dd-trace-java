@@ -19,11 +19,11 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 public final class TransactionInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{
-        "org.hibernate.engine.transaction.spi.CMTTransaction",
-        "org.hibernate.transaction.CMTTransaction",
-        "org.hibernate.transaction.JDBCTransaction",
-        "org.hibernate.transaction.JTATransaction"
+    return new String[] {
+      "org.hibernate.engine.transaction.spi.CMTTransaction",
+      "org.hibernate.transaction.CMTTransaction",
+      "org.hibernate.transaction.JDBCTransaction",
+      "org.hibernate.transaction.JTATransaction"
     };
   }
 

@@ -19,23 +19,25 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
-public final class SessionInstrumentation implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+public final class SessionInstrumentation
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{
-        "org.hibernate.internal.AbstractSessionImpl",
-        "org.hibernate.internal.AbstractSharedSessionContract",
-        "org.hibernate.impl.SessionImpl",
-        "org.hibernate.impl.StatelessSessionImpl",
-        "org.hibernate.internal.SessionImpl",
-        "org.hibernate.internal.StatelessSessionImpl"
+    return new String[] {
+      "org.hibernate.internal.AbstractSessionImpl",
+      "org.hibernate.internal.AbstractSharedSessionContract",
+      "org.hibernate.impl.SessionImpl",
+      "org.hibernate.impl.StatelessSessionImpl",
+      "org.hibernate.internal.SessionImpl",
+      "org.hibernate.internal.StatelessSessionImpl"
     };
   }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 
   @Override

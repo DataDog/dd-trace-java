@@ -16,11 +16,12 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
-public final class ProcedureCallInstrumentation implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+public final class ProcedureCallInstrumentation
+    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[]{"org.hibernate.procedure.internal.ProcedureCallImpl"};
+    return new String[] {"org.hibernate.procedure.internal.ProcedureCallImpl"};
   }
 
   @Override
@@ -35,7 +36,8 @@ public final class ProcedureCallInstrumentation implements Instrumenter.CanShort
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 
   @Override
