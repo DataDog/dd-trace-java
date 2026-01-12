@@ -2,6 +2,9 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
 
+import java.nio.file.Files
+import java.nio.file.LinkOption
+
 apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
 apply plugin: 'dd-trace-java.test-jvm-contraints'
@@ -380,11 +383,33 @@ ext.getJavaLauncherFor = (int javaVersionInteger) -> {
   return launcher
 } as Closure<Provider<JavaLauncher>>
 
-ext.getLazyJavaHomeFor = (int javaVersionInteger, int hasNativeImage = false) -> {
+ext.getLazyJavaHomeFor = (int javaVersionInteger, boolean hasNativeImage = false) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
-    nativeImageCapable = hasNativeImage
+    nativeImageCapable = true
+  }.map {
+    if (hasNativeImage) {
+      // 🤦‍♂️ Fix https://github.com/gradle/gradle/issues/28583
+      // Extraction doesn't handle symlinks properly for GraalVM native-image
+      // this ensures 'bin/native-image' points to 'lib/svm/bin/native-image'
+      def target = it.metadata.installationPath.asFile.toPath().resolve("bin").resolve("native-image")
+      def expectedSrc = it.metadata.installationPath.asFile.toPath().resolve("lib/svm/bin").resolve("native-image")
+
+      if (!Files.isRegularFile(expectedSrc, LinkOption.NOFOLLOW_LINKS)) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is not a regular file)", expectedSrc)
+        return it
+      }
+      if (Files.isSymbolicLink(target) || Files.size(target) > 0) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is already symbolic or its size is greater than 0)", target)
+        return it
+      }
+      logger.warn("[getLazyJavaHomeFor] fixing symbolic link '{}' -> '{}', see https://github.com/gradle/gradle/issues/28583", target, expectedSrc)
+      Files.delete(target)
+      Files.createSymbolicLink(target, expectedSrc)
+    }
+    return it
   }
+
   return new Object() {
     @Override
     String toString() {
