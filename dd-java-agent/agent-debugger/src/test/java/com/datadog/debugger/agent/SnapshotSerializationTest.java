@@ -131,6 +131,7 @@ public class SnapshotSerializationTest {
         false);
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
+    System.out.println("roundTripCapturedValue: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Map<String, CapturedContext.CapturedValue> locals =
         deserializedSnapshot.getCaptures().getReturn().getLocals();
@@ -175,7 +176,7 @@ public class SnapshotSerializationTest {
                 new CapturedStackFrame("f3", 34)),
             null));
     String buffer = adapter.toJson(snapshot);
-
+    System.out.println("roundTripCaughtException: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     List<CapturedStackFrame> stacktrace =
         deserializedSnapshot.getCaptures().getCaughtExceptions().get(0).getStacktrace();
@@ -205,7 +206,7 @@ public class SnapshotSerializationTest {
     exitCapturedContext.addThrowable(new RuntimeException("Illegal argument"));
     snapshot.setExit(exitCapturedContext);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("roundtripEntryReturn: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     CapturedContext entry = deserializedSnapshot.getCaptures().getEntry();
     CapturedContext exit = deserializedSnapshot.getCaptures().getReturn();
@@ -236,6 +237,7 @@ public class SnapshotSerializationTest {
     exitCapturedContext.addThrowable(new RuntimeException(largeErrorMessage));
     snapshot.setExit(exitCapturedContext);
     String buffer = adapter.toJson(snapshot);
+    System.out.println("truncatedExceptionMessage: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Assertions.assertEquals(
         2048,
@@ -259,7 +261,7 @@ public class SnapshotSerializationTest {
         });
     captures.addLine(24, lineCapturedContext);
     String buffer = adapter.toJson(snapshot);
-
+    System.out.println("roundtripLines: " + buffer);
     Snapshot deserializedSnapshot = adapter.fromJson(buffer);
     Map<Integer, CapturedContext> lines = deserializedSnapshot.getCaptures().getLines();
     Assertions.assertEquals(1, lines.size());
@@ -307,7 +309,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {objLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("primitives: " + buffer);
     Map<String, Object> thisFields = getLocalsFromJson(buffer);
     Map<String, Object> objFieldJson = (Map<String, Object>) thisFields.get("objLocal");
     Map<String, Object> objFieldFields = (Map<String, Object>) objFieldJson.get(FIELDS);
@@ -354,7 +356,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {objLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("wellKnownClasses: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> objLocalJson = (Map<String, Object>) locals.get("objLocal");
     Map<String, Object> objLocalFields = (Map<String, Object>) objLocalJson.get(FIELDS);
@@ -439,7 +441,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {localObjArray});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("objectArray: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     assertArrayItem(locals, "localObjArray", "foo", null, "42");
   }
@@ -459,7 +461,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {localObj});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("fieldObjectArray: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
     Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
@@ -492,7 +494,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {localObj});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("fieldPrimitiveArray: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> localObjMap = (Map<String, Object>) locals.get("localObj");
     Map<String, Object> localObjFieldsMap = (Map<String, Object>) localObjMap.get(FIELDS);
@@ -516,7 +518,7 @@ public class SnapshotSerializationTest {
     context.addStaticFields(new CapturedContext.CapturedValue[] {staticStr});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("staticFields: " + buffer);
     Map<String, Object> staticFields = getStaticFieldsFromJson(buffer);
     assertPrimitiveValue(staticFields, "staticStr", String.class.getTypeName(), "foo");
   }
@@ -600,7 +602,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForRefDepth(maxRefDepth);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("doRefDepth" + maxRefDepth + ": " + buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);
     Map<String, Object> capturesJson = (Map<String, Object>) json.get(CAPTURES);
     return (Map<String, Object>) capturesJson.get(RETURN);
@@ -720,7 +722,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForCollectionSize(maxColSize);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("doCollectionSize" + maxColSize + ": " + buffer);
     return getLocalsFromJson(buffer);
   }
 
@@ -756,7 +758,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForMapSize(maxColSize);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("doMapSize" + maxColSize + ": " + buffer);
     return getLocalsFromJson(buffer);
   }
 
@@ -809,7 +811,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {listLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("collectionUnknown: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> listLocalField = (Map<String, Object>) locals.get("listLocal");
     Map<String, Object> listLocalFieldFields = (Map<String, Object>) listLocalField.get(FIELDS);
@@ -829,7 +831,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {mapLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("mapValueUnknown: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     Map<String, Object> mapLocalField = (Map<String, Object>) locals.get("mapLocal");
     Map<String, Object> mapLocalFieldFields = (Map<String, Object>) mapLocalField.get(FIELDS);
@@ -851,7 +853,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {mapLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("mapNullValue: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     List<Object> entries = getMapEntries(locals, "mapLocal");
     assertEquals(1, entries.size());
@@ -876,7 +878,7 @@ public class SnapshotSerializationTest {
     context.addLocals(new CapturedContext.CapturedValue[] {listLocal});
     snapshot.setExit(context);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("listNullValue: " + buffer);
     Map<String, Object> locals = getLocalsFromJson(buffer);
     List<Object> elements = getArrayElements(locals, "listLocal");
     Map<String, Object> nullElement = (Map<String, Object>) elements.get(1);
@@ -888,7 +890,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForLength(maxLength);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("doLength" + maxLength + ": " + buffer);
     return getLocalsFromJson(buffer);
   }
 
@@ -1007,7 +1009,7 @@ public class SnapshotSerializationTest {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForFieldCount(maxFieldCount);
     String buffer = adapter.toJson(snapshot);
-    System.out.println(buffer);
+    System.out.println("doFieldCount" + maxFieldCount + ": " + buffer);
     return getThisFromJson(buffer);
   }
 
