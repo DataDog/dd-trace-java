@@ -8,17 +8,14 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
@@ -30,8 +27,7 @@ import net.bytebuddy.asm.Advice;
  * either context. This double instrumentation otherwise leads to excess scope creation and
  * duplicate checkpoint emission.
  */
-@AutoService(InstrumenterModule.class)
-public final class AsyncTaskInstrumentation extends InstrumenterModule.Tracing
+public final class AsyncTaskInstrumentation
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForKnownTypes,
         Instrumenter.HasMethodAdvice,
@@ -42,18 +38,9 @@ public final class AsyncTaskInstrumentation extends InstrumenterModule.Tracing
     "java.util.concurrent.CompletableFuture$AsyncRun",
   };
 
-  public AsyncTaskInstrumentation() {
-    super("java_completablefuture", "java_concurrent");
-  }
-
   @Override
   public String[] knownMatchingTypes() {
     return CLASS_NAMES;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 
   @Override
