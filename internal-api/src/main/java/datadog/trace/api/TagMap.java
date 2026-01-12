@@ -86,10 +86,14 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   /** Inefficiently implemented for optimized TagMap */
   @Deprecated
   Set<String> keySet();
+  
+  Iterator<String> tagIterator();
 
   /** Inefficiently implemented for optimized TagMap - requires boxing primitives */
   @Deprecated
   Collection<Object> values();
+  
+  Iterator<Object> valueIterator();
 
   // @Deprecated -- not deprecated until OptimizedTagMap becomes the default
   Set<java.util.Map.Entry<String, Object>> entrySet();
@@ -1344,10 +1348,20 @@ final class OptimizedTagMap implements TagMap {
   public Set<String> keySet() {
     return new Keys(this);
   }
+  
+  @Override
+  public Iterator<String> tagIterator() {
+	return new KeysIterator(this);
+  }
 
   @Override
   public Collection<Object> values() {
     return new Values(this);
+  }
+  
+  @Override
+  public Iterator<Object> valueIterator() {
+	return new ValuesIterator(this);
   }
 
   @Override
@@ -2940,6 +2954,16 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   public TagMap copy() {
     return new LegacyTagMap(this);
   }
+  
+  @Override
+  public Iterator<String> tagIterator() {
+	return this.keySet().iterator();
+  }
+  
+  @Override
+  public Iterator<Object> valueIterator() {
+	return this.values().iterator();
+  }
 
   @Override
   public void fillMap(Map<? super String, Object> map) {
@@ -2959,7 +2983,9 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
 
     // TODO: optimize to take advantage of EntryReader
     for (Map.Entry<String, Object> entry : this.entrySet()) {
-      consumer.accept(TagMap.Entry.newAnyEntry(entry));
+      entryReadingHelper.set(entry);
+      
+      consumer.accept(entryReadingHelper);
     }
   }
 
