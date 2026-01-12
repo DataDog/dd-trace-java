@@ -4,19 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
 public final class NativeImageGeneratorRunnerInstrumentation
-    extends AbstractNativeImageInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override

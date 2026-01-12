@@ -9,44 +9,20 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.Status;
 import io.grpc.internal.ClientStreamListener;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class ClientStreamListenerImplInstrumentation extends InstrumenterModule.Tracing
+public class ClientStreamListenerImplInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientStreamListenerImplInstrumentation() {
-    super("grpc", "grpc-client");
-  }
 
   @Override
   public String instrumentedType() {
     return "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.grpc.internal.ClientStreamListener", AgentSpan.class.getName());
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
   }
 
   @Override
