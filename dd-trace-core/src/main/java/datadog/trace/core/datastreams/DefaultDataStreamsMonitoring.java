@@ -369,6 +369,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
       agentSupportsDataStreams = features.supportsDataStreams();
       checkDynamicConfig();
+      // only load extractors on startup
+      updateExtractorsFromConfig();
 
       if (!configSupportsDataStreams) {
         log.debug("Data streams is disabled");
@@ -501,7 +503,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private void updateExtractorsFromConfig() {
-    extractorsByType.clear();
+    if (!supportsDataStreams) {
+      return;
+    }
+
     List<DataStreamsTransactionExtractor> extractors =
         traceConfigSupplier.get().getDataStreamsTransactionExtractors();
     if (extractors == null) {
@@ -518,10 +523,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private void checkDynamicConfig() {
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
-
-    if (supportsDataStreams) {
-      updateExtractorsFromConfig();
-    }
   }
 
   private void checkFeatures() {
