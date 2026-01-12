@@ -490,7 +490,7 @@ check_base:
 
 check_inst:
   extends: .check_job
-  parallel: 5
+  parallel: 4
   variables:
     GRADLE_TARGET: ":instrumentationCheck"
     CACHE_TYPE: "inst"
