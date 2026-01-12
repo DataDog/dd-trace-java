@@ -56,7 +56,7 @@ public class JettyOnCommitBlockingHelper {
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
         fields.put("Content-type", BlockingActionHelper.getContentType(type));
-        byte[] template = BlockingActionHelper.getTemplate(type);
+        byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
         fields.put("Content-length", Integer.toString(template.length));
 
         info =
@@ -99,7 +99,9 @@ public class JettyOnCommitBlockingHelper {
       this.channel = channel;
     }
 
-    /** @see org.eclipse.jetty.server.HttpChannel.CommitCallback */
+    /**
+     * @see org.eclipse.jetty.server.HttpChannel.CommitCallback
+     */
     private void close() {
       closed(channel.getResponse().getHttpOutput());
       channel.getEndPoint().close();

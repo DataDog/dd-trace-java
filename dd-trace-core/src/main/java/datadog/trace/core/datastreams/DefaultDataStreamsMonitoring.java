@@ -25,6 +25,7 @@ import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.datastreams.TransactionInfo;
+import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -256,6 +257,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportSchemaRegistryUsage(
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation) {
+    inbox.offer(
+        new SchemaRegistryUsage(
+            topic,
+            clusterId,
+            schemaId,
+            isSuccess,
+            isKey,
+            operation,
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
@@ -400,6 +421,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               TransactionInfo transactionInfo = (TransactionInfo) payload;
               StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
               statsBucket.addTransaction(transactionInfo);
+            } else if (payload instanceof SchemaRegistryUsage) {
+              SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
+              StatsBucket statsBucket =
+                  getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
+              statsBucket.addSchemaRegistryUsage(usage);
             }
           }
         } catch (Exception e) {

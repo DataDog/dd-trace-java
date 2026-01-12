@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -77,7 +78,10 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
+      "datadog.trace.core.propagation.W3CTraceParent",
+      packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
     };
   }
 
@@ -110,8 +114,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
     public static String onEnter(
         @Advice.This Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
-      //      Using INJECT_COMMENT fails to update when a test calls injectSysConfig
-      if (!DECORATE.shouldInjectSQLComment()) {
+      if (!INJECT_COMMENT) {
         return sql;
       }
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {

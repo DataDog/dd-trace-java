@@ -1,0 +1,46 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
+plugins {
+  id 'org.jetbrains.kotlin.jvm'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-kotlin.gradle"
+
+muzzle {
+  pass {
+    group = 'junit'
+    module = 'junit'
+    versions = '[4.10,5)'
+    assertInverse = true
+  }
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
+}
+
+dependencies {
+  compileOnly group: 'junit', name: 'junit', version: '4.10'
+
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
+
+  // version used below is not the minimum one that we support,
+  // but the tests need to use it in order to be compliant with Spock 2.x
+  testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+  testImplementation 'pl.pragmatists:JUnitParams:1.1.0'
+
+  latestDepTestImplementation group: 'junit', name: 'junit', version: '+'
+}

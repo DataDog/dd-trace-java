@@ -642,6 +642,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -674,6 +676,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -701,6 +705,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -734,6 +740,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(
+      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -2705,6 +2713,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
             .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
             .captureExpressions(
                 Arrays.asList(
                     new LogProbe.CaptureExpression(
@@ -2737,11 +2746,47 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void captureExpressionsLineProbe() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, line)
+            .captureSnapshot(false)
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "nullTyped_fld",
+                        new ValueScript(
+                            DSL.getMember(DSL.ref("nullTyped"), "fld"), "nullTyped.fld"),
+                        null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext capturedContext = snapshot.getCaptures().getLines().get(line);
+    assertEquals(2, capturedContext.getCaptureExpressions().size());
+    assertCaptureExpressions(
+        capturedContext, "typed_fld_fld_msg", String.class.getTypeName(), "hello");
+    assertCaptureExpressions(capturedContext, "nullTyped_fld", Object.class.getTypeName(), null);
+  }
+
+  @Test
   public void captureExpressionsWithCaptureLimits() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe probe =
         createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
             .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
             .captureExpressions(
                 Arrays.asList(
                     new LogProbe.CaptureExpression(

@@ -1,5 +1,7 @@
 package datadog.trace.relocate.api;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 
@@ -19,17 +21,19 @@ public class IOLogger {
     this.ratelimitedLogger = ratelimitedLogger;
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean success(final String format, final Object... arguments) {
     if (log.isDebugEnabled()) {
-      log.debug(format, arguments);
+      log.debug(EXCLUDE_TELEMETRY, format, arguments);
       return true;
     }
 
     if (this.logNextSuccess) {
       this.logNextSuccess = false;
       if (log.isInfoEnabled()) {
-        log.info(format, arguments);
+        log.info(EXCLUDE_TELEMETRY, format, arguments);
         return true;
       }
     }
@@ -37,35 +41,44 @@ public class IOLogger {
     return false;
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message) {
     return error(message, null, null);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Exception exception) {
     return error(message, null, exception);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Response response) {
     return error(message, response, null);
   }
 
-  /** @return true if actually logged the message, false otherwise */
+  /**
+   * @return true if actually logged the message, false otherwise
+   */
   public boolean error(final String message, Response response, Exception exception) {
     if (log.isDebugEnabled()) {
       if (response != null) {
         log.debug(
+            EXCLUDE_TELEMETRY,
             "{} Status: {}, Response: {}, Body: {}",
             message,
             response.getStatusCode(),
             response.getMessage(),
             response.getBody());
       } else if (exception != null) {
-        log.debug(message, exception);
+        log.debug(EXCLUDE_TELEMETRY, message, exception);
       } else {
-        log.debug(message);
+        log.debug(EXCLUDE_TELEMETRY, message);
       }
       return true;
     }
@@ -73,13 +86,21 @@ public class IOLogger {
     if (response != null) {
       hasLogged =
           ratelimitedLogger.warn(
-              "{} Status: {} {}", message, response.getStatusCode(), response.getMessage());
+              EXCLUDE_TELEMETRY,
+              "{} Status: {} {}",
+              message,
+              response.getStatusCode(),
+              response.getMessage());
     } else if (exception != null) {
       // NOTE: We do not pass the full exception to warn on purpose. We don't want to
       //       print a full stacktrace unless we're in debug mode
       hasLogged =
           ratelimitedLogger.warn(
-              "{} {}: {}", message, exception.getClass().getName(), exception.getMessage());
+              EXCLUDE_TELEMETRY,
+              "{} {}: {}",
+              message,
+              exception.getClass().getName(),
+              exception.getMessage());
     } else {
       hasLogged = ratelimitedLogger.warn(message);
     }

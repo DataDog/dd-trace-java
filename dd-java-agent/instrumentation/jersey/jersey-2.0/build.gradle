@@ -1,0 +1,93 @@
+muzzle {
+  pass {
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-common'
+    versions = '[2,)'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+// there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module
+addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
+addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+}
+
+tasks.named("compileTestJava") {
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
+}
+
+tasks.named("jersey3JettyTest", Test) {
+  javaLauncher = getJavaLauncherFor(11)
+}
+tasks.named("test", Test) {
+  javaLauncher = getJavaLauncherFor(11)
+}
+
+def jersey2Version = '2.18'
+def jersey3Version = '3.1.2'
+dependencies {
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '2.0'
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '2.0'
+
+  testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+  testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jersey3Version
+
+  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '+'
+  latestDepTestImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version:'+'
+
+  jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  jersey2JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  jersey2JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
+  jersey2JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey2Version
+  jersey2JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey2Version
+  jersey2JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: jersey2Version
+  jersey2JettyTestRuntimeOnly group: 'javax.activation', name: 'javax.activation-api', version: '1.2.0'
+  jersey2JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
+  jersey2JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+
+  jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+  jersey3JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  jersey3JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
+  jersey3JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey3Version
+  jersey3JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: jersey3Version
+  jersey3JettyTestImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version: jersey3Version
+  jersey3JettyTestRuntimeOnly group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: jersey3Version
+  jersey3JettyTestRuntimeOnly group: 'javax.activation', name: 'javax.activation-api', version: '1.2.0'
+  jersey3JettyTestRuntimeOnly group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-3.0')
+  jersey3JettyTestRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0')
+}
+
+configurations.named('jersey3JettyTestRuntimeClasspath') {
+  resolutionStrategy {
+    force libs.slf4j
+  }
+}
+configurations.named('jersey2JettyTestRuntimeClasspath') {
+  resolutionStrategy {
+    // override version in testImplementation
+    force "org.glassfish.jersey.core:jersey-common:${jersey2Version}"
+    force "org.eclipse.jetty:jetty-server:9.1.1.v20140108"
+  }
+}

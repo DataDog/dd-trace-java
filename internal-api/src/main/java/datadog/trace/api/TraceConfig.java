@@ -27,6 +27,7 @@ public interface TraceConfig {
   Double getTraceSampleRate();
 
   Map<String, String> getTracingTags();
+
   /**
    * The preferred service name to be used for tracing.
    *

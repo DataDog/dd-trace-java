@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCh
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -35,11 +36,13 @@ import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -81,9 +84,11 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapterInterface",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".TextMapExtractAdapter",
       packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       packageName + ".AvroSchemaExtractor",
     };
   }
@@ -124,12 +129,31 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
 
-      final AgentSpan parent = activeSpan();
-      final AgentSpan span = startSpan(KAFKA_PRODUCE);
+      // Set cluster ID for Schema Registry instrumentation
+      if (clusterId != null) {
+        ClusterIdHolder.set(clusterId);
+      }
+
+      // Try to extract existing trace context from record headers
+      final AgentSpanContext extractedContext =
+          extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+
+      final AgentSpan localActiveSpan = activeSpan();
+
+      final AgentSpan span;
+      final AgentSpan callbackParentSpan;
+
+      if (extractedContext != null) {
+        span = startSpan(KAFKA_PRODUCE, extractedContext);
+        callbackParentSpan = span;
+      } else {
+        span = startSpan(KAFKA_PRODUCE);
+        callbackParentSpan = localActiveSpan;
+      }
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig);
 
-      callback = new KafkaProducerCallback(callback, parent, span, clusterId);
+      callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
@@ -209,6 +233,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      // Clear cluster ID from Schema Registry instrumentation
+      ClusterIdHolder.clear();
+
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();

@@ -34,7 +34,9 @@ public class AgentTracer {
     return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
   }
 
-  /** @see TracerAPI#startSpan(String, CharSequence) */
+  /**
+   * @see TracerAPI#startSpan(String, CharSequence)
+   */
   public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
     return get().startSpan(instrumentationName, spanName);
   }
@@ -46,7 +48,9 @@ public class AgentTracer {
     return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, startTimeMicros);
   }
 
-  /** @see TracerAPI#startSpan(String, CharSequence, long) */
+  /**
+   * @see TracerAPI#startSpan(String, CharSequence, long)
+   */
   public static AgentSpan startSpan(
       final String instrumentationName, final CharSequence spanName, final long startTimeMicros) {
     return get().startSpan(instrumentationName, spanName, startTimeMicros);
@@ -59,7 +63,9 @@ public class AgentTracer {
     return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent);
   }
 
-  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext) */
+  /**
+   * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext)
+   */
   public static AgentSpan startSpan(
       final String instrumentationName,
       final CharSequence spanName,
@@ -75,7 +81,9 @@ public class AgentTracer {
     return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent, startTimeMicros);
   }
 
-  /** @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext, long) */
+  /**
+   * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext, long)
+   */
   public static AgentSpan startSpan(
       final String instrumentationName,
       final CharSequence spanName,
@@ -407,9 +415,9 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    AgentSpanContext notifyExtensionStart(Object event);
+    AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId);
 
-    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError);
+    void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -654,12 +662,13 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpanContext notifyExtensionStart(Object event) {
+    public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
       return null;
     }
 
     @Override
-    public void notifyExtensionEnd(AgentSpan span, Object result, boolean isError) {}
+    public void notifyExtensionEnd(
+        AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

@@ -89,7 +89,8 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
         TraceSegment segment,
         int statusCode,
         BlockingContentType templateType,
-        Map<String, String> extraHeaders) {
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       AgentSpan agentSpan = AgentTracer.get().activeSpan();
       if (agentSpan == null) {
         log.warn("Can't block: no active span");
@@ -102,6 +103,7 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
           statusCode,
           templateType,
           extraHeaders,
+          securityResponseId,
           agentSpan);
     }
   }

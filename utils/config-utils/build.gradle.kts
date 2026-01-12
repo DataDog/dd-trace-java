@@ -1,6 +1,6 @@
 plugins {
   `java-library`
-  id("supported-config-generator")
+  id("dd-trace-java.supported-config-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -55,9 +55,10 @@ val excludedClassesInstructionCoverage by extra(
 
 dependencies {
   implementation(project(":components:environment"))
-  implementation(project(":components:yaml"))
   implementation(project(":dd-trace-api"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(libs.slf4j)
+  implementation("org.snakeyaml", "snakeyaml-engine", "2.9")
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")

@@ -160,9 +160,16 @@ public class TomcatDecorator
         TraceSegment segment,
         int statusCode,
         BlockingContentType bct,
-        Map<String, String> extraHeaders) {
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       return TomcatBlockingHelper.commitBlockingResponse(
-          segment, request, request.getResponse(), statusCode, bct, extraHeaders);
+          segment,
+          request,
+          request.getResponse(),
+          statusCode,
+          bct,
+          extraHeaders,
+          securityResponseId);
     }
   }
 }

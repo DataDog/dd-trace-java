@@ -29,6 +29,8 @@ public class ServerDebuggerTestApplication {
   public static void main(String[] args) throws Exception {
     System.out.println(ServerDebuggerTestApplication.class.getName());
     try {
+      new LargeInnerClasses();
+      new HugeInnerClasses();
       registerMethods();
       ServerDebuggerTestApplication serverTestApplication =
           new ServerDebuggerTestApplication(args[0]);
@@ -93,6 +95,16 @@ public class ServerDebuggerTestApplication {
       lastMatchedLine =
           TestApplicationHelper.waitForReTransformation(LOG_FILENAME, className, lastMatchedLine);
       System.out.println("re-transformed!");
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    }
+  }
+
+  protected void waitForExceptionFingerprint() {
+    System.out.println("waitForExceptionFingerprint");
+    try {
+      TestApplicationHelper.waitForExceptionFingerprint(LOG_FILENAME);
+      System.out.println("fingerprint added!");
     } catch (IOException ex) {
       ex.printStackTrace();
     }
@@ -279,6 +291,11 @@ public class ServerDebuggerTestApplication {
           {
             String className = request.getRequestUrl().queryParameter("classname");
             app.waitForReTransformation(className);
+            break;
+          }
+        case "/app/waitForExceptionFingerprint":
+          {
+            app.waitForExceptionFingerprint();
             break;
           }
         case "/app/waitForSpecificLine":

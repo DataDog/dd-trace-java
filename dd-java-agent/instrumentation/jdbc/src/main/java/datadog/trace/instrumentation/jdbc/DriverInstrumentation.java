@@ -49,7 +49,7 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCDecorator",
+      "datadog.trace.core.propagation.W3CTraceParent", packageName + ".JDBCDecorator",
     };
   }
 
@@ -64,6 +64,7 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class DriverAdvice {
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) final String url,
@@ -75,8 +76,10 @@ public final class DriverInstrumentation extends InstrumenterModule.Tracing
       }
       String connectionUrl = url;
       Properties connectionProps = props;
-      if (null == props
-          || !Boolean.parseBoolean(props.getProperty("oracle.jdbc.useShardingDriverConnection"))) {
+      if (JDBCDecorator.FETCH_DB_METADATA_ON_CONNECT
+          && (null == props
+              || !Boolean.parseBoolean(
+                  props.getProperty("oracle.jdbc.useShardingDriverConnection")))) {
         try {
           DatabaseMetaData metaData = connection.getMetaData();
           connectionUrl = metaData.getURL();

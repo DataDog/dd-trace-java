@@ -8,12 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   @Override
@@ -45,12 +47,13 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
                 assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
                 assertEquals(
                     "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
-                assertEquals("146", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
+                assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
                 codeOrigin.set(true);
               }
             }
           }
         });
-    processRequests(codeOrigin::get);
+    processRequests(
+        codeOrigin::get, () -> String.format("timeout codeOrigin=%s", codeOrigin.get()));
   }
 }

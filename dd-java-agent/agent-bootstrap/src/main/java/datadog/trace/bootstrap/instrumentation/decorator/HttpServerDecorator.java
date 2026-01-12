@@ -59,7 +59,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
   private static final int UNSET_PORT = 0;
 
-  public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
+  public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
@@ -563,12 +563,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
-    // TODO Migrate beforeFinish to Context API
-    onRequestEndForInstrumentationGateway(span);
+  public Context beforeFinish(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    if (span != null) {
+      onRequestEndForInstrumentationGateway(span);
+    }
+
     // Close Serverless Gateway Inferred Span if any
-    // finishInferredProxySpan(context);
-    return super.beforeFinish(span);
+    finishInferredProxySpan(context);
+
+    return super.beforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {

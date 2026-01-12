@@ -41,11 +41,11 @@ class SetupSpecHelper {
     INSTANCE
 
     @Override
-    boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders) {
+    boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders, String securityResponseId) {
       ServletRequestAttributes attributes = RequestContextHolder.requestAttributes
       if (attributes) {
         JakartaServletBlockingHelper
-          .commitBlockingResponse(segment, attributes.request, attributes.response, statusCode, templateType, extraHeaders)
+          .commitBlockingResponse(segment, attributes.request, attributes.response, statusCode, templateType, extraHeaders, securityResponseId)
       }
       true
     }

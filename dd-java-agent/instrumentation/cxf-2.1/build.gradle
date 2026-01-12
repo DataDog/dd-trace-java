@@ -67,10 +67,9 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-10.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-11.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-12.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:trace-annotation')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jax-rs-annotations-2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jakarta-rs-annotations-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0')
 
   cxf3LatestDepTestImplementation group: 'org.apache.cxf', name: 'cxf-rt-frontend-jaxrs', version: '3.+'
   cxf3LatestDepTestImplementation group: 'org.apache.cxf', name:'cxf-rt-transports-http-jetty', version: '3.+'

@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.MetadataConsumer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     return get(0);
   }
 
+  @SuppressFBWarnings("NN_NAKED_NOTIFY")
   @Override
   public void write(List<DDSpan> trace) {
     if (!filter.accept(trace)) {

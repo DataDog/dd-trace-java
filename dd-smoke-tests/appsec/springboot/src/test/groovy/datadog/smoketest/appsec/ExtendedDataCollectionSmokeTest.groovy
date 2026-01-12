@@ -307,7 +307,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
-
   }
 
   void 'test request body collection if RASP event'(){
@@ -348,7 +347,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
-
   }
 
   void 'test request body collection if RASP event exceeded'(){
@@ -389,7 +387,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
-
   }
 
   void 'test request body not collected if no  event'(){
@@ -425,7 +422,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     assert trigger == null, 'test trigger found'
 
     rootSpan.span.metaStruct == null
-
   }
 
   void 'test request body collection if WAF event with default-config'(){
@@ -465,7 +461,6 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     def requestBody = rootSpan.span.metaStruct.get('http.request.body')
     assert requestBody != null, 'request body is not set'
     !rootSpan.meta.containsKey('_dd.appsec.request_body_size.exceeded')
-
   }
 
   void 'test all headers with default-config'(){
@@ -550,6 +545,4 @@ class ExtendedDataCollectionSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.meta.get('http.request.headers.content-type') == 'text/html'
     rootSpan.meta.get('http.response.headers.content-language') == 'en-US'
   }
-
-
 }

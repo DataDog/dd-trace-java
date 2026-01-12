@@ -122,6 +122,7 @@ public final class GeneralConfig {
   public static final String SSI_INJECTION_ENABLED = "injection.enabled";
   public static final String SSI_INJECTION_FORCE = "inject.force";
   public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
+  public static final String APP_LOGS_COLLECTION_ENABLED = "app.logs.collection.enabled";
 
   private GeneralConfig() {}
 }

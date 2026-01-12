@@ -31,8 +31,8 @@ dependencies {
   main_java17CompileOnly(group: 'org.springframework', name: 'spring-webmvc', version: '6.0.0')
   main_java17CompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
 
-  implementation project(':dd-java-agent:instrumentation:span-origin')
-  main_java17Implementation project(':dd-java-agent:instrumentation:span-origin')
+  implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
+  main_java17Implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
 
   testImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude(module: 'jetty-server') // incompatible servlet api
@@ -47,13 +47,13 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
-
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.0.0'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.0.0'
   testImplementation group: 'org.springframework', name: 'spring-websocket', version: '6.0.2'
   testImplementation group: 'com.google.code.gson', name: 'gson', version: '+'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'

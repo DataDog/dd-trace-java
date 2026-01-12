@@ -42,7 +42,7 @@ public class DDTelemetryLogger extends DDLogger {
     }
     // Report only messages with Throwable or explicitly marked with SEND_TELEMETRY.
     // This might be extended to error level without throwable.
-    if (t == null && marker != LogCollector.SEND_TELEMETRY) {
+    if (marker != LogCollector.SEND_TELEMETRY && (t == null || t instanceof OutOfMemoryError)) {
       return;
     }
     LogCollector.get().addLogMessage(level.name(), msgOrgFormat, t);

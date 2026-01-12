@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.reactive.function.server.HandlerFunction;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -73,8 +74,11 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
       final AgentSpan parentSpan =
           (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
       if (parentSpan != null) {
-        HTTP_RESOURCE_DECORATOR.withRoute(
-            parentSpan, serverRequest.methodName(), parseRoute(predicateString));
+        final HttpMethod httpMethod = serverRequest.method();
+        if (httpMethod != null) {
+          HTTP_RESOURCE_DECORATOR.withRoute(
+              parentSpan, httpMethod.name(), parseRoute(predicateString));
+        }
       }
     }
   }

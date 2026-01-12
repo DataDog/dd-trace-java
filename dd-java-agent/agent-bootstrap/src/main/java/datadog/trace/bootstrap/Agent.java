@@ -22,6 +22,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
+import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClientManager;
@@ -32,6 +33,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -45,6 +47,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -57,6 +60,7 @@ import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -100,6 +104,8 @@ public class Agent {
 
   private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
+  private static final long CLASSLOADER_CLEAN_FREQUENCY_SECONDS = 30;
+
   private static final Logger log;
 
   private enum AgentFeature {
@@ -124,8 +130,10 @@ public class Agent {
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
+    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -184,6 +192,8 @@ public class Agent {
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
+  private static boolean appLogsCollectionEnabled = false;
+  private static boolean featureFlaggingEnabled = false;
 
   private static void safelySetContextClassLoader(ClassLoader classLoader) {
     try {
@@ -199,6 +209,7 @@ public class Agent {
    * <p>The Agent is considered to start successfully if Instrumentation can be activated. All other
    * pieces are considered optional.
    */
+  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   public static void start(
       final Object bootstrapInitTelemetry,
       final Instrumentation inst,
@@ -267,7 +278,9 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
+    featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -321,6 +334,7 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
+
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -404,6 +418,15 @@ public class Agent {
       StaticEventLogger.end("Profiling");
     }
 
+    // This task removes stale ClassLoaderValue entries where the class-loader is gone
+    // It only runs a couple of times a minute since class-loaders are rarely unloaded
+    AgentTaskScheduler.get()
+        .scheduleAtFixedRate(
+            ClassLoaderValue::removeStaleEntries,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            CLASSLOADER_CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS);
+
     StaticEventLogger.end("Agent.start");
   }
 
@@ -456,6 +479,7 @@ public class Agent {
     }
   }
 
+  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   private static void configureCiVisibility(URL agentJarURL) {
     // Retro-compatibility for the old way to configure CI Visibility
     if ("true".equals(ddGetProperty("dd.integration.junit.enabled"))
@@ -662,6 +686,7 @@ public class Agent {
       maybeStartDebugger(instrumentation, scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
+      maybeStartFeatureFlagging(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -903,6 +928,15 @@ public class Agent {
 
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
+
+    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
+    // This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
+    try {
+      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
+    } catch (Exception e) {
+      // Ignore when the class is not found or anything else goes wrong.
+    }
+
     try {
       final Class<?> smapFactoryClass =
           AGENT_CLASSLOADER.loadClass(
@@ -1083,16 +1117,34 @@ public class Agent {
     }
   }
 
+  private static void maybeStartFeatureFlagging(final Class<?> scoClass, final Object sco) {
+    if (featureFlaggingEnabled) {
+      StaticEventLogger.begin("Feature Flagging");
+
+      try {
+        final Class<?> ffSysClass =
+            AGENT_CLASSLOADER.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
+        final Method ffSysMethod = ffSysClass.getMethod("start", scoClass);
+        ffSysMethod.invoke(null, sco);
+      } catch (final Throwable e) {
+        log.warn("Not starting Feature Flagging subsystem", e);
+      }
+
+      StaticEventLogger.end("Feature Flagging");
+    }
+  }
+
   private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
-    if (agentlessLogSubmissionEnabled) {
+    if (agentlessLogSubmissionEnabled || appLogsCollectionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
         final Method logsIntakeInstallerMethod =
-            logsIntakeSystemClass.getMethod("install", scoClass);
-        logsIntakeInstallerMethod.invoke(null, sco);
+            logsIntakeSystemClass.getMethod("install", scoClass, Intake.class);
+        logsIntakeInstallerMethod.invoke(
+            null, sco, agentlessLogSubmissionEnabled ? Intake.LOGS : Intake.EVENT_PLATFORM);
       } catch (final Throwable e) {
         log.warn("Not installing Logs Intake subsystem", e);
       }
@@ -1396,8 +1448,8 @@ public class Agent {
       final Class<?> debuggerAgentClass =
           AGENT_CLASSLOADER.loadClass("com.datadog.debugger.agent.DebuggerAgent");
       final Method debuggerInstallerMethod =
-          debuggerAgentClass.getMethod("run", Instrumentation.class, scoClass);
-      debuggerInstallerMethod.invoke(null, inst, sco);
+          debuggerAgentClass.getMethod("run", Config.class, Instrumentation.class, scoClass);
+      debuggerInstallerMethod.invoke(null, Config.get(), inst, sco);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting debugger agent", ex);
     } finally {
@@ -1409,9 +1461,15 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
-    String simpleLoggerJsonEnabled = SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
-    if (simpleLoggerJsonEnabled != null && simpleLoggerJsonEnabled.equalsIgnoreCase("true")) {
+
+    String logFormatJson = ddGetProperty("dd.log.format.json");
+    if (null != logFormatJson) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, logFormatJson);
+    } else {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    }
+
+    if (Boolean.parseBoolean(SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY))) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
@@ -1475,7 +1533,9 @@ public class Agent {
     return false;
   }
 
-  /** @return {@code true} if the agent feature is enabled */
+  /**
+   * @return {@code true} if the agent feature is enabled
+   */
   private static boolean isFeatureEnabled(AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1505,7 +1565,9 @@ public class Agent {
     }
   }
 
-  /** @see datadog.trace.api.ProductActivation#fromString(String) */
+  /**
+   * @see datadog.trace.api.ProductActivation#fromString(String)
+   */
   private static boolean isFullyDisabled(final AgentFeature feature) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
@@ -1543,7 +1605,9 @@ public class Agent {
     return value;
   }
 
-  /** @return configured JMX start delay in seconds */
+  /**
+   * @return configured JMX start delay in seconds
+   */
   private static int getJmxStartDelay() {
     String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
     if (startDelay == null) {

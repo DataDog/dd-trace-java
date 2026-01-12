@@ -82,7 +82,7 @@ public class DatadogServerRequestResponseFlowWrapper
               }
 
               @Override
-              public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
+              public void onUpstreamFailure(final Throwable ex) throws Exception {
                 // We will not receive any more requests from the server and TCP layer so stop
                 // sending them
                 fail(requestOutlet, ex);
@@ -114,12 +114,12 @@ public class DatadogServerRequestResponseFlowWrapper
                 final HttpResponse response = grab(responseInlet);
                 final ContextScope scope = scopes.poll();
                 if (scope != null) {
-                  AgentSpan span = fromContext(scope.context());
-                  DatadogWrapperHelper.finishSpan(span, response);
+                  DatadogWrapperHelper.finishSpan(scope.context(), response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
                   AgentSpan activeSpan = activeSpan();
+                  AgentSpan span = fromContext(scope.context());
                   if (activeSpan == span) {
                     scope.close();
                   }
@@ -144,8 +144,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 ContextScope scope = scopes.poll();
                 if (scope != null) {
                   // Mark the span as failed
-                  AgentSpan span = fromContext(scope.context());
-                  DatadogWrapperHelper.finishSpan(span, ex);
+                  DatadogWrapperHelper.finishSpan(scope.context(), ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans

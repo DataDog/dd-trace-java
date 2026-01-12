@@ -19,7 +19,7 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common')
 
   testImplementation group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   latestDepTestImplementation group: 'com.graphql-java', name: 'graphql-java', version: '19.+'
 }

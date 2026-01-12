@@ -78,7 +78,7 @@ public class DatadogServerRequestResponseFlowWrapper
                     skipNextPull[0] = true;
                     requestContext.getTraceSegment().effectivelyBlocked();
                     emit(responseOutlet, response);
-                    DatadogWrapperHelper.finishSpan(span, response);
+                    DatadogWrapperHelper.finishSpan(scope.context(), response);
                     pull(requestInlet);
                     scope.close();
                     return;
@@ -102,7 +102,7 @@ public class DatadogServerRequestResponseFlowWrapper
               }
 
               @Override
-              public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
+              public void onUpstreamFailure(final Throwable ex) throws Exception {
                 // We will not receive any more requests from the server and TCP layer so stop
                 // sending them
                 fail(requestOutlet, ex);
@@ -142,7 +142,7 @@ public class DatadogServerRequestResponseFlowWrapper
                     response.discardEntityBytes(materializer());
                     response = newResponse;
                   }
-                  DatadogWrapperHelper.finishSpan(span, response);
+                  DatadogWrapperHelper.finishSpan(scope.context(), response);
                   // Check if the active span matches the scope from when the request came in,
                   // and close it. If it's not, then it will be cleaned up actor message
                   // processing instrumentation that drives this state machine
@@ -172,7 +172,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 if (scope != null) {
                   // Mark the span as failed
                   AgentSpan span = fromContext(scope.context());
-                  DatadogWrapperHelper.finishSpan(span, ex);
+                  DatadogWrapperHelper.finishSpan(scope.context(), ex);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans

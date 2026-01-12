@@ -9,6 +9,11 @@ minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 sourceSets {
+  register("main_java25") {
+    java {
+      srcDirs = [file('src/main/java25')]
+    }
+  }
   register("test_java11") {
     java {
       srcDirs = [file('src/test/java11')]
@@ -19,11 +24,17 @@ sourceSets {
       srcDirs = [file('src/test/java21')]
     }
   }
+  named("main_java25") {
+    compileClasspath += sourceSets.main.output
+    runtimeClasspath += sourceSets.main.output
+  }
   named("test") {
     compileClasspath += sourceSets.test_java11.output
     runtimeClasspath += sourceSets.test_java11.output
     compileClasspath += sourceSets.test_java21.output
     runtimeClasspath += sourceSets.test_java21.output
+    compileClasspath += sourceSets.main_java25.output
+    runtimeClasspath += sourceSets.main_java25.output
   }
 }
 
@@ -39,6 +50,7 @@ configurations {
   }
 }
 
+
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
@@ -53,14 +65,14 @@ dependencies {
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
 
   api project(':dd-trace-core')
-
   implementation project(':dd-java-agent:agent-crashtracking')
 
-  compileOnly group: 'com.github.jnr', name: 'jnr-posix', version: libs.versions.jnr.posix.get()
+  main_java25Implementation project(':dd-trace-core')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation libs.bytebuddy
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
+
 
   jmhImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.3.5.RELEASE'
 }
@@ -70,19 +82,16 @@ jmh {
   includeTests = true
 }
 
+tasks.named("jar") {
+  from(sourceSets.main_java25.output)
+}
+
 tasks.named("compileJava") { dependsOn 'generateClassNameTries' }
 tasks.named("sourcesJar") { dependsOn 'generateClassNameTries' }
 
 tasks.named("compileJmhJava") { dependsOn tasks.named("compileTestJava") }
 
 tasks.named("forbiddenApisJmh") {
-  ignoreFailures = true
-}
-
-tasks.named("forbiddenApisTest_java11") {
-  // it will fail due to missing JDK >= 9 classes
-  // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
-  failOnMissingClasses = false
   ignoreFailures = true
 }
 
@@ -95,6 +104,14 @@ tasks.named("compileTestGroovy") {
     JavaVersion.VERSION_1_8,
     "Groovy generates synthetic accessors methods from superclass, we don't want that for `URLClassLoader`," +
     " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
+}
+tasks.named("compileMain_java25Java") {
+  configureCompiler(
+    it,
+    25,
+    JavaVersion.VERSION_1_8,
+    "Java 25 sourceset for Foreign Function & Memory API, compiled with Java 25 but targeting Java 8 bytecode."
     )
 }
 tasks.named("compileTest_java11Java") {

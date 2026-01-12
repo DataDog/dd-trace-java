@@ -8,7 +8,7 @@ def otelApiVersion = '1.38.0'
 def otelInstrumentationApiVersion = '2.4.0'
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'instrument'
+apply plugin: 'dd-trace-java.instrument'
 
 configurations {
   def ec = register('embeddedClasspath') {
@@ -37,6 +37,7 @@ forbiddenApis {
 }
 
 spotbugs {
+  // To avoid massive report on `io.opentelemetry.*` and `net.bytebbuddy.*` classes.
   onlyAnalyze = ['none']
 }
 
@@ -62,7 +63,11 @@ tasks.register('unpackJars', Copy) {
   exclude '**/module-info.class'
   exclude '**/package-info.class'
 
-  from(configurations.named('embeddedClasspath').map { it.collect { zipTree(it) } })
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
   into compileJava.destinationDirectory
 }
 

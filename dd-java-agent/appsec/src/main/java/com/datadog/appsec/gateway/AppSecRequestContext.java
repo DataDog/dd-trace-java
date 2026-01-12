@@ -14,6 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.util.stacktrace.StackTraceEvent;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
+@SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
@@ -273,6 +275,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public boolean sampleHttpClientRequest(final long id) {
     httpClientRequestCount.incrementAndGet();
     synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.contains(id)) {
+        return true;
+      }
       if (sampledHttpClientRequests.size()
           < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
         sampledHttpClientRequests.add(id);
@@ -657,7 +662,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     }
   }
 
-  /** @return the portion of the body read so far, if any */
+  /**
+   * @return the portion of the body read so far, if any
+   */
   public CharSequence getStoredRequestBody() {
     StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
     if (storedRequestBodySupplier == null) {

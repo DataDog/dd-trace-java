@@ -11,9 +11,7 @@ import static datadog.trace.instrumentation.axis2.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,15 +20,10 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
-@AutoService(InstrumenterModule.class)
-public final class AxisTransportInstrumentation extends InstrumenterModule.Tracing
+public final class AxisTransportInstrumentation
     implements Instrumenter.ForKnownTypes,
         Instrumenter.ForConfiguredType,
         Instrumenter.HasMethodAdvice {
-
-  public AxisTransportInstrumentation() {
-    super("axis2", "axis2-transport");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -41,13 +34,6 @@ public final class AxisTransportInstrumentation extends InstrumenterModule.Traci
   public String configuredMatchingType() {
     // this won't match any class unless the property is set
     return InstrumenterConfig.get().getAxisTransportClassName();
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AxisMessageDecorator", packageName + ".TextMapInjectAdapter",
-    };
   }
 
   @Override

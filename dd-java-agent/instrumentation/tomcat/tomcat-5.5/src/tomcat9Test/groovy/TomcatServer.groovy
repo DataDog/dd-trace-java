@@ -100,7 +100,8 @@ class TomcatServer implements WebsocketServer {
 
   @Override
   void serverSendText(String[] messages) {
-    if (wsAsyncSend && messages.length == 1) { // async does not support partial write
+    if (wsAsyncSend && messages.length == 1) {
+      // async does not support partial write
       WsEndpoint.activeSession.getAsyncRemote().sendText(messages[0])
     } else {
       if (messages.length == 1) {
@@ -116,14 +117,17 @@ class TomcatServer implements WebsocketServer {
 
   @Override
   void serverSendBinary(byte[][] binaries) {
-    if (wsAsyncSend && binaries.length == 1) { // async does not support partial write
+    if (wsAsyncSend && binaries.length == 1) {
+      // async does not support partial write
       WsEndpoint.activeSession.getAsyncRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
     } else {
       if (binaries.length == 1) {
         WsEndpoint.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
       } else {
         try (def stream = WsEndpoint.activeSession.getBasicRemote().getSendStream()) {
-          binaries.each { stream.write(it) }
+          binaries.each {
+            stream.write(it)
+          }
         }
       }
     }

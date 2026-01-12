@@ -3,7 +3,7 @@ import java.nio.file.Paths
 
 plugins {
   `java-library`
-  id("de.thetaphi.forbiddenapis") version "3.8"
+  id("de.thetaphi.forbiddenapis") version "3.10"
   id("me.champeau.jmh")
   idea
 }
@@ -20,7 +20,7 @@ java {
   }
 }
 
-tasks.withType<Javadoc>().configureEach() {
+tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
@@ -42,10 +42,6 @@ dependencies {
 
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.slf4j)
-}
-
-tasks.forbiddenApisMain {
-  failOnMissingClasses = false
 }
 
 idea {

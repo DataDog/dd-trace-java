@@ -1,13 +1,15 @@
 package datadog.trace.instrumentation.netty40.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -56,7 +58,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
   public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise prm) throws Exception {
     Channel channel = ctx.channel();
 
-    AgentSpan span = channel.attr(SPAN_ATTRIBUTE_KEY).get();
+    Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
+    AgentSpan span = spanFromContext(storedContext);
     RequestContext requestContext;
     if (span == null
         || (requestContext = span.getRequestContext()) == null
@@ -118,7 +121,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       BlockingActionHelper.TemplateType type =
           BlockingActionHelper.determineTemplateType(bct, acceptHeader);
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type);
+      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);
       response.content().writeBytes(template);
     }

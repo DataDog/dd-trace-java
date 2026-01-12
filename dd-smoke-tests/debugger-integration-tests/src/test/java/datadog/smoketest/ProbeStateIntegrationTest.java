@@ -7,7 +7,9 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.condition.DisabledIf;
 
+@NonRetryable
 public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest {
 
   @BeforeEach
@@ -23,6 +26,13 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   void setup(TestInfo testInfo) throws Exception {
     super.setup(testInfo);
     appUrl = startAppAndAndGetUrl();
+  }
+
+  @Override
+  protected List<String> getDebuggerCommandParams() {
+    List<String> args = super.getDebuggerCommandParams();
+    args.add("-Ddd.third.party.excludes=datadog.smoketest");
+    return args;
   }
 
   @Test
@@ -45,6 +55,39 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
     execute(appUrl, FULL_METHOD_NAME);
     snapshot = waitForOneSnapshot();
     assertEquals(FULL_METHOD_NAME, snapshot.getProbe().getLocation().getMethod());
+  }
+
+  @Test
+  @DisplayName("testAddSourceFileProbeLargeInnerClasses")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
+  void testAddSourceFileProbeLargeInnerClasses() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("LargeInnerClasses.java", 6)
+            .captureSnapshot(true)
+            .build();
+    addProbe(logProbe);
+    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.LargeInnerClasses", true);
+  }
+
+  @Test
+  @DisplayName("testAddSourceFileProbeHugeInnerClasses")
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
+  void testAddSourceFileProbeHugeInnerClasses() throws Exception {
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where("HugeInnerClasses.java", 6)
+            .captureSnapshot(true)
+            .build();
+    addProbe(logProbe);
+    waitForSpecificLine(
+        appUrl, "java.lang.IllegalStateException: Too many classes to retransform: 1001");
   }
 
   @Test
@@ -159,6 +202,8 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
             error.set(true);
           }
         });
-    processRequests(() -> received.get() && error.get());
+    processRequests(
+        () -> received.get() && error.get(),
+        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
   }
 }

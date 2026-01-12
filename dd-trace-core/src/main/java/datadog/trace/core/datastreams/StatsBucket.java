@@ -2,6 +2,7 @@ package datadog.trace.core.datastreams;
 
 import datadog.trace.api.datastreams.Backlog;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.datastreams.TransactionInfo;
 import java.util.Collection;
@@ -14,6 +15,7 @@ public class StatsBucket {
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<DataStreamsTags, Long> backlogs = new HashMap<>();
   private final TransactionContainer transactions = new TransactionContainer(1024);
+  private final Map<SchemaKey, Long> schemaRegistryUsages = new HashMap<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -40,6 +42,18 @@ public class StatsBucket {
     backlogs.compute(
         backlog.getTags(),
         (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
+  }
+
+  public void addSchemaRegistryUsage(SchemaRegistryUsage usage) {
+    SchemaKey key =
+        new SchemaKey(
+            usage.getTopic(),
+            usage.getClusterId(),
+            usage.getSchemaId(),
+            usage.isSuccess(),
+            usage.isKey(),
+            usage.getOperation());
+    schemaRegistryUsages.merge(key, 1L, Long::sum);
   }
 
   public void addTransaction(TransactionInfo transaction) {

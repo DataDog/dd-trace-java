@@ -1,24 +1,24 @@
 package datadog.trace.agent.tooling.servicediscovery;
 
-import com.sun.jna.Library;
-import com.sun.jna.Memory;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+
 import com.sun.jna.Native;
-import com.sun.jna.NativeLong;
-import com.sun.jna.Pointer;
+import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MemFDUnixWriter implements ForeignMemoryWriter {
+abstract class MemFDUnixWriter implements ForeignMemoryWriter {
   private static final Logger log = LoggerFactory.getLogger(MemFDUnixWriter.class);
 
-  private interface LibC extends Library {
-    int memfd_create(String name, int flags);
+  protected abstract long syscall(long number, String name, int flags);
 
-    NativeLong write(int fd, Pointer buf, NativeLong count);
+  protected abstract long write(int fd, byte[] payload);
 
-    int fcntl(int fd, int cmd, int arg);
-  }
+  protected abstract int fcntl(int fd, int cmd, int arg);
+
+  protected abstract int getLastError();
 
   // https://elixir.bootlin.com/linux/v6.17.1/source/include/uapi/linux/memfd.h#L8-L9
   private static final int MFD_CLOEXEC = 0x0001;
@@ -33,31 +33,53 @@ public class MemFDUnixWriter implements ForeignMemoryWriter {
   private static final int F_SEAL_GROW = 0x0004;
 
   @Override
-  public void write(String fileName, byte[] payload) {
-    final LibC libc = Native.load("c", LibC.class);
-
-    int memFd = libc.memfd_create(fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+  public final void write(String fileName, byte[] payload) {
+    OperatingSystem.Architecture arch = OperatingSystem.architecture();
+    int memfdSyscall = getMemfdSyscall(arch);
+    if (memfdSyscall <= 0) {
+      log.debug(
+          SEND_TELEMETRY,
+          "service discovery not supported for arch={}",
+          SystemProperties.get("os.arch"));
+      return;
+    }
+    int memFd = (int) syscall(memfdSyscall, fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (memFd < 0) {
-      log.warn("{} memfd create failed, errno={}", fileName, Native.getLastError());
+      log.warn("{} memfd create failed, errno={}", fileName, getLastError());
       return;
     }
 
     log.debug("{} memfd created (fd={})", fileName, memFd);
 
-    Memory buf = new Memory(payload.length);
-    buf.write(0, payload, 0, payload.length);
-
-    NativeLong written = libc.write(memFd, buf, new NativeLong(payload.length));
-    if (written.longValue() != payload.length) {
+    long written = write(memFd, payload);
+    if (written != payload.length) {
       log.warn("write to {} memfd failed errno={}", fileName, Native.getLastError());
       return;
     }
-    log.debug("wrote {} bytes to memfd {}", written.longValue(), memFd);
-    int returnCode = libc.fcntl(memFd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL);
+    log.debug("wrote {} bytes to memfd {}", written, memFd);
+    int returnCode = fcntl(memFd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL);
     if (returnCode == -1) {
       log.warn("failed to add seal to {} memfd errno={}", fileName, Native.getLastError());
-      return;
     }
     // memfd is not closed to keep it readable for the lifetime of the process.
+  }
+
+  private static int getMemfdSyscall(OperatingSystem.Architecture arch) {
+    switch (arch) {
+      case X64:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/x86/entry/syscalls/syscall_64.tbl#L331
+        return 319;
+      case X86:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/x86/entry/syscalls/syscall_32.tbl#L371
+        return 356;
+      case ARM64:
+        // https://github.com/torvalds/linux/blob/v6.17/scripts/syscall.tbl#L329
+        return 279;
+      case ARM:
+        // https://github.com/torvalds/linux/blob/v6.17/arch/arm64/tools/syscall_32.tbl#L400
+        return 385;
+      default:
+        return -1;
+    }
   }
 }

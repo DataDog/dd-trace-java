@@ -4,6 +4,7 @@ import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -76,8 +77,8 @@ public abstract class BaseDecorator {
     return span;
   }
 
-  public AgentScope beforeFinish(final AgentScope scope) {
-    beforeFinish(scope.span());
+  public ContextScope beforeFinish(final ContextScope scope) {
+    beforeFinish(scope.context());
     return scope;
   }
 
@@ -85,8 +86,14 @@ public abstract class BaseDecorator {
     return span;
   }
 
+  public Context beforeFinish(final Context context) {
+    return context;
+  }
+
   public AgentScope onError(final AgentScope scope, final Throwable throwable) {
-    onError(scope.span(), throwable);
+    if (scope != null) {
+      onError(scope.span(), throwable);
+    }
     return scope;
   }
 
@@ -95,7 +102,7 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
-    if (throwable != null) {
+    if (throwable != null && span != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           errorPriority);
@@ -104,7 +111,9 @@ public abstract class BaseDecorator {
   }
 
   public ContextScope onError(final ContextScope scope, final Throwable throwable) {
-    onError(AgentSpan.fromContext(scope.context()), throwable);
+    if (scope != null) {
+      onError(AgentSpan.fromContext(scope.context()), throwable);
+    }
     return scope;
   }
 
