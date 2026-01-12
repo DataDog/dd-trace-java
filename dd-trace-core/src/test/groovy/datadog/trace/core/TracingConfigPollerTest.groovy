@@ -7,6 +7,7 @@ import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.core.test.DDCoreSpecification
 import java.nio.charset.StandardCharsets
 import okhttp3.HttpUrl
@@ -172,7 +173,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
           "data_streams_transaction_extractors": [
             {
               "name": "test",
-              "type": "type",
+              "type": "unknown",
               "value": "value"
             }
           ]
@@ -191,7 +192,7 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     tracer.captureTraceConfig().responseHeaderTags == ["x-custom-header": "custom.header"]
     tracer.captureTraceConfig().getDataStreamsTransactionExtractors().size() == 1
     tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].name == "test"
-    tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].type == "type"
+    tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].type == DataStreamsTransactionExtractor.Type.UNKNOWN
     tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].value == "value"
 
     when:
