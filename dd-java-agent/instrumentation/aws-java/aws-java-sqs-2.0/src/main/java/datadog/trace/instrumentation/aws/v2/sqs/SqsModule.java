@@ -45,7 +45,9 @@ public final class SqsModule extends InstrumenterModule.Tracing {
     if (!InstrumenterConfig.get().isLegacyInstrumentationEnabled(false, "aws-sdk")) {
       ret.add(new SqsReceiveResultInstrumentation());
     }
-    ret.add(new SqsJmsMessageInstrumentation());
+    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("jms"), true)) {
+      ret.add(new SqsJmsMessageInstrumentation());
+    }
     return ret;
   }
 }
