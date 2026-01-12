@@ -245,8 +245,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
   Stream<EntryReader> stream();
 
-  EntryIterator entryIterator();
-
   /**
    * Visits each Entry in this TagMap This method is more efficient than {@link TagMap#iterator()}
    */
@@ -362,16 +360,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     Map.Entry<String, Object> mapEntry();
 
     Entry entry();
-  }
-
-  interface EntryIterator extends EntryReader {
-    boolean hasNext();
-
-    boolean next();
-  }
-
-  interface EntryChangeIterator extends EntryIterator {
-    boolean isRemoval();
   }
 
   final class Entry extends EntryChange implements Map.Entry<String, Object>, EntryReader {
@@ -1819,11 +1807,6 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public EntryIterator entryIterator() {
-    return new EntryIteratorImpl(this);
-  }
-
-  @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
@@ -2153,96 +2136,7 @@ final class OptimizedTagMap implements TagMap {
       return this.nextEntryOrThrowNoSuchElement();
     }
   }
-
-  static final class EntryIteratorImpl extends IteratorBase implements EntryIterator {
-    private TagMap.Entry curEntry;
-
-    EntryIteratorImpl(OptimizedTagMap map) {
-      super(map);
-    }
-
-    @Override
-    public boolean next() {
-      this.curEntry = this.nextEntryOrNull();
-      return (this.curEntry != null);
-    }
-
-    @Override
-    public String tag() {
-      return this.curEntry.tag();
-    }
-
-    @Override
-    public byte type() {
-      return this.curEntry.type();
-    }
-
-    @Override
-    public boolean is(byte type) {
-      return this.curEntry.is(type);
-    }
-
-    @Override
-    public boolean isNumber() {
-      return this.curEntry.isNumber();
-    }
-
-    @Override
-    public boolean isNumericPrimitive() {
-      return this.curEntry.isNumericPrimitive();
-    }
-
-    @Override
-    public boolean isObject() {
-      return this.curEntry.isObject();
-    }
-
-    @Override
-    public boolean booleanValue() {
-      return this.curEntry.booleanValue();
-    }
-
-    @Override
-    public int intValue() {
-      return this.curEntry.intValue();
-    }
-
-    @Override
-    public long longValue() {
-      return this.curEntry.longValue();
-    }
-
-    @Override
-    public float floatValue() {
-      return this.curEntry.floatValue();
-    }
-
-    @Override
-    public double doubleValue() {
-      return this.curEntry.doubleValue();
-    }
-
-    @Override
-    public Object objectValue() {
-      return this.curEntry.objectValue();
-    }
-
-    @Override
-    public String stringValue() {
-      return this.curEntry.stringValue();
-    }
-
-    @Override
-    public Entry entry() {
-      return this.curEntry;
-    }
-
-    @Override
-    public Map.Entry<String, Object> mapEntry() {
-      return this.curEntry;
-    }
-  }
-
+  
   /**
    * BucketGroup is a compromise for performance over a linked list or array
    *
@@ -3300,11 +3194,6 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
     return StreamSupport.stream(this.spliterator(), false);
   }
 
-  @Override
-  public TagMap.EntryIterator entryIterator() {
-    return new EntryIteratorImpl(this);
-  }
-
   private static final class IteratorImpl implements Iterator<TagMap.EntryReader> {
     private final Iterator<Map.Entry<String, Object>> wrappedIter;
     private final EntryReadingHelper entryReadingHelper;
@@ -3325,104 +3214,6 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
       this.entryReadingHelper.set(entry.getKey(), entry.getValue());
 
       return this.entryReadingHelper;
-    }
-  }
-
-  private static final class EntryIteratorImpl implements EntryIterator {
-    private final Iterator<Map.Entry<String, Object>> wrappedIter;
-    private Map.Entry<String, Object> curEntry;
-
-    EntryIteratorImpl(LegacyTagMap legacyMap) {
-      this.wrappedIter = legacyMap.entrySet().iterator();
-    }
-
-    @Override
-    public boolean hasNext() {
-      return this.wrappedIter.hasNext();
-    }
-
-    @Override
-    public boolean next() {
-      boolean hasNext = this.wrappedIter.hasNext();
-      if (!hasNext) return false;
-
-      this.curEntry = this.wrappedIter.next();
-      return true;
-    }
-
-    @Override
-    public String tag() {
-      return this.curEntry.getKey();
-    }
-
-    @Override
-    public byte type() {
-      return TagValueConversions.typeOf(this.curEntry.getValue());
-    }
-
-    @Override
-    public boolean is(byte type) {
-      return TagValueConversions.isA(this.curEntry.getValue(), type);
-    }
-
-    @Override
-    public boolean isNumber() {
-      return TagValueConversions.isNumber(this.curEntry.getValue());
-    }
-
-    @Override
-    public boolean isNumericPrimitive() {
-      return TagValueConversions.isNumericPrimitive(this.curEntry.getValue());
-    }
-
-    @Override
-    public boolean isObject() {
-      return TagValueConversions.isObject(this.curEntry.getValue());
-    }
-
-    @Override
-    public TagMap.Entry entry() {
-      return TagMap.Entry.newAnyEntry(this.curEntry);
-    }
-
-    @Override
-    public Map.Entry<String, Object> mapEntry() {
-      return this.curEntry;
-    }
-
-    @Override
-    public boolean booleanValue() {
-      return TagValueConversions.toBoolean(this.curEntry.getValue());
-    }
-
-    @Override
-    public int intValue() {
-      return TagValueConversions.toInt(this.curEntry.getValue());
-    }
-
-    @Override
-    public long longValue() {
-      return TagValueConversions.toLong(this.curEntry.getValue());
-    }
-
-    @Override
-    public float floatValue() {
-      return TagValueConversions.toFloat(this.curEntry.getValue());
-    }
-
-    @Override
-    public double doubleValue() {
-      return TagValueConversions.toDouble(this.curEntry.getValue());
-    }
-
-    @Override
-    public Object objectValue() {
-      return this.curEntry.getValue();
-    }
-
-    @Override
-    public String stringValue() {
-      return TagValueConversions.toString(this.curEntry.getValue());
     }
   }
 }

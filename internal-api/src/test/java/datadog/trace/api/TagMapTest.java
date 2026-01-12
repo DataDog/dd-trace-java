@@ -20,8 +20,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import datadog.trace.api.TagMap.EntryIterator;
-
 public class TagMapTest {
   // size is chosen to make sure to stress all types of collisions in the Map
   static final int MANY_SIZE = 256;
@@ -1007,14 +1005,6 @@ public class TagMapTest {
     }
     return count;
   }
-  
-  static int count(EntryIterator entryIter) {
-    int count;
-	for ( count = 0; entryIter.next(); ++count ) {
-	  // nop  
-	}
-	return count;
-  }
 
   static final void assertBoolean(boolean expected, TagMap map, String key) {
     assertEquals(expected, map.getBoolean(key));
@@ -1080,8 +1070,6 @@ public class TagMapTest {
     
     assertEquals(size, count(map.values().iterator()));
     assertEquals(size, count(map.values()));
-    
-    assertEquals(size, count(map.entryIterator()));
   }
 
   static void assertEmptiness(TagMapScenario scenario, TagMap map) {
