@@ -17,8 +17,8 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 tasks.register('vertxBuild', Exec) {
   workingDir "$appDir"
   environment += [
-      "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-      "JAVA_HOME": getLazyJavaHomeFor(8)
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
   ]
   commandLine "$appDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 

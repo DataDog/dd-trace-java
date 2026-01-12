@@ -386,7 +386,7 @@ ext.getJavaLauncherFor = (int javaVersionInteger) -> {
 ext.getLazyJavaHomeFor = (int javaVersionInteger, boolean hasNativeImage = false) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
-    nativeImageCapable = true
+    nativeImageCapable = hasNativeImage
   }.map {
     if (hasNativeImage) {
       // 🤦‍♂️ Fix https://github.com/gradle/gradle/issues/28583

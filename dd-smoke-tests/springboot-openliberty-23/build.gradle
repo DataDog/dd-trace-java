@@ -15,8 +15,8 @@ def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 tasks.register('mvnStage', Exec) {
   workingDir("$appDir")
   environment += [
-      "MAVEN_OPTS": "-Xmx512M",
-      "JAVA_HOME": getLazyJavaHomeFor(8)
+    "MAVEN_OPTS": "-Xmx512M",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
   ]
 
   List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
