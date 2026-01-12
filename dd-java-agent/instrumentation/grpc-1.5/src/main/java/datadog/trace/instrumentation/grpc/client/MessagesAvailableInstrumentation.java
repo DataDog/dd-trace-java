@@ -9,9 +9,7 @@ import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -19,25 +17,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class MessagesAvailableInstrumentation extends InstrumenterModule.Tracing
+public final class MessagesAvailableInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  public MessagesAvailableInstrumentation() {
-    super("grpc", "grpc-client", "grpc-message");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
-  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -45,11 +28,6 @@ public final class MessagesAvailableInstrumentation extends InstrumenterModule.T
       "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessagesAvailable",
       "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessageRead"
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override

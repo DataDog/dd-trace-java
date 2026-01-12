@@ -21,9 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
-public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumentation
+public final class VMRuntimeModule extends AbstractNativeImageModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
   @Override
   public String instrumentedType() {
     return "org.graalvm.nativeimage.VMRuntime";
@@ -32,8 +31,7 @@ public final class VMRuntimeInstrumentation extends AbstractNativeImageInstrumen
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("initialize")),
-        VMRuntimeInstrumentation.class.getName() + "$InitializeAdvice");
+        isMethod().and(named("initialize")), VMRuntimeModule.class.getName() + "$InitializeAdvice");
   }
 
   @Override
