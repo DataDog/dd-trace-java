@@ -787,7 +787,7 @@ public class TagMapTest {
     TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>();
-    for (TagMap.Entry entry : map) {
+    for (TagMap.EntryReader entry : map) {
       // makes sure that each key is visited once and only once
       assertTrue(keys.add(entry.tag()));
     }
