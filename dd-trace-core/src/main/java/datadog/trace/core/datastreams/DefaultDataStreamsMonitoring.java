@@ -38,6 +38,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -45,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
@@ -79,12 +79,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
-  private final ReentrantReadWriteLock extractorsLock = new ReentrantReadWriteLock();
 
   // contains a list of active extractors by type
   private static final Map<
           DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
-      extractorsByType = new HashMap<>();
+      extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -210,15 +209,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
       DataStreamsTransactionExtractor.Type extractorType) {
     if (!supportsDataStreams) {
-      return NO_EXTRACTORS;
+      return null;
     }
 
-    extractorsLock.readLock().lock();
-    try {
-      return extractorsByType.getOrDefault(extractorType, NO_EXTRACTORS);
-    } finally {
-      extractorsLock.readLock().unlock();
-    }
+    return extractorsByType.getOrDefault(extractorType, null);
   }
 
   private static String getThreadServiceName() {
@@ -507,22 +501,17 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private void updateExtractorsFromConfig() {
-    extractorsLock.writeLock().lock();
-    try {
-      extractorsByType.clear();
-      List<DataStreamsTransactionExtractor> extractors =
-          traceConfigSupplier.get().getDataStreamsTransactionExtractors();
-      if (extractors == null) {
-        return;
-      }
-      for (DataStreamsTransactionExtractor extractor : extractors) {
-        List<DataStreamsTransactionExtractor> list =
-            extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
-        list.add(extractor);
-        log.debug("Added data streams transaction extractor: {}", extractor);
-      }
-    } finally {
-      extractorsLock.writeLock().unlock();
+    extractorsByType.clear();
+    List<DataStreamsTransactionExtractor> extractors =
+        traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+    if (extractors == null) {
+      return;
+    }
+    for (DataStreamsTransactionExtractor extractor : extractors) {
+      List<DataStreamsTransactionExtractor> list =
+          extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
+      list.add(extractor);
+      log.debug("Added data streams transaction extractor: {}", extractor);
     }
   }
 
