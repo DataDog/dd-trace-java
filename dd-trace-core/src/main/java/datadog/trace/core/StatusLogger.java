@@ -162,15 +162,17 @@ public final class StatusLogger extends JsonAdapter<Config>
   }
 
   private static boolean agentServiceCheck(Config config) {
-    if (config.getAgentUrl().startsWith("unix:")) {
-      return new File(config.getAgentUnixDomainSocket()).exists();
-    } else {
-      try (Socket s = new Socket()) {
-        s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
-        return true;
-      } catch (IOException ex) {
-        return false;
+    try {
+      if (config.getAgentUrl().startsWith("unix:")) {
+        return new File(config.getAgentUnixDomainSocket()).exists();
+      } else {
+        try (Socket s = new Socket()) {
+          s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
+          return true;
+        }
       }
+    } catch (Throwable ex) {
+      return false;
     }
   }
 
