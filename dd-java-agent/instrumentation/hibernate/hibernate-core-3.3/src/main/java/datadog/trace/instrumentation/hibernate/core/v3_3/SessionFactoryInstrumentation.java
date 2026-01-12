@@ -11,15 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -28,18 +24,7 @@ import org.hibernate.StatelessSession;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-@AutoService(InstrumenterModule.class)
-public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put("org.hibernate.Session", SESSION_STATE);
-    stores.put("org.hibernate.StatelessSession", SESSION_STATE);
-    stores.put("org.hibernate.SharedSessionContract", SESSION_STATE);
-    return Collections.unmodifiableMap(stores);
-  }
-
+public final class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {"org.hibernate.impl.SessionFactoryImpl"};

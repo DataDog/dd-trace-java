@@ -2,53 +2,25 @@ package datadog.trace.instrumentation.hibernate.core.v4_3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.hibernate.core.v4_3.SessionInstrumentation.SESSION_STATE;
-import static java.util.Collections.singletonMap;
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
-@AutoService(InstrumenterModule.class)
-public class ProcedureCallInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
-  public ProcedureCallInstrumentation() {
-    super("hibernate", "hibernate-core");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
-      "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.instrumentation.hibernate.HibernateDecorator",
-    };
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(true);
-  }
+public final class ProcedureCallInstrumentation implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {"org.hibernate.procedure.internal.ProcedureCallImpl"};
+    return new String[]{"org.hibernate.procedure.internal.ProcedureCallImpl"};
   }
 
   @Override
@@ -59,6 +31,11 @@ public class ProcedureCallInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public boolean onlyMatchKnownTypes() {
+    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 
   @Override

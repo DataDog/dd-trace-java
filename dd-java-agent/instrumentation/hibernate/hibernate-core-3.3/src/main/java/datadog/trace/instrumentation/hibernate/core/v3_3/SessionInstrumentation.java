@@ -11,16 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -33,24 +28,11 @@ import org.hibernate.Transaction;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-@AutoService(InstrumenterModule.class)
-public class SessionInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.Session", SESSION_STATE);
-    map.put("org.hibernate.StatelessSession", SESSION_STATE);
-    map.put("org.hibernate.Query", SESSION_STATE);
-    map.put("org.hibernate.Transaction", SESSION_STATE);
-    map.put("org.hibernate.Criteria", SESSION_STATE);
-    return Collections.unmodifiableMap(map);
-  }
-
+public final class SessionInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
+    return new String[]{
+        "org.hibernate.impl.SessionImpl", "org.hibernate.impl.StatelessSessionImpl"
     };
   }
 

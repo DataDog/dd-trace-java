@@ -3,67 +3,39 @@ package datadog.trace.instrumentation.hibernate.core.v4_3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
-@AutoService(InstrumenterModule.class)
-public class SessionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
-  static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
-
-  public SessionInstrumentation() {
-    super("hibernate", "hibernate-core");
-  }
+public final class SessionInstrumentation implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.SharedSessionContract", SESSION_STATE);
-    map.put("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
-    return Collections.unmodifiableMap(map);
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
-      "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.instrumentation.hibernate.HibernateDecorator",
+  public String[] knownMatchingTypes() {
+    return new String[]{
+        "org.hibernate.internal.AbstractSessionImpl",
+        "org.hibernate.internal.AbstractSharedSessionContract",
+        "org.hibernate.impl.SessionImpl",
+        "org.hibernate.impl.StatelessSessionImpl",
+        "org.hibernate.internal.SessionImpl",
+        "org.hibernate.internal.StatelessSessionImpl"
     };
   }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(true);
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.hibernate.internal.AbstractSessionImpl",
-      "org.hibernate.internal.AbstractSharedSessionContract",
-      "org.hibernate.impl.SessionImpl",
-      "org.hibernate.impl.StatelessSessionImpl",
-      "org.hibernate.internal.SessionImpl",
-      "org.hibernate.internal.StatelessSessionImpl"
-    };
+    return InstrumenterConfig.get().isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 
   @Override

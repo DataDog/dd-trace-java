@@ -3,16 +3,12 @@ package datadog.trace.instrumentation.hibernate.core.v3_3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -21,18 +17,11 @@ import org.hibernate.Criteria;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-@AutoService(InstrumenterModule.class)
-public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Criteria", SESSION_STATE);
-  }
-
+public final class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.hibernate.impl.CriteriaImpl", "org.hibernate.impl.CriteriaImpl$Subcriteria"
+    return new String[]{
+        "org.hibernate.impl.CriteriaImpl", "org.hibernate.impl.CriteriaImpl$Subcriteria"
     };
   }
 
