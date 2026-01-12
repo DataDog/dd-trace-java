@@ -37,6 +37,10 @@ public class TransactionContainer {
     return true;
   }
 
+  public int getSize() {
+    return size;
+  }
+
   public byte[] getData() {
     return Arrays.copyOf(data, size);
   }

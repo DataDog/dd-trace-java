@@ -55,6 +55,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
   static final List<DataStreamsTransactionExtractor> NO_EXTRACTORS = Collections.emptyList();
 
   private static final StatsPoint REPORT =
@@ -421,6 +422,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               TransactionInfo transactionInfo = (TransactionInfo) payload;
               StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
               statsBucket.addTransaction(transactionInfo);
+              // we want to force flush when the transaction payload gets too big
+              // with 512kb and approx 20 bytes per transaction we're looking at ~26k
+              // transaction/sec
+              // this should be enough for 99.9% of the users
+              if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
+                inbox.offer(REPORT);
+              }
             } else if (payload instanceof SchemaRegistryUsage) {
               SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
               StatsBucket statsBucket =
