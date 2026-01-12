@@ -9,7 +9,6 @@ import org.opentest4j.AssertionFailedError;
  * TODO: Dev notes
  * - introduce as few as possible matchers
  * - only have matchers for generic purpose, don't introduce feature / produce / use-case specific matchers
- * - name "ignores" as "any"?
  * - think about extensibility? Open matchers for inheritance
  */
 

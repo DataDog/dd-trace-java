@@ -11,6 +11,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.core.DDSpan;
 
+/**
+ * Provides matchers for span links based on their properties such as trace and span IDs links refer
+ * to, trace flags, span attributes, and trace state.
+ */
 public final class SpanLinkMatcher {
   private final Matcher<DDTraceId> traceIdMatcher;
   private final Matcher<Long> spanIdMatcher;
@@ -26,32 +30,76 @@ public final class SpanLinkMatcher {
     this.traceStateMatcher = is("");
   }
 
-  public static SpanLinkMatcher from(DDSpan span) {
-    return from(span.context());
+  /**
+   * Creates a {@code SpanLinkMatcher} that matches a span link to the given span.
+   *
+   * @param span The span the link should match to.
+   * @return A {@code SpanLinkMatcher} that matches a span link to the given span.
+   */
+  public static SpanLinkMatcher to(DDSpan span) {
+    return to(span.context());
   }
 
-  public static SpanLinkMatcher from(AgentSpanContext spanContext) {
-    return from(spanContext.getTraceId(), spanContext.getSpanId());
+  /**
+   * Creates a {@code SpanLinkMatcher} that matches a span link to the given span context.
+   *
+   * @param spanContext The span context the span link should match to.
+   * @return A {@code SpanLinkMatcher} that matches a span link to the given span context.
+   */
+  public static SpanLinkMatcher to(AgentSpanContext spanContext) {
+    return to(spanContext.getTraceId(), spanContext.getSpanId());
   }
 
-  public static SpanLinkMatcher from(DDTraceId traceId, long spanId) {
+  /**
+   * Creates a {@code SpanLinkMatcher} that matches a span link to the given trace / span
+   * identifiers.
+   *
+   * @param traceId The trace ID the span link should match to.
+   * @param spanId The trace ID the span link should match to.
+   * @return A {@code SpanLinkMatcher} that matches a span link to the given trace / span
+   *     identifiers.
+   */
+  public static SpanLinkMatcher to(DDTraceId traceId, long spanId) {
     return new SpanLinkMatcher(is(traceId), is(spanId));
   }
 
+  /**
+   * Creates a {@code SpanLinkMatcher} that matches any span link.
+   *
+   * @return A {@code SpanLinkMatcher} that matches any span link.
+   */
   public static SpanLinkMatcher any() {
     return new SpanLinkMatcher(Matchers.any(), Matchers.any());
   }
 
+  /**
+   * Sets the trace flags value to match against.
+   *
+   * @param traceFlags The byte value representing the trace flags to match against.
+   * @return The updated {@code SpanLinkMatcher} instance with the new trace flags constraint.
+   */
   public SpanLinkMatcher traceFlags(byte traceFlags) {
     this.traceFlagsMatcher = is(traceFlags);
     return this;
   }
 
+  /**
+   * Sets the span attributes value to match against.
+   *
+   * @param spanAttributes The span attributes to match against.
+   * @return The updated {@code SpanLinkMatcher} instance with the new span attributes constraint.
+   */
   public SpanLinkMatcher attributes(SpanAttributes spanAttributes) {
     this.spanAttributesMatcher = is(spanAttributes);
     return this;
   }
 
+  /**
+   * Sets the trace state value to match against.
+   *
+   * @param traceState The trace state to match against.
+   * @return The updated {@code SpanLinkMatcher} instance with the new trace state constraint.
+   */
   public SpanLinkMatcher traceState(String traceState) {
     this.traceStateMatcher = is(traceState);
     return this;
