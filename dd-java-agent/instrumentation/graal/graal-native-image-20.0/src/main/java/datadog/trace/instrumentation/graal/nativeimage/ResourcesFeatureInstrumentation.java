@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-public final class ResourcesFeatureInstrumentation extends AbstractNativeImageInstrumentation
-    implements Instrumenter.ForSingleType {
+public final class ResourcesFeatureInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

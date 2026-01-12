@@ -7,8 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 
-public final class LinkAtBuildTimeInstrumentation extends AbstractNativeImageInstrumentation
-    implements Instrumenter.ForSingleType {
+public final class LinkAtBuildTimeInstrumentation
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {

@@ -13,7 +13,7 @@ import java.util.List;
 import net.bytebuddy.asm.Advice;
 
 public final class NativeImageGeneratorRunnerInstrumentation
-    extends AbstractNativeImageInstrumentation implements Instrumenter.ForSingleType {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {
