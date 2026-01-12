@@ -29,8 +29,7 @@ public final class HotspotCrashLogParser {
   private static final String OOM_MARKER = "OutOfMemory encountered: ";
 
   // all lowercased
-  private static final String[] KNOWN_LIBRARY_NAMES =
-      {"libjavaprofiler", "libddwaf", "libsqreen"};
+  private static final String[] KNOWN_LIBRARY_NAMES = {"libjavaprofiler", "libddwaf", "libsqreen"};
 
   enum State {
     NEW,
