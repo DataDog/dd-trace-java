@@ -875,12 +875,10 @@ class JFRBasedProfilingIntegrationTest {
     command.add("-javaagent:" + agentShadowJar());
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
     command.add("-Ddd.trace.agent.port=" + tracerPort);
-    if (!tracingEnabled) {
-      command.add("-Ddd.trace.enabled=false");
-    }
     command.add("-Ddd.service.name=smoke-test-java-app");
     command.add("-Ddd.env=smoketest");
     command.add("-Ddd.version=99");
+    command.add("-Ddd.trace.enabled=" + tracingEnabled);
     command.add("-Ddd.profiling.enabled=true");
     command.add("-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT);
     command.add("-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled);
@@ -913,7 +911,6 @@ class JFRBasedProfilingIntegrationTest {
     command.add("-jar");
     command.add(profilingShadowJar());
     command.add(Integer.toString(exitDelay));
-
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
 
