@@ -64,6 +64,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -220,6 +221,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private class AppSecConfigChangesListener implements ProductListener {
+
+    // Deferred operations - collected during accept/remove, executed during commit
+    protected final Map<String, Map<String, Object>> configsToApply = new HashMap<>();
+    protected final Set<String> configsToRemove = new HashSet<>();
+
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
@@ -235,13 +241,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         ignoredConfigKeys.add(key);
       } else {
         ignoredConfigKeys.remove(key);
-        try {
-          beforeApply(key, contentMap);
-          maybeInitializeDefaultConfig();
-          handleWafUpdateResultReport(key, contentMap);
-        } catch (AppSecModule.AppSecModuleActivationException e) {
-          throw new RuntimeException(e);
-        }
+        beforeApply(key, contentMap);
+        maybeInitializeDefaultConfig();
+
+        // DEFER: Store config to apply in commit phase
+        configsToApply.put(key, contentMap);
+
+        // Cancel any pending remove for this key (accept overrides remove)
+        configsToRemove.remove(key);
       }
     }
 
@@ -252,18 +259,46 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       if (ignoredConfigKeys.remove(key)) {
         return;
       }
-      try {
-        maybeInitializeDefaultConfig();
-        wafBuilder.removeConfig(key);
-        afterRemove(key);
-      } catch (UnclassifiedWafException e) {
-        throw new RuntimeException(e);
-      }
+
+      // DEFER: Mark config for removal in commit phase (don't execute immediately)
+      configsToRemove.add(key);
+
+      // Cancel any pending apply for this key (remove overrides apply)
+      configsToApply.remove(key);
+
+      // Notify subclass that removal is pending
+      afterRemove(key);
     }
 
     @Override
     public void commit(PollingRateHinter pollingRateHinter) {
-      // no action needed
+      // Execute deferred operations atomically:
+      // 1. FIRST: Remove obsolete configs
+      // 2. THEN: Apply new/updated configs
+      // This ensures no duplicate rules in memory and no inconsistent state
+
+      // Phase 1: Execute all pending removes
+      for (String key : configsToRemove) {
+        try {
+          maybeInitializeDefaultConfig();
+          wafBuilder.removeConfig(key);
+        } catch (UnclassifiedWafException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      // Phase 2: Execute all pending applies
+      for (Map.Entry<String, Map<String, Object>> entry : configsToApply.entrySet()) {
+        try {
+          handleWafUpdateResultReport(entry.getKey(), entry.getValue());
+        } catch (AppSecModule.AppSecModuleActivationException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      // Clear deferred operations after successful commit
+      configsToRemove.clear();
+      configsToApply.clear();
     }
 
     protected void beforeApply(final String key, final Map<String, Object> contentMap) {}
@@ -274,21 +309,33 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private class AppSecConfigChangesDDListener extends AppSecConfigChangesListener {
     @Override
     protected void beforeApply(final String key, final Map<String, Object> config) {
-      if (defaultConfigActivated) { // if we get any config, remove the default one
-        log.debug("Removing default config ASM_DD/default");
-        try {
-          wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
-        } catch (UnclassifiedWafException e) {
-          throw new RuntimeException(e);
-        }
-        defaultConfigActivated = false;
-      }
+      // Track that we're using this DD config key (for accounting)
       usedDDWafConfigKeys.add(key);
     }
 
     @Override
     protected void afterRemove(final String key) {
+      // Track removal from DD config keys (for accounting)
       usedDDWafConfigKeys.remove(key);
+    }
+
+    @Override
+    public void commit(PollingRateHinter pollingRateHinter) {
+      // Special handling for ASM_DD: Remove default config before applying remote configs
+      // This must happen atomically with the other operations to avoid duplicate rules
+      if (defaultConfigActivated && !configsToApply.isEmpty()) {
+        log.debug("Removing default config ASM_DD/default before applying remote configs");
+        try {
+          maybeInitializeDefaultConfig();
+          wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
+          defaultConfigActivated = false;
+        } catch (UnclassifiedWafException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      // Now execute the standard commit flow (removes first, then applies)
+      super.commit(pollingRateHinter);
     }
   }
 
