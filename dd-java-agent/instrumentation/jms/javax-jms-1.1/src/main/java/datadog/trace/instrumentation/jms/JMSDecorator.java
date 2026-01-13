@@ -245,8 +245,8 @@ public final class JMSDecorator extends MessagingClientDecorator {
     return (len == 11 && name.regionMatches(true, start, "messagebody", 0, 11))
         || (len == 4 && name.regionMatches(true, start, "text", 0, 4))
         || (len == 5 && name.regionMatches(true, start, "bytes", 0, 5))
-        || (len == 3 && name.regionMatches(true, start, "map", 0, 3))
-        || (len == 5 && name.regionMatches(true, start, "value", 0, 5));
+        || (len == 5 && name.regionMatches(true, start, "value", 0, 5))
+        || (len == 3 && name.regionMatches(true, start, "map", 0, 3));
   }
 
   public CharSequence toResourceName(String destinationName, boolean isQueue) {
