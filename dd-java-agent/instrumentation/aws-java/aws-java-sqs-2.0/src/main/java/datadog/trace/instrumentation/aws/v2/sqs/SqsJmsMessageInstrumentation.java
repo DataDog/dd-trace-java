@@ -6,7 +6,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.amazon.sqs.javamessaging.message.SQSMessage;
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,8 +17,13 @@ import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
-public final class SqsJmsMessageInstrumentation
+@AutoService(InstrumenterModule.class)
+public class SqsJmsMessageInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
+  public SqsJmsMessageInstrumentation() {
+    super("sqs", "aws-sdk", "jms");
+  }
 
   @Override
   public String instrumentedType() {

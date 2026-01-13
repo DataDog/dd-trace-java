@@ -4,12 +4,12 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
-import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
-import org.eclipse.jetty.server.HttpConfiguration
-import org.eclipse.jetty.server.HttpConnectionFactory
-import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.server.ServerConnector
-import org.eclipse.jetty.server.SslConnectionFactory
+import datadog.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
+import datadog.eclipse.jetty.server.HttpConfiguration
+import datadog.eclipse.jetty.server.HttpConnectionFactory
+import datadog.eclipse.jetty.server.Server
+import datadog.eclipse.jetty.server.ServerConnector
+import datadog.eclipse.jetty.server.SslConnectionFactory
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
@@ -17,6 +17,8 @@ import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.core.interceptor.Context
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
+import software.amazon.awssdk.http.Protocol
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient
 import software.amazon.awssdk.services.kinesis.KinesisClient
@@ -264,6 +266,12 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     setup:
     def conditions = new PollingConditions(timeout: 1)
     boolean executed = false
+    // KinesisAsyncClient defaults to HTTP/2 with ALPN negotiation, which doesn't work with the
+    // test server's HTTP2CServerConnectionFactory (h2c). Force HTTP/1.1 for compatibility.
+    // Note: AWS SDK 2.25+ supports h2c via .protocol(Protocol.HTTP2).protocolNegotiation(ProtocolNegotiation.ASSUME_PROTOCOL)
+    def httpClient = NettyNioAsyncHttpClient.builder()
+    .protocol(Protocol.HTTP1_1)
+    .build()
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
     .overrideConfiguration({
@@ -271,6 +279,7 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
         executed = true
       })
     })
+    .httpClient(httpClient)
     .endpointOverride(server.address)
     .region(Region.AP_NORTHEAST_1)
     .credentialsProvider(CREDENTIALS_PROVIDER)
