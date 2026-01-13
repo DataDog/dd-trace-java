@@ -43,7 +43,7 @@ import java.util.stream.StreamSupport;
  *   <li>adaptive collision
  * </ul>
  */
-public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
+public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
   TagMap EMPTY = TagMapFactory.INSTANCE.empty();
 
@@ -87,9 +87,13 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   @Deprecated
   Set<String> keySet();
 
+  Iterator<String> tagIterator();
+
   /** Inefficiently implemented for optimized TagMap - requires boxing primitives */
   @Deprecated
   Collection<Object> values();
+
+  Iterator<Object> valueIterator();
 
   // @Deprecated -- not deprecated until OptimizedTagMap becomes the default
   Set<java.util.Map.Entry<String, Object>> entrySet();
@@ -166,7 +170,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   void set(String tag, double value);
 
-  void set(Entry newEntry);
+  void set(EntryReader newEntry);
 
   /** sets the value while returning the prior Entry */
   Entry getAndSet(String tag, Object value);
@@ -237,14 +241,14 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
    * </code>, but with less allocation
    */
   @Override
-  Iterator<Entry> iterator();
+  Iterator<EntryReader> iterator();
 
-  Stream<Entry> stream();
+  Stream<EntryReader> stream();
 
   /**
    * Visits each Entry in this TagMap This method is more efficient than {@link TagMap#iterator()}
    */
-  void forEach(Consumer<? super TagMap.Entry> consumer);
+  void forEach(Consumer<? super TagMap.EntryReader> consumer);
 
   /**
    * Version of forEach that takes an extra context object that is passed as the first argument to
@@ -252,7 +256,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
    *
    * <p>The intention is to use this method to avoid using a capturing lambda
    */
-  <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer);
+  <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer);
 
   /**
    * Version of forEach that takes two extra context objects that are passed as the first two
@@ -260,7 +264,8 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
    *
    * <p>The intention is to use this method to avoid using a capturing lambda
    */
-  <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer);
+  <T, U> void forEach(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer);
 
   /** Clears the TagMap */
   void clear();
@@ -307,12 +312,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     }
   }
 
-  final class Entry extends EntryChange implements Map.Entry<String, Object> {
-    /*
-     * Special value used for Objects that haven't been type checked yet.
-     * These objects might be primitive box objects.
-     */
-    public static final byte ANY = 0;
+  interface EntryReader {
     public static final byte OBJECT = 1;
 
     /*
@@ -330,6 +330,44 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     public static final byte LONG = 7;
     public static final byte FLOAT = 8;
     public static final byte DOUBLE = 9;
+
+    String tag();
+
+    byte type();
+
+    boolean is(byte type);
+
+    boolean isNumericPrimitive();
+
+    boolean isNumber();
+
+    boolean isObject();
+
+    Object objectValue();
+
+    String stringValue();
+
+    boolean booleanValue();
+
+    int intValue();
+
+    long longValue();
+
+    float floatValue();
+
+    double doubleValue();
+
+    Map.Entry<String, Object> mapEntry();
+
+    Entry entry();
+  }
+
+  final class Entry extends EntryChange implements Map.Entry<String, Object>, EntryReader {
+    /*
+     * Special value used for Objects that haven't been type checked yet.
+     * These objects might be primitive box objects.
+     */
+    static final byte ANY = 0;
 
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
       return newAnyEntry(entry.getKey(), entry.getValue());
@@ -400,7 +438,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     // no type checks are done during construction.
     // Any Object entries are initially marked as type ANY, prim set to 0, and the Object put into
     // obj
-    // If an ANY entry is later type checked or request as a primitive, then the ANY will be
+    // If an ANY entry is later type checked or requested as a primitive, then the ANY will be
     // resolved
     // to the correct type.
 
@@ -436,10 +474,22 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return hash;
     }
 
+    @Override
+    public Entry entry() {
+      return this;
+    }
+
+    @Override
+    public java.util.Map.Entry<String, Object> mapEntry() {
+      return this;
+    }
+
+    @Override
     public byte type() {
       return this.resolveAny();
     }
 
+    @Override
     public boolean is(byte type) {
       byte curType = this.rawType;
       if (curType == type) {
@@ -451,6 +501,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       }
     }
 
+    @Override
     public boolean isNumericPrimitive() {
       byte curType = this.rawType;
       if (_isNumericPrimitive(curType)) {
@@ -462,6 +513,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       }
     }
 
+    @Override
     public boolean isNumber() {
       byte curType = this.rawType;
       return _isNumericPrimitive(curType) || (this.rawObj instanceof Number);
@@ -517,6 +569,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       this.rawType = type;
     }
 
+    @Override
     public boolean isObject() {
       return this.is(OBJECT);
     }
@@ -525,6 +578,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return false;
     }
 
+    @Override
     public Object objectValue() {
       if (this.rawObj != null) {
         return this.rawObj;
@@ -562,6 +616,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return this.rawObj;
     }
 
+    @Override
     public boolean booleanValue() {
       byte type = this.rawType;
 
@@ -597,6 +652,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return false;
     }
 
+    @Override
     public int intValue() {
       byte type = this.rawType;
 
@@ -632,6 +688,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0;
     }
 
+    @Override
     public long longValue() {
       byte type = this.rawType;
 
@@ -667,6 +724,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0;
     }
 
+    @Override
     public float floatValue() {
       byte type = this.rawType;
 
@@ -702,6 +760,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0F;
     }
 
+    @Override
     public double doubleValue() {
       byte type = this.rawType;
 
@@ -737,6 +796,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
       return 0D;
     }
 
+    @Override
     public String stringValue() {
       String strCache = this.strCache;
       if (strCache != null) {
@@ -1267,8 +1327,8 @@ final class OptimizedTagMap implements TagMap {
   @Override
   public boolean containsValue(Object value) {
     // This could be optimized - but probably isn't called enough to be worth it
-    for (Entry entry : this) {
-      if (entry.objectValue().equals(value)) return true;
+    for (EntryReader entryReader : this) {
+      if (entryReader.objectValue().equals(value)) return true;
     }
     return false;
   }
@@ -1279,8 +1339,18 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
+  public Iterator<String> tagIterator() {
+    return new KeysIterator(this);
+  }
+
+  @Override
   public Collection<Object> values() {
     return new Values(this);
+  }
+
+  @Override
+  public Iterator<Object> valueIterator() {
+    return new ValuesIterator(this);
   }
 
   @Override
@@ -1318,8 +1388,8 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public void set(TagMap.Entry newEntry) {
-    this.getAndSet(newEntry);
+  public void set(TagMap.EntryReader newEntryReader) {
+    this.getAndSet(newEntryReader.entry());
   }
 
   @Override
@@ -1728,17 +1798,17 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public Iterator<Entry> iterator() {
-    return new EntryIterator(this);
+  public Iterator<EntryReader> iterator() {
+    return new EntryReaderIterator(this);
   }
 
   @Override
-  public Stream<Entry> stream() {
+  public Stream<EntryReader> stream() {
     return StreamSupport.stream(spliterator(), false);
   }
 
   @Override
-  public void forEach(Consumer<? super TagMap.Entry> consumer) {
+  public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1757,7 +1827,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   @Override
-  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1777,7 +1847,7 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public <T, U> void forEach(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer) {
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1933,14 +2003,14 @@ final class OptimizedTagMap implements TagMap {
 
     StringBuilder ledger = new StringBuilder(128);
     ledger.append('{');
-    for (Entry entry : this) {
+    for (EntryReader entry : this) {
       if (first) {
         first = false;
       } else {
         ledger.append(", ");
       }
 
-      ledger.append(entry.tag).append('=').append(entry.stringValue());
+      ledger.append(entry.tag()).append('=').append(entry.stringValue());
     }
     ledger.append('}');
     return ledger.toString();
@@ -1974,7 +2044,7 @@ final class OptimizedTagMap implements TagMap {
     return ledger.toString();
   }
 
-  abstract static class MapIterator<T> implements Iterator<T> {
+  abstract static class IteratorBase {
     private final Object[] buckets;
 
     private Entry nextEntry;
@@ -1984,12 +2054,11 @@ final class OptimizedTagMap implements TagMap {
     private BucketGroup group = null;
     private int groupIndex = 0;
 
-    MapIterator(OptimizedTagMap map) {
+    IteratorBase(OptimizedTagMap map) {
       this.buckets = map.buckets;
     }
 
-    @Override
-    public boolean hasNext() {
+    public final boolean hasNext() {
       if (this.nextEntry != null) return true;
 
       while (this.bucketIndex < this.buckets.length) {
@@ -2000,7 +2069,7 @@ final class OptimizedTagMap implements TagMap {
       return false;
     }
 
-    Entry nextEntry() {
+    final Entry nextEntryOrThrowNoSuchElement() {
       if (this.nextEntry != null) {
         Entry nextEntry = this.nextEntry;
         this.nextEntry = null;
@@ -2014,7 +2083,17 @@ final class OptimizedTagMap implements TagMap {
       }
     }
 
-    private Entry advance() {
+    final Entry nextEntryOrNull() {
+      if (this.nextEntry != null) {
+        Entry nextEntry = this.nextEntry;
+        this.nextEntry = null;
+        return nextEntry;
+      }
+
+      return this.hasNext() ? this.nextEntry : null;
+    }
+
+    private final Entry advance() {
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
           for (++this.groupIndex; this.groupIndex < BucketGroup.LEN; ++this.groupIndex) {
@@ -2048,14 +2127,14 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  static final class EntryIterator extends MapIterator<Entry> {
-    EntryIterator(OptimizedTagMap map) {
+  static final class EntryReaderIterator extends IteratorBase implements Iterator<EntryReader> {
+    EntryReaderIterator(OptimizedTagMap map) {
       super(map);
     }
 
     @Override
-    public Entry next() {
-      return this.nextEntry();
+    public EntryReader next() {
+      return this.nextEntryOrThrowNoSuchElement();
     }
   }
 
@@ -2407,39 +2486,40 @@ final class OptimizedTagMap implements TagMap {
       return existingEntry;
     }
 
-    void forEachInChain(Consumer<? super Entry> consumer) {
+    void forEachInChain(Consumer<? super EntryReader> consumer) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         curGroup._forEach(consumer);
       }
     }
 
-    void _forEach(Consumer<? super Entry> consumer) {
+    void _forEach(Consumer<? super EntryReader> consumer) {
       if (this.entry0 != null) consumer.accept(this.entry0);
       if (this.entry1 != null) consumer.accept(this.entry1);
       if (this.entry2 != null) consumer.accept(this.entry2);
       if (this.entry3 != null) consumer.accept(this.entry3);
     }
 
-    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super Entry> consumer) {
+    <T> void forEachInChain(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         curGroup._forEach(thisObj, consumer);
       }
     }
 
-    <T> void _forEach(T thisObj, BiConsumer<T, ? super Entry> consumer) {
+    <T> void _forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
       if (this.entry0 != null) consumer.accept(thisObj, this.entry0);
       if (this.entry1 != null) consumer.accept(thisObj, this.entry1);
       if (this.entry2 != null) consumer.accept(thisObj, this.entry2);
       if (this.entry3 != null) consumer.accept(thisObj, this.entry3);
     }
 
-    <T, U> void forEachInChain(T thisObj, U otherObj, TriConsumer<T, U, ? super Entry> consumer) {
+    <T, U> void forEachInChain(
+        T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
       for (BucketGroup curGroup = this; curGroup != null; curGroup = curGroup.prev) {
         curGroup._forEach(thisObj, otherObj, consumer);
       }
     }
 
-    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super Entry> consumer) {
+    <T, U> void _forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
       if (this.entry0 != null) consumer.accept(thisObj, otherObj, this.entry0);
       if (this.entry1 != null) consumer.accept(thisObj, otherObj, this.entry1);
       if (this.entry2 != null) consumer.accept(thisObj, otherObj, this.entry2);
@@ -2575,14 +2655,14 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  static final class KeysIterator extends MapIterator<String> {
+  static final class KeysIterator extends IteratorBase implements Iterator<String> {
     KeysIterator(OptimizedTagMap map) {
       super(map);
     }
 
     @Override
     public String next() {
-      return this.nextEntry().tag();
+      return this.nextEntryOrThrowNoSuchElement().tag();
     }
   }
 
@@ -2614,15 +2694,109 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  static final class ValuesIterator extends MapIterator<Object> {
+  static final class ValuesIterator extends IteratorBase implements Iterator<Object> {
     ValuesIterator(OptimizedTagMap map) {
       super(map);
     }
 
     @Override
     public Object next() {
-      return this.nextEntry().objectValue();
+      return this.nextEntryOrThrowNoSuchElement().objectValue();
     }
+  }
+}
+
+final class EntryReadingHelper implements TagMap.EntryReader {
+  private Map.Entry<String, Object> mapEntry;
+  private String tag;
+  private Object value;
+
+  void set(String tag, Object value) {
+    this.mapEntry = null;
+    this.tag = tag;
+    this.value = value;
+  }
+
+  void set(Map.Entry<String, Object> mapEntry) {
+    this.mapEntry = mapEntry;
+    this.tag = mapEntry.getKey();
+    this.value = mapEntry.getValue();
+  }
+
+  @Override
+  public String tag() {
+    return this.tag;
+  }
+
+  @Override
+  public byte type() {
+    return TagValueConversions.typeOf(this.value);
+  }
+
+  @Override
+  public boolean is(byte type) {
+    return TagValueConversions.isA(this.value, type);
+  }
+
+  @Override
+  public boolean isNumber() {
+    return TagValueConversions.isNumber(this.value);
+  }
+
+  @Override
+  public boolean isNumericPrimitive() {
+    return TagValueConversions.isNumericPrimitive(this.value);
+  }
+
+  @Override
+  public boolean isObject() {
+    return TagValueConversions.isObject(this.value);
+  }
+
+  @Override
+  public boolean booleanValue() {
+    return TagValueConversions.toBoolean(this.value);
+  }
+
+  @Override
+  public int intValue() {
+    return TagValueConversions.toInt(this.value);
+  }
+
+  @Override
+  public long longValue() {
+    return TagValueConversions.toLong(this.value);
+  }
+
+  @Override
+  public float floatValue() {
+    return TagValueConversions.toFloat(this.value);
+  }
+
+  @Override
+  public double doubleValue() {
+    return TagValueConversions.toDouble(this.value);
+  }
+
+  @Override
+  public String stringValue() {
+    return TagValueConversions.toString(this.value);
+  }
+
+  @Override
+  public Object objectValue() {
+    return this.value;
+  }
+
+  @Override
+  public TagMap.Entry entry() {
+    return TagMap.Entry.newAnyEntry(this.tag, this.value);
+  }
+
+  @Override
+  public Map.Entry<String, Object> mapEntry() {
+    Map.Entry<String, Object> mapEntry = this.mapEntry;
+    return (mapEntry != null) ? mapEntry : this.entry();
   }
 }
 
@@ -2677,6 +2851,16 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
+  public Iterator<String> tagIterator() {
+    return this.keySet().iterator();
+  }
+
+  @Override
+  public Iterator<Object> valueIterator() {
+    return this.values().iterator();
+  }
+
+  @Override
   public void fillMap(Map<? super String, Object> map) {
     map.putAll(this);
   }
@@ -2689,25 +2873,37 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public void forEach(Consumer<? super datadog.trace.api.TagMap.Entry> consumer) {
+  public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
+    EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
+
+    // TODO: optimize to take advantage of EntryReader
     for (Map.Entry<String, Object> entry : this.entrySet()) {
-      consumer.accept(TagMap.Entry.newAnyEntry(entry));
+      entryReadingHelper.set(entry);
+
+      consumer.accept(entryReadingHelper);
     }
   }
 
   @Override
-  public <T> void forEach(
-      T thisObj, BiConsumer<T, ? super datadog.trace.api.TagMap.Entry> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
+
     for (Map.Entry<String, Object> entry : this.entrySet()) {
-      consumer.accept(thisObj, TagMap.Entry.newAnyEntry(entry));
+      entryReadingHelper.set(entry);
+
+      consumer.accept(thisObj, entryReadingHelper);
     }
   }
 
   @Override
   public <T, U> void forEach(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super datadog.trace.api.TagMap.Entry> consumer) {
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+    EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
+
     for (Map.Entry<String, Object> entry : this.entrySet()) {
-      consumer.accept(thisObj, otherObj, TagMap.Entry.newAnyEntry(entry));
+      entryReadingHelper.set(entry);
+
+      consumer.accept(thisObj, otherObj, entryReadingHelper);
     }
   }
 
@@ -2912,8 +3108,8 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public void set(TagMap.Entry newEntry) {
-    this.put(newEntry.tag(), newEntry.objectValue());
+  public void set(TagMap.EntryReader newEntryReader) {
+    this.put(newEntryReader.tag(), newEntryReader.objectValue());
   }
 
   @Override
@@ -2990,20 +3186,22 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public Iterator<TagMap.Entry> iterator() {
+  public Iterator<TagMap.EntryReader> iterator() {
     return new IteratorImpl(this);
   }
 
   @Override
-  public Stream<TagMap.Entry> stream() {
+  public Stream<TagMap.EntryReader> stream() {
     return StreamSupport.stream(this.spliterator(), false);
   }
 
-  private static final class IteratorImpl implements Iterator<TagMap.Entry> {
+  private static final class IteratorImpl implements Iterator<TagMap.EntryReader> {
     private final Iterator<Map.Entry<String, Object>> wrappedIter;
+    private final EntryReadingHelper entryReadingHelper;
 
     IteratorImpl(LegacyTagMap legacyMap) {
       this.wrappedIter = legacyMap.entrySet().iterator();
+      this.entryReadingHelper = new EntryReadingHelper();
     }
 
     @Override
@@ -3012,8 +3210,177 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
     }
 
     @Override
-    public TagMap.Entry next() {
-      return TagMap.Entry.newAnyEntry(this.wrappedIter.next());
+    public TagMap.EntryReader next() {
+      Map.Entry<String, Object> entry = this.wrappedIter.next();
+      this.entryReadingHelper.set(entry.getKey(), entry.getValue());
+
+      return this.entryReadingHelper;
     }
+  }
+}
+
+final class TagValueConversions {
+  TagValueConversions() {}
+
+  static byte typeOf(Object value) {
+    if (value instanceof Integer) {
+      return TagMap.EntryReader.INT;
+    } else if (value instanceof Long) {
+      return TagMap.EntryReader.LONG;
+    } else if (value instanceof Double) {
+      return TagMap.EntryReader.DOUBLE;
+    } else if (value instanceof Float) {
+      return TagMap.EntryReader.FLOAT;
+    } else if (value instanceof Boolean) {
+      return TagMap.EntryReader.BOOLEAN;
+    } else if (value instanceof Short) {
+      return TagMap.EntryReader.SHORT;
+    } else if (value instanceof Byte) {
+      return TagMap.EntryReader.BYTE;
+    } else if (value instanceof Character) {
+      return TagMap.EntryReader.CHAR;
+    } else {
+      return TagMap.EntryReader.OBJECT;
+    }
+  }
+
+  static boolean isA(Object value, byte type) {
+    switch (type) {
+      case TagMap.EntryReader.BYTE:
+        return (value instanceof Byte);
+
+      case TagMap.EntryReader.BOOLEAN:
+        return (value instanceof Boolean);
+
+      case TagMap.EntryReader.CHAR:
+        return (value instanceof Character);
+
+      case TagMap.EntryReader.SHORT:
+        return (value instanceof Short);
+
+      case TagMap.EntryReader.INT:
+        return (value instanceof Integer);
+
+      case TagMap.EntryReader.LONG:
+        return (value instanceof Long);
+
+      case TagMap.EntryReader.FLOAT:
+        return (value instanceof Float);
+
+      case TagMap.EntryReader.DOUBLE:
+        return (value instanceof Double);
+
+      case TagMap.EntryReader.OBJECT:
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  static boolean isNumber(Object value) {
+    return (value instanceof Number);
+  }
+
+  static boolean isNumericPrimitive(Object value) {
+    return (value instanceof Integer)
+        || (value instanceof Long)
+        || (value instanceof Double)
+        || (value instanceof Float)
+        || (value instanceof Short)
+        || (value instanceof Byte);
+  }
+
+  static boolean isObject(Object value) {
+    return (value instanceof Integer)
+        || (value instanceof Long)
+        || (value instanceof Double)
+        || (value instanceof Float)
+        || (value instanceof Boolean)
+        || (value instanceof Character)
+        || (value instanceof Short)
+        || (value instanceof Byte);
+  }
+
+  static boolean toBooleanOrDefault(Object value, boolean defaultValue) {
+    return (value == null) ? defaultValue : toBoolean(value);
+  }
+
+  static boolean toBoolean(Object value) {
+    if (value instanceof Boolean) {
+      return (Boolean) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).intValue() != 0;
+    } else {
+      return false;
+    }
+  }
+
+  static int toIntOrDefault(Object value, int defaultValue) {
+    return (value == null) ? defaultValue : toInt(value);
+  }
+
+  static int toInt(Object value) {
+    if (value instanceof Integer) {
+      return (Integer) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).intValue();
+    } else if (value instanceof Boolean) {
+      return (Boolean) value ? 1 : 0;
+    } else {
+      return 0;
+    }
+  }
+
+  static long toLong(Object value) {
+    if (value instanceof Long) {
+      return (Long) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).longValue();
+    } else if (value instanceof Boolean) {
+      return (Boolean) value ? 1L : 0L;
+    } else {
+      return 0L;
+    }
+  }
+
+  static long toLongOrDefault(Object value, long defaultValue) {
+    return (value == null) ? defaultValue : toLong(value);
+  }
+
+  static float toFloat(Object value) {
+    if (value instanceof Float) {
+      return (Float) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).floatValue();
+    } else if (value instanceof Boolean) {
+      return (Boolean) value ? 1F : 0F;
+    } else {
+      return 0F;
+    }
+  }
+
+  static float toFloatOrDefault(Object value, float defaultValue) {
+    return (value == null) ? defaultValue : toFloat(value);
+  }
+
+  static double toDouble(Object value) {
+    if (value instanceof Double) {
+      return (Double) value;
+    } else if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    } else if (value instanceof Boolean) {
+      return (Boolean) value ? 1D : 0D;
+    } else {
+      return 0D;
+    }
+  }
+
+  static double toDoubleOrDefault(Object value, double defaultValue) {
+    return (value == null) ? defaultValue : toDouble(value);
+  }
+
+  static String toString(Object value) {
+    return value.toString();
   }
 }
