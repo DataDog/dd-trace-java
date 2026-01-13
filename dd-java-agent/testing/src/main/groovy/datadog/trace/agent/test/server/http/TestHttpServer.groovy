@@ -130,6 +130,18 @@ class TestHttpServer implements AutoCloseable {
         https.setPort(0)
         internalServer.addConnector(https)
 
+        // Guard against shading mismatch: test code may use non-shaded Jetty types
+        // while TestHttpServer uses shaded Jetty (datadog.eclipse.jetty.*)
+        if (customizer.maximumNumberOfParameters > 0) {
+          def expectedType = customizer.parameterTypes[0]
+          def actualType = internalServer.getClass()
+          if (expectedType != Object && !expectedType.isAssignableFrom(actualType)) {
+            throw new IllegalArgumentException(
+              "Customizer closure expects '${expectedType.name}' but TestHttpServer uses shaded Jetty '${actualType.name}'. " +
+              "Update your test imports to use 'datadog.eclipse.jetty.*' instead of 'org.eclipse.jetty.*'."
+            )
+          }
+        }
         customizer.call(internalServer)
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
