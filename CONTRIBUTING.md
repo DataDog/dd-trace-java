@@ -50,10 +50,10 @@ To run the formatting verify task only:
 
 For IntelliJ IDEA, we suggest the following settings and plugin.
 
-The default JVM to build and run tests from the command line should be Java 8.
+The default JVM to build and run tests from the command line should be Java 21.
 
-* Use Java 8 to build and run tests:
-  * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 1.8` -> `Download`
+* Use Java 21 to build and run tests:
+  * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 21` -> `Download`
 * Configure Java and Groovy import formatting:  
   * `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
     * `Use single class import`: checked
@@ -82,11 +82,6 @@ The default JVM to build and run tests from the command line should be Java 8.
 * IntelliJ 2021.3
   complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173.
     * Switch to `IntelliJ IDEA CE 2021.2.3`.
-
-* IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`.
-    * A workaround is to run IntelliJ from your terminal with `JAVA_11_HOME`.
-    * In order to verify what's visible from IntelliJ, use the `Add Configuration` bar and go
-      to `Add New` -> `Gradle` -> `Environmental Variables`.
 </details>
 
 ## Pull request guidelines

@@ -43,16 +43,9 @@ function TestJvm {
 
 Write-Host 'ℹ️ Checking required JVM:'
 if (Test-Path 'env:JAVA_HOME') {
-  TestJvm 'JAVA_HOME' '1.8'
+  TestJvm 'JAVA_HOME' '21'
 }
-
-TestJvm 'JAVA_8_HOME' '1.8'
-TestJvm 'JAVA_11_HOME' '11'
-TestJvm 'JAVA_17_HOME' '17'
-TestJvm 'JAVA_21_HOME' '21'
-TestJvm 'JAVA_25_HOME' '25'
-# GraalVM cannot currently be installed due to license change in October 2024 for GraalVM 17.0.13 and later.
-# TestJvm 'JAVA_GRAALVM17_HOME' '17'
+Write-Host 'ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver.'
 
 # Check for required commands (e.g., git, docker)
 function TestCommand {

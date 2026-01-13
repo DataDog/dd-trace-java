@@ -26,18 +26,13 @@ function check-jvm-from-path() {
     fi
 }
 
-echo "ℹ️ Checking required JVMs:"
+echo "ℹ️ Checking required JVM:"
 if [ -e "$JAVA_HOME" ]; then
-    check-jvm "JAVA_HOME" "1.8"
+    check-jvm "JAVA_HOME" "21"
 elif command -v java &> /dev/null; then
-    check-jvm-from-path "1.8"
+    check-jvm-from-path "21"
 fi
-check-jvm "JAVA_8_HOME" "1.8"
-check-jvm "JAVA_11_HOME" "11"
-check-jvm "JAVA_17_HOME" "17"
-check-jvm "JAVA_21_HOME" "21"
-check-jvm "JAVA_25_HOME" "25"
-check-jvm "JAVA_GRAALVM17_HOME" "17"
+echo "ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver."
 
 
 #
