@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "selenium",
+      "test.module" : "selenium-3.13",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedSelenium",
@@ -56,7 +56,7 @@
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.is_rum_active" : "true",
-      "test.module" : "selenium",
+      "test.module" : "selenium-3.13",
       "test.name" : "test_succeed",
       "test.source.file" : "dummy_source_path",
       "test.source.method" : "test_succeed()V",
@@ -101,7 +101,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "selenium",
+      "test.command" : "selenium-3.13",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "pass",
@@ -115,7 +115,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "junit5.test_session",
-    "resource" : "selenium",
+    "resource" : "selenium-3.13",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -135,7 +135,7 @@
       "span.kind" : "test_module_end",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "selenium",
+      "test.module" : "selenium-3.13",
       "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -144,7 +144,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
     },
     "name" : "junit5.test_module",
-    "resource" : "selenium",
+    "resource" : "selenium-3.13",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
-import static java.util.Collections.singleton;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -46,9 +44,6 @@ public final class SqsModule extends InstrumenterModule.Tracing {
     // we don't need to instrument messages when we're doing legacy AWS-SDK tracing
     if (!InstrumenterConfig.get().isLegacyInstrumentationEnabled(false, "aws-sdk")) {
       ret.add(new SqsReceiveResultInstrumentation());
-    }
-    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("jms"), true)) {
-      ret.add(new SqsJmsMessageInstrumentation());
     }
     return ret;
   }
