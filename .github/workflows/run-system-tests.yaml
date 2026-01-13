@@ -74,7 +74,7 @@ jobs:
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
-      excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
+      excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN  # exclude flaky scenarios
       skip_empty_scenarios: true
 
   # Ensure the main job is run to completion
