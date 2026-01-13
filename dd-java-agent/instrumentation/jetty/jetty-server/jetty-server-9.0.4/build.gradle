@@ -12,6 +12,13 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
+// Exclude servlet 3.x API from test runtime to ensure servlet 2.x instrumentation applies.
+// Only exclude from testRuntimeClasspath (not testImplementation) to avoid propagating to latestDep* configs
+// which need servlet 3.1 API for Jetty 9.2.x.
+configurations.testRuntimeClasspath {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
   implementation project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")
@@ -22,9 +29,16 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.4.v20130625'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.0.4.v20130625'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.0.4.v20130625'
-  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
-  testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+  // Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies
+  testImplementation(project(':dd-java-agent:appsec:appsec-test-fixtures')) {
+    exclude group: 'javax.servlet', module: 'javax.servlet-api'
+  }
+  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))) {
+    exclude group: 'javax.servlet', module: 'javax.servlet-api'
+  }
+  testImplementation(testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))) {
+    exclude group: 'javax.servlet', module: 'javax.servlet-api'
+  }
 
   // Include all jetty-server instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0")
@@ -35,6 +49,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
 
+  // latestDep tests use Jetty 9.2.x which requires servlet 3.1 API
+  latestDepTestImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.2.30.v20200428'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.2.+'
