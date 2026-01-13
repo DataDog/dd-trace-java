@@ -343,7 +343,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (extractorList != null) {
         for (DataStreamsTransactionExtractor extractor : extractorList) {
           String transactionId = getRequestHeader(request, extractor.getValue());
-          if (transactionId != null) {
+          if (transactionId != null && !transactionId.isEmpty()) {
             dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
             span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
             span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());

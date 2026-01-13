@@ -32,9 +32,8 @@ public class TransactionContainer {
     return size == 0;
   }
 
-  public boolean clear() {
+  public void clear() {
     size = 0;
-    return true;
   }
 
   public int getSize() {

@@ -19,6 +19,6 @@ public interface DataStreamsTransactionExtractor {
   /** getType returns transaction extractor type */
   Type getType();
 
-  /** getType returns transaction extractor value */
+  /** getValue returns transaction extractor value */
   String getValue();
 }
