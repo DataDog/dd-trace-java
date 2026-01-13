@@ -26,11 +26,6 @@ abstract class JSPTestBase extends InstrumentationSpecification {
 
   OkHttpClient client = OkHttpUtils.client()
 
-  // HTTP status code constants
-  static final int HTTP_OK = 200
-  static final int HTTP_NOT_FOUND = 404
-  static final int HTTP_INTERNAL_ERROR = 500
-
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

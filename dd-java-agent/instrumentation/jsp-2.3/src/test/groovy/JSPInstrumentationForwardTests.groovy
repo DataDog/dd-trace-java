@@ -3,6 +3,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.Request
 import okhttp3.Response
 import org.apache.jasper.JasperException
+import org.eclipse.jetty.http.HttpStatus
 
 class JSPInstrumentationForwardTests extends JSPTestBase {
   def "non-erroneous GET forward to #forwardTo"() {
@@ -96,7 +97,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_OK
+    res.code() == HttpStatus.OK_200
 
     cleanup:
     res.close()
@@ -170,7 +171,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_OK
+    res.code() == HttpStatus.OK_200
 
     cleanup:
     res.close()
@@ -323,7 +324,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_OK
+    res.code() == HttpStatus.OK_200
 
     cleanup:
     res.close()
@@ -448,7 +449,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_OK
+    res.code() == HttpStatus.OK_200
 
     cleanup:
     res.close()
@@ -534,7 +535,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_INTERNAL_ERROR
+    res.code() == HttpStatus.INTERNAL_SERVER_ERROR_500
 
     cleanup:
     res.close()
@@ -603,7 +604,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
         }
       }
     }
-    res.code() == HTTP_NOT_FOUND
+    res.code() == HttpStatus.NOT_FOUND_404
 
     cleanup:
     res.close()
