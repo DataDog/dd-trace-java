@@ -223,7 +223,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                 inputs: [
                   [
                     address : "server.io.net.request.headers",
-                    key_path: ["Witness"]
+                    key_path: ["witness"]
                   ]
                 ],
                 list: ["pwq3ojtropiw3hjtowir"]
