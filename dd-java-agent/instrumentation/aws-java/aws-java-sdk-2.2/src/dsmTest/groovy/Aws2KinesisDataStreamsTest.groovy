@@ -270,8 +270,8 @@ abstract class Aws2KinesisDataStreamsTest extends VersionedNamingTestBase {
     // test server's HTTP2CServerConnectionFactory (h2c). Force HTTP/1.1 for compatibility.
     // Note: AWS SDK 2.25+ supports h2c via .protocol(Protocol.HTTP2).protocolNegotiation(ProtocolNegotiation.ASSUME_PROTOCOL)
     def httpClient = NettyNioAsyncHttpClient.builder()
-      .protocol(Protocol.HTTP1_1)
-      .build()
+    .protocol(Protocol.HTTP1_1)
+    .build()
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
     .overrideConfiguration({
