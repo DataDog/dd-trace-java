@@ -137,8 +137,8 @@ class TestHttpServer implements AutoCloseable {
           def actualType = internalServer.getClass()
           if (expectedType != Object && !expectedType.isAssignableFrom(actualType)) {
             throw new IllegalArgumentException(
-              "Customizer closure expects '${expectedType.name}' but TestHttpServer uses shaded Jetty '${actualType.name}'. " +
-              "Update your test imports to use 'datadog.eclipse.jetty.*' instead of 'org.eclipse.jetty.*'."
+            "Customizer closure expects '${expectedType.name}' but TestHttpServer uses shaded Jetty '${actualType.name}'. " +
+            "Update your test imports to use 'datadog.eclipse.jetty.*' instead of 'org.eclipse.jetty.*'."
             )
           }
         }
