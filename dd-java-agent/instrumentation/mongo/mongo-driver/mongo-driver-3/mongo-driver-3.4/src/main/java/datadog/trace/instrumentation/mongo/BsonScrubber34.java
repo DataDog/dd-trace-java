@@ -279,6 +279,7 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
 
   @Override
   public void writeStartArray() {
+    context.startArray();
     context.write('[');
   }
 
@@ -467,7 +468,11 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
     writeStartArray(attribute);
     BsonType type = reader.readBsonType();
     while (type != BsonType.END_OF_DOCUMENT) {
-      pipeValue(null, reader);
+      if (context.nextSequenceElement()) {
+        pipeValue(null, reader);
+      } else {
+        reader.skipValue();
+      }
       type = reader.readBsonType();
       nextValue(type);
     }
@@ -478,6 +483,9 @@ public class BsonScrubber34 implements BsonWriter, BsonScrubber {
   private void pipeArray(String attribute, final BsonArray array) {
     writeStartArray(attribute);
     for (BsonValue cur : array) {
+      if (!context.nextSequenceElement()) {
+        break;
+      }
       pipeValue(null, cur);
     }
     writeEndArray();

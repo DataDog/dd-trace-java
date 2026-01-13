@@ -72,7 +72,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
         return ((Collection<?>) listHolder).size();
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unsupported Collection class: " + listHolder.getClass().getTypeName());
       }
     } else if (listHolder == Value.nullValue()) {
@@ -136,14 +136,14 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
         return ((Collection<?>) listHolder).contains(val.isNull() ? null : val.getValue());
       }
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Unsupported Collection class: " + listHolder.getClass().getTypeName());
     }
     if (arrayHolder != null) {
       int count = Array.getLength(arrayHolder);
       if (arrayType.isPrimitive()) {
         if (val.getValue() == null || val.isNull()) {
-          throw new RuntimeException("Cannot compare null with primitive array");
+          throw new IllegalArgumentException("Cannot compare null with primitive array");
         }
         if (arrayType == byte.class) {
           byte byteValue = (Byte) val.getValue();
@@ -224,7 +224,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
           }
         }
       }
-      throw new RuntimeException("Unsupported value class: " + objValue.getClass().getTypeName());
+      throw new UnsupportedOperationException(
+          "Unsupported value class: " + objValue.getClass().getTypeName());
     }
     return false;
   }

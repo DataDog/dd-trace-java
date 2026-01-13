@@ -201,6 +201,8 @@ public class TagMapLedgerTest {
       ledger.remove(key(i));
     }
 
+    assertTrue(ledger.containsRemovals());
+
     TagMap map = ledger.build();
     for (int i = 0; i < SIZE; ++i) {
       if ((i % 2) == 0) {
@@ -209,6 +211,10 @@ public class TagMapLedgerTest {
         assertEquals(value(i), map.getString(key(i)));
       }
     }
+
+    ledger.reset();
+
+    assertFalse(ledger.containsRemovals());
   }
 
   @Test
@@ -218,12 +224,20 @@ public class TagMapLedgerTest {
     ledger.smartRemove("foo");
 
     assertTrue(ledger.containsRemovals());
+
+    ledger.reset();
+
+    assertFalse(ledger.containsRemovals());
   }
 
   @Test
   public void smartRemoval_missingCase() {
     TagMap.Ledger ledger = TagMap.ledger();
     ledger.smartRemove("foo");
+
+    assertFalse(ledger.containsRemovals());
+
+    ledger.reset();
 
     assertFalse(ledger.containsRemovals());
   }

@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceed",
@@ -51,7 +51,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.name" : "Example.add adds two numbers",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
@@ -93,7 +93,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "scalatest",
+      "test.command" : "scalatest-3.0.8",
       "test.early_flake.enabled" : "true",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
@@ -108,7 +108,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "scalatest.test_session",
-    "resource" : "scalatest",
+    "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -129,7 +129,7 @@
       "test.early_flake.enabled" : "true",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -138,7 +138,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
     },
     "name" : "scalatest.test_module",
-    "resource" : "scalatest",
+    "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},

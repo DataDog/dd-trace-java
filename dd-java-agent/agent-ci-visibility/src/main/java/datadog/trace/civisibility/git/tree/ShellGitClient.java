@@ -929,6 +929,7 @@ public class ShellGitClient implements GitClient {
                   "diff",
                   "-U0",
                   "--word-diff=porcelain",
+                  "--no-prefix",
                   baseCommit,
                   targetCommit));
     } else {
@@ -936,7 +937,13 @@ public class ShellGitClient implements GitClient {
           Command.DIFF,
           () ->
               commandExecutor.executeCommand(
-                  GitDiffParser::parse, "git", "diff", "-U0", "--word-diff=porcelain", baseCommit));
+                  GitDiffParser::parse,
+                  "git",
+                  "diff",
+                  "-U0",
+                  "--word-diff=porcelain",
+                  "--no-prefix",
+                  baseCommit));
     }
   }
 

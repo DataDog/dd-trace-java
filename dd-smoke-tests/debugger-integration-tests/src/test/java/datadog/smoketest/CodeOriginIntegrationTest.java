@@ -47,7 +47,7 @@ public class CodeOriginIntegrationTest extends ServerAppDebuggerIntegrationTest 
                 assertEquals("runTracedMethod", span.getMeta().get(DD_CODE_ORIGIN_FRAME_METHOD));
                 assertEquals(
                     "(java.lang.String)", span.getMeta().get(DD_CODE_ORIGIN_FRAME_SIGNATURE));
-                assertEquals("156", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
+                assertEquals("158", span.getMeta().get(DD_CODE_ORIGIN_FRAME_LINE));
                 codeOrigin.set(true);
               }
             }
