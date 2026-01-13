@@ -1,6 +1,5 @@
 package datadog.trace.api.debugger
 
-import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.InstrumenterConfig
 import spock.lang.Specification
 
