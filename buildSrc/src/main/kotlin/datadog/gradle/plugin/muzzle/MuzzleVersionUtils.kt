@@ -57,6 +57,7 @@ internal object MuzzleVersionUtils {
           v.contains("public_draft") ||
           v.contains("-cr") ||
           v.contains("-preview") ||
+          v.contains(".redhat-") ||
           skipVersions.contains(v) ||
           END_NMN_PATTERN.matches(v) ||
           GIT_SHA_PATTERN.matches(v))
