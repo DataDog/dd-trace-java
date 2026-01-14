@@ -30,82 +30,82 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
-benchmarks-startup:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh startup
-    - ./steps/analyze-results.sh startup
+# benchmarks-startup:
+#   extends: .benchmarks
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/capture-hardware-software-info.sh
+#     - ./steps/run-benchmarks.sh startup
+#     - ./steps/analyze-results.sh startup
 
-benchmarks-load:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
-    - ./steps/analyze-results.sh load
+# benchmarks-load:
+#   extends: .benchmarks
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/capture-hardware-software-info.sh
+#     - ./steps/run-benchmarks.sh load
+#     - ./steps/analyze-results.sh load
 
-benchmarks-dacapo:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh dacapo
-    - ./steps/analyze-results.sh dacapo
+# benchmarks-dacapo:
+#   extends: .benchmarks
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/capture-hardware-software-info.sh
+#     - ./steps/run-benchmarks.sh dacapo
+#     - ./steps/analyze-results.sh dacapo
 
-benchmarks-post-results:
-  extends: .benchmarks
-  tags: ["arch:amd64"]
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/upload-results-to-s3.sh
-    - ./steps/post-pr-comment.sh
-  needs:
-    - job: benchmarks-startup
-      artifacts: true
-    - job: benchmarks-load
-      artifacts: true
-    - job: benchmarks-dacapo
-      artifacts: true
+# benchmarks-post-results:
+#   extends: .benchmarks
+#   tags: ["arch:amd64"]
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - ./steps/upload-results-to-s3.sh
+#     - ./steps/post-pr-comment.sh
+#   needs:
+#     - job: benchmarks-startup
+#       artifacts: true
+#     - job: benchmarks-load
+#       artifacts: true
+#     - job: benchmarks-dacapo
+#       artifacts: true
 
-check-big-regressions:
-  extends: .benchmarks
-  needs:
-    - job: benchmarks-startup
-      artifacts: true
-    - job: benchmarks-dacapo
-      artifacts: true
-  when: on_success
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
-      when: never
-    - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
-    - when: never
-  # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
-  # need to convert them
-  script:
-    - !reference [ .benchmarks, script ]
-    - | 
-      for benchmarkType in startup dacapo; do
-          find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
-            relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
-            prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
-            prefix="${prefix#./}" # Remove any leading ./
-            prefix="${prefix//\//-}" # Replace / with -
-            case "$file" in
-              *benchmark-baseline.json) type="baseline" ;;
-              *benchmark-candidate.json) type="candidate" ;;
-            esac
-            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
-            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
-          done
-      done
-    - bp-runner $CI_PROJECT_DIR/.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
+# check-big-regressions:
+#   extends: .benchmarks
+#   needs:
+#     - job: benchmarks-startup
+#       artifacts: true
+#     - job: benchmarks-dacapo
+#       artifacts: true
+#   when: on_success
+#   tags: ["arch:amd64"]
+#   rules:
+#     - if: '$POPULATE_CACHE'
+#       when: never
+#     - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
+#       when: never
+#     - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+#       when: on_success
+#     - when: never
+#   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
+#   # need to convert them
+#   script:
+#     - !reference [ .benchmarks, script ]
+#     - | 
+#       for benchmarkType in startup dacapo; do
+#           find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
+#             relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
+#             prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
+#             prefix="${prefix#./}" # Remove any leading ./
+#             prefix="${prefix//\//-}" # Replace / with -
+#             case "$file" in
+#               *benchmark-baseline.json) type="baseline" ;;
+#               *benchmark-candidate.json) type="candidate" ;;
+#             esac
+#             echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+#             cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
+#           done
+#       done
+#     - bp-runner $CI_PROJECT_DIR/.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
 
 .dsm-kafka-benchmarks:
   stage: benchmarks
