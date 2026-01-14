@@ -28,7 +28,20 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected Path prefsDir
 
   protected static String buildJavaHome() {
-    return System.getProperty("java.home")
+    def javaHome = System.getProperty("java.home")
+    def javacPath = Paths.get(javaHome, "bin", "javac").toFile()
+    if (javacPath.exists()) {
+      return javaHome
+    }
+    // In CI for JDK 8, java.home may point to the JRE directory (e.g., /usr/lib/jvm/8/jre)
+    // The JDK with javac is in the parent directory
+    def parentDir = new File(javaHome).getParentFile()
+    def parentJavacPath = new File(parentDir, Paths.get("bin", "javac").toString())
+    if (parentJavacPath.exists()) {
+      return parentDir.getAbsolutePath()
+    }
+    // Fallback to java.home and let callers handle the error if javac is not found
+    return javaHome
   }
 
   protected static String javaPath() {
