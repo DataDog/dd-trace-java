@@ -11,7 +11,7 @@
       "span.kind" : "test_suite_end",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "karate",
+      "test.module" : "karate-1.0",
       "test.status" : "skip",
       "test.suite" : "[org/example/test_succeed] test succeed",
       "test.traits" : "{\"category\":[\"foo\"]}",
@@ -46,7 +46,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "karate",
+      "test.command" : "karate-1.0",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "skip",
@@ -60,7 +60,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "karate.test_session",
-    "resource" : "karate",
+    "resource" : "karate-1.0",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_2},
     "test_session_id" : ${content_test_session_id}
@@ -80,7 +80,7 @@
       "span.kind" : "test_module_end",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "karate",
+      "test.module" : "karate-1.0",
       "test.status" : "skip",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -89,7 +89,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3}
     },
     "name" : "karate.test_module",
-    "resource" : "karate",
+    "resource" : "karate-1.0",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_module_id" : ${content_test_module_id},
