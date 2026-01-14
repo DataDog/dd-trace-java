@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @AutoService(InstrumenterModule.class)
-public final class AerospikeModule extends InstrumenterModule {
+public final class AerospikeModule extends InstrumenterModule.Tracing {
   public AerospikeModule() {
     super("aerospike");
   }
