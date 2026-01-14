@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createManual;
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.MAX_NUM_EXTRACTORS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -80,7 +81,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
-  // contains a list of active extractors by type
+  // contains a list of active extractors by type. It is not thread safe, but it's populated only
+  // once
+  // on background thread start
   private static final Map<
           DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
       extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
@@ -502,6 +505,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  /* updateExtractorsFromConfig is called only once during startup */
   private void updateExtractorsFromConfig() {
     if (!supportsDataStreams) {
       return;
@@ -512,7 +516,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (extractors == null) {
       return;
     }
-    for (DataStreamsTransactionExtractor extractor : extractors) {
+    // we support up to MAX_NUM_EXTRACTORS
+    for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
+      DataStreamsTransactionExtractor extractor = extractors.get(i);
       List<DataStreamsTransactionExtractor> list =
           extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
       list.add(extractor);

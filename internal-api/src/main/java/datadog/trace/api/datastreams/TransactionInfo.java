@@ -1,5 +1,7 @@
 package datadog.trace.api.datastreams;
 
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.MAX_NUM_EXTRACTORS;
+
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -9,7 +11,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TransactionInfo implements InboxItem {
-  private static final DDCache<String, Integer> CACHE = DDCaches.newFixedSizeCache(64);
+  private static final DDCache<String, Integer> CACHE =
+      DDCaches.newFixedSizeCache(MAX_NUM_EXTRACTORS);
   private static final AtomicInteger COUNTER = new AtomicInteger();
 
   private final String id;

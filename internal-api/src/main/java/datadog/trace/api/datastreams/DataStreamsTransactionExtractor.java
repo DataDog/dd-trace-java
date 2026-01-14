@@ -1,6 +1,8 @@
 package datadog.trace.api.datastreams;
 
 public interface DataStreamsTransactionExtractor {
+  int MAX_NUM_EXTRACTORS = 64;
+
   enum Type {
     UNKNOWN,
     /** HTTP_OUT_HEADERS targets outgoing HTTP requests */
