@@ -27,7 +27,7 @@ class InstrumentPluginTest {
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.2' // just to build TestPlugin
     }
 
     configurations {
