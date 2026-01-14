@@ -695,7 +695,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
