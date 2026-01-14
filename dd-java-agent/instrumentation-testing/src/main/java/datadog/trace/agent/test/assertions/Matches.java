@@ -21,7 +21,7 @@ public class Matches implements Matcher<CharSequence> {
   }
 
   @Override
-  public String message() {
+  public String failureReason() {
     return "Non matching value";
   }
 

@@ -6,6 +6,19 @@ import java.util.List;
 import java.util.function.Function;
 import org.opentest4j.AssertionFailedError;
 
+/**
+ * This class is a helper class to verify a trace structure.
+ *
+ * <p>To get a {@code TraceMatcher}, use the static factory methods: {@link #trace(SpanMatcher...)}
+ * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(Function,
+ * SpanMatcher...)} to configure the checks with a {@link Options} object.
+ *
+ * <p>{@link #SORT_BY_START_TIME} can be used as predefined configuration to sort spans by start
+ * time.
+ *
+ * @see TraceAssertions
+ * @see SpanMatcher
+ */
 public final class TraceMatcher {
   public static final Comparator<DDSpan> START_TIME_COMPARATOR =
       Comparator.comparingLong(DDSpan::getStartTime);

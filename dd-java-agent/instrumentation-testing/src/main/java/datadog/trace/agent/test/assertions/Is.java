@@ -21,7 +21,7 @@ public class Is<T> implements Matcher<T> {
   }
 
   @Override
-  public String message() {
+  public String failureReason() {
     return "Unexpected value";
   }
 

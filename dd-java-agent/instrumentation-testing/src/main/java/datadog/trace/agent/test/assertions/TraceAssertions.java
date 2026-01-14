@@ -8,6 +8,23 @@ import java.util.List;
 import java.util.function.Function;
 import org.opentest4j.AssertionFailedError;
 
+/**
+ * This class is a helper class to verify traces structure.
+ *
+ * <p>To check for traces structure, use the static factory methods: {@link #assertTraces(List,
+ * TraceMatcher...)} with the expected {@link TraceMatcher}s (one per trace), or {@link
+ * #assertTraces(List, Function, TraceMatcher...)} to configure the checks with a {@link Options}
+ * object.
+ *
+ * <p>The following predefined configurations:
+ *
+ * <ul>
+ *   <li>{@link #IGNORE_ADDITIONAL_TRACES} ignores additional traces if there are more than
+ *       expected,
+ *   <li>{@link #SORT_BY_START_TIME} sorts traces by their start time,
+ *   <li>{@link #SORT_BY_ROOT_SPAN_ID} sorts traces by their root span identifiers.
+ * </ul>
+ */
 public final class TraceAssertions {
   /** Trace comparator to sort by start time. */
   public static final Comparator<List<DDSpan>> TRACE_START_TIME_COMPARATOR =

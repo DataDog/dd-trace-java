@@ -11,13 +11,15 @@ import java.util.Optional;
  * @param <T> the type of the value being matched
  */
 public class Any<T> implements Matcher<T> {
+  Any() {}
+
   @Override
   public Optional<T> expected() {
     return Optional.empty();
   }
 
   @Override
-  public String message() {
+  public String failureReason() {
     return "";
   }
 
