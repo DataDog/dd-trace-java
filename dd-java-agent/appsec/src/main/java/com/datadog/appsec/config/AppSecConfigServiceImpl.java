@@ -279,11 +279,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
       // Phase 1: Execute all pending removes
       for (String key : configsToRemove) {
-        try {
-          maybeInitializeDefaultConfig();
-          wafBuilder.removeConfig(key);
-        } catch (UnclassifiedWafException e) {
-          throw new RuntimeException(e);
+        // Only remove if the config was actually added to the WAF
+        if (usedDDWafConfigKeys.contains(key)) {
+          try {
+            maybeInitializeDefaultConfig();
+            wafBuilder.removeConfig(key);
+          } catch (UnclassifiedWafException e) {
+            throw new RuntimeException(e);
+          }
         }
       }
 
