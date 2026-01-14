@@ -995,6 +995,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     public void reset() {
       Arrays.fill(this.entryChanges, null);
       this.nextPos = 0;
+      this.containsRemovals = false;
     }
 
     @Override

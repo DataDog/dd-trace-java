@@ -989,7 +989,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     bundle.size() == (sampled ? 4 : 3)
     bundle.get(KnownAddresses.IO_NET_URL) == url
     bundle.get(KnownAddresses.IO_NET_REQUEST_METHOD) == method
-    bundle.get(KnownAddresses.IO_NET_REQUEST_HEADERS) == headers
+    bundle.get(KnownAddresses.IO_NET_REQUEST_HEADERS) == toLowerCaseHeaders(headers)
     if (sampled) {
       bundle.get(KnownAddresses.IO_NET_REQUEST_BODY) == ['Hello': 'World!']
     }
@@ -1029,7 +1029,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
     bundle.size() == (sampled ? 3 : 2)
     bundle.get(KnownAddresses.IO_NET_RESPONSE_STATUS) == Integer.toString(status)
-    bundle.get(KnownAddresses.IO_NET_RESPONSE_HEADERS) == headers
+    bundle.get(KnownAddresses.IO_NET_RESPONSE_HEADERS) == toLowerCaseHeaders(headers)
     if (sampled) {
       bundle.get(KnownAddresses.IO_NET_RESPONSE_BODY) == ['Hello': 'World!']
     }
@@ -1613,6 +1613,12 @@ class GatewayBridgeSpecification extends DDSpecification {
       final bundle = it[2] as DataBundle
       final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
       assert body['test'] == 'this is a test'
+    }
+  }
+
+  static toLowerCaseHeaders(final Map<String, List<String>> headers) {
+    return headers.collectEntries {
+      [(it.key.toLowerCase(Locale.ROOT)): it.value]
     }
   }
 }

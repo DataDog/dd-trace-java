@@ -134,6 +134,14 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 }
 
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure IastServlet2Instrumentation applies (requires no javax.servlet.AsyncEvent)
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
 tasks.withType(Test).configureEach {
   // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
   conditionalJvmArgs(

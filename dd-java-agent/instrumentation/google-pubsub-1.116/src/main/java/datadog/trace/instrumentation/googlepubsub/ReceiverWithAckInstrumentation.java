@@ -5,30 +5,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import com.google.cloud.pubsub.v1.MessageReceiverWithAckResponse;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class ReceiverWithAckInstrumentation extends InstrumenterModule.Tracing
+public final class ReceiverWithAckInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ReceiverWithAckInstrumentation() {
-    super("google-pubsub", "google-pubsub-receiver");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PubSubDecorator",
-      packageName + ".PubSubDecorator$RegexExtractor",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".MessageReceiverWithAckResponseWrapper",
-    };
-  }
 
   @Override
   public String instrumentedType() {

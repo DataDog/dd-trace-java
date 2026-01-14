@@ -4,7 +4,6 @@ import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
-import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
@@ -122,7 +121,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     long start = System.nanoTime();
     try {
       return probeCondition.execute(capture);
-    } catch (EvaluationException ex) {
+    } catch (Exception ex) {
       DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
       return false;
     } finally {

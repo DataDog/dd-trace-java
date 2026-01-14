@@ -8,6 +8,8 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.values.ListValue;
+import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -77,7 +79,7 @@ class IndexExpressionTest {
   }
 
   @Test
-  void testUnsupported() {
+  void testUnsupportedSet() {
     IndexExpression expr =
         new IndexExpression(new SetValue(new HashSet<>()), new StringValue("foo"));
     EvaluationException evaluationException =
@@ -85,6 +87,40 @@ class IndexExpressionTest {
             EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
     assertEquals(
         "Cannot evaluate the expression for unsupported type: com.datadog.debugger.el.values.SetValue",
+        evaluationException.getMessage());
+  }
+
+  @Test
+  void testUnsupportedList() {
+    IndexExpression expr =
+        new IndexExpression(new ListValue(new ArrayList<String>() {}), new NumericValue(0));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Unsupported List class: com.datadog.debugger.el.expressions.IndexExpressionTest$1",
+        evaluationException.getMessage());
+  }
+
+  @Test
+  void testOutOfBoundsList() {
+    IndexExpression expr =
+        new IndexExpression(new ListValue(new ArrayList<String>()), new NumericValue(42));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals("index[42] out of bounds: [0-0]", evaluationException.getMessage());
+  }
+
+  @Test
+  void testUnsupportedMap() {
+    IndexExpression expr =
+        new IndexExpression(new MapValue(new HashMap<String, String>() {}), new StringValue("foo"));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Unsupported Map class: com.datadog.debugger.el.expressions.IndexExpressionTest$2",
         evaluationException.getMessage());
   }
 

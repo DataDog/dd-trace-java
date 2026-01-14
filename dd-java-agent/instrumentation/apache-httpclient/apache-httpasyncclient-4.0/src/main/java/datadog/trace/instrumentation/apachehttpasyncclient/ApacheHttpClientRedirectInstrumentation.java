@@ -5,9 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.util.PropagationUtils;
 import java.util.Locale;
 import net.bytebuddy.asm.Advice;
@@ -24,13 +22,8 @@ import org.apache.http.protocol.HttpContext;
  * manually. Inspired by
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-plugins/apm-apache-httpclient-plugin/src/main/java/co/elastic/apm/agent/httpclient/ApacheHttpAsyncClientRedirectInstrumentation.java
  */
-@AutoService(InstrumenterModule.class)
-public class ApacheHttpClientRedirectInstrumentation extends InstrumenterModule.Tracing
+public class ApacheHttpClientRedirectInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public ApacheHttpClientRedirectInstrumentation() {
-    super("httpasyncclient", "apache-httpasyncclient", "httpclient-redirect");
-  }
 
   @Override
   public String hierarchyMarkerType() {
