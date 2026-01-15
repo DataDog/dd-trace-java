@@ -37,3 +37,8 @@ java.lang.System#getenv(java.lang.String)
 #Use jdk LongAdder
 @defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter
 org.jctools.counters.FixedSizeStripedLongCounter
+
+# avoid methods that mutate final fields: https://openjdk.org/jeps/500
+@defaultMessage Avoid using Field::set and MethodHandles.Lookup::unreflectSetter. Java is moving toward integrity by default which restricts final field mutation. More details here: https://openjdk.org/jeps/500.
+java.lang.reflect.Field#set(java.lang.Object,java.lang.Object)
+java.lang.invoke.MethodHandles$Lookup#unreflectSetter(java.lang.reflect.Field)

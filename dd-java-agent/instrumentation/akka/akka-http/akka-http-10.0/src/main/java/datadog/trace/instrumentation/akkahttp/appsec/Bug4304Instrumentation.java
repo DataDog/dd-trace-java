@@ -16,6 +16,7 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.util.regex.Pattern;
 import net.bytebuddy.asm.Advice;
@@ -92,6 +93,7 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
 
   static class GraphStageLogicAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @SuppressForbidden
     static void after(@Advice.This GraphStageLogic thiz)
         throws NoSuchFieldException, IllegalAccessException {
       AgentSpan span = activeSpan();

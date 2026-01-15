@@ -29,6 +29,7 @@ import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.sink.XssModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -124,6 +125,7 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  @SuppressForbidden
   private static void set(final Field field, final IastModule module) {
     try {
       field.set(null, module);

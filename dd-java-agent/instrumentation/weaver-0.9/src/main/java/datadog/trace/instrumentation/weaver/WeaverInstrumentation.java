@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,6 +44,7 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
 
   public static class SbtTaskCreationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
+    @SuppressForbidden
     public static void onTaskCreation(
         @Advice.This Object sbtTask, @Advice.FieldValue("taskDef") TaskDef taskDef) {
       try {

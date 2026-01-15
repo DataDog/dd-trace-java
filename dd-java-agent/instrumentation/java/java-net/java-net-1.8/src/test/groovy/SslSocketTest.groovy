@@ -3,6 +3,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.usm.UsmExtractor
 import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
+import de.thetaphi.forbiddenapis.SuppressForbidden
 import java.lang.reflect.Field
 import javax.net.ssl.HttpsURLConnection
 import spock.lang.AutoCleanup
@@ -31,6 +32,7 @@ class SslSocketTest extends InstrumentationSpecification {
     injectSysConfig("dd.usm.enabled", "true")
   }
 
+  @SuppressForbidden
   def "simple HTTPS request"() {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())

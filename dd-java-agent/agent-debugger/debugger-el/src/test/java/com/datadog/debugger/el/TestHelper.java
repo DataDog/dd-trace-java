@@ -1,9 +1,11 @@
 package com.datadog.debugger.el;
 
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 
 public class TestHelper {
+  @SuppressForbidden
   public static void setFieldInConfig(Config config, String fieldName, Object value) {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);
