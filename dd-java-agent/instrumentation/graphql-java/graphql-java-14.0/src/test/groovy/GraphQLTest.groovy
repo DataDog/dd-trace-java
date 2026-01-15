@@ -3,6 +3,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
+import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.schema.DataFetcher
@@ -15,6 +16,7 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
 
@@ -60,6 +62,18 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
         @Override
         String get(DataFetchingEnvironment environment) throws Exception {
           throw new IllegalStateException("TEST")
+        }
+      }))
+      .type(newTypeWiring("Book").dataFetcher("asyncCover", new DataFetcher<CompletionStage<String>>() {
+        @Override
+        CompletionStage<String> get(DataFetchingEnvironment environment) throws Exception {
+          // Simulate the "async resolver failed" shape seen in the wild: nested CompletionException wrappers.
+          // This avoids scheduling work on the common pool while still exercising graphql-java's unwrapping logic.
+          def future = new CompletableFuture<String>()
+          future.completeExceptionally(new CompletionException(
+          new CompletionException(new CompletionException(new IllegalStateException("ASYNC_TEST")))
+          ))
+          return future
         }
       }))
       .type(newTypeWiring("Book").dataFetcher("bookHash", new DataFetcher<CompletableFuture<Integer>>() {
@@ -488,6 +502,118 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "graphql.coordinates" "Book.cover"
             "error.type" "java.lang.IllegalStateException"
             "error.message" "TEST"
+            "error.stack" String
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Query.bookById"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "Book"
+            "graphql.coordinates" "Query.bookById"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "getBookById"
+          resourceName "book"
+          childOf(span(2))
+          spanType null
+          errored false
+          measured false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.validation"
+          resourceName "graphql.validation"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.parsing"
+          resourceName "graphql.parsing"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored false
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "query async fetch error unwraps nested CompletionException wrappers"() {
+    setup:
+    def query = 'query findBookById {\n' +
+    '  bookById(id: "book-1") {\n' +
+    '    id #test\n' +
+    '    asyncCover\n' +
+    '  }\n' +
+    '}'
+    def expectedQuery = 'query findBookById {\n' +
+    '  bookById(id: {String}) {\n' +
+    '    id\n' +
+    '    asyncCover\n' +
+    '  }\n' +
+    '}\n'
+    ExecutionResult result = graphql.execute(query)
+
+    expect:
+    !result.getErrors().isEmpty()
+    result.getErrors().get(0).getMessage().contains("ASYNC_TEST")
+    !result.getErrors().get(0).getMessage().contains("CompletionException")
+    result.getErrors().get(0) instanceof ExceptionWhileDataFetching
+    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException() instanceof IllegalStateException
+    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException().getMessage() == "ASYNC_TEST"
+
+    assertTraces(1) {
+      trace(6) {
+        span {
+          operationName operation()
+          resourceName "findBookById"
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.source" expectedQuery
+            "graphql.operation.name" "findBookById"
+            "error.message" { it.contains("ASYNC_TEST") }
+            defaultTags()
+          }
+        }
+        span {
+          operationName "graphql.field"
+          resourceName "Book.asyncCover"
+          childOf(span(0))
+          spanType DDSpanTypes.GRAPHQL
+          errored true
+          measured true
+          tags {
+            "$Tags.COMPONENT" "graphql-java"
+            "graphql.type" "String"
+            "graphql.coordinates" "Book.asyncCover"
+            "error.type" "java.lang.IllegalStateException"
+            "error.message" "ASYNC_TEST"
             "error.stack" String
             defaultTags()
           }
