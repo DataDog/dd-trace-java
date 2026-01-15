@@ -48,37 +48,38 @@ If there is any issue with your output, check the requirements above and use the
 
 Requirements to build the full project:
 
-* JDK 21 must be installed and `JAVA_HOME` must point to it.
-* Other JDK versions (8, 11, 17, 25) will be automatically downloaded by Gradle's toolchain resolver.
 * The `git` command line must be installed.
 * A container runtime environment must be available to run all tests (e.g. Docker Desktop).
 
 ### Install the required JDK
 
-Download and install JDK 21 for your OS. Other JDK versions will be automatically downloaded by Gradle when needed.
+Gradle auto-provision needed JDKs locally. However, it still is possible to manage the JDK via other tools. 
 
 #### macOS
 
-
-Use your JDK manager ([mise](https://mise.jdx.dev/), [sdkman](https://sdkman.io/), etc.) or set-up the required JDKs with `brew`
+The following steps demonstrate how to use `brew`, but other version managers 
+such as [mise](https://mise.jdx.dev/) or [sdkman](https://sdkman.io/) work as well.
 
 * Install the required JDKs using `brew`:
   ```shell
-  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu graalvm/tap/graalvm-ce-java17
+  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu@25 
+  ```
+  
+  and if GraalVM is needed (17, 21, 25) 
+  ```shell
+  brew install graalvm/tap/graalvm-community-java17 graalvm/tap/graalvm-community-jdk21 graalvm/tap/graalvm-community-jdk25
   ```
 * Identify your local version of GraalVM:
   ```
   ls /Library/Java/JavaVirtualMachines | grep graalvm
   ```
-  Example: `graalvm-ce-java17-22.3.1`
-* Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
-  ```
-* Add the `JAVA_HOME` environment variable to your shell using the `export` command. You can permanently set it by appending the `export` command to your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
+  Example: `graalvm-community-openjdk-17`
+
+  Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/), e.g. :
+ 
   ```shell
-  export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
+  xattr -r -d com.apple.quarantine "/Library/Java/JavaVirtualMachines/graalvm-community-openjdk-17"
   ```
-  
-  Gradle should automatically detect the JDK in usual places. As a fallback it can automatically provision them.
 * Restart your shell after applying the changes if you appended the command to your shell configuration file.
 
 > [!NOTE]

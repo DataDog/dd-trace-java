@@ -11,7 +11,7 @@ def appBuildDir = "$buildDir/application"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
-// define the task that builds the quarkus project
+// define the task that builds the project
 tasks.register('webfluxBuild', Exec) {
   workingDir "$appDir"
   environment += [

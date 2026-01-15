@@ -50,10 +50,6 @@ To run the formatting verify task only:
 
 For IntelliJ IDEA, we suggest the following settings and plugin.
 
-The default JVM to build and run tests from the command line should be Java 21.
-
-* Use Java 21 to build and run tests:
-  * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 21` -> `Download`
 * Configure Java and Groovy import formatting:  
   * `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
     * `Use single class import`: checked
@@ -64,6 +60,7 @@ The default JVM to build and run tests from the command line should be Java 21.
   * top right Settings icon -> `Settings...` ->`Editor` > `Code Style` > `Groovy` > `Imports`
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
+* To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
 * Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
 
 ### Troubleshooting

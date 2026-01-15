@@ -792,11 +792,19 @@ Sometimes it is necessary to force Gradle to discard cached test results and [re
 ./gradle test --rerun-tasks
 ```
 
-Running tests that require JDK-21 to be installed, use the `-PtestJvm=21` flag, for example:
+Running tests that require JDK-21 can use the `-PtestJvm=21` flag (if not installed, Gradle will provision them),
+for example:
 
 ```shell
 ./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21
 ```
+
+> [!TIP]
+> The `testJvm` property also accept a path to a JVM home. E.g.
+> 
+> ```shell
+> /gradlew  :dd-java-agent:instrumentation:an-insturmentation:test -PtestJvm=~/.local/share/mise/installs/java/openjdk-26.0.0-loom+1/
+> ```
 
 ### Latest Dependency Tests
 
