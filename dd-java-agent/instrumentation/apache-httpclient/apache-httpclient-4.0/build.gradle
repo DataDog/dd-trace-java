@@ -10,7 +10,6 @@ muzzle {
     group = "org.apache.httpcomponents"
     module = "httpclient"
     versions = "[4.0,5)"
-    skipVersions += "4.3.6" // missing httpcore-4.3.3.redhat-3.jar at https://maven.repository.redhat.com/ga/org/apache/httpcomponents/httpcore/4.3.3.redhat-3/
     assertInverse = true
   }
   pass {
