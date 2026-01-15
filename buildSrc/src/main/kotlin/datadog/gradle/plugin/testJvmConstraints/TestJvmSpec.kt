@@ -1,6 +1,5 @@
 package datadog.gradle.plugin.testJvmConstraints
 
-import com.gradle.scan.agent.serialization.scan.serializer.kryo.it
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
@@ -83,9 +82,13 @@ class TestJvmSpec(val project: Project) {
   private val testJvmSpec = normalizedTestJvm.map {
     val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
 
+    // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
+    // because gradle doesn't offer a way to distinguish ibm8 or semeru8
+    val envVarValue = project.providers.environmentVariable("JAVA_${it.uppercase()}_HOME").orNull
+
     when {
       Files.exists(Paths.get(it)) -> it.normalizeToJDKJavaHome().toToolchainSpec()
-
+      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome().toToolchainSpec()
       version.isNotBlank() -> {
         // Best effort to make a spec for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
@@ -104,7 +107,10 @@ class TestJvmSpec(val project: Project) {
               vendor.set(JvmVendorSpec.AZUL)
             }
 
-            "semeru" -> {
+            // Note: Both IBM and Semeru report java.vendor = "IBM Corporation",
+            // so JvmVendorSpec cannot distinguish them. Use JAVA_IBM8_HOME or
+            // JAVA_SEMERU8_HOME env vars for reliable selection.
+            "ibm", "semeru" -> {
               vendor.set(JvmVendorSpec.IBM)
               implementation.set(JvmImplementation.J9)
             }
@@ -112,6 +118,10 @@ class TestJvmSpec(val project: Project) {
             "graalvm" -> {
               vendor.set(JvmVendorSpec.GRAAL_VM)
               nativeImageCapable.set(true)
+            }
+
+            else -> {
+              throw GradleException("Unknown JVM distribution '$distribution'. Supported: oracle, zulu, ibm, semeru, graalvm.")
             }
           }
         }
