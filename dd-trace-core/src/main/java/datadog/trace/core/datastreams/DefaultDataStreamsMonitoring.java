@@ -220,6 +220,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
 
     List<DataStreamsTransactionExtractor> extractorList = extractorsByType.get(extractorType);
+    if (extractorList == null) {
+      return;
+    }
+
     for (DataStreamsTransactionExtractor extractor : extractorList) {
       String transactionId = sourceReader.readHeader(source, extractor.getValue());
       if (transactionId != null && !transactionId.isEmpty()) {
