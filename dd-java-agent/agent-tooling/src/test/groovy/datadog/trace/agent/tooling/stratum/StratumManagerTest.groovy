@@ -2,37 +2,21 @@ package datadog.trace.agent.tooling.stratum
 
 import datadog.trace.agent.tooling.stratum.StratumManager
 import datadog.trace.test.util.DDSpecification
+import java.util.function.IntConsumer
 import org.apache.commons.io.FileUtils
 
 class StratumManagerTest extends DDSpecification {
 
-  void 'test shouldBeAnalyzed'(){
-
-    when:
-    def result = StratumManager.shouldBeAnalyzed(internalClassName)
-
-    then:
-    result == expected
-
-    where:
-    internalClassName | expected
-    'foo/bar/Baz' | false
-    'foo/jsp/Baz' | false
-    'foo/bar/Baz_jsp' | true
-    'foo/bar/jsp_Baz' | true
-    'foo/bar/Baz_tag' | false
-    'foo/bar/jsp/Baz_tag' | true
-  }
-
   void 'test analyzeClass'(){
     given:
+    StratumManager stratumManager = new StratumManager(1000, {})
     byte[] data = FileUtils.readFileToByteArray(new File("src/test/resources/datadog.trace.agent.tooling.stratum/register_jsp.class"))
 
     when:
-    StratumManager.INSTANCE.analyzeClass(data)
+    stratumManager.analyzeClass(data)
 
     then:
-    final result  = StratumManager.INSTANCE.get("org.apache.jsp.register_jsp")
+    final result  = stratumManager.get("org.apache.jsp.register_jsp")
     result != null
     final inputLine = result.getInputLine(216)
     inputLine.right == 70
@@ -42,7 +26,7 @@ class StratumManagerTest extends DDSpecification {
 
   void 'test limit reached'(){
     setup:
-    def newStratumManager = new StratumManager(1)
+    def newStratumManager = new StratumManager(1, {})
     byte[] data = FileUtils.readFileToByteArray(new File("src/test/resources/datadog.trace.agent.tooling.stratum/register_jsp.class"))
 
     when:
