@@ -41,8 +41,8 @@ class SourceMapperImplTest extends InstrumentationSpecification {
 
     then: "stratum exists and input line number is found"
     1 * stratumManager.get("foo/bar/Baz") >> stratum
-    1 * stratum.getInputLine(_) >> new Pair<>(1, 52)
-    1 * stratum.getSourceFile(1) >> "foo/bar/Baz.jsp"
+    1 * stratum.getInputLine(_) >> new Pair<>("1", 52)
+    1 * stratum.getSourceFile("1") >> "foo/bar/Baz.jsp"
     result.getLeft() == "foo/bar/Baz.jsp"
     result.getRight() == 52
   }

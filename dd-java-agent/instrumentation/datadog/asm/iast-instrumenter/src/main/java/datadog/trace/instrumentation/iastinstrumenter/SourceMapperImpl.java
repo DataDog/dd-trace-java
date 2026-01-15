@@ -11,7 +11,7 @@ public class SourceMapperImpl implements SourceMapper {
   // This is only available if IAST source mapping is enabled
   public static final SourceMapperImpl INSTANCE =
       Config.get().isIastSourceMappingEnabled()
-          ? new SourceMapperImpl(StratumManager.INSTANCE)
+          ? new SourceMapperImpl(new StratumManager(Config.get().getIastSourceMappingMaxSize()))
           : null;
 
   private final StratumManager stratumManager;

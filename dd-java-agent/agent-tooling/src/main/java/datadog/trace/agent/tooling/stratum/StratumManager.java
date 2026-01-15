@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.agent.tooling.stratum.parser.Parser;
-import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import java.util.List;
@@ -23,19 +22,9 @@ public class StratumManager {
 
   private final LimitedConcurrentHashMap map;
 
-  public static final StratumManager INSTANCE =
-      new StratumManager(Config.get().getIastSourceMappingMaxSize());
-
-  private StratumManager(int sourceMappingLimit) {
+  public StratumManager(int sourceMappingLimit) {
     // Prevent instantiation
     this.map = new LimitedConcurrentHashMap(sourceMappingLimit);
-  }
-
-  public static boolean shouldBeAnalyzed(final String internalClassName) {
-    return internalClassName.contains("jsp")
-        && (internalClassName.contains("_jsp")
-            || internalClassName.contains("jsp_")
-            || internalClassName.contains("_tag"));
   }
 
   public void analyzeClass(final byte[] bytes) {

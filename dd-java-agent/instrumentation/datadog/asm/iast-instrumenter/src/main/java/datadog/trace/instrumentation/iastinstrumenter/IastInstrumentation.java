@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.bytebuddy.csi.Advices.Listener;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier;
 import datadog.trace.agent.tooling.csi.CallSites;
+import datadog.trace.agent.tooling.stratum.StratumManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
@@ -17,6 +18,7 @@ import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.service.CallSitesLoader;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -52,14 +54,16 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {
-    final List<Listener> listeners = new LinkedList<>();
+    final List<Listener> listeners = new ArrayList<>();
     final boolean iastActive =
         InstrumenterConfig.get().getIastActivation() == ProductActivation.FULLY_ENABLED;
     if (iastActive) {
       if (Config.get().isIastHardcodedSecretEnabled()) {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
-      listeners.add(StratumListener.INSTANCE);
+      StratumManager stratumManager =
+          new StratumManager(Config.get().getIastSourceMappingMaxSize());
+      listeners.add(new StratumListener(stratumManager));
     }
     return Advices.fromCallSites(callSites, listeners.toArray(new Listener[0]));
   }
