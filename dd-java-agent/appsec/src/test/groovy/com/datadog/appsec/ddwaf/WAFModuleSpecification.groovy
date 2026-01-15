@@ -149,7 +149,7 @@ class WAFModuleSpecification extends DDSpecification {
       def json = ADAPTER.toJson(map)
       listener.accept(config, json.getBytes(), null)
     }
-    // Trigger commit to execute deferred operations (P2 deferred commit pattern)
+    // Trigger commit to execute deferred operations
     listener.commit(null)
   }
 
