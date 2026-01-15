@@ -241,7 +241,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         ignoredConfigKeys.add(key);
       } else {
         ignoredConfigKeys.remove(key);
-        beforeApply(key, contentMap);
         maybeInitializeDefaultConfig();
 
         // DEFER: Store config to apply in commit phase
@@ -265,9 +264,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
       // Cancel any pending apply for this key (remove overrides apply)
       configsToApply.remove(key);
-
-      // Notify subclass that removal is pending
-      afterRemove(key);
     }
 
     @Override
@@ -288,10 +284,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             throw new RuntimeException(e);
           }
         }
+        afterRemove(key);
       }
 
       // Phase 2: Execute all pending applies
       for (Map.Entry<String, Map<String, Object>> entry : configsToApply.entrySet()) {
+        beforeApply(entry.getKey(), entry.getValue());
         try {
           handleWafUpdateResultReport(entry.getKey(), entry.getValue());
         } catch (AppSecModule.AppSecModuleActivationException e) {
