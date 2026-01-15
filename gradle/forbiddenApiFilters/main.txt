@@ -1,7 +1,7 @@
 # loads and instantiates a class which may be inefficient depending on context
 java.lang.Class#forName(java.lang.String)
 
-# String methods which uses regexes for matching
+# String methods which use regexes for matching
 java.lang.String#split(java.lang.String)
 java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
@@ -34,7 +34,7 @@ java.lang.System#err
 java.lang.System#getenv()
 java.lang.System#getenv(java.lang.String)
 
-#Use jdk LongAdder
+# use jdk LongAdder instead of jctools FixedSizeStripedLongCounter
 @defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter
 org.jctools.counters.FixedSizeStripedLongCounter
 
