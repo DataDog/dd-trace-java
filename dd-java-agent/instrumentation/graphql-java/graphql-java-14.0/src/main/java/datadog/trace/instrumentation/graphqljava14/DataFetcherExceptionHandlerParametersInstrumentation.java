@@ -40,6 +40,11 @@ public class DataFetcherExceptionHandlerParametersInstrumentation extends Instru
         this.getClass().getName() + "$UnwrapGetExceptionAdvice");
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.graphqljava.AsyncExceptionUnwrapper"};
+  }
+
   public static class UnwrapGetExceptionAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return(readOnly = false) Throwable throwable) {
