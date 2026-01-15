@@ -85,6 +85,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.Utils",
       packageName + ".AvroSchemaExtractor",
     };
   }
