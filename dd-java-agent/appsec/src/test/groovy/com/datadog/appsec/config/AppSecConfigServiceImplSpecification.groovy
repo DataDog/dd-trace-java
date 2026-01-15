@@ -705,7 +705,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   void 'config keys are added and removed to the set when receiving ASM_DD payloads'() {
     setup:
-    AppSecSystem.active = true
     final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
     final service = new AppSecConfigServiceImpl(config, poller, reconf)
     config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
