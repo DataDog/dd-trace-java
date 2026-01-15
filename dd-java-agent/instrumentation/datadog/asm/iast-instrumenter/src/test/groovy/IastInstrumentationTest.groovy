@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.agent.tooling.stratum.StratumManager
 import datadog.trace.api.config.IastConfig
 import datadog.trace.instrumentation.iastinstrumenter.IastHardcodedSecretListener
 import datadog.trace.instrumentation.iastinstrumenter.IastInstrumentation
