@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 /**
  * The fileInfo describes the translated-source file names <a

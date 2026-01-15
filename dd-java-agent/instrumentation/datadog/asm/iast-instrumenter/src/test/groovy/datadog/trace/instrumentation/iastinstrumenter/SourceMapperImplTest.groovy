@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.iastinstrumenter
 
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.agent.tooling.iast.stratum.Stratum
-import datadog.trace.agent.tooling.iast.stratum.StratumManager
+import datadog.trace.agent.tooling.stratum.Stratum
+import datadog.trace.agent.tooling.stratum.StratumManager
 import datadog.trace.api.Pair
 
 class SourceMapperImplTest extends InstrumentationSpecification {

@@ -1,6 +1,6 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
-import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
+import datadog.trace.agent.tooling.stratum.parser.Parser;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;

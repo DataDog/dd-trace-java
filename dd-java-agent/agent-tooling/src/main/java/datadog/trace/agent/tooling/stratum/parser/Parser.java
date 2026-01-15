@@ -1,12 +1,12 @@
-package datadog.trace.agent.tooling.iast.stratum.parser;
+package datadog.trace.agent.tooling.stratum.parser;
 
-import static datadog.trace.agent.tooling.iast.stratum.parser.Builder.SPACE_PATTERN;
+import static datadog.trace.agent.tooling.stratum.parser.Builder.SPACE_PATTERN;
 
-import datadog.trace.agent.tooling.iast.stratum.EmbeddedStratum;
-import datadog.trace.agent.tooling.iast.stratum.FileInfo;
-import datadog.trace.agent.tooling.iast.stratum.LineInfo;
-import datadog.trace.agent.tooling.iast.stratum.SourceMap;
-import datadog.trace.agent.tooling.iast.stratum.StratumExt;
+import datadog.trace.agent.tooling.stratum.EmbeddedStratum;
+import datadog.trace.agent.tooling.stratum.FileInfo;
+import datadog.trace.agent.tooling.stratum.LineInfo;
+import datadog.trace.agent.tooling.stratum.SourceMap;
+import datadog.trace.agent.tooling.stratum.StratumExt;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;

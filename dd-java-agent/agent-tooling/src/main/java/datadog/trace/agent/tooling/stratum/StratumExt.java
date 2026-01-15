@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.api.Pair;
 import java.util.ArrayList;

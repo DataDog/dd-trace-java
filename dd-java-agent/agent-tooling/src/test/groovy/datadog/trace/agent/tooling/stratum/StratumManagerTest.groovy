@@ -1,5 +1,6 @@
-package datadog.trace.agent.tooling.iast.stratum
+package datadog.trace.agent.tooling.stratum
 
+import datadog.trace.agent.tooling.stratum.StratumManager
 import datadog.trace.test.util.DDSpecification
 import org.apache.commons.io.FileUtils
 

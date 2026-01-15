@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
-import datadog.trace.agent.tooling.iast.stratum.Stratum;
-import datadog.trace.agent.tooling.iast.stratum.StratumManager;
+import datadog.trace.agent.tooling.stratum.Stratum;
+import datadog.trace.agent.tooling.stratum.StratumManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.iast.stratum.SourceMapper;

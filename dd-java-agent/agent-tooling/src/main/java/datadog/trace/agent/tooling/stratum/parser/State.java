@@ -1,8 +1,8 @@
-package datadog.trace.agent.tooling.iast.stratum.parser;
+package datadog.trace.agent.tooling.stratum.parser;
 
-import datadog.trace.agent.tooling.iast.stratum.EmbeddedStratum;
-import datadog.trace.agent.tooling.iast.stratum.SourceMap;
-import datadog.trace.agent.tooling.iast.stratum.StratumExt;
+import datadog.trace.agent.tooling.stratum.EmbeddedStratum;
+import datadog.trace.agent.tooling.stratum.SourceMap;
+import datadog.trace.agent.tooling.stratum.StratumExt;
 import java.util.ArrayDeque;
 import java.util.Deque;
 

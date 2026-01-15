@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.iastinstrumenter;
 
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool;
-import datadog.trace.agent.tooling.iast.stratum.StratumManager;
+import datadog.trace.agent.tooling.stratum.StratumManager;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription;
 
