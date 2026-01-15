@@ -18,9 +18,7 @@ public class TransactionContainer {
 
     // resize buffer if needed
     if (data.length - size < transactionBytes.length) {
-      byte[] resized = new byte[data.length * 2];
-      System.arraycopy(data, 0, resized, 0, size);
-      data = resized;
+      data = Arrays.copyOf(data, data.length << 1);
     }
 
     // add data

@@ -38,6 +38,7 @@ import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -520,10 +521,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
       DataStreamsTransactionExtractor extractor = extractors.get(i);
       List<DataStreamsTransactionExtractor> list =
-          extractorsByType.computeIfAbsent(extractor.getType(), k -> new LinkedList<>());
+          extractorsByType.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
       list.add(extractor);
-      log.debug("Added data streams transaction extractor: {}", extractor);
     }
+    log.debug("Added {} data streams transaction extractors", extractors.size());
   }
 
   private void checkDynamicConfig() {

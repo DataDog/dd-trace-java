@@ -99,6 +99,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int status(RESPONSE response);
 
   protected String getRequestHeader(REQUEST request, String key) {
+    // This method was not marked as abstract in order to avoid changing all server instrumentation
+    // at once.
+    // Instead, only ones required (by DSM specifically) have it implemented.
+    // This can change in the future.
     return null;
   }
 

@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 public class DataStreamsTransactionExtractors {
   public static final DataStreamsTransactionExtractors EMPTY =
       new DataStreamsTransactionExtractors("[]", Collections.emptyList());
-  private static final Logger log = LoggerFactory.getLogger(DataStreamsTransactionExtractors.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataStreamsTransactionExtractors.class);
   private static final Moshi MOSHI =
       new Moshi.Builder()
           .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
@@ -41,7 +41,7 @@ public class DataStreamsTransactionExtractors {
     try {
       return new DataStreamsTransactionExtractors(json, LIST_OF_RULES_ADAPTER.fromJson(json));
     } catch (Throwable ex) {
-      log.debug("Couldn't parse Data Streams Extractors from JSON: {}", json, ex);
+      LOG.debug("Couldn't parse Data Streams Extractors from JSON: {}", json, ex);
     }
 
     return EMPTY;

@@ -168,6 +168,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         /* 6 */
         writer.writeUTF8(TRANSACTIONS);
         writer.writeBinary(bucket.getTransactions().getData());
+        /* 7 */
         writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
         writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
       }
