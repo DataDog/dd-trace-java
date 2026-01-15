@@ -27,7 +27,7 @@ public class SourceMapperImpl implements SourceMapper {
     if (stratum == null) {
       return null;
     }
-    Pair<Integer, Integer> inputLine = stratum.getInputLine(lineNumber);
+    Pair<String, Integer> inputLine = stratum.getInputLine(lineNumber);
     if (inputLine == null) {
       return null;
     }
