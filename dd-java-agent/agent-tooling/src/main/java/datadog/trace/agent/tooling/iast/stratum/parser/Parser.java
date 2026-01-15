@@ -1,151 +1,102 @@
 package datadog.trace.agent.tooling.iast.stratum.parser;
 
-import static datadog.trace.agent.tooling.iast.stratum.parser.Builders.SPLITTER;
+import static datadog.trace.agent.tooling.iast.stratum.parser.Builder.SPACE_PATTERN;
 
 import datadog.trace.agent.tooling.iast.stratum.EmbeddedStratum;
 import datadog.trace.agent.tooling.iast.stratum.FileInfo;
 import datadog.trace.agent.tooling.iast.stratum.LineInfo;
-import datadog.trace.agent.tooling.iast.stratum.ParserException;
 import datadog.trace.agent.tooling.iast.stratum.SourceMap;
-import datadog.trace.agent.tooling.iast.stratum.SourceMapException;
 import datadog.trace.agent.tooling.iast.stratum.StratumExt;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 public class Parser {
-  private final Map<String, Builder> builders = new TreeMap<String, Builder>();
+  private static final Pattern END_OF_LINE_PATTERN = Pattern.compile("\n");
 
-  private final State state = new State();
-
-  public Parser() {
-    registerBuilders();
-  }
-
-  protected void registerBuilders() {
-    add(Builders.sourceMapBuilder());
-    add(Builders.endSourceMapBuilder());
-    add(Builders.stratumBuilder());
-    add(Builders.fileInfoBuilder());
-    add(Builders.lineInfoBuilder());
-    add(Builders.openEmbeddedStratumBuilder());
-    add(Builders.closeStratumBuilder());
-  }
-
-  private void parseInit() throws SourceMapException {
-    state.init();
-  }
-
-  private SourceMap[] parseDone() throws SourceMapException {
+  private static List<SourceMap> parseDone(State state) {
     EmbeddedStratum result = state.done();
     resolveLineFileInfo(result);
-    return result.getSourceMapList().toArray(new SourceMap[0]);
+    return result.getSourceMapList();
   }
 
-  private void resolveLineFileInfo(final EmbeddedStratum embeddedStratum)
-      throws SourceMapException {
-    for (Iterator<SourceMap> iter = embeddedStratum.getSourceMapList().iterator();
-        iter.hasNext(); ) {
-      SourceMap sourceMap = iter.next();
+  private static void resolveLineFileInfo(final EmbeddedStratum embeddedStratum) {
+    for (SourceMap sourceMap : embeddedStratum.getSourceMapList()) {
       resolveLineFileInfo(sourceMap);
     }
   }
 
-  private void resolveLineFileInfo(final SourceMap sourceMap) throws SourceMapException {
-    for (Iterator<StratumExt> iter = sourceMap.getStratumList().iterator(); iter.hasNext(); ) {
-      StratumExt stratum = iter.next();
+  private static void resolveLineFileInfo(final SourceMap sourceMap) {
+    for (StratumExt stratum : sourceMap.getStratumList()) {
       resolveLineFileInfo(stratum);
     }
-    for (Iterator<EmbeddedStratum> iter = sourceMap.getEmbeddedStratumList().iterator();
-        iter.hasNext(); ) {
-      EmbeddedStratum stratum = iter.next();
+    for (EmbeddedStratum stratum : sourceMap.getEmbeddedStratumList()) {
       resolveLineFileInfo(stratum);
     }
   }
 
-  private void resolveLineFileInfo(final StratumExt stratum) throws SourceMapException {
-    for (Iterator<LineInfo> iter = stratum.getLineInfo().iterator(); iter.hasNext(); ) {
-      LineInfo lineInfo = iter.next();
+  private static void resolveLineFileInfo(final StratumExt stratum) {
+    for (LineInfo lineInfo : stratum.getLineInfo()) {
       FileInfo fileInfo = get(stratum.getFileInfo(), lineInfo.getFileId());
       if (fileInfo == null) {
-        throw new ParserException("Invalid file id: " + lineInfo.getFileId());
+        throw new IllegalArgumentException("Invalid file id: " + lineInfo.getFileId());
       }
       lineInfo.setFileInfo(fileInfo);
     }
   }
 
-  public FileInfo get(final List<FileInfo> list, final int fileId) {
+  public static FileInfo get(final List<FileInfo> list, String fileId) {
     for (FileInfo fileInfo : list) {
-      if (fileInfo.getFileId() == fileId) {
+      if (fileInfo.getFileId().equals(fileId)) {
         return fileInfo;
       }
     }
     return null;
   }
 
-  private Builder getBuilder(final String[] lines) throws SourceMapException {
-    if (lines.length == 0) {
+  private static Builder getBuilder(List<String> lines) {
+    if (lines.isEmpty()) {
       return null;
     }
-    String sectionName = lines[0];
-    String[] tokens = SPLITTER.split(lines[0], 2);
+    String sectionName = lines.get(0);
+    String[] tokens = SPACE_PATTERN.split(lines.get(0), 2);
     if (tokens.length > 1) {
       sectionName = tokens[0].trim();
     }
     if (sectionName.startsWith("*")) {
       sectionName = sectionName.substring("*".length());
     }
-    return builders.get(sectionName);
+    return Builder.get(sectionName);
   }
 
-  private void parseSection(final String[] lines) throws SourceMapException {
+  private static void parseSection(State state, List<String> lines) {
     Builder builder = getBuilder(lines);
     if (builder != null) {
       builder.build(state, lines);
     }
   }
 
-  public SourceMap[] parse(final String source) throws SourceMapException, IOException {
-    return parse(new StringReader(source));
-  }
-
-  public SourceMap[] parse(final Reader reader) throws SourceMapException, IOException {
-    String line = "";
+  public static List<SourceMap> parse(String source) {
+    State state = new State();
+    String line = null;
     try {
-      parseInit();
-      ArrayList<String> lines = new ArrayList<String>();
-      BufferedReader br = new BufferedReader(reader);
-      boolean sectionLine = true;
-      while ((line = br.readLine()) != null) {
+      String[] lines = END_OF_LINE_PATTERN.split(source);
+      boolean isSectionLine = true;
+      List<String> sectionLines = new ArrayList<>();
+      for (int i = 0; i < lines.length; i++) {
+        line = lines[i];
         state.lineNumber += 1;
-        if (line.startsWith("*") || sectionLine && line.equals("SMAP")) {
-          parseSection(lines.toArray(new String[0]));
-          lines.clear();
+        if (line.startsWith("*") || isSectionLine && line.equals("SMAP")) {
+          parseSection(state, sectionLines);
+          sectionLines.clear();
         }
-        sectionLine = line.startsWith("*");
-        lines.add(line);
+        isSectionLine = line.startsWith("*");
+        sectionLines.add(line);
       }
-      parseSection(lines.toArray(new String[0]));
-      return parseDone();
-    } catch (SourceMapException sme) {
-      ParserException pe =
-          new ParserException(sme.getMessage() + ":" + state.lineNumber + ":" + line);
-      pe.initCause(sme);
-      throw pe;
+      parseSection(state, sectionLines);
+      return parseDone(state);
+    } catch (Exception sme) {
+      throw new RuntimeException(sme.getMessage() + ":" + state.lineNumber + ":" + line, sme);
     }
-  }
-
-  public void add(final Builder builder) {
-    builders.put(builder.getSectionName(), builder);
-  }
-
-  public void remove(final Builder builder) {
-    builders.remove(builder.getSectionName());
   }
 }

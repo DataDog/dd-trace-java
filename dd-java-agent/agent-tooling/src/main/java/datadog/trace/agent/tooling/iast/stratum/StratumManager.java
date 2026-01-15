@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.telemetry.IastMetric;
 import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.utility.OpenedClassReader;
@@ -53,9 +54,9 @@ public class StratumManager {
 
   private SourceMap getResolvedSmap(final String smap) {
     try {
-      SourceMap[] sourceMaps = new Parser().parse(smap);
+      List<SourceMap> sourceMaps = Parser.parse(smap);
 
-      SourceMap result = new Resolver().resolve(sourceMaps[0]);
+      SourceMap result = Resolver.resolve(sourceMaps.get(0));
       // clean result object to minimize memory usage
       result
           .getStratumList()
