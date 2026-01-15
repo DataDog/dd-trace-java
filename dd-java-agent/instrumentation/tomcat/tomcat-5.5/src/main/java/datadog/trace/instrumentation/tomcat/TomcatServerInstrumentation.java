@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -27,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.apache.catalina.connector.CoyoteAdapter;
 import org.apache.catalina.connector.Request;
@@ -34,7 +36,10 @@ import org.apache.catalina.connector.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class TomcatServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.HasGeneralPurposeAdvices,
+        ExcludeFilterProvider {
 
   public TomcatServerInstrumentation() {
     super("tomcat");
@@ -84,6 +89,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         named("service")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.coyote.Response"))),
+        TomcatServerInstrumentation.class.getName()
+            + "$ContextTrackingAdvice", // context tracking must be applied first
         TomcatServerInstrumentation.class.getName() + "$ServiceAdvice");
     transformer.applyAdvice(
         named("postParseRequest")
@@ -111,20 +118,35 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
             "org.apache.tomcat.util.net.NioBlockingSelector$BlockPoller"));
   }
 
-  public static class ServiceAdvice {
+  @Override
+  public Set<String> generalPurposeAdviceClasses() {
+    return singleton(packageName + ".TomcatServerInstrumentation$ContextTrackingAdvice");
+  }
 
+  public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
-
+    public static ContextScope extractParent(@Advice.Argument(0) org.apache.coyote.Request req) {
       Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (existingCtx instanceof Context) {
         // Request already gone through initial processing, so just attach the context.
         return ((Context) existingCtx).attach();
       }
-
       final Context parentContext = DECORATE.extract(req);
       req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      final Context context = DECORATE.startSpan(req, parentContext);
+      return parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Enter final ContextScope scope) {
+      scope.close();
+    }
+  }
+
+  public static class ServiceAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
+      final Context context = DECORATE.startSpan(req, Context.current());
       final ContextScope scope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.

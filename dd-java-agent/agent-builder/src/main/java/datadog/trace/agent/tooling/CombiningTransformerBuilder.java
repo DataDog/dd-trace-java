@@ -77,7 +77,7 @@ public final class CombiningTransformerBuilder
   private HelperTransformer helperTransformer;
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
-  private Set<String> hasGeneralPurposeAdviceClasses = null;
+  private Set<String> generalPurposeAdviceClasses = null;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
@@ -145,10 +145,10 @@ public final class CombiningTransformerBuilder
 
     if (!isModuleApplicableOnTargetSystems) {
       if (module instanceof Instrumenter.HasGeneralPurposeAdvices) {
-        hasGeneralPurposeAdviceClasses =
+        generalPurposeAdviceClasses =
             ((Instrumenter.HasGeneralPurposeAdvices) module).generalPurposeAdviceClasses();
-        if (hasGeneralPurposeAdviceClasses == null) {
-          this.hasGeneralPurposeAdviceClasses = emptySet();
+        if (generalPurposeAdviceClasses == null) {
+          this.generalPurposeAdviceClasses = emptySet();
         }
       }
     }
@@ -272,14 +272,13 @@ public final class CombiningTransformerBuilder
     } else {
       forAdvice = forAdvice.include(adviceLoader);
     }
-    if (hasGeneralPurposeAdviceClasses == null
-        || hasGeneralPurposeAdviceClasses.contains(adviceClass)) {
+    if (generalPurposeAdviceClasses == null || generalPurposeAdviceClasses.contains(adviceClass)) {
       advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
     }
     if (additionalAdviceClasses != null) {
       for (String adviceClassName : additionalAdviceClasses) {
-        if (hasGeneralPurposeAdviceClasses == null
-            || hasGeneralPurposeAdviceClasses.contains(adviceClassName)) {
+        if (generalPurposeAdviceClasses == null
+            || generalPurposeAdviceClasses.contains(adviceClassName)) {
           advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName));
         }
       }
