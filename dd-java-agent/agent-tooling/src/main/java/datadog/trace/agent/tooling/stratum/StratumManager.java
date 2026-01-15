@@ -19,10 +19,20 @@ public class StratumManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
 
+  private static volatile StratumManager INSTANCE;
+
   private final LimitedConcurrentHashMap map;
 
-  public StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
-    // Prevent instantiation
+  public static StratumManager init(int sourceMappingLimit, IntConsumer limitReachedCallback) {
+    INSTANCE = new StratumManager(sourceMappingLimit, limitReachedCallback);
+    return INSTANCE;
+  }
+
+  public static StratumManager getInstance() {
+    return INSTANCE;
+  }
+
+  private StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
     this.map = new LimitedConcurrentHashMap(sourceMappingLimit, limitReachedCallback);
   }
 

@@ -64,7 +64,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
       StratumManager stratumManager =
-          new StratumManager(
+          StratumManager.init(
               Config.get().getIastSourceMappingMaxSize(),
               IastInstrumentation::onSourceMappingLimitReached);
       listeners.add(new StratumListener(stratumManager));
