@@ -15,6 +15,8 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.RaspCallSites;
 import datadog.trace.api.iast.IastCallSites;
+import datadog.trace.api.iast.telemetry.IastMetric;
+import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.instrumentation.iastinstrumenter.service.CallSitesLoader;
 import datadog.trace.instrumentation.iastinstrumenter.telemetry.TelemetryCallSiteSupplier;
@@ -62,10 +64,16 @@ public class IastInstrumentation extends CallSiteInstrumentation {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
       StratumManager stratumManager =
-          new StratumManager(Config.get().getIastSourceMappingMaxSize());
+          new StratumManager(
+              Config.get().getIastSourceMappingMaxSize(),
+              IastInstrumentation::onSourceMappingLimitReached);
       listeners.add(new StratumListener(stratumManager));
     }
     return Advices.fromCallSites(callSites, listeners.toArray(new Listener[0]));
+  }
+
+  private static void onSourceMappingLimitReached(int maxSize) {
+    IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, 1);
   }
 
   public static final class IastMatchers {

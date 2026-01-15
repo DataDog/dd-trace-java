@@ -1,11 +1,10 @@
 package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.agent.tooling.stratum.parser.Parser;
-import datadog.trace.api.iast.telemetry.IastMetric;
-import datadog.trace.api.iast.telemetry.IastMetricCollector;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntConsumer;
 import net.bytebuddy.utility.OpenedClassReader;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -22,9 +21,9 @@ public class StratumManager {
 
   private final LimitedConcurrentHashMap map;
 
-  public StratumManager(int sourceMappingLimit) {
+  public StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
     // Prevent instantiation
-    this.map = new LimitedConcurrentHashMap(sourceMappingLimit);
+    this.map = new LimitedConcurrentHashMap(sourceMappingLimit, limitReachedCallback);
   }
 
   public void analyzeClass(final byte[] bytes) {
@@ -107,11 +106,13 @@ public class StratumManager {
 
   static class LimitedConcurrentHashMap {
     private final int maxSize;
+    private final IntConsumer limitReachedCallback;
     private volatile boolean limitReached = false;
     private final Map<String, StratumExt> map = new ConcurrentHashMap<>();
 
-    public LimitedConcurrentHashMap(int maxSize) {
+    public LimitedConcurrentHashMap(int maxSize, IntConsumer limitReachedCallback) {
       this.maxSize = maxSize;
+      this.limitReachedCallback = limitReachedCallback;
     }
 
     public void put(String className, StratumExt value) {
@@ -121,7 +122,7 @@ public class StratumManager {
         }
         map.put(className, value);
         if (this.size() >= maxSize) {
-          IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, 1);
+          limitReachedCallback.accept(maxSize);
           limitReached = true;
         }
       }
