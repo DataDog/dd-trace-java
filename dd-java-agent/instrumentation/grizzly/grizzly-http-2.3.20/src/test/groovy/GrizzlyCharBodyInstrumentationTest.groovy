@@ -6,7 +6,6 @@ import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyCharBodyInstrumentation
-import de.thetaphi.forbiddenapis.SuppressForbidden
 import org.glassfish.grizzly.attributes.AttributeHolder
 import org.glassfish.grizzly.http.HttpHeader
 import org.glassfish.grizzly.http.io.InputBuffer
@@ -30,7 +29,6 @@ class GrizzlyCharBodyInstrumentationTest extends InstrumentationSpecification {
   def supplier
   boolean bodyDone
 
-  @SuppressForbidden
   def setup() {
     _ * mockHttpHeader.attributes >> attributeHolder
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)

@@ -1,6 +1,5 @@
 package datadog.smoketest.appsec.springboot;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import org.springframework.boot.SpringApplication;
@@ -20,7 +19,6 @@ public class SpringbootApplication {
     System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
   }
 
-  @SuppressForbidden
   private static void activateAppSec() throws Exception {
     Class<?> agentClass =
         ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");

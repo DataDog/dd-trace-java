@@ -63,7 +63,6 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -2846,7 +2845,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     return listener;
   }
 
-  @SuppressForbidden
   private void setCorrelationSingleton(Object instance) {
     Class<?> singletonClass = CorrelationAccess.class.getDeclaredClasses()[0];
     try {
