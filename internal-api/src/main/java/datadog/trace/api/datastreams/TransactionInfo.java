@@ -1,28 +1,26 @@
 package datadog.trace.api.datastreams;
 
-import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.MAX_NUM_EXTRACTORS;
-
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TransactionInfo implements InboxItem {
-  private static final DDCache<String, Integer> CACHE =
-      DDCaches.newFixedSizeCache(MAX_NUM_EXTRACTORS);
+  private static final int MAX_ID_SIZE = 256;
+  private static final Map<String, Integer> CACHE = new HashMap<>();
   private static final AtomicInteger COUNTER = new AtomicInteger();
+  private static byte[] CACHE_BYTES = new byte[0];
 
   private final String id;
   private final long timestamp;
   private final int checkpointId;
 
-  public TransactionInfo(String id, Long timestamp, String checkpoint) {
+  public TransactionInfo(String id, long timestamp, String checkpoint) {
     this.id = id;
     this.timestamp = timestamp;
-    this.checkpointId = CACHE.computeIfAbsent(checkpoint, k -> COUNTER.incrementAndGet());
+    this.checkpointId = resolveCheckpointId(checkpoint);
   }
 
   public String getId() {
@@ -37,61 +35,59 @@ public final class TransactionInfo implements InboxItem {
     return checkpointId;
   }
 
-  public byte[] getBytes() {
-    byte[] idBytes = id.getBytes();
-    byte[] result = new byte[idBytes.length + 10];
-    // up to 1 byte for checkpoint id
-    result[0] = (byte) (checkpointId);
-    // 8 bytes for timestamp
-    result[1] = (byte) (timestamp >> 56);
-    result[2] = (byte) (timestamp >> 48);
-    result[3] = (byte) (timestamp >> 40);
-    result[4] = (byte) (timestamp >> 32);
-    result[5] = (byte) (timestamp >> 24);
-    result[6] = (byte) (timestamp >> 16);
-    result[7] = (byte) (timestamp >> 8);
-    result[8] = (byte) (timestamp);
-    // id size, up to 256 bytes
-    result[9] = (byte) (idBytes.length);
-    // add id bytes
-    System.arraycopy(idBytes, 0, result, 10, idBytes.length);
-    return result;
+  private int resolveCheckpointId(String checkpoint) {
+    // get the value and return, avoid locking
+    int id = CACHE.getOrDefault(checkpoint, -1);
+    if (id != -1) {
+      return id;
+    }
+
+    // add a new value to cache
+    synchronized (CACHE) {
+      id = CACHE.getOrDefault(checkpoint, -1);
+      if (id != -1) {
+        return id;
+      }
+
+      id = CACHE.computeIfAbsent(checkpoint, k -> COUNTER.incrementAndGet());
+
+      // update cache bytes
+      byte[] checkpointBytes = checkpoint.getBytes();
+      int idx = CACHE_BYTES.length;
+      CACHE_BYTES = Arrays.copyOf(CACHE_BYTES, idx + 2 + checkpointBytes.length);
+      CACHE_BYTES[idx] = (byte) id;
+      CACHE_BYTES[idx + 1] = (byte) checkpointBytes.length;
+      System.arraycopy(checkpointBytes, 0, CACHE_BYTES, idx + 2, checkpointBytes.length);
+
+      return id;
+    }
   }
 
+  public byte[] getBytes() {
+    byte[] idBytes = id.getBytes();
+
+    // long ids will be truncated
+    int idLen = Math.min(idBytes.length, MAX_ID_SIZE);
+    ByteBuffer buffer = ByteBuffer.allocate(1 + Long.BYTES + 1 + idLen).order(ByteOrder.BIG_ENDIAN);
+
+    buffer.put((byte) checkpointId);
+    buffer.putLong(timestamp);
+    buffer.put((byte) idLen);
+    buffer.put(idBytes, 0, idLen);
+
+    return buffer.array();
+  }
+
+  // @VisibleForTesting
   static void resetCache() {
-    CACHE.clear();
-    COUNTER.set(0);
+    synchronized (CACHE) {
+      CACHE.clear();
+      COUNTER.set(0);
+      CACHE_BYTES = new byte[0];
+    }
   }
 
   public static byte[] getCheckpointIdCacheBytes() {
-    // get all values
-    List<Pair<String, Integer>> pairs = new LinkedList<>();
-    CACHE.visit(
-        (key, value) -> {
-          pairs.add(Pair.of(key, value));
-        });
-
-    // serialize
-    byte[] result = new byte[1024];
-    int index = 0;
-    for (Pair<String, Integer> pair : pairs) {
-      byte[] keyBytes = pair.getLeft().getBytes();
-      // resize the buffer if needed
-      if (result.length - index <= keyBytes.length + 2) {
-        byte[] resized = new byte[result.length * 2];
-        System.arraycopy(result, 0, resized, 0, result.length);
-        result = resized;
-      }
-
-      result[index] = pair.getRight().byteValue();
-      index++;
-      result[index] = (byte) (keyBytes.length);
-      index++;
-
-      System.arraycopy(keyBytes, 0, result, index, keyBytes.length);
-      index += keyBytes.length;
-    }
-
-    return Arrays.copyOf(result, index);
+    return CACHE_BYTES.clone();
   }
 }

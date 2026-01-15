@@ -41,7 +41,7 @@ public class DataStreamsTransactionExtractors {
     try {
       return new DataStreamsTransactionExtractors(json, LIST_OF_RULES_ADAPTER.fromJson(json));
     } catch (Throwable ex) {
-      log.error("Couldn't parse Data Streams Extractors from JSON: {}", json, ex);
+      log.debug("Couldn't parse Data Streams Extractors from JSON: {}", json, ex);
     }
 
     return EMPTY;
