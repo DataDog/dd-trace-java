@@ -9,7 +9,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -214,7 +214,9 @@ class XRayHttpCodec {
           if (part.startsWith(ROOT_PREFIX)) {
             if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
               interpreter.traceId =
-                  DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
+                  // DD128bTraceId.from(part.substring(ROOT_PREFIX.length()).replace("-",""));
+                  DD128bTraceId.fromHex(part.substring(ROOT_PREFIX.length()).replace("-",""), 0, 32, true);
+              // DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {
             if (interpreter.spanId == DDSpanId.ZERO) {
