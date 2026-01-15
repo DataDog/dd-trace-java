@@ -11,8 +11,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -29,7 +29,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -71,24 +70,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return true;
   }
 
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
+
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
-      // apply extractors if any (disabled if DSM is off)
-      AgentDataStreamsMonitoring dataStreamsMonitoring =
-          AgentTracer.get().getDataStreamsMonitoring();
-      List<DataStreamsTransactionExtractor> extractorList =
-          dataStreamsMonitoring.getTransactionExtractorsByType(
-              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS);
-      if (extractorList != null) {
-        for (DataStreamsTransactionExtractor extractor : extractorList) {
-          String transactionId = getRequestHeader(request, extractor.getValue());
-          if (transactionId != null && !transactionId.isEmpty()) {
-            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
-            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
-            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
-          }
-        }
-      }
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+              request,
+              DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);

@@ -1,12 +1,22 @@
 package datadog.trace.api.datastreams;
 
-import java.util.List;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public interface DataStreamsTransactionTracker {
-  /** trackTransaction used to emit "seen" even for transactions */
+  interface TransactionSourceReader {
+    String readHeader(Object source, String headerName);
+  }
+
+  /** trackTransaction used to emit "seen" event for transactions */
   void trackTransaction(String transactionId, String checkpointName);
 
-  /** extractorsByType returns the list of extractors */
-  List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
-      DataStreamsTransactionExtractor.Type extractorType);
+  /**
+   * trackTransaction which tries to extract / track transactions info using extractors of
+   * extractorType from the provided source using source reader
+   */
+  void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader);
 }

@@ -32,6 +32,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
@@ -83,8 +84,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   // contains a list of active extractors by type. It is not thread safe, but it's populated only
-  // once
-  // on background thread start
+  // once on background thread start.
   private static final Map<
           DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
       extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
@@ -210,13 +210,25 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
-  public List<DataStreamsTransactionExtractor> getTransactionExtractorsByType(
-      DataStreamsTransactionExtractor.Type extractorType) {
-    if (!supportsDataStreams) {
-      return null;
+  public void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader) {
+    if (!supportsDataStreams || source == null) {
+      return;
     }
 
-    return extractorsByType.getOrDefault(extractorType, null);
+    List<DataStreamsTransactionExtractor> extractorList = extractorsByType.get(extractorType);
+    for (DataStreamsTransactionExtractor extractor : extractorList) {
+      String transactionId = sourceReader.readHeader(source, extractor.getValue());
+      if (transactionId != null && !transactionId.isEmpty()) {
+        trackTransaction(transactionId, extractor.getName());
+
+        span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+        span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
+      }
+    }
   }
 
   private static String getThreadServiceName() {

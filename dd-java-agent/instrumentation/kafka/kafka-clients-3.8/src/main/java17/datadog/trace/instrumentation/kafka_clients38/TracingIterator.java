@@ -16,7 +16,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -24,14 +23,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
-import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,22 +130,13 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           queueSpan.finish();
         }
 
-        AgentDataStreamsMonitoring dataStreamsMonitoring =
-            AgentTracer.get().getDataStreamsMonitoring();
-        List<DataStreamsTransactionExtractor> extractors =
-            dataStreamsMonitoring.getTransactionExtractorsByType(
-                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS);
-        if (extractors != null) {
-          for (DataStreamsTransactionExtractor extractor : extractors) {
-            Header header = val.headers().lastHeader(extractor.getValue());
-            if (header != null && header.value() != null) {
-              String transactionId = new String(header.value(), StandardCharsets.UTF_8);
-              dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
-              span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
-              span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
-            }
-          }
-        }
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .trackTransaction(
+                span,
+                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+                val.headers(),
+                Utils.DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);

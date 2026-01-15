@@ -15,6 +15,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
@@ -28,7 +29,6 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -39,10 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -52,7 +49,6 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
-import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
@@ -209,24 +205,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         setter.injectTimeInQueue(record.headers());
       }
 
-      // track transactions on produce
-      AgentDataStreamsMonitoring dataStreamsMonitoring =
-          AgentTracer.get().getDataStreamsMonitoring();
-      List<DataStreamsTransactionExtractor> extractors =
-          dataStreamsMonitoring.getTransactionExtractorsByType(
-              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS);
-      if (extractors != null) {
-        for (DataStreamsTransactionExtractor extractor : extractors) {
-          Header header = record.headers().lastHeader(extractor.getValue());
-          if (header != null && header.value() != null) {
-            String transactionId = new String(header.value(), StandardCharsets.UTF_8);
-            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
-            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
-            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
-          }
-        }
-      }
-
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
+              record,
+              DSM_TRANSACTION_SOURCE_READER);
       return activateSpan(span);
     }
 

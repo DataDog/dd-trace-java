@@ -13,8 +13,8 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -41,7 +41,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.http.ClientIpAddressResolver;
 import java.net.InetAddress;
 import java.util.BitSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -184,6 +183,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     return span.start(extracted);
   }
+
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
 
   public AgentSpan onRequest(
       final AgentSpan span,
@@ -337,25 +340,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
-    if (request != null) {
-      // apply extractors if any (disabled if DSM is off)
-      AgentDataStreamsMonitoring dataStreamsMonitoring =
-          AgentTracer.get().getDataStreamsMonitoring();
-      List<DataStreamsTransactionExtractor> extractorList =
-          dataStreamsMonitoring.getTransactionExtractorsByType(
-              DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS);
-      if (extractorList != null) {
-        for (DataStreamsTransactionExtractor extractor : extractorList) {
-          String transactionId = getRequestHeader(request, extractor.getValue());
-          if (transactionId != null && !transactionId.isEmpty()) {
-            dataStreamsMonitoring.trackTransaction(transactionId, extractor.getName());
-            span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
-            span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
-          }
-        }
-      }
-    }
-
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+            request,
+            DSM_TRANSACTION_SOURCE_READER);
     return span;
   }
 
