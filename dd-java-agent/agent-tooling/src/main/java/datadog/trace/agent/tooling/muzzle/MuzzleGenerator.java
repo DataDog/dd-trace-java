@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static java.util.Arrays.asList;
+
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -7,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -85,7 +86,13 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
     final Set<String> adviceClasses = new HashSet<>();
-    instrumenter.methodAdvice((matcher, adviceClass) -> adviceClasses.add(adviceClass));
+    instrumenter.methodAdvice(
+        (matcher, adviceClass, otherAdviceClasses) -> {
+          adviceClasses.add(adviceClass);
+          if (otherAdviceClasses != null) {
+            adviceClasses.addAll(asList(otherAdviceClasses));
+          }
+        });
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
@@ -107,7 +114,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   /** This code is generated in a separate side-class. */
   private static byte[] generateMuzzleClass(InstrumenterModule module) {
 
-    Set<String> ignoredClassNames = new HashSet<>(Arrays.asList(module.muzzleIgnoredClassNames()));
+    Set<String> ignoredClassNames = new HashSet<>(asList(module.muzzleIgnoredClassNames()));
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
 
     List<Reference> references = new ArrayList<>();

@@ -204,7 +204,10 @@ public class AgentInstaller {
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
-      if (!module.isApplicable(enabledSystems)) {
+      final boolean hasGeneralPurposeAdvices =
+          module instanceof Instrumenter.HasGeneralPurposeAdvices;
+      final boolean isApplicable = module.isApplicable(enabledSystems);
+      if (!hasGeneralPurposeAdvices && !module.isApplicable(enabledSystems)) {
         if (DEBUG) {
           log.debug("Not applicable - instrumentation.class={}", module.getClass().getName());
         }
@@ -214,7 +217,7 @@ public class AgentInstaller {
         log.debug("Loading - instrumentation.class={}", module.getClass().getName());
       }
       try {
-        transformerBuilder.applyInstrumentation(module);
+        transformerBuilder.applyInstrumentation(module, isApplicable);
         installedCount++;
       } catch (Exception | LinkageError e) {
         log.error("Failed to load - instrumentation.class={}", module.getClass().getName(), e);

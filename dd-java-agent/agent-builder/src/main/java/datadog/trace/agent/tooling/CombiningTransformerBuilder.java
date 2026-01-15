@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresAnnotation;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static java.util.Collections.emptySet;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
@@ -25,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -75,6 +77,7 @@ public final class CombiningTransformerBuilder
   private HelperTransformer helperTransformer;
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
+  private Set<String> hasGeneralPurposeAdviceClasses = null;
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
@@ -92,7 +95,8 @@ public final class CombiningTransformerBuilder
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
-  public void applyInstrumentation(InstrumenterModule module) {
+  public void applyInstrumentation(
+      InstrumenterModule module, boolean isModuleApplicableOnTargetSystems) {
     if (module.isEnabled()) {
       int instrumentationId = instrumenterIndex.instrumentationId(module);
       if (instrumentationId < 0) {
@@ -100,7 +104,7 @@ public final class CombiningTransformerBuilder
         instrumentationId = nextRuntimeInstrumentationId++;
       }
       InstrumenterState.registerInstrumentation(module, instrumentationId);
-      prepareInstrumentation(module, instrumentationId);
+      prepareInstrumentation(module, instrumentationId, isModuleApplicableOnTargetSystems);
       for (Instrumenter member : module.typeInstrumentations()) {
         buildTypeInstrumentation(member);
       }
@@ -108,7 +112,8 @@ public final class CombiningTransformerBuilder
   }
 
   /** Prepares shared matchers and transformers defined by an instrumentation module. */
-  private void prepareInstrumentation(InstrumenterModule module, int instrumentationId) {
+  private void prepareInstrumentation(
+      InstrumenterModule module, int instrumentationId, boolean isModuleApplicableOnTargetSystems) {
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
@@ -137,6 +142,16 @@ public final class CombiningTransformerBuilder
     postProcessor = module.postProcessor();
 
     muzzle = new MuzzleCheck(module, instrumentationId);
+
+    if (!isModuleApplicableOnTargetSystems) {
+      if (module instanceof Instrumenter.HasGeneralPurposeAdvices) {
+        hasGeneralPurposeAdviceClasses =
+            ((Instrumenter.HasGeneralPurposeAdvices) module).generalPurposeAdviceClasses();
+        if (hasGeneralPurposeAdviceClasses == null) {
+          this.hasGeneralPurposeAdviceClasses = emptySet();
+        }
+      }
+    }
   }
 
   /** Builds a type-specific transformer, controlled by one or more matchers. */
@@ -239,7 +254,10 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+  public void applyAdvice(
+      ElementMatcher<? super MethodDescription> matcher,
+      String adviceClass,
+      String... additionalAdviceClasses) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -254,7 +272,18 @@ public final class CombiningTransformerBuilder
     } else {
       forAdvice = forAdvice.include(adviceLoader);
     }
-    advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
+    if (hasGeneralPurposeAdviceClasses == null
+        || hasGeneralPurposeAdviceClasses.contains(adviceClass)) {
+      advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
+    }
+    if (additionalAdviceClasses != null) {
+      for (String adviceClassName : additionalAdviceClasses) {
+        if (hasGeneralPurposeAdviceClasses == null
+            || hasGeneralPurposeAdviceClasses.contains(adviceClassName)) {
+          advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName));
+        }
+      }
+    }
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {

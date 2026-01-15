@@ -327,4 +327,15 @@ public abstract class InstrumenterModule implements Instrumenter {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
   }
+
+  public abstract static class ContextTracking extends InstrumenterModule {
+    public ContextTracking(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return true;
+    }
+  }
 }

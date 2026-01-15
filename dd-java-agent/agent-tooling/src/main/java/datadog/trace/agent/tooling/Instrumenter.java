@@ -5,6 +5,7 @@ import static java.util.Collections.singletonList;
 
 import java.security.ProtectionDomain;
 import java.util.Collection;
+import java.util.Set;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -90,6 +91,10 @@ public interface Instrumenter {
     void typeAdvice(TypeTransformer transformer);
   }
 
+  interface HasGeneralPurposeAdvices extends Instrumenter {
+    Set<String> generalPurposeAdviceClasses();
+  }
+
   /** Instrumentation that provides advice specific to one or more methods. */
   interface HasMethodAdvice extends Instrumenter {
     /**
@@ -110,7 +115,10 @@ public interface Instrumenter {
 
   /** Applies method advice from an instrumentation that {@link HasMethodAdvice}. */
   interface MethodTransformer {
-    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass);
+    void applyAdvice(
+        ElementMatcher<? super MethodDescription> matcher,
+        String adviceClass,
+        String... additionalAdviceClasses);
   }
 
   /** Contributes a transformation step to the dynamic type builder. */
