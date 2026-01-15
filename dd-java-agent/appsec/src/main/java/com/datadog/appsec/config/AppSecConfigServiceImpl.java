@@ -275,8 +275,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
       // Phase 1: Execute all pending removes
       for (String key : configsToRemove) {
-        // Only remove if the config was actually added to the WAF
-        if (usedDDWafConfigKeys.contains(key)) {
+        if (shouldRemoveConfig(key)) {
           try {
             maybeInitializeDefaultConfig();
             wafBuilder.removeConfig(key);
@@ -305,6 +304,17 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     protected void beforeApply(final String key, final Map<String, Object> contentMap) {}
 
     protected void afterRemove(final String key) {}
+
+    /**
+     * Determines whether a config should be removed from the WAF. Override this method to add
+     * custom logic for specific product listeners.
+     *
+     * @param key the config key to check
+     * @return true if the config should be removed, false otherwise
+     */
+    protected boolean shouldRemoveConfig(final String key) {
+      return true; // Default: always remove
+    }
   }
 
   private class AppSecConfigChangesDDListener extends AppSecConfigChangesListener {
@@ -318,6 +328,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     protected void afterRemove(final String key) {
       // Track removal from DD config keys (for accounting)
       usedDDWafConfigKeys.remove(key);
+    }
+
+    @Override
+    protected boolean shouldRemoveConfig(final String key) {
+      // For ASM_DD, only remove if the config was actually added (tracked in usedDDWafConfigKeys)
+      return usedDDWafConfigKeys.contains(key);
     }
 
     @Override
@@ -335,7 +351,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         }
       }
 
-      // Now execute the standard commit flow (removes first, then applies)
+      // Execute the standard deferred commit flow (removes first, then applies)
       super.commit(pollingRateHinter);
     }
   }
