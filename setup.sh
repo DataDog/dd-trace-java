@@ -78,9 +78,9 @@ function check-git-config() {
     if [ "$ACTUAL_VALUE" == "$EXPECTED_VALUE" ]; then
         echo "✅ git config $CONFIG_NAME is set to $EXPECTED_VALUE."
     elif [ -z "$ACTUAL_VALUE" ]; then
-        echo "❌ git config $CONFIG_NAME is not set. Please locally set $CONFIG_NAME to $EXPECTED_VALUE."
+        echo "❌ git config $CONFIG_NAME is not set. Please run 'git config set $CONFIG_NAME $EXPECTED_VALUE'."
     else
-        echo "🟨 git config $CONFIG_NAME is set to $ACTUAL_VALUE (expected: $EXPECTED_VALUE)."
+        echo "🟨 git config $CONFIG_NAME is set to $ACTUAL_VALUE (expected: $EXPECTED_VALUE). Please run 'git config set $CONFIG_NAME $EXPECTED_VALUE'."
     fi
 }
 

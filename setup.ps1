@@ -91,10 +91,22 @@ function TestGitConfig {
     Write-Host "✅ git config $configName is set to $expectedValue."
   }
   elseif (-not $actualValue) {
-    Write-Host "❌ git config $configName is not set. Please set it to $expectedValue." -ForegroundColor Red
+    Write-Host "❌ git config $configName is not set. Please run 'git config set $configName $expectedValue'." -ForegroundColor Red
   }
   else {
-    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue)."
+    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue). Please run 'git config set $configName $expectedValue'."
+  }
+}
+
+function TestSubmoduleInitialization {
+  if (Test-Path '.gitmodules') {
+    $uninitializedSubmodules = git submodule status | Select-String '^-'
+    if ($uninitializedSubmodules) {
+      Write-Host "❌ A git submodule are not initialized. Please run 'git submodule update --init --recursive'." -ForegroundColor Red
+    }
+    else {
+      Write-Host "✅ All git submodules are initialized."
+    }
   }
 }
 
@@ -102,6 +114,7 @@ Write-Host 'ℹ️ Checking git configuration:'
 TestCommand 'git'
 TestHook 'pre-commit'
 TestGitConfig 'submodule.recurse' 'true'
+TestSubmoduleInitialization
 
 # Check Docker environment
 function TestDockerServer {
