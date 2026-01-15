@@ -750,7 +750,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
 
     when:
-    AppSecSystem.active = true
     config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
     final service = new AppSecConfigServiceImpl(config, poller, reconf)
     service.init()
