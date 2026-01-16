@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 public class Parser {
-  private static final Pattern END_OF_LINE_PATTERN = Pattern.compile("\n");
+  private static final Pattern END_OF_LINE_PATTERN = Pattern.compile("\r\n|\r|\n");
 
   private static List<SourceMap> parseDone(State state) {
     EmbeddedStratum result = state.done();
