@@ -78,6 +78,13 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.core.datastreams.DataStreamsTransactionExtractors$DataStreamsTransactionExtractorsAdapter",
+    "methods": [
+      {"name": "fromJson"},
+      {"name": "toJson"}
+    ]
+  },
+  {
     "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkAdapter",
     "methods": [
       {"name": "fromSpanLinkJson"},
