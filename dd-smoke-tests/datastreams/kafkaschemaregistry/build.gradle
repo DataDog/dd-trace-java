@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'java'
-  id 'org.springframework.boot' version '2.6.3'
+  id 'org.springframework.boot' version '3.5.9'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

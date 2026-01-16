@@ -2,7 +2,7 @@ import org.springframework.boot.gradle.tasks.bundling.BootWar
 
 plugins {
   id 'war'
-  id 'org.springframework.boot' version '2.5.12'
+  id 'org.springframework.boot' version '3.5.9'
 }
 
 ext {
@@ -79,10 +79,6 @@ tasks.named('javadocJar') {
 }
 
 tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
   dependsOn 'unzip'
 }
 

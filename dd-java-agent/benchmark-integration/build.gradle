@@ -25,8 +25,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Integration Level Agent benchmarks.'
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 subprojects { sub ->
   sub.apply plugin: 'com.gradleup.shadow'

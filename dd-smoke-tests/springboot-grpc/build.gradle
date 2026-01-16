@@ -2,7 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.9.6'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

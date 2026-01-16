@@ -4,7 +4,7 @@ plugins {
   id 'application'
   id 'java'
   id 'java-test-fixtures'
-  id 'com.google.protobuf' version '0.9.4'
+  id 'com.google.protobuf' version '0.9.6'
   id 'com.gradleup.shadow'
 }
 
