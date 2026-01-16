@@ -235,6 +235,9 @@ public class MoshiSnapshotTestHelper {
               capturedContext.addCaptureExpression(value);
             }
             break;
+          case NOT_CAPTURED_REASON:
+            String reason = jsonReader.nextString();
+            throw new IllegalArgumentException("Not captured reason: " + reason);
           default:
             throw new IllegalArgumentException("Unknown field name for Captures object: " + name);
         }

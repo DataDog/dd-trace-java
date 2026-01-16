@@ -79,6 +79,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
   void testAddSourceFileProbeHugeInnerClasses() throws Exception {
+    waitForSpecificLine(appUrl, " totalentries: 5");
     LogProbe logProbe =
         LogProbe.builder()
             .probeId(PROBE_ID)
