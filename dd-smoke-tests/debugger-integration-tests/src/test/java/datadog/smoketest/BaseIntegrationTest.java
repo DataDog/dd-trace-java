@@ -95,7 +95,7 @@ public abstract class BaseIntegrationTest {
   public static final String APM_TRACING_PRODUCT = "APM_TRACING";
 
   protected MockWebServer datadogAgentServer;
-  private MockDispatcher probeMockDispatcher;
+  protected MockDispatcher probeMockDispatcher;
   private StatsDServer statsDServer;
   private HttpUrl probeUrl;
   private HttpUrl snapshotUrl;
@@ -410,7 +410,7 @@ public abstract class BaseIntegrationTest {
     return statsDServer.waitForMessage(str);
   }
 
-  private MockResponse datadogAgentDispatch(RecordedRequest request) {
+  protected MockResponse datadogAgentDispatch(RecordedRequest request) {
     LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
       return AGENT_INFO_RESPONSE;
@@ -591,7 +591,7 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
+  protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
     private Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override
