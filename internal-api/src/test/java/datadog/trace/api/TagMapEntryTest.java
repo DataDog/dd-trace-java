@@ -155,6 +155,36 @@ public class TagMapEntryTest {
                 checkInstanceOf(Number.class, entry),
                 checkType(TagMap.Entry.INT, entry)));
   }
+  
+  @ParameterizedTest
+  @ValueSource(shorts = {Short.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Short.MAX_VALUE})
+  public void intEntry_boxedShort(short value) {
+    test(
+        () -> TagMap.Entry.newIntEntry("foo", Short.valueOf(value)),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(bytes = {Byte.MIN_VALUE, -32, -1, 0, 1, 32, Byte.MAX_VALUE})
+  public void intEntry_boxedByte(byte value) {
+    test(
+        () -> TagMap.Entry.newIntEntry("foo", Byte.valueOf(value)),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
 
   @ParameterizedTest
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
