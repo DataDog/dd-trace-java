@@ -32,8 +32,8 @@ public interface Taintable {
     static {
       LOGGER = LoggerFactory.getLogger("Taintable tainted objects");
 
-      // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without
-      // Logback.
+      // Check logger class by name to avoid NoClassDefFoundError at runtime
+      // for tests without Logback.
       if (LOGGER.getClass().getName().equals("ch.qos.logback.classic.Logger")) {
         try {
           Class<?> levelCls = Class.forName("ch.qos.logback.classic.Level");
