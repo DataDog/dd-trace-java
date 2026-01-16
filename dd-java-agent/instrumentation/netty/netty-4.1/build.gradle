@@ -43,18 +43,22 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
   testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.8.0.RELEASE'
   testImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
 
   // latest async-http-client incompatable with 5.0+ netty
-  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http2', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-socks', version: '4.+'
+
   latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.+'
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
-configurations.testImplementation {
+configurations.named('testImplementation') {
   resolutionStrategy {
     eachDependency { DependencyResolveDetails details ->
       //specifying a fixed version for all libraries with io.netty' group

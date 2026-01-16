@@ -1,11 +1,10 @@
 package datadog.trace.util;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -23,7 +22,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,36 +34,33 @@ import org.slf4j.LoggerFactory;
  */
 public final class TempLocationManager {
   private static final Logger log = LoggerFactory.getLogger(TempLocationManager.class);
-  private static final Pattern JFR_DIR_PATTERN =
-      Pattern.compile("\\d{4}_\\d{2}_\\d{2}_\\d{2}_\\d{2}_\\d{2}_\\d{6}");
   private static final String TEMPDIR_PREFIX = "pid_";
 
   private static final class SingletonHolder {
     private static final TempLocationManager INSTANCE = new TempLocationManager();
   }
 
-  interface CleanupHook extends FileVisitor<Path> {
+  interface CleanupHook {
     CleanupHook EMPTY = new CleanupHook() {};
 
-    @Override
-    default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+    default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs, boolean timeout)
         throws IOException {
-      return null;
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      return null;
+    default FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-      return null;
+    default FileVisitResult visitFileFailed(Path file, IOException exc, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-      return null;
+    default FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
     default void onCleanupStart(long timeout, TimeUnit unit) {}
@@ -103,10 +98,11 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.preVisitDirectory(dir, attrs, true);
         return FileVisitResult.TERMINATE;
       }
 
-      cleanupTestHook.preVisitDirectory(dir, attrs);
+      cleanupTestHook.preVisitDirectory(dir, attrs, false);
 
       if (dir.equals(baseTempDir)) {
         return FileVisitResult.CONTINUE;
@@ -132,9 +128,10 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.visitFile(file, attrs, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.visitFile(file, attrs);
+      cleanupTestHook.visitFile(file, attrs, false);
       try {
         if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
           return FileVisitResult.SKIP_SUBTREE;
@@ -151,9 +148,10 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.visitFileFailed(file, exc, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.visitFileFailed(file, exc);
+      cleanupTestHook.visitFileFailed(file, exc, false);
       // do not log files/directories removed by another process running concurrently
       if (!(exc instanceof NoSuchFileException) && log.isDebugEnabled()) {
         log.debug("Failed to delete file {}", file, exc);
@@ -166,9 +164,10 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.postVisitDirectory(dir, exc, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.postVisitDirectory(dir, exc);
+      cleanupTestHook.postVisitDirectory(dir, exc, false);
       if (exc instanceof NoSuchFileException) {
         return FileVisitResult.CONTINUE;
       }
@@ -277,12 +276,8 @@ public final class TempLocationManager {
             configProvider.getString(
                 ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT));
     if (!Files.exists(configuredTempDir)) {
-      log.warn(
-          SEND_TELEMETRY,
-          "Base temp directory, as defined in '"
-              + ProfilingConfig.PROFILING_TEMP_DIR
-              + "' does not exist: {}",
-          configuredTempDir);
+      ProfilerFlareLogger.getInstance()
+          .log("Base temp directory, as defined in '{}' does not exist.", configuredTempDir);
       throw new IllegalStateException(
           "Base temp directory, as defined in '"
               + ProfilingConfig.PROFILING_TEMP_DIR
@@ -308,7 +303,7 @@ public final class TempLocationManager {
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
-    userName = userName == null ? EnvironmentVariables.get("USER") : userName;
+    userName = userName == null ? ConfigHelper.env("USER") : userName;
     // make sure we do not have any illegal characters in the user name
     userName =
         userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;
@@ -391,11 +386,7 @@ public final class TempLocationManager {
       Files.walkFileTree(baseTempDir, visitor);
       return !visitor.isTerminated();
     } catch (IOException e) {
-      if (log.isDebugEnabled()) {
-        log.warn("Unable to cleanup temp location {}", baseTempDir, e);
-      } else {
-        log.warn("Unable to cleanup temp location {}", baseTempDir);
-      }
+      log.debug("Unable to cleanup temp location {}", baseTempDir, e);
     }
     return false;
   }
@@ -433,7 +424,6 @@ public final class TempLocationManager {
         Files.createDirectories(tempDir);
       }
     } catch (IOException e) {
-      log.error("Failed to create temp directory {}", tempDir, e);
       // if on a posix fs, let's check the expected permissions
       // we will find the first offender not having the expected permissions and fail the check
       if (isPosixFs) {
@@ -480,20 +470,22 @@ public final class TempLocationManager {
           Path failedDir = failed.get();
 
           if (failedDir != null) {
-            msg +=
-                " (offender: "
-                    + failedDir
-                    + ", permissions: "
-                    + PosixFilePermissions.toString(Files.getPosixFilePermissions(failedDir))
-                    + ")";
-            log.warn(SEND_TELEMETRY, msg, e);
+            ProfilerFlareLogger.getInstance()
+                .log(
+                    "Failed to create temp directory: {}, offender: {}, permissions: {}",
+                    msg,
+                    failedDir,
+                    PosixFilePermissions.toString(Files.getPosixFilePermissions(failedDir)),
+                    e);
+          } else {
+            ProfilerFlareLogger.getInstance().log(msg);
           }
         } catch (IOException ignored) {
           // should not happen, but let's ignore it anyway
         }
         throw new IllegalStateException(msg, e);
       } else {
-        log.warn(SEND_TELEMETRY, msg, e);
+        ProfilerFlareLogger.getInstance().log(msg, e);
         throw new IllegalStateException(msg, e);
       }
     }

@@ -4,6 +4,9 @@ muzzle {
     module = "connect-runtime"
     versions = "[0.11.0.0,)"
     javaVersion = "17"
+    excludeDependency "io.confluent.cloud:*"
+    excludeDependency "io.confluent.observability:*"
+    excludeDependency "io.confluent.secure.compute:*"
     assertInverse = true
   }
 }
@@ -14,13 +17,12 @@ dependencies {
   compileOnly group: 'org.apache.kafka', name: 'connect-runtime', version: '0.11.0.0'
 
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-lang')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:java-io')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-io-1.8')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-2.8')
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
-  testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
+  testImplementation libs.jackson.databind
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation 'org.apache.kafka:connect-api:2.7.0'      // Fixed version
@@ -33,9 +35,4 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-clients-3.8')
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-streams-0.11')
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-streams-1.0')
-}
-
-configurations.testRuntimeClasspath {
-  // spock-core depends on assertj version that is not compatible with kafka-clients
-  resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

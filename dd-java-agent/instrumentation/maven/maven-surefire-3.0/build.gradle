@@ -1,0 +1,24 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.apache.maven.surefire'
+    module = 'surefire-junit4'
+    versions = '[3.0.0,)'
+    assertInverse = true
+    extraDependency 'junit:junit:4.10'
+  }
+  pass {
+    group = 'org.apache.maven.surefire'
+    module = 'surefire-junit47'
+    versions = '[3.0.0,)'
+    assertInverse = true
+    extraDependency 'junit:junit:4.10'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.apache.maven.surefire', name: 'surefire-junit4', version: '3.0.0'
+  compileOnly group: 'org.apache.maven.surefire', name: 'surefire-junit47', version: '3.0.0' // parallel provider
+  implementation project(":dd-java-agent:instrumentation:junit:junit-4:junit-4.10")
+}

@@ -18,8 +18,9 @@ import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ConfigStrings
 
 class TelemetryServiceSpecification extends DDSpecification {
-  def confKeyValue = ConfigSetting.of("confkey", "confvalue", ConfigOrigin.DEFAULT)
-  def configuration = [confkey: confKeyValue]
+  def confKeyOrigin = ConfigOrigin.DEFAULT
+  def confKeyValue = ConfigSetting.of("confkey", "confvalue", confKeyOrigin)
+  def configuration = [confKeyOrigin: [confkey: confKeyValue]]
   def integration = new Integration("integration", true)
   def dependency = new Dependency("dependency", "1.0.0", "src", "hash")
   def metric = new Metric().namespace("tracers").metric("metric").points([[1, 2]]).tags(["tag1", "tag2"])
@@ -317,7 +318,7 @@ class TelemetryServiceSpecification extends DDSpecification {
     bodySize > 0
 
     when: 'sending first part of data'
-    telemetryService = new TelemetryService(testHttpClient, bodySize + 500, false)
+    telemetryService = new TelemetryService(testHttpClient, bodySize + 510, false)
 
     telemetryService.addConfiguration(configuration)
     telemetryService.addIntegration(integration)
@@ -437,7 +438,8 @@ class TelemetryServiceSpecification extends DDSpecification {
     String instrKey = 'instrumentation_config_id'
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter()
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false)
-    telemetryService.addConfiguration(['${instrKey}': ConfigSetting.of(instrKey, id, ConfigOrigin.ENV)])
+    def configMap = [(instrKey): ConfigSetting.of(instrKey, id, ConfigOrigin.ENV)]
+    telemetryService.addConfiguration([(ConfigOrigin.ENV): configMap])
 
     when: 'first iteration'
     testHttpClient.expectRequest(TelemetryClient.Result.SUCCESS)

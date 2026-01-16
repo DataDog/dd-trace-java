@@ -2,13 +2,13 @@ plugins {
   id 'org.gradle.playframework'
 }
 
-ext {
-  // TODO Java 17: This version of play doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+
+testJvmConstraints {
+  // TODO Java 17: This version of play doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 def playVer = "2.6.25"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.12")
@@ -74,18 +74,24 @@ configurations.testImplementation {
   exclude group:'com.typesafe.play', module:"play-test_$scalaVer"
 }
 
-tasks.named('compileTestGroovy').configure {
+tasks.named('compileTestGroovy') {
   dependsOn 'stageMainDist'
   outputs.upToDateWhen {
     !stageMainDist.didWork
   }
 }
 
-tasks.withType(AbstractCopyTask).each {
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
+}
+
+tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
-  it.configure {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-  }
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 spotless {

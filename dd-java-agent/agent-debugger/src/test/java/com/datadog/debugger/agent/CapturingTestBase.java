@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.io.File;
@@ -65,16 +64,12 @@ public class CapturingTestBase {
       MoshiHelper.createGenericAdapter();
 
   protected Config config;
-
   protected ConfigurationUpdater configurationUpdater;
-
   protected ClassFileTransformer currentTransformer;
-
   protected Instrumentation instr;
-
   protected MockInstrumentationListener instrumentationListener;
-
   protected ProbeStatusSink probeStatusSink;
+  protected ProbeMetadata probeMetadata = new ProbeMetadata();
 
   @AfterEach
   public void after() {
@@ -292,11 +287,11 @@ public class CapturingTestBase {
     assertEquals(lineNumber, throwable.getStacktrace().get(0).getLineNumber());
   }
 
-  protected void assertCaptureWatches(
+  protected void assertCaptureExpressions(
       CapturedContext context, String name, String typeName, String value) {
-    CapturedContext.CapturedValue watch = context.getWatches().get(name);
-    assertEquals(typeName, watch.getType());
-    assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
+    CapturedContext.CapturedValue expression = context.getCaptureExpressions().get(name);
+    assertEquals(typeName, expression.getType());
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(expression));
   }
 
   protected TestSnapshotListener installMethodProbe(
@@ -359,11 +354,15 @@ public class CapturingTestBase {
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
     currentTransformer =
-        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+        new DebuggerTransformer(
+            config,
+            configuration,
+            instrumentationListener,
+            configurationUpdater.getProbeMetadata(),
+            listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(
-        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
+    DebuggerContext.initProbeResolver(configurationUpdater::resolve);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
@@ -385,18 +384,8 @@ public class CapturingTestBase {
     setFieldInConfig(config, "dynamicInstrumentationClassFileDumpEnabled", true);
     setFieldInConfig(config, "dynamicInstrumentationVerifyByteCode", false);
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
-
+    setFieldInConfig(config, "dynamicInstrumentationSnapshotUrl", "http://localhost:8080");
     return config;
-  }
-
-  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
-    for (ProbeDefinition probe : probes) {
-      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-        return probe;
-      }
-    }
-
-    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installMethodProbeAtExit(
@@ -436,29 +425,11 @@ public class CapturingTestBase {
       String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
       args.setDestination(compilerOutputDir);
       args.setClasspath(System.getProperty("java.class.path"));
-      // We are currently testing JDK 25-ea, which is not yet generally available. This is causing
-      // Kotlin compilation issues for "25-ea" and "25". Temporarily override java.version "25-ea"
-      // to be the latest generally available JDK version "24".
-      // TODO: Revert this change once JDK 25 is generally available and tested.
-      String originalJavaVersion = System.getProperty("java.version");
-      boolean overrideEAJavaVersion =
-          originalJavaVersion != null && originalJavaVersion.contains("-ea");
-      ExitCode exitCode;
-      try {
-        if (overrideEAJavaVersion) {
-          System.setProperty("java.version", "24");
-        }
-        exitCode =
-            compiler.execImpl(
-                new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
-                Services.EMPTY,
-                args);
-      } finally {
-        // Restore the original java.version if it was overridden (25-ea)
-        if (overrideEAJavaVersion) {
-          System.setProperty("java.version", originalJavaVersion);
-        }
-      }
+      ExitCode exitCode =
+          compiler.exec(
+              new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
+              Services.EMPTY,
+              args);
 
       if (exitCode.getCode() != 0) {
         throw new RuntimeException("Kotlin compilation failed");

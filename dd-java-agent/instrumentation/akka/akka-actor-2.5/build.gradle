@@ -18,7 +18,7 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 addTestSuite('akka23Test')
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileAkka23TestGroovy").configure {
+tasks.named("compileAkka23TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
@@ -41,7 +41,7 @@ sourceSets {
     }
   }
 }
-tasks.named("compileLatestDepTestGroovy").configure {
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
@@ -50,7 +50,7 @@ dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
   testImplementation libs.scala
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
   testImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion
 
@@ -59,7 +59,7 @@ dependencies {
 }
 
 // gradle can't downgrade the akka dependencies with `strictly`
-configurations.matching({ it.name.startsWith('akka23') }).each({
+configurations.matching({ it.name.startsWith('akka23') }).configureEach({
   it.resolutionStrategy {
     force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version :'2.3.16'
     force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version :'2.3.16'
@@ -68,6 +68,6 @@ configurations.matching({ it.name.startsWith('akka23') }).each({
 
 
 // Run 2.3 tests along with the rest of unit tests
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "akka23Test"
 }

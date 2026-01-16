@@ -35,7 +35,7 @@ class InstrumentPlugin implements Plugin<Project> {
     InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
 
     project.tasks.matching {
-      it.name in ['compileJava', 'compileScala', 'compileKotlin', 'compileGroovy'] ||
+      it.name in ['compileJava', 'compileScala', 'compileGroovy'] ||
         it.name =~ /compileMain_.+Java/
     }.all {
       AbstractCompile compileTask = it as AbstractCompile
@@ -53,8 +53,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
           // insert intermediate 'raw' directory for unprocessed classes
           Directory classesDir = compileTask.destinationDirectory.get()
-          Directory rawClassesDir = classesDir.dir(
-            "../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
+          Directory rawClassesDir = classesDir.dir("../raw${sourceSetSuffix ? "_$sourceSetSuffix" : ''}/")
           compileTask.destinationDirectory.set(rawClassesDir.asFile)
 
           // insert task between compile and jar, and before test*
@@ -152,17 +151,16 @@ abstract class InstrumentTask extends DefaultTask {
   }
 
   private workQueue() {
-    if (this.javaVersion) {
-      def javaLauncher = this.javaToolchainService.launcherFor { spec ->
-        spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
-      }.get()
-      return this.workerExecutor.processIsolation { spec ->
-        spec.forkOptions { fork ->
-          fork.executable = javaLauncher.executablePath
-        }
+    if (!this.javaVersion) {
+      this.javaVersion = "8"
+    }
+    def javaLauncher = this.javaToolchainService.launcherFor { spec ->
+      spec.languageVersion.set(JavaLanguageVersion.of(this.javaVersion))
+    }.get()
+    return this.workerExecutor.processIsolation { spec ->
+      spec.forkOptions { fork ->
+        fork.executable = javaLauncher.executablePath
       }
-    } else {
-      return this.workerExecutor.noIsolation()
     }
   }
 }

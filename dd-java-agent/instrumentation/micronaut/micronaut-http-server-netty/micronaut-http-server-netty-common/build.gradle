@@ -1,0 +1,19 @@
+/*
+ * Classes that are common to all versions of the Micronaut instrumentation.
+ */
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    name = "micronaut-common"
+    group = "io.micronaut"
+    module = "micronaut-http-server-netty"
+    versions = "[2,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
+  implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
+}

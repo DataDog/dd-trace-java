@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.util.ClassNameTrie;
+import datadog.instrument.utils.ClassNameTrie;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -15,8 +15,10 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
@@ -101,6 +103,7 @@ public final class AgentJarIndex {
 
     private Path prefixRoot;
     private int prefixId;
+    private Map<Integer, String> prefixMappings = new HashMap<>();
 
     IndexGenerator(Path resourcesDir) {
       this.resourcesDir = resourcesDir;
@@ -125,6 +128,7 @@ public final class AgentJarIndex {
         prefixRoot = dir;
         prefixes.add(dir.getFileName() + "/");
         prefixId = prefixes.size();
+        prefixMappings.put(prefixId, dir.getFileName().toString());
       }
       return FileVisitResult.CONTINUE;
     }
@@ -143,10 +147,16 @@ public final class AgentJarIndex {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
           int existingPrefixId = prefixTrie.apply(entryKey);
-          if (-1 != existingPrefixId && prefixId != existingPrefixId) {
+          // warn if two subsections contain content under the same package prefix
+          // because we're then unable to redirect requests to the right submodule
+          // (ignore the two 'datadog.compiler' packages which allow duplication)
+          if (existingPrefixId > 0 && prefixId != existingPrefixId) {
             log.warn(
-                "Detected duplicate content under '{}'. Ensure your content is under a distinct directory.",
-                entryKey);
+                "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
+                entryKey,
+                resourcesDir.relativize(file).getName(0), // prefix
+                prefixMappings.get(existingPrefixId) // previous prefix
+                );
           }
           prefixTrie.put(entryKey, prefixId);
           if (entryKey.endsWith("*")) {
@@ -185,10 +195,18 @@ public final class AgentJarIndex {
     }
 
     public static void main(String[] args) throws IOException {
+      if (args.length < 1) {
+        throw new IllegalArgumentException("Expected: resources-dir");
+      }
+
       Path resourcesDir = Paths.get(args[0]).toAbsolutePath();
+      Path indexDir = resourcesDir;
+      if (args.length == 2) {
+        indexDir = Paths.get(args[1]).toAbsolutePath();
+      }
       IndexGenerator indexGenerator = new IndexGenerator(resourcesDir);
       Files.walkFileTree(resourcesDir, indexGenerator);
-      indexGenerator.writeIndex(resourcesDir.resolve(AGENT_INDEX_FILE_NAME));
+      indexGenerator.writeIndex(indexDir.resolve(AGENT_INDEX_FILE_NAME));
     }
   }
 }

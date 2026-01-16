@@ -3,6 +3,8 @@ package datadog.smoketest
 import datadog.communication.util.IOUtils
 import datadog.trace.civisibility.utils.ShellCommandExecutor
 import org.opentest4j.AssertionFailedError
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /**
  * This test runs Gradle Launcher with the Java Tracer injected
@@ -10,7 +12,10 @@ import org.opentest4j.AssertionFailedError
  */
 class GradleLauncherSmokeTest extends AbstractGradleTest {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest)
+
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
+  private static final int GRADLE_WRAPPER_RETRIES = 3
 
   private static final String JAVA_HOME = buildJavaHome()
 
@@ -47,7 +52,16 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private void givenGradleWrapper(String gradleVersion) {
     def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, ["JAVA_HOME": JAVA_HOME])
-    shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
+    for (int attempt = 0; attempt < GRADLE_WRAPPER_RETRIES; attempt++) {
+      try {
+        shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
+        return
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        LOGGER.warn("Failed gradle wrapper resolution with exception: ", e)
+        Thread.sleep(2000) // small delay for rapid retries on network issues
+      }
+    }
+    throw new AssertionError((Object) "Tried $GRADLE_WRAPPER_RETRIES times to execute gradle wrapper command and failed")
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
@@ -58,13 +72,23 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       "DD_CIVISIBILITY_AGENTLESS_ENABLED" : "true",
       "DD_CIVISIBILITY_AGENTLESS_URL"     : "${mockBackend.intakeUrl}".toString(),
       "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED": "false",
+      "DD_CIVISIBILITY_GIT_CLIENT_ENABLED": "false",
+      "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"  : "false",
       "DD_API_KEY"                        : "dummy"
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
       command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }
-    return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
+
+    try {
+      return shellCommandExecutor.executeCommand(IOUtils::readFully, command)
+    } catch (Exception e) {
+      println "=============================================================="
+      println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Launcher execution failed with exception:\n ${e.message}"
+      println "=============================================================="
+      throw e
+    }
   }
 
   private static boolean gradleDaemonStartCommandContains(String buildOutput, String... tokens) {

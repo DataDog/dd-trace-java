@@ -52,12 +52,12 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Override
   @AfterEach
-  void teardown() throws Exception {
+  void teardown(TestInfo testInfo) throws Exception {
     if (appUrl != null) {
       stopApp(appUrl);
     }
     controlServer.shutdown();
-    super.teardown();
+    super.teardown(testInfo);
   }
 
   @Override
@@ -82,7 +82,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected Snapshot waitForOneSnapshot() throws Exception {
     AtomicReference<Snapshot> snapshotReceived = new AtomicReference<>();
     registerSnapshotListener(snapshotReceived::set);
-    processRequests(() -> snapshotReceived.get() != null);
+    processRequests(
+        () -> snapshotReceived.get() != null,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     return snapshotReceived.get();
   }
 
@@ -99,26 +101,38 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected void waitForInstrumentation(String appUrl) throws Exception {
-    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, true);
   }
 
-  protected void waitForInstrumentation(String appUrl, String className) throws Exception {
+  protected void waitForInstrumentation(
+      String appUrl, String className, boolean waitOnProbeStatuses) throws Exception {
     String url = String.format(appUrl + "/waitForInstrumentation?classname=%s", className);
     LOG.info("waitForInstrumentation with url={}", url);
     sendRequest(url);
-    AtomicBoolean received = new AtomicBoolean();
-    AtomicBoolean installed = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-            installed.set(true);
-          }
-        });
-    processRequests(() -> received.get() && installed.get());
+    if (waitOnProbeStatuses) {
+      AtomicBoolean received = new AtomicBoolean();
+      AtomicBoolean installed = new AtomicBoolean();
+      registerProbeStatusListener(
+          probeStatus -> {
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+              received.set(true);
+            }
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+              installed.set(true);
+            }
+          });
+      processRequests(
+          () -> received.get() && installed.get(),
+          () -> String.format("timeout received=%s installed=%s", received.get(), installed.get()));
+    }
     LOG.info("instrumentation done");
+  }
+
+  protected void waitForExceptionFingerprint() throws Exception {
+    String url = String.format(appUrl + "/waitForExceptionFingerprint");
+    LOG.info("waitForExceptionFingerprint with url={}", url);
+    sendRequest(url);
+    LOG.info("exceptionFingerprint added");
   }
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
@@ -127,7 +141,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
         probeStatus -> {
           statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
         });
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {
@@ -138,6 +153,11 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     String url = String.format(appUrl + "/waitForReTransformation?classname=%s", className);
     sendRequest(url);
     LOG.info("re-transformation done");
+  }
+
+  protected void waitForSpecificLine(String appUrl, String line) throws IOException {
+    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
+    sendRequest(url);
   }
 
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {

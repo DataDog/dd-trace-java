@@ -4,9 +4,9 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROB
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.TagsHelper;
 import java.lang.instrument.Instrumentation;
 import java.util.Collection;
@@ -26,6 +27,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -44,10 +46,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         Config tracerConfig,
         Configuration configuration,
         DebuggerTransformer.InstrumentationListener listener,
+        ProbeMetadata probeMetadata,
         DebuggerSink debuggerSink);
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
 
   private final Instrumentation instrumentation;
   private final TransformerSupplier transformerSupplier;
@@ -57,11 +61,14 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
   private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
+  private final ProbeMetadata probeMetadata = new ProbeMetadata();
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
   private final Map<String, InstrumentationResult> instrumentationResults =
       new ConcurrentHashMap<>();
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
 
   public ConfigurationUpdater(
       Instrumentation instrumentation,
@@ -113,6 +120,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     sink.getProbeStatusSink().addError(probeId, ex);
   }
 
+  ProbeMetadata getProbeMetadata() {
+    return probeMetadata;
+  }
+
   private ProbeId extractPrefix(String prefix, String configId) {
     return new ProbeId(configId.substring(prefix.length()), 0);
   }
@@ -131,7 +142,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       }
       currentConfiguration = newConfiguration;
       if (changes.hasProbeRelatedChanges()) {
-        LOGGER.info("Applying new probe configuration, changes: {}", changes);
+        LOGGER.debug("Applying new probe configuration, changes: {}", changes);
         handleProbesChanges(changes, newConfiguration);
       }
     } finally {
@@ -176,6 +187,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void reportReceived(ConfigurationComparer changes) {
     for (ProbeDefinition def : changes.getAddedDefinitions()) {
+      if (def instanceof ExceptionProbe) {
+        // do not report received for exception probes
+        continue;
+      }
       sink.addReceived(def.getProbeId());
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
@@ -191,7 +206,11 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     // install new probe definitions
     DebuggerTransformer newTransformer =
         transformerSupplier.supply(
-            Config.get(), newConfiguration, this::recordInstrumentationProgress, sink);
+            Config.get(),
+            newConfiguration,
+            this::recordInstrumentationProgress,
+            probeMetadata,
+            sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed");
@@ -206,9 +225,31 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private void retransformClasses(List<Class<?>> classesToBeTransformed) {
+    int classCount = classesToBeTransformed.size();
+    if (classCount <= 10) {
+      retransformIndividualClasses(classesToBeTransformed);
+    } else if (classCount <= 1000) {
+      retransformClassesAtOnce(classesToBeTransformed);
+    } else {
+      throw new IllegalStateException("Too many classes to retransform: " + classCount);
+    }
+  }
+
+  private void retransformClassesAtOnce(List<Class<?>> classesToBeTransformed) {
+    LOGGER.debug("Re-transforming classes: {}", classesToBeTransformed);
+    try {
+      instrumentation.retransformClasses(classesToBeTransformed.toArray(new Class[0]));
+    } catch (Exception ex) {
+      ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
+    } catch (Throwable ex) {
+      ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
+    }
+  }
+
+  private void retransformIndividualClasses(List<Class<?>> classesToBeTransformed) {
     for (Class<?> clazz : classesToBeTransformed) {
       try {
-        LOGGER.info("Re-transforming class: {}", clazz.getTypeName());
+        LOGGER.debug("Re-transforming class: {}", clazz.getTypeName());
         instrumentation.retransformClasses(clazz);
       } catch (Exception ex) {
         ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
@@ -221,6 +262,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private void storeDebuggerDefinitions(ConfigurationComparer changes) {
     for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
       appliedDefinitions.remove(definition.getProbeId().getEncodedId());
+      probeMetadata.removeProbe(definition.getProbeId().getEncodedId());
     }
     for (ProbeDefinition definition : changes.getAddedDefinitions()) {
       appliedDefinitions.put(definition.getProbeId().getEncodedId(), definition);
@@ -230,12 +272,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
   @Override
-  public ProbeImplementation resolve(String encodedProbeId) {
-    ProbeDefinition definition = appliedDefinitions.get(encodedProbeId);
-    if (definition == null) {
-      LOGGER.warn(SEND_TELEMETRY, "Cannot resolve probe id={}", encodedProbeId);
-    }
-    return definition;
+  public ProbeImplementation resolve(int probeIndex) {
+    return probeMetadata.getProbe(probeIndex);
   }
 
   private static void applyRateLimiter(

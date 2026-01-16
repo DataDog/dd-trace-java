@@ -1,14 +1,10 @@
 // Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_1_8
+}
 
 sourceSets {
   "main_java11" {
@@ -16,10 +12,12 @@ sourceSets {
   }
 }
 
-compileMain_java11Java.configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_9
-  targetCompatibility = JavaVersion.VERSION_1_9
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Need access to jdk.jfr.internal.*")
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_9)
 }
 
 dependencies {
@@ -40,12 +38,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.jfr.SimpleJFRAccess*'
 ]
 
-jar {
+tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-forbiddenApisMain {
-  failOnMissingClasses = false
 }
 
 idea {
@@ -54,12 +48,12 @@ idea {
   }
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 9) {
-      jvmArgs += [
-        '--add-opens',
-        'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
-    }
-  }
+tasks.withType(Test).configureEach {
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_1_9,
+    [
+      '--add-opens',
+      'jdk.jfr/jdk.jfr.internal=ALL-UNNAMED'] // JPMSJFRAccess needs access to jdk.jfr.internal package
+    )
 }

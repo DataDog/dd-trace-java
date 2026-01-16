@@ -55,13 +55,16 @@ public class AkkaBlockResponseFunction implements BlockResponseFunction {
       TraceSegment segment,
       int statusCode,
       BlockingContentType templateType,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     AgentSpan agentSpan = AgentTracer.activeSpan();
     if (agentSpan == null) {
       return false;
     }
     if (rba == null) {
-      rba = new Flow.Action.RequestBlockingAction(statusCode, templateType, extraHeaders);
+      rba =
+          new Flow.Action.RequestBlockingAction(
+              statusCode, templateType, extraHeaders, securityResponseId);
       this.traceSegment = segment;
     }
     return true;

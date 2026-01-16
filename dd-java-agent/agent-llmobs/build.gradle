@@ -1,12 +1,4 @@
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
@@ -14,7 +6,6 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
@@ -30,10 +21,10 @@ dependencies {
   testImplementation project(':dd-java-agent:testing')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }

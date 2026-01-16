@@ -1,9 +1,8 @@
 package com.datadog.profiling.controller.openjdk;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,7 +75,7 @@ public class OpenJdkRecordingDataTest {
 
   @Test
   public void testToString() {
-    assertThat(recordingData.toString(), containsString(TEST_NAME));
+    assertTrue(recordingData.toString().contains(TEST_NAME));
   }
 
   @Test

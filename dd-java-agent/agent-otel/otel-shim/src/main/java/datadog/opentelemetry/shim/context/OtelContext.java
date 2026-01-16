@@ -1,8 +1,10 @@
 package datadog.opentelemetry.shim.context;
 
+import datadog.opentelemetry.shim.baggage.OtelBaggage;
 import datadog.opentelemetry.shim.trace.OtelSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
 import io.opentelemetry.context.Scope;
@@ -18,6 +20,7 @@ public class OtelContext implements Context {
   /** Overridden root context. */
   public static final Context ROOT = new OtelContext(datadog.context.Context.root());
 
+  private static final String OTEL_CONTEXT_BAGGAGE_KEY = "opentelemetry-baggage-key";
   private static final String OTEL_CONTEXT_SPAN_KEY = "opentelemetry-trace-span-key";
   private static final String OTEL_CONTEXT_ROOT_SPAN_KEY = "opentelemetry-traces-local-root-span";
 
@@ -45,16 +48,22 @@ public class OtelContext implements Context {
   public <V> V get(ContextKey<V> key) {
     if (OTEL_CONTEXT_SPAN_KEY.equals(key.toString())) {
       AgentSpan span = AgentSpan.fromContext(delegate);
-      if (span != null) {
+      if (span != null && span.isValid()) {
         return (V) toOtelSpan(span);
       }
       // fall-through and check for non-datadog span data
     } else if (OTEL_CONTEXT_ROOT_SPAN_KEY.equals(key.toString())) {
       AgentSpan span = AgentSpan.fromContext(delegate);
-      if (span != null) {
+      if (span != null && span.isValid()) {
         return (V) toOtelSpan(span.getLocalRootSpan());
       }
       // fall-through and check for non-datadog span data
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())) {
+      Baggage baggage = Baggage.fromContext(delegate);
+      if (baggage != null) {
+        return (V) new OtelBaggage(baggage);
+      }
+      // fall-through and check for non-datadog baggage
     }
     return (V) delegate.get(delegateKey(key));
   }
@@ -67,6 +76,18 @@ public class OtelContext implements Context {
         return new OtelContext(delegate.with(span));
       }
       // fall-through and store as non-datadog span data
+    } else if (OTEL_CONTEXT_BAGGAGE_KEY.equals(key.toString())) {
+      if (value instanceof OtelBaggage) {
+        Baggage baggage = ((OtelBaggage) value).asAgentBaggage();
+        return new OtelContext(delegate.with(baggage));
+      } else if (value instanceof io.opentelemetry.api.baggage.Baggage) {
+        Baggage baggage = Baggage.empty();
+        // transfer baggage to our internal container for propagation purposes
+        ((io.opentelemetry.api.baggage.Baggage) value)
+            .forEach((k, b) -> baggage.addItem(k, b.getValue()));
+        return new OtelContext(delegate.with(baggage));
+      }
+      // fall-through and store as non-datadog baggage
     }
     return new OtelContext(delegate.with(delegateKey(key), value));
   }

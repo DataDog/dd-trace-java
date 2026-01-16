@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'dd-trace-java.call-site-instrumentation'
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+  testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.56'
+}

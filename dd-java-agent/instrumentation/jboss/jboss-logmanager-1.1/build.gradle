@@ -1,0 +1,14 @@
+muzzle {
+  pass {
+    // jboss-logmanager-embedded has been relocated to jboss-logmanager
+    group = 'org.jboss.logmanager'
+    module = 'jboss-logmanager'
+    versions = '[1.1.0.GA,]'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '1.1.0.GA'
+}

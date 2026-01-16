@@ -86,7 +86,7 @@ dependencies {
 }
 
 // gradle can't downgrade the opentracing dependencies with `strictly`
-configurations.matching { it.name.startsWith("ot31") }.all {
+configurations.matching { it.name.startsWith("ot31") }.configureEach {
   resolutionStrategy {
     force("io.opentracing:opentracing-api:0.31.0")
     force("io.opentracing:opentracing-util:0.31.0")
@@ -120,6 +120,8 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude(dependency("io.opentracing.contrib:"))
     exclude(dependency("org.slf4j:"))
     exclude(dependency("com.github.jnr:"))
+    // indirect dependency of JNR, no need to embed
+    exclude(dependency("org.ow2.asm:"))
   }
 
   relocate("com.", "ddtrot.com.") {

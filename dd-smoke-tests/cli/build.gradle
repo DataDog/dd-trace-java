@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -5,7 +7,7 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Command Line Application Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.cli.CliApplication')
   }
@@ -18,7 +20,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
+  def shadowTaskRef = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowTaskRef
 
-  jvmArgs "-Ddatadog.smoketest.cli.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowTaskRef.map { ["-Ddatadog.smoketest.cli.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

@@ -1,7 +1,7 @@
 package datadog.smoketest
 
 import datadog.environment.JavaVirtualMachine
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import okhttp3.FormBody
 import okhttp3.Request
 import spock.lang.Requires
@@ -13,7 +13,9 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 // This test currently fails on IBM JVMs
-@Requires({ !JavaVirtualMachine.isJ9() })
+@Requires({
+  !JavaVirtualMachine.isJ9()
+})
 class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Shared

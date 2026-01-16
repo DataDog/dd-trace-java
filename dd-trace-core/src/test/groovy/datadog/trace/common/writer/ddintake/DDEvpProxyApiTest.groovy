@@ -60,7 +60,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
     agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
 
@@ -95,7 +96,8 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     agentEvpProxy.getLastRequest().path == path
     agentEvpProxy.getLastRequest().getHeader(DDEvpProxyApi.DD_EVP_SUBDOMAIN_HEADER) == intakeSubdomain
 
@@ -303,11 +305,11 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
 
   def createEvpProxyApi(String agentUrl, String evpProxyEndpoint, TrackType trackType, boolean compressionEnabled) {
     return DDEvpProxyApi.builder()
-      .agentUrl(HttpUrl.get(agentUrl))
-      .evpProxyEndpoint(evpProxyEndpoint)
-      .trackType(trackType)
-      .compressionEnabled(compressionEnabled)
-      .build()
+    .agentUrl(HttpUrl.get(agentUrl))
+    .evpProxyEndpoint(evpProxyEndpoint)
+    .trackType(trackType)
+    .compressionEnabled(compressionEnabled)
+    .build()
   }
 
   def discoverMapper(TrackType trackType, boolean compressionEnabled) {
@@ -329,7 +331,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
     }
     packer.flush()
     return mapper.newPayload()
-      .withBody(traceCapture.traceCount,
-      traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
+    .withBody(traceCapture.traceCount,
+    traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
   }
 }

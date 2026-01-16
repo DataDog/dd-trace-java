@@ -53,7 +53,9 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
     "-Ddd.appsec.waf.timeout=300000",
     "-DPOWERWAF_EXIT_ON_LEAK=true",
     // disable AppSec rate limit
-    "-Ddd.appsec.trace.rate.limit=-1"
+    "-Ddd.appsec.trace.rate.limit=-1",
+    // disable http client sampling
+    "-Ddd.api-security.downstream.request.body.analysis.sample_rate=1"
   ] + (System.getProperty('smoke_test.appsec.enabled') == 'inactive' ?
   // enable remote config so that appsec is partially enabled (rc is now enabled by default)
   [
@@ -94,16 +96,43 @@ abstract class AbstractAppSecServerSmokeTest extends AbstractServerSmokeTest {
    * the {@code dd.appsec.rules} variable to the new file
    */
   void mergeRules(final String path, final List<Map<String, Object>> customRules) {
+    mergeRules(path, customRules, null)
+  }
+
+  void mergeRules(final String path, final List<Map<String, Object>> customRules, final List< Map<String, Object>> customActions ) {
     // Prepare a file with the new rules
     final jarFile = new JarFile(shadowJarPath)
     final zipEntry = jarFile.getEntry("appsec/default_config.json")
     final content = IOUtils.toString(jarFile.getInputStream(zipEntry), StandardCharsets.UTF_8)
     final json = new JsonSlurper().parseText(content) as Map<String, Object>
+
+    if (customActions != null) {
+      def actions = json.actions as List<Map<String, Object>>
+      // remove already existing rules for merge
+      List<Object> customActionNames = customActions.collect {
+        it.id
+      }
+      if( actions != null) {
+        actions.removeIf {
+          it.id in customActionNames
+        }
+      }else {
+        actions = []
+        json.actions = actions
+      }
+      actions.addAll(customActions)
+    }
+
+
     final rules = json.rules as List<Map<String, Object>>
 
     // remove already existing rules for merge
-    List<Object> customRulesNames = customRules.collect { it.id }
-    rules.removeIf { it.id in customRulesNames }
+    List<Object> customRulesNames = customRules.collect {
+      it.id
+    }
+    rules.removeIf {
+      it.id in customRulesNames
+    }
 
     rules.addAll(customRules)
     final gen = new JsonGenerator.Options().build()

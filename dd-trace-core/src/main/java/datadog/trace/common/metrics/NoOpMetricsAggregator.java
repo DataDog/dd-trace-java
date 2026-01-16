@@ -9,7 +9,7 @@ import java.util.concurrent.Future;
 
 public final class NoOpMetricsAggregator implements MetricsAggregator {
 
-  static final NoOpMetricsAggregator INSTANCE = new NoOpMetricsAggregator();
+  public static final NoOpMetricsAggregator INSTANCE = new NoOpMetricsAggregator();
 
   @Override
   public void start() {}

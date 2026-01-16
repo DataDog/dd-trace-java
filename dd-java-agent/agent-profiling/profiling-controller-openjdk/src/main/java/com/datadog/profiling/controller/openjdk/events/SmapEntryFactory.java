@@ -1,9 +1,8 @@
 package com.datadog.profiling.controller.openjdk.events;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.bootstrap.instrumentation.jfr.JfrHelper;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -62,9 +61,8 @@ public class SmapEntryFactory {
           log.debug("Smap entry events registered successfully");
         }
       } catch (Exception e) {
-        log.debug(
-            SEND_TELEMETRY,
-            "Smap entry events could not be registered due to missing systemMap operation");
+        ProfilerFlareLogger.getInstance()
+            .log("Smap entry events could not be registered due to missing systemMap operation", e);
       }
     }
   }

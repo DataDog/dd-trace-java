@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
   private List<String> additionalJvmArgs = new ArrayList<>();
 
@@ -46,12 +48,12 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 312)
+            .where("ServerDebuggerTestApplication.java", 327)
             .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     execute(appUrl, "topLevelMethod", "");
-    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel");
+    waitForInstrumentation(appUrl, "datadog.smoketest.debugger.TopLevel", true);
     // disable DI
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
@@ -81,7 +83,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     setConfigOverrides(createConfigOverrides(false, true));
     waitForFeatureStarted(appUrl, "Exception Replay");
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
-    waitForInstrumentation(appUrl);
+    waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
     // disable ER
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Exception Replay");
@@ -98,11 +100,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Stopping " + feature;
     waitForSpecificLine(appUrl, line);
     LOG.info("feature {} stopped", feature);
-  }
-
-  private void waitForSpecificLine(String appUrl, String line) throws IOException {
-    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
-    sendRequest(url);
   }
 
   private static ConfigOverrides createConfigOverrides(

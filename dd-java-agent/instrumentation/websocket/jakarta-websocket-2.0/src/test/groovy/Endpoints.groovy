@@ -118,7 +118,6 @@ class Endpoints {
   static class PartialBytesHandler implements MessageHandler.Partial<byte[]> {
     @Override
     void onMessage(byte[] b, boolean last) {
-
     }
   }
 

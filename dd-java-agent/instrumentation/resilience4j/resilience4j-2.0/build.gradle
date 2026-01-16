@@ -1,0 +1,41 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
+muzzle {
+  pass {
+    group = 'io.github.resilience4j'
+    module = 'resilience4j-all'
+    versions = '[2.0.0,)'
+    assertInverse = true
+    javaVersion = "17"
+  }
+}
+
+idea {
+  module {
+    jdkName = '17'
+  }
+}
+
+project.tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(
+    it,
+    17,
+    JavaVersion.VERSION_1_8,
+    "Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility"
+    )
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
+
+  testImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.0.0'
+  latestDepTestImplementation group: 'io.github.resilience4j', name: 'resilience4j-all', version: '2.+'
+}
+

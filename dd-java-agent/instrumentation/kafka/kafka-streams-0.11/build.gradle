@@ -22,8 +22,10 @@ dependencies {
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '1.3.3.RELEASE'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '1.3.3.RELEASE'
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
-  testImplementation group: 'org.assertj', name: 'assertj-core', version: '2.9.+'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
+
+  // This module still needs Spock with JUnit4.
+  testImplementation(libs.spock.junit4)
 
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
@@ -33,10 +35,4 @@ dependencies {
   // spring-kafka 2.8.x pulls in kafka-clients/streams 3.x which behaves differently
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.7+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.7+'
-  latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
-}
-
-configurations.testRuntimeClasspath {
-  // spock-core depends on assertj version that is not compatible with kafka-clients
-  resolutionStrategy.force 'org.assertj:assertj-core:2.9.1'
 }

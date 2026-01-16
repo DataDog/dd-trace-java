@@ -13,6 +13,10 @@ Check [Adding a New Instrumentation](docs/add_new_instrumentation.md) for instru
 
 Check [How Instrumentations Work](docs/how_instrumentations_work.md) for a deep dive into how instrumentations work.
 
+## Adding Configurations
+
+Check [Adding a New Configuration](docs/add_new_configurations.md) for instructions on adding a new configuration.
+
 ## Code contributions
 
 ### Development environment quick check
@@ -46,12 +50,9 @@ To run the formatting verify task only:
 
 For IntelliJ IDEA, we suggest the following settings and plugin.
 
-The default JVM to build and run tests from the command line should be Java 8.
-
-* Use Java 8 to build and run tests:
-  * `Project Structure` -> `Project` -> `SDK` -> `Download JDK...` -> `Version: 1.8` -> `Download`
 * Configure Java and Groovy import formatting:  
   * `Settings...` ->`Editor` > `Code Style` > `Java` > `Imports`
+    * `Use single class import`: checked
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
     * Use the following import layout to ensure consistency with google-java-format:
@@ -59,6 +60,7 @@ The default JVM to build and run tests from the command line should be Java 8.
   * top right Settings icon -> `Settings...` ->`Editor` > `Code Style` > `Groovy` > `Imports`
     * `Class count to use import with '*'`: `9999` (some number sufficiently large that is unlikely to matter)
     * `Names count to use static import with '*'`: `9999`
+* To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
 * Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
 
 ### Troubleshooting
@@ -77,11 +79,6 @@ The default JVM to build and run tests from the command line should be Java 8.
 * IntelliJ 2021.3
   complains `Failed to find KotlinGradleProjectData for GradleSourceSetData` https://youtrack.jetbrains.com/issue/KTIJ-20173.
     * Switch to `IntelliJ IDEA CE 2021.2.3`.
-
-* IntelliJ Gradle fails to import the project with `JAVA_11_HOME must be set to build Java 11 code`.
-    * A workaround is to run IntelliJ from your terminal with `JAVA_11_HOME`.
-    * In order to verify what's visible from IntelliJ, use the `Add Configuration` bar and go
-      to `Add New` -> `Gradle` -> `Environmental Variables`.
 </details>
 
 ## Pull request guidelines

@@ -1,5 +1,7 @@
 package datadog.trace.api.gateway;
 
+import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.appsec.HttpClientResponse;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -26,6 +28,7 @@ public final class Events<D> {
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_STARTED = new ET<>("request.started", REQUEST_STARTED_ID);
+
   /** A request started */
   @SuppressWarnings("unchecked")
   public EventType<Supplier<Flow<D>>> requestStarted() {
@@ -36,6 +39,7 @@ public final class Events<D> {
 
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_ENDED = new ET<>("request.ended", REQUEST_ENDED_ID);
+
   /** A request ended */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> requestEnded() {
@@ -47,6 +51,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_HEADER =
       new ET<>("server.request.header", REQUEST_HEADER_ID);
+
   /** A request header as a key and values separated by , */
   @SuppressWarnings("unchecked")
   public EventType<TriConsumer<RequestContext, String, String>> requestHeader() {
@@ -58,6 +63,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_HEADER_DONE =
       new ET<>("server.request.header.done", REQUEST_HEADER_DONE_ID);
+
   /** All request headers have been provided */
   @SuppressWarnings("unchecked")
   public EventType<Function<RequestContext, Flow<Void>>> requestHeaderDone() {
@@ -69,6 +75,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_METHOD_URI_RAW =
       new ET<>("server.request.method.uri.raw", REQUEST_METHOD_URI_RAW_ID);
+
   /** The method (uppercase) and URIDataAdapter for the request. */
   @SuppressWarnings("unchecked")
   public EventType<TriFunction<RequestContext, String /* method */, URIDataAdapter, Flow<Void>>>
@@ -82,6 +89,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_PATH_PARAMS =
       new ET<>("server.request.method.uri.raw", REQUEST_PATH_PARAMS_ID);
+
   /** The parameters the framework got from the request uri (but not the query string) */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>> requestPathParams() {
@@ -93,6 +101,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_CLIENT_SOCKET_ADDRESS =
       new ET<>("http.server.client_socket_address", REQUEST_CLIENT_SOCKET_ADDRESS_ID);
+
   /** The method (uppercase) and URIDataAdapter for the request. */
   @SuppressWarnings("unchecked")
   public EventType<TriFunction<RequestContext, String, Integer, Flow<Void>>>
@@ -106,6 +115,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_INFERRED_CLIENT_ADDRESS =
       new ET<>("http.server.inferred_client_address", REQUEST_INFERRED_CLIENT_ADDRESS_ID);
+
   /** The inferred client IP address. */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> requestInferredClientAddress() {
@@ -118,6 +128,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_START =
       new ET<>("request.body.started", REQUEST_BODY_START_ID);
+
   /** The request body has started being read */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, StoredBodySupplier, Void>> requestBodyStart() {
@@ -129,6 +140,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_DONE =
       new ET<>("request.body.done", REQUEST_BODY_DONE_ID);
+
   /** The request body is done being read */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>> requestBodyDone() {
@@ -141,6 +153,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType REQUEST_BODY_CONVERTED =
       new ET<>("request.body.converted", REQUEST_BODY_CONVERTED_ID);
+
   /** The request body has been converted by the framework */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> requestBodyProcessed() {
@@ -152,6 +165,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_STARTED =
       new ET<>("response.started", RESPONSE_STARTED_ID);
+
   /** A response started */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Integer, Flow<Void>>> responseStarted() {
@@ -163,6 +177,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER =
       new ET<>("server.response.header", RESPONSE_HEADER_ID);
+
   /** A response header as a key and values separated by , */
   @SuppressWarnings("unchecked")
   public EventType<TriConsumer<RequestContext, String, String>> responseHeader() {
@@ -174,6 +189,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_HEADER_DONE =
       new ET<>("server.response.header.done", RESPONSE_HEADER_DONE_ID);
+
   /** All response headers have been provided */
   @SuppressWarnings("unchecked")
   public EventType<Function<RequestContext, Flow<Void>>> responseHeaderDone() {
@@ -185,6 +201,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType GRPC_SERVER_REQUEST_MESSAGE =
       new ET<>("grpc.server.request.message", GRPC_SERVER_REQUEST_MESSAGE_ID);
+
   /** All response headers have been provided */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> grpcServerRequestMessage() {
@@ -196,6 +213,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType GRAPHQL_SERVER_REQUEST_MESSAGE =
       new ET<>("graphql.server.request.message", GRAPHQL_SERVER_REQUEST_MESSAGE_ID);
+
   /** Before resolver execution */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Map<String, ?>, Flow<Void>>>
@@ -209,6 +227,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType DATABASE_CONNECTION =
       new ET<>("database.connection", DATABASE_CONNECTION_ID);
+
   /** A database connection */
   @SuppressWarnings("unchecked")
   public EventType<BiConsumer<RequestContext, String>> databaseConnection() {
@@ -220,6 +239,7 @@ public final class Events<D> {
   @SuppressWarnings("rawtypes")
   private static final EventType DATABASE_SQL_QUERY =
       new ET<>("database.query", DATABASE_SQL_QUERY_ID);
+
   /** A database sql query */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, String, Flow<Void>>> databaseSqlQuery() {
@@ -237,16 +257,17 @@ public final class Events<D> {
     return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) GRPC_SERVER_METHOD;
   }
 
-  static final int NETWORK_CONNECTION_ID = 19;
+  static final int HTTP_CLIENT_REQUEST_ID = 19;
 
   @SuppressWarnings("rawtypes")
-  private static final EventType NETWORK_CONNECTION =
-      new ET<>("network.connection", NETWORK_CONNECTION_ID);
+  private static final EventType HTTP_CLIENT_REQUEST =
+      new ET<>("http.client.request", HTTP_CLIENT_REQUEST_ID);
 
-  /** A I/O network URL */
+  /** An http downstream request */
   @SuppressWarnings("unchecked")
-  public EventType<BiFunction<RequestContext, String, Flow<Void>>> networkConnection() {
-    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) NETWORK_CONNECTION;
+  public EventType<BiFunction<RequestContext, HttpClientRequest, Flow<Void>>> httpClientRequest() {
+    return (EventType<BiFunction<RequestContext, HttpClientRequest, Flow<Void>>>)
+        HTTP_CLIENT_REQUEST;
   }
 
   static final int FILE_LOADED_ID = 20;
@@ -326,12 +347,39 @@ public final class Events<D> {
 
   @SuppressWarnings("rawtypes")
   private static final EventType RESPONSE_BODY = new ET<>("response.body", RESPONSE_BODY_ID);
+
   /**
    * The original response body object used by the framework before being serialized to the response
    */
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Object, Flow<Void>>> responseBody() {
     return (EventType<BiFunction<RequestContext, Object, Flow<Void>>>) RESPONSE_BODY;
+  }
+
+  static final int HTTP_CLIENT_RESPONSE_ID = 28;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_CLIENT_RESPONSE =
+      new ET<>("http.client.response", HTTP_CLIENT_RESPONSE_ID);
+
+  /** An http downstream response */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, HttpClientResponse, Flow<Void>>>
+      httpClientResponse() {
+    return (EventType<BiFunction<RequestContext, HttpClientResponse, Flow<Void>>>)
+        HTTP_CLIENT_RESPONSE;
+  }
+
+  static final int HTTP_CLIENT_SAMPLING_ID = 29;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType HTTP_CLIENT_SAMPLING =
+      new ET<>("http.client.sampling", HTTP_CLIENT_SAMPLING_ID);
+
+  /** Check sampling status for a downstream request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, Long, Flow<Boolean>>> httpClientSampling() {
+    return (EventType<BiFunction<RequestContext, Long, Flow<Boolean>>>) HTTP_CLIENT_SAMPLING;
   }
 
   static final int MAX_EVENTS = nextId.get();

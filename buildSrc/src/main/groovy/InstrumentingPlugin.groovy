@@ -49,7 +49,19 @@ class InstrumentingPlugin {
           .withErrorHandlers(
             Plugin.Engine.ErrorHandler.Enforcing.ALL_TYPES_RESOLVED,
             Plugin.Engine.ErrorHandler.Enforcing.NO_LIVE_INITIALIZERS,
-            Plugin.Engine.ErrorHandler.Failing.FAIL_LAST)
+            new Plugin.Engine.ErrorHandler() {
+              @Delegate
+              Plugin.Engine.ErrorHandler delegate = Plugin.Engine.ErrorHandler.Failing.FAIL_LAST
+
+              void onError(Map<TypeDescription, List<Throwable>> throwables) {
+                throw new IllegalStateException("Failed to transform at least one type: " + throwables).tap { ise ->
+                  throwables.values().flatten().each {
+                    ise.addSuppressed(it)
+                  }
+                }
+              }
+            }
+          )
           .with(Plugin.Engine.Dispatcher.ForSerialTransformation.Factory.INSTANCE)
           .apply(source, target, factories)
 

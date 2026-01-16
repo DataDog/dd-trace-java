@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.appsec.HttpClientRequest;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -99,14 +100,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
             HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
           }
           // SSRF exploit prevention check
-          onNetworkConnection(url.toString());
+          onHttpClientRequest(span, url.toString());
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
+      } catch (final BlockingException e) {
+        throw e;
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
+      } finally {
+        ssrfIastCheck(request);
       }
-      ssrfIastCheck(request);
     }
     return span;
   }
@@ -178,24 +182,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return 0;
   }
 
-  private void onNetworkConnection(final String networkConnection) {
+  protected void onHttpClientRequest(final AgentSpan span, final String url) {
     if (!APPSEC_RASP_ENABLED) {
       return;
     }
-    if (networkConnection == null) {
+    if (url == null) {
       return;
     }
-    final BiFunction<RequestContext, String, Flow<Void>> networkConnectionCallback =
+    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
         AgentTracer.get()
             .getCallbackProvider(RequestContextSlot.APPSEC)
-            .getCallback(EVENTS.networkConnection());
+            .getCallback(EVENTS.httpClientRequest());
 
-    if (networkConnectionCallback == null) {
-      return;
-    }
-
-    final AgentSpan span = AgentTracer.get().activeSpan();
-    if (span == null) {
+    if (requestCb == null) {
       return;
     }
 
@@ -204,17 +203,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       return;
     }
 
-    Flow<Void> flow = networkConnectionCallback.apply(ctx, networkConnection);
+    final long requestId = span.getSpanId();
+    Flow<Void> flow = requestCb.apply(ctx, new HttpClientRequest(requestId, url));
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            ctx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
       }
       throw new BlockingException("Blocked request (for SSRF attempt)");
     }

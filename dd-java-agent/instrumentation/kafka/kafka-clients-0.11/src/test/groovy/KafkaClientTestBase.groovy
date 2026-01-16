@@ -1,4 +1,5 @@
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -24,7 +25,11 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.internals.RecordHeader
+import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.StringSerializer
+
+import java.nio.charset.StandardCharsets
 import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
@@ -249,6 +254,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def received = records.poll(5, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
+
+    // verify ClusterIdHolder was properly cleaned up after produce and consume
+    ClusterIdHolder.get() == null
 
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
@@ -605,7 +613,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).subList kafka consume"() {
@@ -661,7 +668,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test records(TopicPartition).forEach kafka consume"() {
@@ -717,7 +723,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   def "test iteration backwards over ConsumerRecords"() {
@@ -826,7 +831,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
-
   }
 
   @Flaky("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
@@ -889,7 +893,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
       def headers = received.headers()
       assert headers.iterator().hasNext()
-
     }
     assert receivedSet.isEmpty()
 
@@ -1012,6 +1015,36 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     value   | expected
     "false" | false
     "true"  | true
+  }
+
+  def "test producer extracts and uses existing trace context from record headers"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps)
+
+    def existingTraceId = 1234567890123456L
+    def existingSpanId = 9876543210987654L
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-datadog-trace-id",
+      String.valueOf(existingTraceId).getBytes(StandardCharsets.UTF_8)))
+    headers.add(new RecordHeader("x-datadog-parent-id",
+      String.valueOf(existingSpanId).getBytes(StandardCharsets.UTF_8)))
+
+    when:
+    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-context-extraction", headers)
+    producer.send(record).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    // Verify the span used the extracted context as parent
+    producedSpan.traceId.toLong() == existingTraceId
+    producedSpan.parentId == existingSpanId
+    // Verify a new span was created (not reusing the extracted span ID)
+    producedSpan.spanId != existingSpanId
+
+    cleanup:
+    producer?.close()
   }
 
   def containerProperties() {
@@ -1279,8 +1312,6 @@ abstract class KafkaClientLegacyTracingForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientLegacyTracingV0ForkedTest extends KafkaClientLegacyTracingForkedTest {
-
-
 }
 
 class KafkaClientLegacyTracingV1ForkedTest extends KafkaClientLegacyTracingForkedTest {

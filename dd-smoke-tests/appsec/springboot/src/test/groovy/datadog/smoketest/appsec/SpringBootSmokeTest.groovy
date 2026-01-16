@@ -1,9 +1,11 @@
 package datadog.smoketest.appsec
 
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -207,7 +209,196 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           transformers: [],
           on_match    : ['block']
-        ]
+        ],
+        [
+          id  : "apiA-100-001",
+          name: "API 10 tag rule on request headers",
+          tags: [
+            type    : "api10 request headers",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address : "server.io.net.request.headers",
+                    key_path: ["witness"]
+                  ]
+                ],
+                list: ["pwq3ojtropiw3hjtowir"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.req_headers": [
+                value: "TAG_API10_REQ_HEADERS"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id  : "apiA-100-002",
+          name: "API 10 tag rule on request body",
+          tags: [
+            type    : "api10 request body",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address : "server.io.net.request.body",
+                    key_path: ["payload_in"]
+                  ]
+                ],
+                list: ["qw2jedrkjerbgol23ewpfirj2qw3or"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.req_body": [
+                value: "TAG_API10_REQ_BODY"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id  : "apiA-100-003",
+          name: "API 10 tag rule on request method",
+          tags: [
+            type    : "api10 request method",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: "server.io.net.request.method"
+                  ]
+                ],
+                list: ["PUT"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.req_method": [
+                value: "TAG_API10_REQ_METHOD"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id  : "apiA-100-004",
+          name: "API 10 tag rule on response status",
+          tags: [
+            type    : "api10 response status",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: "server.io.net.response.status"
+                  ]
+                ],
+                list: ["201"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.res_status": [
+                value: "TAG_API10_RES_STATUS"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id  : "apiA-100-005",
+          name: "API 10 tag rule on response headers",
+          tags: [
+            type    : "api10 response headers",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address : "server.io.net.response.headers",
+                    key_path: ["echo-headers"]
+                  ]
+                ],
+                list: ["qwoierj12l3"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.res_headers": [
+                value: "TAG_API10_RES_HEADERS"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
+        [
+          id  : "apiA-100-006",
+          name: "API 10 tag rule on response body",
+          tags: [
+            type    : "api10 reponse body",
+            category: "attack_attempt"
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: "server.io.net.response.body"
+                  ]
+                ],
+                list: ["kqehf09123r4lnksef"]
+              ],
+              operator: "exact_match"
+            ]
+          ],
+          output: [
+            event: true,
+            keep : true,
+            attributes: [
+              "_dd.appsec.trace.res_body": [
+                value: "TAG_API10_RES_BODY"
+              ]
+            ]
+          ],
+          on_match: []
+        ],
       ])
   }
 
@@ -419,7 +610,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     response.code() == 403
-    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+    responseBodyStr.contains('"title":"You\'ve been blocked"')
+    responseBodyStr.contains('"detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."')
+    responseBodyStr.contains('"security_response_id":')
 
     when:
     waitForTraceCount(1)
@@ -461,6 +654,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def rootSpans = this.rootSpans.toList()
     rootSpans.size() == 1
     def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('error.message').contains(BlockingException.name) // ensure the block was propagated
     assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
@@ -518,7 +712,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'paths'    | _
     'file'    | _
     'path'    | _
-
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -686,7 +879,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(3)
     def spans = rootSpans.toList().toSorted { it.span.duration }
     spans.size() == 3
-    def sampledSpans = spans.findAll { it.meta.keySet().any { it.startsWith('_dd.appsec.s.req.') } }
+    def sampledSpans = spans.findAll {
+      it.meta.keySet().any {
+        it.startsWith('_dd.appsec.s.req.')
+      }
+    }
     sampledSpans.size() == 1
     def span = sampledSpans[0]
     span.meta.containsKey('_dd.appsec.s.req.query')
@@ -717,9 +914,153 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert schema['letters'][1]["len"] == 3
   }
 
+  void 'API Security downstream request header analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .header('Witness', "pwq3ojtropiw3hjtowir")
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.req_headers'] == 'TAG_API10_REQ_HEADERS'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream request body analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.parse('application/json'), '{"payload_in": "qw2jedrkjerbgol23ewpfirj2qw3or"}'))
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.req_body'] == 'TAG_API10_REQ_BODY'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream request method analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .method("PUT", RequestBody.create(MediaType.parse("text/plain"), "hello".bytes))
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.req_method'] == 'TAG_API10_REQ_METHOD'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream response status analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .header('Status', "201")
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.res_status'] == 'TAG_API10_RES_STATUS'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream response header analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .header('echo-headers', "qwoierj12l3")
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.res_headers'] == 'TAG_API10_RES_HEADERS'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream response body analysis'() {
+    when:
+    final url = "http://localhost:${httpPort}/api_security/http_client/${variant}"
+    final request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(MediaType.parse('application/json'), '{"payload_out": "kqehf09123r4lnksef"}'))
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    final span = assertDownstreamTrace()
+    span.meta['_dd.appsec.trace.res_body'] == 'TAG_API10_RES_BODY'
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  void 'API Security downstream response redirect'() {
+    when:
+    final url =HttpUrl.parse("http://localhost:${httpPort}/api_security/http_client/${variant}")
+      .newBuilder()
+      .addQueryParameter('redirect', 'true')
+      .build()
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    assertDownstreamTrace(2)
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  private RootSpan assertDownstreamTrace(int downstreamCount = 1) {
+    waitForTraceCount(downstreamCount + 1) // original one plus all downstream requests
+
+    final rootSpans = this.rootSpans.toList()
+    final span = rootSpans.find { it.getSpan().resource.contains('/api_security/http_client') }
+    assert span.metrics['_dd.appsec.downstream_request'] == downstreamCount
+
+    return span
+  }
+
+  private static List<String> httpClientDownstreamAnalysisVariants() {
+    return ['okHttp2', 'okHttp3']
+  }
+
   private static byte[] unzip(final String text) {
     final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
     return inflaterStream.getBytes()
   }
-
 }

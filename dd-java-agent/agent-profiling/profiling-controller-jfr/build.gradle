@@ -1,17 +1,13 @@
-// Set properties before any plugins get loaded
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+testJvmConstraints {
   // the tests need Java 11 because the JFR writer got compiled with a version
   // of ByteBuffer.position(int) which is binary incompatible with Java 8 ¯\_(ツ)_/¯
-  minJavaVersionForTests = JavaVersion.VERSION_11
-
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
+  minJavaVersion = JavaVersion.VERSION_11
 
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
@@ -31,20 +27,13 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
-
-tasks.named("compileTestJava").configure {
-  setJavaVersion(it, 11)
+tasks.named("compileTestJava", JavaCompile) {
   // tests should be compiled in Java 8 compatible way
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
   // Disable '-processing' because some annotations are not claimed.
   // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
   // Disable '-path' because we do not have some of the paths seem to be missing.
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-}
-
-forbiddenApisMain {
-  failOnMissingClasses = false
 }
 
 idea {

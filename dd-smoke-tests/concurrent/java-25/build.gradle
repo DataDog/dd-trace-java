@@ -1,52 +1,40 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'application'
   id 'com.gradleup.shadow'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
   // This smoke test should be limited to Java 25 and above
   // But the groovy testing framework cannot run on Java 25
   // Using Java 8 for now and runs a JVM 25 when forking tests process.
   // Relying on forked JVM 25 is hardcoded in the test suites (see createProcessBuilder()).
-  minJavaVersionForTests = JavaVersion.VERSION_1_8
-  maxJavaVersionForTests = JavaVersion.VERSION_1_8
+  minJavaVersion = JavaVersion.VERSION_1_8
+  maxJavaVersion = JavaVersion.VERSION_1_8
   // Only runs on Temurin build as it spawns a Temurin 25 for test process.
   excludeJdk = ['IBM8', 'SEMERU8']
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 description = 'JDK 25 Concurrent Integration Tests'
 
-tasks.named('compileJava').configure {
-  setJavaVersion(it, 25)
-  sourceCompatibility = JavaVersion.VERSION_25
-  targetCompatibility = JavaVersion.VERSION_25
-  options.compilerArgs.add("--enable-preview")
-  javaToolchains {
-    java {
-      toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-      }
+javaToolchains {
+  java {
+    toolchain {
+      languageVersion = JavaLanguageVersion.of(25)
     }
   }
 }
 
-tasks.named('compileTestGroovy').configure {
-  setJavaVersion(it, 8)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+tasks.named('compileJava', JavaCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  options.compilerArgs.add("--enable-preview")
 }
 
-// Disable plugin tasks that do not support Java 25:
-// * forbiddenApis is missing classes
-// * spotless as the google-java-format version does not support Java 25 and can't be changed once applied
-// * spotbugs failed to read class using newer bytecode versions
-forbiddenApisMain {
-  failOnMissingClasses = false
-}
-['spotlessApply', 'spotlessCheck', 'spotlessJava', 'spotbugsMain'].each {
-  tasks.named(it).configure { enabled = false }
+tasks.named('compileTestGroovy') {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8)
 }
 
 application {
@@ -59,6 +47,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  environment("JAVA_HOME", getLazyJavaHomeFor(25))
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

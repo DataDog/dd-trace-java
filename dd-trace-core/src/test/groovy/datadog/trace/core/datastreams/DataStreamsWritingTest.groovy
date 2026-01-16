@@ -69,7 +69,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()
@@ -99,7 +99,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
 
-    assert unpacker.unpackMapHeader() == 8
+    assert unpacker.unpackMapHeader() == 9
     assert unpacker.unpackString() == "Env"
     assert unpacker.unpackString() == "test"
     assert unpacker.unpackString() == "Service"
@@ -129,7 +129,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()
@@ -161,7 +161,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     validateMessage(requestBodies[0], processTagsEnabled)
 
     cleanup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
 
     where:
@@ -203,7 +203,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     2.times {
       int mapHeaderSize = unpacker.unpackMapHeader()
       assert availableSizes.remove(mapHeaderSize)
-      if (mapHeaderSize == 5) {  // empty topic group
+      if (mapHeaderSize == 5) {
+        // empty topic group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"
@@ -214,7 +215,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackLong() == 9
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 0
-      } else { //other group
+      } else {
+        //other group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"

@@ -49,7 +49,6 @@ dependencies {
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))
-  testImplementation(group = "org.hamcrest", name = "hamcrest", version = "2.2")
   testImplementation(group = "org.jboss", name = "jboss-vfs", version = "3.2.16.Final")
 }
 

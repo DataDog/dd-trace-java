@@ -1,9 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 repositories {
   maven {
     url = 'https://maven.repository.redhat.com/ga/'
@@ -21,6 +15,10 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
@@ -40,8 +38,8 @@ dependencies {
   testImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '21.1.0.Final'
   testImplementation group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-api', version: '1.2.6'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jboss-modules')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jboss:jboss-modules-1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:undertow:undertow-2.2')
   testRuntimeOnly group: 'org.jboss.shrinkwrap', name: 'shrinkwrap-spi', version: '1.2.6'
@@ -53,119 +51,135 @@ dependencies {
   latestDepTestImplementation group: 'org.wildfly.core', name: 'wildfly-server', version: '+'
   wildflyLatestDepTest "org.wildfly:wildfly-dist:+@zip"
 
-  configurations.wildflyLatestDepTest.resolve()
-  def latestWildflyVersion = configurations.wildflyLatestDepTest.resolvedConfiguration.getResolvedArtifacts().find {
-    it.name == "wildfly-dist"
-  }.moduleVersion.id.version
+  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
+}
 
-  latestDepForkedTest {
-    configure {
-      jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-${latestWildflyVersion}"]
+def extractWildfly(NamedDomainObjectProvider<Configuration> config, String zipFileNamePrefix, Copy sync) {
+  def zipPath = config.map { Configuration c ->
+    c.filter { File file ->
+      file.name.startsWith(zipFileNamePrefix)
+    }.singleFile
+  }.orElse(providers.provider { throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix) })
+
+  sync.from(zipTree(zipPath)) {
+    // Strip the first path segment
+    eachFile { FileCopyDetails f ->
+      def segments = f.relativePath.segments
+      if (segments.length > 1) {
+        f.relativePath = new RelativePath(!f.directory, segments[1..-1] as String[])
+      } else {
+        f.exclude()
+      }
     }
   }
-
-  latestDepTestRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
-}
-
-
-def extractWildfly(config, zipFileNamePrefix, sync) {
-  delete(fileTree(buildDir).include("wildfly-*/standalone/deployments/**"))
-
-  def zipPath = config.find {
-    it.name.startsWith(zipFileNamePrefix)
-  }
-  if (zipPath != null) {
-    def zipFile = file(zipPath)
-    def outputDir = file("${buildDir}")
-
-    sync.from zipTree(zipFile)
-    sync.into outputDir
-  } else {
-    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  sync.into(layout.buildDirectory.dir("tmp/wildfly-dist-${config.name}"))
+  sync.doFirst {
+    delete(sync.destinationDir)
   }
 }
 
-
-tasks.register("extractWildfly", Copy) {
-  dependsOn configurations.wildflyTest
-  mustRunAfter tasks.compileTestGroovy
-  extractWildfly(configurations.wildflyTest, "wildfly-dist", it)
+def extractWildflyTask = tasks.register("extractWildfly", Copy) {
+  dependsOn configurations.named('wildflyTest')
+  mustRunAfter 'compileTestGroovy'
+  extractWildfly(configurations.named("wildflyTest"), "wildfly-dist", it)
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-tasks.register("extractLatestWildfly", Copy) {
-  mustRunAfter tasks.compileLatestDepTestGroovy
-  mustRunAfter tasks.compileLatestDepForkedTestGroovy
-  mustRunAfter tasks.compileLatestDepTestJava
-  mustRunAfter tasks.compileLatestDepForkedTestJava
-  mustRunAfter tasks.compileJava
-  extractWildfly(configurations.wildflyLatestDepTest, "wildfly", it)
+def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
+  mustRunAfter 'compileLatestDepTestGroovy'
+  mustRunAfter 'compileLatestDepForkedTestGroovy'
+  mustRunAfter 'compileLatestDepTestJava'
+  mustRunAfter 'compileLatestDepForkedTestJava'
+  mustRunAfter 'compileJava'
+  extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
-
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn 'extractWildfly'
 }
 
-tasks.named("forkedTest").configure {
+tasks.named("forkedTest", Test) {
   dependsOn 'extractWildfly'
 }
-tasks.named("latestDepForkedTest").configure {
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
   dependsOn 'extractLatestWildfly'
 }
 
-tasks.named("latestDepTest").configure {
-  dependsOn 'extractLatestWildfly'
-}
-compileTestGroovy.configure {
-  javaLauncher = getJavaLauncherFor(11)
+tasks.named("compileTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(17)
-  }
-}
-compileTestJava.configure {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, 17)
   }
 }
 
-[compileLatestDepTestJava, compileLatestDepForkedTestJava].each {
-  it.configure {
-    setJavaVersion(it, 17)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+
+["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
   }
 }
 
-processTestResources {
+tasks.named("processTestResources", ProcessResources) {
   filesMatching('**/WEB-INF/web.xml') {
     expand(
       'servletClass': 'test.TestServlet',
       )
   }
 }
-[processLatestDepTestResources, processLatestDepForkedTestResources].each {
-  it.filesMatching('**/WEB-INF/web.xml') {
-    expand(
-      'servletClass': 'test.JakartaTestServlet',
-      )
+
+["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
+  tasks.named(it, ProcessResources) {
+    filesMatching('**/WEB-INF/web.xml') {
+      expand(
+        'servletClass': 'test.JakartaTestServlet',
+        )
+    }
   }
 }
 
-forkedTest {
-  configure {
-    jvmArgs += ["-Dtest.jboss.home=$buildDir/wildfly-21.0.0.Final"]
+abstract class DistributionLocationProvider implements CommandLineArgumentProvider {
+  @InputDirectory
+  @PathSensitive(PathSensitivity.RELATIVE)
+  abstract Property<File> getDistribution()
+
+  @Override
+  Iterable<String> asArguments() {
+    ["-Dtest.jboss.home=${distribution.get()}"]
   }
+}
+
+tasks.named("forkedTest", Test) {
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractWildflyTask.map { it.destinationDir }
+    }
+    )
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+  jvmArgumentProviders.add(
+    objects.newInstance(DistributionLocationProvider).tap {
+      distribution = extractLatestWildfly.map { it.destinationDir }
+    }
+    )
 }
 
 

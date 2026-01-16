@@ -2,16 +2,17 @@ plugins {
   id 'java-test-fixtures'
 }
 
-ext {
-  maxJavaVersionForTests = JavaVersion.VERSION_15
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  maxJavaVersion = JavaVersion.VERSION_15
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Spring Security Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'com.example.jwt.SecurityJwtDemoApplication')
   }
@@ -32,10 +33,16 @@ dependencies {
 
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.jar.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jarTask = tasks.named('jar', Jar).get()
+        return ["-Ddatadog.smoketest.springboot.shadowJar.path=${jarTask.archiveFile.get()}"]
+      }
+    })
 }
 
-processResources {
+tasks.named("processResources", ProcessResources) {
   doFirst {
     def resourcesDir = sourceSets.main.output.resourcesDir
     resourcesDir.mkdirs()

@@ -1,13 +1,14 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.AdviceShader;
-import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
 /**
@@ -72,22 +74,44 @@ public class MuzzleVersionScanPlugin {
     if (assertPass) {
       for (InstrumenterModule module : toBeTested) {
         try {
-          // verify helper injector works
+          // verify helper consistency
           final String[] helperClassNames = module.helperClassNames();
           if (helperClassNames.length > 0) {
-            new HelperInjector(
-                    module.useAgentCodeSource(),
-                    MuzzleVersionScanPlugin.class.getSimpleName(),
-                    createHelperMap(module))
-                .transform(null, null, testApplicationLoader, null, null);
+            BiConsumer<String, byte[]> injectClassHelper = injectClassHelper(testApplicationLoader);
+            for (Map.Entry<String, byte[]> helper : createHelperMap(module).entrySet()) {
+              injectClassHelper.accept(helper.getKey(), helper.getValue());
+            }
           }
-        } catch (final Exception e) {
+        } catch (final Throwable e) {
           System.err.println(
               "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?");
           System.err.println(e.getMessage());
           throw e;
         }
       }
+    }
+  }
+
+  /** Simulates instrumentation-based access to defineClass feature. */
+  private static BiConsumer<String, byte[]> injectClassHelper(ClassLoader cl) {
+    try {
+      Method findLoadedClass = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
+      Method defineClass =
+          ClassLoader.class.getDeclaredMethod(
+              "defineClass", String.class, byte[].class, int.class, int.class);
+      findLoadedClass.setAccessible(true);
+      defineClass.setAccessible(true);
+      return (name, bytes) -> {
+        try {
+          if (findLoadedClass.invoke(cl, name) == null) {
+            defineClass.invoke(cl, name, bytes, 0, bytes.length);
+          }
+        } catch (ReflectiveOperationException e) {
+          throw new RuntimeException(e);
+        }
+      };
+    } catch (ReflectiveOperationException e) {
+      return new HelperClassLoader(cl)::injectClass;
     }
   }
 
@@ -105,6 +129,20 @@ public class MuzzleVersionScanPlugin {
       } // this module wants to validate against a different named directive
     }
     return toBeTested;
+  }
+
+  // Exposes ClassLoader.defineClass() to test helper consistency
+  // without requiring java.lang.instrument.Instrumentation agent
+  static final class HelperClassLoader extends ClassLoader {
+    HelperClassLoader(ClassLoader parent) {
+      super(parent);
+    }
+
+    public void injectClass(String name, byte[] bytecode) {
+      if (findLoadedClass(name) == null) {
+        defineClass(name, bytecode, 0, bytecode.length);
+      }
+    }
   }
 
   private static Map<String, byte[]> createHelperMap(final InstrumenterModule module)
@@ -142,13 +180,14 @@ public class MuzzleVersionScanPlugin {
   }
 
   @SuppressForbidden
-  public static void printMuzzleReferences(final ClassLoader instrumentationLoader) {
+  public static void printMuzzleReferences(
+      final ClassLoader instrumentationLoader, final PrintWriter out) {
     for (InstrumenterModule module :
         ServiceLoader.load(InstrumenterModule.class, instrumentationLoader)) {
       final ReferenceMatcher muzzle = module.getInstrumentationMuzzle();
-      System.out.println(module.getClass().getName());
+      out.println(module.getClass().getName());
       for (final Reference ref : muzzle.getReferences()) {
-        System.out.println(prettyPrint("  ", ref));
+        out.println(prettyPrint("  ", ref));
       }
     }
   }

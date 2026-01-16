@@ -1,17 +1,18 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  // TODO Java 17: This version of spring-boot doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
+testJvmConstraints {
+  // TODO Java 17: This version of spring-boot doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.appsec.springboot.SpringbootApplication')
   }
@@ -26,7 +27,12 @@ tasks.withType(Test).configureEach {
   evaluationDependsOn ':dd-smoke-tests:springboot-grpc'
   dependsOn ':dd-smoke-tests:springboot-grpc:shadowJar'
 
-  Task shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks['shadowJar']
+  def shadowJarTask = project(':dd-smoke-tests:springboot-grpc').tasks.named('shadowJar', ShadowJar)
 
-  jvmArgs "-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${shadowJarTask.archiveFile.get()}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springboot-grpc.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

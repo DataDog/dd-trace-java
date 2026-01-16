@@ -41,24 +41,18 @@ dependencies {
 }
 
 
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
   }
-}
-
-forbiddenApisMain {
-  failOnMissingClasses = false
 }
 
 idea {

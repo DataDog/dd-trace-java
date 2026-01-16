@@ -1,29 +1,10 @@
-buildscript {
-  repositories {
-    mavenLocal()
-    if (project.rootProject.hasProperty("gradlePluginProxy")) {
-      maven {
-        url project.rootProject.property("gradlePluginProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url project.rootProject.property("mavenRepositoryProxy")
-        allowInsecureProtocol = true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'org.jetbrains.kotlin.jvm'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -38,8 +19,9 @@ dependencies {
   api libs.slf4j
 
   implementation libs.bundles.asm
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.13'
-  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.13'
+  implementation libs.instrument.java
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.14'
 
   implementation project(':communication')
   implementation project(':components:json')
@@ -57,10 +39,28 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
+}
+
+tasks.named("compileTestGroovy") {
+  configureCompiler(
+    it,
+    8,
+    JavaVersion.VERSION_1_8,
+    "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
+    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
+    )
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_6
+    languageVersion = KotlinVersion.KOTLIN_1_6
+  }
 }

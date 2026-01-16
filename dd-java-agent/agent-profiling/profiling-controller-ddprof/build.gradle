@@ -1,16 +1,18 @@
-// Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-  // By default tests with be compiled for `minJavaVersionForTests` version,
-  // but in this case we would like to avoid this since we would like to run with ZULU8
-  skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
-  excludeJdk = ['SEMERU11', 'SEMERU17']
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11) {
+    // By default tests with be compiled for `minJavaVersion` version,
+    // but in this case we would like to avoid this since we would like to run with ZULU8
+    applyForTestSources = false
+  }
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+  excludeJdk = ['SEMERU11', 'SEMERU17']
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
@@ -39,20 +41,12 @@ dependencies {
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
  * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
-[JavaCompile, GroovyCompile].each {
-  tasks.withType(it).configureEach {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    // Disable '-processing' because some annotations are not claimed.
-    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
-    // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-forbiddenApisMain {
-  failOnMissingClasses = false
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+  // Disable '-processing' because some annotations are not claimed.
+  // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+  // Disable '-path' because we do not have some of the paths seem to be missing.
+  options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
 idea {

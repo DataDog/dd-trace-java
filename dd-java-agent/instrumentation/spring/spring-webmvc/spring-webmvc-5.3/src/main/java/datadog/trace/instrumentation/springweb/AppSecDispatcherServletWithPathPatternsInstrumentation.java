@@ -10,8 +10,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.telemetry.EndpointCollector;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -59,20 +60,23 @@ public class AppSecDispatcherServletWithPathPatternsInstrumentation
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isApiSecurityEndpointCollectionEnabled();
+    return super.isEnabled() && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
   }
 
   public static class AppSecHandlerMappingAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
-      final RequestMappingHandlerMapping handler =
-          springCtx.getBean(RequestMappingHandlerMapping.class);
-      if (handler == null) {
+      final Map<String, RequestMappingHandlerMapping> handlers =
+          springCtx.getBeansOfType(RequestMappingHandlerMapping.class);
+      if (handlers == null || handlers.isEmpty()) {
         return;
       }
-      final Map<RequestMappingInfo, HandlerMethod> mappings = handler.getHandlerMethods();
-      if (mappings == null || mappings.isEmpty()) {
+      final Map<RequestMappingInfo, HandlerMethod> mappings = new HashMap<>();
+      for (RequestMappingHandlerMapping mapping : handlers.values()) {
+        mappings.putAll(mapping.getHandlerMethods());
+      }
+      if (mappings.isEmpty()) {
         return;
       }
       EndpointCollector.get().supplier(new RequestMappingInfoWithPathPatternsIterator(mappings));

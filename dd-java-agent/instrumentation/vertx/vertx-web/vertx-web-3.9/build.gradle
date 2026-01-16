@@ -1,10 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
-  // TODO Java 17: This version of vertx-web doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  // TODO Java 17: This version of vertx-web doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 muzzle {
   pass {
@@ -31,13 +30,13 @@ dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-web', version: '3.9.0'
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.9.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.9.0'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 }

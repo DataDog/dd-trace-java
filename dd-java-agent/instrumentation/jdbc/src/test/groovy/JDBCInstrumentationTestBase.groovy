@@ -1,3 +1,8 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED
+
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -6,23 +11,27 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import org.apache.derby.jdbc.EmbeddedDataSource
-import org.h2.jdbcx.JdbcDataSource
-import spock.lang.Shared
-import test.TestConnection
-import test.WrappedConnection
-
-import javax.sql.DataSource
 import java.sql.CallableStatement
 import java.sql.Connection
 import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.SQLException
+import java.sql.SQLTimeoutException
+import java.sql.SQLTransientConnectionException
 import java.sql.Statement
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import java.time.Duration
+import javax.sql.DataSource
+import org.apache.commons.dbcp2.BasicDataSource
+import org.apache.commons.pool2.PooledObject
+import org.apache.commons.pool2.PooledObjectFactory
+import org.apache.commons.pool2.impl.DefaultPooledObject
+import org.apache.commons.pool2.impl.GenericObjectPool
+import org.apache.derby.jdbc.EmbeddedDataSource
+import org.h2.jdbcx.JdbcDataSource
+import spock.lang.Shared
+import test.TestConnection
+import test.WrappedConnection
 
 abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
@@ -97,6 +106,22 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     return ds
   }
 
+  def createDbcp2DS(String dbType, String jdbcUrl) {
+    BasicDataSource ds = new BasicDataSource()
+    def jdbcUrlToSet = dbType == "derby" ? jdbcUrl + ";create=true" : jdbcUrl
+    ds.setUrl(jdbcUrlToSet)
+    ds.setDriverClassName(jdbcDriverClassNames.get(dbType))
+    String username = jdbcUserNames.get(dbType)
+    if (username != null) {
+      ds.setUsername(username)
+    }
+    ds.setPassword(jdbcPasswords.get(dbType))
+    ds.setMaxTotal(1) // to test proper caching, having > 1 max active connection will be hard to
+    // determine whether the connection is properly cached
+    ds.setMaxWait(Duration.ofMillis(1000))
+    return ds
+  }
+
   def createHikariDS(String dbType, String jdbcUrl) {
     HikariConfig config = new HikariConfig()
     def jdbcUrlToSet = dbType == "derby" ? jdbcUrl + ";create=true" : jdbcUrl
@@ -110,6 +135,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     config.addDataSourceProperty("prepStmtCacheSize", "250")
     config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
     config.setMaximumPoolSize(1)
+    config.setConnectionTimeout(1000)
 
     return new HikariDataSource(config)
   }
@@ -133,6 +159,9 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     if (connectionPoolName == "tomcat") {
       ds = createTomcatDS(dbType, jdbcUrl)
     }
+    if (connectionPoolName == "dbcp2") {
+      ds = createDbcp2DS(dbType, jdbcUrl)
+    }
     if (connectionPoolName == "hikari") {
       ds = createHikariDS(dbType, jdbcUrl)
     }
@@ -148,6 +177,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
     injectSysConfig("dd.trace.jdbc.prepared.statement.class.name", "test.TestPreparedStatement")
     injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
+    injectSysConfig(JDBC_POOL_WAITING_ENABLED, "true")
   }
 
   def setupSpec() {
@@ -617,7 +647,11 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     datasource.getConnection().close()
 
     then:
-    !TEST_WRITER.any { it.any { it.operationName.toString() == "database.connection" } }
+    !TEST_WRITER.any {
+      it.any {
+        it.operationName.toString() == "database.connection"
+      }
+    }
     TEST_WRITER.clear()
 
     when:
@@ -693,6 +727,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
           errored false
           measured true
           tags {
+            "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" database
@@ -700,7 +735,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
             if (addDbmTag) {
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
             }
-            defaultTagsNoPeerService()
+            defaultTags()
           }
         }
       }
@@ -814,6 +849,151 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     "c3p0"             | _
   }
 
+  def "#connectionPoolName should have pool.waiting span when pool exhausted for #exhaustPoolForMillis with exception thrown #expectException"() {
+    setup:
+    String dbType = "hsqldb"
+    DataSource ds = createDS(connectionPoolName, dbType, jdbcUrls.get(dbType))
+
+    if (exhaustPoolForMillis != null) {
+      def saturatedConnection = ds.getConnection()
+      new Thread(() -> {
+        Thread.sleep(exhaustPoolForMillis)
+        saturatedConnection.close()
+      }, "saturated connection closer").start()
+    }
+
+    when:
+    Throwable timedOutException = null
+    runUnderTrace("parent") {
+      try {
+        ds.getConnection().close()
+      } catch (SQLTransientConnectionException e) {
+        if (e.getMessage().contains("request timed out after")) {
+          // Hikari, newer
+          timedOutException = e
+        } else {
+          throw e
+        }
+      } catch (SQLTimeoutException e) {
+        // Hikari, older
+        timedOutException = e
+      } catch (SQLException e) {
+        if (e.getMessage().contains("pool error Timeout waiting for idle object")) {
+          // dbcp2
+          timedOutException = e
+        } else {
+          throw e
+        }
+      }
+    }
+
+    then:
+    assertTraces(1) {
+      trace(connectionPoolName == "dbcp2" ? 4 : 3) {
+        basicSpan(it, "parent")
+
+        span {
+          operationName "database.connection"
+          resourceName "${ds.class.simpleName}.getConnection"
+          childOf span(0)
+          errored timedOutException != null
+          tags {
+            "$Tags.COMPONENT" "java-jdbc-connection"
+            defaultTagsNoPeerService()
+            if (timedOutException) {
+              errorTags(timedOutException)
+            }
+          }
+        }
+
+        // dbcp2 will have two database.connection spans
+        if (connectionPoolName == "dbcp2") {
+          span {
+            operationName "database.connection"
+            resourceName "PoolingDataSource.getConnection"
+            childOf span(1)
+            errored timedOutException != null
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-connection"
+              defaultTagsNoPeerService()
+              if (timedOutException) {
+                errorTags(timedOutException)
+              }
+            }
+          }
+        }
+
+        span {
+          operationName "pool.waiting"
+          resourceName "${connectionPoolName}.waiting"
+          childOf span(connectionPoolName == "dbcp2" ? 2 : 1)
+          tags {
+            "$Tags.COMPONENT" "java-jdbc-pool-waiting"
+            if (connectionPoolName == "hikari") {
+              "$Tags.DB_POOL_NAME" String
+            }
+            defaultTagsNoPeerService()
+          }
+        }
+      }
+    }
+    assert expectException == (timedOutException != null)
+
+    cleanup:
+    if (ds instanceof Closeable) {
+      ds.close()
+    }
+
+    where:
+    connectionPoolName | exhaustPoolForMillis | expectException
+    "hikari"           | 500                  | false
+    "dbcp2"            | 500                  | false
+    "hikari"           | 1500                 | true
+    "dbcp2"            | 1500                 | true
+  }
+
+  def "Ensure LinkedBlockingDeque.pollFirst called outside of DBCP2 does not create spans"() {
+    setup:
+    def pool = new GenericObjectPool<>(new PooledObjectFactory() {
+
+      @Override
+      void activateObject(PooledObject p) throws Exception {
+      }
+
+      @Override
+      void destroyObject(PooledObject p) throws Exception {
+      }
+
+      @Override
+      PooledObject makeObject() throws Exception {
+        return new DefaultPooledObject(new Object())
+      }
+
+      @Override
+      void passivateObject(PooledObject p) throws Exception {
+      }
+
+      @Override
+      boolean validateObject(PooledObject p) {
+        return false
+      }
+    })
+    pool.setMaxTotal(1)
+
+    when:
+    def exhaustPoolForMillis = 500
+    def saturatedConnection = pool.borrowObject()
+    new Thread(() -> {
+      Thread.sleep(exhaustPoolForMillis)
+      pool.returnObject(saturatedConnection)
+    }, "saturated connection closer").start()
+
+    pool.borrowObject(1000)
+
+    then:
+    TEST_WRITER.size() == 0
+  }
+
   Driver driverFor(String db) {
     return newDriver(jdbcDriverClassNames.get(db))
   }
@@ -824,12 +1004,12 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
 
   Driver newDriver(String driverClass) {
     return ((Driver) Class.forName(driverClass)
-      .getDeclaredConstructor().newInstance())
+    .getDeclaredConstructor().newInstance())
   }
 
   Connection connect(String driverClass, String url, Properties properties) {
     return newDriver(driverClass)
-      .connect(url, properties)
+    .connect(url, properties)
   }
 
   @Override

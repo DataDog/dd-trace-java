@@ -31,8 +31,8 @@ protobuf {
     }
   }
   generateProtoTasks {
-    all()*.plugins {
-      grpc {}
+    ofSourceSet("test").configureEach {
+      plugins { grpc {} }
     }
   }
 }
@@ -40,9 +40,7 @@ protobuf {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 

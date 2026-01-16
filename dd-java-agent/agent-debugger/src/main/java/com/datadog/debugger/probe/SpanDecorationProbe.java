@@ -5,13 +5,14 @@ import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
-import com.datadog.debugger.instrumentation.CapturedContextInstrumentor;
+import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -28,11 +29,26 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpanDecorationProbe extends ProbeDefinition {
+public class SpanDecorationProbe extends ProbeDefinition implements CapturedContextProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
   private static final String PROBEID_DD_TAGS_FORMAT = "_dd.di.%s.probe_id";
   private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.di.%s.evaluation_error";
   private static final Limits LIMITS = new Limits(1, 3, 255, 5);
+
+  @Override
+  public boolean isCaptureSnapshot() {
+    return false;
+  }
+
+  @Override
+  public boolean hasCondition() {
+    return false;
+  }
+
+  @Override
+  public boolean isReadyToCapture() {
+    return true;
+  }
 
   public enum TargetSpan {
     ACTIVE,
@@ -84,6 +100,20 @@ public class SpanDecorationProbe extends ProbeDefinition {
     public String toString() {
       return "Tag{" + "name='" + name + '\'' + ", value=" + value + '}';
     }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      Tag tag = (Tag) o;
+      return Objects.equals(name, tag.name) && Objects.equals(value, tag.value);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, value);
+    }
   }
 
   public static class Decoration {
@@ -107,6 +137,20 @@ public class SpanDecorationProbe extends ProbeDefinition {
     @Override
     public String toString() {
       return "Decoration{" + "when=" + when + ", tags=" + tags + '}';
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      Decoration that = (Decoration) o;
+      return Objects.equals(when, that.when) && Objects.equals(tags, that.tags);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(when, tags);
     }
   }
 
@@ -134,16 +178,19 @@ public class SpanDecorationProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
     boolean captureEntry = evaluateAt != MethodLocation.EXIT;
-    return new CapturedContextInstrumentor(
-            this, methodInfo, diagnostics, probeIds, false, captureEntry, Limits.DEFAULT)
+    return new CapturedContextInstrumenter(
+            this, methodInfo, diagnostics, probeIndices, false, captureEntry, Limits.DEFAULT)
         .instrument();
   }
 
   @Override
   public void evaluate(
-      CapturedContext context, CapturedContext.Status status, MethodLocation methodLocation) {
+      CapturedContext context,
+      CapturedContext.Status status,
+      MethodLocation methodLocation,
+      boolean singleProbe) {
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {
@@ -153,6 +200,10 @@ public class SpanDecorationProbe extends ProbeDefinition {
           }
         } catch (EvaluationException ex) {
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+          continue;
+        } catch (Exception ex) {
+          // catch all for unexpected exceptions
+          status.addError(new EvaluationError(decoration.when.getDslExpression(), ex.getMessage()));
           continue;
         }
       }

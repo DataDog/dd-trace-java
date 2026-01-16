@@ -1,13 +1,14 @@
 package datadog.smoketest
 
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import okhttp3.Request
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 @IgnoreIf({
   // TODO https://github.com/eclipse-vertx/vert.x/issues/2172
-  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0) })
+  new BigDecimal(System.getProperty("java.specification.version")).isAtLeast(17.0)
+})
 class VertxSmokeTest extends AbstractServerSmokeTest {
 
   @Shared

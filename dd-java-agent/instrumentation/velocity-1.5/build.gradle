@@ -1,6 +1,6 @@
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -9,7 +9,7 @@ dependencies {
   testImplementation group: 'org.apache.velocity', name: 'velocity', version: '1.5'
   testImplementation group: 'org.apache.velocity', name: 'velocity-tools', version: '1.3'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.apache.velocity', name: 'velocity', version: '+'
   latestDepTestImplementation group: 'org.apache.velocity', name: 'velocity-tools', version: '+'

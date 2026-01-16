@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -31,10 +32,11 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public class OtelSpan implements Span, WithAgentSpan {
+public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
   private StatusCode statusCode;
   private boolean recording;
+
   /** Span events ({@code null} until an event is added). */
   private List<OtelSpanEvent> events;
 
@@ -142,16 +144,12 @@ public class OtelSpan implements Span, WithAgentSpan {
   @Override
   public void end() {
     this.recording = false;
-    applyNamingConvention(this.delegate);
-    setEventsAsTag(this.delegate, this.events);
     this.delegate.finish();
   }
 
   @Override
   public void end(long timestamp, TimeUnit unit) {
     this.recording = false;
-    applyNamingConvention(this.delegate);
-    setEventsAsTag(this.delegate, this.events);
     this.delegate.finish(unit.toMicros(timestamp));
   }
 
@@ -176,6 +174,12 @@ public class OtelSpan implements Span, WithAgentSpan {
   @Override
   public AgentSpan asAgentSpan() {
     return this.delegate;
+  }
+
+  @Override
+  public void onSpanFinished() {
+    applyNamingConvention(this.delegate);
+    setEventsAsTag(this.delegate, this.events);
   }
 
   private static class NoopSpan implements Span {

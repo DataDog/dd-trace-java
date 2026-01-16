@@ -128,7 +128,9 @@ public class TelemetryRequestBody extends RequestBody {
     }
   }
 
-  /** @return body size in bytes */
+  /**
+   * @return body size in bytes
+   */
   public long endRequest() {
     try {
       switch (this.requestType) {
@@ -230,6 +232,7 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("value").value(configSetting.stringValue());
     bodyWriter.setSerializeNulls(false);
     bodyWriter.name("origin").value(configSetting.origin.value);
+    bodyWriter.name("seq_id").value(configSetting.seqId);
     if (configSetting.configId != null) {
       bodyWriter.name("config_id").value(configSetting.configId);
     }

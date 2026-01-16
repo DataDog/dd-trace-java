@@ -11,7 +11,7 @@ public interface PrioritizationStrategy {
     ENQUEUED_FOR_SINGLE_SPAN_SAMPLING,
     DROPPED_BY_POLICY,
     DROPPED_BUFFER_OVERFLOW
-  };
+  }
 
   <T extends CoreSpan<T>> PublishResult publish(T root, int priority, List<T> trace);
 

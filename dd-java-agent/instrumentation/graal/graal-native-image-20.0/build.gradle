@@ -1,0 +1,43 @@
+muzzle {
+  pass {
+    group = "org.graalvm.nativeimage"
+    module = "svm"
+    versions = "[20,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
+["compileMain_java11Java", "compileTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 11, JavaVersion.VERSION_11, "Needs access to module jdk.internal.vm.ci")
+    it.options.compilerArgs.addAll([
+      '-Xlint:all,-processing,-options,-path',
+      '--add-modules',
+      'jdk.internal.vm.ci',
+      '--add-exports',
+      'jdk.internal.vm.ci/jdk.vm.ci.meta=ALL-UNNAMED'
+    ])
+  }
+}
+
+dependencies {
+  compileOnly project(':dd-java-agent:agent-logging')
+
+  main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
+}
+
+tasks.named("forbiddenApisMain_java11") {
+  failOnMissingClasses = false
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

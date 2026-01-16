@@ -1,8 +1,3 @@
-ext {
-  // TODO Java 17: This version of spring-data doesn't support Java 17
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 // This file includes software developed at SignalFx
 
 muzzle {
@@ -27,6 +22,11 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+testJvmConstraints {
+  // TODO Java 17: This version of spring-data doesn't support Java 17
+  maxJavaVersion = JavaVersion.VERSION_15
+}
+
 addTestSuiteForDir('latestDepTest', 'test')
 
 // DQH - API changes that impact instrumentation occurred in spring-data-commons in March 2014.
@@ -37,7 +37,6 @@ dependencies {
   compileOnly(group: 'org.springframework', name: 'spring-aop', version: '1.2')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
   testImplementation group: 'org.springframework', name: 'spring-test', version: '3.0.0.RELEASE'
 
   // JPA dependencies
@@ -46,6 +45,8 @@ dependencies {
   testImplementation group: 'com.mysema.querydsl', name: 'querydsl-jpa', version: '3.7.4'
   testImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.0.0'
   testImplementation group: 'org.hibernate', name: 'hibernate-entitymanager', version: '4.3.0.Final'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'

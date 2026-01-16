@@ -30,7 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import java.util.stream.Stream;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -109,7 +109,7 @@ public class LogProbeTest {
     }
   }
 
-  @NotNull
+  @Nonnull
   private Result getResult(
       TracerAPI tracer, String sessionId, boolean captureSnapshot, Integer line) {
     BudgetSink sink = new BudgetSink(getConfig(), mock(ProbeStatusSink.class));
@@ -147,8 +147,8 @@ public class LogProbeTest {
 
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
-      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
-      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
       int budget =
           logProbe.isCaptureSnapshot()
@@ -193,8 +193,8 @@ public class LogProbeTest {
 
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);
-      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY);
-      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
       return logProbe.fillSnapshot(
           entryContext, exitContext, emptyList(), new Snapshot(currentThread(), logProbe, 3));
@@ -204,11 +204,11 @@ public class LogProbeTest {
   private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition.getProbeId().getEncodedId(),
         probeDefinition,
         "Log Probe test",
         System.currentTimeMillis(),
-        MethodLocation.DEFAULT);
+        MethodLocation.DEFAULT,
+        false);
     return context;
   }
 
@@ -287,7 +287,7 @@ public class LogProbeTest {
 
   private LogStatus prepareContext(
       CapturedContext context, LogProbe logProbe, MethodLocation methodLocation) {
-    context.evaluate(PROBE_ID.getEncodedId(), logProbe, "", 0, methodLocation);
+    context.evaluate(logProbe, "", 0, methodLocation, false);
     return (LogStatus) context.getStatus(PROBE_ID.getEncodedId());
   }
 
@@ -346,6 +346,7 @@ public class LogProbeTest {
     return LogProbe.builder()
         .language(LANGUAGE)
         .probeId(PROBE_ID)
+        .where("String.java", 42)
         .template(template, parseTemplate(template));
   }
 

@@ -1,7 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
 muzzle {
   pass {
     group = "org.apache.axis2"
@@ -14,7 +10,20 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')
-configurations.all {
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+configurations.configureEach {
   // the version used by axis2 isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.apache.woden', module: 'woden'
   // shut up about broken xml-api pom relocation
@@ -23,15 +32,11 @@ configurations.all {
   }
 }
 
-[compileLatestDepForkedTestGroovy, compileLatestDepTestGroovy].each {
-  it.configure {
-    javaLauncher = getJavaLauncherFor(11)
-  }
-}
+configureGroovyCompiler(11, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
 
-[compileLatestDepForkedTestJava, compileLatestDepTestJava].each {
-  it.configure {
-    setJavaVersion(it, 11)
+["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
+  tasks.named(it, JavaCompile) {
+    configureCompiler(it, 11)
   }
 }
 

@@ -7,10 +7,12 @@ import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
+import static datadog.trace.api.gateway.Events.HTTP_CLIENT_REQUEST_ID;
+import static datadog.trace.api.gateway.Events.HTTP_CLIENT_RESPONSE_ID;
+import static datadog.trace.api.gateway.Events.HTTP_CLIENT_SAMPLING_ID;
 import static datadog.trace.api.gateway.Events.HTTP_ROUTE_ID;
 import static datadog.trace.api.gateway.Events.LOGIN_EVENT_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
-import static datadog.trace.api.gateway.Events.NETWORK_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
@@ -30,6 +32,7 @@ import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import static datadog.trace.api.gateway.Events.SHELL_CMD_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
 
+import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -178,6 +181,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -197,6 +201,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -216,6 +221,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -234,6 +240,7 @@ public class InstrumentationGateway {
                   log.warn("Callback for {} threw.", eventType, t);
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -254,6 +261,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -273,6 +281,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -292,6 +301,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -311,6 +321,7 @@ public class InstrumentationGateway {
                   return Flow.ResultFlow.empty();
                 }
               }
+
               // Make testing easier by delegating equals
               @Override
               public boolean equals(Object obj) {
@@ -433,7 +444,6 @@ public class InstrumentationGateway {
               }
             };
       case DATABASE_SQL_QUERY_ID:
-      case NETWORK_CONNECTION_ID:
       case FILE_LOADED_ID:
       case SHELL_CMD_ID:
         return (C)
@@ -443,6 +453,35 @@ public class InstrumentationGateway {
                 try {
                   return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
                       .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case HTTP_CLIENT_REQUEST_ID:
+      case HTTP_CLIENT_RESPONSE_ID:
+        return (C)
+            new BiFunction<RequestContext, HttpClientPayload, Flow<Object>>() {
+              @Override
+              public Flow<Object> apply(RequestContext ctx, HttpClientPayload arg) {
+                try {
+                  return ((BiFunction<RequestContext, HttpClientPayload, Flow<Object>>) callback)
+                      .apply(ctx, arg);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case HTTP_CLIENT_SAMPLING_ID:
+        return (C)
+            new BiFunction<RequestContext, Long, Flow<Object>>() {
+              @Override
+              public Flow<Object> apply(RequestContext ctx, Long requestId) {
+                try {
+                  return ((BiFunction<RequestContext, Long, Flow<Object>>) callback)
+                      .apply(ctx, requestId);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

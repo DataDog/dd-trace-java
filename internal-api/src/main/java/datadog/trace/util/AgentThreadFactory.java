@@ -31,6 +31,8 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     APPSEC_HTTP_DISPATCHER("dd-appsec-http-dispatcher"),
 
+    CRASHTRACKING_HTTP_DISPATCHER("dd-crashtracking-http-dispatcher"),
+
     TELEMETRY("dd-telemetry"),
 
     FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller"),
@@ -59,7 +61,9 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     LOGS_INTAKE("dd-logs-intake"),
 
-    LLMOBS_EVALS_PROCESSOR("dd-llmobs-evals-processor");
+    LLMOBS_EVALS_PROCESSOR("dd-llmobs-evals-processor"),
+
+    FEATURE_FLAG_EXPOSURE_PROCESSOR("dd-ffe-exposure-processor");
 
     public final String threadName;
 

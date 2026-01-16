@@ -1,0 +1,31 @@
+
+muzzle {
+  pass {
+    group = "io.lettuce"
+    module = "lettuce-core"
+    versions = "[5.0.0.RELEASE,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
+
+  testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
+  testImplementation libs.testcontainers
+  testImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+
+
+  latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '+'
+
+  tasks.withType(Test).configureEach {
+    usesService(testcontainersLimit)
+  }
+}

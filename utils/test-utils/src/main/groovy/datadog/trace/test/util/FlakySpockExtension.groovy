@@ -92,11 +92,20 @@ class FlakySpockExtension extends AbstractGlobalExtension {
     return "true" == System.getProperty(RUN_FLAKY_TESTS_KEY)
   }
 
-  private static boolean isFlakySpec(final NodeInfo node, final Class<? extends Predicate<String>> condition) {
+  private static boolean isFlakySpec(final NodeInfo node, final Class<?> condition) {
     if (condition == null || condition === Flaky.True) {
       return true
     }
-    final closure = condition.newInstance()
-    return closure.test(node.name)
+    boolean isFlaky
+    if (Closure.isAssignableFrom(condition)) {
+      // Invoke the closure without owner or this, also the spec parameter is captured by the groovy compiler
+      // so we don't need to pass it along
+      final closure = condition.newInstance(null, null) as Closure<Boolean>
+      isFlaky = closure.doCall()
+    } else {
+      final closure = condition.newInstance() as Predicate<String>
+      isFlaky = closure.test(node.name)
+    }
+    return isFlaky
   }
 }

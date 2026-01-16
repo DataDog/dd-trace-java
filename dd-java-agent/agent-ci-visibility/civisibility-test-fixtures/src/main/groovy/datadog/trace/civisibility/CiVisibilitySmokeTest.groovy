@@ -4,8 +4,13 @@ import datadog.trace.api.Config
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
+import java.nio.file.Paths
 import spock.lang.Specification
-import spock.util.environment.Jvm
+import spock.lang.TempDir
+
+import java.nio.file.Path
 
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName
 
@@ -19,11 +24,24 @@ abstract class CiVisibilitySmokeTest extends Specification {
 
   private static final Map<String,String> DEFAULT_TRACER_CONFIG = defaultJvmArguments()
 
+  @TempDir
+  protected Path prefsDir
+
   protected static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
+    def javaHome = System.getProperty("java.home")
+    def javacPath = Paths.get(javaHome, "bin", "javac").toFile()
+    if (javacPath.exists()) {
+      return javaHome
     }
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+    // In CI for JDK 8, java.home may point to the JRE directory (e.g., /usr/lib/jvm/8/jre)
+    // The JDK with javac is in the parent directory
+    def parentDir = new File(javaHome).getParentFile()
+    def parentJavacPath = new File(parentDir, Paths.get("bin", "javac").toString())
+    if (parentJavacPath.exists()) {
+      return parentDir.getAbsolutePath()
+    }
+    // Fallback to java.home and let callers handle the error if javac is not found
+    return javaHome
   }
 
   protected static String javaPath() {
@@ -44,8 +62,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_CIPROVIDER_INTEGRATION_ENABLED, "false")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED, "false")
+    argMap.put(CiVisibilityConfig.CIVISIBILITY_GIT_CLIENT_ENABLED, "false")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, "true")
     argMap.put(CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION, JAVAC_PLUGIN_VERSION)
+    argMap.put(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, "false")
     return argMap
   }
 
@@ -53,6 +73,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     Map<String, String> argMap = new HashMap<>(DEFAULT_TRACER_CONFIG)
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_URL, mockBackendIntakeUrl)
     argMap.put(CiVisibilityConfig.CIVISIBILITY_INTAKE_AGENTLESS_URL, mockBackendIntakeUrl)
+    argMap.put(TracerConfig.TRACE_AGENT_URL, mockBackendIntakeUrl)
     argMap.putAll(additionalArgs)
 
     if (serviceName != null) {
@@ -63,7 +84,10 @@ abstract class CiVisibilitySmokeTest extends Specification {
   }
 
   protected List<String> buildJvmArguments(String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
-    List<String> arguments = []
+    List<String> arguments = ["-Xms256m", "-Xmx256m"]
+
+    arguments += preventJulPrefsFileLock()
+
     Map<String, String> argMap = buildJvmArgMap(mockBackendIntakeUrl, serviceName, additionalArgs)
 
     // for convenience when debugging locally
@@ -80,10 +104,32 @@ abstract class CiVisibilitySmokeTest extends Specification {
     return arguments
   }
 
+  /**
+   * Trick to prevent jul Prefs file lock issue on forked processes, in particular in CI which
+   * runs on Linux and have competing processes trying to write to it, including the Gradle daemon.
+   *
+   * <pre><code>
+   * Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
+   * </code></pre>
+   *
+   * Note, some tests can setup arguments on spec level, so `prefsDir` will be `null` during
+   * `setupSpec()`.
+   */
+  protected String preventJulPrefsFileLock() {
+    String prefsPath = (prefsDir ?: tempUserPrefsPath()).toAbsolutePath()
+    return "-Djava.util.prefs.userRoot=$prefsPath".toString()
+  }
+
+  private static Path tempUserPrefsPath() {
+    String uniqueId = "${System.currentTimeMillis()}_${System.nanoTime()}_${Thread.currentThread().id}"
+    Path prefsPath = Paths.get(System.getProperty("java.io.tmpdir"), "gradle-test-userPrefs", uniqueId)
+    return prefsPath
+  }
+
   protected verifyEventsAndCoverages(String projectName, String toolchain, String toolchainVersion, List<Map<String, Object>> events, List<Map<String, Object>> coverages, List<String> additionalDynamicTags = []) {
     def additionalReplacements = ["content.meta.['test.toolchain']": "$toolchain:$toolchainVersion"]
 
-    if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
+    if (System.getenv("GENERATE_TEST_FIXTURES") != null) {
       def baseTemplatesPath = CiVisibilitySmokeTest.classLoader.getResource(projectName).toURI().schemeSpecificPart.replace('build/resources/test', 'src/test/resources')
       CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet() + additionalDynamicTags, SMOKE_IGNORED_TAGS)
     } else {
@@ -149,7 +195,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     assert logs.findAll { log -> ((String) log.message).endsWith("is emitting.") }.size() == expectedCount
   }
 
-  private static verifySnapshots(List<Map<String, Object>> logs, expectedCount) {
+  protected static verifySnapshots(List<Map<String, Object>> logs, expectedCount) {
     assert logs.size() == expectedCount
 
     def requiredLogFields = ["logger.name", "logger.method", "dd.spanid", "dd.traceid"]

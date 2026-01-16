@@ -1,13 +1,15 @@
 package datadog.trace.instrumentation.jetty9;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
@@ -28,11 +30,6 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
 
   public JettyCommitResponseInstrumentation() {
     super("jetty");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "before_904";
   }
 
   @Override
@@ -70,6 +67,11 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   }
 
   @Override
+  public String muzzleDirective() {
+    return "before_904";
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("commitResponse")
@@ -98,19 +100,14 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
 
       Request req = connection.getRequest();
 
-      if (req.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null) {
-        _committed.set(false);
-        return false;
-      }
-
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (!(existingSpan instanceof AgentSpan)) {
-        _committed.set(false);
-        return false;
-      }
-      AgentSpan span = (AgentSpan) existingSpan;
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext == null) {
+      Object contextObj;
+      Context context;
+      AgentSpan span;
+      RequestContext requestContext;
+      if (req.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null
+          || !((contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE)) instanceof Context)
+          || (span = spanFromContext(context = (Context) contextObj)) == null
+          || (requestContext = span.getRequestContext()) == null) {
         _committed.set(false);
         return false;
       }
@@ -126,12 +123,7 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
           _committed.set(false);
-          boolean res =
-              brf.tryCommitBlockingResponse(
-                  requestContext.getTraceSegment(),
-                  rba.getStatusCode(),
-                  rba.getBlockingContentType(),
-                  rba.getExtraHeaders());
+          boolean res = brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
           if (res && _committed.get()) {
             requestContext.getTraceSegment().effectivelyBlocked();
             return true;

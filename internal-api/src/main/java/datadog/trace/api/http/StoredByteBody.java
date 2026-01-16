@@ -17,7 +17,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** @see StoredCharBody */
+/**
+ * @see StoredCharBody
+ */
 public class StoredByteBody implements StoredBodySupplier {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StoredByteBody.class);

@@ -1,12 +1,15 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -20,8 +23,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -29,6 +36,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
@@ -45,6 +53,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIONAL_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
@@ -72,11 +81,16 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENA
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.UNSAFE_CLASS_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_PARSING;
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
+import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorProvider;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -103,7 +117,18 @@ import java.util.Set;
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  * @see Config for other configurations
  */
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification = "Instance also created in Config")
 public class InstrumenterConfig {
+  static {
+    // skip registration when building native-images as telemetry is not available
+    if (!Platform.isNativeImageBuilder()) {
+      ConfigInversionMetricCollectorProvider.register(
+          ConfigInversionMetricCollectorImpl.getInstance());
+    }
+  }
+
   private final ConfigProvider configProvider;
 
   private final boolean triageEnabled;
@@ -113,6 +138,7 @@ public class InstrumenterConfig {
   private final boolean codeOriginEnabled;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
+  private final boolean metricsOtelEnabled;
   private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -130,6 +156,7 @@ public class InstrumenterConfig {
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
+  private final boolean jdbcPoolWaitingEnabled;
 
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
@@ -159,6 +186,9 @@ public class InstrumenterConfig {
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
+  private final boolean visitorClassParsing;
+
+  private final boolean unsafeClassInjection;
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
@@ -173,6 +203,12 @@ public class InstrumenterConfig {
   private final Collection<String> additionalJaxRsAnnotations;
 
   private final boolean rumEnabled;
+  private final boolean dataJobsEnabled;
+
+  private final boolean agentlessLogSubmissionEnabled;
+  private final boolean apiSecurityEndpointCollectionEnabled;
+
+  private final boolean appLogsCollectionEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -199,14 +235,18 @@ public class InstrumenterConfig {
 
     codeOriginEnabled =
         configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
+    metricsOtelEnabled =
+        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
 
     profilingEnabled =
         ProfilingEnablement.of(
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
+    dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
           configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
@@ -242,6 +282,7 @@ public class InstrumenterConfig {
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+    jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
 
     httpURLConnectionClassName = configProvider.getString(HTTP_URL_CONNECTION_CLASS_NAME, "");
     axisTransportClassName = configProvider.getString(AXIS_TRANSPORT_CLASS_NAME, "");
@@ -277,6 +318,9 @@ public class InstrumenterConfig {
             ? 0
             : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
+    unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
+    visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
+
     runtimeContextFieldInjection =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
@@ -303,6 +347,17 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
     this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
+
+    agentlessLogSubmissionEnabled =
+        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+
+    apiSecurityEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+
+    appLogsCollectionEnabled =
+        configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -362,6 +417,10 @@ public class InstrumenterConfig {
     return traceOtelEnabled;
   }
 
+  public boolean isMetricsOtelEnabled() {
+    return metricsOtelEnabled;
+  }
+
   public boolean isProfilingEnabled() {
     return profilingEnabled.isActive();
   }
@@ -416,6 +475,10 @@ public class InstrumenterConfig {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
+  }
+
+  public boolean isJdbcPoolWaitingEnabled() {
+    return jdbcPoolWaitingEnabled;
   }
 
   public String getHttpURLConnectionClassName() {
@@ -496,6 +559,14 @@ public class InstrumenterConfig {
 
   public String getResolverCacheDir() {
     return resolverCacheDir;
+  }
+
+  public boolean isUnsafeClassInjection() {
+    return unsafeClassInjection;
+  }
+
+  public boolean isVisitorClassParsing() {
+    return visitorClassParsing;
   }
 
   public String getInstrumentationConfigId() {
@@ -582,13 +653,36 @@ public class InstrumenterConfig {
     return rumEnabled;
   }
 
+  public boolean isDataJobsEnabled() {
+    return dataJobsEnabled;
+  }
+
+  public boolean isAgentlessLogSubmissionEnabled() {
+    return agentlessLogSubmissionEnabled;
+  }
+
+  public boolean isApiSecurityEndpointCollectionEnabled() {
+    return apiSecurityEndpointCollectionEnabled;
+  }
+
+  public boolean isAppLogsCollectionEnabled() {
+    return appLogsCollectionEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
-  @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
           Platform.isNativeImageBuilder()
               ? ConfigProvider.withoutCollector()
               : ConfigProvider.getInstance());
+
+  public static boolean getDefaultCodeOriginForSpanEnabled() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
+      // activate by default Code Origin only for JDK25+
+      return true;
+    }
+    return false;
+  }
 
   public static InstrumenterConfig get() {
     return INSTANCE;
@@ -603,6 +697,8 @@ public class InstrumenterConfig {
         + traceEnabled
         + ", traceOtelEnabled="
         + traceOtelEnabled
+        + ", metricsOtelEnabled="
+        + metricsOtelEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="
@@ -627,6 +723,8 @@ public class InstrumenterConfig {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", jdbcPoolWaitingEnabled="
+        + jdbcPoolWaitingEnabled
         + ", httpURLConnectionClassName='"
         + httpURLConnectionClassName
         + '\''
@@ -686,6 +784,10 @@ public class InstrumenterConfig {
         + pekkoSchedulerEnabled
         + ", rumEnabled="
         + rumEnabled
+        + ", dataJobsEnabled="
+        + dataJobsEnabled
+        + ", apiSecurityEndpointCollectionEnabled="
+        + apiSecurityEndpointCollectionEnabled
         + '}';
   }
 }

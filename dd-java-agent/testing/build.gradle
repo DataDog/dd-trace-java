@@ -1,13 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
-  // need access to sun.misc package
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.misc package")
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
@@ -26,7 +27,7 @@ excludedClassesCoverage += [
   'datadog.trace.agent.test.TestProfilingContextIntegration.TestQueueTiming'
 ]
 
-configurations.api {
+configurations.named('api') {
   exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
 }
 
@@ -34,12 +35,19 @@ dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent
   api libs.slf4j
-  api libs.bundles.spock
   api libs.bundles.test.logging
   api libs.guava
 
-  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
-  // ^ 9.4 last to support java 8
+  // Do not expose jetty as a transitive dependency, as it conflicts
+  // with versions used to test instrumentions.
+  // Note: 9.4 last to support java 8
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  runtimeOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  compileOnly group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
+  runtimeOnly group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
+  // Since jetty-server is shadowed, it is needed to exports the servlet api as well.
+  api group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
   api project(':dd-java-agent:agent-tooling')
@@ -47,19 +55,44 @@ dependencies {
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 
-  api libs.groovy
-
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
+  // Only bundle jetty dependencies into the jar (relocated)
+  // All other dependencies remain as transitive dependencies
   dependencies {
     include(dependency {
-      it.moduleGroup == 'org.eclipse.jetty'
+      it.moduleGroup == 'org.eclipse.jetty' || it.moduleGroup == 'org.eclipse.jetty.http2'
     })
   }
+
+  // Relocate jetty classes to avoid conflicts with instrumented versions
   relocate "org.eclipse.jetty", "datadog.eclipse.jetty"
+
+  // Make shadowJar replace the main jar in api configuration
+  archiveClassifier = ''
+}
+
+// Remove the regular jar from api elements and use shadow jar instead
+// Also exclude jetty from being exposed as a transitive dependency (it's bundled in the shadow jar)
+configurations {
+  named('apiElements') {
+    outgoing.artifacts.clear()
+    outgoing.artifact(tasks.named('shadowJar'))
+    exclude group: 'org.eclipse.jetty'
+    exclude group: 'org.eclipse.jetty.http2'
+  }
+  named('runtimeElements') {
+    outgoing.artifacts.clear()
+    outgoing.artifact(tasks.named('shadowJar'))
+    exclude group: 'org.eclipse.jetty'
+    exclude group: 'org.eclipse.jetty.http2'
+  }
 }
 
 tasks.withType(Test).configureEach {

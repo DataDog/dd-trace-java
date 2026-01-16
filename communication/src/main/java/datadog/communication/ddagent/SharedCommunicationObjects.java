@@ -11,6 +11,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +28,31 @@ public class SharedCommunicationObjects {
   private final List<Runnable> pausedComponents = new ArrayList<>();
   private volatile boolean paused;
 
-  public OkHttpClient okHttpClient;
+  /**
+   * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
+   * use regular HTTP, UDS or named pipe.
+   */
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+  public OkHttpClient agentHttpClient;
+
+  /**
+   * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
+   * this client is not configured to use UDS or named pipe.
+   */
+  private volatile OkHttpClient intakeHttpClient;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+  public long httpClientTimeout;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+  public boolean forceClearTextHttpForIntakeClient;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public HttpUrl agentUrl;
+
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public Monitoring monitoring;
+
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
 
@@ -45,18 +68,27 @@ public class SharedCommunicationObjects {
     if (monitoring == null) {
       monitoring = Monitoring.DISABLED;
     }
+
+    httpClientTimeout =
+        config.isCiVisibilityEnabled()
+            ? config.getCiVisibilityBackendApiTimeoutMillis()
+            : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+
+    forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
+
     if (agentUrl == null) {
       agentUrl = parseAgentUrl(config);
       if (agentUrl == null) {
         throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
       }
     }
-    if (okHttpClient == null) {
+
+    if (agentHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
-      okHttpClient =
+      agentHttpClient =
           OkHttpUtils.buildHttpClient(
-              agentUrl, unixDomainSocket, namedPipe, getHttpClientTimeout(config));
+              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
     }
   }
 
@@ -103,14 +135,6 @@ public class SharedCommunicationObjects {
     return HttpUrl.parse(agentUrl);
   }
 
-  private static long getHttpClientTimeout(Config config) {
-    if (!config.isCiVisibilityEnabled()) {
-      return TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
-    } else {
-      return config.getCiVisibilityBackendApiTimeoutMillis();
-    }
-  }
-
   public ConfigurationPoller configurationPoller(Config config) {
     if (configurationPoller == null && config.isRemoteConfigEnabled()) {
       configurationPoller = createPoller(config);
@@ -130,7 +154,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, okHttpClient);
+        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
   }
 
   // for testing
@@ -146,7 +170,7 @@ public class SharedCommunicationObjects {
           createRemaining(config);
           ret =
               new DDAgentFeaturesDiscovery(
-                  okHttpClient,
+                  agentHttpClient,
                   monitoring,
                   agentUrl,
                   config.isTraceAgentV05Enabled(),
@@ -207,6 +231,22 @@ public class SharedCommunicationObjects {
       this.configUrl = discovery.buildUrl(configEndpoint).toString();
       log.debug("Found remote config endpoint: {}", this.configUrl);
       return this.configUrl;
+    }
+  }
+
+  public OkHttpClient getIntakeHttpClient() {
+    OkHttpClient client = this.intakeHttpClient;
+    if (client != null) {
+      return client;
+    }
+
+    synchronized (this) {
+      if (this.intakeHttpClient == null) {
+        this.intakeHttpClient =
+            OkHttpUtils.buildHttpClient(
+                forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
+      }
+      return this.intakeHttpClient;
     }
   }
 }

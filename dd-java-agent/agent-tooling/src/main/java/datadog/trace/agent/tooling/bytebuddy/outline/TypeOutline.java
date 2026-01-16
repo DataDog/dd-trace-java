@@ -1,10 +1,11 @@
 package datadog.trace.agent.tooling.bytebuddy.outline;
 
+import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.annotationOutline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 
+import datadog.instrument.classmatch.ClassOutline;
 import java.util.ArrayList;
 import java.util.List;
-import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.field.FieldDescription;
@@ -27,24 +28,44 @@ final class TypeOutline extends WithName {
   private static final MethodList<MethodDescription.InDefinedShape> NO_METHODS =
       new MethodList.Empty<>();
 
-  private final int classFileVersion;
   private final int modifiers;
   private final String superName;
   private final String[] interfaces;
-  private String declaringName;
-  private boolean anonymousType;
 
   private List<AnnotationDescription> declaredAnnotations;
 
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
-  TypeOutline(int version, int access, String internalName, String superName, String[] interfaces) {
+  TypeOutline(int access, String internalName, String superName, String[] interfaces) {
     super(internalName.replace('/', '.'));
-    this.classFileVersion = version;
     this.modifiers = access & ALLOWED_TYPE_MODIFIERS;
     this.superName = superName;
     this.interfaces = interfaces;
+  }
+
+  /** Adapts simpler {@link ClassOutline} structure to existing {@link TypeOutline}. */
+  public TypeOutline(ClassOutline outline) {
+    super(outline.className.replace('/', '.'));
+    this.modifiers = outline.access & ALLOWED_TYPE_MODIFIERS;
+    this.superName = outline.superName;
+    this.interfaces = outline.interfaces;
+
+    for (String annotation : outline.annotations) {
+      declare(annotationOutline(annotation));
+    }
+
+    for (datadog.instrument.classmatch.FieldOutline f : outline.fields) {
+      declare(new FieldOutline(this, f.access, f.fieldName, f.descriptor));
+    }
+
+    for (datadog.instrument.classmatch.MethodOutline m : outline.methods) {
+      MethodOutline method = new MethodOutline(this, m.access, m.methodName, m.descriptor);
+      for (String annotation : m.annotations) {
+        method.declare(annotationOutline(annotation));
+      }
+      declare(method);
+    }
   }
 
   @Override
@@ -70,19 +91,6 @@ final class TypeOutline extends WithName {
       outlines.add(findType(iface.replace('/', '.')).asGenericType());
     }
     return new TypeList.Generic.Explicit(outlines);
-  }
-
-  @Override
-  public TypeDescription getDeclaringType() {
-    if (null != declaringName) {
-      return findType(declaringName.replace('/', '.'));
-    }
-    return null;
-  }
-
-  @Override
-  public TypeDescription getEnclosingType() {
-    return getDeclaringType(); // equivalent for outline purposes
   }
 
   @Override
@@ -115,11 +123,6 @@ final class TypeOutline extends WithName {
   }
 
   @Override
-  public ClassFileVersion getClassFileVersion() {
-    return ClassFileVersion.ofMinorMajor(classFileVersion);
-  }
-
-  @Override
   public AnnotationList getDeclaredAnnotations() {
     return null == declaredAnnotations
         ? NO_ANNOTATIONS
@@ -134,15 +137,6 @@ final class TypeOutline extends WithName {
   @Override
   public MethodList<MethodDescription.InDefinedShape> getDeclaredMethods() {
     return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
-  }
-
-  @Override
-  public boolean isAnonymousType() {
-    return anonymousType;
-  }
-
-  void declaredBy(String declaringName) {
-    this.declaringName = declaringName;
   }
 
   void declare(AnnotationDescription annotation) {
@@ -164,9 +158,5 @@ final class TypeOutline extends WithName {
     if (null != method) {
       declaredMethods.add(method);
     }
-  }
-
-  void anonymousType() {
-    anonymousType = true;
   }
 }

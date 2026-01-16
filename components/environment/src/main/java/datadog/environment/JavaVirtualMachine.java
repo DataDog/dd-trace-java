@@ -93,12 +93,27 @@ public final class JavaVirtualMachine {
         && !runtime.name.contains("OpenJDK");
   }
 
+  public static boolean isHotspot() {
+    String prop = SystemProperties.getOrDefault("java.vm.name", "");
+    if (prop.isEmpty()) {
+      return false;
+    }
+    return prop.contains("OpenJDK")
+        || prop.contains("HotSpot")
+        || prop.contains("GraalVM")
+        || prop.contains("Dynamic Code Evolution");
+  }
+
   public static boolean isJ9() {
     return SystemProperties.getOrDefault("java.vm.name", "").contains("J9");
   }
 
+  public static boolean isIbm() {
+    return runtime.vendor.contains("IBM");
+  }
+
   public static boolean isIbm8() {
-    return isJavaVersion(8) && runtime.vendor.contains("IBM");
+    return isIbm() && isJavaVersion(8);
   }
 
   public static boolean isGraalVM() {

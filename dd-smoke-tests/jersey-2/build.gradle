@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
@@ -6,18 +8,30 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Jersey 2 Smoke Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes "Main-Class": "com.restserver.Main"
   }
 }
 
+// Servlet API conflict resolution:
+// Two servlet JARs end up on the test classpath causing a SecurityException (signer mismatch):
+//   1. org.eclipse.jetty.orbit:javax.servlet (Servlet 3.0, signed) - from Jetty 9.0.4
+//   2. javax.servlet:javax.servlet-api (Servlet 3.1, unsigned) - from the testing module
+// The mock agent server in the test JVM uses repackaged Jetty which requires Servlet 3.1,
+// so we exclude the signed Servlet 3.0 and use the unsigned Servlet 3.1 everywhere
+// (including in the shadowJar for the smoke test app running in a separate process).
 dependencies {
-  implementation group: 'org.eclipse.jetty', name: 'jetty-server', version:'9.0.4.v20130625'
-  implementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version:'9.0.4.v20130625'
+  implementation(group: 'org.eclipse.jetty', name: 'jetty-server', version:'9.0.4.v20130625') {
+    exclude group: 'org.eclipse.jetty.orbit', module: 'javax.servlet'
+  }
+  implementation(group: 'org.eclipse.jetty', name: 'jetty-servlet', version:'9.0.4.v20130625') {
+    exclude group: 'org.eclipse.jetty.orbit', module: 'javax.servlet'
+  }
   implementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version:'2.0'
   implementation group: 'org.glassfish.jersey.media', name: 'jersey-media-json-jackson', version:'2.0'
   implementation group: 'javax.xml', name: 'jaxb-api', version:'2.1'
+  implementation group: 'javax.servlet', name: 'javax.servlet-api', version:'3.1.0'
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
   testImplementation project(':dd-smoke-tests:appsec')
@@ -25,5 +39,11 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.jersey2.jar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.jersey2.jar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }

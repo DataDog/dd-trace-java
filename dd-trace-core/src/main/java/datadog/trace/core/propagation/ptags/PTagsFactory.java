@@ -76,6 +76,9 @@ public class PTagsFactory implements PropagationTags.Factory {
     // tags that don't require any modifications and propagated as-is
     private final List<TagElement> tagPairs;
 
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification = "This field is never accessed concurrently")
     private boolean canChangeDecisionMaker;
 
     // extracted decision maker tag for easier updates
@@ -182,37 +185,46 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
       if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker
           || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
-        if (this.samplingPriority != samplingPriority) {
-          // This should invalidate any cached w3c header
-          clearCachedHeader(W3C);
+        doUpdateTraceSamplingPriority(samplingPriority, samplingMechanism);
+      }
+    }
+
+    @Override
+    public void forceKeep(int samplingMechanism) {
+      doUpdateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
+    }
+
+    private void doUpdateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
+      if (this.samplingPriority != samplingPriority) {
+        // This should invalidate any cached w3c header
+        clearCachedHeader(W3C);
+      }
+      this.samplingPriority = samplingPriority;
+      if (samplingPriority > 0) {
+        // TODO should try to keep the old sampling mechanism if we override the value?
+        if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
+          // There is no specific value for the EXTERNAL_OVERRIDE, so say that it's the DEFAULT
+          samplingMechanism = SamplingMechanism.DEFAULT;
         }
-        this.samplingPriority = samplingPriority;
-        if (samplingPriority > 0) {
-          // TODO should try to keep the old sampling mechanism if we override the value?
-          if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
-            // There is no specific value for the EXTERNAL_OVERRIDE, so say that it's the DEFAULT
-            samplingMechanism = SamplingMechanism.DEFAULT;
-          }
-          // Protect against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
-          // format
-          if (samplingMechanism >= 0) {
-            TagValue newDM = TagValue.from("-" + samplingMechanism);
-            if (!newDM.equals(decisionMakerTagValue)) {
-              // This should invalidate any cached w3c and datadog header
-              clearCachedHeader(DATADOG);
-              clearCachedHeader(W3C);
-            }
-            decisionMakerTagValue = newDM;
-          }
-        } else {
-          // Drop the decision maker tag
-          if (decisionMakerTagValue != null) {
+        // Protect against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
+        // format
+        if (samplingMechanism >= 0) {
+          TagValue newDM = TagValue.from("-" + samplingMechanism);
+          if (!newDM.equals(decisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
             clearCachedHeader(DATADOG);
             clearCachedHeader(W3C);
           }
-          decisionMakerTagValue = null;
+          decisionMakerTagValue = newDM;
         }
+      } else {
+        // Drop the decision maker tag
+        if (decisionMakerTagValue != null) {
+          // This should invalidate any cached w3c and datadog header
+          clearCachedHeader(DATADOG);
+          clearCachedHeader(W3C);
+        }
+        decisionMakerTagValue = null;
       }
     }
 

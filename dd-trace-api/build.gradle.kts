@@ -24,12 +24,18 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.SpanCorrelation*",
     "datadog.trace.api.internal.TraceSegment",
     "datadog.trace.api.internal.TraceSegment.NoOp",
+    "datadog.trace.api.aiguard.AIGuard",
+    "datadog.trace.api.aiguard.AIGuard.AIGuardAbortError",
+    "datadog.trace.api.aiguard.AIGuard.AIGuardClientError",
+    "datadog.trace.api.aiguard.AIGuard.Options",
     "datadog.trace.api.civisibility.CIVisibility",
     "datadog.trace.api.civisibility.DDTestModule",
     "datadog.trace.api.civisibility.noop.NoOpDDTest",
     "datadog.trace.api.civisibility.noop.NoOpDDTestModule",
     "datadog.trace.api.civisibility.noop.NoOpDDTestSession",
     "datadog.trace.api.civisibility.noop.NoOpDDTestSuite",
+    "datadog.trace.api.config.AIGuardConfig",
+    "datadog.trace.api.config.FeatureFlaggingConfig",
     "datadog.trace.api.config.ProfilingConfig",
     "datadog.trace.api.interceptor.MutableSpan",
     "datadog.trace.api.profiling.Profiling",
@@ -58,6 +64,8 @@ val excludedClassesCoverage by extra(
     "datadog.trace.payloadtags.PayloadTagsData",
     "datadog.trace.payloadtags.PayloadTagsData.PathAndValue",
     "datadog.trace.api.llmobs.LLMObsTags",
+    "datadog.trace.api.config.OtlpConfig.Protocol",
+    "datadog.trace.api.config.OtlpConfig.Temporality",
   )
 )
 

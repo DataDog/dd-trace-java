@@ -1,16 +1,18 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
   excludeJdk = ['IBM8']
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 description = 'Profiling Integration Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
   }
@@ -30,12 +32,18 @@ dependencies {
   testImplementation libs.bundles.mockito
   testImplementation libs.bundles.jmc
   testImplementation libs.aircompressor
-  testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.10')
+  testImplementation libs.jackson.databind
 }
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.profiling.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 
   testLogging {
     events "started", "passed", "skipped", "failed"
@@ -43,7 +51,7 @@ tasks.withType(Test).configureEach {
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   include {
     return it.directory || it.path.endsWith('.jar') ||
       it.path.startsWith('io/opentracing') ||

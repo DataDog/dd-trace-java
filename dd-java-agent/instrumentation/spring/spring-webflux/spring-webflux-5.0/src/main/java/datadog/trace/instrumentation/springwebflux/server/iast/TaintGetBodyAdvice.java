@@ -13,7 +13,9 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.ReactiveHttpInputMessage;
 import reactor.core.publisher.Flux;
 
-/** @see ReactiveHttpInputMessage#getBody() */
+/**
+ * @see ReactiveHttpInputMessage#getBody()
+ */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintGetBodyAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)

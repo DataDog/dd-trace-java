@@ -16,7 +16,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
-import datadog.environment.EnvironmentVariables;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -24,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.config.inversion.ConfigHelper;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -61,7 +61,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   protected boolean defaultEnabled() {
-    return EnvironmentVariables.get(HANDLER_ENV_NAME) != null;
+    return ConfigHelper.env(HANDLER_ENV_NAME) != null;
   }
 
   @Override
@@ -88,15 +88,15 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
-
-      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(in);
+      String lambdaRequestId = awsContext.getAwsRequestId();
+      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(in, lambdaRequestId);
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan(INVOCATION_SPAN_NAME);
       } else {
         span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
       }
-      span.setTag("request_id", awsContext.getAwsRequestId());
+      span.setTag("request_id", lambdaRequestId);
 
       final AgentScope scope = activateSpan(span);
       return scope;
@@ -107,6 +107,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         @Origin String method,
         @Enter final AgentScope scope,
         @Advice.Argument(1) final Object result,
+        @Advice.Argument(2) final Context awsContext,
         @Advice.Thrown final Throwable throwable) {
 
       if (scope == null) {
@@ -120,8 +121,10 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         if (throwable != null) {
           span.addThrowable(throwable);
         }
+        String lambdaRequestId = awsContext.getAwsRequestId();
+
         span.finish();
-        AgentTracer.get().notifyExtensionEnd(span, result, null != throwable);
+        AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
         scope.close();
       }

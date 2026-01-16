@@ -5,12 +5,12 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
-import org.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
-import org.eclipse.jetty.server.HttpConfiguration
-import org.eclipse.jetty.server.HttpConnectionFactory
-import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.server.ServerConnector
-import org.eclipse.jetty.server.SslConnectionFactory
+import datadog.eclipse.jetty.http2.server.HTTP2CServerConnectionFactory
+import datadog.eclipse.jetty.server.HttpConfiguration
+import datadog.eclipse.jetty.server.HttpConnectionFactory
+import datadog.eclipse.jetty.server.Server
+import datadog.eclipse.jetty.server.ServerConnector
+import datadog.eclipse.jetty.server.SslConnectionFactory
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
@@ -112,7 +112,11 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
-    .overrideConfiguration({ watch(it, { executed = true }) })
+    .overrideConfiguration({
+      watch(it, {
+        executed = true
+      })
+    })
     .endpointOverride(server.address)
     .region(Region.AP_NORTHEAST_1)
     .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -136,11 +140,14 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
     and:
     conditions.eventually {
-      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.parentHash == 0
+      }
       assert results.size() >= 1
       def pathwayLatencyCount = 0
       def edgeLatencyCount = 0
-      results.each { group ->
+      results.each {
+        group ->
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
@@ -179,7 +186,9 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
-            "$DDTags.PATHWAY_HASH" { String }
+            "$DDTags.PATHWAY_HASH" {
+              String
+            }
             checkPeerService = true
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, checkPeerService)
@@ -193,8 +202,12 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
     where:
     service | operation      | dsmDirection | dsmStatCount | method | path | requestId                              | builder             | call                                                                                                                                                                                                                                                                        | body
-    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | { SnsClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
-    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | { SnsClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build()) } | """<?xml version="1.0" encoding="UTF-8" ?>
+    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | {
+      SnsClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build())
+    }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsClient.builder() | {
+      SnsClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build())
+    } | """<?xml version="1.0" encoding="UTF-8" ?>
   <Successful>
     <Id>1</Id>
     <MessageId>4898a3df-db3a-5078-a6a9-fd895f9acb64</MessageId>
@@ -212,7 +225,11 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
     boolean executed = false
     def client = builder
     // tests that our instrumentation doesn't disturb any overridden configuration
-    .overrideConfiguration({ watch(it, { executed = true }) })
+    .overrideConfiguration({
+      watch(it, {
+        executed = true
+      })
+    })
     .endpointOverride(server.address)
     .region(Region.AP_NORTHEAST_1)
     .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -234,11 +251,14 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
     and:
     conditions.eventually {
-      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll { it.parentHash == 0 }
+      List<StatsGroup> results = TEST_DATA_STREAMS_WRITER.groups.findAll {
+        it.parentHash == 0
+      }
       assert results.size() >= 1
       def pathwayLatencyCount = 0
       def edgeLatencyCount = 0
-      results.each { group ->
+      results.each {
+        group ->
         pathwayLatencyCount += group.pathwayLatency.count
         edgeLatencyCount += group.edgeLatency.count
         verifyAll(group) {
@@ -276,7 +296,9 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
             "aws.requestId" "$requestId"
             "aws.topic.name" "mytopic"
             "topicname" "mytopic"
-            "$DDTags.PATHWAY_HASH" { String }
+            "$DDTags.PATHWAY_HASH" {
+              String
+            }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
             defaultTags(false, true)
           }
@@ -289,8 +311,12 @@ abstract class Aws2SnsDataStreamsTest extends VersionedNamingTestBase {
 
     where:
     service | operation      | dsmDirection | dsmStatCount | method | path | requestId                              | builder                  | call                                                                                                                                                                                                                                                                             | body
-    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | { SnsAsyncClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build()) }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
-    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | { SnsAsyncClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build()) } | """<?xml version="1.0" encoding="UTF-8" ?>
+    "Sns"   | "Publish"      | "out"        | 1            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | {
+      SnsAsyncClient c -> c.publish(PublishRequest.builder().topicArn("arnprefix:mytopic").message("hello").build())
+    }                                                                                                                                                               | """<?xml version="1.0" encoding="UTF-8" ?><MessageId>f2edefec-298a-58d7-bcc0-b1bd2077fccb</MessageId>"""
+    "Sns"   | "PublishBatch" | "out"        | 2            | "POST" | "/"  | "7a62c49f-347e-4fc4-9331-6e8e7a96aa73" | SnsAsyncClient.builder() | {
+      SnsAsyncClient c -> c.publishBatch(PublishBatchRequest.builder().topicArn("arnprefix:mytopic").publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("hello").build(), PublishBatchRequestEntry.builder().id("2").message("world").build()).build())
+    } | """<?xml version="1.0" encoding="UTF-8" ?>
   <Successful>
     <Id>1</Id>
     <MessageId>4898a3df-db3a-5078-a6a9-fd895f9acb64</MessageId>

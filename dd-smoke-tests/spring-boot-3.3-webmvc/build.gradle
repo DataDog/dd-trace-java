@@ -1,8 +1,8 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 description = 'Spring Boot 3.3 WebMvc Smoke Tests.'
 
@@ -18,8 +18,10 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the project
 tasks.register('webmvcBuild3', Exec) {
   workingDir "$appDir"
-  def toolchain17 = getJavaLauncherFor(17).get()
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(17)
+  ]
   commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
@@ -35,11 +37,8 @@ tasks.register('webmvcBuild3', Exec) {
   .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn project(':dd-trace-api').tasks.named("jar")
-}
-
-tasks.named("compileTestGroovy").configure {
   dependsOn 'webmvcBuild3'
   outputs.upToDateWhen {
     !webmvcBuild3.didWork

@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  testImplementation group: 'com.auth0', name: 'java-jwt', version: '4.0.0-beta.0'
+  testImplementation group: 'com.nimbusds', name: 'nimbus-jose-jwt', version: '9.24.4'
+}

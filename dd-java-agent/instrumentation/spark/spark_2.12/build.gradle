@@ -13,7 +13,7 @@ muzzle {
     assertInverse = true
   }
 }
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
 }
 apply from: "$rootDir/gradle/java.gradle"
@@ -22,21 +22,21 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuite('test_spark24')
 addTestSuite('test_spark32')
 
-ext {
+testJvmConstraints {
   // Hadoop does not behave correctly with OpenJ9 https://issues.apache.org/jira/browse/HADOOP-18174
   excludeJdk = ['SEMERU8', 'SEMERU11']
 
   // Spark does not support Java > 11 until 3.3.0 https://issues.apache.org/jira/browse/SPARK-33772
-  maxJavaVersionForTests = JavaVersion.VERSION_11
+  maxJavaVersion = JavaVersion.VERSION_11
 }
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:spark')
+  implementation project(':dd-java-agent:instrumentation:spark:spark-common')
 
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
 
-  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark")))
+  testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark:spark-common")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: "$sparkVersion"
@@ -58,7 +58,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.spark', name: "spark-yarn_$scalaVersion", version: '+'
 }
 
-tasks.named("test").configure {
+tasks.named("test", Test) {
   dependsOn "test_spark24"
   dependsOn "test_spark32"
 }

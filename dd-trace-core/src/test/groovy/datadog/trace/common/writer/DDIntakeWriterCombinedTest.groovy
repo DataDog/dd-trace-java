@@ -297,7 +297,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onPublish(minimalTrace, _)
     1 * healthMetrics.onSerialize(_)
     1 * healthMetrics.onFlush(false)
-    1 * healthMetrics.onSend(1, _, { response -> response.success() && response.status() == 200 })
+    1 * healthMetrics.onSend(1, _, { response -> response.success() && response.status().present && response.status().asInt == 200 })
 
     when:
     writer.close()
@@ -355,7 +355,7 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onPublish(minimalTrace, _)
     1 * healthMetrics.onSerialize(_)
     1 * healthMetrics.onFlush(false)
-    1 * healthMetrics.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
+    1 * healthMetrics.onFailedSend(1, _, { response -> !response.success() && response.status().present && response.status().asInt == 500 })
 
     when:
     writer.close()
@@ -766,5 +766,4 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   def buildIntakePath(TrackType trackType, String apiVersion) {
     return String.format("/api/%s/%s", apiVersion, trackType.name().toLowerCase())
   }
-
 }

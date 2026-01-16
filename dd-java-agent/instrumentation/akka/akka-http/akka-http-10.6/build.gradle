@@ -1,12 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
-apply plugin: 'call-site-instrumentation'
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
 
 muzzle {
   pass {
@@ -24,7 +21,6 @@ muzzle {
 
     assertInverse = true
   }
-
 }
 
 repositories {
@@ -41,24 +37,20 @@ repositories {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-[compileMain_java11Java, compileTestScala, compileLatestDepTestScala].each {
-  it.configure {
-    setJavaVersion(it, 11)
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+["compileMain_java11Java", "compileTestScala", "compileLatestDepTestScala"].each {
+  tasks.named(it, AbstractCompile) {
+    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
   }
 }
 
-compileTestGroovy {
-  javaLauncher = getJavaLauncherFor(11)
-  dependsOn compileTestScala
-  classpath += files(compileTestScala.destinationDirectory)
+tasks.named("compileTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+  classpath += files(tasks.named('compileTestScala').map { it.destinationDirectory })
 }
 
-compileLatestDepTestGroovy {
-  javaLauncher = getJavaLauncherFor(11)
-  dependsOn compileLatestDepTestScala
-  classpath += files(compileLatestDepTestScala.destinationDirectory)
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+  classpath += files(tasks.named('compileLatestDepTestScala').map { it.destinationDirectory })
 }
 
 dependencies {
@@ -72,11 +64,11 @@ dependencies {
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-jackson_2.13', version: '10.6.0'
   testImplementation group: 'com.typesafe.akka', name: 'akka-http-spray-json_2.13', version: '10.6.0'
   testImplementation libs.scala213
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-actor-2.5')
-  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
   testImplementation project(':dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0')
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13')
 
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '+'
   latestDepTestImplementation group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '+'
@@ -87,6 +79,8 @@ dependencies {
   latestDepTestImplementation group: 'org.scala-lang.modules', name: 'scala-java8-compat_2.13', version: '1.0.+'
 }
 
-configurations.getByName("latestDepTestRuntimeClasspath").resolutionStrategy {
-  it.force libs.slf4j
+configurations.named("latestDepTestRuntimeClasspath") {
+  it.resolutionStrategy {
+    it.force libs.slf4j
+  }
 }

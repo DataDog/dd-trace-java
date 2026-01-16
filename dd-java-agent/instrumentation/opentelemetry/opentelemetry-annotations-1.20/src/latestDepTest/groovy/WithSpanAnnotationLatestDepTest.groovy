@@ -25,6 +25,7 @@ class WithSpanAnnotationLatestDepTest extends WithSpanAnnotationTest {
           tags {
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
+            "$Tags.SPAN_KIND" "internal"
           }
         }
       }

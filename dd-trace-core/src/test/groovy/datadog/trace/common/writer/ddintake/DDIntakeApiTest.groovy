@@ -58,7 +58,8 @@ class DDIntakeApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     intake.getLastRequest().path == path
 
     cleanup:
@@ -92,7 +93,8 @@ class DDIntakeApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     intake.getLastRequest().path == path
 
     cleanup:
@@ -126,7 +128,8 @@ class DDIntakeApiTest extends DDCoreSpecification {
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     clientResponse.success()
-    clientResponse.status() == 200
+    clientResponse.status().present
+    clientResponse.status().asInt == 200
     intake.getLastRequest().path == path
 
     cleanup:
@@ -152,7 +155,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
     def payload = prepareTraces(trackType, traces)
 
     expect:
-    client.sendSerializedTraces(payload).status()
+    client.sendSerializedTraces(payload).status().present
     intake.lastRequest.contentType == "application/msgpack"
     convertMap(intake.lastRequest.body) == expectedRequestBody
 
@@ -350,7 +353,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
     }
     packer.flush()
     return mapper.newPayload()
-      .withBody(traceCapture.traceCount,
-      traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
+    .withBody(traceCapture.traceCount,
+    traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
   }
 }

@@ -14,7 +14,8 @@ final class Caching {
    */
   static final int cacheSizeFor(int requestedCapacity) {
     int pow;
-    for (pow = 1; pow < requestedCapacity; pow *= 2) ;
+    for (pow = 1; pow < requestedCapacity; pow *= 2)
+      ;
     return pow;
   }
 

@@ -9,7 +9,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
-configurations.all {
+configurations.configureEach {
   // the version used by Synapse isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.snmp4j', module: 'snmp4j'
   exclude group: 'org.snmp4j', module: 'snmp4j-agent'
@@ -22,6 +22,8 @@ dependencies {
   compileOnly group: 'org.apache.synapse', name: 'synapse-nhttp-transport', version: '3.0.0'
 
   testImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '3.0.0'
+
+  testImplementation(libs.groovy.templates)
 
   latestDepTestImplementation group: 'org.apache.synapse', name: 'synapse-core', version: '+'
 }

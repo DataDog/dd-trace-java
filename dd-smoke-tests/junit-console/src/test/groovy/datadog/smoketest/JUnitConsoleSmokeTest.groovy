@@ -59,7 +59,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     def additionalDynamicTags = ["content.meta.['_dd.debug.error.6.snapshot_id']", "content.meta.['_dd.debug.error.exception_id']"]
     verifyEventsAndCoverages(projectName, "junit-console", "headless", mockBackend.waitForEvents(7), mockBackend.waitForCoverages(0), additionalDynamicTags)
-    verifySnapshotLogs(mockBackend.waitForLogs(5), 1, 2)
+    verifySnapshots(mockBackend.waitForLogs(2), 2)
 
     where:
     projectName = "test_junit_console_failed_test_replay"
@@ -192,6 +192,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=DEBUG")
     command.addAll((String[]) ["-jar", JUNIT_CONSOLE_JAR_PATH])
     command.addAll(consoleCommand)
     command.addAll([
@@ -219,7 +220,7 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
   String javaToolOptions(Map<String, String> additionalAgentArgs) {
     additionalAgentArgs.put(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED, "false")
-    return buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalAgentArgs).join("\\ ")
+    return buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalAgentArgs).join(" ")
   }
 
   private static class StreamConsumer extends Thread {

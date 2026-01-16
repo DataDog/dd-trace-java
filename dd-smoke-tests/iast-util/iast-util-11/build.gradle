@@ -19,14 +19,11 @@ dependencies {
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
 
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))
+
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
 }
 
-tasks.named("compileJava", JavaCompile).configure {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
-}
-
-forbiddenApisMain {
-  failOnMissingClasses = false
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }

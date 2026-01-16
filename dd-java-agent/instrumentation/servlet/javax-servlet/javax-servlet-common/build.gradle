@@ -1,0 +1,37 @@
+muzzle {
+  pass {
+    group = "javax.servlet"
+    module = 'javax.servlet-api'
+    versions = "[,]"
+  }
+  pass {
+    group = "javax.servlet"
+    module = 'servlet-api'
+    versions = "[,]"
+    skipVersions += '0'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'dd-trace-java.call-site-instrumentation'
+
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
+dependencies {
+  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+
+  testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.3'
+
+  // servlet request instrumentation required for linking request to response.
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
+
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
+}
+

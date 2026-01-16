@@ -1,0 +1,54 @@
+apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
+apply plugin: 'idea'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
+  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
+  maxJavaVersion = JavaVersion.VERSION_24
+}
+
+muzzle {
+  pass {
+    coreJdk('21')
+  }
+}
+
+idea {
+  module {
+    jdkName = '21'
+  }
+}
+
+/*
+ * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag
+ */
+addTestSuite('previewTest')
+
+// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+}
+
+// Configure groovy test file compilation
+tasks.named("compilePreviewTestGroovy", GroovyCompile) {
+  options.compilerArgs.add("--enable-preview")
+}
+// Configure Java test files compilation
+tasks.named("compilePreviewTestJava", JavaCompile) {
+  options.compilerArgs.add("--enable-preview")
+}
+// Configure tests execution
+tasks.named("previewTest", Test) {
+  jvmArgs = ['--enable-preview']
+}
+// Require the preview test suite to run as part of module check
+tasks.named("check") {
+  dependsOn "previewTest"
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+}

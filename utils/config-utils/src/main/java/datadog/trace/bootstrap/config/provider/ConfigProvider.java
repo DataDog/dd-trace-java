@@ -1,10 +1,14 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
+import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ConfigOrigin;
+import datadog.trace.bootstrap.config.provider.civisibility.CiEnvironmentVariables;
+import datadog.trace.util.ConfigStrings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -12,11 +16,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -54,38 +61,62 @@ public final class ConfigProvider {
     return "no config file present";
   }
 
+  // Gets a string value when there is no default value.
   public String getString(String key) {
     return getString(key, null);
   }
 
+  /**
+   * Gets a string value with a default fallback and optional aliases. Use for configs with
+   * meaningful defaults. Reports default to telemetry.
+   */
+  public String getString(String key, String defaultValue, String... aliases) {
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    String value = getStringInternal(key, aliases);
+
+    return value != null ? value : defaultValue;
+  }
+
+  // Internal helper that performs configuration source lookup and reports values from non-default
+  // sources to telemetry.
+  private String getStringInternal(String key, String... aliases) {
+    ConfigValueResolver<String> resolver = null;
+    int seqId = NON_DEFAULT_SEQ_ID;
+
+    for (int i = sources.length - 1; i >= 0; i--) {
+      ConfigProvider.Source source = sources[i];
+      String candidate = source.get(key, aliases);
+      // Create resolver if we have a valid candidate
+      if (candidate != null) {
+        resolver = ConfigValueResolver.of(candidate);
+        // And report to telemetry
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+      }
+
+      seqId++;
+    }
+
+    return resolver != null ? resolver.value : null;
+  }
+
   public <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
-    String value = getString(key);
+    if (collectConfig) {
+      String defaultValueString = defaultValue == null ? null : defaultValue.name();
+      reportDefault(key, defaultValueString);
+    }
+    String value = getStringInternal(key);
     if (null != value) {
       try {
-        return Enum.valueOf(enumType, value);
+        // replace invalid characters with _ and make sure it's upper-case before converting
+        return Enum.valueOf(enumType, value.replace('/', '_').toUpperCase(Locale.ROOT));
       } catch (Exception ignoreAndUseDefault) {
         log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
       }
-    }
-    if (collectConfig) {
-      String valueStr = defaultValue == null ? null : defaultValue.name();
-      ConfigCollector.get().put(key, valueStr, ConfigOrigin.DEFAULT);
-    }
-    return defaultValue;
-  }
-
-  public String getString(String key, String defaultValue, String... aliases) {
-    for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin(), getConfigIdFromSource(source));
-        }
-        return value;
-      }
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -95,19 +126,40 @@ public final class ConfigProvider {
    * an empty or blank string.
    */
   public String getStringNotEmpty(String key, String defaultValue, String... aliases) {
-    for (ConfigProvider.Source source : sources) {
-      String value = source.get(key, aliases);
-      if (value != null && !value.trim().isEmpty()) {
-        if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
-        }
-        return value;
-      }
-    }
     if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+      reportDefault(key, defaultValue);
     }
-    return defaultValue;
+
+    ConfigValueResolver<String> resolver = null;
+    int seqId = NON_DEFAULT_SEQ_ID;
+
+    for (int i = sources.length - 1; i >= 0; i--) {
+      ConfigProvider.Source source = sources[i];
+      String candidateValue = source.get(key, aliases);
+
+      // Report any non-null values to telemetry
+      if (candidateValue != null) {
+        if (collectConfig) {
+          ConfigCollector.get()
+              .put(key, candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+        // Create resolver only if candidate is not empty or blank
+        if (!candidateValue.trim().isEmpty()) {
+          resolver =
+              ConfigValueResolver.of(
+                  candidateValue, source.origin(), seqId, getConfigIdFromSource(source));
+        }
+      }
+
+      seqId++;
+    }
+
+    // Re-report the chosen value with the highest seqId
+    if (resolver != null && collectConfig) {
+      resolver.reReportToCollector(key, seqId + 1);
+    }
+
+    return resolver != null ? resolver.value : defaultValue;
   }
 
   public String getStringExcludingSource(
@@ -115,23 +167,30 @@ public final class ConfigProvider {
       String defaultValue,
       Class<? extends ConfigProvider.Source> excludedSource,
       String... aliases) {
-    for (ConfigProvider.Source source : sources) {
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    ConfigValueResolver<String> resolver = null;
+    int seqId = NON_DEFAULT_SEQ_ID;
+    for (int i = sources.length - 1; i >= 0; i--) {
+      ConfigProvider.Source source = sources[i];
+      String candidate = source.get(key, aliases);
+
+      // Skip excluded source types
       if (excludedSource.isAssignableFrom(source.getClass())) {
+        seqId++;
         continue;
       }
-
-      String value = source.get(key, aliases);
-      if (value != null) {
+      if (candidate != null) {
+        resolver = ConfigValueResolver.of(candidate);
         if (collectConfig) {
-          ConfigCollector.get().put(key, value, source.origin());
+          ConfigCollector.get()
+              .put(key, candidate, source.origin(), seqId, getConfigIdFromSource(source));
         }
-        return value;
       }
+      seqId++;
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-    }
-    return defaultValue;
+    return resolver != null ? resolver.value : defaultValue;
   }
 
   public boolean isSet(String key) {
@@ -191,48 +250,66 @@ public final class ConfigProvider {
     return get(key, defaultValue, Double.class);
   }
 
+  public double getDouble(String key, double defaultValue, String... aliases) {
+    return get(key, defaultValue, Double.class, aliases);
+  }
+
   private <T> T get(String key, T defaultValue, Class<T> type, String... aliases) {
-    for (ConfigProvider.Source source : sources) {
-      String sourceValue = source.get(key, aliases);
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+
+    ConfigValueResolver<T> resolver = null;
+    int seqId = NON_DEFAULT_SEQ_ID;
+
+    for (int i = sources.length - 1; i >= 0; i--) {
+      String sourceValue = sources[i].get(key, aliases);
+      String configId = getConfigIdFromSource(sources[i]);
+
+      // Always report raw value to telemetry
+      if (sourceValue != null && collectConfig) {
+        ConfigCollector.get().put(key, sourceValue, sources[i].origin(), seqId, configId);
+      }
+
       try {
-        T value = ConfigConverter.valueOf(sourceValue, type);
-        if (value != null) {
-          if (collectConfig) {
-            ConfigCollector.get()
-                .put(key, sourceValue, source.origin(), getConfigIdFromSource(source));
-          }
-          return value;
+        T candidate = ConfigConverter.valueOf(sourceValue, type);
+        if (candidate != null) {
+          resolver = ConfigValueResolver.of(candidate, sources[i].origin(), seqId, configId);
         }
       } catch (ConfigConverter.InvalidBooleanValueException ex) {
         // For backward compatibility: invalid boolean values should return false, not default
-        // Store the invalid sourceValue for telemetry, but return false for the application
+        // Store the invalid sourceValue for telemetry, but return false
         if (Boolean.class.equals(type)) {
-          if (collectConfig) {
-            ConfigCollector.get().put(key, sourceValue, source.origin());
-          }
-          return (T) Boolean.FALSE;
+          resolver =
+              ConfigValueResolver.of((T) Boolean.FALSE, ConfigOrigin.CALCULATED, seqId, configId);
         }
         // For non-boolean types, continue to next source
       } catch (IllegalArgumentException ex) {
         // continue - covers both NumberFormatException and other IllegalArgumentException
       }
+
+      seqId++;
     }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
+
+    // Re-report the chosen value and origin to ensure its seqId is higher than any error configs
+    if (resolver != null && collectConfig) {
+      resolver.reReportToCollector(key, seqId + 1);
     }
-    return defaultValue;
+
+    return resolver != null ? resolver.value : defaultValue;
   }
 
   public List<String> getList(String key) {
     return ConfigConverter.parseList(getString(key));
   }
 
-  public List<String> getList(String key, List<String> defaultValue) {
-    String list = getString(key);
+  public List<String> getList(String key, List<String> defaultValue, String... aliases) {
+    // Ensure the first item at DEFAULT is the accurate one
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    String list = getStringInternal(key, aliases);
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-      }
       return defaultValue;
     } else {
       return ConfigConverter.parseList(list);
@@ -240,11 +317,12 @@ public final class ConfigProvider {
   }
 
   public Set<String> getSet(String key, Set<String> defaultValue) {
-    String list = getString(key);
+    // Ensure the first item at DEFAULT is the most accurate one
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    String list = getStringInternal(key);
     if (null == list) {
-      if (collectConfig) {
-        ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
-      }
       return defaultValue;
     } else {
       return new HashSet(ConfigConverter.parseList(list));
@@ -256,37 +334,43 @@ public final class ConfigProvider {
   }
 
   public Map<String, String> getMergedMap(String key, String... aliases) {
-    Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
-    String configId = null;
+    return getMergedMap(key, ':', aliases);
+  }
+
+  public Map<String, String> getMergedMap(String key, char keyValueDelimiter, String... aliases) {
+    ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
+    int seqId = NON_DEFAULT_SEQ_ID;
+
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
     // We reverse iterate to allow overrides
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key, aliases);
-      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key);
+      Map<String, String> parsedMap = ConfigConverter.parseMap(value, key, keyValueDelimiter);
+
       if (!parsedMap.isEmpty()) {
-        configId = getConfigIdFromSource(sources[i]);
-        if (origin != ConfigOrigin.DEFAULT) {
-          // if we already have a non-default origin, the value is calculated from multiple sources
-          origin = ConfigOrigin.CALCULATED;
-        } else {
-          origin = sources[i].origin();
+        if (collectConfig) {
+          seqId++;
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
+        mergeResolver.addContribution(parsedMap, sources[i].origin());
       }
-      merged.putAll(parsedMap);
     }
+
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin, configId);
+      reportDefault(key, Collections.emptyMap());
+      mergeResolver.reReportFinalResult(key, seqId);
     }
-    return merged;
+
+    return mergeResolver.getMergedValue();
   }
 
   public Map<String, String> getMergedTagsMap(String key, String... aliases) {
-    Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
-    String configId = null;
+    ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
+    int seqId = NON_DEFAULT_SEQ_ID;
+
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -295,27 +379,30 @@ public final class ConfigProvider {
       String value = sources[i].get(key, aliases);
       Map<String, String> parsedMap =
           ConfigConverter.parseTraceTagsMap(value, ':', Arrays.asList(',', ' '));
+
       if (!parsedMap.isEmpty()) {
-        configId = getConfigIdFromSource(sources[i]);
-        if (origin != ConfigOrigin.DEFAULT) {
-          // if we already have a non-default origin, the value is calculated from multiple sources
-          origin = ConfigOrigin.CALCULATED;
-        } else {
-          origin = sources[i].origin();
+        if (collectConfig) {
+          seqId++;
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
+        mergeResolver.addContribution(parsedMap, sources[i].origin());
       }
-      merged.putAll(parsedMap);
     }
+
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin, configId);
+      reportDefault(key, Collections.emptyMap());
+      mergeResolver.reReportFinalResult(key, seqId);
     }
-    return merged;
+
+    return mergeResolver.getMergedValue();
   }
 
   public Map<String, String> getOrderedMap(String key) {
-    LinkedHashMap<String, String> merged = new LinkedHashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
-    String configId = null;
+    // Use LinkedHashMap to preserve insertion order of map entries
+    ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new LinkedHashMap<>());
+    int seqId = NON_DEFAULT_SEQ_ID;
+
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -323,28 +410,30 @@ public final class ConfigProvider {
     for (int i = sources.length - 1; 0 <= i; i--) {
       String value = sources[i].get(key);
       Map<String, String> parsedMap = ConfigConverter.parseOrderedMap(value, key);
+
       if (!parsedMap.isEmpty()) {
-        configId = getConfigIdFromSource(sources[i]);
-        if (origin != ConfigOrigin.DEFAULT) {
-          // if we already have a non-default origin, the value is calculated from multiple sources
-          origin = ConfigOrigin.CALCULATED;
-        } else {
-          origin = sources[i].origin();
+        if (collectConfig) {
+          seqId++;
+          ConfigCollector.get()
+              .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
         }
+        mergeResolver.addContribution(parsedMap, sources[i].origin());
       }
-      merged.putAll(parsedMap);
     }
+
     if (collectConfig) {
-      ConfigCollector.get().put(key, merged, origin, configId);
+      reportDefault(key, Collections.emptyMap());
+      mergeResolver.reReportFinalResult(key, seqId);
     }
-    return merged;
+
+    return mergeResolver.getMergedValue();
   }
 
   public Map<String, String> getMergedMapWithOptionalMappings(
       String defaultPrefix, boolean lowercaseKeys, String... keys) {
-    Map<String, String> merged = new HashMap<>();
-    ConfigOrigin origin = ConfigOrigin.DEFAULT;
-    String configId = null;
+    ConfigMergeResolver mergeResolver = new ConfigMergeResolver(new HashMap<>());
+    int seqId = NON_DEFAULT_SEQ_ID;
+
     // System properties take precedence over env
     // prior art:
     // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
@@ -354,36 +443,38 @@ public final class ConfigProvider {
         String value = sources[i].get(key);
         Map<String, String> parsedMap =
             ConfigConverter.parseMapWithOptionalMappings(value, key, defaultPrefix, lowercaseKeys);
+
         if (!parsedMap.isEmpty()) {
-          configId = getConfigIdFromSource(sources[i]);
-          if (origin != ConfigOrigin.DEFAULT) {
-            // if we already have a non-default origin, the value is calculated from multiple
-            // sources
-            origin = ConfigOrigin.CALCULATED;
-          } else {
-            origin = sources[i].origin();
+          if (collectConfig) {
+            seqId++;
+            ConfigCollector.get()
+                .put(key, parsedMap, sources[i].origin(), seqId, getConfigIdFromSource(sources[i]));
           }
+          mergeResolver.addContribution(parsedMap, sources[i].origin());
         }
-        merged.putAll(parsedMap);
       }
+
       if (collectConfig) {
-        ConfigCollector.get().put(key, merged, origin, configId);
+        reportDefault(key, Collections.emptyMap());
+        mergeResolver.reReportFinalResult(key, seqId);
       }
     }
-    return merged;
+
+    return mergeResolver.getMergedValue();
   }
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue, String... aliases) {
-    final String value = getString(key, null, aliases);
+    // Ensure the first item at DEFAULT is the most accurate one
+    if (collectConfig) {
+      reportDefault(key, defaultValue);
+    }
+    final String value = getStringInternal(key, aliases);
     try {
       if (value != null) {
         return ConfigConverter.parseIntegerRangeSet(value, key);
       }
     } catch (final NumberFormatException e) {
       log.warn("Invalid configuration for {}", key, e);
-    }
-    if (collectConfig) {
-      ConfigCollector.get().put(key, defaultValue, ConfigOrigin.DEFAULT);
     }
     return defaultValue;
   }
@@ -417,24 +508,32 @@ public final class ConfigProvider {
     Properties configProperties =
         loadConfigurationFile(
             new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource()));
-    if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          StableConfigSource.FLEET,
-          new EnvironmentConfigSource(),
-          new OtelEnvironmentConfigSource(),
-          StableConfigSource.LOCAL,
-          new CapturedEnvironmentConfigSource());
-    } else {
-      return new ConfigProvider(
-          new SystemPropertiesConfigSource(),
-          StableConfigSource.FLEET,
-          new EnvironmentConfigSource(),
-          new PropertiesConfigSource(configProperties, true),
-          new OtelEnvironmentConfigSource(configProperties),
-          StableConfigSource.LOCAL,
-          new CapturedEnvironmentConfigSource());
-    }
+    ConfigProvider.Source propertiesSource =
+        !configProperties.isEmpty() ? new PropertiesConfigSource(configProperties, true) : null;
+
+    Map<String, String> ciEnvironmentVariables = CiEnvironmentVariables.getAll();
+    ConfigProvider.Source ciEnvironmentSource =
+        ciEnvironmentVariables != null
+            ? new MapConfigSource(
+                ciEnvironmentVariables,
+                ConfigStrings::propertyNameToEnvironmentVariableName,
+                ConfigOrigin.ENV)
+            : null;
+
+    return new ConfigProvider(
+        filterNonNull(
+            new SystemPropertiesConfigSource(),
+            StableConfigSource.FLEET,
+            ciEnvironmentSource,
+            new EnvironmentConfigSource(),
+            propertiesSource,
+            new OtelEnvironmentConfigSource(),
+            StableConfigSource.LOCAL,
+            new CapturedEnvironmentConfigSource()));
+  }
+
+  private static ConfigProvider.Source[] filterNonNull(ConfigProvider.Source... values) {
+    return Arrays.stream(values).filter(Objects::nonNull).toArray(Source[]::new);
   }
 
   public static ConfigProvider withoutCollector() {
@@ -544,6 +643,83 @@ public final class ConfigProvider {
       return ((StableConfigSource) source).getConfigId();
     }
     return null;
+  }
+
+  private static <T> void reportDefault(String key, T defaultValue) {
+    ConfigCollector.get().putDefault(key, defaultValue);
+  }
+
+  /** Helper class to store resolved configuration values with their metadata */
+  static final class ConfigValueResolver<T> {
+    final T value;
+    final ConfigOrigin origin;
+    final int seqId;
+    final String configId;
+
+    // Single constructor that takes all fields
+    private ConfigValueResolver(T value, ConfigOrigin origin, int seqId, String configId) {
+      this.value = value;
+      this.origin = origin;
+      this.seqId = seqId;
+      this.configId = configId;
+    }
+
+    // Factory method for cases where we only care about the value (e.g., getString)
+    static <T> ConfigValueResolver<T> of(T value) {
+      return new ConfigValueResolver<>(value, null, ABSENT_SEQ_ID, null);
+    }
+
+    // Factory method for cases where we need to re-report (e.g., getStringNotEmpty, get<T>)
+    static <T> ConfigValueResolver<T> of(T value, ConfigOrigin origin, int seqId, String configId) {
+      return new ConfigValueResolver<>(value, origin, seqId, configId);
+    }
+
+    /** Re-reports this resolved value to ConfigCollector with the specified seqId */
+    void reReportToCollector(String key, int finalSeqId) {
+      // Value should never be null if there is an initialized ConfigValueResolver
+      if (origin != null) {
+        ConfigCollector.get().put(key, value, origin, finalSeqId, configId);
+      }
+    }
+  }
+
+  /** Helper class for methods that merge map values from multiple sources (e.g., getMergedMap) */
+  private static final class ConfigMergeResolver {
+    private final Map<String, String> mergedValue;
+    private ConfigOrigin currentOrigin;
+
+    ConfigMergeResolver(Map<String, String> initialValue) {
+      this.mergedValue = initialValue;
+      this.currentOrigin = ConfigOrigin.DEFAULT;
+    }
+
+    /** Adds a contribution from a source and updates the origin tracking */
+    void addContribution(Map<String, String> contribution, ConfigOrigin sourceOrigin) {
+      mergedValue.putAll(contribution);
+
+      // Update origin: DEFAULT -> source origin -> CALCULATED if multiple sources
+      if (currentOrigin != ConfigOrigin.DEFAULT) {
+        // if we already have a non-default origin, the value is calculated from multiple sources
+        currentOrigin = ConfigOrigin.CALCULATED;
+      } else {
+        currentOrigin = sourceOrigin;
+      }
+    }
+
+    /**
+     * Re-reports the final merged result to ConfigCollector if it has actual contributions. Does
+     * NOT re-report when no contributions were made since defaults are reported separately.
+     */
+    void reReportFinalResult(String key, int finalSeqId) {
+      if (currentOrigin != ConfigOrigin.DEFAULT && !mergedValue.isEmpty()) {
+        ConfigCollector.get().put(key, mergedValue, currentOrigin, finalSeqId);
+      }
+    }
+
+    /** Gets the final merged value */
+    Map<String, String> getMergedValue() {
+      return mergedValue;
+    }
   }
 
   public abstract static class Source {

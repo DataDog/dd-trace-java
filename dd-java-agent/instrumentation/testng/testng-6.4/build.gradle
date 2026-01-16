@@ -1,0 +1,33 @@
+plugins {
+  id 'java-test-fixtures'
+  id 'dd-trace-java.instrumentation.testing-framework-tests'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.testng'
+    module = 'testng'
+    versions = '[6.4,7.0.0)'
+    skipVersions += "6.13" // depends on non-existent jcommander-1.66
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.testng', name: 'testng', version: '6.4'
+
+  implementation project(':dd-java-agent:instrumentation:testng:testng-common')
+
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:testng:testng-common'))
+  testImplementation group: 'org.testng', name: 'testng', version: '6.4'
+}
+
+// gradle can't downgrade the testng dependencies with `strictly`
+// and IntelliJ IDEA reports an error when importing the project
+configurations.matching({ it.name.startsWith('test') }).configureEach({
+  it.resolutionStrategy {
+    force group: 'org.testng', name: 'testng', version: '6.4'
+  }
+})
+

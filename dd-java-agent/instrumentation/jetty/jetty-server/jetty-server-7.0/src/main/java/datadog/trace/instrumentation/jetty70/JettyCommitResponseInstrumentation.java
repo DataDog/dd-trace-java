@@ -1,13 +1,15 @@
 package datadog.trace.instrumentation.jetty70;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -70,11 +72,15 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         return false;
       }
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (!(existingSpan instanceof AgentSpan)) {
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (!(contextObj instanceof Context)) {
         return false;
       }
-      AgentSpan span = (AgentSpan) existingSpan;
+      Context context = (Context) contextObj;
+      AgentSpan span = spanFromContext(context);
+      if (span == null) {
+        return false;
+      }
       RequestContext requestContext = span.getRequestContext();
       if (requestContext == null) {
         return false;
@@ -90,12 +96,7 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          boolean res =
-              brf.tryCommitBlockingResponse(
-                  requestContext.getTraceSegment(),
-                  rba.getStatusCode(),
-                  rba.getBlockingContentType(),
-                  rba.getExtraHeaders());
+          boolean res = brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
           if (res) {
             requestContext.getTraceSegment().effectivelyBlocked();
             return true;

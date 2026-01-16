@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
@@ -38,10 +40,10 @@ configurations {
   }
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }

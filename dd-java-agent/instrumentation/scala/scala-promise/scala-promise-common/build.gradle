@@ -1,0 +1,23 @@
+/*
+ * Classes that are common to all versions of the Scala promise instrumentation.
+ */
+
+muzzle {
+  pass {
+    group = 'org.scala-lang'
+    module = "scala-library"
+    versions = "[2.10.2,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  classpath += files(sourceSets.test.scala.classesDirectory)
+}
+
+dependencies {
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7' // First 2.10 version that accepts target 1.8
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+}

@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.timgroup.statsd.NoOpDirectStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClientErrorHandler;
+import datadog.common.filesystem.Files;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.IOLogger;
@@ -162,7 +163,6 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             log.debug("StatsD connected to {}", statsDAddress());
           }
         } catch (final Exception e) {
-          log.error("Unable to create StatsD client - {}", statsDAddress(), e);
           if (retries.getAndIncrement() < MAX_RETRIES) {
             if (log.isDebugEnabled()) {
               log.debug(
@@ -173,6 +173,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
           } else {
             log.debug("Max retries have been reached. Will not attempt again.");
           }
+        } catch (Throwable t) {
+          log.error("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
         }
       }
     }
@@ -185,8 +187,8 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     }
 
     if (null == host) {
-      if (!OperatingSystem.isWindows() && new File(DEFAULT_DOGSTATSD_SOCKET_PATH).exists()) {
-        log.info("Detected {}.  Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
+      if (!OperatingSystem.isWindows() && Files.exists(new File(DEFAULT_DOGSTATSD_SOCKET_PATH))) {
+        log.info("Detected {}. Using it to send StatsD data.", DEFAULT_DOGSTATSD_SOCKET_PATH);
         host = DEFAULT_DOGSTATSD_SOCKET_PATH;
         port = 0; // tells dogstatsd client to treat host as a socket path
       } else {

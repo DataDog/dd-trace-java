@@ -1,12 +1,12 @@
 package datadog.trace.api;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -201,6 +201,8 @@ public class TagMapLedgerTest {
       ledger.remove(key(i));
     }
 
+    assertTrue(ledger.containsRemovals());
+
     TagMap map = ledger.build();
     for (int i = 0; i < SIZE; ++i) {
       if ((i % 2) == 0) {
@@ -209,6 +211,10 @@ public class TagMapLedgerTest {
         assertEquals(value(i), map.getString(key(i)));
       }
     }
+
+    ledger.reset();
+
+    assertFalse(ledger.containsRemovals());
   }
 
   @Test
@@ -218,12 +224,20 @@ public class TagMapLedgerTest {
     ledger.smartRemove("foo");
 
     assertTrue(ledger.containsRemovals());
+
+    ledger.reset();
+
+    assertFalse(ledger.containsRemovals());
   }
 
   @Test
   public void smartRemoval_missingCase() {
     TagMap.Ledger ledger = TagMap.ledger();
     ledger.smartRemove("foo");
+
+    assertFalse(ledger.containsRemovals());
+
+    ledger.reset();
 
     assertFalse(ledger.containsRemovals());
   }

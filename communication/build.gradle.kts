@@ -13,6 +13,7 @@ dependencies {
   implementation(project(":remote-config:remote-config-core"))
   implementation(project(":internal-api"))
   implementation(project(":utils:container-utils"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))
 
@@ -23,7 +24,6 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
-  testImplementation(libs.truth)
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")

@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
@@ -16,7 +17,7 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 }
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.maven.MavenRunner')
   }
@@ -24,7 +25,13 @@ jar {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.maven.jar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.maven.jar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 
   // Overriding the default timeout as Maven smoke tests might run for a longer duration.
   timeout = Duration.of(25, ChronoUnit.MINUTES)

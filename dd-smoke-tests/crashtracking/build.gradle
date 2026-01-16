@@ -1,16 +1,18 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id 'com.gradleup.shadow'
 }
 
-ext {
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
   excludeJdk = ['IBM8']
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 description = 'Crashtracking Integration Tests.'
 
-jar {
+tasks.named("jar", Jar) {
   manifest {
     attributes('Main-Class': 'datadog.smoketest.crashtracking.CrashtrackingTestApplication')
   }
@@ -22,13 +24,18 @@ dependencies {
   testImplementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
   testImplementation libs.bundles.junit5
-  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
   testImplementation libs.bundles.mockito
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.app.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.app.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 
   testLogging {
     events "started", "passed", "skipped", "failed"

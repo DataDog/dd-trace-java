@@ -1,7 +1,19 @@
 package datadog.crashtracking.parsers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.crashtracking.dto.CrashLog;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -19,5 +31,33 @@ public class HotspotCrashLogParserTest {
   })
   public void testDateTimeParser(String logDateTime, String expectedISODateTime) {
     assertEquals(expectedISODateTime, HotspotCrashLogParser.dateTimeToISO(logDateTime));
+  }
+
+  @Test
+  public void testIncompleteParsing() throws Exception {
+    // Given
+    final String uuid = UUID.randomUUID().toString();
+
+    // When
+    final CrashLog crashLog =
+        new HotspotCrashLogParser().parse(uuid, readFileAsString("incomplete-crash.txt"));
+
+    // Then
+    assertNotNull(crashLog);
+    assertEquals(uuid, crashLog.uuid);
+    assertTrue(crashLog.incomplete);
+    assertNotNull(crashLog.error);
+    assertNotNull(crashLog.error.stack);
+    assertNotNull(crashLog.error.stack.frames);
+    assertEquals(0, crashLog.error.stack.frames.length);
+  }
+
+  private String readFileAsString(String resource) throws IOException {
+    try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
+      return new BufferedReader(
+              new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8))
+          .lines()
+          .collect(Collectors.joining("\n"));
+    }
   }
 }

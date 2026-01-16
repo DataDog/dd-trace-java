@@ -6,13 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureAct
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.HTTP_REQUEST;
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -22,17 +22,18 @@ import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
-@AutoService(InstrumenterModule.class)
-public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
+public class ApacheHttpAsyncClientInstrumentation
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public ApacheHttpAsyncClientInstrumentation() {
-    super("httpasyncclient", "apache-httpasyncclient");
+    super();
   }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(
+            asList("httpasyncclient", "apache-httpasyncclient"), false);
   }
 
   @Override
@@ -56,17 +57,6 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".DelegatingRequestProducer",
-      packageName + ".TraceContinuedFutureCallback",
-      packageName + ".ApacheHttpAsyncClientDecorator",
-      packageName + ".HostAndRequestAsHttpUriRequest"
-    };
   }
 
   @Override

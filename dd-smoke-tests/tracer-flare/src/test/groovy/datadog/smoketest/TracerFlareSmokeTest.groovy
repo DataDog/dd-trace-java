@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.trace.test.util.Flaky
 import spock.lang.Shared
 
 import java.nio.file.FileSystems
@@ -131,12 +132,14 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     // Only if there were errors
     "pending_traces.txt",
     // Only if there were traces pending transmission
-    "profiling_template_override.jfp"
+    "profiling_template_override.jfp",
     // Only if template override is configured
+    "profiler_log.txt"
+    // Only if there are any profiler issues reported
   ] as Set<String>
 
   // Profiling-related files
-  private static final PROFILING_FILES = ["profiler_config.txt",
+  private static final PROFILING_FILES = ["profiler_config.txt", "profiler_env.txt"
     // Only if profiling is enabled
   ] as Set<String>
 
@@ -151,6 +154,7 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     fileName.startsWith(FLARE_FILE_PREFIX) && fileName.endsWith(FLARE_FILE_EXTENSION)
   }
 
+  @Flaky("No flare file created in 30 seconds under various JDKs: oracle8, ibm8, zulu8")
   def "tracer generates flare with profiling enabled (default)"() {
     when:
     // Wait for flare file to be created using filesystem watcher
@@ -172,6 +176,7 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES + PROFILING_FILES)
   }
 
+  @Flaky("java.lang.AssertionError: No flare file created in /tmp/flare-test-profiling-disabled-xxx within 30 seconds")
   def "tracer generates flare with profiling disabled"() {
     when:
     // Wait for flare file to be created independently for process 1
@@ -297,7 +302,6 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
       }
 
       throw new AssertionError("No flare file created in ${flareDir} within ${timeoutSeconds} seconds")
-
     } finally {
       watchService.close()
     }

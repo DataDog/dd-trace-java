@@ -4,10 +4,11 @@ import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.an
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_CODE;
 import static net.bytebuddy.jar.asm.ClassReader.SKIP_DEBUG;
 
+import datadog.instrument.classmatch.ClassFile;
+import datadog.trace.api.InstrumenterConfig;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.ClassReader;
@@ -19,13 +20,19 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 /** Attempts a minimal parse of just the named elements we need for matching. */
 final class OutlineTypeParser implements TypeParser {
+  private static final boolean visitorClassParsing =
+      InstrumenterConfig.get().isVisitorClassParsing();
 
   @Override
   public TypeDescription parse(byte[] bytecode) {
-    ClassReader classReader = OpenedClassReader.of(bytecode);
-    OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
-    classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
-    return typeExtractor.typeOutline;
+    if (visitorClassParsing) {
+      ClassReader classReader = OpenedClassReader.of(bytecode);
+      OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
+      classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
+      return typeExtractor.typeOutline;
+    } else {
+      return new TypeOutline(ClassFile.outline(bytecode));
+    }
   }
 
   @Override
@@ -34,19 +41,13 @@ final class OutlineTypeParser implements TypeParser {
 
     TypeOutline typeOutline =
         new TypeOutline(
-            ClassFileVersion.ofThisVm().getMinorMajorVersion(),
             loadedType.getModifiers(),
             loadedType.getName(),
             null != superClass ? superClass.getName() : null,
             extractTypeNames(loadedType.getInterfaces()));
 
-    Class<?> declaringClass = loadedType.getDeclaringClass();
-    if (null != declaringClass) {
-      typeOutline.declaredBy(declaringClass.getName());
-    }
-
     for (Annotation a : loadedType.getDeclaredAnnotations()) {
-      typeOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+      typeOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
     }
 
     for (Field field : loadedType.getDeclaredFields()) {
@@ -57,7 +58,7 @@ final class OutlineTypeParser implements TypeParser {
               field.getName(),
               Type.getDescriptor(field.getType()));
       for (Annotation a : field.getDeclaredAnnotations()) {
-        fieldOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+        fieldOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }
       typeOutline.declare(fieldOutline);
     }
@@ -70,7 +71,7 @@ final class OutlineTypeParser implements TypeParser {
               method.getName(),
               Type.getMethodDescriptor(method));
       for (Annotation a : method.getDeclaredAnnotations()) {
-        methodOutline.declare(annotationOutline(Type.getDescriptor(a.annotationType())));
+        methodOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
       }
       typeOutline.declare(methodOutline);
     }
@@ -91,7 +92,6 @@ final class OutlineTypeParser implements TypeParser {
     TypeOutline typeOutline;
     FieldOutline fieldOutline;
     MethodOutline methodOutline;
-    boolean selfContained = true;
 
     OutlineTypeExtractor() {
       super(OpenedClassReader.ASM_API);
@@ -105,23 +105,7 @@ final class OutlineTypeParser implements TypeParser {
         String signature,
         String superName,
         String[] interfaces) {
-      typeOutline = new TypeOutline(version, access, name, superName, interfaces);
-    }
-
-    @Override
-    public void visitOuterClass(String owner, String name, String descriptor) {
-      selfContained = false;
-    }
-
-    @Override
-    public void visitInnerClass(String name, String outerName, String innerName, int access) {
-      if (typeOutline.getInternalName().equals(name)) {
-        if (null != outerName) {
-          typeOutline.declaredBy(outerName);
-        } else if (null == innerName && !selfContained) {
-          typeOutline.anonymousType();
-        }
-      }
+      typeOutline = new TypeOutline(access, name, superName, interfaces);
     }
 
     @Override

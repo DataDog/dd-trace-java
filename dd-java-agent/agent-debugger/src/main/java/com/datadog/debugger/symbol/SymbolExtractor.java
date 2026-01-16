@@ -10,9 +10,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Label;
@@ -124,6 +126,8 @@ public class SymbolExtractor {
               .name(method.name)
               .scopes(varScopes)
               .symbols(methodSymbols)
+              .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
+              .injectibleLines(methodLineInfo.ranges)
               .languageSpecifics(methodSpecifics)
               .build();
       methodScopes.add(methodScope);
@@ -237,8 +241,10 @@ public class SymbolExtractor {
               "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
       }
     }
-    // if class is an interface && method as code this is a default method
-    if ((classNode.access & Opcodes.ACC_INTERFACE) > 0 && methodNode.instructions.size() > 0) {
+    // if class is an interface && method has code && non-static this is a default method
+    if ((classNode.access & Opcodes.ACC_INTERFACE) > 0
+        && methodNode.instructions.size() > 0
+        && (methodNode.access & Opcodes.ACC_STATIC) == 0) {
       results.add("default");
     }
     return results;
@@ -429,26 +435,47 @@ public class SymbolExtractor {
         : scope1;
   }
 
-  private static int getFirstLine(MethodNode methodNode) {
-    AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        LineNumberNode lineNumberNode = (LineNumberNode) node;
-        return lineNumberNode.line;
-      }
-      node = node.getNext();
+  static List<Scope.LineRange> buildRanges(List<Integer> sortedLineNo) {
+    if (sortedLineNo.isEmpty()) {
+      return Collections.emptyList();
     }
-    return 0;
+    List<Scope.LineRange> ranges = new ArrayList<>();
+    int start = sortedLineNo.get(0);
+    int previous = start;
+    int i = 1;
+    outer:
+    while (i < sortedLineNo.size()) {
+      int currentLineNo = sortedLineNo.get(i);
+      while (currentLineNo == previous + 1) {
+        i++;
+        previous++;
+        if (i < sortedLineNo.size()) {
+          currentLineNo = sortedLineNo.get(i);
+        } else {
+          break outer;
+        }
+      }
+      ranges.add(new Scope.LineRange(start, previous));
+      start = currentLineNo;
+      previous = start;
+      i++;
+    }
+    ranges.add(new Scope.LineRange(start, previous));
+    return ranges;
   }
 
   private static MethodLineInfo extractMethodLineInfo(MethodNode methodNode) {
     Map<Label, Integer> map = new HashMap<>();
-    int startLine = getFirstLine(methodNode);
-    int maxLine = startLine;
+    List<Integer> lineNo = new ArrayList<>();
+    Set<Integer> dedupSet = new HashSet<>();
     AbstractInsnNode node = methodNode.instructions.getFirst();
+    int maxLine = 0;
     while (node != null) {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
+        if (dedupSet.add(lineNumberNode.line)) {
+          lineNo.add(lineNumberNode.line);
+        }
         maxLine = Math.max(lineNumberNode.line, maxLine);
       }
       if (node.getType() == AbstractInsnNode.LABEL) {
@@ -459,7 +486,10 @@ public class SymbolExtractor {
       }
       node = node.getNext();
     }
-    return new MethodLineInfo(startLine, maxLine, map);
+    lineNo.sort(Integer::compareTo);
+    int startLine = lineNo.isEmpty() ? 0 : lineNo.get(0);
+    List<Scope.LineRange> ranges = buildRanges(lineNo);
+    return new MethodLineInfo(startLine, maxLine, map, ranges);
   }
 
   private static ClassNode parseClassFile(byte[] classfileBuffer) {
@@ -473,11 +503,15 @@ public class SymbolExtractor {
     final int start;
     final int end;
     final Map<Label, Integer> lineMap;
+    final List<Scope.LineRange> ranges;
 
-    public MethodLineInfo(int start, int end, Map<Label, Integer> lineMap) {
+    public MethodLineInfo(
+        int start, int end, Map<Label, Integer> lineMap, List<Scope.LineRange> ranges) {
       this.start = start;
       this.end = end;
       this.lineMap = lineMap;
+
+      this.ranges = ranges;
     }
   }
 }

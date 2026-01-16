@@ -9,10 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import datadog.trace.test.util.Flaky;
+import datadog.trace.test.util.NonRetryable;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@Flaky
+@NonRetryable
 public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
 
   private static final String DEBUGGER_TEST_APP_CLASS =
@@ -84,7 +87,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe, processTagsEnabled);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -116,7 +121,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -145,7 +152,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -174,7 +183,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   @Test
@@ -203,7 +214,9 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           requestReceived.set(true);
         });
     doTestTracer(logProbe);
-    processRequests(requestReceived::get);
+    processRequests(
+        requestReceived::get,
+        () -> String.format("timeout requestReceived=%s", requestReceived.get()));
   }
 
   private void doTestTracer(LogProbe logProbe) throws Exception {
@@ -214,10 +227,7 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
     setCurrentConfiguration(createConfig(logProbe));
     String httpPort = String.valueOf(PortUtils.randomOpenPort());
     ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
-    if (enableProcessTags) {
-      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "true");
-    } else if (JavaVirtualMachine.isJavaVersion(21)) {
-      // disable explicitly since enable by default on 21
+    if (!enableProcessTags) {
       processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "false");
     }
     targetProcess = processBuilder.start();

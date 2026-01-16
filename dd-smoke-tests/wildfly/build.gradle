@@ -4,7 +4,6 @@ ext {
   serverModule = 'wildfly'
   serverVersion = '15.0.0.Final'
   serverExtension = 'zip'
-  maxJavaVersionForTests = JavaVersion.VERSION_11
 }
 
 repositories {
@@ -23,10 +22,14 @@ repositories {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+testJvmConstraints {
+  maxJavaVersion = JavaVersion.VERSION_11
+}
+
 description = 'Wildfly Smoke Tests.'
 
 configurations {
-  serverFile {
+  register('serverFile') {
     extendsFrom implementation
     canBeResolved = true
   }
@@ -47,7 +50,10 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the quarkus project
 tasks.register('earBuild', Exec) {
   workingDir "$appDir"
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
   commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
@@ -61,14 +67,12 @@ tasks.register('earBuild', Exec) {
   })
   .withPropertyName("application")
   .withPathSensitivity(PathSensitivity.RELATIVE)
-}
 
-earBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-tasks.named("compileTestGroovy").configure {
-  dependsOn tasks.earBuild
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn 'earBuild'
   outputs.upToDateWhen {
     !earBuild.didWork
   }
@@ -84,41 +88,43 @@ spotless {
   }
 }
 
-def wildflyDir="${buildDir}/${serverName}-${serverVersion}"
-
 tasks.register("unzip", Copy) {
-  dependsOn tasks.earBuild
-  mustRunAfter tasks.compileTestGroovy
+  dependsOn 'earBuild'
+  mustRunAfter 'compileTestGroovy'
   def zipFileNamePrefix = "wildfly"
-  def zipPath = project.configurations.serverFile.find {
-    it.name.startsWith(zipFileNamePrefix)
-  }
-  if (zipPath != null) {
-    def zipFile = file(zipPath)
-    def outputDir = file("${buildDir}")
 
-    from zipTree(zipFile)
-    into outputDir
-  } else {
-    throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+  def serverZipTree = providers.provider {
+    // eager access
+    def zipPath = project.configurations.serverFile.find {
+      it.name.startsWith(zipFileNamePrefix)
+    }
+    if (zipPath == null) {
+      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+    }
+    zipTree(zipPath)
   }
+
+  from serverZipTree
+  into layout.buildDirectory
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
 }
 
 tasks.withType(Jar).configureEach {
-  dependsOn tasks.unzip
+  dependsOn 'unzip'
 }
 
+def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
+
 tasks.register("deploy", Copy) {
-  dependsOn tasks.unzip
+  dependsOn 'unzip'
   from "${appBuildDir}/libs/wildfly-spring-ear-smoketest.ear"
   into "${wildflyDir}/standalone/deployments"
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn tasks.deploy
+  dependsOn 'deploy'
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
 }
 

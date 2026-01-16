@@ -1,0 +1,48 @@
+/*
+ Note: The Interceptor class for OkHttp was not introduced until 2.2+, so we need to make sure the
+ instrumentation is not loaded unless the dependency is 2.2+.
+ */
+muzzle {
+  pass {
+    group = "com.squareup.okhttp"
+    module = "okhttp"
+    versions = "[2.2,3)"
+    assertInverse = true
+  }
+  pass {
+    name = 'okhttp-2.4' // for IastHttpUrlInstrumentation
+    group = "com.squareup.okhttp"
+    module = "okhttp"
+    versions = "[2.4,3)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly(group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0')
+
+  implementation(project(':dd-java-agent:agent-tooling')) {
+    exclude module: 'okhttp'
+  }
+
+  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
+    exclude module: 'okhttp'
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')) {
+    exclude module: 'okhttp'
+  }
+  testImplementation(project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')) {
+    exclude module: 'okhttp'
+  }
+  testImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
+
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
+
+  latestDepTestImplementation group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'
+}
+
+

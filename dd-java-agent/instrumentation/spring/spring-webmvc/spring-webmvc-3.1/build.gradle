@@ -52,9 +52,9 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:spring:spring-beans-3.1')
 
   // Include servlet instrumentation for verifying the tomcat requests
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
-  testImplementation project(':dd-java-agent:instrumentation:servlet-common')
-  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
 
   // include also tomcat instrumentation
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
@@ -65,8 +65,6 @@ dependencies {
 
   testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
   testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
-
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
 
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
@@ -79,6 +77,8 @@ dependencies {
   testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
 
   testImplementation group: 'org.jboss.resteasy', name: 'resteasy-spring', version: '3.0.0.Final'
+
+  testImplementation(libs.spock.spring)
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.+'

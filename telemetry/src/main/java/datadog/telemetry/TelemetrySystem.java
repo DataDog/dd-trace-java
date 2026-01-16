@@ -101,7 +101,7 @@ public class TelemetrySystem {
             : HttpRetryPolicy.Factory.NEVER_RETRY;
 
     TelemetryClient agentClient =
-        TelemetryClient.buildAgentClient(sco.okHttpClient, sco.agentUrl, httpRetryPolicy);
+        TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
     TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config, httpRetryPolicy);
 
     boolean useIntakeClientByDefault =

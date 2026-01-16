@@ -9,7 +9,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -19,7 +19,7 @@ dependencies {
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'
   testImplementation project(':dd-java-agent:instrumentation:freemarker:freemarker-2.3.9')
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.+'
 }

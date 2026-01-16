@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
@@ -10,17 +11,8 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
-  }
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 tasks.withType(AbstractCompile).configureEach {
-  // ensure no APIs beyond JDK8 are used
-  options.release = 8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")
 }
 
 // First version with Mac M1 support
@@ -36,27 +28,31 @@ protobuf {
     grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
   }
   generateProtoTasks {
-    all()*.plugins { grpc {} }
+    ofSourceSet("test").configureEach {
+      plugins { grpc {} }
+    }
   }
 }
 
 dependencies {
   api libs.slf4j
 
-  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  compileOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
   implementation libs.moshi
   implementation libs.bundles.asm
+  implementation libs.instrument.java
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
-  testImplementation libs.bytebuddy
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
-  testImplementation libs.groovy.yaml
-  testImplementation libs.guava
+  testImplementation(libs.bytebuddy)
+  testImplementation(libs.guava)
+
+  testImplementation(libs.groovy.yaml)
 
   testImplementation group: 'io.grpc', name: 'grpc-core', version: grpcVersion
   testImplementation group: 'io.grpc', name: 'grpc-protobuf', version: grpcVersion
@@ -66,19 +62,19 @@ dependencies {
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')
   jmh project(':dd-java-agent:agent-builder')
-  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
-  jmh project(':dd-java-agent:instrumentation:java-lang')
+  jmh project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')
   errorprone('com.uber.nullaway:nullaway:0.10.15')
   errorprone('com.google.errorprone:error_prone_core:2.23.0')
 }
 
-shadowJar {
+tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }
 
-jar {
+tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
@@ -115,9 +111,8 @@ jmh {
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-pitest {
-  targetClasses = ['com.datadog.iast.*']
-  jvmArgs = ['-Ddd.iast.enabled=true']
+tasks.named("forbiddenApisJmh") {
+  ignoreFailures = true
 }
 
 sourceSets {

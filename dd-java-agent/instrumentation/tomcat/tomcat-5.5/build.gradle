@@ -1,10 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_17
-  latest10TestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latest10ForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
-
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
@@ -62,22 +55,25 @@ addTestSuite("tomcat9Test")
 addTestSuiteForDir('latest10Test', 'latestDepTest')
 addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest')
 
-
 def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
 
-configurations.all {
+configurations.configureEach {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'
   }
 }
 
-[compileLatest10TestGroovy, compileLatest10ForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(11)
+["compileLatest10TestGroovy", "compileLatest10ForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    configureCompiler(it, 11)
+  }
 }
 
-[compileLatestDepTestGroovy, compileLatestDepForkedTestGroovy].each {
-  it.javaLauncher = getJavaLauncherFor(17)
+["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each { name ->
+  tasks.named(name, GroovyCompile) {
+    configureCompiler(it, 17)
+  }
 }
 
 dependencies {
@@ -94,10 +90,6 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // Required jars for embedded tomcat:
   testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
   testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
@@ -107,18 +99,18 @@ dependencies {
   testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
   testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-3'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-5.5')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-3')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:request-5')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
 
-  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:request-5'))
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
 
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
   tomcat9TestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-websocket', version: '9.+'
@@ -142,24 +134,57 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
 }
 
-project.afterEvaluate {
-  tasks.withType(Test).configureEach {
-    if (javaLauncher.get().metadata.languageVersion.asInt() >= 16) {
-      // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
-      jvmArgs += ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
-    }
-  }
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure IastServlet2Instrumentation applies (requires no javax.servlet.AsyncEvent)
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
+tasks.withType(Test).configureEach {
+  // to avoid java.lang.IllegalAccessException: class org.apache.tomcat.util.compat.JreCompat cannot access a member of class java.io.FileSystem (in module java.base) with modifiers "static final"
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_16,
+    ['--add-opens', 'java.base/java.io=ALL-UNNAMED']
+    )
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
-configurations.findAll { it.name in ["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"] }
-.each {
-  it.exclude group: 'tomcat', module: 'catalina'
-  it.exclude group: 'tomcat', module: 'tomcat-coyote'
-  it.exclude group: 'tomcat', module: 'tomcat-util'
-  it.exclude group: 'tomcat', module: 'tomcat-http'
-  it.exclude group: 'tomcat', module: 'naming-resources'
-  it.exclude group: 'tomcat', module: 'naming-factory'
-  it.exclude group: 'commons-modeler', module: 'commons-modeler'
-  it.exclude group: 'javax.servlet', module: 'servlet-api'
+["latestDepTestImplementation", "tomcat9TestImplementation", "latest10TestImplementation"].each {
+  configurations.named(it) {
+    it.exclude group: 'tomcat', module: 'catalina'
+    it.exclude group: 'tomcat', module: 'tomcat-coyote'
+    it.exclude group: 'tomcat', module: 'tomcat-util'
+    it.exclude group: 'tomcat', module: 'tomcat-http'
+    it.exclude group: 'tomcat', module: 'naming-resources'
+    it.exclude group: 'tomcat', module: 'naming-factory'
+    it.exclude group: 'commons-modeler', module: 'commons-modeler'
+    it.exclude group: 'javax.servlet', module: 'servlet-api'
+  }
+}
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("latest10Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latest10ForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
 }
