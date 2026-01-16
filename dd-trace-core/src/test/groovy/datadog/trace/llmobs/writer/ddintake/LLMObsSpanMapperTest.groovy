@@ -110,6 +110,36 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanData["tags"].contains("language:jvm")
   }
 
+  def "test LLMObsSpanMapper writes no spans when none are LLMObs spans"() {
+    setup:
+    def mapper = new LLMObsSpanMapper()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def regularSpan1 = tracer.buildSpan("http.request")
+      .withResourceName("GET /api/users")
+      .withTag("http.method", "GET")
+      .withTag("http.url", "https://example.com/api/users")
+      .start()
+    regularSpan1.finish()
+
+    def regularSpan2 = tracer.buildSpan("database.query")
+      .withResourceName("SELECT * FROM users")
+      .withTag("db.type", "postgresql")
+      .start()
+    regularSpan2.finish()
+
+    def trace = [regularSpan1, regularSpan2]
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+
+    when:
+    packer.format(trace, mapper)
+    packer.flush()
+
+    then:
+    sink.captured == null
+  }
+
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
 
     ByteBuffer captured

@@ -9,7 +9,6 @@ import datadog.trace.api.config.TracerConfig
 import java.nio.file.Paths
 import spock.lang.Specification
 import spock.lang.TempDir
-import spock.util.environment.Jvm
 
 import java.nio.file.Path
 
@@ -29,10 +28,20 @@ abstract class CiVisibilitySmokeTest extends Specification {
   protected Path prefsDir
 
   protected static String buildJavaHome() {
-    if (Jvm.current.isJava8()) {
-      return System.getenv("JAVA_8_HOME")
+    def javaHome = System.getProperty("java.home")
+    def javacPath = Paths.get(javaHome, "bin", "javac").toFile()
+    if (javacPath.exists()) {
+      return javaHome
     }
-    return System.getenv("JAVA_" + Jvm.current.getJavaSpecificationVersion() + "_HOME")
+    // In CI for JDK 8, java.home may point to the JRE directory (e.g., /usr/lib/jvm/8/jre)
+    // The JDK with javac is in the parent directory
+    def parentDir = new File(javaHome).getParentFile()
+    def parentJavacPath = new File(parentDir, Paths.get("bin", "javac").toString())
+    if (parentJavacPath.exists()) {
+      return parentDir.getAbsolutePath()
+    }
+    // Fallback to java.home and let callers handle the error if javac is not found
+    return javaHome
   }
 
   protected static String javaPath() {

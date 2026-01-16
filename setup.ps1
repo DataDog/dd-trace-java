@@ -43,16 +43,9 @@ function TestJvm {
 
 Write-Host 'ℹ️ Checking required JVM:'
 if (Test-Path 'env:JAVA_HOME') {
-  TestJvm 'JAVA_HOME' '1.8'
+  TestJvm 'JAVA_HOME' '21'
 }
-
-TestJvm 'JAVA_8_HOME' '1.8'
-TestJvm 'JAVA_11_HOME' '11'
-TestJvm 'JAVA_17_HOME' '17'
-TestJvm 'JAVA_21_HOME' '21'
-TestJvm 'JAVA_25_HOME' '25'
-# GraalVM cannot currently be installed due to license change in October 2024 for GraalVM 17.0.13 and later.
-# TestJvm 'JAVA_GRAALVM17_HOME' '17'
+Write-Host 'ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver.'
 
 # Check for required commands (e.g., git, docker)
 function TestCommand {
@@ -98,10 +91,22 @@ function TestGitConfig {
     Write-Host "✅ git config $configName is set to $expectedValue."
   }
   elseif (-not $actualValue) {
-    Write-Host "❌ git config $configName is not set. Please set it to $expectedValue." -ForegroundColor Red
+    Write-Host "❌ git config $configName is not set. Please run 'git config set $configName $expectedValue'." -ForegroundColor Red
   }
   else {
-    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue)."
+    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue). Please run 'git config set $configName $expectedValue'."
+  }
+}
+
+function TestSubmoduleInitialization {
+  if (Test-Path '.gitmodules') {
+    $uninitializedSubmodules = git submodule status | Select-String '^-'
+    if ($uninitializedSubmodules) {
+      Write-Host "❌ A git submodule are not initialized. Please run 'git submodule update --init --recursive'." -ForegroundColor Red
+    }
+    else {
+      Write-Host "✅ All git submodules are initialized."
+    }
   }
 }
 
@@ -109,6 +114,7 @@ Write-Host 'ℹ️ Checking git configuration:'
 TestCommand 'git'
 TestHook 'pre-commit'
 TestGitConfig 'submodule.recurse' 'true'
+TestSubmoduleInitialization
 
 # Check Docker environment
 function TestDockerServer {

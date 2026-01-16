@@ -93,6 +93,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
     List<? extends CoreSpan<?>> llmobsSpans =
         trace.stream().filter(LLMObsSpanMapper::isLLMObsSpan).collect(Collectors.toList());
 
+    if (llmobsSpans.isEmpty()) {
+      // do nothing if no llmobs spans in the trace
+      return;
+    }
+
     writable.startMap(3);
 
     writable.writeUTF8(EVENT_TYPE);
