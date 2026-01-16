@@ -3283,14 +3283,15 @@ final class TagValueConversions {
   }
 
   static boolean isObject(Object value) {
-    boolean isSupportedPrimitive = (value instanceof Integer)
-        || (value instanceof Long)
-        || (value instanceof Double)
-        || (value instanceof Float)
-        || (value instanceof Boolean)
-        || (value instanceof Short)
-        || (value instanceof Byte);
-    
+    boolean isSupportedPrimitive =
+        (value instanceof Integer)
+            || (value instanceof Long)
+            || (value instanceof Double)
+            || (value instanceof Float)
+            || (value instanceof Boolean)
+            || (value instanceof Short)
+            || (value instanceof Byte);
+
     // Char is just treated as Object
     return !isSupportedPrimitive;
   }
@@ -3303,10 +3304,10 @@ final class TagValueConversions {
     if (value instanceof Boolean) {
       return (Boolean) value;
     } else if (value instanceof Number) {
-      // NOTE: This cannot be intValue() because intValue of larger types is 0 when 
-      // the actual value would be less than Integer.MIN_VALUE or for floating point 
+      // NOTE: This cannot be intValue() because intValue of larger types is 0 when
+      // the actual value would be less than Integer.MIN_VALUE or for floating point
       // types is very close to zero, so using doubleValue instead.
-      
+
       // While this is a bit ugly, coerced toBoolean is uncommon
       return ((Number) value).doubleValue() != 0D;
     } else {
