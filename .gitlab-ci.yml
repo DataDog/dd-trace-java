@@ -19,8 +19,8 @@ stages:
   - infrastructure
   - java-spring-petclinic-tests
   - java-spring-petclinic-macrobenchmarks
-  - java-spring-petclinic-microbenchmarks
-  - java-insecure-bank-microbenchmarks
+  - java-startup-microbenchmarks
+  - java-load-microbenchmarks
   - generate-slos
   - macrobenchmarks
   - tests
