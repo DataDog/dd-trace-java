@@ -896,6 +896,220 @@ To change the Daemon JVM version, use the built-in `updateDaemonJvm` task:
 This task updates the `gradle/gradle-daemon-jvm.properties` file with the new criteria. Commit this file to version control so the entire team uses the same Daemon JVM.
 
 > [!CAUTION]
-> Mot using this task will break the JDK auto-provisioning for the Gradle Daemon.
+> Not using this task will break the JDK auto-provisioning for the Gradle Daemon.
 
+## Troubleshooting
+
+When Gradle builds fail or behave unexpectedly, several tools and techniques can help diagnose the problem.
+
+### Build Scans (Develocity)
+
+This project uses [Gradle Develocity](https://gradle.com/) for build scans. Build scans provide detailed insights into build performance, dependency resolution, and failures.
+
+```bash
+# Generate a build scan (requires accepting terms of use)
+./gradlew build --scan
+```
+
+On CI, build scans are automatically published (unless `SKIP_BUILDSCAN=true`). The scan URL is printed at the end of the build output.
+
+**What build scans show:**
+- Build timeline and task execution order
+- Dependency resolution details and conflicts
+- Test results with failure details
+- Configuration cache hits/misses
+- Build cache effectiveness
+
+**For performance analysis**, focus on these sections:
+
+| Section                              | What to look for                                                   |
+|--------------------------------------|--------------------------------------------------------------------|
+| **Performance** → **Build**          | Total build time breakdown: configuration vs execution vs overhead |
+| **Performance** → **Configuration**  | Slow scripts, plugin apply times, expensive configuration logic    |
+| **Performance** → **Task execution** | Parallelism utilization, task wait times, serial bottlenecks       |
+| **Timeline**                         | Visual task execution, look for long sequential chains             |
+| **Timeline** → **Critical path**     | Tasks that directly impact total build time—optimize these first   |
+| **Build cache**                      | Cache hit rates, "not cacheable" tasks that could be               |
+| **Dependency resolution**            | Slow repositories, resolution time per configuration               |
+
+> [!TIP]
+> The **critical path** shows tasks that directly determine build duration. Parallelizing or speeding up
+> tasks *not* on the critical path won't reduce total build time.
+
+**Diagnosing tasks that should be UP-TO-DATE but aren't:**
+
+1. **In build scans**: Navigate to **Timeline** → click on the task → **Inputs** tab. Look for inputs that change unexpectedly between builds (timestamps, absolute paths, non-deterministic values). The **Outcome** section also shows the reason for execution (e.g., "Input property 'source' has changed").
+
+2. **With `--info` flag**: Gradle logs why each task executed (same info as build scans but locally):
+   ```bash
+   ./gradlew :my-project:compileJava --info
+   # Look for: "Task ':my-project:compileJava' is not up-to-date because:"
+   #   - "Input property 'source' file /path/to/File.java has changed."
+   #   - "Output property 'destinationDirectory' file /path/to/classes has been removed."
+   ```
+
+3. **Common causes of unexpected re-execution**:
+   - Undeclared inputs (task reads files not tracked as inputs)
+   - Non-reproducible inputs (timestamps, random values, absolute paths)
+   - Outputs modified by another task or external process
+   - Missing `@PathSensitive` annotation causing full path comparison instead of relative
+
+### Diagnostic Flags
+
+Gradle provides several flags to increase output verbosity:
+
+| Flag                | Description                                                  |
+|---------------------|--------------------------------------------------------------|
+| `--info`            | Adds informational log messages (recommended starting point) |
+| `--debug`           | Very verbose output including internal Gradle operations     |
+| `--stacktrace`      | Prints stack traces for exceptions                           |
+| `--full-stacktrace` | Prints full stack traces (including internal frames)         |
+| `--scan`            | Generates a build scan with detailed diagnostics             |
+| `--dry-run` / `-m`  | Shows which tasks would run without executing them           |
+| `--console=verbose` | Shows all task outcomes including UP-TO-DATE                 |
+
+```bash
+# Diagnose a failing task with info logging
+./gradlew :my-project:test --info
+
+# See full exception details
+./gradlew build --stacktrace
+
+# Combine for thorough diagnosis
+./gradlew build --info --stacktrace --scan
+```
+
+### The `gradle-debug` Convention Plugin
+
+This project includes a debug plugin that logs JDK information for all tasks. Enable it with `-PddGradleDebug`:
+
+```bash
+./gradlew build -PddGradleDebug
+```
+
+This writes JSON-formatted task/JDK mappings to `build/datadog.gradle-debug.log`:
+
+```json
+{"task":":dd-trace-api:compileJava","jdk":"8"}
+{"task":":dd-trace-api:test","jdk":"11"}
+```
+
+Use this to diagnose JDK-related issues, especially when tasks use unexpected Java versions.
+
+### Common Issues and Solutions
+
+**"Could not resolve dependency"**
+
+```bash
+# Check dependency resolution details
+./gradlew :my-project:dependencies --configuration runtimeClasspath
+
+# Force refresh of dependencies
+./gradlew build --refresh-dependencies
+```
+
+**"Task ... uses this output of task ... without declaring an explicit or implicit dependency"**
+
+This indicates a missing task dependency. The producing task must be declared as a dependency:
+
+```Gradle Kotlin DSL
+tasks.named("consumingTask") {
+    // Declare the dependent task outputs as inputs of this task
+    inputs.files(tasks.named("producingTask").map { it.outputs })
+    
+    // If that doesn't work track the dependency
+    dependsOn(tasks.named("producingTask"))
+}
+```
+
+**Out of memory errors**
+
+Increase Gradle daemon memory in `gradle.properties`:
+
+```properties
+org.gradle.jvmargs=-Xmx4g -XX:+HeapDumpOnOutOfMemoryError
+```
+
+**Daemon seems stuck or slow**
+
+```bash
+# Stop all daemons and start fresh
+./gradlew --stop
+./gradlew build
+```
+
+### Configuration Cache Issues
+
+The configuration cache speeds up builds by caching the task graph. However, some code patterns are incompatible.
+
+**Common configuration cache violations:**
+
+1. **Capturing `Project` at execution time:**
+   ```Gradle Kotlin DSL
+   // ❌ Bad - captures Project reference
+   tasks.register("myTask") {
+       doLast {
+           println(project.version)  // Not allowed!
+       }
+   }
+
+   // ✅ Good - capture value at configuration time
+   tasks.register("myTask") {
+       val version = project.version
+       doLast {
+           println(version)
+       }
+   }
+   ```
+
+2. **Using `Task.project` in task actions:**
+   ```Gradle Kotlin DSL
+   // ❌ Bad
+   tasks.register("myTask") {
+       doLast {
+           copy {
+               from(project.file("src"))  // Not allowed!
+           }
+       }
+   }
+
+   // ✅ Good - use task properties
+   tasks.register<Copy>("myTask") {
+       from("src")
+   }
+   ```
+
+**Diagnosing configuration cache problems:**
+
+```bash
+# Run with configuration cache and see what fails
+./gradlew build --configuration-cache
+
+# Generate a detailed report
+./gradlew build --configuration-cache --configuration-cache-problems=warn
+```
+
+The report shows exactly which code paths capture disallowed references.
+
+### Useful Diagnostic Tasks
+
+```bash
+# Show project structure
+./gradlew projects
+
+# List all tasks in a project
+./gradlew :my-project:tasks --all
+
+# Show applied plugins
+./gradlew :my-project:buildEnvironment
+
+# Show all resolvable configurations
+./gradlew :my-project:resolvableConfigurations
+
+# Show outgoing variants (what this project exposes)
+./gradlew :my-project:outgoingVariants
+
+# Validate build logic without running tasks
+./gradlew help --scan
+```
 
