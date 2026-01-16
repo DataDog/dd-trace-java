@@ -319,13 +319,13 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      * Non-numeric primitive types
      */
     public static final byte BOOLEAN = 2;
-    public static final byte CHAR = 3;
+    static final byte CHAR_RESERVED = 3;
 
     /*
      * Numeric constants - deliberately arranged to allow for checking by using type >= BYTE
      */
-    public static final byte BYTE = 4;
-    public static final byte SHORT = 5;
+    static final byte BYTE_RESERVED = 4;
+    static final byte SHORT_RESERVED = 5;
     public static final byte INT = 6;
     public static final byte LONG = 7;
     public static final byte FLOAT = 8;
@@ -520,7 +520,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     }
 
     static boolean _isNumericPrimitive(byte type) {
-      return (type >= BYTE);
+      return (type >= BYTE_RESERVED);
     }
 
     private byte resolveAny() {
@@ -3234,11 +3234,11 @@ final class TagValueConversions {
     } else if (value instanceof Boolean) {
       return TagMap.EntryReader.BOOLEAN;
     } else if (value instanceof Short) {
-      return TagMap.EntryReader.SHORT;
+      return TagMap.EntryReader.INT;
     } else if (value instanceof Byte) {
-      return TagMap.EntryReader.BYTE;
+      return TagMap.EntryReader.INT;
     } else if (value instanceof Character) {
-      return TagMap.EntryReader.CHAR;
+      return TagMap.EntryReader.OBJECT;
     } else {
       return TagMap.EntryReader.OBJECT;
     }
@@ -3246,20 +3246,11 @@ final class TagValueConversions {
 
   static boolean isA(Object value, byte type) {
     switch (type) {
-      case TagMap.EntryReader.BYTE:
-        return (value instanceof Byte);
-
       case TagMap.EntryReader.BOOLEAN:
         return (value instanceof Boolean);
 
-      case TagMap.EntryReader.CHAR:
-        return (value instanceof Character);
-
-      case TagMap.EntryReader.SHORT:
-        return (value instanceof Short);
-
       case TagMap.EntryReader.INT:
-        return (value instanceof Integer);
+        return (value instanceof Integer) || (value instanceof Short) || (value instanceof Byte);
 
       case TagMap.EntryReader.LONG:
         return (value instanceof Long);
@@ -3292,14 +3283,16 @@ final class TagValueConversions {
   }
 
   static boolean isObject(Object value) {
-    return (value instanceof Integer)
+    boolean isSupportedPrimitive = (value instanceof Integer)
         || (value instanceof Long)
         || (value instanceof Double)
         || (value instanceof Float)
         || (value instanceof Boolean)
-        || (value instanceof Character)
         || (value instanceof Short)
         || (value instanceof Byte);
+    
+    // Char is just treated as Object
+    return !isSupportedPrimitive;
   }
 
   static boolean toBooleanOrDefault(Object value, boolean defaultValue) {
@@ -3310,7 +3303,11 @@ final class TagValueConversions {
     if (value instanceof Boolean) {
       return (Boolean) value;
     } else if (value instanceof Number) {
-      return ((Number) value).intValue() != 0;
+      // NOTE: This cannot be intValue() because intValue of larger types is 0 when 
+      // the actual value would be less than Integer.MIN_VALUE, so using doubleValue.
+      
+      // While this is a bit ugly, coerced toBoolean is uncommon
+      return ((Number) value).doubleValue() != 0D;
     } else {
       return false;
     }
