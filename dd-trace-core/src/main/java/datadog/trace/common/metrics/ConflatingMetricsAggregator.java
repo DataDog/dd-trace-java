@@ -3,6 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -306,6 +308,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
+    // Extract HTTP method and endpoint
+    Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
+    String httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
+    Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+    String httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
+
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -317,7 +325,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString()),
+            httpMethod,
+            httpEndpoint);
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;

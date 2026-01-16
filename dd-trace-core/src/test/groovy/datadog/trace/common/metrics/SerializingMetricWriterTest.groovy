@@ -57,7 +57,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("country:canada"),
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
-        ]
+        ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
@@ -76,8 +78,26 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
         ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
+        ),
+        Pair.of(
+        new MetricKey(
+        "GET /api/users/:id",
+        "web-service",
+        "http.request",
+        "web",
+        200,
+        false,
+        true,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id"
+        ),
+        new AggregateMetric().recordDurations(5, new AtomicLongArray(1L))
         )
       ],
       (0..10000).collect({ i ->
@@ -91,7 +111,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           false,
           false,
           "producer",
-          [UTF8BytesString.create("messaging.destination:dest" + i)]
+          [UTF8BytesString.create("messaging.destination:dest" + i)],
+          null,
+          null
           ),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
@@ -157,7 +179,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int metricMapSize = unpacker.unpackMapHeader()
-        assert metricMapSize == 15
+        assert metricMapSize == 17
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -190,6 +212,12 @@ class SerializingMetricWriterTest extends DDSpecification {
           def unpackedPeerTag = unpacker.unpackString()
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
+        ++elementCount
+        assert unpacker.unpackString() == "HTTPMethod"
+        assert unpacker.unpackString() == (key.getHttpMethod() as String ?: "")
+        ++elementCount
+        assert unpacker.unpackString() == "HTTPEndpoint"
+        assert unpacker.unpackString() == (key.getHttpEndpoint() as String ?: "")
         ++elementCount
         assert unpacker.unpackString() == "Hits"
         assert unpacker.unpackInt() == value.getHitCount()

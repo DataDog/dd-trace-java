@@ -35,6 +35,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
+  private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
@@ -104,7 +106,7 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-    writer.startMap(15);
+    writer.startMap(17);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -137,6 +139,12 @@ public final class SerializingMetricWriter implements MetricWriter {
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
     }
+
+    writer.writeUTF8(HTTP_METHOD);
+    writer.writeUTF8(key.getHttpMethod());
+
+    writer.writeUTF8(HTTP_ENDPOINT);
+    writer.writeUTF8(key.getHttpEndpoint());
 
     writer.writeUTF8(HITS);
     writer.writeInt(aggregate.getHitCount());
