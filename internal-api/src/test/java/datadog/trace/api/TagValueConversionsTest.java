@@ -49,6 +49,46 @@ public class TagValueConversionsTest {
   }
   
   @ParameterizedTest
+  @ValueSource(bytes = {Byte.MIN_VALUE, -32, -1, 0, 1, 32, Byte.MAX_VALUE})
+  public void byte_(byte value) {
+	Byte box = Byte.valueOf(value);
+	
+	assertEquals(TagMap.EntryReader.INT, TagValueConversions.typeOf(box));
+	assertTrue(TagValueConversions.isA(box, TagMap.EntryReader.INT));
+	assertTrue(TagValueConversions.isNumericPrimitive(box));
+	assertTrue(TagValueConversions.isNumber(box));
+	assertFalse(TagValueConversions.isObject(box));
+	
+	assertEquals((int)value, TagValueConversions.toInt(box));
+	assertEquals((long)value, TagValueConversions.toLong(box));
+	assertEquals((float)value, TagValueConversions.toFloat(box));
+	assertEquals((double)value, TagValueConversions.toDouble(box));
+	
+	assertEquals(value != 0, TagValueConversions.toBoolean(box));
+	assertEquals(Byte.toString(value), TagValueConversions.toString(box));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(shorts = {Short.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Short.MAX_VALUE})
+  public void short_(short value) {
+	Short box = Short.valueOf(value);
+	
+	assertEquals(TagMap.EntryReader.INT, TagValueConversions.typeOf(box));
+	assertTrue(TagValueConversions.isA(box, TagMap.EntryReader.INT));
+	assertTrue(TagValueConversions.isNumericPrimitive(box));
+	assertTrue(TagValueConversions.isNumber(box));
+	assertFalse(TagValueConversions.isObject(box));
+	
+	assertEquals((int)value, TagValueConversions.toInt(box));
+	assertEquals((long)value, TagValueConversions.toLong(box));
+	assertEquals((float)value, TagValueConversions.toFloat(box));
+	assertEquals((double)value, TagValueConversions.toDouble(box));
+	
+	assertEquals(value != 0, TagValueConversions.toBoolean(box));
+	assertEquals(Short.toString(value), TagValueConversions.toString(box));
+  }
+  
+  @ParameterizedTest
   @ValueSource(
       longs = {
         Long.MIN_VALUE,
@@ -81,5 +121,46 @@ public class TagValueConversionsTest {
 	
 	assertEquals(value != 0L, TagValueConversions.toBoolean(box));
 	assertEquals(Long.toString(value), TagValueConversions.toString(box));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  public void float_(float value) {
+	Float box = Float.valueOf(value);
+	
+	assertEquals(TagMap.EntryReader.FLOAT, TagValueConversions.typeOf(box));
+	assertTrue(TagValueConversions.isA(box, TagMap.EntryReader.FLOAT));
+	assertTrue(TagValueConversions.isNumericPrimitive(box));
+	assertTrue(TagValueConversions.isNumber(box));
+	assertFalse(TagValueConversions.isObject(box));
+
+	assertEquals(value, TagValueConversions.toFloat(box));
+	assertEquals((int)value, TagValueConversions.toInt(box));
+	assertEquals((long)value, TagValueConversions.toLong(box));
+	assertEquals((double)value, TagValueConversions.toDouble(box));
+	
+	assertEquals(value != 0F, TagValueConversions.toBoolean(box));
+	assertEquals(Float.toString(value), TagValueConversions.toString(box));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  public void double_(double value) {
+	Double box = Double.valueOf(value);
+	
+	assertEquals(TagMap.EntryReader.DOUBLE, TagValueConversions.typeOf(box));
+	assertTrue(TagValueConversions.isA(box, TagMap.EntryReader.DOUBLE));
+	assertTrue(TagValueConversions.isNumericPrimitive(box));
+	assertTrue(TagValueConversions.isNumber(box));
+	assertFalse(TagValueConversions.isObject(box));
+
+	assertEquals(value, TagValueConversions.toDouble(box));
+	assertEquals((int)value, TagValueConversions.toInt(box));
+	assertEquals((long)value, TagValueConversions.toLong(box));
+	assertEquals((float)value, TagValueConversions.toFloat(box));
+	
+	assertEquals(value != 0D, TagValueConversions.toBoolean(box));
+	assertEquals(Double.toString(value), TagValueConversions.toString(box));
   }
 }
