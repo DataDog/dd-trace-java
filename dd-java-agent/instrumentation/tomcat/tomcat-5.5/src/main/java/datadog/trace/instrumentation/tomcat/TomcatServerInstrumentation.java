@@ -125,19 +125,22 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
   public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope extractParent(@Advice.Argument(0) org.apache.coyote.Request req) {
+    public static void extractParent(
+        @Advice.Argument(0) org.apache.coyote.Request req,
+        @Advice.Local("parentScope") ContextScope parentScope) {
       Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (existingCtx instanceof Context) {
         // Request already gone through initial processing, so just attach the context.
-        return ((Context) existingCtx).attach();
+        parentScope = ((Context) existingCtx).attach();
+      } else {
+        final Context parentContext = DECORATE.extract(req);
+        req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+        parentScope = parentContext.attach();
       }
-      final Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      return parentContext.attach();
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
+    public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
       scope.close();
     }
   }
@@ -145,9 +148,11 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   public static class ServiceAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
+    public static void onService(
+        @Advice.Argument(0) org.apache.coyote.Request req,
+        @Advice.Local("serverScope") ContextScope serverScope) {
       final Context context = DECORATE.startSpan(req, Context.current());
-      final ContextScope scope = context.attach();
+      serverScope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       final AgentSpan span = spanFromContext(context);
@@ -156,12 +161,11 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-      return scope;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      scope.close();
+    public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
+      serverScope.close();
     }
 
     private void muzzleCheck(CoyoteAdapter adapter, Request request, Response response)

@@ -273,16 +273,17 @@ public final class CombiningTransformerBuilder
       forAdvice = forAdvice.include(adviceLoader);
     }
     if (generalPurposeAdviceClasses == null || generalPurposeAdviceClasses.contains(adviceClass)) {
-      advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
+      forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass);
     }
     if (additionalAdviceClasses != null) {
       for (String adviceClassName : additionalAdviceClasses) {
         if (generalPurposeAdviceClasses == null
             || generalPurposeAdviceClasses.contains(adviceClassName)) {
-          advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName));
+          forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName);
         }
       }
     }
+    advice.add(forAdvice);
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
