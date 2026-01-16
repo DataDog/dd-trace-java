@@ -3304,7 +3304,8 @@ final class TagValueConversions {
       return (Boolean) value;
     } else if (value instanceof Number) {
       // NOTE: This cannot be intValue() because intValue of larger types is 0 when 
-      // the actual value would be less than Integer.MIN_VALUE, so using doubleValue.
+      // the actual value would be less than Integer.MIN_VALUE or for floating point 
+      // types is very close to zero, so using doubleValue instead.
       
       // While this is a bit ugly, coerced toBoolean is uncommon
       return ((Number) value).doubleValue() != 0D;
