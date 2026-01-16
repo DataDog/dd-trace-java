@@ -146,6 +146,7 @@ In a well-organized Gradle project, build logic lives in specific places:
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
 
+
 ## Gradle Configurations
 
 Configurations are a fundamental concept in Gradle's dependency management system. Understanding them is essential for working effectively with the build.
@@ -489,6 +490,131 @@ To see all configurations and their relationships:
 # Show all resolvable configurations
 ./gradlew :my-project:resolvableConfigurations
 ```
+
+## Useful dd-trace-java Extensions
+
+This project provides several custom Gradle extensions to manage multi-JVM testing, multi-version source sets, and CI optimizations.
+
+### `testJvmConstraints` Extension
+
+Controls which JVM versions are allowed to run tests. Applied via the `dd-trace-java.test-jvm-contraints` plugin.
+
+```Gradle Kotlin DSL
+plugins {
+    id("dd-trace-java.test-jvm-contraints")
+}
+
+// project-wide constraints (apply to all Test tasks by default)
+testJvmConstraints {
+    minJavaVersion.set(JavaVersion.VERSION_11)
+    maxJavaVersion.set(JavaVersion.VERSION_21)
+    excludeJdk.add("IBM8")
+    allowReflectiveAccessToJdk.set(true)
+}
+
+// task-specific constraints (override project defaults for this task)
+tasks.named<Test>("latestDepTest") {
+    testJvmConstraints {
+        minJavaVersion.set(JavaVersion.VERSION_17)  // requires Java 17+ for this test suite
+    }
+}
+```
+
+| Property                     | Description                                             |
+|------------------------------|---------------------------------------------------------|
+| `minJavaVersion`             | Minimum JDK version allowed for tests                   |
+| `maxJavaVersion`             | Maximum JDK version allowed for tests                   |
+| `forceJdk`                   | List of JDK names to force (overrides version checks)   |
+| `includeJdk`                 | JDK names to include                                    |
+| `excludeJdk`                 | JDK names to exclude                                    |
+| `allowReflectiveAccessToJdk` | Adds `--add-opens` flags for Java 16+ reflective access |
+
+**Running tests with a specific JVM:**
+
+```bash
+./gradlew allTests -PtestJvm=zulu11
+```
+
+### `tracerJava` Extension
+
+Manages multi-version Java source sets, allowing a single project to compile code targeting different JVM versions.
+
+```Gradle Kotlin DSL
+// In build.gradle.kts
+apply(from = "$rootDir/gradle/java.gradle")
+
+tracerJava {
+    addSourceSetFor(JavaVersion.VERSION_11) {
+        applyForTestSources = true   // Apply version constraints to tests, default
+    }
+}
+```
+
+This creates source sets for version-specific code:
+
+```
+src/
+  main/
+    java/        # Java 8 code (default)
+    java11/      # Java 11 specific code
+  test/
+    java/        # Compiled as Java 11     
+```
+
+### CI Slots and Parallelization
+
+Distributes test execution across multiple CI jobs using hash-based project slotting.
+
+```bash
+# Run only projects assigned to slot 2 out of 4 parallel jobs
+./gradlew test -Pslot=2/4
+
+# Without slot parameter, all projects run
+./gradlew test
+```
+
+Projects are assigned to slots based on a hash of their path, ensuring consistent distribution across builds.
+
+### Git Change Tracking
+
+Optimizes CI by skipping tests for projects unaffected by git changes.
+
+```bash
+# Only run tests for projects with changes between master and HEAD
+./gradlew baseTest -PgitBaseRef=master
+
+# Specify both refs explicitly
+./gradlew baseTest -PgitBaseRef=master -PgitNewRef=feature-branch
+```
+
+The system:
+- Detects changed files via `git diff`
+- Maps changes to affected projects
+- Skips tests for unchanged projects
+- Falls back to running all tests if "global effect" files change (e.g., `gradle/`, `build.gradle`)
+
+### Root Aggregate Tasks
+
+The root `build.gradle.kts` defines aggregate tasks that orchestrate testing across subprojects with slot filtering and git change tracking.
+
+| Task                                                                            | Projects Included                                               |
+|---------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| `baseTest` / `baseLatestDepTest` / `baseCheck`                                  | All projects except smoke, instrumentation, profiling, debugger |
+| `instrumentationTest` / `instrumentationLatestDepTest` / `instrumentationCheck` | `:dd-java-agent:instrumentation`                                |
+| `smokeTest` / `smokeLatestDepTest` / `smokeCheck`                               | `:dd-smoke-tests`                                               |
+| `profilingTest` / `profilingLatestDepTest` / `profilingCheck`                   | `:dd-java-agent:agent-profiling`                                |
+| `debuggerTest` / `debuggerLatestDepTest` / `debuggerCheck`                      | `:dd-java-agent:agent-debugger`                                 |
+
+**Combined usage:**
+
+```bash
+# Run instrumentation tests in slot 1/4, only for changed projects, with coverage
+./gradlew instrumentationTest -Pslot=1/4 -PgitBaseRef=main -PcheckCoverage
+```
+
+> [!NOTE]
+> These root tasks are defined using `testAggregate()` in `build.gradle.kts`. They combine CI slot filtering,
+> git change tracking, and optional JaCoCo coverage into convenient entry points for CI pipelines.
 
 ## Convention Plugins
 
