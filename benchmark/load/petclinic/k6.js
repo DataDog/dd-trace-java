@@ -39,7 +39,7 @@ export const options = function (variants) {
       executor: 'constant-vus',
       vus: 5,
       startTime: '162s',
-      duration: '100s',
+      duration: '30s',
       gracefulStop: '2s',
       env: {
         "APP_URL": variants[variant]["APP_URL"]
