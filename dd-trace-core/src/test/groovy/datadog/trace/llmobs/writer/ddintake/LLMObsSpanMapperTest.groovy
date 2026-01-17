@@ -58,6 +58,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     sink.captured != null
     def payload = mapper.newPayload()
     payload.withBody(1, sink.captured)
+
+    // Capture the size before the buffer is written and the body buffer is emptied.
+    def sizeInBytes = payload.sizeInBytes()
+
     def channel = new ByteArrayOutputStream()
     payload.writeTo(new WritableByteChannel() {
         @Override
@@ -76,7 +80,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
         @Override
         void close() throws IOException { }
       })
-    def result = objectMapper.readValue(channel.toByteArray(), Map)
+
+    def bytesWritten = channel.toByteArray()
+    sizeInBytes == bytesWritten.length
+    def result = objectMapper.readValue(bytesWritten, Map)
 
     then:
     result.containsKey("event_type")
@@ -185,6 +192,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     sink.captured != null
     def payload = mapper.newPayload()
     payload.withBody(3, sink.captured)
+
+    // Capture the size before the buffer is written and the body buffer is emptied.
+    def sizeInBytes = payload.sizeInBytes()
+
     def channel = new ByteArrayOutputStream()
     payload.writeTo(new WritableByteChannel() {
         @Override
@@ -204,7 +215,9 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
         void close() throws IOException { }
       })
 
-    def result = objectMapper.readValue(channel.toByteArray(), Map)
+    def bytesWritten = channel.toByteArray()
+    sizeInBytes == bytesWritten.length
+    def result = objectMapper.readValue(bytesWritten, Map)
 
     then:
     result.containsKey("event_type")
