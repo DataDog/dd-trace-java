@@ -140,6 +140,87 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     sink.captured == null
   }
 
+  def "test consecutive packer.format calls accumulate spans from multiple traces"() {
+    setup:
+    def mapper = new LLMObsSpanMapper()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    // First trace with 2 LLMObs spans
+    def llmSpan1 = tracer.buildSpan("chat-completion-1")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "gpt-4")
+      .withTag("_ml_obs_tag.model_provider", "openai")
+      .start()
+    llmSpan1.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan1.finish()
+
+    def llmSpan2 = tracer.buildSpan("chat-completion-2")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "gpt-3.5")
+      .withTag("_ml_obs_tag.model_provider", "openai")
+      .start()
+    llmSpan2.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan2.finish()
+
+    // Second trace with 1 LLMObs span
+    def llmSpan3 = tracer.buildSpan("chat-completion-3")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "claude-3")
+      .withTag("_ml_obs_tag.model_provider", "anthropic")
+      .start()
+    llmSpan3.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan3.finish()
+
+    def trace1 = [llmSpan1, llmSpan2]
+    def trace2 = [llmSpan3]
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+
+    when:
+    packer.format(trace1, mapper)
+    packer.format(trace2, mapper)
+    packer.flush()
+
+    then:
+    sink.captured != null
+    def payload = mapper.newPayload()
+    payload.withBody(3, sink.captured)
+    def channel = new ByteArrayOutputStream()
+    payload.writeTo(new WritableByteChannel() {
+        @Override
+        int write(ByteBuffer src) throws IOException {
+          def bytes = new byte[src.remaining()]
+          src.get(bytes)
+          channel.write(bytes)
+          return bytes.length
+        }
+
+        @Override
+        boolean isOpen() {
+          return true
+        }
+
+        @Override
+        void close() throws IOException { }
+      })
+
+    def result = objectMapper.readValue(channel.toByteArray(), Map)
+
+    then:
+    result.containsKey("event_type")
+    result["event_type"] == "span"
+    result.containsKey("_dd.stage")
+    result["_dd.stage"] == "raw"
+    result.containsKey("spans")
+    result["spans"] instanceof List
+    result["spans"].size() == 3
+
+    def spanNames = result["spans"].collect { it["name"] }
+    spanNames.contains("chat-completion-1")
+    spanNames.contains("chat-completion-2")
+    spanNames.contains("chat-completion-3")
+  }
+
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
 
     ByteBuffer captured
