@@ -146,6 +146,24 @@ In a well-organized Gradle project, build logic lives in specific places:
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
 
+### How Gradle Compiles Build Scripts
+
+During the **Configuration phase**, Gradle doesn't simply execute build scripts top-to-bottom. Instead, it first extracts and processes certain special blocks before compiling the rest of the script. This is necessary because Gradle needs to know which plugins to apply before it can understand the DSL extensions they provide.
+
+**Processing order for `settings.gradle.kts`** (Initialization phase):
+
+1. `pluginManagement {}` — Configures plugin repositories and version resolution. If present it must be the first block.
+2. `plugins {}` — Declares the settings plugins to apply.
+3. Script body — Project includes, build configuration, etc.
+
+**Processing order for `build.gradle.kts`** (Configuration phase):
+
+1. `buildscript {}` — Declares dependencies for the build script itself (the script's classpath). It should be 
+   avoided now with the `plugins {}` block. If present it must be the first block.
+2. `plugins {}` — Declares plugins to apply. Gradle extracts this block first to load plugin classes before 
+   compiling the rest.
+3. Script body — The rest of the script is compiled and executed, now with access to DSL extensions from applied plugins.
+
 
 ## Gradle Tasks
 
