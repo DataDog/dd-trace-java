@@ -147,6 +147,157 @@ In a well-organized Gradle project, build logic lives in specific places:
 > to create _convention plugins_ or _binary plugins_.
 
 
+## Gradle Tasks
+
+
+A task usually represent and independent unit of work, however there are also lifecycle tasks. A **lifecycle task** 
+is a task that doesn't perform work itself but aggregates other tasks. It provides convenient entry points for
+common build operations.
+
+The `base` plugin applies the `lifecycle-base` plugin (`org.gradle.language.base.plugins.LifecycleBasePlugin`), which defines these standard lifecycle tasks:
+
+| Task           | Purpose                                                      |
+|----------------|--------------------------------------------------------------|
+| `clean`        | Deletes the build directory                                  |
+| `assemble`     | Assembles all outputs (e.g., JARs) without running tests     |
+| `check`        | Runs all verification tasks (tests, linting, etc.)           |
+| `verification` | Base task for all verification tasks (`check` depends on it) |
+| `build`        | Performs a full build (`assemble` + `check`)                 |
+
+> [!TIP]
+> Use `./gradlew tasks` to list available tasks, or `./gradlew tasks --all` to include tasks from all subprojects.
+
+### Task Inputs and Outputs
+
+Gradle tasks declare **inputs** (what they read) and **outputs** (what they produce). This metadata enables two key optimizations:
+
+- **Incremental builds**: If inputs haven't changed, the task is `UP-TO-DATE` and skipped
+- **Build caching**: Outputs can be stored and retrieved (`FROM-CACHE`) across builds
+
+#### Declaring Inputs and Outputs
+
+##### In custom task class
+
+In custom tasks, use annotations to declare inputs and outputs:
+
+| Annotation         | Purpose                                               |
+|--------------------|-------------------------------------------------------|
+| `@Input`           | A simple value (String, Boolean, etc.)                |
+| `@InputFile`       | A single input file                                   |
+| `@InputFiles`      | Multiple input files                                  |
+| `@InputDirectory`  | An input directory                                    |
+| `@OutputFile`      | A single output file                                  |
+| `@OutputDirectory` | An output directory                                   |
+| `@Internal`        | Excluded from up-to-date checks                       |
+| `@Nested`          | A nested object with its own input/output annotations |
+
+More annotations are documented [here](https://docs.gradle.org/current/userguide/implementing_custom_tasks.html#annotating_inputs_and_outputs).
+
+##### In custom tasks declared with DSL
+
+For ad-hoc tasks or when you can't use annotations, declare inputs and outputs programmatically via the `inputs` and `outputs` properties:
+
+```kotlin
+tasks.register("processData") {
+    // Declare inputs
+    inputs.property("version", project.version)
+    inputs.file("config.json")
+    inputs.files(fileTree("src/data"))
+    inputs.dir("templates")
+
+    // Declare outputs
+    outputs.file(project.layout.buildDirectory.file("output.txt"))
+    outputs.dir(project.layout.buildDirectory.dir("generated"))
+
+    // Cacheability (required for build cache)
+    outputs.cacheIf { true }
+
+    doLast {
+        // Task action
+    }
+}
+```
+
+| Method                         | Purpose                            |
+|--------------------------------|------------------------------------|
+| `inputs.property(name, value)` | A named input value                |
+| `inputs.file(path)`            | A single input file                |
+| `inputs.files(paths)`          | Multiple input files               |
+| `inputs.dir(path)`             | An input directory                 |
+| `destroyables.register(paths)` | PAths that will be deleted         |
+| `outputs.file(path)`           | A single output file               |
+| `outputs.dir(path)`            | An output directory                |
+| `outputs.cacheIf { }`          | Enable build caching conditionally |
+
+> [!NOTE]
+> Prefer annotations in custom task classes for better type safety and documentation.
+> Use the programmatic API for ad-hoc tasks registered with `tasks.register`.
+
+#### Lazy Configuration with Providers
+
+Gradle uses **lazy configuration** to defer value resolution until needed. Instead of setting values directly, you use `Property` and `Provider` types:
+
+```kotlin
+abstract class MyTask : DefaultTask() {
+    @get:Input
+    abstract val message: Property<String>  // Lazy, mutable
+
+    @get:InputFile
+    abstract val inputFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+}
+```
+
+Common property types:
+- `Property<T>` — single value
+- `ListProperty<T>` — ordered collection
+- `SetProperty<T>` — unique values
+- `MapProperty<K, V>` — key-value pairs
+- `RegularFileProperty` / `DirectoryProperty` — file system locations
+
+> [!NOTE]
+> Lazy properties avoid configuration-time overhead and ensure values are resolved in the correct order during the build.
+
+### Task _Outcome_ Labels
+
+When running Gradle tasks, you'll see status labels indicating what happened during execution, for example with `--console=verbose`:
+
+| Label        | Description                                                  |
+|--------------|--------------------------------------------------------------|
+| _(no label)_ | The task ran and executed its actions                        |
+| `UP-TO-DATE` | The task's outputs are current; no work needed               |
+| `FROM-CACHE` | Outputs were retrieved from the build cache                  |
+| `SKIPPED`    | The task was excluded (e.g., via `-x` or `onlyIf` condition) |
+| `NO-SOURCE`  | The task had no input files to process                       |
+
+
+### Tasks tips
+
+- **Prefer `Sync` over `Copy`**: `Sync` mirrors the source to the destination by removing files that no longer exist 
+  in the source. `Copy` leaves stale files behind, which can cause subtle bugs with old configs, renamed classes, 
+  or deleted resources.
+
+- **Prefer `Delete` task over `delete()`**: The `Delete` task type properly declares what it destroys, allowing
+  Gradle to order tasks correctly, preventing deleting files that other tasks need.
+
+  ```Gradle Kotlin DSL
+  // ❌ Ad-hoc deletion
+  tasks.register("cleanGenerated") {
+      doLast {
+          delete(layout.buildDirectory.dir("generated")) // Runs immediately when task executes
+      }
+  }
+
+  // ✅ Proper Delete task
+  tasks.register<Delete>("cleanGenerated") {
+      delete(layout.buildDirectory.dir("generated"))
+  }
+  ```
+
+
+
 ## Gradle Configurations
 
 Configurations are a fundamental concept in Gradle's dependency management system. Understanding them is essential for working effectively with the build.
