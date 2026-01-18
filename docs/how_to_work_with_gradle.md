@@ -1086,6 +1086,15 @@ On CI, build scans are automatically published (unless `SKIP_BUILDSCAN=true`). T
 > [!TIP]
 > The **critical path** shows tasks that directly determine build duration. Parallelizing or speeding up
 > tasks *not* on the critical path won't reduce total build time.
+> 
+> Access it from the **Timeline** section, click the search icon 🔍 on top-left, you should see a _On critical path_ 
+> toggle to activate focus on these tasks. 
+> 
+> Now, inspect the outcome if this task, in particular 
+> * if the task is **not** `UP-TO-DATE`,
+> * if the task is not cacheable, for reasons like _overlapping outputs_, _caching has not been enabled_, 
+>   more information is needed to cache this task.
+
 
 **Diagnosing tasks that should be UP-TO-DATE but aren't:**
 
@@ -1165,10 +1174,12 @@ This indicates a missing task dependency. The producing task must be declared as
 
 ```Gradle Kotlin DSL
 tasks.named("consumingTask") {
-    // Declare the dependent task outputs as inputs of this task
+    // Declare the task inputs. 
+    inputs.files(producedPathProvider) // producedPathProvider is declared earlier in the build
+    // This works as well but it requires the task be already registered.
     inputs.files(tasks.named("producingTask").map { it.outputs })
-    
-    // If that doesn't work track the dependency
+
+    // You should avoid that, but if the above doesn't work, track the task dependency explicitly
     dependsOn(tasks.named("producingTask"))
 }
 ```
