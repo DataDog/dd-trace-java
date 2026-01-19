@@ -33,12 +33,12 @@ private fun TestJvmConstraintsExtension.withinAllowedRange(currentJvmVersion: Ja
   val definedMax = maxJavaVersion.isPresent
 
   if (definedMin && (minJavaVersion.get()) > currentJvmVersion) {
-    logger.info("isWithinAllowedRange returns false b/o minProp=${minJavaVersion.get()} is defined and greater than version=$currentJvmVersion")
+    logger.info("'isWithinAllowedRange' returns false b/o testJvmConstraints.minJavaVersion=${minJavaVersion.get()} is defined and greater than test JVM version=$currentJvmVersion")
     return false
   }
 
   if (definedMax && (maxJavaVersion.get()) < currentJvmVersion) {
-    logger.info("isWithinAllowedRange returns false b/o maxProp=${maxJavaVersion.get()} is defined and lower than version=$currentJvmVersion")
+    logger.info("'isWithinAllowedRange' returns false because testJvmConstraints.maxJavaVersion=${maxJavaVersion.get()} is defined and lower than test JVM version=$currentJvmVersion")
     return false
   }
 

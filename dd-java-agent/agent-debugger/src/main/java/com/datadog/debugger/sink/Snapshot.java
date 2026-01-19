@@ -212,7 +212,7 @@ public class Snapshot {
     UNHANDLED_EXCEPTION,
     HANDLED_EXCEPTION,
     BEFORE,
-    AFTER;
+    AFTER
   }
 
   /** Stores all collected data at different location (method entry/exit, lines, exceptions) */

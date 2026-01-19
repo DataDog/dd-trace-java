@@ -9,6 +9,7 @@ import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -405,6 +406,22 @@ class ConfigurationComparerTest {
         probe, sourceFileMapping, TopLevelHelper.class, false, TopLevelHelper.class);
     doAllLoadedChangedClasses(
         probe, sourceFileMapping, MyTopLevelClass.class, false, MyTopLevelClass.class);
+  }
+
+  @Test
+  public void allLoadedChangedClassesLargeInnerClasses() {
+    final String CLASS_FILENAME = "LargeInnerClasses.java";
+    Map<String, List<String>> sourceFileMapping = new HashMap<>();
+    List<String> classNames = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      classNames.add(
+          String.format("com.datadog.debugger.agent.LargeInnerClasses$MyInnerClass%02d", i));
+    }
+    sourceFileMapping.put(CLASS_FILENAME, classNames);
+    LogProbe probe =
+        LogProbe.builder().probeId(PROBE_ID).where(null, null, null, 6, CLASS_FILENAME).build();
+    doAllLoadedChangedClasses(
+        probe, sourceFileMapping, LargeInnerClasses.class, false, LargeInnerClasses.class);
   }
 
   private void doAllLoadedChangedClasses(

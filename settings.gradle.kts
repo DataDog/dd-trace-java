@@ -21,7 +21,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "4.3"
-  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -106,7 +106,6 @@ include(
   ":components:environment",
   ":components:json",
   ":components:native-loader",
-  ":components:yaml",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
@@ -501,8 +500,11 @@ include(
   ":dd-java-agent:instrumentation:play-ws:play-ws-common",
   ":dd-java-agent:instrumentation:play:play-2.3",
   ":dd-java-agent:instrumentation:play:play-2.4",
-  ":dd-java-agent:instrumentation:play:play-appsec-2.5",
   ":dd-java-agent:instrumentation:play:play-2.6",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.5",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.6",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.7",
+  ":dd-java-agent:instrumentation:play:play-appsec-common",
   ":dd-java-agent:instrumentation:protobuf-3.0",
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",

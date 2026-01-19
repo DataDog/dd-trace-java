@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
       "test.suite" : "org.example.TestSucceedUnskippable",
@@ -53,7 +53,7 @@
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.unskippable" : "true",
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.name" : "test should assert something",
       "test.source.file" : "dummy_source_path",
       "test.status" : "pass",
@@ -96,7 +96,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "scalatest",
+      "test.command" : "scalatest-3.0.8",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
@@ -113,7 +113,7 @@
       "test.itr.tests_skipping.count" : 0
     },
     "name" : "scalatest.test_session",
-    "resource" : "scalatest",
+    "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -135,7 +135,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.itr.tests_skipping.enabled" : "true",
       "test.itr.tests_skipping.type" : "test",
-      "test.module" : "scalatest",
+      "test.module" : "scalatest-3.0.8",
       "test.status" : "pass",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -145,7 +145,7 @@
       "test.itr.tests_skipping.count" : 0
     },
     "name" : "scalatest.test_module",
-    "resource" : "scalatest",
+    "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},

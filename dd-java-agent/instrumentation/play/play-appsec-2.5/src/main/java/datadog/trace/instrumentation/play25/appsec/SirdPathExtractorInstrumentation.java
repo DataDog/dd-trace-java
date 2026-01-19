@@ -44,7 +44,7 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PathExtractionHelpers",
+      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
     };
   }
 }
