@@ -8,6 +8,7 @@ dependencies {
   api libs.guava
 
   api project(':dd-java-agent:testing')
+  api project(':products:metrics:api')
 
   implementation project(':dd-java-agent:agent-debugger')
 

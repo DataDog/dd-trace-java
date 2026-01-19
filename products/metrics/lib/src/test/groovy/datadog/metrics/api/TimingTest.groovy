@@ -1,9 +1,6 @@
-package datadog.trace.core.monitor
+package datadog.metrics.api
 
-import datadog.communication.monitor.Monitoring
-import datadog.communication.monitor.NoOpRecording
-import datadog.communication.monitor.Recording
-import datadog.trace.api.StatsDClient
+import datadog.metrics.statsd.StatsDClient
 import org.junit.jupiter.api.Assertions
 import spock.lang.Specification
 

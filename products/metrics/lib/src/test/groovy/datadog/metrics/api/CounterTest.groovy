@@ -1,9 +1,7 @@
-package datadog.trace.core.monitor
+package datadog.metrics.api
 
-import datadog.communication.monitor.Counter
-import datadog.communication.monitor.Monitoring
-import datadog.communication.monitor.NoOpCounter
-import datadog.trace.api.StatsDClient
+
+import datadog.metrics.statsd.StatsDClient
 import spock.lang.Specification
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
