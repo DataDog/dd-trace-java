@@ -16,7 +16,11 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelLongUpDownCounter implements LongUpDownCounter {
+final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCounter {
+
+  OtelLongUpDownCounter(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void add(long value) {
@@ -59,7 +63,7 @@ final class OtelLongUpDownCounter implements LongUpDownCounter {
 
     @Override
     public LongUpDownCounter build() {
-      return new OtelLongUpDownCounter();
+      return new OtelLongUpDownCounter(instrumentBuilder.toDescriptor());
     }
 
     @Override

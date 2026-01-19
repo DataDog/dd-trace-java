@@ -11,7 +11,11 @@ import java.util.List;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelLongHistogram implements LongHistogram {
+final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
+
+  OtelLongHistogram(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void record(long value) {
@@ -55,7 +59,7 @@ final class OtelLongHistogram implements LongHistogram {
 
     @Override
     public LongHistogram build() {
-      return new OtelLongHistogram();
+      return new OtelLongHistogram(instrumentBuilder.toDescriptor());
     }
   }
 }

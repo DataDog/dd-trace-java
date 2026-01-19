@@ -80,4 +80,9 @@ final class OtelInstrumentBuilder {
   void setUnit(String unit) {
     this.unit = unit;
   }
+
+  OtelInstrumentDescriptor toDescriptor() {
+    return new OtelInstrumentDescriptor(
+        instrumentName, instrumentType, longValues, description, unit);
+  }
 }

@@ -12,7 +12,11 @@ import java.util.List;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelDoubleHistogram implements DoubleHistogram {
+final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogram {
+
+  OtelDoubleHistogram(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void record(double value) {
@@ -61,7 +65,7 @@ final class OtelDoubleHistogram implements DoubleHistogram {
 
     @Override
     public DoubleHistogram build() {
-      return new OtelDoubleHistogram();
+      return new OtelDoubleHistogram(instrumentBuilder.toDescriptor());
     }
   }
 }
