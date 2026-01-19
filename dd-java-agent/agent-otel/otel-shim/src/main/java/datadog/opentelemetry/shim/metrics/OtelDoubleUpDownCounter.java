@@ -23,12 +23,12 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
 
   @Override
   public void add(double value) {
-    // FIXME: implement recording
+    add(value, Attributes.empty());
   }
 
   @Override
   public void add(double value, Attributes attributes) {
-    // FIXME: implement recording
+    add(value, attributes, Context.current());
   }
 
   @Override

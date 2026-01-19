@@ -24,12 +24,12 @@ final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
 
   @Override
   public void set(double value) {
-    // FIXME: implement recording
+    set(value, Attributes.empty());
   }
 
   @Override
   public void set(double value, Attributes attributes) {
-    // FIXME: implement recording
+    set(value, attributes, Context.current());
   }
 
   @Override

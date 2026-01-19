@@ -20,12 +20,12 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
 
   @Override
   public void record(double value) {
-    // FIXME: implement recording
+    record(value, Attributes.empty());
   }
 
   @Override
   public void record(double value, Attributes attributes) {
-    // FIXME: implement recording
+    record(value, attributes, Context.current());
   }
 
   @Override
