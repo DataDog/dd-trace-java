@@ -2,7 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
+import datadog.metrics.statsd.StatsDClient
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.test.DDCoreSpecification
