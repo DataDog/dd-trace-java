@@ -44,7 +44,7 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
     def config = Config.get()
     sco.createRemaining(config)
     assert sco.configurationPoller(config) == null
-    assert sco.monitoring instanceof Monitoring.DisabledMonitoring
+    assert sco.monitoring == Monitoring.DISABLED
 
     AppSecSystem.start(ss, sco)
     assert !AppSecSystem.active
