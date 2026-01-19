@@ -1,30 +1,28 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 /**
  * The fileInfo describes the translated-source file names <a
  * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#filesection">...</a>
  */
 public class FileInfo {
-  private int fileId = -1;
+  private final String fileId;
 
-  private String inputFileName;
+  private final String inputFileName;
 
-  private String inputFilePath;
+  private final String inputFilePath;
 
-  public int getFileId() {
-    return fileId;
+  public FileInfo(String fileId, String inputFileName, String inputFilePath) {
+    this.fileId = fileId;
+    this.inputFileName = inputFileName;
+    this.inputFilePath = inputFilePath;
   }
 
-  public void setFileId(final int fileId) {
-    this.fileId = fileId;
+  public String getFileId() {
+    return fileId;
   }
 
   public String getInputFileName() {
     return inputFileName;
-  }
-
-  public void setInputFileName(final String inputFileName) {
-    this.inputFileName = inputFileName;
   }
 
   public String getInputFilePath() {
@@ -32,10 +30,6 @@ public class FileInfo {
       return inputFileName;
     }
     return inputFilePath;
-  }
-
-  public void setInputFilePath(final String inputFilePath) {
-    this.inputFilePath = inputFilePath;
   }
 
   @Override
