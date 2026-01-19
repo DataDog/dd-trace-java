@@ -168,7 +168,7 @@ During the **Configuration phase**, Gradle doesn't simply execute build scripts 
 ## Gradle Tasks
 
 
-A task usually represent and independent unit of work, however there are also lifecycle tasks. A **lifecycle task** 
+A task usually represents an independent unit of work, however there are also lifecycle tasks. A **lifecycle task** 
 is a task that doesn't perform work itself but aggregates other tasks. It provides convenient entry points for
 common build operations.
 
@@ -242,7 +242,7 @@ tasks.register("processData") {
 | `inputs.file(path)`            | A single input file                |
 | `inputs.files(paths)`          | Multiple input files               |
 | `inputs.dir(path)`             | An input directory                 |
-| `destroyables.register(paths)` | PAths that will be deleted         |
+| `destroyables.register(paths)` | Paths that will be deleted         |
 | `outputs.file(path)`           | A single output file               |
 | `outputs.dir(path)`            | An output directory                |
 | `outputs.cacheIf { }`          | Enable build caching conditionally |
@@ -666,11 +666,11 @@ This project provides several custom Gradle extensions to manage multi-JVM testi
 
 ### `testJvmConstraints` Extension
 
-Controls which JVM versions are allowed to run tests. Applied via the `dd-trace-java.test-jvm-contraints` plugin.
+Controls which JVM versions are allowed to run tests. Applied via the `dd-trace-java.test-jvm-constraints` plugin.
 
 ```Gradle Kotlin DSL
 plugins {
-    id("dd-trace-java.test-jvm-contraints")
+    id("dd-trace-java.test-jvm-constraints")
 }
 
 // project-wide constraints (apply to all Test tasks by default)
@@ -831,7 +831,7 @@ plugins {
 Other convention plugins in this project include:
 - `dd-trace-java.gradle-debug` - Debugging utilities for build diagnostics
 - `dd-trace-java.dependency-locking` - Dependency locking configuration
-- `dd-trace-java.test-jvm-contraints` - JVM constraints for test execution
+- `dd-trace-java.test-jvm-constraints` - JVM constraints for test execution
 
 ### Settings Convention Plugins
 
