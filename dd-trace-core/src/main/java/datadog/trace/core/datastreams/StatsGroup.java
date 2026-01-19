@@ -1,8 +1,8 @@
 package datadog.trace.core.datastreams;
 
+import datadog.metrics.api.Histogram;
+import datadog.metrics.histogram.Histograms;
 import datadog.trace.api.datastreams.DataStreamsTags;
-import datadog.trace.core.histogram.Histogram;
-import datadog.trace.core.histogram.Histograms;
 
 public class StatsGroup {
   private static final double NANOSECONDS_TO_SECOND = 1_000_000_000d;

@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
+import static datadog.metrics.statsd.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -22,10 +22,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.MonitoringImpl;
+import datadog.metrics.api.Recording;
+import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -33,7 +35,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -57,7 +58,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -87,9 +87,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -258,11 +256,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public ConfigSnapshot captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
-  }
-
-  @Override
-  public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
-    return Histograms.newHistogram(relativeAccuracy, maxNumBins);
   }
 
   @Override

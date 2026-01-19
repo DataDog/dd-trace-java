@@ -5,10 +5,10 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.environment.SystemProperties;
+import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.StatsDClient;
-import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.telemetry.LogCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;

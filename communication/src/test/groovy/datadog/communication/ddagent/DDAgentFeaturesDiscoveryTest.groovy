@@ -1,7 +1,7 @@
 package datadog.communication.ddagent
 
 import datadog.common.container.ContainerInfo
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import okhttp3.Call

@@ -1,8 +1,8 @@
 package com.datadog.debugger.util;
 
-import datadog.communication.monitor.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 
 /** implements a StatsD client for internal debugger agent metrics */
 public class DebuggerMetrics implements StatsDClient {

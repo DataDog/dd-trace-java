@@ -366,6 +366,12 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude project(':products:metrics:api'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':products:metrics:lib'), {
+    transitive = false
+  }
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects

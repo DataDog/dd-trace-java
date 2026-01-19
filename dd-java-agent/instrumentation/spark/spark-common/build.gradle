@@ -11,6 +11,8 @@ dependencies {
   compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
 
+  implementation project(':products:metrics:lib') // Is this valid?
+
   testFixturesImplementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.2'
   testFixturesImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
 

@@ -1,13 +1,13 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
+import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.statsd.StatsDClient
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.PayloadDispatcherImpl
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.MonitoringImpl
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 

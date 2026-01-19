@@ -3,10 +3,11 @@ package datadog.trace.common.writer
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
+import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.statsd.StatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -14,7 +15,6 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject

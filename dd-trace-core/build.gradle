@@ -66,7 +66,9 @@ dependencies {
   api project(':dd-trace-api')
   api project(':communication')
   api project(':internal-api')
+  api project(':products:metrics:api')
   implementation project(':components:json')
+  implementation project(':products:metrics:lib')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   // for span exception debugging
@@ -76,6 +78,7 @@ dependencies {
   implementation libs.moshi
   implementation libs.jctools
 
+  // Required for DataStream Monitoring product
   implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
 
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
