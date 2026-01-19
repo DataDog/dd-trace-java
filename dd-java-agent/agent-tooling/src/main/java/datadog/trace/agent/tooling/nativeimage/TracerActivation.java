@@ -2,11 +2,11 @@ package datadog.trace.agent.tooling.nativeimage;
 
 import com.datadog.profiling.controller.openjdk.JFREventContextIntegration;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.StatsDClientManager;
 import datadog.trace.agent.jmxfetch.JMXFetch;
 import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
-import datadog.trace.api.StatsDClientManager;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,8 +1,8 @@
 package datadog.crashtracking;
 
-import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
+import static datadog.metrics.statsd.DDAgentStatsDClientManager.statsDClientManager;
 
-import datadog.trace.api.StatsDClient;
+import datadog.metrics.statsd.StatsDClient;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.locks.LockSupport;
 import org.slf4j.Logger;

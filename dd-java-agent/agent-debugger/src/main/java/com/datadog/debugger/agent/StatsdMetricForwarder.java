@@ -2,9 +2,9 @@ package com.datadog.debugger.agent;
 
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.timgroup.statsd.StatsDClientErrorHandler;
-import datadog.communication.monitor.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.Config;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

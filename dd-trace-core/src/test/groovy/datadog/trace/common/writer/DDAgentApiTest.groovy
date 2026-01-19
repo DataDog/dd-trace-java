@@ -4,13 +4,14 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
-import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
+import datadog.metrics.api.Monitoring
+import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.statsd.StatsDClient
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
-import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -18,7 +19,6 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
