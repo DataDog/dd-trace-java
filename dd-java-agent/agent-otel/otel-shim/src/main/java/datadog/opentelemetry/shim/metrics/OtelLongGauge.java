@@ -23,12 +23,12 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
 
   @Override
   public void set(long value) {
-    // FIXME: implement recording
+    set(value, Attributes.empty());
   }
 
   @Override
   public void set(long value, Attributes attributes) {
-    // FIXME: implement recording
+    set(value, attributes, Context.current());
   }
 
   @Override

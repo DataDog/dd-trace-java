@@ -19,12 +19,12 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
 
   @Override
   public void record(long value) {
-    // FIXME: implement recording
+    record(value, Attributes.empty());
   }
 
   @Override
   public void record(long value, Attributes attributes) {
-    // FIXME: implement recording
+    record(value, attributes, Context.current());
   }
 
   @Override
