@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
@@ -21,10 +22,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -52,7 +56,8 @@ final class InstrumenterIndex {
   private final InstrumenterModule[] modules;
 
   // packed sequence of module type names and their expected member names:
-  // module1, memberCount, memberA, memberB, module2, memberCount, memberC, ...
+  // module1, targetSystems, flags, memberCount, memberA, memberB, (overrides), module2,
+  // memberCount, memberC, ...
   // (each string is encoded as its length plus that number of ASCII bytes)
   private final byte[] packedNames;
   private int nameIndex;
@@ -61,10 +66,12 @@ final class InstrumenterIndex {
   private int instrumentationId = -1;
   private String moduleName;
   private int memberCount;
+  private boolean hasModuleOverrides;
 
   // current member details
   private int transformationId = -1;
   private String memberName;
+  private Map<String, Set<InstrumenterModule.TargetSystem>> memberAdviceTargetOverrides;
 
   private InstrumenterIndex(int instrumentationCount, int transformationCount, byte[] packedNames) {
     this.modules = new InstrumenterModule[instrumentationCount];
@@ -73,21 +80,23 @@ final class InstrumenterIndex {
     this.packedNames = packedNames;
   }
 
-  public Iterable<InstrumenterModule> modules() {
-    return ModuleIterator::new;
+  public Iterable<InstrumenterModule> modules(final InstrumenterModuleFilter filter) {
+    return () -> new ModuleIterator(filter);
   }
 
   final class ModuleIterator implements Iterator<InstrumenterModule> {
     private InstrumenterModule module;
+    private InstrumenterModuleFilter filter;
 
-    ModuleIterator() {
+    ModuleIterator(final InstrumenterModuleFilter filter) {
+      this.filter = filter;
       restart();
     }
 
     @Override
     public boolean hasNext() {
       while (null == module && hasNextModule()) {
-        module = nextModule();
+        module = nextModule(filter);
       }
       return null != module;
     }
@@ -131,7 +140,22 @@ final class InstrumenterIndex {
       memberName = null; // mark member as used for this iteration
       return transformationId;
     }
+    // reset back the overrides
+    memberAdviceTargetOverrides = null;
     return -1;
+  }
+
+  public boolean isAdviceEnabled(
+      String adviceClass, Set<InstrumenterModule.TargetSystem> targetSystems) {
+    if (memberAdviceTargetOverrides == null) {
+      return true;
+    }
+    Set<InstrumenterModule.TargetSystem> adviceOverrides =
+        memberAdviceTargetOverrides.get(adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
+    if (null == adviceOverrides || !adviceOverrides.contains(targetSystems)) {
+      return true;
+    }
+    return false;
   }
 
   /** Resets the iteration to the start of the index. */
@@ -140,6 +164,8 @@ final class InstrumenterIndex {
     instrumentationId = -1;
     transformationId = -1;
     memberCount = 0;
+    memberAdviceTargetOverrides = null;
+    hasModuleOverrides = false;
   }
 
   /** Is there another known {@link InstrumenterModule} left in the index? */
@@ -148,7 +174,7 @@ final class InstrumenterIndex {
   }
 
   /** Returns the next {@link InstrumenterModule} in the index. */
-  InstrumenterModule nextModule() {
+  InstrumenterModule nextModule(InstrumenterModuleFilter filter) {
     while (memberCount > 0) {
       skipMember(); // skip past unmatched members from previous module
     }
@@ -159,9 +185,13 @@ final class InstrumenterIndex {
       skipName();
     } else {
       moduleName = readName();
-      module = buildNodule();
-      modules[instrumentationId] = module;
     }
+    // flags
+    final byte flags = (byte) readNumber();
+    final boolean excludeProvider = decodeModuleIsExclusionProvider(flags);
+    hasModuleOverrides = decodeModuleHasAdviceTargetOverrides(flags);
+    final Set<InstrumenterModule.TargetSystem> moduleTargetSystems =
+        decodeTargetSystems(readShort());
     memberCount = readNumber();
     if (SELF_MEMBERSHIP == memberCount) {
       transformationId++;
@@ -170,10 +200,17 @@ final class InstrumenterIndex {
     } else {
       memberName = null;
     }
-    return module;
+    if (filter.filter(moduleName, moduleTargetSystems, excludeProvider)) {
+      if (module == null) {
+        module = buildModule();
+        modules[instrumentationId] = module;
+      }
+      return module;
+    }
+    return null;
   }
 
-  private InstrumenterModule buildNodule() {
+  private InstrumenterModule buildModule() {
     try {
       @SuppressWarnings({"rawtypes", "unchecked"})
       Class<InstrumenterModule> nextType = (Class) instrumenterClassLoader.loadClass(moduleName);
@@ -189,6 +226,17 @@ final class InstrumenterIndex {
     memberCount--;
     transformationId++;
     memberName = readName();
+    if (hasModuleOverrides) {
+      int overrideCount = readNumber();
+      if (overrideCount > 0) {
+        memberAdviceTargetOverrides = new HashMap<>(overrideCount * 4 / 3, 0.75f);
+        for (int i = 0; i < overrideCount; i++) {
+          memberAdviceTargetOverrides.put(readName(), decodeTargetSystems(readShort()));
+        }
+      } else {
+        memberAdviceTargetOverrides = null;
+      }
+    }
   }
 
   /** Skips past the next member in the expected sequence. */
@@ -196,6 +244,14 @@ final class InstrumenterIndex {
     memberCount--;
     transformationId++;
     skipName();
+    if (hasModuleOverrides) {
+      // skip next N custom overrides
+      for (int i = 0; i < readNumber(); i++) {
+        skipName();
+        // skip the target system short
+        this.nameIndex += 2;
+      }
+    }
   }
 
   /** Reads a single-byte-encoded string from the packed name sequence. */
@@ -215,6 +271,10 @@ final class InstrumenterIndex {
   /** Reads an unsigned byte from the packed name sequence. */
   private int readNumber() {
     return 0xFF & (int) packedNames[nameIndex++];
+  }
+
+  private short readShort() {
+    return (short) ((packedNames[nameIndex++] << 8) + (packedNames[nameIndex++]));
   }
 
   public static InstrumenterIndex readIndex() {
@@ -280,6 +340,82 @@ final class InstrumenterIndex {
     return lines.toArray(new String[0]);
   }
 
+  static byte encodeModuleFlags(final InstrumenterModule module, final boolean hasCustomOverrides) {
+    byte ret = (byte) (hasCustomOverrides ? 1 : 0);
+    if (module instanceof ExcludeFilterProvider) {
+      ret |= (byte) 0x2;
+    }
+    return ret;
+  }
+
+  static boolean decodeModuleIsExclusionProvider(byte flags) {
+    return (flags & 2) != 0;
+  }
+
+  static boolean decodeModuleHasAdviceTargetOverrides(byte flags) {
+    return (flags & 1) != 0;
+  }
+
+  static short encodeTargetSystems(final Set<InstrumenterModule.TargetSystem> targetSystems) {
+    short i = 1;
+    short ret = 0;
+    for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
+      if (targetSystems.contains(targetSystem)) {
+        ret += i;
+        i <<= 1;
+      }
+    }
+    return ret;
+  }
+
+  static Set<InstrumenterModule.TargetSystem> decodeTargetSystems(final short targetSystems) {
+    final Set<InstrumenterModule.TargetSystem> ret =
+        EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
+    short i = 1;
+    for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
+      if ((targetSystems & i) != 0) {
+        ret.add(targetSystem);
+        i <<= 1;
+      }
+    }
+    return ret;
+  }
+
+  static Set<InstrumenterModule.TargetSystem> findModuleTargetSystems(
+      final InstrumenterModule module) {
+    final Set<InstrumenterModule.TargetSystem> ret =
+        EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
+    for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
+      if (module.isApplicable(singleton(targetSystem))) {
+        ret.add(targetSystem);
+      }
+    }
+    return ret;
+  }
+
+  static void writeAdviceOverrides(
+      final DataOutputStream out, Map<String, Set<InstrumenterModule.TargetSystem>> overrides)
+      throws IOException {
+    if (overrides == null) {
+      return;
+    }
+    out.writeByte(overrides.size());
+    for (Map.Entry<String, Set<InstrumenterModule.TargetSystem>> entry : overrides.entrySet()) {
+      // pack target system and advice name
+      out.writeByte(entry.getKey().length());
+      out.writeBytes(entry.getKey());
+      out.writeShort(encodeTargetSystems(entry.getValue()));
+    }
+  }
+
+  void readAdviceOverrides() {
+    final int count = readNumber();
+
+    for (int i = 0; i < count; i++) {
+      final String name = readName();
+    }
+  }
+
   /** Generates an index from known {@link InstrumenterModule}s on the build class-path. */
   static final class IndexGenerator {
     final ByteArrayOutputStream packedNames = new ByteArrayOutputStream();
@@ -293,13 +429,31 @@ final class InstrumenterIndex {
         for (InstrumenterModule module : loadModules(instrumenterClassLoader)) {
           String moduleName = module.getClass().getName();
           instrumentationCount++;
+          // scan the advices to find overrides
+          Map<Instrumenter, Map<String, Set<InstrumenterModule.TargetSystem>>> adviceOverrides =
+              new HashMap<>();
+          final Set<InstrumenterModule.TargetSystem> moduleTargetSystems =
+              findModuleTargetSystems(module);
+          for (Instrumenter instrumenter : module.typeInstrumentations()) {
+            final Map<String, Set<InstrumenterModule.TargetSystem>> overrides =
+                AdviceAppliesOnScanner.extractCustomAdvices(instrumenter);
+            overrides.forEach((ignored, systems) -> moduleTargetSystems.addAll(systems));
+            adviceOverrides.put(instrumenter, overrides);
+          }
+          // merge all the overrides to have the largest condition for this module
           out.writeByte(moduleName.length());
           out.writeBytes(moduleName);
+          // write the global target systems for the module
+          out.writeShort(encodeTargetSystems(moduleTargetSystems));
+          // write flags
+          out.writeByte(encodeModuleFlags(module, !adviceOverrides.isEmpty()));
           try {
             List<Instrumenter> members = module.typeInstrumentations();
             if (members.equals(singletonList(module))) {
               transformationCount++;
               out.writeByte(SELF_MEMBERSHIP);
+              // writeAdviceOverrides(out, );
+
             } else {
               out.writeByte(members.size());
               for (Instrumenter member : members) {
@@ -308,6 +462,7 @@ final class InstrumenterIndex {
                 transformationCount++;
                 out.writeByte(memberName.length());
                 out.writeBytes(memberName);
+                // writeAdviceOverrides(out, );
               }
             }
           } catch (Throwable e) {

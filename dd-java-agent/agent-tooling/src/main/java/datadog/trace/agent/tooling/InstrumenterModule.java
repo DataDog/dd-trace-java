@@ -51,6 +51,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     CIVISIBILITY,
     USM,
     LLMOBS,
+    CONTEXT_TRACKING,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
@@ -325,6 +326,18 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    }
+  }
+
+  /** Parent class for all the context tracking instrumentations */
+  public abstract static class ContextTracking extends InstrumenterModule {
+    public ContextTracking(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CONTEXT_TRACKING);
     }
   }
 }

@@ -45,7 +45,8 @@ public final class AgentCLI {
   @SuppressForbidden
   public static void printIntegrationNames() {
     Set<String> names = new TreeSet<>();
-    for (InstrumenterModule module : InstrumenterIndex.readIndex().modules()) {
+    for (InstrumenterModule module :
+        InstrumenterIndex.readIndex().modules(InstrumenterModuleFilter.ALL_MODULES)) {
       names.add(module.name());
     }
     for (String name : names) {

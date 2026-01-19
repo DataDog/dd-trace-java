@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -57,6 +58,7 @@ public final class CombiningTransformerBuilder
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
+  private final Set<InstrumenterModule.TargetSystem> enabledSystems;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -80,7 +82,9 @@ public final class CombiningTransformerBuilder
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
 
   public CombiningTransformerBuilder(
-      AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
+      AgentBuilder agentBuilder,
+      InstrumenterIndex instrumenterIndex,
+      Set<InstrumenterModule.TargetSystem> enabledSystems) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -89,6 +93,7 @@ public final class CombiningTransformerBuilder
     this.transformers = new AdviceStack[knownTransformationCount];
     this.nextRuntimeInstrumentationId = knownInstrumentationCount;
     this.nextRuntimeTransformationId = knownTransformationCount;
+    this.enabledSystems = enabledSystems;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -239,7 +244,10 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+  public void applyAdvice(
+      ElementMatcher<? super MethodDescription> matcher,
+      String adviceClass,
+      String... additionalAdviceClasses) {
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -254,7 +262,17 @@ public final class CombiningTransformerBuilder
     } else {
       forAdvice = forAdvice.include(adviceLoader);
     }
-    advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
+    if (instrumenterIndex.isAdviceEnabled(adviceClass, enabledSystems)) {
+      forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass);
+    }
+    if (additionalAdviceClasses != null) {
+      for (String adviceClassName : additionalAdviceClasses) {
+        if (instrumenterIndex.isAdviceEnabled(adviceClassName, enabledSystems)) {
+          forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName);
+        }
+      }
+    }
+    advice.add(forAdvice);
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
