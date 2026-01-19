@@ -213,7 +213,7 @@ def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, F
 }
 
 includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedJarFileTree)
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'jmxfetch', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedJarFileTree)
@@ -223,6 +223,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+includeSubprojShadowJar(project(':products:metrics:agent'), 'metrics', includedJarFileTree)
 includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
@@ -365,6 +366,9 @@ dependencies {
     transitive = false
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
+  }
+  sharedShadowInclude project(':products:metrics:agent'), {
+    transitive = false
   }
   sharedShadowInclude project(':products:metrics:api'), {
     transitive = false

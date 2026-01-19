@@ -68,7 +68,7 @@ dependencies {
   api project(':internal-api')
   api project(':products:metrics:api')
   implementation project(':components:json')
-  implementation project(':products:metrics:lib')
+  implementation project(':products:metrics:agent')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
   // for span exception debugging
