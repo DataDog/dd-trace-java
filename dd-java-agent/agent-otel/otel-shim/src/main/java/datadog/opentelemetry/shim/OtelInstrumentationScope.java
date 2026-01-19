@@ -17,6 +17,20 @@ public final class OtelInstrumentationScope {
     this.schemaUrl = schemaUrl;
   }
 
+  public String getName() {
+    return scopeName;
+  }
+
+  @Nullable
+  public String getVersion() {
+    return scopeVersion;
+  }
+
+  @Nullable
+  public String getSchemaUrl() {
+    return schemaUrl;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof OtelInstrumentationScope)) {

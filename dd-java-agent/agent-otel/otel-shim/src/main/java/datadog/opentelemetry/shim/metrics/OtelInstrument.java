@@ -8,6 +8,10 @@ abstract class OtelInstrument {
     this.descriptor = descriptor;
   }
 
+  public final OtelInstrumentDescriptor getDescriptor() {
+    return descriptor;
+  }
+
   @Override
   public final boolean equals(Object o) {
     if (!(o instanceof OtelInstrument)) {

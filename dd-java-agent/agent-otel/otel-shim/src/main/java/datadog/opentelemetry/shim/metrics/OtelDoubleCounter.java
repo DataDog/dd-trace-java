@@ -5,17 +5,22 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounter;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
 import io.opentelemetry.api.metrics.ObservableDoubleCounter;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.context.Context;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
+import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
+  private static final RatelimitedLogger log =
+      new RatelimitedLogger(LoggerFactory.getLogger(OtelDoubleCounter.class), 5, TimeUnit.MINUTES);
 
   OtelDoubleCounter(OtelInstrumentDescriptor descriptor) {
     super(descriptor);
@@ -33,7 +38,14 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
 
   @Override
   public void add(double value, Attributes attributes, Context context) {
-    // FIXME: implement recording
+    if (value < 0) {
+      log.warn(
+          "Counters can only increase. Instrument "
+              + getDescriptor().getName()
+              + " has recorded a negative value.");
+    } else {
+      // FIXME: implement recording
+    }
   }
 
   static final class Builder implements DoubleCounterBuilder {
