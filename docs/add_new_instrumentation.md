@@ -41,7 +41,10 @@ include ':dd-java-agent:instrumentation:google-http-client'
    like `datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientInstrumentation` (
    see [Naming](./how_instrumentations_work.md#naming))
 4. Include the required `@AutoService(InstrumenterModule.class) `annotation.
-5. Choose `InstrumenterModule.Tracing` as the parent class.
+5. Choose an appropriate parent class for the instrumentation:
+   - `InstrumenterModule.Tracing` for tracing instrumentations (most common)
+   - `InstrumenterModule.ContextTracking` for context propagation only (without creating spans)
+   - Other target systems as appropriate (see [Instrumentation classes](./how_instrumentations_work.md#instrumentation-classes))
 6. Since this instrumentation class will only modify one specific type, it can implement
    the `Instrumenter.ForSingleType `interface which provides the `instrumentedType()` method. (
    see [Type Matching](./how_instrumentations_work.md#type-matching))
@@ -95,6 +98,24 @@ public void adviceTransformations(AdviceTransformation transformation) {
     );
 }
 ```
+
+### Applying Multiple Advices (Advanced)
+
+If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvice()`:
+
+```java
+public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+            named("service")
+                    .and(takesArgument(0, named("org.apache.coyote.Request")))
+                    .and(takesArgument(1, named("org.apache.coyote.Response"))),
+            getClass().getName() + "$ContextTrackingAdvice",  // Applied first
+            getClass().getName() + "$ServiceAdvice"           // Applied second
+    );
+}
+```
+
+When applying multiple advices, consider using the `@AppliesOn` annotation to control which target systems each advice applies to. This allows different advices to run for different target systems (e.g., one for `CONTEXT_TRACKING`, another for `TRACING`). See the [@AppliesOn section](./how_instrumentations_work.md#applieson-annotation) for more details.
 
 ## Add the HeadersInjectAdapter
 
@@ -282,6 +303,61 @@ public static class GoogleHttpClientAdvice {
     }
 }
 ```
+
+### Using @AppliesOn for Target System Control (Advanced)
+
+If your instrumentation needs to apply different advices for different target systems, use the `@AppliesOn` annotation. This annotation allows you to specify which target systems an advice class should run for, independent of the InstrumenterModule's target system.
+
+For example, if your module extends `InstrumenterModule.Tracing` but you want one advice to only run for context tracking:
+
+```java
+import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
+
+@AppliesOn(targetSystems = TargetSystem.CONTEXT_TRACKING)
+public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void extractParent(
+            @Advice.Argument(0) Request request,
+            @Advice.Local("parentScope") ContextScope parentScope) {
+        // This advice only runs when CONTEXT_TRACKING is enabled
+        final Context parentContext = DECORATE.extract(request);
+        parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
+        scope.close();
+    }
+}
+
+// This advice runs when TRACING is enabled (inherited from the module)
+public static class TracingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) Request request) {
+        // Tracing-specific logic
+    }
+}
+```
+
+Then apply both advices:
+
+```java
+public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+            named("service"),
+            getClass().getName() + "$ContextTrackingAdvice",  // Only for CONTEXT_TRACKING
+            getClass().getName() + "$TracingAdvice"           // Only for TRACING
+    );
+}
+```
+
+This approach is useful when:
+- You want to separate context propagation logic from tracing logic
+- Different target systems need different instrumentation behaviors
+- You're migrating from a tracing-only instrumentation to support multiple target systems
+
+See [how_instrumentations_work.md](./how_instrumentations_work.md#applieson-annotation) for more details.
 
 ## Debugging
 
