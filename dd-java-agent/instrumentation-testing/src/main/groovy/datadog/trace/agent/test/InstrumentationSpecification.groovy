@@ -15,7 +15,8 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
+import datadog.metrics.statsd.StatsDClient
 import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
@@ -28,7 +29,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
