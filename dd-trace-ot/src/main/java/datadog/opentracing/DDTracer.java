@@ -5,10 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
 import datadog.context.propagation.CarrierSetter;
+import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
