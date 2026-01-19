@@ -16,7 +16,11 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelDoubleGauge implements DoubleGauge {
+final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
+
+  OtelDoubleGauge(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void set(double value) {
@@ -59,7 +63,7 @@ final class OtelDoubleGauge implements DoubleGauge {
 
     @Override
     public DoubleGauge build() {
-      return new OtelDoubleGauge();
+      return new OtelDoubleGauge(instrumentBuilder.toDescriptor());
     }
 
     @Override

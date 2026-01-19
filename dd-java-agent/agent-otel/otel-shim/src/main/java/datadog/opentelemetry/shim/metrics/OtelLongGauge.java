@@ -15,7 +15,11 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelLongGauge implements LongGauge {
+final class OtelLongGauge extends OtelInstrument implements LongGauge {
+
+  OtelLongGauge(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void set(long value) {
@@ -53,7 +57,7 @@ final class OtelLongGauge implements LongGauge {
 
     @Override
     public LongGauge build() {
-      return new OtelLongGauge();
+      return new OtelLongGauge(instrumentBuilder.toDescriptor());
     }
 
     @Override

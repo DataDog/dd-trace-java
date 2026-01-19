@@ -15,7 +15,11 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelDoubleUpDownCounter implements DoubleUpDownCounter {
+final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDownCounter {
+
+  OtelDoubleUpDownCounter(OtelInstrumentDescriptor descriptor) {
+    super(descriptor);
+  }
 
   @Override
   public void add(double value) {
@@ -53,7 +57,7 @@ final class OtelDoubleUpDownCounter implements DoubleUpDownCounter {
 
     @Override
     public DoubleUpDownCounter build() {
-      return new OtelDoubleUpDownCounter();
+      return new OtelDoubleUpDownCounter(instrumentBuilder.toDescriptor());
     }
 
     @Override

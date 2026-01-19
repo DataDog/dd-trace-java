@@ -36,4 +36,15 @@ public final class OtelInstrumentationScope {
     result = 31 * result + Objects.hashCode(schemaUrl);
     return result;
   }
+
+  @Override
+  public String toString() {
+    // use same property names as OTel in toString
+    return "OtelInstrumentationScope{"
+        + "name='"
+        + scopeName
+        + (scopeVersion != null ? "', version='" + scopeVersion : "")
+        + (schemaUrl != null ? "', schemaUrl='" + schemaUrl : "")
+        + "'}";
+  }
 }
