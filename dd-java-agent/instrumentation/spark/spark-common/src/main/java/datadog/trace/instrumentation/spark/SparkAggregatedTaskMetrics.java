@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Histogram;
-import datadog.metrics.histogram.Histograms;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.nio.ByteBuffer;
@@ -265,7 +265,9 @@ class SparkAggregatedTaskMetrics {
       if (value != 0) {
         // All the callbacks in DatadogSparkListener are called from the same thread, meaning we
         // don't risk to lose values by creating the histogram this way
-        hist = Histograms.newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+        hist =
+            AgentMeter.histograms()
+                .newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
         if (taskCompletedCount > 1) {
           // Filling all the previous 0s that we might have missed
           hist.accept(0, taskCompletedCount - 1);

@@ -4,7 +4,6 @@ import static datadog.metrics.api.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.metrics.histogram.Histograms;
 import datadog.metrics.statsd.StatsDClient;
 
 /**
@@ -35,7 +34,7 @@ public class Timer extends Recording {
     this.name = name;
     this.statsd = statsd;
     this.flushAfterNanos = flushAfterNanos;
-    this.histogram = Histograms.newHistogram();
+    this.histogram = DDSketchHistograms.INSTANCE.newHistogram();
     this.p50Tags = mergeTags(P_50, tags);
     this.p99Tags = mergeTags(P_99, tags);
     this.maxTags = mergeTags(MAX, tags);

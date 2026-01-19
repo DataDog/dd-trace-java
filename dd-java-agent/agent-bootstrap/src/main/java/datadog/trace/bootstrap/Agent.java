@@ -663,6 +663,7 @@ public class Agent {
         throw new UndeclaredThrowableException(e);
       }
 
+      installDatadogMeter(initTelemetry);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -793,6 +794,35 @@ public class Agent {
         StaticEventLogger.end("BytebuddyAgent");
       }
     }
+  }
+
+  private static synchronized void installDatadogMeter(InitializationTelemetry initTelemetry) {
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+
+    StaticEventLogger.begin("AgentMeter");
+    try {
+      AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MeterInstaller");
+    } catch (ClassNotFoundException e) {
+      log.error("Error loading DatadogMeter", e);
+    }
+
+    try {
+      // Install AgentMeter, StatsDClient and Monitoring
+      final Class<?> tracerInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MeterInstaller");
+      final Method installMeterMethod = tracerInstallerClass.getMethod("installMeter");
+      installMeterMethod.invoke(null);
+    } catch (final FatalAgentMisconfigurationError ex) {
+      throw ex;
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Datadog meter", ex);
+
+      initTelemetry.onFatalError(ex);
+    }
+
+    StaticEventLogger.end("AgentMeter");
   }
 
   private static synchronized void installDatadogTracer(

@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics;
 
+import datadog.metrics.api.DDSketchHistograms;
 import datadog.metrics.api.Histogram;
-import datadog.metrics.histogram.Histograms;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicLongArray;
 
@@ -22,8 +22,8 @@ public final class AggregateMetric {
   private long duration;
 
   public AggregateMetric() {
-    okLatencies = Histograms.newHistogram();
-    errorLatencies = Histograms.newHistogram();
+    okLatencies = DDSketchHistograms.INSTANCE.newHistogram();
+    errorLatencies = DDSketchHistograms.INSTANCE.newHistogram();
   }
 
   public AggregateMetric recordDurations(int count, AtomicLongArray durations) {

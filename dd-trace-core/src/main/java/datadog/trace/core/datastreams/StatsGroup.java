@@ -1,7 +1,7 @@
 package datadog.trace.core.datastreams;
 
+import datadog.metrics.api.DDSketchHistograms;
 import datadog.metrics.api.Histogram;
-import datadog.metrics.histogram.Histograms;
 import datadog.trace.api.datastreams.DataStreamsTags;
 
 public class StatsGroup {
@@ -18,9 +18,9 @@ public class StatsGroup {
     this.tags = tags;
     this.hash = hash;
     this.parentHash = parentHash;
-    pathwayLatency = Histograms.newLogHistogram();
-    edgeLatency = Histograms.newLogHistogram();
-    payloadSize = Histograms.newLogHistogram();
+    this.pathwayLatency = DDSketchHistograms.INSTANCE.newLogHistogram();
+    this.edgeLatency = DDSketchHistograms.INSTANCE.newLogHistogram();
+    this.payloadSize = DDSketchHistograms.INSTANCE.newLogHistogram();
   }
 
   public void add(long pathwayLatencyNano, long edgeLatencyNano, long payloadSizeBytes) {

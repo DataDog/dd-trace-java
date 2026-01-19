@@ -1,10 +1,10 @@
-package datadog.metrics.histogram;
+package datadog.metrics.api;
 
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import java.nio.ByteBuffer;
 
 /** Wrapper around the DDSketch library so that it can be used in an instrumentation */
-public class DDSketchHistogram implements datadog.metrics.api.Histogram {
+public class DDSketchHistogram implements Histogram {
   private final DDSketch sketch;
 
   public DDSketchHistogram(DDSketch sketch) {

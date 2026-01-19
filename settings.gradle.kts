@@ -106,6 +106,7 @@ include(
   ":components:environment",
   ":components:json",
   ":components:native-loader",
+  ":products:metrics:agent",
   ":products:metrics:api",
   ":products:metrics:lib",
   ":telemetry",
