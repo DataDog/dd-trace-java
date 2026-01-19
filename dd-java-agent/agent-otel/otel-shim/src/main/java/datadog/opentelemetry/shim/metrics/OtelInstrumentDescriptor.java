@@ -25,6 +25,20 @@ final class OtelInstrumentDescriptor {
     this.unit = unit;
   }
 
+  public String getName() {
+    return instrumentName;
+  }
+
+  @Nullable
+  public String getDescription() {
+    return description;
+  }
+
+  @Nullable
+  public String getUnit() {
+    return unit;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof OtelInstrumentDescriptor)) {
