@@ -2,13 +2,13 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
+import datadog.metrics.statsd.StatsDClient
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism

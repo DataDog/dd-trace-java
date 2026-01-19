@@ -1,7 +1,7 @@
 package com.datadog.appsec
 
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config

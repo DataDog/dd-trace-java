@@ -6,7 +6,7 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product

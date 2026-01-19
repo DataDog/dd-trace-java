@@ -5,7 +5,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
