@@ -6,10 +6,10 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic.yml'
-    ref: 'sarahchen6/run-java-microbenchmarks'
+    ref: 'sarahchen6/migrate-java-microbenchmarks'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-insecure-bank.yml'
-    ref: 'sarahchen6/run-java-microbenchmarks'
+    ref: 'sarahchen6/migrate-java-microbenchmarks'
 
 stages:
   - build
