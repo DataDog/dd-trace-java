@@ -241,6 +241,9 @@ class SecurityResponseIdSmokeTest extends AbstractAppSecServerSmokeTest {
 
     // Verify security_response_id was NOT added to the URL
     assert !location.contains('security_response_id'), "security_response_id should not be added when placeholder is not present: ${location}"
+
+    and: 'wait for the trace to be collected'
+    waitForTraceCount(1) == 1
   }
 
   void 'test security_response_id format is consistent across requests'() {
@@ -284,6 +287,9 @@ class SecurityResponseIdSmokeTest extends AbstractAppSecServerSmokeTest {
     and: 'both follow UUID v4 format'
     UUID_PATTERN.matcher(securityResponseId1).matches()
     UUID_PATTERN.matcher(securityResponseId2).matches()
+
+    and: 'wait for both traces to be collected'
+    waitForTraceCount(2) == 2
   }
 
   void 'test security_response_id is not present in trace when request is not blocked'() {
@@ -308,13 +314,11 @@ class SecurityResponseIdSmokeTest extends AbstractAppSecServerSmokeTest {
     response.code() == 200
 
     when: 'waiting for traces'
-    waitForTraceCount(1)
+    waitForTraceCount(1) == 1
 
     then: 'the trace does not contain security_response_id in _dd.appsec.json'
-    def spans = rootSpans.toList()
-    // Find the span for the custom-headers endpoint (not greeting which other tests use)
-    def normalSpan = spans.find { it.meta?.get('http.route') == '/custom-headers' }
-    assert normalSpan != null, "Root span for /custom-headers endpoint not found in trace. Available spans: ${spans.collect { it.meta?.get('http.route') }}"
+    rootSpans.size() == 1
+    def normalSpan = rootSpans.first()
 
     // When the request is not blocked, there should be no triggers at all
     def appsecJson = normalSpan.meta?.'_dd.appsec.json'

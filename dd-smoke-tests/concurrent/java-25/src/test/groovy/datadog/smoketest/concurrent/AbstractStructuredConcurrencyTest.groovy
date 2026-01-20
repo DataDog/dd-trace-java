@@ -17,7 +17,9 @@ abstract class AbstractStructuredConcurrencyTest extends AbstractSmokeTest {
   ProcessBuilder createProcessBuilder() {
     def jarPath = System.getProperty("datadog.smoketest.shadowJar.path")
     def command = new ArrayList<String>()
-    command.add(Paths.get(System.getenv("JAVA_25_HOME"), "bin", "java").toString())
+
+    def javaHome = Paths.get(System.getenv("JAVA_HOME"), "bin", "java").toString()
+    command.add(javaHome)
     command.addAll(defaultJavaProperties)
     command.add("--enable-preview")
     command.add("-Ddd.trace.otel.enabled=true")

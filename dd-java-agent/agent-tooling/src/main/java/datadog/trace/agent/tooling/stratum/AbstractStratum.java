@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 public abstract class AbstractStratum {
   private String name;
