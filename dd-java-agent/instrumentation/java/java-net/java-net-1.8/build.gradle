@@ -10,7 +10,7 @@ apply plugin: 'dd-trace-java.call-site-instrumentation'
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testImplementation group: 'org.springframework', name: 'spring-web', version: '4.3.7.RELEASE'
 }
 

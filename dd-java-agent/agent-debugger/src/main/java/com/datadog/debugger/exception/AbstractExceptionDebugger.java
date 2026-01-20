@@ -192,6 +192,13 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       Snapshot snapshot, StackTraceElement[] innerTrace, int currentIdx) {
     String className = snapshot.getProbe().getLocation().getType();
     String methodName = snapshot.getProbe().getLocation().getMethod();
+    if (currentIdx < 0 || currentIdx >= innerTrace.length) {
+      LOGGER.warn(
+          "currentIdx={} out of bounds of innerTrace array length={}",
+          currentIdx,
+          innerTrace.length);
+      return false;
+    }
     if (!className.equals(innerTrace[currentIdx].getClassName())
         || !methodName.equals(innerTrace[currentIdx].getMethodName())) {
       LOGGER.warn("issue when assigning snapshot to frame: {} {}", className, methodName);

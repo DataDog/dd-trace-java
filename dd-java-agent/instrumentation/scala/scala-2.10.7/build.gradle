@@ -16,7 +16,7 @@ dependencies {
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
   testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 }
 
 final scalaVersions = [libs.scala211, libs.scala212, libs.scala213, libs.scala33]

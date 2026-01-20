@@ -53,5 +53,7 @@ idea {
 jmh {
   jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = providers.environmentVariable("JAVA_11_HOME").map { Paths.get(it, "bin", "java").toString() }
+  jvm = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(11) }.map {
+    it.executablePath.asFile.toString()
+  }
 }

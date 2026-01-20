@@ -63,6 +63,7 @@ dependencies {
   jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
+  jersey3JettyTestImplementation('jakarta.servlet:jakarta.servlet-api:6.0.0')
   jersey3JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   jersey3JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey3Version

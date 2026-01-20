@@ -2,20 +2,14 @@ package datadog.trace.instrumentation.hazelcast39;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.DEFAULT_ENABLED;
-import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -23,33 +17,12 @@ import net.bytebuddy.asm.Advice;
  *
  * <p>It is required because there is no getter for this value until 4.0.
  */
-@AutoService(InstrumenterModule.class)
-public class ClientMessageInstrumentation extends InstrumenterModule.Tracing
+public final class ClientMessageInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientMessageInstrumentation() {
-    super(INSTRUMENTATION_NAME);
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return DEFAULT_ENABLED;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".HazelcastConstants"};
-  }
 
   @Override
   public String instrumentedType() {
     return "com.hazelcast.client.impl.protocol.ClientMessage";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());
   }
 
   @Override

@@ -111,13 +111,22 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       mapper.reset();
       if (response.success()) {
         if (log.isDebugEnabled()) {
-          log.debug("Successfully sent {} traces to the API", messageCount);
+          log.debug(
+              "Successfully sent {} traces of size {} bytes to the API {}",
+              messageCount,
+              sizeInBytes,
+              mapper.endpoint());
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
         if (log.isDebugEnabled()) {
           log.debug(
-              "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);
+              "Failed to send {} traces of size {} bytes to the API {} status {} response {}",
+              messageCount,
+              sizeInBytes,
+              mapper.endpoint(),
+              response.status(),
+              response.response());
         }
         healthMetrics.onFailedSend(messageCount, sizeInBytes, response);
       }

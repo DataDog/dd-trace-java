@@ -15,5 +15,5 @@ muzzle {
 
 dependencies {
   compileOnly group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.0.0'
-  implementation project(':dd-java-agent:instrumentation:span-origin')
+  implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
 }
