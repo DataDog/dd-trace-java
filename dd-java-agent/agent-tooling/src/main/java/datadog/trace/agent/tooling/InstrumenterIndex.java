@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.disjoint;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 
@@ -152,10 +153,7 @@ final class InstrumenterIndex {
     }
     Set<InstrumenterModule.TargetSystem> adviceOverrides =
         memberAdviceTargetOverrides.get(adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
-    if (null == adviceOverrides || !adviceOverrides.contains(targetSystems)) {
-      return true;
-    }
-    return false;
+    return null == adviceOverrides || !disjoint(adviceOverrides, targetSystems);
   }
 
   /** Resets the iteration to the start of the index. */
@@ -206,6 +204,8 @@ final class InstrumenterIndex {
         modules[instrumentationId] = module;
       }
       return module;
+    } else {
+      log.debug("Skipping module {} as it is excluded", moduleName);
     }
     return null;
   }
@@ -274,7 +274,7 @@ final class InstrumenterIndex {
   }
 
   private short readShort() {
-    return (short) ((packedNames[nameIndex++] << 8) + (packedNames[nameIndex++]));
+    return (short) ((packedNames[nameIndex++] << 8) + (packedNames[nameIndex++] & 0xFF));
   }
 
   public static InstrumenterIndex readIndex() {

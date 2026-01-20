@@ -22,7 +22,7 @@ class InstrumenterIndexTest extends DDSpecification {
     index.instrumentationId(unknownInstrumentation) == -1
     index.transformationId(unknownTransformation) == -1
 
-    def moduleIterator = index.modules().iterator()
+    def moduleIterator = index.modules(InstrumenterModuleFilter.ALL_MODULES).iterator()
 
     moduleIterator.hasNext()
 

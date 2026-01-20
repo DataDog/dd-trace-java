@@ -34,6 +34,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builds {@link InstrumenterModule}s into a single combining-matcher and splitting-transformer.
@@ -50,6 +52,7 @@ public final class CombiningTransformerBuilder
       not(
           declaresAnnotation(
               namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
+  private static final Logger log = LoggerFactory.getLogger(CombiningTransformerBuilder.class);
 
   /** Associates context stores with the class-loader matchers to activate them. */
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
@@ -262,13 +265,18 @@ public final class CombiningTransformerBuilder
     } else {
       forAdvice = forAdvice.include(adviceLoader);
     }
+
     if (instrumenterIndex.isAdviceEnabled(adviceClass, enabledSystems)) {
       forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass);
+    } else {
+      log.debug("Skipping advice class {} as it is not enabled", adviceClass);
     }
     if (additionalAdviceClasses != null) {
       for (String adviceClassName : additionalAdviceClasses) {
         if (instrumenterIndex.isAdviceEnabled(adviceClassName, enabledSystems)) {
           forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName);
+        } else {
+          log.debug("Skipping advice class {} as it is not enabled", adviceClass);
         }
       }
     }
