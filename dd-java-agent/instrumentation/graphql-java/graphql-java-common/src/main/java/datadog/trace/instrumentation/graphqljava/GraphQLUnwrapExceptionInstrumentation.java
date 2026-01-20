@@ -1,36 +1,25 @@
-package datadog.trace.instrumentation.graphqljava14;
+package datadog.trace.instrumentation.graphqljava;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.instrumentation.graphqljava.AsyncExceptionUnwrapper;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class DataFetcherExceptionHandlerParametersInstrumentation extends InstrumenterModule.Tracing
+public class GraphQLUnwrapExceptionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public DataFetcherExceptionHandlerParametersInstrumentation() {
+  public GraphQLUnwrapExceptionInstrumentation() {
     super("graphql-java");
   }
 
   @Override
   public String instrumentedType() {
     return "graphql.execution.DataFetcherExceptionHandlerParameters";
-  }
-
-  // Safeguard copied from GraphQLJavaInstrumentation.java
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // introduced in 20.0
-    return not(hasClassNamed("graphql.execution.instrumentation.SimplePerformantInstrumentation"));
   }
 
   @Override
