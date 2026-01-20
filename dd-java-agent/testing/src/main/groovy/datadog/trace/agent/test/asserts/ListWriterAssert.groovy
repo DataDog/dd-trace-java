@@ -141,7 +141,7 @@ class ListWriterAssert {
 
     long traceStart(List<DDSpan> trace) {
       assert !trace.isEmpty()
-      return trace.get(0).localRootSpan.startTime
+      return trace.get(0).getLocalRootSpan().startTime
     }
   }
 
