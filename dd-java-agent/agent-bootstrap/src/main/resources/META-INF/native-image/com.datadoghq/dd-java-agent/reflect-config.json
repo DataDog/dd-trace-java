@@ -85,6 +85,10 @@
     "allPublicFields" : true
   },
   {
+    "name" : "datadog.trace.api.datastreams.DataStreamsTransactionExtractor$Type",
+    "allDeclaredFields" : true
+  },
+  {
     "name" : "datadog.trace.agent.core.datastreams.DataStreamsTransactionExtractors$DataStreamsTransactionExtractorsAdapter",
     "methods": [
       {"name": "fromJson"},
