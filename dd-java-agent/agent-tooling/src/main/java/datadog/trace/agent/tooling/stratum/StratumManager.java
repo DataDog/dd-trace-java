@@ -1,11 +1,10 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
-import datadog.trace.agent.tooling.iast.stratum.parser.Parser;
-import datadog.trace.api.Config;
-import datadog.trace.api.iast.telemetry.IastMetric;
-import datadog.trace.api.iast.telemetry.IastMetricCollector;
+import datadog.trace.agent.tooling.stratum.parser.Parser;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntConsumer;
 import net.bytebuddy.utility.OpenedClassReader;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -20,21 +19,21 @@ public class StratumManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumManager.class);
 
+  private static volatile StratumManager INSTANCE;
+
   private final LimitedConcurrentHashMap map;
 
-  public static final StratumManager INSTANCE =
-      new StratumManager(Config.get().getIastSourceMappingMaxSize());
-
-  private StratumManager(int sourceMappingLimit) {
-    // Prevent instantiation
-    this.map = new LimitedConcurrentHashMap(sourceMappingLimit);
+  public static StratumManager init(int sourceMappingLimit, IntConsumer limitReachedCallback) {
+    INSTANCE = new StratumManager(sourceMappingLimit, limitReachedCallback);
+    return INSTANCE;
   }
 
-  public static boolean shouldBeAnalyzed(final String internalClassName) {
-    return internalClassName.contains("jsp")
-        && (internalClassName.contains("_jsp")
-            || internalClassName.contains("jsp_")
-            || internalClassName.contains("_tag"));
+  public static StratumManager getInstance() {
+    return INSTANCE;
+  }
+
+  private StratumManager(int sourceMappingLimit, IntConsumer limitReachedCallback) {
+    this.map = new LimitedConcurrentHashMap(sourceMappingLimit, limitReachedCallback);
   }
 
   public void analyzeClass(final byte[] bytes) {
@@ -53,9 +52,9 @@ public class StratumManager {
 
   private SourceMap getResolvedSmap(final String smap) {
     try {
-      SourceMap[] sourceMaps = new Parser().parse(smap);
+      List<SourceMap> sourceMaps = Parser.parse(smap);
 
-      SourceMap result = new Resolver().resolve(sourceMaps[0]);
+      SourceMap result = Resolver.resolve(sourceMaps.get(0));
       // clean result object to minimize memory usage
       result
           .getStratumList()
@@ -117,11 +116,13 @@ public class StratumManager {
 
   static class LimitedConcurrentHashMap {
     private final int maxSize;
+    private final IntConsumer limitReachedCallback;
     private volatile boolean limitReached = false;
     private final Map<String, StratumExt> map = new ConcurrentHashMap<>();
 
-    public LimitedConcurrentHashMap(int maxSize) {
+    public LimitedConcurrentHashMap(int maxSize, IntConsumer limitReachedCallback) {
       this.maxSize = maxSize;
+      this.limitReachedCallback = limitReachedCallback;
     }
 
     public void put(String className, StratumExt value) {
@@ -131,7 +132,7 @@ public class StratumManager {
         }
         map.put(className, value);
         if (this.size() >= maxSize) {
-          IastMetricCollector.add(IastMetric.SOURCE_MAPPING_LIMIT_REACHED, 1);
+          limitReachedCallback.accept(maxSize);
           limitReached = true;
         }
       }

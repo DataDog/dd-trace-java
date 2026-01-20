@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 /**
  * The line section associates line numbers in the output source with line numbers and source names
@@ -16,24 +16,24 @@ package datadog.trace.agent.tooling.iast.stratum;
  * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
 public class LineInfo {
-  private int fileId;
+  private String fileId;
 
-  int inputStartLine;
+  final int inputStartLine;
 
-  int repeatCount;
+  final int repeatCount;
 
-  int outputStartLine;
+  final int outputStartLine;
 
-  int outputLineIncrement;
+  final int outputLineIncrement;
 
   private FileInfo fileInfo;
 
   public LineInfo(
-      final int fileId,
-      final int inputStartLine,
-      final int repeatCount,
-      final int outputStartLine,
-      final int outputLineIncrement) {
+      String fileId,
+      int inputStartLine,
+      int repeatCount,
+      int outputStartLine,
+      int outputLineIncrement) {
     this.fileId = fileId;
     fileInfo = null;
     this.inputStartLine = inputStartLine;
@@ -43,12 +43,11 @@ public class LineInfo {
   }
 
   public LineInfo(
-      final FileInfo fileInfo,
-      final int inputStartLine,
-      final int repeatCount,
-      final int outputStartLine,
-      final int outputLineIncrement) {
-    fileId = -1;
+      FileInfo fileInfo,
+      int inputStartLine,
+      int repeatCount,
+      int outputStartLine,
+      int outputLineIncrement) {
     this.fileInfo = fileInfo;
     this.inputStartLine = inputStartLine;
     this.repeatCount = repeatCount;
@@ -56,7 +55,7 @@ public class LineInfo {
     this.outputLineIncrement = outputLineIncrement;
   }
 
-  public int getFileId() {
+  public String getFileId() {
     return fileId;
   }
 
