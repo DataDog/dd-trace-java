@@ -20,6 +20,7 @@ final class CachedData {
       exclude(project(':components:environment'))
       exclude(project(':components:json'))
       exclude(project(':products:feature-flagging:bootstrap'))
+      exclude(project(':products:metrics:agent'))
       exclude(project(':products:metrics:api'))
       exclude(project(':products:metrics:lib'))
       exclude(project(':remote-config:remote-config-api'))
@@ -49,6 +50,9 @@ final class CachedData {
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
+
+      // Metrics histogram implementation
+      exclude(dependency('com.datadoghq:sketches-java'))
 
       // javac plugin client
       exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
