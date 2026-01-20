@@ -42,7 +42,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
-  private static final boolean APPSEC_RASP_ENABLED = InstrumenterConfig.get().isAppSecRaspEnabled();
+  private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
 
   protected abstract String method(REQUEST request);
 

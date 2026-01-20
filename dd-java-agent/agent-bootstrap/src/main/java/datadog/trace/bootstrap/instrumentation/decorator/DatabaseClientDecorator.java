@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -124,7 +123,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    * exposed because it may contain sensitive data.
    */
   public void onRawStatement(AgentSpan span, String sql) {
-    if (InstrumenterConfig.get().isAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
+    if (Config.get().isAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
       BiFunction<RequestContext, String, Flow<Void>> sqlQueryCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
@@ -152,7 +151,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     span.setTag(DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
-    if (InstrumenterConfig.get().isAppSecRaspEnabled() && dbType != null) {
+    if (Config.get().isAppSecRaspEnabled() && dbType != null) {
       BiConsumer<RequestContext, String> connectDbCallback =
           AgentTracer.get()
               .getCallbackProvider(RequestContextSlot.APPSEC)
