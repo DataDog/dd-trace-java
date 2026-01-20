@@ -1,10 +1,10 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 import java.util.Iterator;
 import java.util.List;
 
 public class Resolver {
-  public SourceMap resolve(final SourceMap sourceMap) {
+  public static SourceMap resolve(final SourceMap sourceMap) {
     for (EmbeddedStratum stratum : sourceMap.getEmbeddedStratumList()) {
       StratumExt outerStratum = sourceMap.getStratum(stratum.getName());
       if (outerStratum != null) {
@@ -26,13 +26,13 @@ public class Resolver {
     return sourceMap;
   }
 
-  private void resolve(final Context context) {
+  private static void resolve(final Context context) {
     for (LineInfo eli : context.embeddedStratum.getLineInfo()) {
       resolve(context, eli);
     }
   }
 
-  private void resolve(final Context context, final LineInfo eli) {
+  private static void resolve(final Context context, final LineInfo eli) {
     Iterator<LineInfo> iter;
     if (eli.getRepeatCount() > 0) {
       for (iter = context.outerStratum.getLineInfo().iterator(); iter.hasNext(); ) {
@@ -106,7 +106,7 @@ public class Resolver {
     }
   }
 
-  private FileInfo getByPath(final List<FileInfo> list, final String filePath) {
+  private static FileInfo getByPath(final List<FileInfo> list, final String filePath) {
     for (FileInfo fileInfo : list) {
       if (fileInfo.getInputFilePath().compareTo(filePath) == 0) {
         return fileInfo;
@@ -115,7 +115,7 @@ public class Resolver {
     return null;
   }
 
-  private class Context {
+  private static class Context {
 
     StratumExt outerStratum;
 

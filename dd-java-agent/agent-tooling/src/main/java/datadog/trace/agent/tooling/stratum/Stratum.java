@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.api.Pair;
 
@@ -9,8 +9,8 @@ public interface Stratum {
    *
    * @param outputLineNumber the class line number
    */
-  Pair<Integer, Integer> getInputLine(final int outputLineNumber);
+  Pair<String, Integer> getInputLine(int outputLineNumber);
 
   /** Returns the source file for the given file id. */
-  String getSourceFile(final int fileId);
+  String getSourceFile(String fileId);
 }

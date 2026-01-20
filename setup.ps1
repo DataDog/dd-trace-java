@@ -8,44 +8,90 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Check for required JDKs
-function TestJvm {
-  param ($JavaHomeName, $ExpectedJavaVersion)
+function Get-JavaMajorVersion {
+  param ($javaCommand)
 
-  if (-not (Test-Path "env:$JavaHomeName")) {
-    Write-Host "❌ $JavaHomeName is not set. Please set $JavaHomeName to refer to a JDK $ExpectedJavaVersion installation." -ForegroundColor Red
+  try {
+    $ErrorActionPreference = 'Continue'
+    $javaVersionOutput = & $javaCommand -version 2>&1
+  }
+  catch {
+    return $null
+  }
+  finally {
+    $ErrorActionPreference = 'Stop'
+  }
+
+  # Extract version from output like 'version "21.0.1"' or 'version "1.8.0_392"'
+  if ($javaVersionOutput[0] -match 'version "1\.(\d+)') {
+    # Old versioning scheme (Java 8 and earlier): 1.X.Y_Z -> major version is X
+    return [int]$matches[1]
+  }
+  elseif ($javaVersionOutput[0] -match 'version "(\d+)') {
+    # New versioning scheme (Java 9+): X.Y.Z -> major version is X
+    return [int]$matches[1]
+  }
+
+  return $null
+}
+
+function Test-Jdk {
+  param ($javaCommand, $minJavaVersion)
+
+  $javaVersion = Get-JavaMajorVersion $javaCommand
+
+  if ($null -eq $javaVersion) {
+    Write-Host "❌ Could not determine Java version from $javaCommand." -ForegroundColor Red
     exit 1
   }
+  elseif ($javaVersion -lt $minJavaVersion) {
+    Write-Host "🟨 $javaCommand refers to JDK $javaVersion but JDK $minJavaVersion or above is recommended."
+  }
   else {
-    $javaHome = Get-Item "env:$JavaHomeName" | Select-Object -ExpandProperty Value
-
-    try {
-      # try to handle differences between PowerShell 7 and Windows PowerShell 5
-      $ErrorActionPreference = 'Continue'
-      $javaVersionOutput = & "$javaHome\bin\java.exe" -version 2>&1
-    }
-    catch {
-      Write-Host "❌ Error running `"$javaHome\bin\java.exe -version`". Please check that $JavaHomeName is set to a JDK $ExpectedJavaVersion installation."
-      exit 1
-    }
-    finally {
-      $ErrorActionPreference = 'Stop'
-    }
-
-    if ($javaVersionOutput[0] -notmatch "version `"$ExpectedJavaVersion") {
-      Write-Host "❌ $JavaHomeName is set to $javaHome, but it does not refer to a JDK $ExpectedJavaVersion installation." -ForegroundColor Red
-      exit 1
-    }
-    else {
-      Write-Host "✅ $JavaHomeName is set to $javaHome."
-    }
+    Write-Host "✅ $javaCommand is set to JDK $javaVersion."
   }
 }
 
-Write-Host 'ℹ️ Checking required JVM:'
-if (Test-Path 'env:JAVA_HOME') {
-  TestJvm 'JAVA_HOME' '21'
+function Show-AvailableJdks {
+  try {
+    $ErrorActionPreference = 'Continue'
+    $javaToolchainsOutput = & .\gradlew.bat -q javaToolchains 2>&1
+
+    $jdkName = ''
+    foreach ($line in $javaToolchainsOutput) {
+      if ($line -match '^ \+ (.+)$') {
+        $jdkName = $matches[1]
+      }
+      elseif ($line -match '^\s+\| Location:\s+(.+)$') {
+        if ($jdkName) {
+          Write-Host "✅ $jdkName from $($matches[1])."
+          $jdkName = ''
+        }
+      }
+    }
+  }
+  catch {
+    Write-Host "⚠️ Could not retrieve available JDKs from Gradle."
+  }
+  finally {
+    $ErrorActionPreference = 'Stop'
+  }
 }
-Write-Host 'ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver.'
+
+Write-Host 'ℹ️ Checking JDK:'
+if (Test-Path 'env:JAVA_HOME') {
+  $javaHome = Get-Item 'env:JAVA_HOME' | Select-Object -ExpandProperty Value
+  Test-Jdk "$javaHome\bin\java.exe" 21
+}
+elseif (Get-Command java -ErrorAction SilentlyContinue) {
+  Test-Jdk 'java' 21
+}
+else {
+  Write-Host "❌ No Java installation found. Please install JDK 21 or above." -ForegroundColor Red
+  exit 1
+}
+Write-Host 'ℹ️ Checking other JDKs available for testing:'
+Show-AvailableJdks
 
 # Check for required commands (e.g., git, docker)
 function TestCommand {
