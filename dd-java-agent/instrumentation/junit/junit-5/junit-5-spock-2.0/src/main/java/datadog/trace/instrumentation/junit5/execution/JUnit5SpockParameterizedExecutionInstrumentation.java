@@ -32,7 +32,7 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

@@ -68,7 +68,6 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, [
       "JAVA_HOME"                         : JAVA_HOME,
       "GRADLE_OPTS"                       : "-javaagent:${AGENT_JAR}".toString(),
-      "DD_TRACE_DEBUG": "true",
       "DD_CIVISIBILITY_ENABLED"           : "true",
       "DD_CIVISIBILITY_AGENTLESS_ENABLED" : "true",
       "DD_CIVISIBILITY_AGENTLESS_URL"     : "${mockBackend.intakeUrl}".toString(),
@@ -77,7 +76,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"  : "false",
       "DD_API_KEY"                        : "dummy"
     ])
-    String[] command = ["./gradlew", "--no-daemon", "--debug"]
+    String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {
       command += "-Dorg.gradle.jvmargs=$gradleDaemonCmdLineParams".toString()
     }

@@ -23,7 +23,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityCoverageLinesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
   @Override

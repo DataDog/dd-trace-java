@@ -28,7 +28,7 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
 
   @Override
   public boolean isEnabled() {
-    return Config.get().getCiVisibilityTestOrder() != null;
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

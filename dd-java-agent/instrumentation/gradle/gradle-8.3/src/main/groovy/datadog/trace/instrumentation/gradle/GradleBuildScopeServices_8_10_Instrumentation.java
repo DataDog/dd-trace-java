@@ -43,7 +43,7 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

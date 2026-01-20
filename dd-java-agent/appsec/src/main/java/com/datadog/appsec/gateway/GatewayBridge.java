@@ -27,7 +27,6 @@ import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
 import datadog.trace.api.Config;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.appsec.HttpClientRequest;
@@ -382,7 +381,7 @@ public class GatewayBridge {
         httpClientRequestSubInfo = subInfo;
       }
       try {
-        final boolean raspActive = InstrumenterConfig.get().isAppSecRaspEnabled();
+        final boolean raspActive = Config.get().isAppSecRaspEnabled();
         GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_REQUEST : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
@@ -422,7 +421,7 @@ public class GatewayBridge {
         httpClientResponseSubInfo = subInfo;
       }
       try {
-        final boolean raspActive = InstrumenterConfig.get().isAppSecRaspEnabled();
+        final boolean raspActive = Config.get().isAppSecRaspEnabled();
         GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_RESPONSE : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {

@@ -22,7 +22,7 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
 
   @Override
   public boolean isEnabled() {
-    return Config.get().getCiVisibilityTestOrder() != null;
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

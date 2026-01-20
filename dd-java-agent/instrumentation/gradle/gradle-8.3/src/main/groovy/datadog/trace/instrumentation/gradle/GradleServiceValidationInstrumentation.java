@@ -38,7 +38,7 @@ public class GradleServiceValidationInstrumentation extends InstrumenterModule.C
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

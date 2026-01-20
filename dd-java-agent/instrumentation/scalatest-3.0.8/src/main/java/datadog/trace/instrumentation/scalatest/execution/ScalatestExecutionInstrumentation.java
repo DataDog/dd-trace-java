@@ -36,7 +36,7 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

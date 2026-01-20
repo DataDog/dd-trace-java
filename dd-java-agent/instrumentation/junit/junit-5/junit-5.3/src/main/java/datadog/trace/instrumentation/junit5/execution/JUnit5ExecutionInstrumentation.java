@@ -46,7 +46,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

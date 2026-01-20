@@ -34,8 +34,9 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public boolean isEnabled() {
-    return (Config.get().isCiVisibilityTestSkippingEnabled()
-        || Config.get().isCiVisibilityTestManagementEnabled());
+    return super.isEnabled()
+        && (Config.get().isCiVisibilityTestSkippingEnabled()
+            || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override

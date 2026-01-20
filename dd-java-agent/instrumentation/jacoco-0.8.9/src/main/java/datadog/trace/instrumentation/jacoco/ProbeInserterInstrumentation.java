@@ -35,7 +35,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityCoverageLinesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
   @Override

@@ -22,7 +22,7 @@ public class ScalatestForkInstrumentation extends InstrumenterModule.CiVisibilit
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityScalatestForkMonitorEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityScalatestForkMonitorEnabled();
   }
 
   @Override

@@ -39,7 +39,7 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

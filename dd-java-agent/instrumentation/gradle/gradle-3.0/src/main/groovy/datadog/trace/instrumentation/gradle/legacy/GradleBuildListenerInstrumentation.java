@@ -47,7 +47,7 @@ public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVis
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

@@ -23,8 +23,9 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()
-        || InstrumenterConfig.get().isAppLogsCollectionEnabled();
+    return super.isEnabled()
+        && (InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()
+            || InstrumenterConfig.get().isAppLogsCollectionEnabled());
   }
 
   @Override

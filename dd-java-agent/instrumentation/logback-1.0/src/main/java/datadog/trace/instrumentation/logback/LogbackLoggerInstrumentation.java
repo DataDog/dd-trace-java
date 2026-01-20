@@ -47,7 +47,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isAppLogsCollectionEnabled();
+    return super.isEnabled() && Config.get().isAppLogsCollectionEnabled();
   }
 
   @Override

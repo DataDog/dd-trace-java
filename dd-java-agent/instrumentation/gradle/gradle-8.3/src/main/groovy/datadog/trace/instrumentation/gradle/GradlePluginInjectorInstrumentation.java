@@ -41,7 +41,7 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
 
   @Override
   public boolean isEnabled() {
-    return Config.get().isCiVisibilityBuildInstrumentationEnabled();
+    return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override
