@@ -332,7 +332,7 @@ class TestHttpServer implements AutoCloseable {
       this.prefix = prefix.startsWith("/") ? prefix : "/" + prefix
     }
 
-    @CompileStatic // Groovy 4: workaround to avoid `groovy.lang.MissingMethodException`.
+    @CompileStatic
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       if (target.startsWith(prefix)) {
@@ -505,7 +505,7 @@ class TestHttpServer implements AutoCloseable {
       }
 
       void send(byte[] body) {
-        sendWithType(DEFAULT_TYPE, (byte[]) body) // Groovy 4 has stricter coercions rules.
+        sendWithType(DEFAULT_TYPE, (byte[]) body)
       }
 
       void sendWithType(String contentType, byte[] body) {

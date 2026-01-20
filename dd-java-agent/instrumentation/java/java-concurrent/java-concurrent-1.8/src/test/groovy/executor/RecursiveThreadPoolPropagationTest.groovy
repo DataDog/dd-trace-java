@@ -346,7 +346,7 @@ class RecursiveThreadPoolPropagationTest extends InstrumentationSpecification {
     List<DDSpan> trace = TEST_WRITER.get(0)
     assert trace.size() == depth
     for (DDSpan span : sortByDepth(trace)) {
-      orphanCount += span.checkRootSpan() ? 1 : 0
+      orphanCount += span.isRootSpan() ? 1 : 0
       assert String.valueOf(i++) == span.getOperationName()
     }
     assert orphanCount == 1

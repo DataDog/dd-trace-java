@@ -588,7 +588,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         byte[] fileDecoded = Base64.decoder.decode(it['target_files'][0]['raw'])
         byte[] newFile = new byte[fileDecoded.length + 1]
         System.arraycopy(fileDecoded, 0, newFile, 0, fileDecoded.length)
-        newFile[fileDecoded.length] = (byte) '\n' // Groovy 4 has strict coercion rules.
+        newFile[fileDecoded.length] = (byte) '\n'
         it['target_files'][0]['raw'] = Base64.encoder.encodeToString(newFile)
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = SLURPER.parse(targetDecoded)

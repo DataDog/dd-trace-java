@@ -279,14 +279,14 @@ class DDSpanTest extends DDCoreSpecification {
     new ExtractedContext(DDTraceId.ONE, 2, PrioritySampling.SAMPLER_DROP, "some-origin", propagationTagsFactory.empty(), DATADOG) | _
   }
 
-  def "checkRootSpan() in and not in the context of distributed tracing"() {
+  def "isRootSpan() in and not in the context of distributed tracing"() {
     setup:
     def root = tracer.buildSpan("root").asChildOf((AgentSpanContext) extractedContext).start()
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:
-    root.checkRootSpan() == isTraceRootSpan
-    !child.checkRootSpan()
+    root.isRootSpan() == isTraceRootSpan
+    !child.isRootSpan()
 
     cleanup:
     child.finish()

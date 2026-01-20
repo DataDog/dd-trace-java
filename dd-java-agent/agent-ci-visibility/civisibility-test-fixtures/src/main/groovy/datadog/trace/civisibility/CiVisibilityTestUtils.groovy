@@ -368,7 +368,7 @@ abstract class CiVisibilityTestUtils {
     return compiledPaths
   }
 
-  @CompileStatic // Workaround for Groovy 4 to not produce false-positive FindBugs warning `UPM_UNCALLED_PRIVATE_METHOD`.
+  @CompileStatic
   private static DynamicPath path(String rawPath, boolean unique = true) {
     return new DynamicPath(rawPath, JsonPath.compile(rawPath), unique)
   }

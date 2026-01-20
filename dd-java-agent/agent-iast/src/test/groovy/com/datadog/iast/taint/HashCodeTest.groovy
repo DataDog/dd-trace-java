@@ -52,7 +52,7 @@ class HashCodeTest extends DDSpecification {
     }
   }
 
-  @CompileStatic // Workaround to avoid NPE in Groovy 4 `org.codehaus.groovy.vmplugin.v8.IndyInterface.fromCache()` method.
+  @CompileStatic
   private static List<Integer> genHashCodes(final int n) {
     (1..n).collect {
       System.identityHashCode(Double.toString(Math.random()))

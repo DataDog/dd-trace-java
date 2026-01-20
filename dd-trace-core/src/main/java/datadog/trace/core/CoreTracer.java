@@ -1613,7 +1613,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         List<AgentSpanLink> links,
         DDSpanContext spanContext) {
       DDSpan span = DDSpan.create(instrumentationName, timestampMicro, spanContext, links);
-      if (span.checkLocalRootSpan()) {
+      if (span.isLocalRootSpan()) {
         EndpointTracker tracker = tracer.onRootSpanStarted(span);
         if (tracker != null) {
           span.setEndpointTracker(tracker);

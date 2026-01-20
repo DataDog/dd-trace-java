@@ -7,7 +7,7 @@ import groovy.transform.CompileStatic
 /**
  * Generate objects to test {@link TaintedMap}.
  */
-@CompileStatic // Workaround to avoid java.lang.AbstractMethodError with Groovy 4.
+@CompileStatic
 class ObjectGen {
 
   final int capacity
@@ -39,7 +39,6 @@ class ObjectGen {
     }
   }
 
-  // Have to return specific type to avoid java.lang.AbstractMethodError with Groovy 4.
   List<Object> genBucket(int nObjects, Closure<Boolean> isValid) {
     assert nObjects > 0
     while (true) {
