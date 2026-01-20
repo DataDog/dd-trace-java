@@ -3,14 +3,12 @@ package datadog.trace.api.datastreams;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class TransactionInfo implements InboxItem {
   private static final int MAX_ID_SIZE = 256;
-  private static final Map<String, Integer> CACHE = new HashMap<>();
-  private static final AtomicInteger COUNTER = new AtomicInteger();
+  private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
   private static byte[] CACHE_BYTES = new byte[0];
 
   private final String id;
@@ -20,7 +18,7 @@ public final class TransactionInfo implements InboxItem {
   public TransactionInfo(String id, long timestamp, String checkpoint) {
     this.id = id;
     this.timestamp = timestamp;
-    this.checkpointId = resolveCheckpointId(checkpoint);
+    this.checkpointId = CACHE.computeIfAbsent(checkpoint, k -> generateCheckpointId(checkpoint));
   }
 
   public String getId() {
@@ -35,32 +33,18 @@ public final class TransactionInfo implements InboxItem {
     return checkpointId;
   }
 
-  private int resolveCheckpointId(String checkpoint) {
-    // get the value and return, avoid locking
-    int id = CACHE.getOrDefault(checkpoint, -1);
-    if (id != -1) {
-      return id;
-    }
+  private int generateCheckpointId(String checkpoint) {
+    int id = CACHE.size() + 1;
 
-    // add a new value to cache
-    synchronized (CACHE) {
-      id = CACHE.getOrDefault(checkpoint, -1);
-      if (id != -1) {
-        return id;
-      }
+    // update cache bytes
+    byte[] checkpointBytes = checkpoint.getBytes();
+    int idx = CACHE_BYTES.length;
+    CACHE_BYTES = Arrays.copyOf(CACHE_BYTES, idx + 2 + checkpointBytes.length);
+    CACHE_BYTES[idx] = (byte) id;
+    CACHE_BYTES[idx + 1] = (byte) checkpointBytes.length;
+    System.arraycopy(checkpointBytes, 0, CACHE_BYTES, idx + 2, checkpointBytes.length);
 
-      id = CACHE.computeIfAbsent(checkpoint, k -> COUNTER.incrementAndGet());
-
-      // update cache bytes
-      byte[] checkpointBytes = checkpoint.getBytes();
-      int idx = CACHE_BYTES.length;
-      CACHE_BYTES = Arrays.copyOf(CACHE_BYTES, idx + 2 + checkpointBytes.length);
-      CACHE_BYTES[idx] = (byte) id;
-      CACHE_BYTES[idx + 1] = (byte) checkpointBytes.length;
-      System.arraycopy(checkpointBytes, 0, CACHE_BYTES, idx + 2, checkpointBytes.length);
-
-      return id;
-    }
+    return id;
   }
 
   public byte[] getBytes() {
@@ -82,7 +66,6 @@ public final class TransactionInfo implements InboxItem {
   static void resetCache() {
     synchronized (CACHE) {
       CACHE.clear();
-      COUNTER.set(0);
       CACHE_BYTES = new byte[0];
     }
   }
