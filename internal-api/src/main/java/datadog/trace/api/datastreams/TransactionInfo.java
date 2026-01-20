@@ -64,10 +64,8 @@ public final class TransactionInfo implements InboxItem {
 
   // @VisibleForTesting
   static void resetCache() {
-    synchronized (CACHE) {
-      CACHE.clear();
-      CACHE_BYTES = new byte[0];
-    }
+    CACHE.clear();
+    CACHE_BYTES = new byte[0];
   }
 
   public static byte[] getCheckpointIdCacheBytes() {
