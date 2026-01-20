@@ -9,7 +9,6 @@ plugins {
 description = "Metrics agent"
 
 apply(from = rootDir.resolve("gradle/java.gradle"))
-apply(from = "$rootDir/gradle/version.gradle")
 
 dependencies {
   api(project(":products:metrics:lib"))
