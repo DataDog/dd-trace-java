@@ -2673,7 +2673,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (!context.requestBodySupplier.is(supplier)) {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
       }
-      activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
+      activeSpan().getLocalRootSpan().setTag('request.body', supplier.get() as String)
       if (context.bodyEndBlock) {
         new RbaFlow(
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
