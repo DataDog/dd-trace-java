@@ -121,7 +121,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     public static void extractParent(
         @Advice.Argument(0) org.apache.coyote.Request req,
         @Advice.Local("parentScope") ContextScope parentScope) {
-      Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      Object existingCtx = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       if (existingCtx instanceof Context) {
         // Request already gone through initial processing, so just attach the context.
         parentScope = ((Context) existingCtx).attach();
@@ -144,6 +144,13 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     public static void onService(
         @Advice.Argument(0) org.apache.coyote.Request req,
         @Advice.Local("serverScope") ContextScope serverScope) {
+      Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingCtx instanceof Context) {
+        // Request already gone through initial processing, so just attach the context.
+        serverScope = ((Context) existingCtx).attach();
+        return;
+      }
+
       final Context context = DECORATE.startSpan(req, Java8BytecodeBridge.getCurrentContext());
       serverScope = context.attach();
 
