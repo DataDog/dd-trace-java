@@ -68,9 +68,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
         @Override
         CompletionStage<String> get(DataFetchingEnvironment environment) throws Exception {
           def future = new CompletableFuture<String>()
-          future.completeExceptionally(new CompletionException(
-          new CompletionException(new CompletionException(new IllegalStateException("ASYNC_TEST")))
-          ))
+          future.completeExceptionally(new CompletionException(new CompletionException(new IllegalStateException("ASYNC_TEST"))))
           return future
         }
       }))
@@ -610,8 +608,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
             "graphql.coordinates" "Book.asyncCover"
-            "error.type" "java.lang.IllegalStateException"
-            "error.message" "ASYNC_TEST"
+            "error.type" "java.util.concurrent.CompletionException"
+            "error.message" "java.lang.IllegalStateException: ASYNC_TEST"
             "error.stack" String
             defaultTags()
           }

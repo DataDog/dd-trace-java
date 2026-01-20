@@ -70,9 +70,7 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
           // Simulate the "async resolver failed" shape seen in the wild: nested CompletionException wrappers.
           // This avoids scheduling work on the common pool while still exercising graphql-java's unwrapping logic.
           def future = new CompletableFuture<String>()
-          future.completeExceptionally(new CompletionException(
-          new CompletionException(new CompletionException(new IllegalStateException("ASYNC_TEST")))
-          ))
+          future.completeExceptionally(new CompletionException(new CompletionException(new IllegalStateException("ASYNC_TEST"))))
           return future
         }
       }))
@@ -579,10 +577,11 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
     expect:
     !result.getErrors().isEmpty()
     result.getErrors().get(0).getMessage().contains("ASYNC_TEST")
-    !result.getErrors().get(0).getMessage().contains("CompletionException")
     result.getErrors().get(0) instanceof ExceptionWhileDataFetching
-    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException() instanceof IllegalStateException
-    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException().getMessage() == "ASYNC_TEST"
+    // Note that GraphQL 14.0 does not do unwrapping of exceptions on their own, so nested CompletionExceptions will result in removing only one of them
+    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException() instanceof CompletionException
+    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException().getCause() instanceof IllegalStateException
+    ((ExceptionWhileDataFetching) result.getErrors().get(0)).getException().getMessage() == "java.lang.IllegalStateException: ASYNC_TEST"
 
     assertTraces(1) {
       trace(6) {
@@ -612,8 +611,8 @@ abstract class GraphQLTest extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "graphql-java"
             "graphql.type" "String"
             "graphql.coordinates" "Book.asyncCover"
-            "error.type" "java.lang.IllegalStateException"
-            "error.message" "ASYNC_TEST"
+            "error.type" "java.util.concurrent.CompletionException"
+            "error.message" "java.lang.IllegalStateException: ASYNC_TEST"
             "error.stack" String
             defaultTags()
           }
