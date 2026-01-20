@@ -8,7 +8,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.util.Strings;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
@@ -25,9 +24,8 @@ public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

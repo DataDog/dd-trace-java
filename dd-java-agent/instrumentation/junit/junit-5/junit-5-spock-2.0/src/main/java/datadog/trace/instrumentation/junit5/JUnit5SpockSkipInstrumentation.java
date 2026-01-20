@@ -38,10 +38,9 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+  public boolean isEnabled() {
+    return (Config.get().isCiVisibilityTestSkippingEnabled()
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override

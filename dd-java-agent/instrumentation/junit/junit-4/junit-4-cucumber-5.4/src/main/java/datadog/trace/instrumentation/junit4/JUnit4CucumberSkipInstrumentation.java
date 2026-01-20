@@ -16,7 +16,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.cucumber.core.gherkin.Pickle;
 import java.util.List;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -34,10 +33,9 @@ public class JUnit4CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+  public boolean isEnabled() {
+    return (Config.get().isCiVisibilityTestSkippingEnabled()
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override

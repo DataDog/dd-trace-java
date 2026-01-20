@@ -21,7 +21,6 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import munit.MUnitRunner;
 import net.bytebuddy.asm.Advice;
 import org.junit.runner.Description;
@@ -39,9 +38,8 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

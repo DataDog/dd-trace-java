@@ -16,7 +16,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.apache.maven.surefire.api.util.TestsToRun;
 
@@ -28,8 +27,8 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().getCiVisibilityTestOrder() != null;
+  public boolean isEnabled() {
+    return Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

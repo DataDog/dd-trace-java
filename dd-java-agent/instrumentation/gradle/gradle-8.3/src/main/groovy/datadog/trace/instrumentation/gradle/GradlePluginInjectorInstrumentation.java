@@ -6,7 +6,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import java.util.Set;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
@@ -41,9 +40,8 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityBuildInstrumentationEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }
 
   @Override

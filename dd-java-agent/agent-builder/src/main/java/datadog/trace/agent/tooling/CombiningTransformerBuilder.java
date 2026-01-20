@@ -251,6 +251,22 @@ public final class CombiningTransformerBuilder
       ElementMatcher<? super MethodDescription> matcher,
       String adviceClass,
       String... additionalAdviceClasses) {
+    addAdviceIfEnabled(matcher, adviceClass);
+
+    if (additionalAdviceClasses != null) {
+      for (String adviceClassName : additionalAdviceClasses) {
+        addAdviceIfEnabled(matcher, adviceClassName);
+      }
+    }
+  }
+
+  private void addAdviceIfEnabled(
+      ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+    if (!instrumenterIndex.isAdviceEnabled(adviceClass, enabledSystems)) {
+      log.debug("Skipping advice class {} as it is not enabled", adviceClass);
+      return;
+    }
+    log.debug("Installing advice class {}", adviceClass);
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);
@@ -265,22 +281,7 @@ public final class CombiningTransformerBuilder
     } else {
       forAdvice = forAdvice.include(adviceLoader);
     }
-
-    if (instrumenterIndex.isAdviceEnabled(adviceClass, enabledSystems)) {
-      forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass);
-    } else {
-      log.debug("Skipping advice class {} as it is not enabled", adviceClass);
-    }
-    if (additionalAdviceClasses != null) {
-      for (String adviceClassName : additionalAdviceClasses) {
-        if (instrumenterIndex.isAdviceEnabled(adviceClassName, enabledSystems)) {
-          forAdvice = forAdvice.advice(not(ignoredMethods).and(matcher), adviceClassName);
-        } else {
-          log.debug("Skipping advice class {} as it is not enabled", adviceClass);
-        }
-      }
-    }
-    advice.add(forAdvice);
+    advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
   public ClassFileTransformer installOn(Instrumentation instrumentation) {

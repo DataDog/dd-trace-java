@@ -11,6 +11,11 @@ public abstract class AbstractNativeImageModule extends InstrumenterModule {
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return true;
+  }
+
+  @Override
+  public boolean isEnabled() {
     return Platform.isNativeImageBuilder();
   }
 }

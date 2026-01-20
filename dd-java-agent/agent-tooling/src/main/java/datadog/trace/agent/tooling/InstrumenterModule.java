@@ -41,6 +41,7 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    *   <li>{@link TargetSystem#USM usm}
+   *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
    * </ul>
    */
   public enum TargetSystem {
@@ -52,6 +53,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     USM,
     LLMOBS,
     CONTEXT_TRACKING,
+    RASP,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);

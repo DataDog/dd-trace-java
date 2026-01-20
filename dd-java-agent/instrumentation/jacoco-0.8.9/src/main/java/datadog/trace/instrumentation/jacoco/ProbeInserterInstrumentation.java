@@ -18,7 +18,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -35,8 +34,8 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().isCiVisibilityCoverageLinesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
   @Override

@@ -312,6 +312,9 @@ public class AgentInstaller {
     if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(InstrumenterModule.TargetSystem.IAST);
     }
+    if (cfg.isRaspEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.RASP);
+    }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.CIVISIBILITY);
     }

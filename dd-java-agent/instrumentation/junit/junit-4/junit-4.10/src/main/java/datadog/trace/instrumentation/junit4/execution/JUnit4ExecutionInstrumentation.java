@@ -22,7 +22,6 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -43,9 +42,8 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

@@ -175,7 +175,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private BuildResult runGradleTests(String gradleVersion, boolean successExpected = true, boolean configurationCache = false) {
-    def arguments = ["test", "--stacktrace"]
+    def arguments = ["test", "--stacktrace", "--info"]
     if (gradleVersion > "4.5") {
       // warning mode available starting from Gradle 4.5
       arguments += ["--warning-mode", "all"]

@@ -23,7 +23,6 @@ import java.lang.invoke.MethodHandle;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.junit.runner.Description;
 import org.junit.runner.notification.RunNotifier;
@@ -40,9 +39,8 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

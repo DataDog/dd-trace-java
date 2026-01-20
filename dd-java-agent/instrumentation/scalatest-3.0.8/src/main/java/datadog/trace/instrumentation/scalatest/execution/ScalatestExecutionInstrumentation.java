@@ -15,7 +15,6 @@ import datadog.trace.instrumentation.scalatest.RunContext;
 import datadog.trace.instrumentation.scalatest.ScalatestUtils;
 import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,9 +35,8 @@ public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

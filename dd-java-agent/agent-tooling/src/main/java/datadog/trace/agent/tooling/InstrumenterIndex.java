@@ -87,7 +87,7 @@ final class InstrumenterIndex {
 
   final class ModuleIterator implements Iterator<InstrumenterModule> {
     private InstrumenterModule module;
-    private InstrumenterModuleFilter filter;
+    private final InstrumenterModuleFilter filter;
 
     ModuleIterator(final InstrumenterModuleFilter filter) {
       this.filter = filter;
@@ -184,17 +184,20 @@ final class InstrumenterIndex {
     } else {
       moduleName = readName();
     }
+    // global module target systems
+    final short systems = readShort();
+    final Set<InstrumenterModule.TargetSystem> moduleTargetSystems = decodeTargetSystems(systems);
     // flags
     final byte flags = (byte) readNumber();
     final boolean excludeProvider = decodeModuleIsExclusionProvider(flags);
     hasModuleOverrides = decodeModuleHasAdviceTargetOverrides(flags);
-    final Set<InstrumenterModule.TargetSystem> moduleTargetSystems =
-        decodeTargetSystems(readShort());
+    memberAdviceTargetOverrides = null;
     memberCount = readNumber();
     if (SELF_MEMBERSHIP == memberCount) {
       transformationId++;
       memberName = moduleName;
       memberCount = 0;
+      decodeAdviceOverrides();
     } else {
       memberName = null;
     }
@@ -226,6 +229,10 @@ final class InstrumenterIndex {
     memberCount--;
     transformationId++;
     memberName = readName();
+    decodeAdviceOverrides();
+  }
+
+  private void decodeAdviceOverrides() {
     if (hasModuleOverrides) {
       int overrideCount = readNumber();
       if (overrideCount > 0) {
@@ -362,8 +369,8 @@ final class InstrumenterIndex {
     for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
       if (targetSystems.contains(targetSystem)) {
         ret += i;
-        i <<= 1;
       }
+      i <<= 1;
     }
     return ret;
   }
@@ -375,8 +382,8 @@ final class InstrumenterIndex {
     for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
       if ((targetSystems & i) != 0) {
         ret.add(targetSystem);
-        i <<= 1;
       }
+      i <<= 1;
     }
     return ret;
   }
@@ -394,9 +401,17 @@ final class InstrumenterIndex {
   }
 
   static void writeAdviceOverrides(
-      final DataOutputStream out, Map<String, Set<InstrumenterModule.TargetSystem>> overrides)
+      final DataOutputStream out,
+      Instrumenter instrumenter,
+      Map<Instrumenter, Map<String, Set<InstrumenterModule.TargetSystem>>> allModuleOverrides)
       throws IOException {
+    if (allModuleOverrides.isEmpty()) {
+      return;
+    }
+    final Map<String, Set<InstrumenterModule.TargetSystem>> overrides =
+        allModuleOverrides.get(instrumenter);
     if (overrides == null) {
+      out.writeByte(0);
       return;
     }
     out.writeByte(overrides.size());
@@ -405,14 +420,6 @@ final class InstrumenterIndex {
       out.writeByte(entry.getKey().length());
       out.writeBytes(entry.getKey());
       out.writeShort(encodeTargetSystems(entry.getValue()));
-    }
-  }
-
-  void readAdviceOverrides() {
-    final int count = readNumber();
-
-    for (int i = 0; i < count; i++) {
-      final String name = readName();
     }
   }
 
@@ -438,7 +445,9 @@ final class InstrumenterIndex {
             final Map<String, Set<InstrumenterModule.TargetSystem>> overrides =
                 AdviceAppliesOnScanner.extractCustomAdvices(instrumenter);
             overrides.forEach((ignored, systems) -> moduleTargetSystems.addAll(systems));
-            adviceOverrides.put(instrumenter, overrides);
+            if (!overrides.isEmpty()) {
+              adviceOverrides.put(instrumenter, overrides);
+            }
           }
           // merge all the overrides to have the largest condition for this module
           out.writeByte(moduleName.length());
@@ -452,7 +461,7 @@ final class InstrumenterIndex {
             if (members.equals(singletonList(module))) {
               transformationCount++;
               out.writeByte(SELF_MEMBERSHIP);
-              // writeAdviceOverrides(out, );
+              writeAdviceOverrides(out, module, adviceOverrides);
 
             } else {
               out.writeByte(members.size());
@@ -462,7 +471,7 @@ final class InstrumenterIndex {
                 transformationCount++;
                 out.writeByte(memberName.length());
                 out.writeBytes(memberName);
-                // writeAdviceOverrides(out, );
+                writeAdviceOverrides(out, member, adviceOverrides);
               }
             }
           } catch (Throwable e) {

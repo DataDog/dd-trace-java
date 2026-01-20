@@ -12,7 +12,6 @@ import datadog.trace.instrumentation.testng.TracingListener;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import datadog.trace.util.Strings;
 import java.util.Collections;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.testng.IRetryAnalyzer;
 import org.testng.ITestListener;
@@ -31,9 +30,8 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

@@ -24,7 +24,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -47,8 +46,8 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) || Config.get().isAppLogsCollectionEnabled();
+  public boolean isEnabled() {
+    return Config.get().isAppLogsCollectionEnabled();
   }
 
   @Override
