@@ -2,12 +2,10 @@ muzzle {
   pass {
     group = "org.glassfish.grizzly"
     module = 'grizzly-http'
-    if (JavaVersion.current().isJava11Compatible()) {
-      versions = "[2.3.20,)"
-    } else {
-      versions = "[2.3.20,4.0.0)"
-    }
+    versions = "[2.3.20,)"
+    javaVersion = '11'
     assertInverse = false
+    skipVersions += "5.0.0"
   }
 }
 

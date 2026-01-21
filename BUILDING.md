@@ -5,7 +5,7 @@ This documentation provides information for developers to set up their environme
 * [Development environment](#development-environment)
   * [Quick check](#quick-check)
   * [Requirements](#requirements)
-  * [Install the required JDKs](#install-the-required-jdks)
+  * [Install JDK](#install-jdk)
   * [Install git](#install-git)
   * [Install Docker Desktop](#install-docker-desktop)
   * [Configure Akka Token](#configure-akka-token)
@@ -31,7 +31,13 @@ Your output should look something like the following:
 ```
 ℹ️ Checking required JVM:
 ✅ JAVA_HOME is set to /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
-ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver.
+ℹ️ Checking other JVMs available for testing:
+✅ Azul Zulu JDK 1.8.0_462-b08 from /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
+✅ Azul Zulu JDK 11.0.28+6-LTS from /Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home.
+✅ Azul Zulu JDK 17.0.16+8-LTS from /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home.
+✅ Azul Zulu JDK 21.0.8+9-LTS from /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
+✅ Azul Zulu JDK 25+36-LTS from /Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home.
+✅ GraalVM Community JDK 17.0.9+9-jvmci-23.0-b22 from /Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1/Contents/Home.
 ℹ️ Checking git configuration:
 ✅ The git command line is installed.
 ✅ pre-commit hook is installed in repository.
@@ -42,100 +48,56 @@ Your output should look something like the following:
 ✅ The Docker server is running.
 ```
 
-If there is any issue with your output, check the requirements above and use the following guide to install and configure the required tools.
+If there is any issue with your output, check the requirements below and use the following guide to install and configure the required tools.
 
 ### Requirements
 
 Requirements to build the full project:
 
-* The `git` command line must be installed.
+* A recent version (21+) of JDK,
+* The `git` command line must be installed,
 * A container runtime environment must be available to run all tests (e.g. Docker Desktop).
 
-### Install the required JDK
+### Install JDK
 
-Gradle auto-provision needed JDKs locally. However, it still is possible to manage the JDK via other tools. 
+Java is required to run Gradle, the project build tool.
+Gradle will find any locally installed JDK and can download any missing JDK versions needed for the project build and testing.
 
 #### macOS
 
-The following steps demonstrate how to use `brew`, but other version managers 
-such as [mise](https://mise.jdx.dev/) or [sdkman](https://sdkman.io/) work as well.
-
-* Install the required JDKs using `brew`:
-  ```shell
-  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu@25 
-  ```
-  
-  and if GraalVM is needed (17, 21, 25) 
-  ```shell
-  brew install graalvm/tap/graalvm-community-java17 graalvm/tap/graalvm-community-jdk21 graalvm/tap/graalvm-community-jdk25
-  ```
-* Identify your local version of GraalVM:
-  ```
-  ls /Library/Java/JavaVirtualMachines | grep graalvm
-  ```
-  Example: `graalvm-community-openjdk-17`
-
-  Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/), e.g. :
- 
-  ```shell
-  xattr -r -d com.apple.quarantine "/Library/Java/JavaVirtualMachines/graalvm-community-openjdk-17"
-  ```
-* Restart your shell after applying the changes if you appended the command to your shell configuration file.
-
-> [!NOTE]
-> ARM users: there is no Oracle JDK v8 for ARM.
-> It's recommended to use [Azul's Zulu](https://www.azul.com/downloads/?version=java-8-lts&architecture=arm-64-bit&package=jdk#zulu) builds of Java 8.
-> [Amazon Corretto](https://aws.amazon.com/corretto/) builds have also been proven to work.
-
-> [!NOTE]
-> macOS users: remember that `/usr/libexec/java_home` may control which JDK is in your path.
+Install a recent (21+) JDK using `brew`:
+```shell
+brew install --cask zulu@21
+```
 
 #### Linux
 
-Use your JDK manager ([mise](https://mise.jdx.dev/), [sdkman](https://sdkman.io/), etc.) or manually install the required JDKs.
+Use your distribution package manager to install a recent (21+) JDK:
+```shell
+apt install openjdk-21-jdk
+```
+Alternatively, manually download and install it from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
-* Download and extract JDK 8, 11, 17, 21, and 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM 17 from [Oracle downloads](https://www.graalvm.org/downloads/).
-* Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
-* Add the `JAVA_HOME` environment variable to your shell using the `export` command. You can permanently set it by appending the `export` command to your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
-  ```shell
-  export JAVA_HOME=/<path to extracted archive>/jdk-21.<current version of JDK 21>
-  ```
-
-  Gradle should automatically detect the JDK in usual places. As a fallback it can automatically provision them.
-* Restart your shell after applying the changes if you appended the commands to your shell configuration file.
+Add the `JAVA_HOME` environment variable to your shell using the `export` command.
+You can permanently set it by appending the `export` command to your shell configuration file such as `~/.zshrc`, `~/.bashrc` or similar.
+```shell
+export JAVA_HOME=/<path to extracted archive>/jdk-21.x.x
+```
+Restart your shell after applying the changes if you appended the commands to your shell configuration file.
 
 #### Windows
 
-* Download and install JDK 8, 11, 17, 21, and 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
+Install a recent (21+) JDK using the Windows package manager `winget`:
+```pwsh
+winget install --id EclipseAdoptium.Temurin.21.JDK
+```
+Or manually download and install it from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
-  <details>
-  <summary>Alternatively, install JDKs using winget or scoop. (click here to expand)</summary>
+Set the `JAVA_HOME` environment variable, replacing the path with your JDK 21 installation:
+```pwsh
+[Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.x.x-hotspot", [EnvironmentVariableTarget]::User)
+```
 
-    ```pwsh
-    winget install --id EclipseAdoptium.Temurin.8.JDK
-    winget install --id EclipseAdoptium.Temurin.11.JDK
-    winget install --id EclipseAdoptium.Temurin.17.JDK
-    winget install --id EclipseAdoptium.Temurin.21.JDK
-    winget install --id EclipseAdoptium.Temurin.25.JDK
-    ```
-
-  ```pwsh
-  scoop bucket add java
-  scoop install temurin8-jdk
-  scoop install temurin11-jdk
-  scoop install temurin17-jdk
-  scoop install temurin21-jdk
-  scoop install temurin25-jdk
-  ```
-
-  </details>
-
-* Set the `JAVA_HOME` environment variable, replacing the path with your JDK 21 installation:
-  ```pwsh
-  [Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
-  ```
-
-  Gradle should automatically detect the JDK in usual places. As a fallback it can automatically provision them.
 
 ### Install git
 
@@ -147,25 +109,16 @@ If not installed, the terminal will prompt you to install it.
 #### Linux
 
 ```shell
-apt-get install git
+apt install git
 ```
 
 #### Windows
 
-Download and install the installer from [the official website](https://git-scm.com/download/win).
-
-<details>
-<summary>Alternatively, install git using winget or scoop. (click here to expand)</summary>
+Download and install the installer from [the official website](https://git-scm.com/download/win) or install it using the Windows package manager `winget`:
 
 ```pwsh
 winget install --id git.git
 ```
-
-```pwsh
-scoop install git
-```
-
-</details>
 
 ### Install Docker Desktop
 
@@ -213,8 +166,8 @@ winget install --id Docker.DockerDesktop
 > You can alternatively use the `core.hooksPath` configuration to point to the `.githooks` folder using `git config --local core.hooksPath .githooks` if you don't already have a hooks path defined system-wide.
 
 > [!NOTE]
-> The git hooks will check that your code is properly formatted before commiting.
-> This is done both to avoid future merge conflict and ensure uniformity inside the code base.
+> The git hooks will check that your code is properly formatted before committing.
+> This is done both to avoid future merge conflicts and ensure uniformity inside the code base.
 
 * Configure git to automatically update submodules.
   ```shell
@@ -246,7 +199,7 @@ To enable access to Akka artifacts hosted on Lightbend’s private repository, y
 
 ## Building the project
 
-After everything is properly set up, you can move on to the next section to start a build or check [the contribution guidelines](CONTRIBUTING.md).
+After everything is properly set up, you can build the project or check [the contribution guidelines](CONTRIBUTING.md).
 
 To build the project without running tests, run:
 ```shell
