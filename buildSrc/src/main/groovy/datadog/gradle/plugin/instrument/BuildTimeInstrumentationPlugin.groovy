@@ -100,15 +100,14 @@ class BuildTimeInstrumentationPlugin implements Plugin<Project> {
         // - compileScala,
         // - compileGroovy,
         project.tasks.withType(AbstractCompile).matching {
-          it.name == compileTaskName && !it.source.isEmpty()
+          def sourceIsEmpty = it.source.isEmpty()
+          if (sourceIsEmpty) {
+            logger.debug("[BuildTimeInstrumentationPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
+          }
+          it.name == compileTaskName && !sourceIsEmpty
         }.configureEach {
           logger.info('[BuildTimeInstrumentationPlugin] Applying buildTimeInstrumentationPlugin configuration as compile task input')
           it.inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
-
-          if (it.source.isEmpty()) {
-            logger.debug("[BuildTimeInstrumentationPlugin] Skipping $compileTaskName for source set $sourceSetName as it has no source files")
-            return
-          }
 
           // Compute optional Java version
           Matcher versionMatcher = compileTaskName =~ /compileMain_(.+)Java/
@@ -120,11 +119,9 @@ class BuildTimeInstrumentationPlugin implements Plugin<Project> {
               javaVersion = sourceSetSuffix[4..-1]
             }
           }
-          javaVersion = javaVersion ?: DEFAULT_JAVA_VERSION // null not accepted
+          javaVersion = javaVersion ?: DEFAULT_JAVA_VERSION // null not accepted for tasks input
           it.inputs.property("javaVersion", javaVersion)
-
           it.inputs.property("plugins", extension.plugins)
-
           it.inputs.files(extension.additionalClasspath)
 
           // Temporary location for raw (un-instrumented) classes

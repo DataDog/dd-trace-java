@@ -54,11 +54,13 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
   @Override
   void execute(AbstractCompile task) {
     logger.info(
-        "[InstrumentPostProcessingAction] About to instrument classes \n" +
-            "  javaVersion=${javaVersion}, \n" +
-            "  plugins=${plugins.get()}, \n" +
-            "  instrumentingClassPath=${instrumentingClassPath.files}, \n" +
-            "  rawClassesDirectory=${compilerOutputDirectory.get().asFile}"
+        """
+        [InstrumentPostProcessingAction] About to instrument classes 
+          javaVersion=${javaVersion}, 
+          plugins=${plugins.get()}, 
+          instrumentingClassPath=${instrumentingClassPath.files}, 
+          rawClassesDirectory=${compilerOutputDirectory.get().asFile}
+        """.stripIndent()
     )
     def postCompileAction = this
     workQueue().submit(InstrumentAction.class, parameters -> {
