@@ -484,7 +484,7 @@ public final class MpscBlockingConsumerArrayQueueVarHandle<E> extends BaseQueue<
    */
   @Override
   public int size() {
-    return size(2);
+    return estimatedSize(2);
   }
 
   /**

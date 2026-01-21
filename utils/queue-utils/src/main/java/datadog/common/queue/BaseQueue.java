@@ -126,7 +126,7 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
    */
   @Override
   public int size() {
-    return size(1);
+    return estimatedSize(1);
   }
 
   /**
