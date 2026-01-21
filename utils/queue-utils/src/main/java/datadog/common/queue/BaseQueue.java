@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.AbstractQueue;
 import java.util.Iterator;
+import javax.annotation.Nonnull;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MessagePassingQueueUtil;
 
@@ -73,6 +74,14 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
     return MessagePassingQueueUtil.drain(this, consumer);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Iteration is not supported by this implementation.
+   *
+   * @throws UnsupportedOperationException always
+   */
+  @Nonnull
   @Override
   public final Iterator<E> iterator() {
     throw new UnsupportedOperationException();
