@@ -79,7 +79,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     preSampled3
   }
 
-  void 'preSampleRequest with null route'() {
+  void 'preSampleRequest with null route and no URL'() {
     given:
     def ctx = createContext(null, 'GET', 200)
     def sampler = new ApiSecuritySamplerImpl()
@@ -89,6 +89,68 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
     then:
     !preSampled
+  }
+
+  void 'preSampleRequest with null route but valid URL uses endpoint fallback'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled
+    ctx.getOrComputeEndpoint() != null
+    ctx.getApiSecurityEndpointHash() != null
+  }
+
+  void 'preSampleRequest with null route and 404 status does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 404, 'http://localhost:8080/unknown/path')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled
+  }
+
+  void 'second request with same endpoint is not sampled'() {
+    given:
+    def ctx1 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def ctx2 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/456')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled1 = sampler.preSampleRequest(ctx1)
+    ctx1.setKeepOpenForApiSecurityPostProcessing(true)
+    def sampled1 = sampler.sampleRequest(ctx1)
+    sampler.releaseOne()
+
+    then:
+    preSampled1
+    sampled1
+
+    when:
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then:
+    !preSampled2 // Same endpoint pattern, so not sampled
+  }
+
+  void 'endpoint is computed only once'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+
+    when:
+    def endpoint1 = ctx.getOrComputeEndpoint()
+    def endpoint2 = ctx.getOrComputeEndpoint()
+
+    then:
+    endpoint1 != null
+    endpoint1 == endpoint2
   }
 
   void 'preSampleRequest with null method'() {
@@ -369,6 +431,15 @@ class ApiSecuritySamplerTest extends DDSpecification {
     ctx.setRoute(route)
     ctx.setMethod(method)
     ctx.setResponseStatus(statusCode)
+    ctx
+  }
+
+  private static AppSecRequestContext createContextWithUrl(final String route, final String method, int statusCode, String url) {
+    final AppSecRequestContext ctx = new AppSecRequestContext()
+    ctx.setRoute(route)
+    ctx.setMethod(method)
+    ctx.setResponseStatus(statusCode)
+    ctx.setHttpUrl(url)
     ctx
   }
 }
