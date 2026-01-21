@@ -20,7 +20,7 @@ dependencies {
   api(libs.okio)
   api(libs.okhttp)
   api(libs.moshi)
-  implementation(project(":products:metrics:lib"))
+  implementation(project(":products:metrics-lib"))
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)

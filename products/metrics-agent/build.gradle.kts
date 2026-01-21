@@ -11,7 +11,7 @@ description = "Metrics agent"
 apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
-  api(project(":products:metrics:lib"))
+  api(project(":products:metrics-api"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {

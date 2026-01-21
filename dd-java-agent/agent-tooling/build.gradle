@@ -63,7 +63,7 @@ dependencies {
   api libs.bytebuddyagent
   implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
   implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
-  implementation project(':products:metrics:lib')
+  implementation project(':products:metrics-lib')
 
   api project(':dd-trace-core')
   implementation project(':dd-java-agent:agent-crashtracking')

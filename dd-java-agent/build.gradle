@@ -223,7 +223,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
-includeSubprojShadowJar(project(':products:metrics:agent'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':products:metrics-agent'), 'metrics', includedJarFileTree)
 includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
@@ -367,10 +367,10 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
-  sharedShadowInclude project(':products:metrics:api'), {
+  sharedShadowInclude project(':products:metrics-api'), {
     transitive = false
   }
-  sharedShadowInclude project(':products:metrics:lib'), {
+  sharedShadowInclude project(':products:metrics-lib'), {
     transitive = false
   }
   sharedShadowInclude project(':telemetry'), {
