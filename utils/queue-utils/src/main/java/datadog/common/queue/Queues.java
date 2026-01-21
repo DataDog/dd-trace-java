@@ -51,8 +51,9 @@ public final class Queues {
   public static <E> MessagePassingQueue<E> spmcArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
       return new SpmcArrayQueueVarHandle<>(requestedCapacity);
+    } else {
+      return new SpmcArrayQueue<>(requestedCapacity);
     }
-    return new SpmcArrayQueue<>(requestedCapacity);
   }
 
   /**
