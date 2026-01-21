@@ -19,6 +19,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /*
 Benchmark                                                    (capacity)   Mode  Cnt    Score     Error   Units
+SPSCQueueBenchmark.queueTest                                       1024  thrpt    3  180.354 ± 223.400  ops/us
 SPSCQueueBenchmark.queueTest:consume                               1024  thrpt    3   90,544 ± 155,265  ops/us
 SPSCQueueBenchmark.queueTest:produce                               1024  thrpt    3   89,810 ± 160,517  ops/us
 SPSCQueueBenchmark.queueTest                                      65536  thrpt    3  449,770 ±   4,365  ops/us
