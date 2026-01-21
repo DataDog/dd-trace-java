@@ -19,7 +19,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace(false)
+    assertCompletionTrace()
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -34,7 +34,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertCompletionTrace(false)
+    assertCompletionTrace()
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -51,10 +51,10 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace(true)
+    assertCompletionTrace()
 
     where:
-    params << [completionCreateParams(true), completionCreateParams(false)]
+    params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
   }
 
   def "create streaming completion test withRawResponse"() {
@@ -68,10 +68,10 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace(true)
+    assertCompletionTrace()
 
     where:
-    params << [completionCreateParams(true), completionCreateParams(false)]
+    params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
   }
 
   def "create async completion test"() {
@@ -82,7 +82,7 @@ class CompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
-    assertCompletionTrace(false)
+    assertCompletionTrace()
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -97,7 +97,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertCompletionTrace(false)
+    assertCompletionTrace()
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -112,10 +112,10 @@ class CompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertCompletionTrace(true)
+    assertCompletionTrace()
 
     where:
-    params << [completionCreateParams(true), completionCreateParams(false)]
+    params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
   }
 
   def "create streaming async completion test withRawResponse"() {
@@ -130,13 +130,13 @@ class CompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertCompletionTrace(true)
+    assertCompletionTrace()
 
     where:
-    params << [completionCreateParams(true), completionCreateParams(false)]
+    params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
   }
 
-  private void assertCompletionTrace(boolean isStreaming) {
+  private void assertCompletionTrace() {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -158,12 +158,9 @@ class CompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.metadata" Map
             "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List
-            if (!isStreaming) {
-              // streamed completions missing usage data
-              "_ml_obs_metric.input_tokens" Long
-              "_ml_obs_metric.output_tokens" Long
-              "_ml_obs_metric.total_tokens" Long
-            }
+            "_ml_obs_metric.input_tokens" Long
+            "_ml_obs_metric.output_tokens" Long
+            "_ml_obs_metric.total_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/completions"

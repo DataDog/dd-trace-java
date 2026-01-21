@@ -49,6 +49,14 @@ public class CompletionDecorator {
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
+    params
+        .streamOptions()
+        .ifPresent(
+            v -> {
+              if (v.includeUsage().orElse(false)) {
+                metadata.put("stream_options", Collections.singletonMap("include_usage", true));
+              }
+            });
     span.setTag("_ml_obs_tag.metadata", metadata);
   }
 
@@ -83,8 +91,44 @@ public class CompletionDecorator {
       return;
     }
 
-    if (!completions.isEmpty()) {
-      withCompletion(span, completions.get(0));
+    if (completions.isEmpty()) {
+      return;
     }
+
+    Completion firstCompletion = completions.get(0);
+    String modelName = firstCompletion.model();
+    span.setTag(RESPONSE_MODEL, modelName);
+    span.setTag("_ml_obs_tag.model_name", modelName);
+    span.setTag("_ml_obs_tag.model_provider", "openai");
+
+    Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
+    for (Completion completion : completions) {
+      completion
+          .choices()
+          .forEach(
+              choice -> {
+                long index = choice.index();
+                textByChoiceIndex
+                    .computeIfAbsent(index, k -> new StringBuilder())
+                    .append(choice.text());
+              });
+    }
+
+    List<LLMObs.LLMMessage> output =
+        textByChoiceIndex.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(entry -> LLMObs.LLMMessage.from(null, entry.getValue().toString()))
+            .collect(Collectors.toList());
+    span.setTag("_ml_obs_tag.output", output);
+
+    Completion lastCompletion = completions.get(completions.size() - 1);
+    lastCompletion
+        .usage()
+        .ifPresent(
+            usage -> {
+              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
+              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
+              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+            });
   }
 }
