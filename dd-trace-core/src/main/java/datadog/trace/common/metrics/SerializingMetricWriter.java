@@ -106,7 +106,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-    writer.startMap(17);
+    // Calculate dynamic map size based on optional fields
+    final boolean hasHttpMethod = key.getHttpMethod().length() > 0;
+    final boolean hasHttpEndpoint = key.getHttpEndpoint().length() > 0;
+    final int mapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+
+    writer.startMap(mapSize);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -140,11 +145,17 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(peerTag);
     }
 
-    writer.writeUTF8(HTTP_METHOD);
-    writer.writeUTF8(key.getHttpMethod());
+    // Only include HTTPMethod if present
+    if (hasHttpMethod) {
+      writer.writeUTF8(HTTP_METHOD);
+      writer.writeUTF8(key.getHttpMethod());
+    }
 
-    writer.writeUTF8(HTTP_ENDPOINT);
-    writer.writeUTF8(key.getHttpEndpoint());
+    // Only include HTTPEndpoint if present
+    if (hasHttpEndpoint) {
+      writer.writeUTF8(HTTP_ENDPOINT);
+      writer.writeUTF8(key.getHttpEndpoint());
+    }
 
     writer.writeUTF8(HITS);
     writer.writeInt(aggregate.getHitCount());
