@@ -59,7 +59,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
-  static final List<DataStreamsTransactionExtractor> NO_EXTRACTORS = Collections.emptyList();
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -83,10 +82,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
-  // contains a list of active extractors by type. It is not thread safe, but it's populated only
-  // once on background thread start.
-  private static final Map<
-          DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
+  // contains a list of active extractors by type. Thread-safe via volatile with immutable
+  // snapshots.
+  private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
       extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
 
   public DefaultDataStreamsMonitoring(
@@ -522,7 +520,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
-  /* updateExtractorsFromConfig is called only once during startup */
+  /* updateExtractorsFromConfig can be called to update extractors at runtime */
   private void updateExtractorsFromConfig() {
     if (!supportsDataStreams) {
       return;
@@ -533,13 +531,20 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (extractors == null) {
       return;
     }
+
+    // Build a new immutable snapshot
+    Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> newMap =
+        new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
+
     // we support up to MAX_NUM_EXTRACTORS
     for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
       DataStreamsTransactionExtractor extractor = extractors.get(i);
       List<DataStreamsTransactionExtractor> list =
-          extractorsByType.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
+          newMap.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
       list.add(extractor);
     }
+
+    extractorsByType = newMap;
     log.debug("Added {} data streams transaction extractors", extractors.size());
   }
 

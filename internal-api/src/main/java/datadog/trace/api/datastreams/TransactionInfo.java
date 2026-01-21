@@ -2,14 +2,15 @@ package datadog.trace.api.datastreams;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TransactionInfo implements InboxItem {
   private static final int MAX_ID_SIZE = 256;
   private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
-  private static byte[] CACHE_BYTES = new byte[0];
+  private static volatile byte[] CACHE_BYTES = new byte[0];
+  private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
 
   private final String id;
   private final long timestamp;
@@ -25,26 +26,33 @@ public final class TransactionInfo implements InboxItem {
     return id;
   }
 
-  public Long getTimestamp() {
+  public long getTimestamp() {
     return timestamp;
   }
 
-  public Integer getCheckpointId() {
+  public int getCheckpointId() {
     return checkpointId;
   }
 
   private int generateCheckpointId(String checkpoint) {
-    int id = CACHE.size() + 1;
+    int id = ID_COUNTER.getAndIncrement();
 
     // update cache bytes
     byte[] checkpointBytes = checkpoint.getBytes();
-    int idx = CACHE_BYTES.length;
-    CACHE_BYTES = Arrays.copyOf(CACHE_BYTES, idx + 2 + checkpointBytes.length);
-    CACHE_BYTES[idx] = (byte) id;
-    CACHE_BYTES[idx + 1] = (byte) checkpointBytes.length;
-    System.arraycopy(checkpointBytes, 0, CACHE_BYTES, idx + 2, checkpointBytes.length);
+    byte[] bytesToAdd = new byte[checkpointBytes.length + 2];
+    bytesToAdd[0] = (byte) id;
+    bytesToAdd[1] = (byte) checkpointBytes.length;
+    System.arraycopy(checkpointBytes, 0, bytesToAdd, 2, checkpointBytes.length);
+    appendCacheBytes(bytesToAdd);
 
     return id;
+  }
+
+  private static synchronized void appendCacheBytes(byte[] bytes) {
+    byte[] newCacheBytes = new byte[CACHE_BYTES.length + bytes.length];
+    System.arraycopy(CACHE_BYTES, 0, newCacheBytes, 0, CACHE_BYTES.length);
+    System.arraycopy(bytes, 0, newCacheBytes, CACHE_BYTES.length, bytes.length);
+    CACHE_BYTES = newCacheBytes;
   }
 
   public byte[] getBytes() {
@@ -63,9 +71,10 @@ public final class TransactionInfo implements InboxItem {
   }
 
   // @VisibleForTesting
-  static void resetCache() {
+  static synchronized void resetCache() {
     CACHE.clear();
     CACHE_BYTES = new byte[0];
+    ID_COUNTER.set(0);
   }
 
   public static byte[] getCheckpointIdCacheBytes() {
