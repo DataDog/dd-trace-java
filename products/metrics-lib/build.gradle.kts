@@ -8,7 +8,7 @@ apply(from = rootDir.resolve("gradle/java.gradle"))
 
 // TODO Try to clean up as many dependencies as possible after migrating the tests
 dependencies {
-  api(project(":products:metrics:api"))
+  api(project(":products:metrics-api"))
   implementation(libs.slf4j)
   implementation(libs.dogstatsd)
   implementation(project(":internal-api"))
