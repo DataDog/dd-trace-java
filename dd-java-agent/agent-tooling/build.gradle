@@ -39,9 +39,7 @@ sourceSets {
 }
 
 configurations {
-  register("buildTimeInstrumentationPlugin") {
-    canBeConsumed = true
-    canBeResolved = false
+  consumable("buildTimeInstrumentationToolingPlugins") {
     extendsFrom runtimeElements
   }
 

@@ -19,14 +19,18 @@ configurations {
   named('compileClasspath') {
     compileClasspath.extendsFrom(ec.get())
   }
-  named('buildTimeInstrumentationPlugin') {
-    visible = false
-    canBeConsumed = false
-    canBeResolved = true
+
+  named("buildTimeInstrumentationPlugin") {
+    it.dependencies.add(project.dependencies.project(
+      path: ':dd-java-agent:agent-otel:otel-tooling',
+      configuration: 'buildTimeInstrumentationToolingPlugins'
+      ))
   }
 }
 
-buildTimeInstrumentation.plugins = ['datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin']
+buildTimeInstrumentation {
+  plugins.addAll('datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin')
+}
 
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
@@ -53,7 +57,7 @@ dependencies {
   compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
-  buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationPlugin')
+  // buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationToolingPlugins')
 }
 
 // unpack embeddedClasspath to same path as compiled classes so it can get instrumented

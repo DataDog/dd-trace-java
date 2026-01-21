@@ -65,8 +65,11 @@ class BuildTimeInstrumentationPlugin implements Plugin<Project> {
   @Override
   void apply(Project project) {
     BuildTimeInstrumentationExtension extension = project.extensions.create('buildTimeInstrumentation', BuildTimeInstrumentationExtension)
-    project.configurations.register(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
-
+    project.configurations.register(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION) {
+      it.visible = false
+      it.canBeConsumed = false
+      it.canBeResolved = true
+    }
 
     ['java', 'kotlin', 'scala', 'groovy'].each { langPluginId ->
       project.pluginManager.withPlugin(langPluginId) {
