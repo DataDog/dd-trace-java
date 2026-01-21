@@ -27,8 +27,12 @@ public final class FlushingBuffer implements StreamingBuffer {
 
   @Override
   public void mark() {
-    mark = buffer.position();
-    ++messageCount;
+    int current = buffer.position();
+    if (current != mark) {
+      // count only non-empty messages
+      ++messageCount;
+      mark = current;
+    }
   }
 
   @Override
@@ -100,5 +104,10 @@ public final class FlushingBuffer implements StreamingBuffer {
     buffer.position(0);
     buffer.limit(buffer.capacity());
     mark = 0;
+  }
+
+  // for tests only
+  int getMessageCount() {
+    return messageCount;
   }
 }

@@ -49,6 +49,7 @@ dependencies {
 tasks.withType(Test).configureEach {
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
   dependsOn shadowJarTask
+  environment("JAVA_HOME", getLazyJavaHomeFor(25))
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {

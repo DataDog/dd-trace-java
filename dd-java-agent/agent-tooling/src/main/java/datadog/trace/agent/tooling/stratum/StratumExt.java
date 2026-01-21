@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.iast.stratum;
+package datadog.trace.agent.tooling.stratum;
 
 import datadog.trace.api.Pair;
 import java.util.ArrayList;
@@ -17,16 +17,12 @@ public class StratumExt extends AbstractStratum implements Stratum {
 
   private static final Logger LOG = LoggerFactory.getLogger(StratumExt.class);
 
-  public StratumExt() {
-    this("");
-  }
-
   public StratumExt(final String name) {
     super(name);
   }
 
   @Override
-  public Pair<Integer, Integer> getInputLine(final int outputLineNumber) {
+  public Pair<String, Integer> getInputLine(final int outputLineNumber) {
     try {
       List<LineInfo> info = getLineInfo();
       int startPoint = Arrays.binarySearch(getLineStart(), outputLineNumber);
@@ -57,12 +53,12 @@ public class StratumExt extends AbstractStratum implements Stratum {
   }
 
   @Override
-  public String getSourceFile(final int fileId) {
+  public String getSourceFile(String fileId) {
     if (fileInfo.isEmpty()) {
       return null;
     }
     return fileInfo.stream()
-        .filter(f -> f.getFileId() == fileId)
+        .filter(f -> f.getFileId().equals(fileId))
         .findFirst()
         .map(FileInfo::getInputFilePath)
         .orElse(null);

@@ -7,7 +7,7 @@ forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.34.4"
+ddprof = "1.36.0"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -68,7 +68,7 @@ junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
-testcontainers = "1.21.3"
+testcontainers = "1.21.4"
 
 [libraries]
 # Build
