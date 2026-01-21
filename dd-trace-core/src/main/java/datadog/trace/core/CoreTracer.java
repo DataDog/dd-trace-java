@@ -699,9 +699,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             : idGenerationStrategy;
 
     this.healthMetrics =
-        config.isHealthMetricsEnabled()
-            ? new TracerHealthMetrics(AgentMeter.statsDClient())
-            : HealthMetrics.NO_OP;
+        healthMetrics != null
+            ? healthMetrics
+            : (config.isHealthMetricsEnabled()
+                ? new TracerHealthMetrics(AgentMeter.statsDClient())
+                : HealthMetrics.NO_OP);
     this.healthMetrics.start();
 
     performanceMonitoring =
