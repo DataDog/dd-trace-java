@@ -121,6 +121,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String method;
   private String savedRawURI;
   private String route;
+  private String httpUrl;
+  private String endpoint;
+  private boolean endpointComputed = false;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -422,6 +425,45 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRoute(String route) {
     this.route = route;
+  }
+
+  public String getHttpUrl() {
+    return httpUrl;
+  }
+
+  public void setHttpUrl(String httpUrl) {
+    this.httpUrl = httpUrl;
+  }
+
+  /**
+   * Gets or computes the http.endpoint for this request. The endpoint is computed lazily on first
+   * access and cached to avoid recomputation.
+   *
+   * @return the http.endpoint value, or null if it cannot be computed
+   */
+  public String getOrComputeEndpoint() {
+    if (!endpointComputed) {
+      if (httpUrl != null && !httpUrl.isEmpty()) {
+        try {
+          endpoint = datadog.trace.core.endpoint.EndpointResolver.computeEndpoint(httpUrl);
+        } catch (Exception e) {
+          endpoint = null;
+        }
+      }
+      endpointComputed = true;
+    }
+    return endpoint;
+  }
+
+  /**
+   * Sets the endpoint directly without computing it. This is useful when the endpoint has already
+   * been computed elsewhere.
+   *
+   * @param endpoint the endpoint value to set
+   */
+  public void setEndpoint(String endpoint) {
+    this.endpoint = endpoint;
+    this.endpointComputed = true;
   }
 
   public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
