@@ -18,7 +18,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,7 +26,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
+public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LogbackLoggerInstrumentation() {
@@ -46,11 +45,6 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isAppLogsCollectionEnabled();
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {LogsIntakeHelper.class.getName()};
   }
@@ -64,6 +58,8 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.Tracing
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
+    // this can be moved into a always on instrumenter module if one day context tracking can be
+    // deactivated by config
     if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
       transformer.applyAdvice(
           isMethod()
