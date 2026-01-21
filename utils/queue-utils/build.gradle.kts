@@ -3,7 +3,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   id("me.champeau.jmh")
-  id("dd-trace-java.test-jvm-contraints")
+  id("dd-trace-java.test-jvm-constraints")
   idea
 }
 
