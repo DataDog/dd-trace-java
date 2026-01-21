@@ -314,7 +314,7 @@ For example, if your module extends `InstrumenterModule.Tracing` but you want on
 import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 
-@AppliesOn(targetSystems = TargetSystem.CONTEXT_TRACKING)
+@AppliesOn(TargetSystem.CONTEXT_TRACKING)
 public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void extractParent(

@@ -20,5 +20,5 @@ public @interface AppliesOn {
    *
    * @return
    */
-  InstrumenterModule.TargetSystem[] targetSystems();
+  InstrumenterModule.TargetSystem[] value();
 }

@@ -115,7 +115,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
             "org.apache.tomcat.util.net.NioBlockingSelector$BlockPoller"));
   }
 
-  @AppliesOn(targetSystems = TargetSystem.CONTEXT_TRACKING)
+  @AppliesOn(TargetSystem.CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void extractParent(

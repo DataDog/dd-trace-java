@@ -457,7 +457,7 @@ Annotate your advice class with `@AppliesOn` and specify the target systems wher
 import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 
-@AppliesOn(targetSystems = TargetSystem.CONTEXT_TRACKING)
+@AppliesOn(TargetSystem.CONTEXT_TRACKING)
 public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void extractParent(
@@ -502,7 +502,7 @@ public void adviceTransformations(AdviceTransformation transformation) {
 }
 ```
 
-The `ContextTrackingAdvice` is annotated with `@AppliesOn(targetSystems = TargetSystem.CONTEXT_TRACKING)`, so it only runs when context tracking is enabled. The `ServiceAdvice` (without the annotation) runs when the module's target system (`TRACING`) is enabled.
+The `ContextTrackingAdvice` is annotated with `@AppliesOn(TargetSystem.CONTEXT_TRACKING)`, so it only runs when context tracking is enabled. The `ServiceAdvice` (without the annotation) runs when the module's target system (`TRACING`) is enabled.
 
 #### Important Notes
 

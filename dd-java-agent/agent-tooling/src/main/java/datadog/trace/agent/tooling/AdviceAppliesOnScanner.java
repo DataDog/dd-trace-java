@@ -71,7 +71,7 @@ public final class AdviceAppliesOnScanner {
 
                       @Override
                       public AnnotationVisitor visitArray(String name) {
-                        if ("targetSystems".equals(name)) {
+                        if ("value".equals(name)) {
                           return new AnnotationVisitor(Opcodes.ASM8) {
                             @Override
                             public void visitEnum(String name, String descriptor, String value) {
