@@ -13,7 +13,7 @@ public interface InstrumenterModuleFilter {
     return (name, systems, excludeProvider) -> excludeProvider || !disjoint(targetSystems, systems);
   }
 
-  boolean filter(
+  boolean test(
       String instrumenterModuleName,
       Set<InstrumenterModule.TargetSystem> targetSystems,
       boolean excludeProvider);

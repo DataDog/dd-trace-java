@@ -201,7 +201,7 @@ final class InstrumenterIndex {
     } else {
       memberName = null;
     }
-    if (filter.filter(moduleName, moduleTargetSystems, excludeProvider)) {
+    if (filter.test(moduleName, moduleTargetSystems, excludeProvider)) {
       if (module == null) {
         module = buildModule();
         modules[instrumentationId] = module;
