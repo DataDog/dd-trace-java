@@ -6,7 +6,6 @@ description = "StatsD client"
 
 apply(from = rootDir.resolve("gradle/java.gradle"))
 
-// TODO Try to clean up as many dependencies as possible after migrating the tests
 dependencies {
   api(project(":products:metrics-api"))
   implementation(libs.slf4j)
@@ -18,14 +17,7 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
-  testImplementation(libs.bytebuddy)
-  testImplementation("org.msgpack:msgpack-core:0.8.20")
-  testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-  testImplementation(
-    group = "com.squareup.okhttp3",
-    name = "mockwebserver",
-    version = libs.versions.okhttp.legacy.get() // actually a version range
-  )
+  testImplementation(group = "com.google.protobuf", name = "protobuf-java", version = "3.14.0")
 }
 
 val minimumBranchCoverage by extra(0.5)
