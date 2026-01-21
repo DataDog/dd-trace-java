@@ -58,7 +58,7 @@ public abstract class UnsafeUtils {
     }
   }
 
-  // Using Field.set() will be blocked in later Java versions
+  // TODO: determine whether or not the fields are final
   @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {

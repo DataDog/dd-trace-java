@@ -43,7 +43,7 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class SbtTaskCreationAdvice {
-    // Using Field.set() will be blocked in later Java versions
+    // TODO: determine whether or not the field is final
     @SuppressForbidden
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onTaskCreation(

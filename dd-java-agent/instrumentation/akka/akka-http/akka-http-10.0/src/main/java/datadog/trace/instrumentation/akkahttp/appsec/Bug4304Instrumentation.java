@@ -95,7 +95,7 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
   }
 
   static class GraphStageLogicAdvice {
-    // Using Field.set() will be blocked in later Java versions
+    // TODO: determine whether or not the field is final
     @SuppressForbidden
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This GraphStageLogic thiz)

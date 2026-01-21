@@ -125,7 +125,7 @@ public abstract class InstrumentationBridge {
     }
   }
 
-  // Using Field.set() will be blocked in later Java versions
+  // TODO: determine whether or not the field is final
   @SuppressForbidden
   private static void set(final Field field, final IastModule module) {
     try {

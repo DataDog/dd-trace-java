@@ -31,6 +31,7 @@ class SslSocketTest extends InstrumentationSpecification {
     injectSysConfig("dd.usm.enabled", "true")
   }
 
+  // TODO: determine whether or not the fields are final
   def "simple HTTPS request"() {
     setup:
     HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.getSocketFactory())
