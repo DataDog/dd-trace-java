@@ -426,7 +426,6 @@ class TestHttpServer implements AutoCloseable {
         this.contentLength = req.contentLength
         this.contentType = req.contentType?.split(";")
         this.body = req.inputStream.bytes
-        this.method = req.method
       }
 
       def getPath() {

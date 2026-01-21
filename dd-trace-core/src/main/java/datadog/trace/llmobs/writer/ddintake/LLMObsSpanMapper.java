@@ -167,9 +167,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private CharSequence llmObsSpanName(CoreSpan<?> span) {
     CharSequence operationName = span.getOperationName();
-    CharSequence resourceName = span.getResourceName();
     if ("openai.request".contentEquals(operationName)) {
-      return "OpenAI." + resourceName;
+      return "OpenAI." + span.getResourceName();
     }
     return operationName;
   }

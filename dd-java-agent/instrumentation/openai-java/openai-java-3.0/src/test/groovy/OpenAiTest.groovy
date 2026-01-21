@@ -53,7 +53,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
     handlers {
       prefix("/$API_VERSION/") {
         def requestBody = request.text
-        def recFile = RequestResponseRecord.requestToFileName(request.method, requestBody.getBytes(Charsets.UTF_8))
+        def recFile = RequestResponseRecord.requestToFileName("POST", requestBody.getBytes(Charsets.UTF_8))
         def rec = cache.get(recFile)
         if (rec == null) {
           String path = request.path
@@ -122,31 +122,30 @@ abstract class OpenAiTest extends InstrumentationSpecification {
   CompletionCreateParams completionCreateParams(boolean json) {
     if (json) {
       CompletionCreateParams.builder()
-          .model("gpt-3.5-turbo-instruct")
-          .prompt("Tell me a story about building the best SDK!")
-          .build()
-
+      .model("gpt-3.5-turbo-instruct")
+      .prompt("Tell me a story about building the best SDK!")
+      .build()
     } else {
       CompletionCreateParams.builder()
-          .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
-          .prompt("Tell me a story about building the best SDK!")
-          .build()
+      .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
+      .prompt("Tell me a story about building the best SDK!")
+      .build()
     }
   }
 
   CompletionCreateParams completionCreateStreamedParams(boolean json) {
     if (json) {
       CompletionCreateParams.builder()
-          .model("gpt-3.5-turbo-instruct")
-          .prompt("Tell me a story about building the best SDK!")
-          .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
-          .build()
+      .model("gpt-3.5-turbo-instruct")
+      .prompt("Tell me a story about building the best SDK!")
+      .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
+      .build()
     } else {
       CompletionCreateParams.builder()
-          .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
-          .prompt("Tell me a story about building the best SDK!")
-          .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
-          .build()
+      .model(CompletionCreateParams.Model.GPT_3_5_TURBO_INSTRUCT)
+      .prompt("Tell me a story about building the best SDK!")
+      .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
+      .build()
     }
   }
 

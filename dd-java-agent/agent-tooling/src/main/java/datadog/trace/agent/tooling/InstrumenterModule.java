@@ -109,11 +109,11 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   /**
    * @return Class names of helpers to inject into the user's classloader.
-   *     <blockquote>
-   *     <p><b>NOTE:</b> The order matters. If the muzzle check fails with a NoClassDefFoundError
-   *     (as seen in build/reports/muzzle-*.txt), it may be because some helper classes depend on
-   *     each other. In this case, the order must be adjusted accordingly.
-   *     </blockquote>
+   *     <p><b>NOTE:</b> The order of the returned helper classes matters. If a muzzle check fails
+   *     with a NoClassDefFoundError, as logged in build/reports/muzzle-*.txt, it is likely that one
+   *     helper class depends on another that appears later in the list. In this case, the returned
+   *     list must be reordered so that the referred helper class appears before the one that refers
+   *     to it.
    */
   public String[] helperClassNames() {
     return NO_HELPERS;

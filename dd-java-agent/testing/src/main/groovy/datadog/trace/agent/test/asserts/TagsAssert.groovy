@@ -239,7 +239,7 @@ class TagsAssert {
     if (expected instanceof Pattern) {
       assert value =~ expected: "Tag \"$name\": \"${value.toString()}\" does not match pattern \"$expected\""
     } else if (expected instanceof Class) {
-      assert ((Class) expected).isInstance(value): "Tag \"$name\": instance check $expected failed for \"${value.toString()}\" of class \"${value?.class}\""
+      assert ((Class) expected).isInstance(value): "Tag \"$name\": instance check $expected failed for \"${value.toString()}\" of class \"${value.class}\""
     } else if (expected instanceof Closure) {
       assert ((Closure) expected).call(value): "Tag \"$name\": closure call ${expected.toString()} failed with \"$value\""
     } else if (expected instanceof CharSequence) {
