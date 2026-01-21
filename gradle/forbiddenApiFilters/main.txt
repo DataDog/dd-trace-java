@@ -1,7 +1,7 @@
 # loads and instantiates a class which may be inefficient depending on context
 java.lang.Class#forName(java.lang.String)
 
-# String methods which uses regexes for matching
+# String methods which use regexes for matching
 java.lang.String#split(java.lang.String)
 java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
@@ -34,12 +34,12 @@ java.lang.System#err
 java.lang.System#getenv()
 java.lang.System#getenv(java.lang.String)
 
-#Use jdk LongAdder
+# use jdk LongAdder
 @defaultMessage use LongAdder instead of the legacy jctools FixedSizeStripedLongCounter
 org.jctools.counters.FixedSizeStripedLongCounter
 
-# prepare for JEP 500 (https://openjdk.org/jeps/500)
-@defaultMessage Prepare to Make Final Mean Final - JEP 500
+# avoid methods that mutate final fields, as this will soon be disallowed. For more details: https://openjdk.org/jeps/500.
+@defaultMessage Avoid mutating final fields (e.g. with methods such as Field::set and MethodHandles.Lookup::unreflectSetter). If the field is not final, override with @SuppressForbidden.
 java.lang.reflect.Field#set(java.lang.Object,java.lang.Object)
 java.lang.reflect.Field#setBoolean(java.lang.Object,boolean)
 java.lang.reflect.Field#setByte(java.lang.Object,byte)
