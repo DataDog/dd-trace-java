@@ -136,7 +136,7 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
    * @param divisor the divisor (used when the mask is not fully used for the capacity)
    * @return estimated queue size
    */
-  protected final int size(int divisor) {
+  protected final int estimatedSize(int divisor) {
     long after = head.getVolatile();
     long size;
     while (true) {
