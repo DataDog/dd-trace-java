@@ -2266,7 +2266,7 @@ public class Config {
     this.traceResourceRenamingEnabled =
         traceResourceRenamingExplicit != null
             ? traceResourceRenamingExplicit
-            : instrumenterConfig.getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+            : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
