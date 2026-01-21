@@ -1,4 +1,4 @@
-package datadog.trace.core.histogram
+package datadog.metrics.api
 
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
@@ -41,11 +41,11 @@ class HistogramsTest extends DDSpecification {
     def histogram
 
     if (relativeAccuracy == null) {
-      histogram = Histograms.newHistogram()
+      histogram = DDSketchHistograms.INSTANCE.newHistogram()
       relativeAccuracy = 0.01
     }
     else {
-      histogram = Histograms.newHistogram(relativeAccuracy, 1024)
+      histogram = DDSketchHistograms.INSTANCE.newHistogram(relativeAccuracy, 1024)
     }
 
     long[] data = sortedRandomData(size) {
@@ -102,7 +102,7 @@ class HistogramsTest extends DDSpecification {
 
   def "test serialization of empty histogram after clear"() {
     setup:
-    def histogram = Histograms.newHistogram()
+    def histogram = DDSketchHistograms.INSTANCE.newHistogram()
     when: "add values to sketch and clear"
     histogram.accept(1)
     histogram.accept(2)
