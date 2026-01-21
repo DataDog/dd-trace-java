@@ -99,6 +99,10 @@ class TestJvmSpec(val project: Project) {
         DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
           languageVersion.set(JavaLanguageVersion.of(version.toInt()))
           when (distribution.lowercase()) {
+            "" -> {
+              // No-op
+            }
+
             "oracle" -> {
               vendor.set(JvmVendorSpec.ORACLE)
             }
