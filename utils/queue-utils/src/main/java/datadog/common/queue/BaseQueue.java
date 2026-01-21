@@ -181,7 +181,6 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
     if (size > capacity) {
       return capacity;
     }
-    if (size > Integer.MAX_VALUE) return Integer.MAX_VALUE;
     return (int) size;
   }
 
