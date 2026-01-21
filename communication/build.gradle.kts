@@ -20,6 +20,8 @@ dependencies {
   api(libs.okio)
   api(libs.okhttp)
   api(libs.moshi)
+  // Implementation needed to change the default port of StatsD connection manager
+  // TODO Could help decoupling it later to only depend on metrics-api
   implementation(project(":products:metrics-lib"))
 
   testImplementation(project(":utils:test-utils"))
