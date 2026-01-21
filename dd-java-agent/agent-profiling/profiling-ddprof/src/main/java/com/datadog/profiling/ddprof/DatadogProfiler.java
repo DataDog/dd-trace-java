@@ -56,7 +56,6 @@ import java.util.concurrent.locks.LockSupport;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 /**
  * It is currently assumed that this class can be initialised early so that Datadog profiler's
  * thread filter captures all tracing activity, which means it must not be modified to depend on

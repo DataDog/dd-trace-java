@@ -20,6 +20,9 @@ dependencies {
   api libs.slf4j
   api project(':internal-api')
 
+  // Antithesis SDK for assertions and property testing - bundled in tracer JAR
+  implementation group: 'com.antithesis', name: 'sdk', version: '1.4.5'
+
   api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')

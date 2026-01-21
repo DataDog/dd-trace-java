@@ -1,5 +1,8 @@
 package datadog.trace.common.writer;
 
+import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -107,9 +110,26 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       Payload payload = newPayload(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
+      
+      // Antithesis: Track all send attempts
+      ObjectNode sendAttemptDetails = JsonNodeFactory.instance.objectNode();
+      sendAttemptDetails.put("trace_count", messageCount);
+      sendAttemptDetails.put("payload_size_bytes", sizeInBytes);
+      sendAttemptDetails.put("dropped_traces_in_payload", payload.droppedTraces());
+      sendAttemptDetails.put("dropped_spans_in_payload", payload.droppedSpans());
+      Assert.sometimes(true, "trace_payloads_being_sent", sendAttemptDetails);
+      
       RemoteApi.Response response = api.sendSerializedTraces(payload);
       mapper.reset();
+
       if (response.success()) {
+        // Antithesis: Track successful sends
+        ObjectNode successDetails = JsonNodeFactory.instance.objectNode();
+        successDetails.put("decision", "sent_success");
+        successDetails.put("trace_count", messageCount);
+        successDetails.put("payload_size_bytes", sizeInBytes);
+        successDetails.put("http_status", response.status().orElse(-1));
+        Assert.sometimes(true, "traces_sent_successfully", successDetails);
         if (log.isDebugEnabled()) {
           log.debug(
               "Successfully sent {} traces of size {} bytes to the API {}",
@@ -119,6 +139,14 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
+        // Antithesis: Track failed sends
+        ObjectNode failedDetails = JsonNodeFactory.instance.objectNode();
+        failedDetails.put("decision", "dropped_send_failed");
+        failedDetails.put("trace_count", messageCount);
+        failedDetails.put("payload_size_bytes", sizeInBytes);
+        failedDetails.put("http_status", response.status().orElse(-1));
+        failedDetails.put("has_exception", response.exception() != null);
+        Assert.sometimes(true, "traces_failed_to_send", failedDetails);
         if (log.isDebugEnabled()) {
           log.debug(
               "Failed to send {} traces of size {} bytes to the API {} status {} response {}",

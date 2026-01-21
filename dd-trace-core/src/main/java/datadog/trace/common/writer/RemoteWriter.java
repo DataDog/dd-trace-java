@@ -3,6 +3,9 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+import com.antithesis.sdk.Assert;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -68,6 +71,11 @@ public abstract class RemoteWriter implements Writer {
   @Override
   public void write(final List<DDSpan> trace) {
     if (closed) {
+      // Antithesis: Track traces dropped during shutdown
+      ObjectNode shutdownDetails = JsonNodeFactory.instance.objectNode();
+      shutdownDetails.put("decision", "dropped_shutdown");
+      shutdownDetails.put("span_count", trace.size());
+      Assert.sometimes(true, "trace_dropped_writer_closed", shutdownDetails);
       // We can't add events after shutdown otherwise it will never complete shutting down.
       log.debug("Dropped due to shutdown: {}", trace);
       handleDroppedTrace(trace);
@@ -80,6 +88,13 @@ public abstract class RemoteWriter implements Writer {
         final int samplingPriority = root.samplingPriority();
         switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           case ENQUEUED_FOR_SERIALIZATION:
+            // Antithesis: Track traces enqueued for sending
+            ObjectNode enqueuedDetails = JsonNodeFactory.instance.objectNode();
+            enqueuedDetails.put("decision", "enqueued");
+            enqueuedDetails.put("trace_id", root.getTraceId().toString());
+            enqueuedDetails.put("span_count", trace.size());
+            enqueuedDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_enqueued_for_send", enqueuedDetails);
             log.debug("Enqueued for serialization: {}", trace);
             healthMetrics.onPublish(trace, samplingPriority);
             break;
@@ -87,10 +102,24 @@ public abstract class RemoteWriter implements Writer {
             log.debug("Enqueued for single span sampling: {}", trace);
             break;
           case DROPPED_BY_POLICY:
+            // Antithesis: Track traces dropped by policy
+            ObjectNode policyDetails = JsonNodeFactory.instance.objectNode();
+            policyDetails.put("decision", "dropped_policy");
+            policyDetails.put("trace_id", root.getTraceId().toString());
+            policyDetails.put("span_count", trace.size());
+            policyDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_dropped_by_policy", policyDetails);
             log.debug("Dropped by the policy: {}", trace);
             handleDroppedTrace(trace);
             break;
           case DROPPED_BUFFER_OVERFLOW:
+            // Antithesis: Track traces dropped due to buffer overflow
+            ObjectNode overflowDetails = JsonNodeFactory.instance.objectNode();
+            overflowDetails.put("decision", "dropped_buffer_overflow");
+            overflowDetails.put("trace_id", root.getTraceId().toString());
+            overflowDetails.put("span_count", trace.size());
+            overflowDetails.put("sampling_priority", samplingPriority);
+            Assert.sometimes(true, "trace_dropped_buffer_overflow", overflowDetails);
             if (log.isDebugEnabled()) {
               log.debug("Dropped due to a buffer overflow: {}", trace);
             } else {
