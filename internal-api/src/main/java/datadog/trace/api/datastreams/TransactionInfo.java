@@ -10,7 +10,7 @@ public final class TransactionInfo implements InboxItem {
   private static final int MAX_ID_SIZE = 256;
   private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
   private static volatile byte[] CACHE_BYTES = new byte[0];
-  private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
+  private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
 
   private final String id;
   private final long timestamp;
@@ -74,7 +74,7 @@ public final class TransactionInfo implements InboxItem {
   static synchronized void resetCache() {
     CACHE.clear();
     CACHE_BYTES = new byte[0];
-    ID_COUNTER.set(0);
+    ID_COUNTER.set(1);
   }
 
   public static byte[] getCheckpointIdCacheBytes() {
