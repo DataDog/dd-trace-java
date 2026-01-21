@@ -1012,7 +1012,7 @@ public class Agent {
 
   private static StatsDClientManager statsDClientManager() throws Exception {
     final Class<?> statsdClientManagerClass =
-        AGENT_CLASSLOADER.loadClass("datadog.communication.monitor.DDAgentStatsDClientManager");
+        AGENT_CLASSLOADER.loadClass("datadog.metrics.statsd.DDAgentStatsDClientManager");
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
