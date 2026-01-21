@@ -68,7 +68,7 @@ junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
-testcontainers = "1.21.3"
+testcontainers = "1.21.4"
 
 [libraries]
 # Build
