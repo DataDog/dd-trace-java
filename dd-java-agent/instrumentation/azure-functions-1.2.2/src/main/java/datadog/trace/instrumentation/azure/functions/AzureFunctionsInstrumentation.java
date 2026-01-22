@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.azure.functions;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -66,7 +67,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
   }
 
-  @AppliesOn(TargetSystem.CONTEXT_TRACKING)
+  @AppliesOn(CONTEXT_TRACKING)
   public static class AzureFunctionsContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(

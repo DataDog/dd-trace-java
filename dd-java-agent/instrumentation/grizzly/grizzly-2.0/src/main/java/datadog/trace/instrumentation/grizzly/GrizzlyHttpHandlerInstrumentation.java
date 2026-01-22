@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.grizzly;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
@@ -35,11 +36,11 @@ public class GrizzlyHttpHandlerInstrumentation
             .and(named("doHandle"))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
             .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
-        GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice"),
+        GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
   }
 
-  @AppliesOn(InstrumenterModule.TargetSystem.CONTEXT_TRACKING)
+  @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     public static ContextScope methodEnter(
