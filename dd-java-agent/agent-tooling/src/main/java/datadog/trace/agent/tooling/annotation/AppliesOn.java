@@ -8,17 +8,28 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation can be used to override the target system a specific advice can be applied on.
+ * Specifies which {@link InstrumenterModule.TargetSystem}s an advice class should be applied for,
+ * overriding the default target system inherited from the parent {@link InstrumenterModule}.
+ *
+ * <p>By default, advice classes are applied when their parent {@code InstrumenterModule}'s target
+ * system is enabled. This annotation allows fine-grained control over which target systems an
+ * individual advice class should run for, independent of the module's target system.
+ *
+ * @see InstrumenterModule.TargetSystem
+ * @see InstrumenterModule
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface AppliesOn {
   /**
-   * The list of target systems in addition to the one defined for the InstrumenterModule that
-   * applies the advice.
+   * The target systems for which this advice is applied.
    *
-   * @return
+   * <p>The advice will only be applied if at least one of the specified target systems is enabled.
+   * If multiple target systems are specified, the advice applies when any of them are enabled (OR
+   * logic).
+   *
+   * @return the target systems this advice applies to
    */
   InstrumenterModule.TargetSystem[] value();
 }
