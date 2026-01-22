@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azure.functions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -18,7 +19,9 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -48,8 +51,8 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
+    return new String[]{
+        packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
     };
   }
 
@@ -59,7 +62,24 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
             .and(isPublic())
             .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
             .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
+        AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsContextTrackingAdvice",
         AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
+  }
+
+  @AppliesOn(TargetSystem.CONTEXT_TRACKING)
+  public static class AzureFunctionsContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope methodEnter(
+        @Advice.Argument(0) final HttpRequestMessage<?> request) {
+      return DECORATE.extract(request).attach();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter final ContextScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
+    }
   }
 
   public static class AzureFunctionsAdvice {
@@ -67,7 +87,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
     public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpRequestMessage<?> request,
         @Advice.Argument(1) final ExecutionContext executionContext) {
-      final Context parentContext = DECORATE.extract(request);
+      final Context parentContext = getCurrentContext();
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = fromContext(context);
       DECORATE.afterStart(span, executionContext.getFunctionName());
