@@ -32,6 +32,7 @@ class GrizzlyByteBodyInstrumentationTest extends InstrumentationSpecification {
   def supplier
   boolean bodyDone
 
+  // TODO: determine whether or not the field is final
   def prepare(String encoding = null) {
     _ * mockHttpHeader.attributes >> attributeHolder
     if (encoding) {

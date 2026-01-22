@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import datadog.trace.api.telemetry.LogCollector;
+// import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -65,6 +66,8 @@ public class MethodHandles {
     return clazz != null ? privateFieldSetter(clazz, fieldName) : null;
   }
 
+  // TODO: determine whether or not the field is final
+  // @SuppressForbidden
   public MethodHandle privateFieldSetter(Class<?> clazz, String fieldName) {
     return AccessController.doPrivileged(
         (PrivilegedAction<MethodHandle>)
