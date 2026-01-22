@@ -370,9 +370,6 @@ dependencies {
   sharedShadowInclude project(':products:metrics:metrics-api'), {
     transitive = false
   }
-  sharedShadowInclude project(':products:metrics:metrics-lib') {
-    // transitive to include ddsketch
-  }
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects

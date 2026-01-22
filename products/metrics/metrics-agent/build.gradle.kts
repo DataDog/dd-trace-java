@@ -14,11 +14,38 @@ dependencies {
   api(project(":products:metrics:metrics-api"))
 }
 
+// Configuration to include metrics-lib in shadowJar (but not as transitive dependency)
+val shadowInclude by configurations.registering {
+  isCanBeResolved = true
+  isCanBeConsumed = false
+
+  dependencies.add(project.dependencies.project(":products:metrics:metrics-lib"))
+}
+
 tasks.named<ShadowJar>("shadowJar") {
+  configurations = listOf(
+    project.configurations.runtimeClasspath.get(),
+    shadowInclude.get()
+  )
+
+  // 'excludeShared' excludes metrics-lib which we want to be bundled to land in metrics/
   dependencies {
-    val deps = project.extra["deps"] as Map<*, *>
-    val excludeShared = deps["excludeShared"] as groovy.lang.Closure<*>
-    excludeShared.delegate = this
-    excludeShared.call()
+    // Exclude shared/bootstrap projects
+    exclude(project(":dd-java-agent:agent-bootstrap"))
+    exclude(project(":dd-java-agent:agent-logging"))
+    exclude(project(":dd-trace-api"))
+    exclude(project(":internal-api"))
+    exclude(project(":components:environment"))
+    exclude(project(":components:json"))
+    // Exclude metrics-api (keep it on bootstrap)
+    exclude(project(":products:metrics:metrics-api"))
+
+    exclude(dependency("org.slf4j::"))
+
+    // dogstatsd and its transitives
+    exclude(dependency("com.datadoghq:java-dogstatsd-client"))
+    exclude(dependency("com.github.jnr::"))
+    exclude(dependency("org.ow2.asm::"))
+
   }
 }
