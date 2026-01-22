@@ -22,7 +22,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -52,8 +51,8 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
+    return new String[] {
+      packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
     };
   }
 

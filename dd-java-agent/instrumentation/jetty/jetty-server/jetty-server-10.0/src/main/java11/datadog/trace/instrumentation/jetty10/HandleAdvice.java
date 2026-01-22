@@ -25,7 +25,8 @@ public class HandleAdvice {
     }
 
     final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-    final Context parentContext = (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+    final Context parentContext =
+        (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
     final Context context = DECORATE.startSpan(req, parentContext);
     span = spanFromContext(context);
     DECORATE.afterStart(span);

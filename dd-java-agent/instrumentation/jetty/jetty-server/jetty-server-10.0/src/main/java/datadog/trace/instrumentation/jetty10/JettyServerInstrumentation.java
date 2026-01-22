@@ -34,9 +34,9 @@ import net.bytebuddy.pool.TypePool;
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-    Instrumenter.HasTypeAdvice,
-    Instrumenter.HasMethodAdvice,
-    ExcludeFilterProvider {
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   private boolean appSecNotFullyDisabled;
 
@@ -51,15 +51,15 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[]{
-        packageName + ".ExtractAdapter",
-        packageName + ".ExtractAdapter$Request",
-        packageName + ".ExtractAdapter$Response",
-        packageName + ".JettyDecorator",
-        packageName + ".JettyDecorator$OnResponse",
-        "datadog.trace.instrumentation.jetty9.RequestURIDataAdapter",
-        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-        "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+    return new String[] {
+      packageName + ".ExtractAdapter",
+      packageName + ".ExtractAdapter$Request",
+      packageName + ".ExtractAdapter$Response",
+      packageName + ".JettyDecorator",
+      packageName + ".JettyDecorator$OnResponse",
+      "datadog.trace.instrumentation.jetty9.RequestURIDataAdapter",
+      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
   }
 
@@ -71,17 +71,17 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return new Reference[]{
-        new Reference.Builder("org.eclipse.jetty.server.HttpChannel")
-            .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "handle", "Z")
-            .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "recycle", "V")
-            .withMethod(
-                new String[0],
-                Reference.EXPECTS_NON_STATIC,
-                "handleException",
-                "V",
-                "Ljava/lang/Throwable;")
-            .build()
+    return new Reference[] {
+      new Reference.Builder("org.eclipse.jetty.server.HttpChannel")
+          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "handle", "Z")
+          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "recycle", "V")
+          .withMethod(
+              new String[0],
+              Reference.EXPECTS_NON_STATIC,
+              "handleException",
+              "V",
+              "Ljava/lang/Throwable;")
+          .build()
     };
   }
 
@@ -97,7 +97,8 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(takesNoArguments().and(named("handle")),
+    transformer.applyAdvice(
+        takesNoArguments().and(named("handle")),
         packageName + ".ContextTrackingAdvice",
         packageName + ".HandleAdvice");
     transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
