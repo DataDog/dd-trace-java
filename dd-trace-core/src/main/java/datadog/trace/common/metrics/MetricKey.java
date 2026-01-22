@@ -21,6 +21,31 @@ public final class MetricKey {
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
 
+  // Constructor without httpMethod and httpEndpoint for backward compatibility
+  public MetricKey(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      CharSequence type,
+      int httpStatusCode,
+      boolean synthetics,
+      boolean isTraceRoot,
+      CharSequence spanKind,
+      List<UTF8BytesString> peerTags) {
+    this(
+        resource,
+        service,
+        operationName,
+        type,
+        httpStatusCode,
+        synthetics,
+        isTraceRoot,
+        spanKind,
+        peerTags,
+        null,
+        null);
+  }
+
   public MetricKey(
       CharSequence resource,
       CharSequence service,
@@ -52,12 +77,17 @@ public final class MetricKey {
     // https://richardstartin.github.io/posts/collecting-rocks-and-benchmarks
     // https://richardstartin.github.io/posts/still-true-in-java-9-handwritten-hash-codes-are-faster
 
+    // Only include httpMethod and httpEndpoint in hash if they are not EMPTY
+    // This ensures backward compatibility when the feature is disabled
+    boolean includeEndpointInHash =
+        !this.httpMethod.equals(EMPTY) || !this.httpEndpoint.equals(EMPTY);
+
     this.hash =
         -196_513_505 * Boolean.hashCode(this.isTraceRoot)
             + -1_807_454_463 * this.spanKind.hashCode()
             + 887_503_681 * this.peerTags.hashCode()
-            + 28_629_151 * this.httpMethod.hashCode()
-            + 923_521 * this.httpEndpoint.hashCode()
+            + (includeEndpointInHash ? 28_629_151 * this.httpMethod.hashCode() : 0)
+            + (includeEndpointInHash ? 923_521 * this.httpEndpoint.hashCode() : 0)
             + 29_791 * this.resource.hashCode()
             + 961 * this.service.hashCode()
             + 31 * this.operationName.hashCode()
@@ -117,18 +147,30 @@ public final class MetricKey {
     }
     if ((o instanceof MetricKey)) {
       MetricKey metricKey = (MetricKey) o;
-      return hash == metricKey.hash
-          && synthetics == metricKey.synthetics
-          && httpStatusCode == metricKey.httpStatusCode
-          && resource.equals(metricKey.resource)
-          && service.equals(metricKey.service)
-          && operationName.equals(metricKey.operationName)
-          && type.equals(metricKey.type)
-          && isTraceRoot == metricKey.isTraceRoot
-          && spanKind.equals(metricKey.spanKind)
-          && peerTags.equals(metricKey.peerTags)
-          && httpMethod.equals(metricKey.httpMethod)
-          && httpEndpoint.equals(metricKey.httpEndpoint);
+      boolean basicEquals =
+          hash == metricKey.hash
+              && synthetics == metricKey.synthetics
+              && httpStatusCode == metricKey.httpStatusCode
+              && resource.equals(metricKey.resource)
+              && service.equals(metricKey.service)
+              && operationName.equals(metricKey.operationName)
+              && type.equals(metricKey.type)
+              && isTraceRoot == metricKey.isTraceRoot
+              && spanKind.equals(metricKey.spanKind)
+              && peerTags.equals(metricKey.peerTags);
+
+      // Only compare httpMethod and httpEndpoint if at least one of them is not EMPTY
+      // This ensures backward compatibility when the feature is disabled
+      boolean thisHasEndpoint = !httpMethod.equals(EMPTY) || !httpEndpoint.equals(EMPTY);
+      boolean otherHasEndpoint =
+          !metricKey.httpMethod.equals(EMPTY) || !metricKey.httpEndpoint.equals(EMPTY);
+
+      if (thisHasEndpoint || otherHasEndpoint) {
+        return basicEquals
+            && httpMethod.equals(metricKey.httpMethod)
+            && httpEndpoint.equals(metricKey.httpEndpoint);
+      }
+      return basicEquals;
     }
     return false;
   }

@@ -102,6 +102,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -122,7 +123,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isTraceResourceRenamingEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -132,7 +134,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
-      int queueSize) {
+      int queueSize,
+      boolean includeEndpointInMetrics) {
     this(
         wellKnownTags,
         ignoredResources,
@@ -142,7 +145,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -154,7 +158,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
         features,
@@ -164,7 +169,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -176,8 +182,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
@@ -308,11 +316,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
-    // Extract HTTP method and endpoint
-    Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
-    String httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
-    Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
-    String httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
+    // Extract HTTP method and endpoint only if the feature is enabled
+    String httpMethod = null;
+    String httpEndpoint = null;
+    if (includeEndpointInMetrics) {
+      Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
+      httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
+      Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
+    }
 
     MetricKey newKey =
         new MetricKey(
