@@ -64,7 +64,7 @@ public class ResponseDecorator {
               inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
             });
 
-    Optional<String> textOpt = params._input().asString(); // TODO cover with unit tests
+    Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
       inputMessages.add(LLMObs.LLMMessage.from("user", textOpt.get()));
     }
@@ -75,7 +75,7 @@ public class ResponseDecorator {
       if (input.isText()) {
         inputMessages.add(LLMObs.LLMMessage.from("user", input.asText()));
       } else if (input.isResponse()) {
-        List<ResponseInputItem> inputItems = input.asResponse(); // TODO cover with unit tests
+        List<ResponseInputItem> inputItems = input.asResponse();
         for (ResponseInputItem item : inputItems) {
           LLMObs.LLMMessage message = extractInputItemMessage(item);
           if (message != null) {

@@ -256,7 +256,8 @@ class ChatCompletionServiceTest extends OpenAiTest {
     assertChatCompletionTrace(true, outputTag)
     and:
     outputTag.size() == 3
-    outputTag.each { msg ->
+    outputTag.each {
+      msg ->
       assert msg.role == "assistant"
       assert msg.content == "Hello, world!"
     }
