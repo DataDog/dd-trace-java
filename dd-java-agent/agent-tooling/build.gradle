@@ -39,9 +39,7 @@ sourceSets {
 }
 
 configurations {
-  register("instrumentPluginClasspath") {
-    canBeConsumed = true
-    canBeResolved = false
+  consumable("buildTimeInstrumentationToolingPlugins") {
     extendsFrom runtimeElements
   }
 

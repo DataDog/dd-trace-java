@@ -41,19 +41,15 @@ public final class BaseHash {
       String primaryTag,
       CharSequence processTags,
       String containerTagsHash) {
-    StringBuilder builder = new StringBuilder(64);
-    builder.append(serviceName);
-    builder.append(env);
-
-    if (primaryTag != null) {
-      builder.append(primaryTag);
-    }
+    long hash = FNV64Hash.generateHash(serviceName.toString(), FNV64Hash.Version.v1);
+    hash = FNV64Hash.continueHash(hash, env.toString(), FNV64Hash.Version.v1);
+    if (primaryTag != null) hash = FNV64Hash.continueHash(hash, primaryTag, FNV64Hash.Version.v1);
     if (processTags != null) {
-      builder.append(processTags);
+      hash = FNV64Hash.continueHash(hash, processTags.toString(), FNV64Hash.Version.v1);
       if (containerTagsHash != null && !containerTagsHash.isEmpty()) {
-        builder.append(containerTagsHash);
+        hash = FNV64Hash.continueHash(hash, containerTagsHash, FNV64Hash.Version.v1);
       }
     }
-    return FNV64Hash.generateHash(builder.toString(), FNV64Hash.Version.v1);
+    return hash;
   }
 }
