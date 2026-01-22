@@ -22,7 +22,7 @@ dependencies {
   api(libs.moshi)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
-  implementation(project(":products:metrics-lib"))
+  implementation(project(":products:metrics:metrics-lib"))
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
