@@ -417,7 +417,6 @@ class TestHttpServer implements AutoCloseable {
       final contentLength
       final contentType
       final byte[] body
-      final String method
 
       RequestApi(Request req) {
         this.orig = req
