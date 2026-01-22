@@ -15,14 +15,14 @@ import org.jctools.queues.SpscArrayQueue;
  * implementation available:
  *
  * <ul>
- *   <li>For Java 9 and above, {@code VarHandle}-based queue implementations are used for improved
+ *   <li>For Java 25 and above, {@code VarHandle}-based queue implementations are used for improved
  *       performance and without relying on {@code sun.misc.Unsafe}.
  *   <li>For Java 8, {@code JCTools}-based wrappers are used instead.
  * </ul>
  */
 public final class Queues {
 
-  private static final boolean CAN_USE_VARHANDLES = JavaVirtualMachine.isJavaVersionAtLeast(9);
+  private static final boolean CAN_USE_VARHANDLES = JavaVirtualMachine.isJavaVersionAtLeast(25);
 
   private Queues() {}
 
