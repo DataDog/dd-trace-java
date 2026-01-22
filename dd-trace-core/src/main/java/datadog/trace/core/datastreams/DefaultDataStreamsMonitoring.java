@@ -86,7 +86,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
   // snapshots.
   private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
-      extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
+      extractorsByType;
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -214,7 +214,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DataStreamsTransactionExtractor.Type extractorType,
       Object source,
       TransactionSourceReader sourceReader) {
-    if (!supportsDataStreams || source == null) {
+    if (!supportsDataStreams || source == null || extractorsByType == null) {
       return;
     }
 
