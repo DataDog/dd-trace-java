@@ -802,11 +802,6 @@ public class Agent {
     }
 
     StaticEventLogger.begin("AgentMeter");
-    try {
-      AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MeterInstaller");
-    } catch (ClassNotFoundException e) {
-      log.error("Error loading DatadogMeter", e);
-    }
 
     try {
       // Install AgentMeter, StatsDClient and Monitoring
@@ -818,7 +813,6 @@ public class Agent {
       throw ex;
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog meter", ex);
-
       initTelemetry.onFatalError(ex);
     }
 
