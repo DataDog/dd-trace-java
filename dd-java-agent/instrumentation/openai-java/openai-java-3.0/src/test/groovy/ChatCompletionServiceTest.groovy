@@ -16,8 +16,6 @@ import java.util.stream.Stream
 
 class ChatCompletionServiceTest extends OpenAiTest {
 
-  // TODO add a multi-choice response tests
-
   def "create chat/completion test"() {
     ChatCompletion resp = runUnderTrace("parent") {
       openAiClient.chat().completions().create(params)
@@ -197,6 +195,98 @@ class ChatCompletionServiceTest extends OpenAiTest {
       grades: 3.8,
       clubs: ['Chess Club', 'South Asian Student Association']
     ]
+  }
+
+  def "create chat/completion test with multi-choice response"() {
+    ChatCompletion resp = runUnderTrace("parent") {
+      openAiClient.chat().completions().create(params)
+    }
+
+    expect:
+    resp != null
+    resp.choices().size() == 3
+    and:
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(false, outputTag)
+    and:
+    outputTag.size() == 3
+    outputTag.each { msg ->
+      assert msg.role == "assistant"
+      assert msg.content == "Hello, world!"
+    }
+
+    where:
+    params << [chatCompletionCreateParamsMultiChoice(false), chatCompletionCreateParamsMultiChoice(true)]
+  }
+
+  def "create chat/completion test with multi-choice response withRawResponse"() {
+    HttpResponseFor<ChatCompletion> resp = runUnderTrace("parent") {
+      openAiClient.chat().withRawResponse().completions().create(params)
+    }
+
+    expect:
+    resp.statusCode() == 200
+    resp.parse().choices().size() == 3
+    and:
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(false, outputTag)
+    and:
+    outputTag.size() == 3
+    outputTag.each { msg ->
+      assert msg.role == "assistant"
+      assert msg.content == "Hello, world!"
+    }
+
+    where:
+    params << [chatCompletionCreateParamsMultiChoice(false), chatCompletionCreateParamsMultiChoice(true)]
+  }
+
+  def "create streaming chat/completion test with multi-choice response"() {
+    runnableUnderTrace("parent") {
+      StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(params)
+      try (Stream stream = streamCompletion.stream()) {
+        stream.forEach {
+          // consume the stream
+        }
+      }
+    }
+
+    expect:
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(true, outputTag)
+    and:
+    outputTag.size() == 3
+    outputTag.each { msg ->
+      assert msg.role == "assistant"
+      assert msg.content == "Hello, world!"
+    }
+
+    where:
+    params << [chatCompletionCreateParamsMultiChoice(false), chatCompletionCreateParamsMultiChoice(true)]
+  }
+
+  def "create async chat/completion test with multi-choice response"() {
+    CompletableFuture<ChatCompletion> completionFuture = runUnderTrace("parent") {
+      openAiClient.async().chat().completions().create(params)
+    }
+
+    ChatCompletion resp = completionFuture.get()
+
+    expect:
+    resp != null
+    resp.choices().size() == 3
+    and:
+    List<LLMObs.LLMMessage> outputTag = []
+    assertChatCompletionTrace(false, outputTag)
+    and:
+    outputTag.size() == 3
+    outputTag.each { msg ->
+      assert msg.role == "assistant"
+      assert msg.content == "Hello, world!"
+    }
+
+    where:
+    params << [chatCompletionCreateParamsMultiChoice(false), chatCompletionCreateParamsMultiChoice(true)]
   }
 
   private void assertChatCompletionTrace(boolean isStreaming) {

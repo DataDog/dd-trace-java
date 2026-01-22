@@ -278,7 +278,7 @@ He hopes to pursue a career in software engineering after graduating.""")
 
       ResponseCreateParams.builder()
       .model("gpt-4.1")
-      .input(com.openai.core.JsonValue.from(rawInputJson))
+      .input(JsonValue.from(rawInputJson))
       .temperature(0.1d)
       .build()
     } else {
@@ -309,6 +309,23 @@ He hopes to pursue a career in software engineering after graduating.""")
       .build()
     }
   }
-}
 
+  ChatCompletionCreateParams chatCompletionCreateParamsMultiChoice(boolean json) {
+    if (json) {
+      ChatCompletionCreateParams.builder()
+      .model("gpt-4o-mini")
+      .addSystemMessage("You are a helpful assistant.")
+      .addUserMessage("Say 'Hello, world!'")
+      .n(3)
+      .build()
+    } else {
+      ChatCompletionCreateParams.builder()
+      .model(ChatModel.GPT_4O_MINI)
+      .addSystemMessage("You are a helpful assistant.")
+      .addUserMessage("Say 'Hello, world!'")
+      .n(3)
+      .build()
+    }
+  }
+}
 
