@@ -35,7 +35,10 @@ dependencies {
   implementation libs.bundles.asm
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation project(':products:metrics:metrics-lib')
+  // Exclude sketches-java since it's bundled in metrics-agent (metrics/ directory only)
+  implementation(project(':products:metrics:metrics-lib')) {
+    exclude group: 'com.datadoghq', module: 'sketches-java'
+  }
   compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-java-agent:agent-builder')
   compileOnly project(':dd-trace-core')

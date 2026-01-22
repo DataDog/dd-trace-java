@@ -17,6 +17,11 @@ public final class DDSketchHistograms implements Histograms {
 
   private static final DDSketchHistograms INSTANCE = new DDSketchHistograms();
 
+  static {
+    // Register this implementation with the factory in metrics-api
+    Histograms.Factory.register(INSTANCE);
+  }
+
   public static Histograms histograms() {
     return INSTANCE;
   }

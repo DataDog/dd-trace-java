@@ -67,7 +67,9 @@ dependencies {
   api project(':communication')
   api project(':internal-api')
   api project(':products:metrics:metrics-agent')
-  api project(':products:metrics:metrics-lib')
+  // Note: dd-trace-core should NOT depend on metrics-lib directly
+  // metrics-lib (with sketches-java) is bundled in metrics-agent shadowJar
+  // and loaded from the metrics/ directory in the agent jar
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
