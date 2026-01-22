@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.liberty20;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
@@ -18,6 +19,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -33,6 +35,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -79,7 +82,38 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
             .and(takesArgument(3, named("com.ibm.wsspi.webcontainer.RequestProcessor")))
             .and(takesArgument(4, EnumSet.class))
             .and(takesArgument(5, named("com.ibm.wsspi.http.HttpInboundConnection"))),
+        LibertyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Argument(0) final ServletRequest req) {
+      Object parentContextObj;
+      try {
+        parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      } catch (Throwable t) {
+        // liberty seems throwing NPE if the attribute key is missing
+        parentContextObj = null;
+      }
+      if (parentContextObj instanceof Context) {
+        return ((Context) parentContextObj).attach();
+      }
+      if (!(req instanceof HttpServletRequest)) {
+        return null;
+      }
+      final Context parentContext = DECORATE.extract((HttpServletRequest) req);
+      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      return parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Enter final ContextScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
+    }
   }
 
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
@@ -104,8 +138,13 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final Context parentContext = DECORATE.extract(request);
-      request.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      Context parentContext = null;
+      try {
+        final Object parentContextObj = request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+        parentContext = (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+      } catch (Throwable ignored) {
+      }
+
       final Context context = DECORATE.startSpan(request, parentContext);
       scope = context.attach();
       final AgentSpan span = fromContext(context);

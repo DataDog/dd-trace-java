@@ -41,13 +41,13 @@ public class GrizzlyHttpHandlerInstrumentation
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(@Advice.Argument(0) final Request request) {
 
       if (request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE) != null) {
         // the tracing advice only activate the tracing span once. If we activate the parent each
-        // time we risk
-        // to cause side effects. Hence also this is activated once the first time only.
+        // time we risk to cause side effects. Hence also this is activated once the first time
+        // only.
         return null;
       }
       final Context context = DECORATE.extract(request);
