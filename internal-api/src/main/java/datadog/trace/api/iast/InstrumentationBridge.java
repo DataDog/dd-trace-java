@@ -125,7 +125,9 @@ public abstract class InstrumentationBridge {
     }
   }
 
-  // TODO: determine whether or not the field is final
+  // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
+  // https://openjdk.org/jeps/500.
+  // However, in this case the method is called on a non-final field, so it is safe.
   @SuppressForbidden
   private static void set(final Field field, final IastModule module) {
     try {

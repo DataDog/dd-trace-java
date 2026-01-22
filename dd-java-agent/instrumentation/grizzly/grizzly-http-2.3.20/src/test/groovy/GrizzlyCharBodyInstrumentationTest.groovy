@@ -29,7 +29,6 @@ class GrizzlyCharBodyInstrumentationTest extends InstrumentationSpecification {
   def supplier
   boolean bodyDone
 
-  // TODO: determine whether or not the field is final
   def setup() {
     _ * mockHttpHeader.attributes >> attributeHolder
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)

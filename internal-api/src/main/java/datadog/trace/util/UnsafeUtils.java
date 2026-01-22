@@ -58,7 +58,7 @@ public abstract class UnsafeUtils {
     }
   }
 
-  // TODO: determine whether or not the fields are final
+  // TODO: JEP 500 - avoid mutating final fields
   @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
