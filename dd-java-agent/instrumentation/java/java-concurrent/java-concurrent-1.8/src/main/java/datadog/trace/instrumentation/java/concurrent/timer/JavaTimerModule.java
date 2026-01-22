@@ -1,41 +1,31 @@
 package datadog.trace.instrumentation.java.concurrent.timer;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
+import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.RUNNABLE_INSTRUMENTATION_NAME;
+import static java.util.Collections.singletonMap;
 
-import datadog.trace.agent.tooling.Instrumenter;
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.Map;
 import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
-public class JavaTimerInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "java.util.Timer";
+@AutoService(InstrumenterModule.class)
+public class JavaTimerModule extends InstrumenterModule.ContextTracking {
+  public JavaTimerModule() {
+    super("java_timer", EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
   }
 
   @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPrivate())
-            .and(
-                named("sched")
-                    .and(takesArguments(3))
-                    .and(takesArgument(0, named("java.util.TimerTask")))
-                    .and(takesArgument(1, long.class))
-                    .and(takesArgument(2, long.class))),
-        getClass().getName() + "$TimerScheduleAdvice");
+  public Map<String, String> contextStore() {
+    return singletonMap("java.lang.Runnable", State.class.getName());
   }
 
   public static final class TimerScheduleAdvice {

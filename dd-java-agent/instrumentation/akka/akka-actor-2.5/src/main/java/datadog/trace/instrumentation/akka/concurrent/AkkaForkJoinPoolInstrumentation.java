@@ -40,7 +40,7 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
+    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", ContextTracking.class.getName());
   }
 
   @Override
