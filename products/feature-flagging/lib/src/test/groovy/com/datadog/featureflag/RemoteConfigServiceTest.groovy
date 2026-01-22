@@ -87,24 +87,34 @@ class RemoteConfigServiceTest extends DDSpecification {
     date == expected
 
     where:
-    string                      | expected
-    // Valid ISO 8601 formats
-    "2023-01-01T00:00:00Z"      | new Date(1672531200000L) // 2023-01-01 00:00:00 UTC
-    "2023-12-31T23:59:59Z"      | new Date(1704067199000L) // 2023-12-31 23:59:59 UTC
-    "2024-02-29T12:00:00Z"      | new Date(1709208000000L) // Leap year date
-    "2023-01-01T00:00:00.000Z"  | new Date(1672531200000L) // With milliseconds
-    "2023-06-15T14:30:45.123Z"  | new Date(1686839445123L) // With milliseconds
+    string                           | expected
+    // Valid ISO 8601 formats - no fractional seconds
+    "2023-01-01T00:00:00Z"           | new Date(1672531200000L) // 2023-01-01 00:00:00 UTC
+    "2023-12-31T23:59:59Z"           | new Date(1704067199000L) // 2023-12-31 23:59:59 UTC
+    "2024-02-29T12:00:00Z"           | new Date(1709208000000L) // Leap year date
+    // 3-digit milliseconds
+    "2023-01-01T00:00:00.000Z"       | new Date(1672531200000L) // With milliseconds
+    "2023-06-15T14:30:45.123Z"       | new Date(1686839445123L) // With milliseconds
+    // 6-digit microseconds (truncated to milliseconds by Java Date)
+    "2023-06-15T14:30:45.123456Z"    | new Date(1686839445123L) // Microseconds truncated
+    "2023-06-15T14:30:45.235982Z"    | new Date(1686839445235L) // Different microseconds from backend
+    // 9-digit nanoseconds (truncated to milliseconds by Java Date)
+    "2023-06-15T14:30:45.123456789Z" | new Date(1686839445123L) // Nanoseconds truncated
+    // Variable precision fractional seconds
+    "2023-06-15T14:30:45.1Z"         | new Date(1686839445100L) // 1-digit
+    "2023-06-15T14:30:45.12Z"        | new Date(1686839445120L) // 2-digit
+    // UTC offsets (supported by OffsetDateTime.parse)
+    "2023-01-01T01:00:00+01:00"      | new Date(1672531200000L) // UTC+1 = 2023-01-01 00:00:00 UTC
+    "2023-01-01T00:00:00-05:00"      | new Date(1672549200000L) // UTC-5 = 2023-01-01 05:00:00 UTC
     // Non supported formats should return null
-    "2023-01-01T01:00:00+01:00" | null // UTC+1
-    "2023-01-01T00:00:00-05:00" | null // UTC-5
-    "2023-01-01"                | null // Date only
-    "invalid-date"              | null
-    ""                          | null
-    "not-a-date"                | null
-    "2023/01/01T00:00:00Z"      | null // Wrong separator
+    "2023-01-01"                     | null // Date only
+    "invalid-date"                   | null
+    ""                               | null
+    "not-a-date"                     | null
+    "2023/01/01T00:00:00Z"           | null // Wrong separator
 
     // Null input
-    null                        | null
+    null                             | null
   }
 
   void 'test parsing only adapter'() {
