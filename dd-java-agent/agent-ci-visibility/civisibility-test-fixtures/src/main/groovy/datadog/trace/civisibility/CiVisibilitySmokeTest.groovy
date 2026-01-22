@@ -99,7 +99,7 @@ abstract class CiVisibilitySmokeTest extends Specification {
     }
 
     String agentArgs = argMap.collect { k, v -> "${propertyNameToSystemPropertyName(k)}=${v}" }.join(",")
-    arguments += "-javaagent:${AGENT_JAR}=${agentArgs} -Ddd.trace.debug=true".toString()
+    arguments += "-javaagent:${AGENT_JAR}=${agentArgs}".toString()
 
     return arguments
   }
