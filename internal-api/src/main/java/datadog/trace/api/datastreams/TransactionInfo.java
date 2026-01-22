@@ -80,7 +80,7 @@ public final class TransactionInfo implements InboxItem {
   public static byte[] getCheckpointIdCacheBytes() {
     // CACHE_BYTES are never modified outside of this class, so it's safe to pass the
     // value directly without cloning
-    //no-dd-sa:java-best-practices/return-internal-array
+    // no-dd-sa:java-best-practices/return-internal-array
     return CACHE_BYTES;
   }
 }
