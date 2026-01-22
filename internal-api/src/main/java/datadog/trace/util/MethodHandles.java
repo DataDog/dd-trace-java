@@ -65,7 +65,6 @@ public class MethodHandles {
     return clazz != null ? privateFieldSetter(clazz, fieldName) : null;
   }
 
-  // TODO: determine whether or not the field is final
   public MethodHandle privateFieldSetter(Class<?> clazz, String fieldName) {
     return AccessController.doPrivileged(
         (PrivilegedAction<MethodHandle>)
