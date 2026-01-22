@@ -14,7 +14,7 @@ dependencies {
   api libs.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation project(':products:metrics-api')
+  implementation project(':products:metrics:metrics-api')
   implementation project(':telemetry')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.3.0'
   implementation libs.moshi

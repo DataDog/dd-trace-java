@@ -14,7 +14,7 @@ dependencies {
   implementation libs.slf4j
   implementation project(':communication')
   implementation project(':internal-api')
-  implementation project(':products:metrics-lib')
+  implementation project(':products:metrics:metrics-lib')
   implementation project(':utils:container-utils')
   implementation project(':utils:version-utils')
   implementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')

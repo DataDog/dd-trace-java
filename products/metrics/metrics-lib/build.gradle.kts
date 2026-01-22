@@ -7,7 +7,7 @@ description = "StatsD client"
 apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
-  api(project(":products:metrics-api"))
+  api(project(":products:metrics:metrics-api"))
   implementation(libs.slf4j)
   implementation(libs.dogstatsd)
   implementation(project(":internal-api"))
