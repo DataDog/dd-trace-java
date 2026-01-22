@@ -10,6 +10,9 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-insecure-bank.yml'
     ref: 'sarahchen6/migrate-java-microbenchmarks'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-dacapo.yml'
+    ref: 'sarahchen6/migrate-dacapo-microbenchmarks'
 
 stages:
   - build
@@ -21,6 +24,7 @@ stages:
   - java-spring-petclinic-macrobenchmarks
   - java-startup-microbenchmarks
   - java-load-microbenchmarks
+  - java-dacapo-microbenchmarks
   - generate-slos
   - macrobenchmarks
   - tests
