@@ -12,6 +12,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MON
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
@@ -50,7 +51,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.jctools.queues.MpscArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
-  private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
+  private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
