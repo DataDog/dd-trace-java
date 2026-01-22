@@ -15,7 +15,11 @@ public final class DDSketchHistograms implements Histograms {
   private static final LogarithmicMapping LOG_INDEX_MAPPING =
       new LogarithmicMapping(1.015625, 1.8761281912861705);
 
-  public static final DDSketchHistograms INSTANCE = new DDSketchHistograms();
+  private static final DDSketchHistograms INSTANCE = new DDSketchHistograms();
+
+  public static Histograms histograms() {
+    return INSTANCE;
+  }
 
   private DDSketchHistograms() {}
 
