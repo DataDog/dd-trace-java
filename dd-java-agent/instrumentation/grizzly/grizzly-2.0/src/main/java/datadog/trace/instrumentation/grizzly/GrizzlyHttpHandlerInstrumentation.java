@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.grizzly;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,6 +11,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -32,11 +35,35 @@ public class GrizzlyHttpHandlerInstrumentation
             .and(named("doHandle"))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
             .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
+        GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice"),
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
   }
 
-  public static class HandleAdvice {
+  @AppliesOn(InstrumenterModule.TargetSystem.CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+    public static ContextScope methodEnter(
+        @Advice.Argument(0) final Request request) {
 
+      if (request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE) != null) {
+        // the tracing advice only activate the tracing span once. If we activate the parent each time we risk
+        // to cause side effects. Hence also this is activated once the first time only.
+        return null;
+      }
+      final Context context = DECORATE.extract(request);
+      request.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, context);
+      return context.attach();
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter final ContextScope scope) {
+      if (scope != null) {
+        scope.close();
+      }
+    }
+  }
+
+  public static class HandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
     public static boolean /* skip body */ methodEnter(
         @Advice.Local("contextScope") ContextScope scope,
@@ -46,7 +73,9 @@ public class GrizzlyHttpHandlerInstrumentation
         return false;
       }
 
-      final Context parentContext = DECORATE.extract(request);
+      final Object parentContextObj = request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      final Context parentContext = (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);

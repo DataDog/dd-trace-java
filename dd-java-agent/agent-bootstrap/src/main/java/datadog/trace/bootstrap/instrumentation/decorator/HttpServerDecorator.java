@@ -57,6 +57,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private static final int UNSET_PORT = 0;
 
   public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
