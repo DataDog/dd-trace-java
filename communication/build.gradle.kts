@@ -1,10 +1,38 @@
+import groovy.lang.Closure
+
 plugins {
   `java-library`
+  idea
 }
 
 description = "communication"
 
 apply(from = rootDir.resolve("gradle/java.gradle"))
+
+// Manually configure Java 11 source set like agent-bootstrap does
+sourceSets {
+  create("main_java11") {
+    java.srcDirs("${project.projectDir}/src/main/java11")
+  }
+}
+
+fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
+}
+
+tasks.named<JavaCompile>("compileMain_java11Java") {
+  configureCompiler(11, JavaVersion.VERSION_1_8)
+}
+
+tasks.named<Jar>("jar") {
+  from(sourceSets["main_java11"].output)
+}
+
+idea {
+  module {
+    jdkName = "11"
+  }
+}
 
 dependencies {
   implementation(libs.slf4j)
@@ -21,6 +49,10 @@ dependencies {
   api(libs.okhttp)
   api(libs.moshi)
   implementation(libs.dogstatsd)
+
+  // Java 11 source set needs access to main source set and project dependencies
+  "main_java11CompileOnly"(project(":internal-api"))
+  "main_java11CompileOnly"(sourceSets["main"].output)
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
