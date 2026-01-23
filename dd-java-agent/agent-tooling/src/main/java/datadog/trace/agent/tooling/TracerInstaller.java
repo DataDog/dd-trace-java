@@ -9,9 +9,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
+import datadog.trace.core.servicediscovery.ForeignMemoryWriterFactory;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,20 +57,12 @@ public class TracerInstaller {
     return TracerInstaller::initServiceDiscovery;
   }
 
-  @SuppressForbidden // intentional use of Class.forName
   private static ServiceDiscovery initServiceDiscovery() {
-    try {
-      // use reflection to load MemFDUnixWriter so it doesn't get picked up when we
-      // transitively look for all tracer class dependencies to install in GraalVM via
-      // VMRuntimeInstrumentation
-      Class<?> memFdClass =
-          Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriter");
-      ForeignMemoryWriter memFd = (ForeignMemoryWriter) memFdClass.getConstructor().newInstance();
-      return new ServiceDiscovery(memFd);
-    } catch (Throwable e) {
-      log.debug("service discovery not supported", e);
-      return null;
+    final ForeignMemoryWriter writer = new ForeignMemoryWriterFactory().get();
+    if (writer != null) {
+      return new ServiceDiscovery(writer);
     }
+    return null;
   }
 
   public static void installGlobalTracer(final CoreTracer tracer) {

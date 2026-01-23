@@ -8,51 +8,90 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Check for required JDKs
-function TestJvm {
-  param ($JavaHomeName, $ExpectedJavaVersion)
+function Get-JavaMajorVersion {
+  param ($javaCommand)
 
-  if (-not (Test-Path "env:$JavaHomeName")) {
-    Write-Host "❌ $JavaHomeName is not set. Please set $JavaHomeName to refer to a JDK $ExpectedJavaVersion installation." -ForegroundColor Red
+  try {
+    $ErrorActionPreference = 'Continue'
+    $javaVersionOutput = & $javaCommand -version 2>&1
+  }
+  catch {
+    return $null
+  }
+  finally {
+    $ErrorActionPreference = 'Stop'
+  }
+
+  # Extract version from output like 'version "21.0.1"' or 'version "1.8.0_392"'
+  if ($javaVersionOutput[0] -match 'version "1\.(\d+)') {
+    # Old versioning scheme (Java 8 and earlier): 1.X.Y_Z -> major version is X
+    return [int]$matches[1]
+  }
+  elseif ($javaVersionOutput[0] -match 'version "(\d+)') {
+    # New versioning scheme (Java 9+): X.Y.Z -> major version is X
+    return [int]$matches[1]
+  }
+
+  return $null
+}
+
+function Test-Jdk {
+  param ($javaCommand, $minJavaVersion)
+
+  $javaVersion = Get-JavaMajorVersion $javaCommand
+
+  if ($null -eq $javaVersion) {
+    Write-Host "❌ Could not determine Java version from $javaCommand." -ForegroundColor Red
     exit 1
   }
+  elseif ($javaVersion -lt $minJavaVersion) {
+    Write-Host "🟨 $javaCommand refers to JDK $javaVersion but JDK $minJavaVersion or above is recommended."
+  }
   else {
-    $javaHome = Get-Item "env:$JavaHomeName" | Select-Object -ExpandProperty Value
-
-    try {
-      # try to handle differences between PowerShell 7 and Windows PowerShell 5
-      $ErrorActionPreference = 'Continue'
-      $javaVersionOutput = & "$javaHome\bin\java.exe" -version 2>&1
-    }
-    catch {
-      Write-Host "❌ Error running `"$javaHome\bin\java.exe -version`". Please check that $JavaHomeName is set to a JDK $ExpectedJavaVersion installation."
-      exit 1
-    }
-    finally {
-      $ErrorActionPreference = 'Stop'
-    }
-
-    if ($javaVersionOutput[0] -notmatch "version `"$ExpectedJavaVersion") {
-      Write-Host "❌ $JavaHomeName is set to $javaHome, but it does not refer to a JDK $ExpectedJavaVersion installation." -ForegroundColor Red
-      exit 1
-    }
-    else {
-      Write-Host "✅ $JavaHomeName is set to $javaHome."
-    }
+    Write-Host "✅ $javaCommand is set to JDK $javaVersion."
   }
 }
 
-Write-Host 'ℹ️ Checking required JVM:'
-if (Test-Path 'env:JAVA_HOME') {
-  TestJvm 'JAVA_HOME' '1.8'
+function Show-AvailableJdks {
+  try {
+    $ErrorActionPreference = 'Continue'
+    $javaToolchainsOutput = & .\gradlew.bat -q javaToolchains 2>&1
+
+    $jdkName = ''
+    foreach ($line in $javaToolchainsOutput) {
+      if ($line -match '^ \+ (.+)$') {
+        $jdkName = $matches[1]
+      }
+      elseif ($line -match '^\s+\| Location:\s+(.+)$') {
+        if ($jdkName) {
+          Write-Host "✅ $jdkName from $($matches[1])."
+          $jdkName = ''
+        }
+      }
+    }
+  }
+  catch {
+    Write-Host "⚠️ Could not retrieve available JDKs from Gradle."
+  }
+  finally {
+    $ErrorActionPreference = 'Stop'
+  }
 }
 
-TestJvm 'JAVA_8_HOME' '1.8'
-TestJvm 'JAVA_11_HOME' '11'
-TestJvm 'JAVA_17_HOME' '17'
-TestJvm 'JAVA_21_HOME' '21'
-TestJvm 'JAVA_25_HOME' '25'
-# GraalVM cannot currently be installed due to license change in October 2024 for GraalVM 17.0.13 and later.
-# TestJvm 'JAVA_GRAALVM17_HOME' '17'
+Write-Host 'ℹ️ Checking JDK:'
+if (Test-Path 'env:JAVA_HOME') {
+  $javaHome = Get-Item 'env:JAVA_HOME' | Select-Object -ExpandProperty Value
+  Test-Jdk "$javaHome\bin\java.exe" 21
+}
+elseif (Get-Command java -ErrorAction SilentlyContinue) {
+  Test-Jdk 'java' 21
+}
+else {
+  Write-Host "❌ No Java installation found. Please install JDK 21 or above." -ForegroundColor Red
+  exit 1
+}
+Write-Host 'ℹ️ Checking other JDKs available for testing:'
+Show-AvailableJdks
 
 # Check for required commands (e.g., git, docker)
 function TestCommand {
@@ -98,10 +137,22 @@ function TestGitConfig {
     Write-Host "✅ git config $configName is set to $expectedValue."
   }
   elseif (-not $actualValue) {
-    Write-Host "❌ git config $configName is not set. Please set it to $expectedValue." -ForegroundColor Red
+    Write-Host "❌ git config $configName is not set. Please run 'git config set $configName $expectedValue'." -ForegroundColor Red
   }
   else {
-    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue)."
+    Write-Host "🟨 git config $configName is set to $actualValue (expected: $expectedValue). Please run 'git config set $configName $expectedValue'."
+  }
+}
+
+function TestSubmoduleInitialization {
+  if (Test-Path '.gitmodules') {
+    $uninitializedSubmodules = git submodule status | Select-String '^-'
+    if ($uninitializedSubmodules) {
+      Write-Host "❌ A git submodule are not initialized. Please run 'git submodule update --init --recursive'." -ForegroundColor Red
+    }
+    else {
+      Write-Host "✅ All git submodules are initialized."
+    }
   }
 }
 
@@ -109,6 +160,7 @@ Write-Host 'ℹ️ Checking git configuration:'
 TestCommand 'git'
 TestHook 'pre-commit'
 TestGitConfig 'submodule.recurse' 'true'
+TestSubmoduleInitialization
 
 # Check Docker environment
 function TestDockerServer {

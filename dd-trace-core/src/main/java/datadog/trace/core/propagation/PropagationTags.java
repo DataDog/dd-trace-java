@@ -57,6 +57,8 @@ public abstract class PropagationTags {
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
+  public abstract void forceKeep(int samplingMechanism);
+
   public abstract int getSamplingPriority();
 
   public abstract void updateTraceOrigin(CharSequence origin);

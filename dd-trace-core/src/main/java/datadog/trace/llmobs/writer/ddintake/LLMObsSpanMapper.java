@@ -2,7 +2,9 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.api.llmobs.LLMObs;
@@ -77,8 +79,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
 
-  private final LLMObsSpanMapper.MetaWriter metaWriter = new MetaWriter();
+  private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
+
+  private final ByteBuffer header;
+  private int spansWritten;
 
   public LLMObsSpanMapper() {
     this(5 << 20);
@@ -86,6 +91,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private LLMObsSpanMapper(int size) {
     this.size = size;
+
+    GrowableBuffer header = new GrowableBuffer(64);
+    MsgPackWriter headerWriter = new MsgPackWriter(header);
+
+    headerWriter.startMap(3);
+    headerWriter.writeUTF8(EVENT_TYPE);
+    headerWriter.writeString("span", null);
+    headerWriter.writeUTF8(STAGE);
+    headerWriter.writeString("raw", null);
+    headerWriter.writeUTF8(SPANS);
+
+    this.header = header.slice();
   }
 
   @Override
@@ -93,16 +110,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
     List<? extends CoreSpan<?>> llmobsSpans =
         trace.stream().filter(LLMObsSpanMapper::isLLMObsSpan).collect(Collectors.toList());
 
-    writable.startMap(3);
+    if (llmobsSpans.isEmpty()) {
+      // do nothing if no llmobs spans in the trace
+      return;
+    }
 
-    writable.writeUTF8(EVENT_TYPE);
-    writable.writeString("span", null);
-
-    writable.writeUTF8(STAGE);
-    writable.writeString("raw", null);
-
-    writable.writeUTF8(SPANS);
-    writable.startArray(llmobsSpans.size());
     for (CoreSpan<?> span : llmobsSpans) {
       writable.startMap(11);
       // 1
@@ -143,6 +155,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
       /* 9 (metrics), 10 (tags), 11 meta */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
+
+    // Increase only after all spans have been written. This way, if it rolls back because of a
+    // buffer overflow, the counter won't be skewed.
+    spansWritten += llmobsSpans.size();
   }
 
   private static boolean isLLMObsSpan(CoreSpan<?> span) {
@@ -152,7 +168,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV1();
+    return new PayloadV1(header, spansWritten);
   }
 
   @Override
@@ -161,7 +177,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
   }
 
   @Override
-  public void reset() {}
+  public void reset() {
+    // Reset the number of spans per message with each flush.
+    spansWritten = 0;
+  }
 
   @Override
   public String endpoint() {
@@ -201,7 +220,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.METADATA)));
 
-    LLMObsSpanMapper.MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {
+    MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {
       this.writable = writable;
       this.errorInfo = errorInfo;
       return this;
@@ -343,14 +362,20 @@ public class LLMObsSpanMapper implements RemoteMapper {
   }
 
   private static class PayloadV1 extends Payload {
+    private final ByteBuffer header;
+    private final int spansWritten;
+
+    public PayloadV1(ByteBuffer header, int spansWritten) {
+      this.spansWritten = spansWritten;
+      this.header = header;
+    }
 
     @Override
     public int sizeInBytes() {
       if (traceCount() == 0) {
         return msgpackMapHeaderSize(0);
       }
-
-      return body.array().length;
+      return header.remaining() + msgpackArrayHeaderSize(spansWritten) + body.remaining();
     }
 
     @Override
@@ -363,6 +388,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
         }
       } else {
         while (body.hasRemaining()) {
+          channel.write(header.slice());
+          channel.write(msgpackArrayHeader(spansWritten));
           channel.write(body);
         }
       }
@@ -374,9 +401,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
       } else {
-        buffers = Collections.singletonList(body);
+        buffers =
+            Arrays.asList(
+                header.slice(),
+                // Third Value: is an array of spans serialized into the body
+                msgpackArrayHeader(spansWritten),
+                body);
       }
-
       return gzippedMsgpackRequestBodyOf(buffers);
     }
   }

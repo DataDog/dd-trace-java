@@ -38,7 +38,6 @@ public interface StatsDClient extends Closeable {
    */
   default void recordEvent(
       String type, String source, String eventName, String message, String... tags) {}
-  ;
 
   @Override
   void close();

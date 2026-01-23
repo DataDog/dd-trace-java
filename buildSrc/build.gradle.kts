@@ -6,17 +6,24 @@ plugins {
   id("com.diffplug.spotless") version "8.1.0"
 }
 
+// The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
+// allow to schedule workers on different JDK version.
 java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
   }
 }
 
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "dd-trace-java.instrument"
-      implementationClass = "InstrumentPlugin"
+      id = "dd-trace-java.build-time-instrumentation"
+      implementationClass = "datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin"
     }
 
     create("muzzle-plugin") {

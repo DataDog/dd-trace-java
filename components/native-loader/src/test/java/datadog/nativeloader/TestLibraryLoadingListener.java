@@ -460,7 +460,7 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       builder.append('(');
       for (int i = 0; i < args.length; ++i) {
         if (i != 0) builder.append(", ");
-        builder.append(String.valueOf(args[i]));
+        builder.append(args[i]);
       }
       builder.append(')');
       return builder.toString();

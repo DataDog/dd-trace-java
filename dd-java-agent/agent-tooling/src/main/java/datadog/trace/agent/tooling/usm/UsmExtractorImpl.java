@@ -29,9 +29,9 @@ public class UsmExtractorImpl implements UsmExtractor {
               new NativeLong(0),
               UsmMessageImpl.USM_IOCTL_ID,
               Pointer.nativeValue(bm.getBufferPtr()));
-      log.debug("ioctl result: " + String.format("%08x", res.intValue()));
+      log.debug("ioctl result: {}", String.format("%08x", res.intValue()));
     } else {
-      log.debug("INVALID MESSAGE: " + message.getClass().toString());
+      log.debug("INVALID MESSAGE: {}", message.getClass());
     }
   }
 

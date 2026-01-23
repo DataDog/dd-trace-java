@@ -14,6 +14,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static datadog.trace.util.ConfigStrings.normalizedHeaderTag;
 import static datadog.trace.util.ConfigStrings.trim;
 
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
 import java.util.Collection;
@@ -111,6 +112,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     Double traceSampleRate;
 
     String preferredServiceName;
+    List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
     Builder() {}
 
@@ -134,6 +136,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.tracingTags = snapshot.tracingTags;
 
       this.preferredServiceName = snapshot.preferredServiceName;
+      this.dataStreamsTransactionExtractors = snapshot.dataStreamsTransactionExtractors;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -148,6 +151,12 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     public Builder setDataStreamsEnabled(boolean dataStreamsEnabled) {
       this.dataStreamsEnabled = dataStreamsEnabled;
+      return this;
+    }
+
+    public Builder setDataStreamsTransactionExtractors(
+        List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors) {
+      this.dataStreamsTransactionExtractors = dataStreamsTransactionExtractors;
       return this;
     }
 
@@ -324,6 +333,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Map<String, String> tracingTags;
 
     final String preferredServiceName;
+    final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -345,6 +355,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       this.tracingTags = nullToEmpty(builder.tracingTags);
 
       this.preferredServiceName = builder.preferredServiceName;
+      this.dataStreamsTransactionExtractors = builder.dataStreamsTransactionExtractors;
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -413,6 +424,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     @Override
     public List<? extends TraceSamplingRule> getTraceSamplingRules() {
       return traceSamplingRules;
+    }
+
+    @Override
+    public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
+      return dataStreamsTransactionExtractors;
     }
 
     @Override

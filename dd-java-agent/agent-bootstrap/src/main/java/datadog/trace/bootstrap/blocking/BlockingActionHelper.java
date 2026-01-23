@@ -36,7 +36,7 @@ public class BlockingActionHelper {
 
   public enum TemplateType {
     JSON,
-    HTML;
+    HTML
   }
 
   public static int getHttpCode(int actionHttpCode) {

@@ -4,16 +4,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -23,14 +19,7 @@ import org.hibernate.SQLQuery;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-@AutoService(InstrumenterModule.class)
-public class QueryInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Query", SESSION_STATE);
-  }
-
+public final class QueryInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {

@@ -12,7 +12,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "weaver",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "weaver",
+      "test.module" : "weaver-0.9",
       "test.source.file" : "dummy_source_path",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailed",
@@ -54,7 +54,7 @@
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.framework" : "weaver",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "weaver",
+      "test.module" : "weaver-0.9",
       "test.name" : "test fails",
       "test.source.file" : "dummy_source_path",
       "test.status" : "fail",
@@ -96,7 +96,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test_session_end",
-      "test.command" : "weaver",
+      "test.command" : "weaver-0.9",
       "test.framework" : "weaver",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "fail",
@@ -110,7 +110,7 @@
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "weaver.test_session",
-    "resource" : "weaver",
+    "resource" : "weaver-0.9",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
@@ -130,7 +130,7 @@
       "span.kind" : "test_module_end",
       "test.framework" : "weaver",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.module" : "weaver",
+      "test.module" : "weaver-0.9",
       "test.status" : "fail",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -139,7 +139,7 @@
       "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
     },
     "name" : "weaver.test_module",
-    "resource" : "weaver",
+    "resource" : "weaver-0.9",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
     "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},
