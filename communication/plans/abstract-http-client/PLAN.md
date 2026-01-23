@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `12%`
+**Overall Progress:** `14%`
 
 ## Overview
 
@@ -140,25 +140,26 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 2.2: Define HttpClient.Builder
 
-- [ ] 🟥 **Create HttpClient.Builder interface**
-  - [ ] 🟥 Write test: Builder configuration tests
-  - [ ] 🟥 Implement: Static method `HttpClient.newBuilder()` returns Builder
-  - [ ] 🟥 Implement: Builder methods
-    - [ ] 🟥 `connectTimeout(long, TimeUnit)`
-    - [ ] 🟥 `readTimeout(long, TimeUnit)`
-    - [ ] 🟥 `writeTimeout(long, TimeUnit)`
-    - [ ] 🟥 `proxy(Proxy)`
-    - [ ] 🟥 `proxyAuthenticator(String username, String password)`
-    - [ ] 🟥 `unixDomainSocket(File)`
-    - [ ] 🟥 `namedPipe(String)`
-    - [ ] 🟥 `clearText(boolean)` for HTTP vs HTTPS
-    - [ ] 🟥 `retryOnConnectionFailure(boolean)`
-    - [ ] 🟥 `maxRequests(int)`
-    - [ ] 🟥 `dispatcher(Executor)`
-    - [ ] 🟥 `eventListener(HttpListener)`
-    - [ ] 🟥 `build()` returns HttpClient
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpClient.Builder*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create HttpClient.Builder interface**
+  - [x] 🟩 Write test: Builder configuration tests (15 tests)
+  - [x] 🟩 Implement: Static method `HttpClient.newBuilder()` returns Builder (already in 2.1)
+  - [x] 🟩 Implement: Builder methods
+    - [x] 🟩 `connectTimeout(long, TimeUnit)`
+    - [x] 🟩 `readTimeout(long, TimeUnit)`
+    - [x] 🟩 `writeTimeout(long, TimeUnit)`
+    - [x] 🟩 `proxy(Proxy)`
+    - [x] 🟩 `proxyAuthenticator(String username, String password)`
+    - [x] 🟩 `unixDomainSocket(File)`
+    - [x] 🟩 `namedPipe(String)`
+    - [x] 🟩 `clearText(boolean)` for HTTP vs HTTPS
+    - [x] 🟩 `retryOnConnectionFailure(boolean)`
+    - [x] 🟩 `maxRequests(int)`
+    - [x] 🟩 `dispatcher(Executor)` - requires ExecutorService
+    - [x] 🟩 `eventListener(HttpListener)` - bridges to OkHttp EventListener
+    - [x] 🟩 `build()` returns HttpClient
+  - [x] 🟩 Implement: OkHttpEventListenerAdapter to bridge HttpListener to OkHttp
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpClientBuilder*"`
+  - [x] 🟩 Update PLAN.md
 
 ### Task 2.3: Implementation selection logic
 
