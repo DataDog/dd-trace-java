@@ -7,6 +7,16 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpRequest;
+import datadog.communication.http.client.HttpRequestBody;
+import datadog.communication.http.client.HttpResponse;
+import datadog.communication.http.client.HttpUrl;
+import datadog.communication.http.okhttp.OkHttpClient;
+import datadog.communication.http.okhttp.OkHttpRequest;
+import datadog.communication.http.okhttp.OkHttpRequestBody;
+import datadog.communication.http.okhttp.OkHttpResponse;
+import datadog.communication.http.okhttp.OkHttpUrl;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentProxySelector;
@@ -24,12 +34,9 @@ import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.EventListener;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import datadog.communication.http.okhttp.OkHttpResponse;
 import okhttp3.Response;
 import okio.BufferedSink;
 import okio.GzipSink;
@@ -58,11 +65,11 @@ public final class OkHttpUtils {
   private static final String JAVA_VM_VENDOR =
       SystemProperties.getOrDefault("java.vm.vendor", "unknown");
 
-  public static OkHttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
+  public static HttpClient buildHttpClient(final HttpUrl url, final long timeoutMillis) {
     return buildHttpClient(isPlainHttp(url), null, null, timeoutMillis);
   }
 
-  public static OkHttpClient buildHttpClient(
+  public static HttpClient buildHttpClient(
       final boolean isHttp,
       final String unixDomainSocketPath,
       final String namedPipe,
@@ -81,7 +88,7 @@ public final class OkHttpUtils {
         timeoutMillis);
   }
 
-  public static OkHttpClient buildHttpClient(
+  public static HttpClient buildHttpClient(
       final Config config,
       final Dispatcher dispatcher,
       final HttpUrl url,
@@ -108,7 +115,7 @@ public final class OkHttpUtils {
 
   public abstract static class CustomListener extends EventListener {}
 
-  private static OkHttpClient buildHttpClient(
+  private static HttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,
       final Dispatcher dispatcher,
@@ -120,7 +127,7 @@ public final class OkHttpUtils {
       final String proxyUsername,
       final String proxyPassword,
       final long timeoutMillis) {
-    final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+    final okhttp3.OkHttpClient.Builder builder = new okhttp3.OkHttpClient.Builder();
 
     try {
       builder.eventListenerFactory(
@@ -184,7 +191,7 @@ public final class OkHttpUtils {
       }
     }
 
-    OkHttpClient client = builder.build();
+    okhttp3.OkHttpClient client = builder.build();
 
     if (maxRunningRequests != null) {
       client.dispatcher().setMaxRequests(maxRunningRequests);
@@ -192,13 +199,13 @@ public final class OkHttpUtils {
       client.dispatcher().setMaxRequestsPerHost(maxRunningRequests);
     }
 
-    return client;
+    return OkHttpClient.wrap(client);
   }
 
-  public static Request.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
+  public static HttpRequest.Builder prepareRequest(final HttpUrl url, Map<String, String> headers) {
 
-    final Request.Builder builder =
-        new Request.Builder()
+    final HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, JAVA_VERSION)
@@ -221,12 +228,12 @@ public final class OkHttpUtils {
     return builder;
   }
 
-  public static Request.Builder prepareRequest(
+  public static HttpRequest.Builder prepareRequest(
       final HttpUrl url,
       final Map<String, String> headers,
       final Config config,
       final boolean agentless) {
-    Request.Builder builder = prepareRequest(url, headers);
+    HttpRequest.Builder builder = prepareRequest(url, headers);
 
     final String apiKey = config.getApiKey();
     if (agentless && apiKey != null) {
@@ -238,20 +245,23 @@ public final class OkHttpUtils {
     return builder;
   }
 
-  public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return new ByteBufferRequestBody(buffers);
+  public static HttpRequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
+    return OkHttpRequestBody.wrap(new ByteBufferRequestBody(buffers));
   }
 
-  public static RequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return new GZipByteBufferRequestBody(buffers);
+  public static HttpRequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
+    return OkHttpRequestBody.wrap(new GZipByteBufferRequestBody(buffers));
   }
 
-  public static RequestBody gzippedRequestBodyOf(RequestBody delegate) {
-    return new GZipRequestBodyDecorator(delegate);
+  public static HttpRequestBody gzippedRequestBodyOf(HttpRequestBody delegate) {
+    if (!(delegate instanceof OkHttpRequestBody)) {
+      throw new IllegalArgumentException("HttpRequestBody must be OkHttpRequestBody implementation");
+    }
+    return OkHttpRequestBody.wrap(new GZipRequestBodyDecorator(((OkHttpRequestBody) delegate).unwrap()));
   }
 
-  public static RequestBody jsonRequestBodyOf(byte[] json) {
-    return new JsonRequestBody(json);
+  public static HttpRequestBody jsonRequestBodyOf(byte[] json) {
+    return OkHttpRequestBody.wrap(new JsonRequestBody(json));
   }
 
   private static class JsonRequestBody extends RequestBody {
@@ -360,17 +370,17 @@ public final class OkHttpUtils {
     }
   }
 
-  public static Response sendWithRetries(
-      OkHttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
+  public static HttpResponse sendWithRetries(
+      HttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, HttpRequest request)
       throws IOException {
     try (HttpRetryPolicy retryPolicy = retryPolicyFactory.create()) {
       while (true) {
         try {
-          Response response = httpClient.newCall(request).execute();
+          HttpResponse response = httpClient.execute(request);
           if (response.isSuccessful()) {
             return response;
           }
-          if (!retryPolicy.shouldRetry(OkHttpResponse.wrap(response))) {
+          if (!retryPolicy.shouldRetry(response)) {
             return response;
           } else {
             closeQuietly(response);
@@ -386,7 +396,7 @@ public final class OkHttpUtils {
     }
   }
 
-  private static void closeQuietly(Response response) {
+  private static void closeQuietly(HttpResponse response) {
     try {
       response.close();
     } catch (Exception e) {
