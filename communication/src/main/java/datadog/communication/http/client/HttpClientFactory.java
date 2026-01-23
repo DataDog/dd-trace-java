@@ -2,6 +2,7 @@ package datadog.communication.http.client;
 
 import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.InstrumenterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * Factory for creating HttpClient instances. This factory selects the appropriate
  * implementation based on configuration and Java version.
  *
- * <p>Configuration is controlled via system property {@code dd.http.client.implementation}
+ * <p>Configuration is controlled via {@code dd.http.client.implementation} property
  * with values:
  * <ul>
  *   <li>{@code auto} (default): Use JDK HttpClient on Java 11+, OkHttp otherwise</li>
@@ -63,7 +64,7 @@ final class HttpClientFactory {
   }
 
   private static String getConfiguredImplementation() {
-    String value = System.getProperty(CONFIG_PROPERTY);
+    String value = InstrumenterConfig.get().getHttpClientImplementation();
     if (value == null || value.trim().isEmpty()) {
       return AUTO;
     }

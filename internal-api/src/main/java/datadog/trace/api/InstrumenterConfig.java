@@ -29,6 +29,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -210,6 +211,8 @@ public class InstrumenterConfig {
 
   private final boolean appLogsCollectionEnabled;
 
+  private final String httpClientImplementation;
+
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
@@ -358,6 +361,8 @@ public class InstrumenterConfig {
 
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+
+    httpClientImplementation = configProvider.getString(HTTP_CLIENT_IMPLEMENTATION, "auto");
   }
 
   public boolean isCodeOriginEnabled() {
@@ -667,6 +672,10 @@ public class InstrumenterConfig {
 
   public boolean isAppLogsCollectionEnabled() {
     return appLogsCollectionEnabled;
+  }
+
+  public String getHttpClientImplementation() {
+    return httpClientImplementation;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
