@@ -21,8 +21,8 @@ import java.nio.file.Paths
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 

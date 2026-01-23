@@ -19,7 +19,7 @@ class OkHttpUtilsTest extends Specification {
   def "It is possible to register a custom listener for HTTP requests"() {
     setup:
     def url = server.url("/")
-    def client = OkHttpUtils.buildHttpClient(url, 1000)
+    def client = HttpUtils.buildHttpClient(url, 1000)
     def listener = new TestListener()
 
     server.enqueue(new MockResponse())
@@ -28,7 +28,7 @@ class OkHttpUtilsTest extends Specification {
     def request = new Request.Builder()
       .url(url)
       .get()
-      .tag(OkHttpUtils.CustomListener, listener)
+      .tag(HttpUtils.CustomListener, listener)
       .build()
     client.newCall(request).execute()
 
@@ -36,7 +36,7 @@ class OkHttpUtilsTest extends Specification {
     listener.notified
   }
 
-  private static final class TestListener extends OkHttpUtils.CustomListener {
+  private static final class TestListener extends HttpUtils.CustomListener {
     private boolean notified
 
     void callStart(Call call) {

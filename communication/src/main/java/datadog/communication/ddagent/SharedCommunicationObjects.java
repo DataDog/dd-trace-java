@@ -5,7 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpUrl;
 import datadog.communication.http.okhttp.OkHttpClient;
@@ -88,8 +88,8 @@ public class SharedCommunicationObjects {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
       agentHttpClient =
-          OkHttpUtils.buildHttpClient(
-              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+          HttpUtils.buildHttpClient(
+              HttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
     }
   }
 
@@ -252,7 +252,7 @@ public class SharedCommunicationObjects {
     synchronized (this) {
       if (this.intakeHttpClient == null) {
         this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(
+            HttpUtils.buildHttpClient(
                 forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
       }
       return this.intakeHttpClient;
