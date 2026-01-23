@@ -660,6 +660,182 @@ To see all configurations and their relationships:
 ./gradlew :my-project:resolvableConfigurations
 ```
 
+## Dependencies
+
+Now that you understand configurations, let's look at how to declare and manage dependencies effectively.
+
+### Declaring Dependencies
+
+Dependencies are declared in the `dependencies {}` block, specifying both the configuration and the dependency coordinates.
+
+#### Single GAV String (Preferred)
+
+**Always prefer the single GAV (Group:Artifact:Version) string notation** over the map-based syntax:
+
+```Gradle Kotlin DSL
+dependencies {
+    // ❌ Avoid - map-based notation (verbose, error-prone)
+    implementation(group = "net.bytebuddy", name = "byte-buddy", version = "1.18.3")
+
+    // ✅ Preferred - single GAV string
+    implementation("net.bytebuddy:byte-buddy:1.18.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.1")
+}
+```
+
+It's easier to read and write, it's the standard way to communicate coordinates (and 
+it's also the recommended way of _Maven Central_).
+Finally, IDEs and linters work better with string literals
+
+> [!TIP]
+> The single GAV string is the [official Gradle best practice](https://docs.gradle.org/current/userguide/best_practices_dependencies.html#single-gav-string). 
+
+#### Version Catalogs (Recommended for Multi-Module Projects)
+
+For consistency across modules, use version catalogs defined in `gradle/libs.versions.toml`:
+
+> [!IMPORTANT]
+> **Instrumentation modules are an exception**: they declare library-specific versions directly 
+> in their build files rather than using the version catalog. This is because instrumentation
+> modules need to test against the exact versions they instrument.
+
+```toml
+# gradle/libs.versions.toml
+[versions]
+byte-buddy = "1.18.3"
+slf4j = "1.7.30"
+junit5 = "5.14.1"
+
+[libraries]
+bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
+slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
+```
+
+```Gradle Kotlin DSL
+dependencies {
+    implementation(libs.bytebuddy)
+    implementation(libs.slf4j)
+    testImplementation(libs.junit.jupiter)
+}
+```
+
+### Dependency Exclusions
+
+Sometimes you need to exclude transitive dependencies to avoid version conflicts or unwanted libraries.
+
+#### Excluding from Specific Dependencies
+
+Exclude a transitive dependency from a single declaration using `exclude`:
+
+```Gradle Kotlin DSL
+dependencies {
+    // Exclude specific transitive dependency
+    implementation("com.example:library:1.0") {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+
+    // Exclude all modules from a group
+    implementation("com.example:another-library:2.0") {
+        exclude(group = "commons-logging")
+    }
+}
+```
+
+#### Excluding from Configurations
+
+Exclude a transitive dependency from all dependencies in a configuration:
+
+```Gradle Kotlin DSL
+configurations.named("implementation") {
+    exclude(group = "org.slf4j", module = "slf4j-log4j12")
+}
+
+// Exclude from test configurations
+configurations.named("testImplementation") {
+    exclude(group = "junit", module = "junit")  // Exclude JUnit 4 when using JUnit 5
+}
+```
+
+Exclude a dependency from the entire project across all configurations (use with caution):
+
+```Gradle Kotlin DSL
+configurations.configureEach {
+    exclude(group = "commons-logging", module = "commons-logging")
+}
+```
+
+> [!CAUTION]
+> **Global exclusions affect all configurations**, including those you might not expect (build scripts, plugins, tooling). This can break unexpected things:
+>
+> - Build plugins that depend on the excluded library
+> - Tooling configurations (e.g., code generation, static analysis)
+> - Transitive resolution in unrelated modules
+>
+> **Prefer configuration-specific or dependency-specific exclusions** unless you have a clear understanding of the impact.
+
+#### Viewing Dependency Trees with Exclusions
+
+To verify exclusions worked as expected:
+
+```bash
+# See the resolved dependency tree
+./gradlew :dd-java-agent:testing:dependencies --configuration api
+
+# Look for lines showing exclusions applied:
+#   +--- org.yaml:snakeyaml:2.0
+#   |    \--- org.snakeyaml:snakeyaml-engine:2.6 -> excluded (via configuration api)
+```
+
+**Example: Replace a dependency globally**
+
+```Gradle Kotlin DSL
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        // Replace log4j with reload4j (security fix)
+        if (requested.group == "log4j" && requested.name == "log4j") {
+            useTarget("ch.qos.reload4j:reload4j:${requested.version}")
+            because("log4j has critical vulnerabilities")
+        }
+    }
+}
+```
+
+### Dependency Constraints
+
+For multi-module projects where you want to suggest versions without directly adding dependencies:
+
+```Gradle Kotlin DSL
+dependencies {
+    // Define constraints - these don't add dependencies themselves
+    constraints {
+        implementation("org.slf4j:slf4j-api:2.0.0")
+    }
+
+    // When another module pulls in slf4j-api, it will use 2.0.0
+    implementation("com.example:library-that-uses-slf4j:1.0")
+}
+```
+
+Constraints are useful for:
+- Aligning transitive dependency versions across modules
+- Platform/BOM definitions
+- Enforcing security patches without modifying every module
+
+### Best Practices
+
+> [!TIP]
+> Follow the [official Gradle dependency management best practices](https://docs.gradle.org/current/userguide/best_practices_dependencies.html) for robust builds:
+>
+> - **Use single GAV strings** for dependency declarations
+> - **Prefer version catalogs** for multi-module projects to centralize versions
+> - **Avoid dynamic versions** (`1.+`, `latest.release`) in production builds—they're non-reproducible
+> - **Use dependency constraints** rather than forcing versions when possible
+> - **Exclude dependencies at the narrowest scope** (specific dependency > configuration > global)
+> - **Document why** you're forcing versions or excluding dependencies (use `because()`)
+> - **Verify dependency trees** with `./gradlew dependencies` after making changes
+>
+
 ## Useful dd-trace-java Extensions
 
 This project provides several custom Gradle extensions to manage multi-JVM testing, multi-version source sets, and CI optimizations.
@@ -675,16 +851,16 @@ plugins {
 
 // project-wide constraints (apply to all Test tasks by default)
 testJvmConstraints {
-    minJavaVersion.set(JavaVersion.VERSION_11)
-    maxJavaVersion.set(JavaVersion.VERSION_21)
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_21
     excludeJdk.add("IBM8")
-    allowReflectiveAccessToJdk.set(true)
+    allowReflectiveAccessToJdk = true
 }
 
 // task-specific constraints (override project defaults for this task)
 tasks.named<Test>("latestDepTest") {
     testJvmConstraints {
-        minJavaVersion.set(JavaVersion.VERSION_17)  // requires Java 17+ for this test suite
+        minJavaVersion = JavaVersion.VERSION_17  // requires Java 17+ for this test suite
     }
 }
 ```
@@ -813,7 +989,7 @@ tasks.withType<Test>().configureEach {
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
 
   // Set test timeout for 20 minutes
-  timeout.set(Duration.of(20, ChronoUnit.MINUTES))
+  timeout = Duration.of(20, ChronoUnit.MINUTES))
   
   // ...
 }
@@ -898,7 +1074,9 @@ When you use eager APIs, values are computed immediately during configuration—
 | `exec { }.exitValue`            | See Exec pattern below                 | Avoid running processes at configuration time                          |
 
 > [!IMPORTANT]
-> Any function that iterates over a collection (`forEach`, `map`, `filter`, `all`, `any`, `find`, `first`, etc.) will **eagerly realize all elements**. This defeats lazy configuration. Always prefer `configureEach` for configuration, or use `named`/`withType` to get lazy providers.
+> Any function that iterates over a Gradle collection (`forEach`, `map`, `filter`, `all`, `any`, 
+> `find`, `first`, etc.) will **eagerly realize all elements**. This defeats lazy configuration. 
+> Always use `configureEach`, or use `named`/`withType` to get lazy providers.
 
 > [!WARNING]
 > **Groovy DSL pitfall**: The shorthand syntax `name { }` is **eager** for both tasks and configurations. It calls `getByName()` under the hood, which realizes the element and its dependencies immediately.
@@ -961,6 +1139,11 @@ tasks.all {
     }
 }
 
+// ❌ Eager - forces all tasks to be created
+tasks.withType<JavaCompile>() {
+    options.encoding = "UTF-8"
+}
+
 // ✅ Lazy - configures each task as it's realized
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
@@ -980,6 +1163,10 @@ tasks.register<Jar>("myJar") {
     archiveVersion.set(project.provider { project.version.toString() })
 }
 ```
+
+> [!TIP]
+> In Gradle Kotlin DSL (and Groovy DSL) you can use `=` instead of `set(...)`, e.g.
+> `archiveVersion = project.version.toString()`
 
 ### Lazy JVM Arguments and System Properties
 
@@ -1070,6 +1257,9 @@ This task updates the `gradle/gradle-daemon-jvm.properties` file with the new cr
 ## Troubleshooting
 
 When Gradle builds fail or behave unexpectedly, several tools and techniques can help diagnose the problem.
+
+> [!TIP]
+> In general following the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices.html) is safe bet to avoid isses.
 
 ### Build Scans (Develocity)
 
