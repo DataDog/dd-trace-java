@@ -19,6 +19,9 @@ public final class CorrelationAccess {
 
   private static volatile boolean REUSE_INSTANCE = true;
 
+  // Only for testing
+  private static volatile CorrelationAccess TEST_INSTANCE = null;
+
   private static class Singleton {
     private static final CorrelationAccess INSTANCE = new CorrelationAccess();
   }
@@ -59,7 +62,18 @@ public final class CorrelationAccess {
   }
 
   public static CorrelationAccess instance() {
-    return REUSE_INSTANCE ? Singleton.INSTANCE : new CorrelationAccess();
+    if (TEST_INSTANCE != null) {
+      return TEST_INSTANCE;
+    } else if (REUSE_INSTANCE) {
+      return Singleton.INSTANCE;
+    } else {
+      return new CorrelationAccess();
+    }
+  }
+
+  // Only for testing
+  public static void setTestInstance(CorrelationAccess testInstance) {
+    TEST_INSTANCE = testInstance;
   }
 
   public boolean isAvailable() {
