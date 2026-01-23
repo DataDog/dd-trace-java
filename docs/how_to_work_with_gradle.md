@@ -829,12 +829,76 @@ Constraints are useful for:
 >
 > - **Use single GAV strings** for dependency declarations
 > - **Prefer version catalogs** for multi-module projects to centralize versions
-> - **Avoid dynamic versions** (`1.+`, `latest.release`) in production builds—they're non-reproducible
+> - **Avoid dynamic versions** (`1.+`, `latest.release`) in production builds—they're non-reproducible, they are ok in instrumentation tests though
 > - **Use dependency constraints** rather than forcing versions when possible
 > - **Exclude dependencies at the narrowest scope** (specific dependency > configuration > global)
 > - **Document why** you're forcing versions or excluding dependencies (use `because()`)
 > - **Verify dependency trees** with `./gradlew dependencies` after making changes
 >
+> For general Gradle best practices beyond dependencies, see the [official best practices guide](https://docs.gradle.org/current/userguide/best_practices.html).
+
+### Dependency Locking
+
+Dependency locking ensures reproducible builds by pinning exact versions of all transitive dependencies. This project uses Gradle's built-in [dependency locking](https://docs.gradle.org/current/userguide/dependency_locking.html) to:
+
+- **Enable reproducible builds**: Rebuild any version with identical dependencies
+- **Prevent unexpected updates**: Floating versions (`[16.0,20.0]`, `1.+`) are resolved once and locked
+- **Improve IDE performance**: IDEs don't re-index on every library release
+- **Track dependency changes**: Lock file diffs show exactly what changed
+
+
+All projects have dependency locking enabled via the `dd-trace-java.dependency-locking` convention plugin. Lock files are stored as `gradle.lockfile` in each project directory.
+
+
+#### Updating Lock Files
+
+Lock files are automatically updated weekly by CI. To update them manually:
+
+```bash
+# Update all lock files in the repository
+./gradlew resolveAndLockAll --write-locks
+
+# Update lock files for a specific project
+./gradlew :dd-trace-api:dependencies --write-locks
+```
+
+> [!IMPORTANT]
+> This project uses **lenient lock mode** (`LockMode.LENIENT`), which allows the build to succeed 
+> even if locked dependencies can't be resolved. This prevents build failures when dependencies 
+> are temporarily unavailable or when resolution conflicts occur.
+
+#### When Lock Files Are Used
+
+Lock files apply whenever dependencies are resolved:
+- During compilation (`compileJava`, `compileTestJava`)
+- During test execution (`test`, `latestDepTest`)
+- When generating classpaths for IDE sync
+- When resolving configurations manually (`./gradlew dependencies`)
+
+If a locked version can't be satisfied (e.g., due to a constraint or exclusion), 
+lenient mode allows resolution to continue with the best available version.
+
+#### Viewing Locked Dependencies
+
+```bash
+# See locked dependencies for a project
+cat dd-trace-api/gradle.lockfile
+
+# View resolved dependencies (shows which versions are actually used)
+./gradlew :dd-trace-api:dependencies --configuration runtimeClasspath
+```
+
+#### Lock File Workflow
+
+1. **Developer adds a dependency**: The dependency is resolved using the current version rules
+2. **Run with `--write-locks`**: Gradle resolves all configurations and writes exact versions to lock files
+3. **Commit lock files**: Include `gradle.lockfile` changes in your commit
+4. **CI validates**: Builds use locked versions for reproducibility
+5. **Weekly CI job**: Automatically updates all lock files to pick up new versions
+
+> [!NOTE]> **Instrumentation modules often use version ranges** (e.g., `[3.0,3.12.12]`) to test 
+> against multiple library versions. Dependency locking pins these ranges to specific versions in 
+> lock files, ensuring consistent test behavior.
 
 ## Useful dd-trace-java Extensions
 
