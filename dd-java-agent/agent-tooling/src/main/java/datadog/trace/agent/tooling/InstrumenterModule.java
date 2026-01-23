@@ -42,6 +42,7 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    *   <li>{@link TargetSystem#USM usm}
    *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
+   *   <li>{@link TargetSystem#RASP rasp}
    * </ul>
    */
   public enum TargetSystem {
