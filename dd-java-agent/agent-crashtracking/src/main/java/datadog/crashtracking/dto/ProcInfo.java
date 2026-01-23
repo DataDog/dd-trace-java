@@ -1,11 +1,9 @@
 package datadog.crashtracking.dto;
 
-import java.util.Objects;
-
 public final class ProcInfo {
-  public final String pid;
+  public final int pid;
 
-  public ProcInfo(String pid) {
+  public ProcInfo(int pid) {
     this.pid = pid;
   }
 
@@ -18,11 +16,11 @@ public final class ProcInfo {
       return false;
     }
     ProcInfo procInfo = (ProcInfo) o;
-    return Objects.equals(pid, procInfo.pid);
+    return pid == procInfo.pid;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(pid);
+    return pid;
   }
 }
