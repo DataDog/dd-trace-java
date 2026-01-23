@@ -128,7 +128,7 @@ public class SimpleUtf8CacheTest {
 
     int tagIndex = random.nextInt(TAGS.length + 1);
     if (tagIndex >= TAGS.length) {
-      return "tag-" + Integer.toString(random.nextInt());
+      return "tag-" + random.nextInt();
     } else {
       return TAGS[tagIndex];
     }
