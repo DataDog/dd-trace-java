@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `8%`
+**Overall Progress:** `10%`
 
 ## Overview
 
@@ -109,14 +109,16 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 1.5: Create HttpListener abstraction
 
-- [ ] 🟥 **Define HttpListener interface**
-  - [ ] 🟥 Write test: HttpListener contract tests
-  - [ ] 🟥 Implement: Create `datadog.communication.http.client.HttpListener` interface
-    - [ ] 🟥 Method: `onRequestStart(HttpRequest)`
-    - [ ] 🟥 Method: `onRequestEnd(HttpRequest, HttpResponse)`
-    - [ ] 🟥 Method: `onRequestFailure(HttpRequest, IOException)`
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpListener*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Define HttpListener interface**
+  - [x] 🟩 Write test: HttpListener contract tests (4 tests)
+  - [x] 🟩 Implement: Create `datadog.communication.http.client.HttpListener` interface
+    - [x] 🟩 Method: `onRequestStart(HttpRequest)` - Called before request is sent
+    - [x] 🟩 Method: `onRequestEnd(HttpRequest, HttpResponse)` - Called on successful response
+    - [x] 🟩 Method: `onRequestFailure(HttpRequest, IOException)` - Called on request failure
+    - [x] 🟩 Constant: `HttpListener.NONE` - No-op implementation
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpListener*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: Replaces OkHttp CustomListener tag pattern with clean abstraction
 
 ---
 
