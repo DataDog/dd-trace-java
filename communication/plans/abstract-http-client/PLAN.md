@@ -380,10 +380,16 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 which means it will ALWAYS use OkHttp even when JDK HttpClient is available. This task makes
 the implementation truly generic by using the factory pattern for dynamic client selection.
 
-- [x] ✅ **Refactor OkHttpUtils to use factories internally** (Commit: ca9a49987e)
+- [x] ✅ **Refactor OkHttpUtils to use factories internally** (Commits: ca9a49987e, e5af8aa633)
   - [x] ✅ Implement: Replace `new okhttp3.OkHttpClient.Builder()` with `HttpClient.newBuilder()`
   - [x] ✅ Implement: Replace `new Request.Builder()` with `HttpRequest.newBuilder()` (already done in Task 5.2)
   - [x] ✅ Implement: Refactored buildHttpClient to use HttpClient.Builder API methods
+  - [x] ✅ Implement: Updated request body methods to use HttpRequestBody factory methods:
+    - msgpackRequestBodyOf → HttpRequestBody.msgpack()
+    - gzippedMsgpackRequestBodyOf → HttpRequestBody.gzip(HttpRequestBody.msgpack())
+    - gzippedRequestBodyOf → HttpRequestBody.gzip()
+    - jsonRequestBodyOf → HttpRequestBody.of()
+  - [x] ✅ Implement: Removed all OkHttp-specific private inner classes (JsonRequestBody, ByteBufferRequestBody, etc.)
   - [x] ✅ Implement: Created HttpUtils.java with generic implementation
   - [x] ✅ Implement: Made OkHttpUtils a deprecated delegating wrapper
   - [x] ✅ Implement: Updated all imports and references throughout codebase (main and test)
