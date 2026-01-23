@@ -29,6 +29,7 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import datadog.communication.http.okhttp.OkHttpResponse;
 import okhttp3.Response;
 import okio.BufferedSink;
 import okio.GzipSink;
@@ -369,7 +370,7 @@ public final class OkHttpUtils {
           if (response.isSuccessful()) {
             return response;
           }
-          if (!retryPolicy.shouldRetry(response)) {
+          if (!retryPolicy.shouldRetry(OkHttpResponse.wrap(response))) {
             return response;
           } else {
             closeQuietly(response);
