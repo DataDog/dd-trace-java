@@ -9,7 +9,6 @@ import datadog.communication.http.client.HttpRequest;
 import datadog.communication.http.client.HttpRequestBody;
 import datadog.communication.http.client.HttpResponse;
 import datadog.communication.http.client.HttpUrl;
-import datadog.communication.http.okhttp.OkHttpRequestBody;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import java.io.File;
@@ -19,14 +18,8 @@ import java.net.Proxy;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import okhttp3.Dispatcher;
 import okhttp3.EventListener;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
-import okio.BufferedSink;
-import okio.GzipSink;
-import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -219,129 +212,37 @@ public final class HttpUtils {
     return builder;
   }
 
+  /**
+   * Creates a msgpack request body from ByteBuffers.
+   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   */
   public static HttpRequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return OkHttpRequestBody.wrap(new ByteBufferRequestBody(buffers));
+    return HttpRequestBody.msgpack(buffers);
   }
 
+  /**
+   * Creates a gzipped msgpack request body from ByteBuffers.
+   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   */
   public static HttpRequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return OkHttpRequestBody.wrap(new GZipByteBufferRequestBody(buffers));
+    return HttpRequestBody.gzip(HttpRequestBody.msgpack(buffers));
   }
 
+  /**
+   * Wraps a request body with gzip compression.
+   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   */
   public static HttpRequestBody gzippedRequestBodyOf(HttpRequestBody delegate) {
-    if (!(delegate instanceof OkHttpRequestBody)) {
-      throw new IllegalArgumentException("HttpRequestBody must be OkHttpRequestBody implementation");
-    }
-    return OkHttpRequestBody.wrap(new GZipRequestBodyDecorator(((OkHttpRequestBody) delegate).unwrap()));
+    return HttpRequestBody.gzip(delegate);
   }
 
+  /**
+   * Creates a JSON request body from raw bytes.
+   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   * Content-Type header should be set to "application/json" separately.
+   */
   public static HttpRequestBody jsonRequestBodyOf(byte[] json) {
-    return OkHttpRequestBody.wrap(new JsonRequestBody(json));
-  }
-
-  private static class JsonRequestBody extends RequestBody {
-
-    private static final MediaType JSON = MediaType.get("application/json");
-
-    private final byte[] json;
-
-    private JsonRequestBody(byte[] json) {
-      this.json = json;
-    }
-
-    @Override
-    public long contentLength() {
-      return json.length;
-    }
-
-    @Override
-    public MediaType contentType() {
-      return JSON;
-    }
-
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      sink.write(json);
-    }
-  }
-
-  private static class ByteBufferRequestBody extends RequestBody {
-
-    private static final MediaType MSGPACK = MediaType.get("application/msgpack");
-
-    private final List<ByteBuffer> buffers;
-
-    private ByteBufferRequestBody(List<ByteBuffer> buffers) {
-      this.buffers = buffers;
-    }
-
-    @Override
-    public long contentLength() {
-      long length = 0;
-      for (ByteBuffer buffer : buffers) {
-        length += buffer.remaining();
-      }
-      return length;
-    }
-
-    @Override
-    public MediaType contentType() {
-      return MSGPACK;
-    }
-
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      for (ByteBuffer buffer : buffers) {
-        while (buffer.hasRemaining()) {
-          sink.write(buffer);
-        }
-      }
-    }
-  }
-
-  private static final class GZipByteBufferRequestBody extends ByteBufferRequestBody {
-    private GZipByteBufferRequestBody(List<ByteBuffer> buffers) {
-      super(buffers);
-    }
-
-    @Override
-    public long contentLength() {
-      return -1;
-    }
-
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
-
-      super.writeTo(gzipSink);
-
-      gzipSink.close();
-    }
-  }
-
-  private static final class GZipRequestBodyDecorator extends RequestBody {
-    private final RequestBody delegate;
-
-    private GZipRequestBodyDecorator(RequestBody delegate) {
-      this.delegate = delegate;
-    }
-
-    @Nullable
-    @Override
-    public MediaType contentType() {
-      return delegate.contentType();
-    }
-
-    @Override
-    public long contentLength() {
-      return -1;
-    }
-
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      BufferedSink gzipSink = Okio.buffer(new GzipSink(sink));
-      delegate.writeTo(gzipSink);
-      gzipSink.close();
-    }
+    return HttpRequestBody.of(new String(json, java.nio.charset.StandardCharsets.UTF_8));
   }
 
   public static HttpResponse sendWithRetries(
