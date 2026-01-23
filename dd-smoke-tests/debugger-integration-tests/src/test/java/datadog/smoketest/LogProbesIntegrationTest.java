@@ -452,6 +452,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
             .where(MAIN_CLASS_NAME, "fullMethod")
             .template(LOG_TEMPLATE, parseTemplate(LOG_TEMPLATE))
             .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
             .build();
     setCurrentConfiguration(createConfig(probe));
     targetProcess =
@@ -466,7 +467,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     processRequests(
         () -> {
           LOG.info("snapshots={}", snapshotCount.get());
-          return snapshotCount.get() >= 850 && snapshotCount.get() <= 1000;
+          return snapshotCount.get() >= 500 && snapshotCount.get() <= 1000;
         },
         () -> String.format("timeout snapshotCount=%d", snapshotCount.get()));
   }

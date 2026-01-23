@@ -94,7 +94,7 @@ private fun Project.createRootTask(
   tasks.register(rootTaskName) {
     subprojects.forEach { subproject ->
       if (
-        isInSelectedSlot.get() &&
+        subproject.isInSelectedSlot.get() &&
         includePrefixes.any { subproject.path.startsWith(it) } &&
         !excludePrefixes.any { subproject.path.startsWith(it) }
       ) {

@@ -4,9 +4,7 @@ minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
 
 configurations {
-  instrumentPluginClasspath {
-    canBeConsumed = true
-    canBeResolved = false
+  consumable("buildTimeInstrumentationToolingPlugins") {
     extendsFrom runtimeElements
   }
 }

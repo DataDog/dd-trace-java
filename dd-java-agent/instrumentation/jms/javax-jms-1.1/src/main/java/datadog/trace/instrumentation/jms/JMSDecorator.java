@@ -194,6 +194,61 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
 
+  /**
+   * Sanitizes destination names to remove Kafka Connect schema-derived suffixes. When Kafka
+   * Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema), union or
+   * optional fields may get index suffixes like _messagebody_0 appended to the queue name.
+   */
+  private static String sanitizeDestinationName(String name) {
+    if (name == null || name.isEmpty()) {
+      return name;
+    }
+
+    int len = name.length();
+
+    // Check if name ends with digits (the schema index suffix)
+    if (!Character.isDigit(name.charAt(len - 1))) {
+      return name;
+    }
+
+    // Find the underscore before the trailing digits
+    int underscoreBeforeDigits = name.lastIndexOf('_');
+    if (underscoreBeforeDigits <= 0) {
+      return name;
+    }
+
+    // Verify all characters after the underscore are digits
+    for (int i = underscoreBeforeDigits + 1; i < len; i++) {
+      if (!Character.isDigit(name.charAt(i))) {
+        return name;
+      }
+    }
+
+    // Find the underscore before the suffix word
+    int underscoreBeforeSuffix = name.lastIndexOf('_', underscoreBeforeDigits - 1);
+    if (underscoreBeforeSuffix < 0) {
+      return name;
+    }
+
+    // Check if the suffix word is one of our known Kafka Connect schema suffixes (case insensitive)
+    int suffixStart = underscoreBeforeSuffix + 1;
+    int suffixLen = underscoreBeforeDigits - suffixStart;
+
+    if (isKnownKafkaConnectSuffix(name, suffixStart, suffixLen)) {
+      return name.substring(0, underscoreBeforeSuffix);
+    }
+
+    return name;
+  }
+
+  private static boolean isKnownKafkaConnectSuffix(String name, int start, int len) {
+    return (len == 11 && name.regionMatches(true, start, "messagebody", 0, 11))
+        || (len == 4 && name.regionMatches(true, start, "text", 0, 4))
+        || (len == 5 && name.regionMatches(true, start, "bytes", 0, 5))
+        || (len == 5 && name.regionMatches(true, start, "value", 0, 5))
+        || (len == 3 && name.regionMatches(true, start, "map", 0, 3));
+  }
+
   public CharSequence toResourceName(String destinationName, boolean isQueue) {
     if (null == destinationName) {
       return isQueue ? queueTempResourceName : topicTempResourceName;
@@ -229,7 +284,11 @@ public final class JMSDecorator extends MessagingClientDecorator {
     } catch (Exception e) {
       log.debug("Unable to get jms destination name", e);
     }
-    return null != name && !name.startsWith(TIBCO_TMP_PREFIX) ? name : null;
+    if (null != name && !name.startsWith(TIBCO_TMP_PREFIX)) {
+      // Sanitize Kafka Connect schema-derived suffixes from queue/topic names
+      return sanitizeDestinationName(name);
+    }
+    return null;
   }
 
   public boolean isQueue(Destination destination) {

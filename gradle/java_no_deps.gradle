@@ -2,9 +2,12 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
 
+import java.nio.file.Files
+import java.nio.file.LinkOption
+
 apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
-apply plugin: 'dd-trace-java.test-jvm-contraints'
+apply plugin: 'dd-trace-java.test-jvm-constraints'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
@@ -370,7 +373,7 @@ ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
   }
 } as Closure<Void>
 
-ext.getJavaLauncherFor = (javaVersionInteger) -> {
+ext.getJavaLauncherFor = (int javaVersionInteger) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
@@ -378,6 +381,42 @@ ext.getJavaLauncherFor = (javaVersionInteger) -> {
     throw new GradleException("Unable to find launcher for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
   }
   return launcher
+} as Closure<Provider<JavaLauncher>>
+
+ext.getLazyJavaHomeFor = (int javaVersionInteger, boolean hasNativeImage = false) -> {
+  def launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    nativeImageCapable = hasNativeImage
+  }.map {
+    if (hasNativeImage) {
+      // 🤦‍♂️ Fix https://github.com/gradle/gradle/issues/28583
+      // Extraction doesn't handle symlinks properly for GraalVM native-image
+      // this ensures 'bin/native-image' points to 'lib/svm/bin/native-image'
+      def target = it.metadata.installationPath.asFile.toPath().resolve("bin").resolve("native-image")
+      def expectedSrc = it.metadata.installationPath.asFile.toPath().resolve("lib/svm/bin").resolve("native-image")
+
+      if (!Files.isRegularFile(expectedSrc, LinkOption.NOFOLLOW_LINKS)) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is not a regular file)", expectedSrc)
+        return it
+      }
+      if (Files.isSymbolicLink(target) || Files.size(target) > 0) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is already symbolic or its size is greater than 0)", target)
+        return it
+      }
+      logger.warn("[getLazyJavaHomeFor] fixing symbolic link '{}' -> '{}', see https://github.com/gradle/gradle/issues/28583", target, expectedSrc)
+      Files.delete(target)
+      Files.createSymbolicLink(target, expectedSrc)
+    }
+    return it
+  }
+
+  return new Object() {
+    @Override
+    String toString() {
+      println("Using Java $javaVersionInteger from toolchain at: " + launcher.get().metadata.installationPath.asFile.absolutePath)
+      return launcher.get().metadata.installationPath.asFile.absolutePath
+    }
+  }
 } as Closure<Provider<JavaLauncher>>
 
 

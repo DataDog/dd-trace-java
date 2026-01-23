@@ -2,30 +2,20 @@ package datadog.trace.instrumentation.hibernate.core.v4_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
-@AutoService(InstrumenterModule.class)
-public class TransactionInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Transaction", SESSION_STATE);
-  }
+public final class TransactionInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public String[] knownMatchingTypes() {

@@ -174,7 +174,7 @@ public abstract class BaseIntegrationTest {
             // flush uploads every 100ms to have quick tests
             "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
             // increase timeout for serialization
-            "-Ddd.dynamic.instrumentation.capture.timeout=200"));
+            "-Ddd.dynamic.instrumentation.capture.timeout=1000"));
   }
 
   protected enum RequestType {

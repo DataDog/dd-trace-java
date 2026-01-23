@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.httpclient
 
-import datadog.trace.agent.test.base.HttpClientTest
+
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE
 
+import datadog.trace.agent.test.base.HttpClientTest
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -41,6 +42,22 @@ abstract class JavaHttpClientTest extends HttpClientTest {
 
   boolean testRedirects() {
     false
+  }
+
+  def 'should not inject duplicate headers'() {
+    when:
+    def status = doRequest("GET", server.address.resolve("/success"),
+      // our codec inject names all lowercase
+      ["X-Datadog-Trace-ID": "0"])
+
+    then:
+    status == 200
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null)
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
   }
 }
 
