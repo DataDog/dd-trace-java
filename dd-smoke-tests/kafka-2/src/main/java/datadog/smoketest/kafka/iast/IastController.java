@@ -141,13 +141,15 @@ public class IastController {
     }
   }
 
+  // Intentionally not using logger placeholders to exercise this test case.
+  @SuppressWarnings("StringConcatenationArgumentToLogCall")
   private String handle(final String topic, final String key, final String value) {
     LOGGER.info("Received message from {}: {} {}", topic, key, value);
     if (isKey(key)) {
-      LOGGER.info("Kafka tainted key: {}", key);
+      LOGGER.info("Kafka tainted key: " + key);
       return "OK";
     } else if (isValue(value)) {
-      LOGGER.info("Kafka tainted value: {}", value);
+      LOGGER.info("Kafka tainted value: " + value);
       return "OK";
     } else if ("health".equals(key)) {
       return "OK";
