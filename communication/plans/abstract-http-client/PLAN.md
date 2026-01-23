@@ -299,11 +299,12 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 5.1: Update HttpRetryPolicy
 
-- [ ] 🟥 **Refactor HttpRetryPolicy to use HttpResponse abstraction**
-  - [ ] 🟥 Write test: Test HttpRetryPolicy with abstract HttpResponse
-  - [ ] 🟥 Implement: Change `shouldRetry(okhttp3.Response)` to `shouldRetry(HttpResponse)`
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpRetryPolicy*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Refactor HttpRetryPolicy to use HttpResponse abstraction**
+  - [x] 🟩 Updated tests to wrap okhttp3.Response with OkHttpResponse
+  - [x] 🟩 Implement: Changed `shouldRetry(okhttp3.Response)` to `shouldRetry(HttpResponse)`
+  - [x] 🟩 Updated OkHttpUtils to wrap responses before calling shouldRetry()
+  - [x] 🟩 Test: All 243 tests passing
+  - [x] 🟩 Update PLAN.md
 
 ### Task 5.2: Update OkHttpUtils
 
