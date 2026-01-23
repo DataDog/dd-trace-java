@@ -20,15 +20,17 @@ final class HttpRequestFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequest.Builder newBuilder() {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to create JdkHttpRequest.JdkHttpRequestBuilder
         return (HttpRequest.Builder) JdkHttpClientSupport.JDK_REQUEST_BUILDER_CONSTRUCTOR.newInstance();
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create JDK request builder", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return new OkHttpRequest.OkHttpRequestBuilder();
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return new OkHttpRequest.OkHttpRequestBuilder();
   }
 }
