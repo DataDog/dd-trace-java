@@ -28,6 +28,9 @@ public final class HotspotCrashLogParser {
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy X", Locale.getDefault());
   private static final String OOM_MARKER = "OutOfMemory encountered: ";
 
+  // all lowercased
+  private static final String[] KNOWN_LIBRARY_NAMES = {"libjavaprofiler", "libddwaf", "libsqreen"};
+
   enum State {
     NEW,
     HEADER,
@@ -91,7 +94,7 @@ public final class HotspotCrashLogParser {
             int libend = line.indexOf(']', libstart + 1);
             if (libend > 0) {
               String[] parts = PLUS_SPLITTER.split(line.substring(libstart + 1, libend), 2);
-              filename = parts[0];
+              filename = normalizeFilename(parts[0]);
               // TODO: extract relative address for second part and send to the intake
             }
           }
@@ -115,6 +118,33 @@ public final class HotspotCrashLogParser {
       return new StackFrame(filename, functionLine, functionName);
     }
     return null;
+  }
+
+  private static String knownLibraryPrefix(String filename) {
+    final String lowerCased = filename.toLowerCase(Locale.ROOT);
+    for (String prefix : KNOWN_LIBRARY_NAMES) {
+      if (lowerCased.startsWith(prefix)) {
+        return prefix;
+      }
+    }
+    return null;
+  }
+
+  private String normalizeFilename(String filename) {
+    if (filename == null) {
+      return null;
+    }
+    final String prefix = knownLibraryPrefix(filename);
+    if (prefix == null) {
+      return filename;
+    }
+
+    final int prefixLen = prefix.length();
+    final int end = filename.indexOf('.', prefixLen);
+    if (end < prefixLen) {
+      return filename;
+    }
+    return filename.substring(0, prefixLen) + filename.substring(end);
   }
 
   public CrashLog parse(String uuid, String crashLog) {

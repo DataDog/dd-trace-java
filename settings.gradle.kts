@@ -21,7 +21,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "4.3"
-  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -156,6 +156,7 @@ include(
   ":utils:container-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
   ":utils:test-utils",

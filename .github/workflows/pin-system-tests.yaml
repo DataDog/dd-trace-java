@@ -7,10 +7,19 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # run workflow when a release branch is created
+  # run workflow when any branch is created
   create:
 
 jobs:
+  # TODO: Remove this job after confirming the github.ref when a release branch is created
+  print-github-ref:
+    name: "Print full github.ref"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print github.ref
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+
   pin-system-tests:
     name: "Pin system tests"
     if: github.event_name != 'create' || contains(github.ref, 'release/v')
@@ -25,11 +34,6 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
 
-      # temporary
-      - name: Print github.ref
-        run: |
-          echo "github.ref: ${{ github.ref }}"
-      
       - name: Define base branch
         id: define-base-branch
         run: |

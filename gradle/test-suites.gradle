@@ -1,9 +1,9 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
-ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
+ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName, String dirName ->
   testing {
     suites {
-      create(testSuiteName, JvmTestSuite, {
+      register(testSuiteName, JvmTestSuite) {
         sources {
           java {
             srcDirs = ["src/$dirName/java"]
@@ -27,7 +27,7 @@ ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
             }
           }
         }
-      })
+      }
     }
   }
 

@@ -577,6 +577,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
+    } catch (Exception ex) {
+      // catch all for unexpected exceptions
+      status.addError(new EvaluationError(probeCondition.getDslExpression(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
     }
     return true;
   }
@@ -685,6 +690,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       } catch (EvaluationException ex) {
         logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
         logStatus.setLogTemplateErrors(true);
+      } catch (Exception ex) {
+        // catch all for unexpected exceptions
+        logStatus.addError(
+            new EvaluationError(captureExpression.getExpr().getDsl(), ex.getMessage()));
+        logStatus.setLogTemplateErrors(true);
       }
     }
   }
@@ -756,7 +766,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isCaptureSnapshot()) {
+        if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
               Duration.of(
@@ -811,9 +821,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Override
     public boolean shouldFreezeContext() {
-      return sampled
-          && ((CapturedContextProbe) probeImplementation).isCaptureSnapshot()
-          && shouldSend();
+      return sampled && (((LogProbe) probeImplementation).isFullSnapshot()) && shouldSend();
     }
 
     @Override

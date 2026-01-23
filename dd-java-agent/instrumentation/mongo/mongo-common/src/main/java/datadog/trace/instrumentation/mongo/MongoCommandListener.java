@@ -145,7 +145,6 @@ public final class MongoCommandListener implements CommandListener {
         }
       }
       if (event.getConnectionDescription() != null
-          && event.getConnectionDescription() != null
           && event.getConnectionDescription().getServerAddress() != null) {
         // cannot use onPeerConnection because ServerAddress.getSocketAddress()
         // may do a DNS lookup

@@ -7,12 +7,10 @@ import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscCompoundQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +20,8 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final Queue<Batch> batchPool;
-  private final MpscCompoundQueue<InboxItem> inbox;
+  private final MessagePassingQueue<Batch> batchPool;
+  private final MessagePassingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final ConcurrentMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
@@ -42,8 +40,8 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      Queue<Batch> batchPool,
-      MpscCompoundQueue<InboxItem> inbox,
+      MessagePassingQueue<Batch> batchPool,
+      MessagePassingQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
@@ -63,8 +61,8 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      Queue<Batch> batchPool,
-      MpscCompoundQueue<InboxItem> inbox,
+      MessagePassingQueue<Batch> batchPool,
+      MessagePassingQueue<InboxItem> inbox,
       ConcurrentMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,

@@ -1,28 +1,15 @@
 package datadog.trace.instrumentation.hibernate.core.v4_0;
 
+import static java.util.Arrays.asList;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 
-public abstract class AbstractHibernateInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
-  static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
-
-  public AbstractHibernateInstrumentation() {
-    super("hibernate", "hibernate-core");
-  }
-
+public abstract class AbstractHibernateInstrumentation
+    implements Instrumenter.HasMethodAdvice, Instrumenter.CanShortcutTypeMatching {
   @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(true);
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
-      "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.instrumentation.hibernate.HibernateDecorator",
-    };
+  public final boolean onlyMatchKnownTypes() {
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(asList("hibernate", "hibernate-core"), true);
   }
 }
