@@ -1,7 +1,11 @@
 package datadog.communication.http.client;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
+import java.net.Proxy;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Abstraction for HTTP clients, providing request execution capabilities.
@@ -49,7 +53,7 @@ public interface HttpClient extends Closeable {
      * @param unit the time unit
      * @return this builder
      */
-    Builder connectTimeout(long timeout, java.util.concurrent.TimeUnit unit);
+    Builder connectTimeout(long timeout, TimeUnit unit);
 
     /**
      * Sets the read timeout.
@@ -58,7 +62,7 @@ public interface HttpClient extends Closeable {
      * @param unit the time unit
      * @return this builder
      */
-    Builder readTimeout(long timeout, java.util.concurrent.TimeUnit unit);
+    Builder readTimeout(long timeout, TimeUnit unit);
 
     /**
      * Sets the write timeout.
@@ -67,7 +71,7 @@ public interface HttpClient extends Closeable {
      * @param unit the time unit
      * @return this builder
      */
-    Builder writeTimeout(long timeout, java.util.concurrent.TimeUnit unit);
+    Builder writeTimeout(long timeout, TimeUnit unit);
 
     /**
      * Sets the proxy configuration.
@@ -75,7 +79,7 @@ public interface HttpClient extends Closeable {
      * @param proxy the proxy to use
      * @return this builder
      */
-    Builder proxy(java.net.Proxy proxy);
+    Builder proxy(Proxy proxy);
 
     /**
      * Sets proxy authentication credentials.
@@ -92,7 +96,7 @@ public interface HttpClient extends Closeable {
      * @param socketFile the Unix domain socket file
      * @return this builder
      */
-    Builder unixDomainSocket(java.io.File socketFile);
+    Builder unixDomainSocket(File socketFile);
 
     /**
      * Configures the client to use a named pipe (Windows).
@@ -132,7 +136,7 @@ public interface HttpClient extends Closeable {
      * @param executor the executor
      * @return this builder
      */
-    Builder dispatcher(java.util.concurrent.Executor executor);
+    Builder dispatcher(Executor executor);
 
     /**
      * Sets an event listener for request lifecycle events.
