@@ -61,7 +61,6 @@ class SpringWebfluxTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("trace.websocket.messages.enabled", "true")
   }
 
   def "Basic GET test #testName"() {
