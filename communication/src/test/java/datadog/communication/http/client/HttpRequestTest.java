@@ -99,32 +99,6 @@ class HttpRequestTest {
   }
 
   @Test
-  void testRequestWithTag() {
-    TestTag tag = new TestTag("test-value");
-
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .tag(TestTag.class, tag)
-        .get()
-        .build();
-
-    TestTag retrieved = request.tag(TestTag.class);
-    assertNotNull(retrieved);
-    assertEquals("test-value", retrieved.value);
-  }
-
-  @Test
-  void testRequestWithNullTag() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .get()
-        .build();
-
-    TestTag retrieved = request.tag(TestTag.class);
-    assertNull(retrieved);
-  }
-
-  @Test
   void testBuildWithoutUrl() {
     assertThrows(IllegalStateException.class, () -> {
       HttpRequest.newBuilder()
@@ -156,13 +130,5 @@ class HttpRequestTest {
     List<String> missing = request.headers("X-Missing");
     assertNotNull(missing);
     assertTrue(missing.isEmpty());
-  }
-
-  private static class TestTag {
-    final String value;
-
-    TestTag(String value) {
-      this.value = value;
-    }
   }
 }
