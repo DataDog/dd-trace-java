@@ -42,7 +42,6 @@ public class ForkJoinModule extends InstrumenterModule.ContextTracking
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new JavaForkJoinWorkQueueInstrumentation(), new JavaForkJoinTaskInstrumentation());
+    return asList(new JavaForkJoinPoolInstrumentation(), new JavaForkJoinTaskInstrumentation());
   }
 }

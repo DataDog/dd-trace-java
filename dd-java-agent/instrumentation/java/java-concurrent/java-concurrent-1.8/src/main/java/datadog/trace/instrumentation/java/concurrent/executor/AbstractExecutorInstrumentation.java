@@ -9,16 +9,12 @@ import java.util.Collection;
 import java.util.concurrent.Executor;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class AbstractExecutorInstrumentation
     implements Instrumenter.ForBootstrap,
         Instrumenter.CanShortcutTypeMatching,
         Instrumenter.ForConfiguredTypes,
         Instrumenter.HasMethodAdvice {
-
-  private static final Logger log = LoggerFactory.getLogger(AbstractExecutorInstrumentation.class);
 
   /** To apply to all executors, use override setting below. */
   private final boolean TRACE_ALL_EXECUTORS = InstrumenterConfig.get().isTraceExecutorsAll();

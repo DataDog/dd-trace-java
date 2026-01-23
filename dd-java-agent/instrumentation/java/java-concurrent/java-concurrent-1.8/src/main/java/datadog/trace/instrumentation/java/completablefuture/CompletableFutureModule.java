@@ -83,7 +83,7 @@ public class CompletableFutureModule extends InstrumenterModule.ContextTracking
               );
       excludedRunnableClasses.addAll(unicompletionClasses);
       excludedExecutorClasses.addAll(unicompletionClasses);
-      excludedForkJoinClass.addAll(excludedRunnableClasses);
+      excludedForkJoinClass.addAll(unicompletionClasses);
     }
 
     excluded.put(RUNNABLE, excludedRunnableClasses);
