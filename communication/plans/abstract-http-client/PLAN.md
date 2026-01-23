@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `10%`
+**Overall Progress:** `12%`
 
 ## Overview
 
@@ -126,13 +126,17 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 2.1: Define HttpClient interface
 
-- [ ] 🟥 **Create HttpClient interface**
-  - [ ] 🟥 Write test: HttpClient contract tests (basic execute)
-  - [ ] 🟥 Implement: Create `datadog.communication.http.client.HttpClient` interface
-    - [ ] 🟥 Method: `execute(HttpRequest)` returns HttpResponse
-    - [ ] 🟥 Method: `executeWithRetries(HttpRequest, HttpRetryPolicy.Factory)` returns HttpResponse
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpClient*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create HttpClient interface**
+  - [x] 🟩 Write test: HttpClient contract tests (6 tests with MockWebServer)
+  - [x] 🟩 Implement: Create `datadog.communication.http.client.HttpClient` interface
+    - [x] 🟩 Method: `execute(HttpRequest)` returns HttpResponse
+    - [x] 🟩 Method: `close()` for resource cleanup
+    - [x] 🟩 Static method: `HttpClient.newBuilder()` returns Builder
+  - [x] 🟩 Implement: OkHttpClient adapter wrapping okhttp3.OkHttpClient
+  - [x] 🟩 Implement: OkHttpClientBuilder for constructing instances
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpClient*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: executeWithRetries() deferred - can use helper method or builder option
 
 ### Task 2.2: Define HttpClient.Builder
 
