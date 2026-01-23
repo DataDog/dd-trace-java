@@ -59,15 +59,4 @@ public interface HttpResponse extends Closeable {
    */
   @Override
   void close();
-
-  /**
-   * Wraps an implementation-specific response object.
-   * Currently supports okhttp3.Response.
-   *
-   * @param response the response to wrap
-   * @return wrapped HttpResponse, or null if input is null
-   */
-  static HttpResponse wrap(Object response) {
-    return HttpResponseFactory.wrap(response);
-  }
 }

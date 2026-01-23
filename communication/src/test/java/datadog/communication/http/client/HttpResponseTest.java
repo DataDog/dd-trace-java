@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.communication.http.okhttp.OkHttpResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,7 +31,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), "response body"))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertNotNull(response);
     assertEquals(200, response.code());
@@ -54,7 +55,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertNotNull(response);
     assertEquals(404, response.code());
@@ -73,7 +74,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertEquals(500, response.code());
     assertFalse(response.isSuccessful());
@@ -92,7 +93,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertEquals("application/json", response.header("Content-Type"));
     assertEquals("application/json", response.header("content-type")); // case-insensitive
@@ -114,7 +115,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     // Single value header
     assertEquals("no-cache", response.header("Cache-Control"));
@@ -142,7 +143,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     List<String> missing = response.headers("X-Missing-Header");
     assertNotNull(missing);
@@ -163,7 +164,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("application/json"), json))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertEquals(200, response.code());
     assertEquals("application/json", response.header("Content-Type"));
@@ -184,7 +185,7 @@ class HttpResponseTest {
         .body(ResponseBody.create(MediaType.get("text/plain"), ""))
         .build();
 
-    HttpResponse response = HttpResponse.wrap(okHttpResponse);
+    HttpResponse response = OkHttpResponse.wrap(okHttpResponse);
 
     assertEquals(204, response.code());
 
@@ -196,7 +197,7 @@ class HttpResponseTest {
 
   @Test
   void testWrapNull() {
-    HttpResponse response = HttpResponse.wrap(null);
+    HttpResponse response = OkHttpResponse.wrap(null);
     assertNull(response);
   }
 
