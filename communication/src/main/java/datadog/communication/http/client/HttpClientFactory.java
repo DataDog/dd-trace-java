@@ -3,6 +3,7 @@ package datadog.communication.http.client;
 import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.InstrumenterConfig;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Constructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,29 @@ final class HttpClientFactory {
   private static final String JDK = "jdk";
 
   private static volatile boolean usingJdk = false;
+
+  // Cached JDK HttpClient classes (loaded via reflection on Java 11+)
+  private static final Class<?> JDK_CLIENT_CLASS;
+  private static final Class<?> JDK_CLIENT_BUILDER_CLASS;
+  private static final Constructor<?> JDK_CLIENT_BUILDER_CONSTRUCTOR;
+
+  static {
+    Class<?> clientClass = null;
+    Class<?> builderClass = null;
+    Constructor<?> builderConstructor = null;
+    try {
+      clientClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient");
+      builderClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient$JdkHttpClientBuilder");
+      builderConstructor = builderClass.getDeclaredConstructor();
+      builderConstructor.setAccessible(true);
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      // JDK HttpClient not available (Java < 11 or class not in classpath)
+      log.debug("JDK HttpClient classes not available: {}", e.getMessage());
+    }
+    JDK_CLIENT_CLASS = clientClass;
+    JDK_CLIENT_BUILDER_CLASS = builderClass;
+    JDK_CLIENT_BUILDER_CONSTRUCTOR = builderConstructor;
+  }
 
   private HttpClientFactory() {
     // Utility class
@@ -102,17 +126,20 @@ final class HttpClientFactory {
     return new OkHttpClient.OkHttpClientBuilder();
   }
 
+  @SuppressForbidden // Dynamically load JDK11+ version
   private static HttpClient.Builder createJdkBuilder() {
+    if (JDK_CLIENT_BUILDER_CONSTRUCTOR == null) {
+      log.warn("JDK HttpClient not available, falling back to OkHttp");
+      usingJdk = false;
+      return new OkHttpClient.OkHttpClientBuilder();
+    }
+
     usingJdk = true;
     try {
-      // Use reflection to load JDK HttpClient builder from java11 source set
-      Class<?> jdkClientClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient");
-      Class<?> builderClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient$JdkHttpClientBuilder");
-      Constructor<?> constructor = builderClass.getDeclaredConstructor();
-      constructor.setAccessible(true);
-      return (HttpClient.Builder) constructor.newInstance();
+      // Use cached reflection to instantiate JDK HttpClient builder
+      return (HttpClient.Builder) JDK_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
     } catch (Exception e) {
-      log.warn("Failed to load JDK HttpClient implementation, falling back to OkHttp", e);
+      log.warn("Failed to instantiate JDK HttpClient builder, falling back to OkHttp", e);
       usingJdk = false;
       return new OkHttpClient.OkHttpClientBuilder();
     }
