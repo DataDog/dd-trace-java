@@ -1,6 +1,6 @@
-package datadog.metrics.statsd
+package datadog.metrics.impl.statsd
 
-import static datadog.metrics.statsd.DDAgentStatsDClientManager.statsDClientManager
+import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 

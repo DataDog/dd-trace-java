@@ -1,6 +1,6 @@
 package datadog.crashtracking;
 
-import static datadog.metrics.statsd.DDAgentStatsDClientManager.statsDClientManager;
+import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager;
 
 import datadog.metrics.statsd.StatsDClient;
 import de.thetaphi.forbiddenapis.SuppressForbidden;

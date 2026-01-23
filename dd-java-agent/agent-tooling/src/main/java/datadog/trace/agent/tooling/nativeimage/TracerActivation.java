@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.nativeimage;
 
 import com.datadog.profiling.controller.openjdk.JFREventContextIntegration;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.metrics.statsd.StatsDClientManager;
 import datadog.trace.agent.jmxfetch.JMXFetch;
 import datadog.trace.agent.tooling.MeterInstaller;

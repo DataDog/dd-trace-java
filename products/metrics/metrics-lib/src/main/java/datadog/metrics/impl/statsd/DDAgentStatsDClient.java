@@ -1,7 +1,8 @@
-package datadog.metrics.statsd;
+package datadog.metrics.impl.statsd;
 
 import com.timgroup.statsd.Event;
 import com.timgroup.statsd.ServiceCheck;
+import datadog.metrics.statsd.StatsDClient;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

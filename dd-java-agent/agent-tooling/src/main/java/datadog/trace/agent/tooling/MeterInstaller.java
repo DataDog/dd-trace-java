@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.metrics.statsd.DDAgentStatsDClientManager.statsDClientManager;
+import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.metrics.agent.AgentMeter;

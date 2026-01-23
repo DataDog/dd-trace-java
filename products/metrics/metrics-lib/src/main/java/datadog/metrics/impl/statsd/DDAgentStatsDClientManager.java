@@ -1,7 +1,9 @@
-package datadog.metrics.statsd;
+package datadog.metrics.impl.statsd;
 
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
+import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.cache.DDCache;

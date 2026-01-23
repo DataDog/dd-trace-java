@@ -1,6 +1,6 @@
 package com.datadog.debugger.util;
 
-import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.Config;
 
