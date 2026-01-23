@@ -35,12 +35,19 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude(project(":dd-java-agent:agent-logging"))
     exclude(project(":dd-trace-api"))
     exclude(project(":internal-api"))
+    exclude(project(":components:context"))
     exclude(project(":components:environment"))
     exclude(project(":components:json"))
+    exclude(project(":utils:config-utils"))
+    exclude(project(":utils:time-utils"))
+    exclude(project(":utils:filesystem-utils"))
     // Exclude metrics-api (keep it on bootstrap)
     exclude(project(":products:metrics:metrics-api"))
 
     exclude(dependency("org.slf4j::"))
+
+    // snakeyaml-engine (transitive from config-utils) - in shared
+    exclude(dependency("org.snakeyaml:snakeyaml-engine"))
 
     // dogstatsd and its transitives
     exclude(dependency("com.datadoghq:java-dogstatsd-client"))
@@ -49,5 +56,8 @@ tasks.named<ShadowJar>("shadowJar") {
 
     // sketches-java is in shared
     exclude(dependency("com.datadoghq:sketches-java"))
+
+    // javac plugin client
+    exclude(dependency("com.datadoghq:dd-javac-plugin-client"))
   }
 }
