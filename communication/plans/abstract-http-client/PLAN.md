@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `16%`
+**Overall Progress:** `38%`
 
 ## Overview
 
@@ -183,47 +183,51 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ## Phase 3: OkHttp Implementation
 
-**Note:** Phase 3 and Phase 4 can be implemented in parallel as they are independent.
+**Note:** Phase 3 was completed during Phases 1 and 2, as the OkHttp adapters were implemented alongside the interfaces.
 
 ### Task 3.1: Implement OkHttpClient adapter
 
-- [ ] 🟥 **Create OkHttpClientAdapter**
-  - [ ] 🟥 Write test: Test execute() wraps OkHttp calls
-  - [ ] 🟥 Implement: `datadog.communication.http.okhttp.OkHttpClientAdapter` implements HttpClient
-    - [ ] 🟥 Wrap existing `okhttp3.OkHttpClient`
-    - [ ] 🟥 Implement `execute()` by delegating to OkHttp
-    - [ ] 🟥 Convert HttpRequest to okhttp3.Request
-    - [ ] 🟥 Convert okhttp3.Response to HttpResponse
-  - [ ] 🟥 Write test: Test retry logic integration
-  - [ ] 🟥 Implement: `executeWithRetries()` using HttpRetryPolicy
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*OkHttpClientAdapter*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create OkHttpClient adapter**
+  - [x] 🟩 Write test: Test execute() wraps OkHttp calls (via HttpClientTest)
+  - [x] 🟩 Implement: `datadog.communication.http.okhttp.OkHttpClient` implements HttpClient
+    - [x] 🟩 Wrap existing `okhttp3.OkHttpClient`
+    - [x] 🟩 Implement `execute()` by delegating to OkHttp
+    - [x] 🟩 Convert HttpRequest to okhttp3.Request (via OkHttpRequest.unwrap())
+    - [x] 🟩 Convert okhttp3.Response to HttpResponse (via OkHttpResponse.wrap())
+  - [x] 🟩 Implement: `close()` for resource cleanup
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpClient*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: Implemented in Phase 2.1 alongside HttpClient interface
 
 ### Task 3.2: Implement OkHttpClient.Builder
 
-- [ ] 🟥 **Create OkHttpClientBuilder**
-  - [ ] 🟥 Write test: Test builder configuration mapping
-  - [ ] 🟥 Implement: `datadog.communication.http.okhttp.OkHttpClientBuilder` implements HttpClient.Builder
-    - [ ] 🟥 Delegate to OkHttpClient.Builder internally
-    - [ ] 🟥 Map timeout settings
-    - [ ] 🟥 Map proxy settings
-    - [ ] 🟥 Map UDS/named pipe via SocketFactory
-    - [ ] 🟥 Map connection pool settings
-    - [ ] 🟥 Map dispatcher/executor settings
-    - [ ] 🟥 Map event listener to EventListener adapter
-  - [ ] 🟥 Write test: Test build() returns OkHttpClientAdapter
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*OkHttpClientBuilder*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create OkHttpClientBuilder**
+  - [x] 🟩 Write test: Test builder configuration mapping (via HttpClientBuilderTest - 15 tests)
+  - [x] 🟩 Implement: `datadog.communication.http.okhttp.OkHttpClient.OkHttpClientBuilder` implements HttpClient.Builder
+    - [x] 🟩 Delegate to okhttp3.OkHttpClient.Builder internally
+    - [x] 🟩 Map timeout settings (connect, read, write)
+    - [x] 🟩 Map proxy settings with authentication
+    - [x] 🟩 Map UDS/named pipe via UnixDomainSocketFactory and NamedPipeSocketFactory
+    - [x] 🟩 Map connection pool settings
+    - [x] 🟩 Map dispatcher/executor settings (requires ExecutorService)
+    - [x] 🟩 Map event listener to OkHttpEventListenerAdapter
+  - [x] 🟩 Write test: Test build() returns OkHttpClient
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpClientBuilder*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: Implemented in Phase 2.2 alongside HttpClient.Builder interface
 
 ### Task 3.3: OkHttp request body adapters
 
-- [ ] 🟥 **Implement OkHttp RequestBody adapters**
-  - [ ] 🟥 Write test: Test HttpRequestBody.writeTo() converts to okhttp3.RequestBody
-  - [ ] 🟥 Implement: Adapter that wraps HttpRequestBody as okhttp3.RequestBody
-    - [ ] 🟥 Override `writeTo(BufferedSink)` to call `HttpRequestBody.writeTo(OutputStream)`
-    - [ ] 🟥 Use Okio.buffer(Okio.sink(outputStream)) for streaming
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*OkHttpRequestBodyAdapter*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Implement OkHttp RequestBody adapters**
+  - [x] 🟩 Write test: Test HttpRequestBody adapters (via HttpRequestBodyTest - 12 tests)
+  - [x] 🟩 Implement: `datadog.communication.http.okhttp.OkHttpRequestBody` adapters
+    - [x] 🟩 Adapter wraps HttpRequestBody as okhttp3.RequestBody
+    - [x] 🟩 Override `writeTo(BufferedSink)` to call `HttpRequestBody.writeTo(OutputStream)`
+    - [x] 🟩 Use Okio.buffer(Okio.sink(outputStream)) for streaming
+    - [x] 🟩 Support msgpack, String, gzip, and multipart bodies
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpRequestBody*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: Implemented in Phase 1.2 alongside HttpRequestBody interface
 
 ---
 
