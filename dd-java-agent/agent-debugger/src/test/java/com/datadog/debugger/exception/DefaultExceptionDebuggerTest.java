@@ -340,7 +340,8 @@ public class DefaultExceptionDebuggerTest {
     when(mockManager.getStateByThrowable(lambdaException)).thenReturn(state);
 
     DefaultExceptionDebugger testDebugger =
-        new DefaultExceptionDebugger(mockManager, configurationUpdater, classNameFiltering, 100);
+        new DefaultExceptionDebugger(
+            mockManager, configurationUpdater, classNameFiltering, 100, 3, true);
 
     // Test
     testDebugger.handleException(lambdaException, span);
