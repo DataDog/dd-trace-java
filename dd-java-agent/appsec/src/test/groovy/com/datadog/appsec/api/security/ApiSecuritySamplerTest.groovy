@@ -117,6 +117,51 @@ class ApiSecuritySamplerTest extends DDSpecification {
     !preSampled
   }
 
+  void 'preSampleRequest with null route and blocked request does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 403, 'http://localhost:8080/admin/users')
+    ctx.setWafBlocked()  // Request was blocked by AppSec
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled  // Blocked requests should not be sampled
+  }
+
+  void 'preSampleRequest with null route and 403 non-blocked API does sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 403, 'http://localhost:8080/api/forbidden-resource')
+    // NOT calling setWafBlocked() - this is a legitimate API that returns 403
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled  // Legitimate APIs that return 403 should be sampled
+    ctx.getOrComputeEndpoint() != null
+    ctx.getApiSecurityEndpointHash() != null
+  }
+
+  void 'preSampleRequest with null route and blocked request with different status codes does not sample'() {
+    given:
+    def ctx200 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/attack')
+    ctx200.setWafBlocked()
+    def ctx500 = createContextWithUrl(null, 'GET', 500, 'http://localhost:8080/attack')
+    ctx500.setWafBlocked()
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled200 = sampler.preSampleRequest(ctx200)
+    def preSampled500 = sampler.preSampleRequest(ctx500)
+
+    then:
+    !preSampled200  // Blocked requests should not be sampled regardless of status code
+    !preSampled500
+  }
+
   void 'second request with same endpoint is not sampled'() {
     given:
     def ctx1 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
