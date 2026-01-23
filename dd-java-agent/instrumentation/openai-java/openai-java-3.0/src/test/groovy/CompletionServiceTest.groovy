@@ -162,6 +162,8 @@ class CompletionServiceTest extends OpenAiTest {
             "_ml_obs_metric.output_tokens" Long
             "_ml_obs_metric.total_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
+            "_ml_obs_tag.ml_app" String
+            "_ml_obs_tag.service" String
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/completions"
             "openai.api_base" openAiBaseApi

@@ -3,9 +3,12 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -26,6 +29,7 @@ public class OpenAiDecorator extends ClientDecorator {
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create(INTEGRATION);
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
+  private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
@@ -68,7 +72,20 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan afterStart(AgentSpan span) {
     if (llmObsEnabled) {
-      span.setTag("_ml_obs_tag.parent_id", LLMObsContext.parentSpanId());
+      // set UST (unified service tags, env, service, version)
+      span.setTag("_ml_obs_tag.env", wellKnownTags.getEnv());
+      span.setTag("_ml_obs_tag.service", wellKnownTags.getService());
+      span.setTag("_ml_obs_tag.version", wellKnownTags.getVersion());
+
+      span.setTag("_ml_obs_tag." + LLMObsTags.ML_APP, Config.get().getLlmObsMlApp());
+
+      AgentSpanContext parent = LLMObsContext.current();
+      String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
+      if (parent != null) {
+        parentSpanId = String.valueOf(parent.getSpanId());
+        ;
+      }
+      span.setTag("_ml_obs_tag.parent_id", parentSpanId);
     }
     return super.afterStart(span);
   }
