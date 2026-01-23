@@ -50,17 +50,6 @@ public interface HttpRequest {
   HttpRequestBody body();
 
   /**
-   * Returns the tag of the given type attached to this request, or null if not present.
-   * Tags can be used to attach metadata to requests (e.g., CustomListener for OkHttp).
-   *
-   * @param type the tag class
-   * @param <T> the tag type
-   * @return the tag instance, or null
-   */
-  @Nullable
-  <T> T tag(Class<? extends T> type);
-
-  /**
    * Creates a new builder for constructing HTTP requests.
    *
    * @return a new Builder
@@ -130,17 +119,6 @@ public interface HttpRequest {
      * @return this builder
      */
     Builder addHeader(String name, String value);
-
-    /**
-     * Attaches a tag to this request. Tags can be used to attach metadata
-     * (e.g., CustomListener for OkHttp event tracking).
-     *
-     * @param type the tag class
-     * @param tag the tag instance
-     * @param <T> the tag type
-     * @return this builder
-     */
-    <T> Builder tag(Class<? super T> type, @Nullable T tag);
 
     /**
      * Builds the HttpRequest.

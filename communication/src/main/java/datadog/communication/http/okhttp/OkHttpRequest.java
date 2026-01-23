@@ -72,12 +72,6 @@ public final class OkHttpRequest implements HttpRequest {
     return OkHttpRequestBody.wrap(body);
   }
 
-  @Override
-  @Nullable
-  public <T> T tag(Class<? extends T> type) {
-    return delegate.tag(type);
-  }
-
   /**
    * Builder for OkHttpRequest.
    */
@@ -141,12 +135,6 @@ public final class OkHttpRequest implements HttpRequest {
     @Override
     public Builder addHeader(String name, String value) {
       delegate.addHeader(name, value);
-      return this;
-    }
-
-    @Override
-    public <T> Builder tag(Class<? super T> type, @Nullable T tag) {
-      delegate.tag(type, tag);
       return this;
     }
 
