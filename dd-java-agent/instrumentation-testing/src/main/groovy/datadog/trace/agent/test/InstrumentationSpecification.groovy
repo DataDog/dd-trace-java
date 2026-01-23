@@ -25,6 +25,7 @@ import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
+import datadog.trace.agent.tooling.muzzle.MuzzleCheck
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
@@ -73,9 +74,9 @@ import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
@@ -165,7 +166,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressWarnings('PropertyName')
   @Shared
-  AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
+  List<String> INSTRUMENTATION_ERRORS = new CopyOnWriteArrayList<String>()
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -463,7 +464,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    InstrumentationErrors.resetErrorCount()
+    InstrumentationErrors.enableRecordingAndReset()
+    MuzzleCheck.enableRecordingAndReset()
     ProcessTags.reset()
   }
 
@@ -505,7 +507,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       spanFinishLocations.clear()
       originalToTrackingSpan.clear()
     }
-    assert InstrumentationErrors.errorCount == 0
+    def instrumentationErrorCount = InstrumentationErrors.getErrors().size()
+    assert instrumentationErrorCount == 0, "${instrumentationErrorCount} instrumentation errors were seen:\n${InstrumentationErrors.getErrors().join("\n---\n")}"
+    def muzzleErrorCount = MuzzleCheck.getErrors().size()
+    assert muzzleErrorCount == 0, "${muzzleErrorCount} muzzle errors were seen:\n${MuzzleCheck.getErrors().join("\n---\n")}"
   }
 
   private void doCheckRepeatedFinish() {
@@ -547,7 +552,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     cleanupAfterAgent()
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
+    def instrumentationErrors = INSTRUMENTATION_ERRORS.size()
+    assert instrumentationErrors == 0: "${instrumentationErrors} Instrumentation errors during test:\n${INSTRUMENTATION_ERRORS.join("\n---\n")}"
 
     assert TRANSFORMED_CLASSES_TYPES.findAll {
       GlobalIgnores.isAdditionallyIgnored(it.getActualName())
@@ -641,7 +647,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     println "Unexpected instrumentation error when instrumenting ${typeName} on ${classLoader}"
     throwable.printStackTrace()
-    INSTRUMENTATION_ERROR_COUNT.incrementAndGet()
+    def stackTrace = new StringWriter()
+    throwable.printStackTrace(new PrintWriter(stackTrace))
+    INSTRUMENTATION_ERRORS.add(stackTrace.toString())
   }
 
   @Override
