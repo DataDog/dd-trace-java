@@ -20,6 +20,7 @@ import com.datadog.debugger.util.TestSnapshotListener;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -67,6 +68,7 @@ public class CapturingTestBase {
     ProbeRateLimiter.resetAll();
     Assertions.assertFalse(DebuggerContext.isInProbe());
     Redaction.clearUserDefinedTypes();
+    CorrelationAccess.setTestInstance(null);
   }
 
   @BeforeEach
