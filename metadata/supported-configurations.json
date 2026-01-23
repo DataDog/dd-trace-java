@@ -10741,7 +10741,7 @@
       {
         "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": []
       }
     ],
