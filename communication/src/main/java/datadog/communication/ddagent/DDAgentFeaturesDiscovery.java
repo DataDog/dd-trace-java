@@ -14,7 +14,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
-import datadog.metrics.statsd.DDAgentStatsDClientManager;
+import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;

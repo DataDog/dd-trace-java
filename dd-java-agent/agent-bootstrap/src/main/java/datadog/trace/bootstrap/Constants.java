@@ -22,7 +22,6 @@ public final class Constants {
     "datadog.instrument",
     "datadog.appsec.api",
     "datadog.metrics.api",
-    "datadog.metrics.statsd",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.config.inversion",

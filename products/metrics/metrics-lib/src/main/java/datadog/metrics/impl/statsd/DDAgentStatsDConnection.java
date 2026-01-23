@@ -1,4 +1,4 @@
-package datadog.metrics.statsd;
+package datadog.metrics.impl.statsd;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_SOCKET_PATH;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.STATSD_CLIENT;

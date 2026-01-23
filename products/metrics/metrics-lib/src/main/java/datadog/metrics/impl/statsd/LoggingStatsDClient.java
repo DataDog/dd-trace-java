@@ -1,5 +1,6 @@
-package datadog.metrics.statsd;
+package datadog.metrics.impl.statsd;
 
+import datadog.metrics.statsd.StatsDClient;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
