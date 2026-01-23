@@ -5,14 +5,13 @@ import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifa
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
-import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
@@ -71,9 +70,8 @@ class MuzzlePlugin : Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
-    @Suppress("UNCHECKED_CAST")
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
+      inputs.files(project.providers.provider { project.allMainSourceSet })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
@@ -106,7 +104,8 @@ class MuzzlePlugin : Plugin<Project> {
       // removing leading ':' if present
       val muzzleTaskName = taskName.removePrefix(":")
       val projectPath = project.path.removePrefix(":")
-      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName
+      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName ||
+          muzzleTaskName == "runMuzzle"
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.

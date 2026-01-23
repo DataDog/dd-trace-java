@@ -1,0 +1,382 @@
+[
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": 3,
+      "variant": "three",
+      "flagMetadata": {
+        "allocationKey": "targeted allocation",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": 3,
+      "variant": "three",
+      "flagMetadata": {
+        "allocationKey": "targeted allocation",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "debra",
+    "attributes": {
+      "email": "test@test.com",
+      "country": "Mexico",
+      "age": 25
+    },
+    "result": {
+      "value": 3,
+      "variant": "three",
+      "flagMetadata": {
+        "allocationKey": "targeted allocation",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "1",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "2",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "3",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "4",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "5",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "6",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "7",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "8",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "9",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "10",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "11",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "12",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "13",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "14",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "15",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "16",
+    "attributes": {},
+    "result": {
+      "value": 2,
+      "variant": "two",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "17",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "18",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "integer-flag",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "targetingKey": "19",
+    "attributes": {},
+    "result": {
+      "value": 1,
+      "variant": "one",
+      "flagMetadata": {
+        "allocationKey": "50/50 split",
+        "variationType": "number",
+        "doLog": true
+      }
+    }
+  }
+]

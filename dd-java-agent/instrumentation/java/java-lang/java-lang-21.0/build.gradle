@@ -1,0 +1,32 @@
+plugins {
+  id 'idea'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+}
+
+muzzle {
+  pass {
+    coreJdk('21')
+  }
+}
+
+idea {
+  module {
+    jdkName = '21'
+  }
+}
+
+// Set test compile task to use JDK 21 to use the virtual threads API
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, 21)
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+}

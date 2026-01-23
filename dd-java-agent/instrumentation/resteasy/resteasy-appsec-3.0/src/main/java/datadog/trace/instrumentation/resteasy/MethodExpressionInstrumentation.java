@@ -80,11 +80,7 @@ public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(
-              reqCtx.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
           t = new BlockingException("Blocked request (for MethodExpression/populatePathParams)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }

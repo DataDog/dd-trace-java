@@ -11,12 +11,14 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MON
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.*;
+import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -37,7 +39,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.jctools.queues.MpscArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +54,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
-  private final MpscArrayQueue<InboxItem> inbox = new MpscArrayQueue<>(1024);
+  private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
@@ -218,6 +220,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportSchemaRegistryUsage(
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation) {
+    inbox.offer(
+        new SchemaRegistryUsage(
+            topic,
+            clusterId,
+            schemaId,
+            isSuccess,
+            isKey,
+            operation,
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.context().getPathwayContext();
     if (pathwayContext != null) {
@@ -358,6 +380,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
+            } else if (payload instanceof SchemaRegistryUsage) {
+              SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
+              StatsBucket statsBucket =
+                  getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
+              statsBucket.addSchemaRegistryUsage(usage);
             }
           }
         } catch (Exception e) {

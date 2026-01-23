@@ -96,11 +96,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
 
   /**
    * Deprecated in favor of typed getters like...
+   *
    * <ul>
-   * <li>{@link TagMap#getObject(String)}
-   * <li>{@link TagMap#getString(String)}
-   * <li>{@link TagMap#getBoolean(String)
-   * <li>...
+   *   <li>{@link TagMap#getObject(String)}
+   *   <li>{@link TagMap#getString(String)}
+   *   <li>{@link TagMap#getBoolean(String)}
+   *   <li>...
    * </ul>
    */
   @Deprecated
@@ -289,7 +290,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     }
 
     public final boolean matches(String tag) {
-      return this.tag.equals(tag);
+      return (this.tag == tag) || this.tag.equals(tag);
     }
 
     public abstract boolean isRemoval();
@@ -994,6 +995,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
     public void reset() {
       Arrays.fill(this.entryChanges, null);
       this.nextPos = 0;
+      this.containsRemovals = false;
     }
 
     @Override

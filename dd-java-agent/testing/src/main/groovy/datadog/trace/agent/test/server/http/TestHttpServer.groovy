@@ -42,7 +42,10 @@ import static org.eclipse.jetty.http.HttpMethod.GET
 import static org.eclipse.jetty.http.HttpMethod.POST
 import static org.eclipse.jetty.http.HttpMethod.PUT
 
-@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressFBWarnings([
+  "IS2_INCONSISTENT_SYNC",
+  "PA_PUBLIC_PRIMITIVE_ATTRIBUTE"
+])
 class TestHttpServer implements AutoCloseable {
 
   static TestHttpServer httpServer(@DelegatesTo(value = TestHttpServer, strategy = Closure.DELEGATE_FIRST) Closure spec) {
@@ -127,6 +130,18 @@ class TestHttpServer implements AutoCloseable {
         https.setPort(0)
         internalServer.addConnector(https)
 
+        // Guard against shading mismatch: test code may use non-shaded Jetty types
+        // while TestHttpServer uses shaded Jetty (datadog.eclipse.jetty.*)
+        if (customizer.maximumNumberOfParameters > 0) {
+          def expectedType = customizer.parameterTypes[0]
+          def actualType = internalServer.getClass()
+          if (expectedType != Object && !expectedType.isAssignableFrom(actualType)) {
+            throw new IllegalArgumentException(
+            "Customizer closure expects '${expectedType.name}' but TestHttpServer uses shaded Jetty '${actualType.name}'. " +
+            "Update your test imports to use 'datadog.eclipse.jetty.*' instead of 'org.eclipse.jetty.*'."
+            )
+          }
+        }
         customizer.call(internalServer)
         internalServer.start()
         // set after starting, otherwise two callbacks get added.

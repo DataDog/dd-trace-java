@@ -3,9 +3,9 @@ package com.datadog.debugger.symbol;
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
 import com.datadog.debugger.sink.SymbolSink;
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.ClassNameTrie;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -124,6 +124,9 @@ public class SymbolAggregator {
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
+    if (jarScope == null) {
+      return;
+    }
     jarScope = applyFilters(jarScope);
     addJarScope(jarScope, false);
     symDBReport.incClassCount(jarName);

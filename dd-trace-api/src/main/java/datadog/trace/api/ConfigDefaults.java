@@ -46,10 +46,11 @@ public final class ConfigDefaults {
   public static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
+  static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = true;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
   static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
@@ -120,6 +121,8 @@ public final class ConfigDefaults {
   // Change value to be false in new release. Until then, manually set logs_injection default
   // value to false if config is under breaking changes flag
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = true;
+
+  static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
   static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
@@ -242,7 +245,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
-  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = true;
   static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
@@ -292,7 +295,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_ELASTICSEARCH_BODY_ENABLED = false;
   static final boolean DEFAULT_ELASTICSEARCH_PARAMS_ENABLED = true;
   static final boolean DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED = false;
-  static final boolean DEFAULT_ADD_SPAN_POINTERS = true;
 
   static final boolean DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED = true;
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;

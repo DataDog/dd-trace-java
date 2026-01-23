@@ -290,10 +290,10 @@ class CodecModuleTest extends IastModuleImplTestBase {
     then:
     final helloTainted = to.get(hello)
     helloTainted.ranges.length == 1
-    helloTainted.ranges.first().with {
-      assert it.source.origin == (byte) 0
-      assert it.source.name == 'name1'
-      assert it.source.value == 'Hello'
+    with(helloTainted.ranges.first()) {
+      it.source.origin == (byte) 0
+      it.source.name == 'name1'
+      it.source.value == 'Hello'
     }
 
     when:
@@ -303,10 +303,10 @@ class CodecModuleTest extends IastModuleImplTestBase {
     then:
     final worldTainted = to.get(world)
     worldTainted.ranges.length == 1
-    worldTainted.ranges.first().with {
-      assert it.source.origin == (byte) 1
-      assert it.source.name == 'name2'
-      assert it.source.value == 'World!'
+    with(worldTainted.ranges.first()) {
+      it.source.origin == (byte) 1
+      it.source.name == 'name2'
+      it.source.value == 'World!'
     }
   }
 
@@ -405,5 +405,4 @@ class CodecModuleTest extends IastModuleImplTestBase {
         '}'
     }
   }
-
 }

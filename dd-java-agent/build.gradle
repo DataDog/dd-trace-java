@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
@@ -24,12 +23,15 @@ tasks.named("processResources") {
   dependsOn(includedJarFileTree)
 }
 
-// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
-// and prevent issues for users that still using them.
 sourceSets {
+  // The special pre-check must be compiled with Java 6 to detect unsupported
+  // Java versions and prevent issues for users that still using them.
   "main_java6" {
     java.srcDirs "${project.projectDir}/src/main/java6"
-
+  }
+  // Additional checks that use the Java 11 API.
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
   }
   main.resources.srcDir(includedAgentDir)
 }
@@ -38,12 +40,19 @@ def java6CompileTask = tasks.named("compileMain_java6Java") {
   configureCompiler(it, 8, JavaVersion.VERSION_1_6)
 }
 
+def java11CompileTask = tasks.named("compileMain_java11Java") {
+  configureCompiler(it, 11)
+}
+
 tasks.named("compileJava") {
   dependsOn(java6CompileTask)
+  dependsOn(java11CompileTask)
 }
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  implementation sourceSets.main_java11.output
+  main_java11CompileOnly libs.forbiddenapis
+  main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
 
@@ -105,6 +114,31 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/io/airlift/compress/lzo/**'
     exclude '**/io/airlift/compress/snappy/**'
     relocate 'io.airlift', 'datadog.io.airlift'
+
+    // Minimize JNA, removing native libraries for unsupported environments
+    exclude '**/com/sun/jna/aix-*/**'
+    exclude '**/com/sun/jna/freebsd-*/**'
+    exclude '**/com/sun/jna/linux-armel/**'
+    exclude '**/com/sun/jna/linux-mips64el/**'
+    exclude '**/com/sun/jna/linux-ppc/**'
+    exclude '**/com/sun/jna/linux-ppc64le/**'
+    exclude '**/com/sun/jna/linux-riscv64/**'
+    exclude '**/com/sun/jna/linux-s390x/**'
+    exclude '**/com/sun/jna/openbsd-*/**'
+    exclude '**/com/sun/jna/sunos-*/**'
+
+    // Minimize JFFI, removing native libraries for unsupported environments
+    exclude '**/jni/*-AIX/**'
+    exclude '**/jni/*-DragonFlyBSD/**'
+    exclude '**/jni/*-FreeBSD/**'
+    exclude '**/jni/loongarch64-Linux/**'
+    exclude '**/jni/mips64el-Linux/**'
+    exclude '**/jni/ppc64-Linux/**'
+    exclude '**/jni/ppc64le-Linux/**'
+    exclude '**/jni/s390x-Linux/**'
+    exclude '**/jni/sparcv9-Linux/**'
+    exclude '**/jni/*-OpenBSD/**'
+    exclude '**/jni/*-SunOS/**'
 
     final String projectName = "${project.name}"
 
@@ -189,6 +223,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -225,6 +260,8 @@ includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
   from sourceSets.main_java6.output
+  // Include additional checks compiled with Java 11.
+  from sourceSets.main_java11.output
 
   generalShadowJarConfig(it)
 
@@ -318,6 +355,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  shadowInclude project(path: ':products:feature-flagging:bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
@@ -349,6 +387,9 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':utils:socket-utils'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':utils:queue-utils'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:version-utils'), {

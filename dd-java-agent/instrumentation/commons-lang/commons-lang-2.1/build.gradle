@@ -8,7 +8,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'commons-lang', name: 'commons-lang', version: '2.1'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'commons-lang', name: 'commons-lang', version: '2.6'
 }

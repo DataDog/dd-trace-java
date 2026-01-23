@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.Config
 import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
@@ -14,6 +15,7 @@ import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonSlurper
+import spock.lang.IgnoreIf
 import spock.lang.Subject
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -28,6 +30,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 import static java.nio.charset.StandardCharsets.UTF_8
 
+@IgnoreIf(reason = """
+Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to correctly 
+extract method parameters without args, when the code is compiled on a later JDK (targeting 8). 
+This can manifest when creating mocks.
+""", value = {
+  JavaVirtualMachine.isOracleJDK8()
+})
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
@@ -95,6 +104,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(span)
     0 * _
@@ -128,6 +138,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -142,6 +153,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     0 * _
   }
@@ -159,6 +171,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
@@ -185,6 +198,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -201,6 +215,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -223,6 +238,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     buffer.queue.capacity() * tracer.onRootSpanPublished(_)
@@ -241,6 +257,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     0 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -270,6 +287,7 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * bufferSpy.longRunningSpansEnabled()
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -298,6 +316,7 @@ class PendingTraceBufferTest extends DDSpecification {
       latch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     0 * _
   }
 
@@ -324,6 +343,7 @@ class PendingTraceBufferTest extends DDSpecification {
       parentLatch.countDown()
     }
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(parent)
     0 * _
@@ -340,6 +360,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * bufferSpy.enqueue(trace)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.getTagInterceptor()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
@@ -419,6 +440,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     1 * traceConfig.getServiceMapping() >> [:]
     2 * tracer.getTimeWithNanoTicks(_)
     1 * tracer.onRootSpanPublished(_)
@@ -435,6 +457,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * bufferSpy.longRunningSpansEnabled()
     _ * tracer.getPartialFlushMinSpans() >> 10000
+    _ * tracer.getTagInterceptor()
     _ * traceConfig.getServiceMapping() >> [:]
     _ * tracer.getTimeWithNanoTicks(_)
     0 * _

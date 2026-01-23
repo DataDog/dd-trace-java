@@ -1,22 +1,21 @@
+import java.util.regex.Pattern
+
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
 }
+// Check 'testJvm' gradle command parameter is GraalVM (e.g., -PtestJvm=graalvm21),
+// if not nothing is done
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
-// In order to support GraalVM 21 we need at least Java 17 for Gradle
-def java17Home = providers.environmentVariable('JAVA_17_HOME').orNull
-// Check 'testJvm' gradle command parameter to be at least GraalVM 17
-def matcher = testJvm?.toLowerCase(Locale.ROOT) =~ /graalvm([0-9]+)/
-def version = matcher?.size() == 1 ? Integer.parseInt(matcher[0][1]) : -1
-if (version >= 17) {
-  // Retrieve GRAALVM_HOME from JVM environment variables
-  def testJvmEnv = "JAVA_${testJvm}_HOME"
-  def testJvmHome = providers.environmentVariable(testJvmEnv).orNull
-  if (!testJvmHome) {
-    throw new GradleException("Unable to find launcher for Java '$testJvm'. Have you set '$testJvmEnv'?")
-  }
-  def javaHome = version >= 21 ? java17Home : testJvmHome
+def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
+def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
+
+if (testGraalvmVersion >= 17) {
+  // GraalVM with native-image capability for native compilation
+  def graalvmHome = getLazyJavaHomeFor(testGraalvmVersion, true)
+  // For GraalVM 21+ we need Java 17+ to run Gradle, for earlier versions use GraalVM itself
+  def gradleJavaHome = testGraalvmVersion >= 21 ? getLazyJavaHomeFor(17) : graalvmHome
   // Configure build directory for application
   def appDir = "$projectDir/application"
   def appBuildDir = "$buildDir/application"
@@ -28,8 +27,8 @@ if (version >= 17) {
     workingDir "$appDir"
     environment += [
       'GRADLE_OPTS' : "-Dorg.gradle.jvmargs='-Xmx512M'",
-      'JAVA_HOME'   : javaHome,
-      'GRAALVM_HOME': testJvmHome
+      'JAVA_HOME'   : gradleJavaHome,
+      'GRAALVM_HOME': graalvmHome
     ]
     commandLine(
       "$rootDir/${gradlewCommand}",
@@ -70,7 +69,6 @@ if (version >= 17) {
   tasks.withType(Test).configureEach {
     jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
   }
-
 } else {
   tasks.withType(Test).configureEach {
     enabled = false

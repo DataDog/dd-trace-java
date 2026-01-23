@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout "cloudfoundry" branch
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
         with:
           ref: cloudfoundry
       - name: Get release version
@@ -57,7 +57,7 @@ jobs:
           git commit -m "chore: Add version ${{ steps.get-release-version.outputs.VERSION }} to Cloud Foundry"
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
-        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
         if: ${{ steps.create-commit.outputs.commit != '' }}
         with:
           branch: cloudfoundry

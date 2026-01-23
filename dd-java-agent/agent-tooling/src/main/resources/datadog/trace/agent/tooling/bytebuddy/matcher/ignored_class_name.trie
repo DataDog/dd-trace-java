@@ -50,6 +50,8 @@
 0 java.lang.ProcessImpl
 # allow Runtime instrumentation for RASP
 0 java.lang.Runtime
+# allow context tracking for VirtualThread
+0 java.lang.VirtualThread
 0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.Socket
@@ -102,6 +104,7 @@
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
 1 org.mockito.codegen.*
+1 com.google.inject.*
 
 # Prevent IllegalAccessError in OpenJDK 17.0.4
 1 javax.management.*
@@ -207,7 +210,6 @@
 # Need for IAST: we instrument this class
 0 com.google.gson.Gson
 0 com.google.gson.stream.JsonReader
-2 com.google.inject.*
 # We instrument Runnable there
 0 com.google.inject.internal.AbstractBindingProcessor$*
 0 com.google.inject.internal.BytecodeGen$*

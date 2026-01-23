@@ -157,13 +157,14 @@ class AIGuardInternalTests extends DDSpecification {
     Request request = null
     Throwable error = null
     AIGuard.Evaluation eval = null
+    Map<String, Object> receivedMeta = null
     final throwAbortError = suite.blocking && suite.action != ALLOW
     final call = Mock(Call) {
       execute() >> {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -189,20 +190,26 @@ class AIGuardInternalTests extends DDSpecification {
     }
     1 * span.setTag(AIGuardInternal.ACTION_TAG, suite.action)
     1 * span.setTag(AIGuardInternal.REASON_TAG, suite.reason)
-    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, [messages: suite.messages])
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _ as Map) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
     if (throwAbortError) {
       1 * span.addThrowable(_ as AIGuard.AIGuardAbortError)
     }
 
+    assertMeta(receivedMeta, suite)
     assertRequest(request, suite.messages)
     if (throwAbortError) {
       error instanceof AIGuard.AIGuardAbortError
       error.action == suite.action
       error.reason == suite.reason
+      error.tags == suite.tags
     } else {
       error == null
       eval.action == suite.action
       eval.reason == suite.reason
+      eval.tags == suite.tags
     }
     assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
@@ -213,19 +220,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test evaluate with API errors'() {
     given:
     final errors = [[status: 400, title: 'Bad request']]
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 404, [errors: errors])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(404, [errors: errors])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -239,19 +234,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with invalid JSON'() {
     given:
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, [bad: 'This is an invalid response'])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, [bad: 'This is an invalid response'])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -264,19 +247,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with missing action'() {
     given:
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, [data: [attributes: [reason: 'I miss something']]])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, [data: [attributes: [reason: 'I miss something']]])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -289,19 +260,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with non JSON response'() {
     given:
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, [data: [attributes: [reason: 'I miss something']]])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, 'I am no JSON')
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -314,19 +273,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with empty response'() {
     given:
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, null)
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, null)
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -340,19 +287,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test message length truncation'() {
     given:
     final maxMessages = Config.get().getAiGuardMaxMessagesLength()
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, [data: [attributes: [action: ALLOW, reason: 'It is fine']]])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
     final messages = (0..maxMessages)
       .collect { AIGuard.Message.message('user', "This is a prompt: ${it}") }
       .toList()
@@ -372,19 +307,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test message content truncation'() {
     given:
     final maxContent = Config.get().getAiGuardMaxContentSize()
-    Request request = null
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(request, 200, [data: [attributes: [action: ALLOW, reason: 'It is fine']]])
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
     final message = AIGuard.Message.message("user", (0..maxContent).collect { 'A' }.join())
 
     when:
@@ -418,23 +341,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test missing tool name'() {
     given:
-    def request
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(
-          request,
-          200,
-          [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]]
-          )
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
 
     when:
     aiguard.evaluate([AIGuard.Message.tool('call_1', 'Content')], AIGuard.Options.DEFAULT)
@@ -442,6 +349,65 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, 'tool')
     0 * span.setTag(AIGuardInternal.TOOL_TAG, _)
+  }
+
+  void 'map requires even number of params'() {
+    when:
+    AIGuardInternal.mapOf('1', '2', '3')
+
+    then:
+    thrown(IllegalArgumentException)
+  }
+
+  void 'test message immutability'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
+    final messages = [
+      new AIGuard.Message(
+      "assistant",
+      null,
+      [AIGuard.ToolCall.toolCall('call_1', 'execute_shell', '{"cmd": "ls -lah"}')],
+      null
+      )
+    ]
+    Map<String, Object> receivedMeta
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.finish() >> {
+      // modify the messages before serialization
+      messages.first().toolCalls.add(
+        AIGuard.ToolCall.toolCall('call_2', 'execute_shell', '{"cmd": "rm -rf"}')
+        )
+      messages.add(AIGuard.Message.tool('call_1', 'dir1, dir2, dir3'))
+    }
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _ as Map) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
+    final metaStructMessages = receivedMeta.messages as List<AIGuard.Message>
+    metaStructMessages.size() != messages.size()
+    metaStructMessages.size() == 1
+    metaStructMessages.first().toolCalls.size() != messages.first().toolCalls.size()
+    metaStructMessages.first().toolCalls.size() == 1
+  }
+
+  private AIGuardInternal mockClient(final int status, final Object response) {
+    def request
+    final call = Stub(Call) {
+      execute() >> {
+        return mockResponse(request, status, response)
+      }
+    }
+    final client = Stub(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    return new AIGuardInternal(URL, HEADERS, client)
   }
 
   private static assertTelemetry(final String metric, final String...tags) {
@@ -456,6 +422,16 @@ class AIGuardInternalTests extends DDSpecification {
     }
     assert filtered.size() == 1 : metrics
     assert filtered*.value.sum() == 1
+    return true
+  }
+
+  private static assertMeta(final Map<String, Object> meta, final TestSuite suite) {
+    if (suite.tags) {
+      assert meta.attack_categories == suite.tags
+    }
+    final receivedMessages = snakeCaseJson(meta.messages)
+    final expectedMessages = snakeCaseJson(suite.messages)
+    JSONAssert.assertEquals(expectedMessages, receivedMessages, JSONCompareMode.NON_EXTENSIBLE)
     return true
   }
 
@@ -497,14 +473,16 @@ class AIGuardInternalTests extends DDSpecification {
   private static class TestSuite {
     private final AIGuard.Action action
     private final String reason
+    private final List<String> tags
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
+      this.tags = tags
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -512,7 +490,11 @@ class AIGuardInternalTests extends DDSpecification {
     }
 
     static List<TestSuite> build() {
-      def actionValues = [[ALLOW, 'Go ahead'], [DENY, 'Nope'], [ABORT, 'Kill it with fire']]
+      def actionValues = [
+        [ALLOW, 'Go ahead', []],
+        [DENY, 'Nope', ['deny_everything', 'test_deny']],
+        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+      ]
       def blockingValues = [true, false]
       def suiteValues = [
         ['tool call', 'tool', TOOL_CALL],
@@ -521,7 +503,7 @@ class AIGuardInternalTests extends DDSpecification {
       ]
       return combinations([actionValues, blockingValues, suiteValues] as Iterable)
       .collect { action, blocking, suite ->
-        new TestSuite(action[0], action[1], blocking, suite[0], suite[1], suite[2])
+        new TestSuite(action[0], action[1], action[2], blocking, suite[0], suite[1], suite[2])
       }
     }
 
@@ -534,7 +516,8 @@ class AIGuardInternalTests extends DDSpecification {
       ", reason='" + reason + '\'' +
       ", blocking=" + blocking +
       ", target='" + target + '\'' +
-      ", messages=" + messages +
+      ", messages=" + messages + '\'' +
+      ", tags=" + tags +
       '}'
     }
   }

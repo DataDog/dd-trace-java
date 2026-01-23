@@ -156,19 +156,23 @@ public final class StatusLogger extends JsonAdapter<Config>
     }
     writer.name("data_streams_enabled");
     writer.value(config.isDataStreamsEnabled());
+    writer.name("app_logs_collection_enabled");
+    writer.value(config.isAppLogsCollectionEnabled());
     writer.endObject();
   }
 
   private static boolean agentServiceCheck(Config config) {
-    if (config.getAgentUrl().startsWith("unix:")) {
-      return new File(config.getAgentUnixDomainSocket()).exists();
-    } else {
-      try (Socket s = new Socket()) {
-        s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
-        return true;
-      } catch (IOException ex) {
-        return false;
+    try {
+      if (config.getAgentUrl().startsWith("unix:")) {
+        return new File(config.getAgentUnixDomainSocket()).exists();
+      } else {
+        try (Socket s = new Socket()) {
+          s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
+          return true;
+        }
       }
+    } catch (Throwable ex) {
+      return false;
     }
   }
 

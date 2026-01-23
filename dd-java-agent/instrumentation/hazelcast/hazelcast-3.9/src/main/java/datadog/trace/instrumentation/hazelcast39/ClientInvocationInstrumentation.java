@@ -5,14 +5,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hazelcast39.ClientInvocationDecorator.DECORATE;
-import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.DEFAULT_ENABLED;
-import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.SPAN_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientInvocation;
@@ -20,49 +17,18 @@ import com.hazelcast.client.spi.impl.ClientInvocationFuture;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
 import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class ClientInvocationInstrumentation extends InstrumenterModule.Tracing
+public final class ClientInvocationInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientInvocationInstrumentation() {
-    super(INSTRUMENTATION_NAME);
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return DEFAULT_ENABLED;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ClientInvocationDecorator",
-      packageName + ".SpanFinishingExecutionCallback",
-      packageName + ".HazelcastConstants"
-    };
-  }
 
   @Override
   public String instrumentedType() {
     return "com.hazelcast.client.spi.impl.ClientInvocation";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put("com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());
-    stores.put("com.hazelcast.client.spi.impl.ClientInvocation", String.class.getName());
-    return Collections.unmodifiableMap(stores);
   }
 
   @Override

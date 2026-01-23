@@ -23,7 +23,9 @@ import org.apache.coyote.ActionHook;
 import org.apache.coyote.Request;
 import org.apache.coyote.Response;
 
-/** @see org.apache.coyote.ActionHook */
+/**
+ * @see org.apache.coyote.ActionHook
+ */
 @AutoService(InstrumenterModule.class)
 public class CommitActionInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
@@ -119,11 +121,7 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(
-              requestContext.getTraceSegment(),
-              rba.getStatusCode(),
-              rba.getBlockingContentType(),
-              rba.getExtraHeaders());
+          brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
           thiz.action(ActionCode.CLOSE, null);
           return true;
         }

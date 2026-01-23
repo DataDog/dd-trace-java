@@ -22,7 +22,7 @@ public abstract class UsmMessageImpl {
   private static final Logger log = LoggerFactory.getLogger(BaseUsmMessage.class);
 
   // TODO: sync with systemprobe code
-  static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);;
+  static final NativeLong USM_IOCTL_ID = new NativeLong(0xda7ad09L);
 
   abstract static class BaseUsmMessage implements UsmMessage {
 
@@ -131,15 +131,11 @@ public abstract class UsmMessageImpl {
     public CloseConnectionUsmMessage(UsmConnection connection) {
       super(MessageType.CLOSE_CONNECTION, connection);
       log.debug("close socket:");
-      log.debug(
-          "src host: "
-              + connection.getSrcIP().toString()
-              + " src port: "
-              + connection.getSrcPort());
+      log.debug("src host: {} src port: {}", connection.getSrcIP(), connection.getSrcPort());
 
       InetAddress dstIP = connection.getDstIP();
       if (dstIP != null) {
-        log.debug("dst host: " + dstIP.toString() + " dst port: " + connection.getDstPort());
+        log.debug("dst host: {} dst port: {}", dstIP, connection.getDstPort());
       }
     }
 

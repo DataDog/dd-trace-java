@@ -1,7 +1,7 @@
 package datadog.smoketest
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.IastConfig
-import datadog.trace.test.util.Predicates.IBM8
 import datadog.trace.test.util.Flaky
 import groovy.transform.CompileDynamic
 import okhttp3.Request
@@ -54,7 +54,7 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
     }
   }
 
-  @Flaky(value = 'global context is flaky under IBM8', condition = IBM8)
+  @Flaky(value = 'global context is flaky under IBM8', condition = () -> JavaVirtualMachine.isIbm8())
   static class WithGlobalContext extends IastSpringBootSmokeTest {
     @Override
     protected List<String> iastJvmOpts() {

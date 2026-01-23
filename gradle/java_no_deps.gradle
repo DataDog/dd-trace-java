@@ -2,9 +2,12 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
 
-apply plugin: 'datadog.configure-tests'
+import java.nio.file.Files
+import java.nio.file.LinkOption
+
+apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
-apply plugin: 'datadog.test-jvm-contraints'
+apply plugin: 'dd-trace-java.test-jvm-constraints'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
@@ -124,10 +127,9 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 }
 
 // Task for tests that want to run forked in their own separate JVM
-if (tasks.matching({ it.name == 'forkedTest' }).empty) {
-  tasks.register('forkedTest', Test) {
-    useJUnitPlatform()
-  }
+tasks.register('forkedTest', Test) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  useJUnitPlatform()
 }
 
 def applyCodeCoverage = !(
@@ -211,12 +213,15 @@ ext.conditionalJvmArgs = (Test testTask, JavaVersion applyFromVersion, List<Stri
   testTask,
   applyFromVersion,
   jvmArgsToApply,
-  additionalCondition ?: testTask.project.providers.provider { true }
+  additionalCondition ?: testTask.project.providers.provider {
+    true
+  }
   ))
 }
 
 // TODO move to test-suites config ?
-tasks.withType(Test).configureEach { Test testTask ->
+tasks.withType(Test).configureEach {
+  Test testTask ->
   if (configurations.hasProperty("latestDepTestRuntimeClasspath")) {
     doFirst {
       def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
@@ -227,7 +232,8 @@ tasks.withType(Test).configureEach { Test testTask ->
 }
 
 
-[JavaCompile, ScalaCompile, GroovyCompile].each { type ->
+[JavaCompile, ScalaCompile, GroovyCompile].each {
+  type ->
   tasks.withType(type).configureEach {
     if (options.fork) {
       options.forkOptions.with {
@@ -238,7 +244,8 @@ tasks.withType(Test).configureEach { Test testTask ->
 }
 
 if (project.plugins.hasPlugin('kotlin')) {
-  ['compileKotlin', 'compileTestKotlin'].each { type ->
+  ['compileKotlin', 'compileTestKotlin'].each {
+    type ->
     tasks.named(type) {
       kotlinDaemonJvmArguments = ["-Xmx256m", "-XX:+UseParallelGC"]
     }
@@ -358,14 +365,15 @@ def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion comp
 }
 
 ext.configureGroovyCompiler = (int toolchainVersion, String... taskNames) -> {
-  taskNames.each { taskName ->
+  taskNames.each {
+    taskName ->
     tasks.named(taskName, GroovyCompile) {
       configureCompiler(it, toolchainVersion)
     }
   }
 } as Closure<Void>
 
-ext.getJavaLauncherFor = (javaVersionInteger) -> {
+ext.getJavaLauncherFor = (int javaVersionInteger) -> {
   def launcher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(javaVersionInteger)
   }
@@ -373,6 +381,42 @@ ext.getJavaLauncherFor = (javaVersionInteger) -> {
     throw new GradleException("Unable to find launcher for Java $javaVersionInteger. Have you set JAVA_${javaVersionInteger}_HOME?")
   }
   return launcher
+} as Closure<Provider<JavaLauncher>>
+
+ext.getLazyJavaHomeFor = (int javaVersionInteger, boolean hasNativeImage = false) -> {
+  def launcher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(javaVersionInteger)
+    nativeImageCapable = hasNativeImage
+  }.map {
+    if (hasNativeImage) {
+      // 🤦‍♂️ Fix https://github.com/gradle/gradle/issues/28583
+      // Extraction doesn't handle symlinks properly for GraalVM native-image
+      // this ensures 'bin/native-image' points to 'lib/svm/bin/native-image'
+      def target = it.metadata.installationPath.asFile.toPath().resolve("bin").resolve("native-image")
+      def expectedSrc = it.metadata.installationPath.asFile.toPath().resolve("lib/svm/bin").resolve("native-image")
+
+      if (!Files.isRegularFile(expectedSrc, LinkOption.NOFOLLOW_LINKS)) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is not a regular file)", expectedSrc)
+        return it
+      }
+      if (Files.isSymbolicLink(target) || Files.size(target) > 0) {
+        logger.info("[getLazyJavaHomeFor] Skipping fix symlink, '{}' is already symbolic or its size is greater than 0)", target)
+        return it
+      }
+      logger.warn("[getLazyJavaHomeFor] fixing symbolic link '{}' -> '{}', see https://github.com/gradle/gradle/issues/28583", target, expectedSrc)
+      Files.delete(target)
+      Files.createSymbolicLink(target, expectedSrc)
+    }
+    return it
+  }
+
+  return new Object() {
+    @Override
+    String toString() {
+      println("Using Java $javaVersionInteger from toolchain at: " + launcher.get().metadata.installationPath.asFile.absolutePath)
+      return launcher.get().metadata.installationPath.asFile.absolutePath
+    }
+  }
 } as Closure<Provider<JavaLauncher>>
 
 

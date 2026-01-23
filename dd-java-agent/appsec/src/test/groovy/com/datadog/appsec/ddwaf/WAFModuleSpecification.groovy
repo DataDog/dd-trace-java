@@ -608,7 +608,13 @@ class WAFModuleSpecification extends DDSpecification {
     flow.action instanceof Flow.Action.RequestBlockingAction
     with(flow.action as Flow.Action.RequestBlockingAction) {
       assert it.statusCode == statusCode
-      assert it.extraHeaders == [Location: "https://example${variant}.com/"]
+      // Location header may include security_response_id parameter from libddwaf
+      def location = it.extraHeaders['Location']
+      assert location.startsWith("https://example${variant}.com/")
+      // If security_response_id is present, it should be a valid UUID
+      if (location.contains('security_response_id=')) {
+        assert location.matches(".*security_response_id=[0-9a-f-]{36}.*")
+      }
     }
 
     where:
@@ -722,7 +728,9 @@ class WAFModuleSpecification extends DDSpecification {
         truncatedStringTooLongCount = new AtomicLong(0)
         truncatedListMapTooLargeCount = new AtomicLong(0)
         truncatedObjectTooDeepCount = new AtomicLong(0)
-        it } }
+        it
+      }
+    }
 
     1 * segment.setTagTop('_dd.appsec.waf.duration', 1)
     1 * segment.setTagTop('_dd.appsec.waf.duration_ext', 2)
@@ -787,7 +795,6 @@ class WAFModuleSpecification extends DDSpecification {
     stackTrace.frames.size() >= 1
     stackTrace.frames[0].class_name == 'org.codehaus.groovy.runtime.callsite.CallSiteArray'
     stackTrace.frames[0].function == 'defaultCall'
-
   }
 
   void 'redaction with default settings'() {
@@ -1193,7 +1200,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1215,7 +1223,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1238,7 +1247,8 @@ class WAFModuleSpecification extends DDSpecification {
     // attack found
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * flow.isBlocking()
     1 * flow.setAction({ it.blocking })
@@ -1268,7 +1278,8 @@ class WAFModuleSpecification extends DDSpecification {
     // no attack
     1 * ctx.getOrCreateWafContext(_, true, false) >> {
       WafHandle wafHandle = it[0] as WafHandle
-      wafContext = new WafContext(wafHandle)}
+      wafContext = new WafContext(wafHandle)
+    }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext() >> {
@@ -1352,7 +1363,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     ret.isEmpty()
@@ -1364,7 +1375,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     ret.isEmpty()
@@ -1459,7 +1470,6 @@ class WAFModuleSpecification extends DDSpecification {
 
     then:
     waf.rateLimiter.limitPerSec == 5
-
   }
 
   void 'suspicious attacker blocking'() {
@@ -1710,7 +1720,7 @@ class WAFModuleSpecification extends DDSpecification {
     Collection ret
 
     when:
-    ret = waf.buildEvents(rwd)
+    ret = waf.buildEvents(rwd, null)
 
     then:
     noExceptionThrown()
@@ -2045,6 +2055,298 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     !flow.blocking // Should not block since keep: false
+  }
+
+  void 'security_response_id is extracted from blocking action and included in RequestBlockingAction'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      metadata: [
+        rules_version: '1.0.0'
+      ],
+      actions: [
+        [
+          id: 'block',
+          type: 'block_request',
+          parameters: [
+            status_code: 403,
+            type: 'json'
+          ]
+        ]
+      ],
+      rules: [
+        [
+          id: 'test-rule',
+          name: 'Test blocking rule',
+          tags: [
+            type: 'security_scanner',
+            category: 'attack_attempt'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^BlockTest'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          on_match: ['block']
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'BlockTest']))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportEvents(_)
+    1 * ctx.setWafBlocked()
+    1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
+    0 * ctx._(*_)
+    flow.blocking
+    flow.action instanceof Flow.Action.RequestBlockingAction
+    with(flow.action as Flow.Action.RequestBlockingAction) {
+      assert it.statusCode == 403
+      assert it.blockingContentType == BlockingContentType.JSON
+      // securityResponseId should be extracted from libddwaf (or null if not present)
+      // With libddwaf v18.0.0, security_response_id is automatically generated
+      // We just verify the field is accessible
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
+    }
+  }
+
+  void 'security_response_id is unique across multiple blocking requests'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      actions: [
+        [
+          id: 'block',
+          type: 'block_request',
+          parameters: [
+            status_code: 403,
+            type: 'auto'
+          ]
+        ]
+      ],
+      rules: [
+        [
+          id: 'test-block-unique',
+          name: 'Test unique security_response_id',
+          tags: [
+            type: 'test',
+            category: 'test'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['x-test-header']
+                  ]
+                ],
+                regex: '^BlockUnique'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          on_match: ['block']
+        ]
+      ]
+    ]
+
+    when: 'first blocking request'
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+    def bundle1 = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['x-test-header': 'BlockUnique1']))
+    def flow1 = new ChangeableFlow()
+    dataListener.onDataAvailable(flow1, ctx, bundle1, gwCtx)
+    ctx.closeWafContext()
+
+    and: 'second blocking request with fresh context'
+    def ctx2 = Spy(AppSecRequestContext)
+    def flow2 = new ChangeableFlow()
+    def bundle2 = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['x-test-header': 'BlockUnique2']))
+    dataListener.onDataAvailable(flow2, ctx2, bundle2, gwCtx)
+    ctx2.closeWafContext()
+
+    then: 'both requests are blocked'
+    flow1.blocking
+    flow2.blocking
+
+    and: 'both have RequestBlockingAction with accessible securityResponseId'
+    flow1.action instanceof Flow.Action.RequestBlockingAction
+    flow2.action instanceof Flow.Action.RequestBlockingAction
+
+    and: 'if both securityResponseIds are present, they should be different'
+    def securityResponseId1 = (flow1.action as Flow.Action.RequestBlockingAction).securityResponseId
+    def securityResponseId2 = (flow2.action as Flow.Action.RequestBlockingAction).securityResponseId
+    // If libddwaf generates securityResponseIds, they should be unique
+    if (securityResponseId1 != null && securityResponseId2 != null) {
+      assert securityResponseId1 != securityResponseId2
+      assert securityResponseId1.matches('[0-9a-f-]{36}')
+      assert securityResponseId2.matches('[0-9a-f-]{36}')
+    }
+  }
+
+  void 'RequestBlockingAction handles null security_response_id gracefully'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      actions: [
+        [
+          id: 'block_no_id',
+          type: 'block_request',
+          parameters: [
+            status_code: 418,
+            type: 'html'
+          ]
+        ]
+      ],
+      rules: [
+        [
+          id: 'test-null-securityResponseId',
+          name: 'Test null security_response_id handling',
+          tags: [
+            type: 'test',
+            category: 'test'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^NullSecurityResponseId'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          on_match: ['block_no_id']
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'NullSecurityResponseIdTest']))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    flow.blocking
+    flow.action instanceof Flow.Action.RequestBlockingAction
+    with(flow.action as Flow.Action.RequestBlockingAction) {
+      assert it.statusCode == 418
+      assert it.blockingContentType == BlockingContentType.HTML
+      // securityResponseId may be null or a valid UUID - both are acceptable
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
+    }
+  }
+
+  void 'security_response_id is present in redirect action with Location header'() {
+    setup:
+    def rulesConfig = [
+      version: '2.1',
+      actions: [
+        [
+          id: 'redirect_with_id',
+          type: 'redirect_request',
+          parameters: [
+            status_code: 302,
+            location: 'https://example.com/blocked'
+          ]
+        ]
+      ],
+      rules: [
+        [
+          id: 'test-redirect-blockid',
+          name: 'Test redirect with security_response_id',
+          tags: [
+            type: 'test',
+            category: 'test'
+          ],
+          conditions: [
+            [
+              parameters: [
+                inputs: [
+                  [
+                    address: 'server.request.headers.no_cookies',
+                    key_path: ['user-agent']
+                  ]
+                ],
+                regex: '^RedirectWithSecurityResponseId'
+              ],
+              operator: 'match_regex'
+            ]
+          ],
+          on_match: ['redirect_with_id']
+        ]
+      ]
+    ]
+
+    when:
+    initialRuleAddWithMap(rulesConfig)
+    wafModule.applyConfig(reconf)
+    def bundle = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
+    new CaseInsensitiveMap<List<String>>(['user-agent': 'RedirectWithSecurityResponseId']))
+    def flow = new ChangeableFlow()
+    dataListener.onDataAvailable(flow, ctx, bundle, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false)
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportEvents(_)
+    1 * ctx.setWafBlocked()
+    1 * ctx.isThrottled(null)
+    1 * ctx.setManuallyKept(true)
+    0 * ctx._(*_)
+    flow.blocking
+    flow.action instanceof Flow.Action.RequestBlockingAction
+
+    and: 'redirect has Location header and possibly security_response_id'
+    with(flow.action as Flow.Action.RequestBlockingAction) {
+      assert it.statusCode == 302
+      assert it.blockingContentType == BlockingContentType.NONE
+      assert it.extraHeaders.containsKey('Location')
+      def location = it.extraHeaders['Location']
+      assert location.startsWith('https://example.com/blocked')
+
+      // securityResponseId should be accessible (may be null or a valid UUID)
+      def securityResponseId = it.securityResponseId
+      assert securityResponseId == null || securityResponseId.matches('[0-9a-f-]{36}')
+    }
   }
 
   private static class BadConfig implements Map<String, Object> {

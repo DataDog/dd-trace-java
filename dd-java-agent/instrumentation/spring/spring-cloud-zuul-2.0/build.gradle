@@ -20,7 +20,6 @@ tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 17, JavaVersion.VERSION_1_8)
   doFirst {
     println it.javaCompiler.get().executablePath
-
   }
 }
 
@@ -35,9 +34,7 @@ dependencies {
 
   // These two are used need for spans to propagate correctly:
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
-  testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
-
-  testImplementation group: 'org.spockframework', name: 'spock-spring', version: libs.versions.spock.get()
+  testImplementation project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8')
 
   // These two version sets are compatible together:
   testImplementation enforcedPlatform('org.springframework.boot:spring-boot-dependencies:2.3.5.RELEASE') {
@@ -64,4 +61,6 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web'
   testImplementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-netflix-zuul'
   testImplementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind'
+
+  testImplementation(libs.spock.spring)
 }

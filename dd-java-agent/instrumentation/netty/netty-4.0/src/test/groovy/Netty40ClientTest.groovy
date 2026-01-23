@@ -156,10 +156,8 @@ abstract class Netty40ClientTest extends HttpClientTest {
 
 @Timeout(5)
 class Netty40ClientV0ForkedTest extends Netty40ClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
-
 }
 
 @Timeout(5)
 class Netty40ClientV1ForkedTest extends Netty40ClientTest implements TestingNettyHttpNamingConventions.ClientV1 {
-
 }

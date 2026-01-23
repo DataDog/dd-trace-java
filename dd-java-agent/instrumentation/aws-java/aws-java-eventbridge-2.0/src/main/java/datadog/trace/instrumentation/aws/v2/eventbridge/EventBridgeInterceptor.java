@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
@@ -34,7 +35,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (!(context.request() instanceof PutEventsRequest)) {
+    if (!(context.request() instanceof PutEventsRequest)
+        || !Config.get().isEventbridgeInjectDatadogAttributeEnabled()) {
       return context.request();
     }
 

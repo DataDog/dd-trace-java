@@ -91,14 +91,44 @@ To run muzzle on your instrumentation, run:
 
 > [!WARNING]
 > Muzzle does _not_ run tests.
-> It checks that the types and methods used by the instrumentation are present in particular versions of libraries. 
-> It can be subverted with `MethodHandle` and reflection -- in other words, having the `muzzle` task passing is not enough 
+> It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
+> It can be subverted with `MethodHandle` and reflection -- in other words, having the `muzzle` task passing is not enough
 > to validate an instrumentation.
 
 By default, all the muzzle directives are checked against all the instrumentations included in a module.
-However, there can be situations in which it’s only needed to check one specific directive on an instrumentation.
+However, there can be situations in which it's only needed to check one specific directive on an instrumentation.
 At this point the instrumentation should override the method `muzzleDirective()` by returning the name of the directive to execute.
 
+### Identifying Breaking Changes with JApiCmp
+
+Before defining muzzle version ranges, you can use the JApiCmp plugin to compare different versions of a library and
+identify breaking API changes. This helps determine where to split version ranges in your muzzle directives.
+
+The `japicmp` task compares two versions of a Maven artifact and reports:
+- Removed classes and methods (breaking changes)
+- Added classes and methods (non-breaking changes)
+- Modified methods with binary compatibility status
+
+#### Usage
+
+Compare two versions of any Maven artifact:
+
+```shell
+./gradlew japicmp -Partifact=groupId:artifactId -Pbaseline=oldVersion -Ptarget=newVersion
+```
+
+For example, to compare MongoDB driver versions:
+
+```shell
+./gradlew japicmp -Partifact=org.mongodb:mongodb-driver-sync -Pbaseline=3.11.0 -Ptarget=4.0.0
+```
+
+#### Output
+
+The task generates two reports:
+
+- **Text report**: `build/reports/japicmp.txt` - Detailed line-by-line comparison
+- **HTML report**: `build/reports/japicmp.html` - Browsable visual report
 
 ## Instrumentation classes
 
@@ -685,10 +715,39 @@ finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61
 
 ## Naming
 
+### Gradle Module Names
+
+Instrumentation Gradle modules must follow these naming conventions (enforced by the `dd-trace-java.instrumentation-naming` plugin):
+
+1. **Version or Suffix Requirement**: Module names must end with either:
+   - A version number (e.g., `2.0`, `3.1`, `3.1.0`)
+   - A configured suffix (i.e.: `-common` for shared classes, or product dependent like `-iast`)
+
+   Examples:
+   - `couchbase-2.0` ✓
+   - `couchbase-3.1.0` ✓
+   - `couchbase-common` ✓
+   - `couchbase` ✗ (missing version or suffix)
+
+2. **Parent Directory Name**: Module names must contain their parent directory name.
+
+   Examples:
+   - Parent: `couchbase`, Module: `couchbase-2.0` ✓ (contains couchbase)
+   - Parent: `couchbase`, Module: `couch-2.0` ✗ 
+
+3. **Exclusions**: Modules under `:dd-java-agent:instrumentation:datadog` are automatically excluded from these rules
+since they are not related to a third party library version. 
+They contain instrumentation modules related to internal datadog features, and they are classified by product.
+Examples are: `trace-annotation` (supporting the `tracing` product) or `enable-wallclock-profiling`.
+
+The naming rules can be checked when running `./gradlew checkInstrumentationNaming`.
+
+### Class and Package Names
+
 - Instrumentation names use kebab case. For example: `google-http-client`
 - Instrumentation module name and package name should be consistent.
-  For example, the instrumentation `google-http-client `contains the `GoogleHttpClientInstrumentation` class in the
-  package` datadog.trace.instrumentation.googlehttpclient.`
+  For example, the instrumentation `google-http-client` contains the `GoogleHttpClientInstrumentation` class in the
+  package `datadog.trace.instrumentation.googlehttpclient`.
 - As usual, class names should be nouns, in camel case with the first letter of each internal word capitalized.
   Use whole words-avoid acronyms and abbreviations (unless the abbreviation is much more widely used than the long form,
   such as URL or HTML).
@@ -733,11 +792,19 @@ Sometimes it is necessary to force Gradle to discard cached test results and [re
 ./gradle test --rerun-tasks
 ```
 
-Running tests that require JDK-21 will require the `JAVA_21_HOME` env var set and can be done like this:
+Running tests that require JDK-21 can use the `-PtestJvm=21` flag (if not installed, Gradle will provision them),
+for example:
 
 ```shell
 ./gradlew  :dd-java-agent:instrumentation:aerospike-4.0:allLatestDepTests -PtestJvm=21
 ```
+
+> [!TIP]
+> The `testJvm` property also accept a path to a JVM home. E.g.
+> 
+> ```shell
+> /gradlew  :dd-java-agent:instrumentation:an-insturmentation:test -PtestJvm=~/.local/share/mise/installs/java/openjdk-26.0.0-loom+1/
+> ```
 
 ### Latest Dependency Tests
 

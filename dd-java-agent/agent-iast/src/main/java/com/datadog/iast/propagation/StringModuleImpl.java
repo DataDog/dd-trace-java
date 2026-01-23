@@ -224,7 +224,6 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringSubSequence(
       @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
     if (self == result || !canBeTainted(result)) {
@@ -402,9 +401,8 @@ public class StringModuleImpl implements StringModule {
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
-    for (int i = 0; i < newRanges.length; i++) {
-      newRanges[i] = rangesSelf[i];
-    }
+    System.arraycopy(rangesSelf, 0, newRanges, 0, newRanges.length);
+
     if (null != adjustedRange) {
       newRanges[newRanges.length - 1] = adjustedRange;
     }
@@ -528,13 +526,13 @@ public class StringModuleImpl implements StringModule {
           final int parsedIndex = Integer.parseInt(index.substring(0, index.length() - 1)) - 1;
           // remove the index before the formatting without increment the current state
           parameter = parameters[parsedIndex];
-          formattedValue = String.format(locale, placeholder.replace(index, ""), parameter);
+          formattedValue = formatValue(locale, placeholder.replace(index, ""), parameter);
         } else {
           if (!checkParameterBounds(format, parameters, paramIndex)) {
             return; // return without tainting the string in case of error
           }
           parameter = parameters[paramIndex++];
-          formattedValue = String.format(locale, placeholder, parameter);
+          formattedValue = formatValue(locale, placeholder, parameter);
         }
         taintedObject = to.get(parameter);
       }
@@ -569,6 +567,30 @@ public class StringModuleImpl implements StringModule {
         parameters.length,
         paramIndex);
     return false;
+  }
+
+  /**
+   * Formats a value using String.format with telemtry report on IllegalFormatException.
+   *
+   * @param locale the locale to use for formatting
+   * @param placeholder the format placeholder (e.g., "%f", "%d")
+   * @param parameter the parameter to format
+   * @return the formatted value
+   */
+  private static String formatValue(
+      @Nullable final Locale locale, final String placeholder, final Object parameter) {
+    try {
+      return String.format(locale, placeholder, parameter);
+    } catch (final java.util.IllegalFormatException e) {
+      // Send telemetry to improve future bug fixes
+      LOG.debug(
+          SEND_TELEMETRY,
+          "Format conversion failed for placeholder {} with parameter type {}: {}",
+          placeholder,
+          parameter == null ? "null" : parameter.getClass().getName(),
+          e.getMessage());
+      throw e;
+    }
   }
 
   @Override
@@ -722,7 +744,6 @@ public class StringModuleImpl implements StringModule {
 
   /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public String onStringReplace(
       @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
     final IastContext ctx = IastContext.Provider.get();
@@ -805,7 +826,6 @@ public class StringModuleImpl implements StringModule {
   }
 
   @Override
-  @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringValueOf(Object param, @Nonnull String result) {
     if (param == null || !canBeTainted(result)) {
       return;

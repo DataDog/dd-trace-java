@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
+import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -17,7 +18,11 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.internals.RecordHeader
+import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.StringSerializer
+
+import java.nio.charset.StandardCharsets
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -217,6 +222,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def received = records.poll(10, TimeUnit.SECONDS)
     received.value() == greeting
     received.key() == null
+
+    // verify ClusterIdHolder was properly cleaned up after produce and consume
+    ClusterIdHolder.get() == null
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
     TEST_WRITER.waitForTraces(nTraces)
@@ -847,6 +855,36 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     value   | expected
     "false" | false
     "true"  | true
+  }
+
+  def "test producer extracts and uses existing trace context from record headers"() {
+    setup:
+    def senderProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps)
+
+    def existingTraceId = 1234567890123456L
+    def existingSpanId = 9876543210987654L
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-datadog-trace-id",
+      String.valueOf(existingTraceId).getBytes(StandardCharsets.UTF_8)))
+    headers.add(new RecordHeader("x-datadog-parent-id",
+      String.valueOf(existingSpanId).getBytes(StandardCharsets.UTF_8)))
+
+    when:
+    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-context-extraction", headers)
+    producer.send(record).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    // Verify the span used the extracted context as parent
+    producedSpan.traceId.toLong() == existingTraceId
+    producedSpan.parentId == existingSpanId
+    // Verify a new span was created (not reusing the extracted span ID)
+    producedSpan.spanId != existingSpanId
+
+    cleanup:
+    producer?.close()
   }
 
   def producerSpan(

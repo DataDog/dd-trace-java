@@ -1,0 +1,10 @@
+[
+  {
+    "flag": "numeric-one-of",
+    "variationType": "INTEGER",
+    "defaultValue": 0,
+    "result": {
+      "value": 0
+    }
+  }
+]

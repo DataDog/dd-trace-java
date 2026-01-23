@@ -41,7 +41,7 @@ public class CapturedEnvironment {
   private final Map<String, String> properties;
   private ProcessInfo processInfo;
 
-  CapturedEnvironment() {
+  private CapturedEnvironment() {
     properties = new HashMap<>();
     processInfo = new ProcessInfo();
     properties.put(GeneralConfig.SERVICE_NAME, autodetectServiceName());
