@@ -131,15 +131,11 @@ public abstract class UsmMessageImpl {
     public CloseConnectionUsmMessage(UsmConnection connection) {
       super(MessageType.CLOSE_CONNECTION, connection);
       log.debug("close socket:");
-      log.debug(
-          "src host: "
-              + connection.getSrcIP().toString()
-              + " src port: "
-              + connection.getSrcPort());
+      log.debug("src host: {} src port: {}", connection.getSrcIP(), connection.getSrcPort());
 
       InetAddress dstIP = connection.getDstIP();
       if (dstIP != null) {
-        log.debug("dst host: " + dstIP.toString() + " dst port: " + connection.getDstPort());
+        log.debug("dst host: {} dst port: {}", dstIP, connection.getDstPort());
       }
     }
 
