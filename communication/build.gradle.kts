@@ -9,7 +9,9 @@ description = "communication"
 
 apply(from = rootDir.resolve("gradle/java.gradle"))
 
-// Manually configure Java 11 source set like agent-bootstrap does
+// Manually configure Java 11 source set (like agent-bootstrap)
+// Cannot use tracerJava.addSourceSetFor because it creates circular dependencies
+// when Java 11 source set needs to see main source set classes
 sourceSets {
   create("main_java11") {
     java.srcDirs("${project.projectDir}/src/main/java11")
@@ -50,7 +52,7 @@ dependencies {
   api(libs.moshi)
   implementation(libs.dogstatsd)
 
-  // Java 11 source set needs access to main source set and project dependencies
+  // Java 11 source set needs access to main source set and dependencies
   "main_java11CompileOnly"(project(":internal-api"))
   "main_java11CompileOnly"(sourceSets["main"].output)
 

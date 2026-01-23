@@ -7,8 +7,11 @@ import java.io.OutputStream;
 import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * JDK HttpClient-based implementation of HttpRequestBody.
@@ -127,19 +130,154 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
 
   /**
    * Wraps a request body with gzip compression.
-   * Note: Actual gzip implementation deferred to Task 4.4.
    */
   public static JdkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
-    // For now, pass through without gzip
-    // Task 4.4 will implement proper gzip compression
-    return wrap(body);
+    Objects.requireNonNull(body, "body");
+
+    // Compress the body content
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try (GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
+      body.writeTo(gzipOut);
+    }
+    byte[] compressedBytes = baos.toByteArray();
+
+    HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofByteArray(compressedBytes);
+
+    HttpRequestBody gzipBody = new HttpRequestBody() {
+      @Override
+      public long contentLength() {
+        return compressedBytes.length;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        out.write(compressedBytes);
+      }
+    };
+
+    return new JdkHttpRequestBody(gzipBody, publisher);
   }
 
   /**
    * Creates a builder for multipart form data.
-   * Note: Multipart implementation deferred to Task 4.4.
    */
   public static HttpRequestBody.MultipartBuilder multipartBuilder() {
-    throw new UnsupportedOperationException("Multipart bodies not yet implemented for JDK HttpClient - Task 4.4");
+    return new JdkMultipartBuilder();
+  }
+
+  /**
+   * Multipart form data builder for JDK HttpClient.
+   * Implements RFC 7578 multipart/form-data format.
+   */
+  public static final class JdkMultipartBuilder implements HttpRequestBody.MultipartBuilder {
+
+    private static final String CRLF = "\r\n";
+    private final String boundary;
+    private final List<Part> parts = new ArrayList<>();
+
+    JdkMultipartBuilder() {
+      this.boundary = UUID.randomUUID().toString().replace("-", "");
+    }
+
+    @Override
+    public MultipartBuilder addFormDataPart(String name, String value) {
+      Objects.requireNonNull(name, "name");
+      Objects.requireNonNull(value, "value");
+      parts.add(new StringPart(name, value));
+      return this;
+    }
+
+    @Override
+    public MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body) {
+      Objects.requireNonNull(name, "name");
+      Objects.requireNonNull(filename, "filename");
+      Objects.requireNonNull(body, "body");
+      parts.add(new FilePart(name, filename, body));
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody build() {
+      try {
+        // Build multipart body according to RFC 7578
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        for (Part part : parts) {
+          baos.write(("--" + boundary + CRLF).getBytes(StandardCharsets.UTF_8));
+          part.writeTo(baos);
+          baos.write(CRLF.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // Final boundary
+        baos.write(("--" + boundary + "--" + CRLF).getBytes(StandardCharsets.UTF_8));
+
+        byte[] bodyBytes = baos.toByteArray();
+        HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofByteArray(bodyBytes);
+
+        HttpRequestBody multipartBody = new HttpRequestBody() {
+          @Override
+          public long contentLength() {
+            return bodyBytes.length;
+          }
+
+          @Override
+          public void writeTo(OutputStream out) throws IOException {
+            out.write(bodyBytes);
+          }
+        };
+
+        return new JdkHttpRequestBody(multipartBody, publisher);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to build multipart body", e);
+      }
+    }
+
+    /**
+     * Returns the Content-Type for this multipart body.
+     */
+    public String contentType() {
+      return "multipart/form-data; boundary=" + boundary;
+    }
+
+    private interface Part {
+      void writeTo(OutputStream out) throws IOException;
+    }
+
+    private static final class StringPart implements Part {
+      private final String name;
+      private final String value;
+
+      StringPart(String name, String value) {
+        this.name = name;
+        this.value = value;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        out.write(("Content-Disposition: form-data; name=\"" + name + "\"" + CRLF).getBytes(StandardCharsets.UTF_8));
+        out.write(CRLF.getBytes(StandardCharsets.UTF_8));
+        out.write(value.getBytes(StandardCharsets.UTF_8));
+      }
+    }
+
+    private static final class FilePart implements Part {
+      private final String name;
+      private final String filename;
+      private final HttpRequestBody body;
+
+      FilePart(String name, String filename, HttpRequestBody body) {
+        this.name = name;
+        this.filename = filename;
+        this.body = body;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        out.write(("Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"" + CRLF).getBytes(StandardCharsets.UTF_8));
+        out.write(("Content-Type: application/octet-stream" + CRLF).getBytes(StandardCharsets.UTF_8));
+        out.write(CRLF.getBytes(StandardCharsets.UTF_8));
+        body.writeTo(out);
+      }
+    }
   }
 }
