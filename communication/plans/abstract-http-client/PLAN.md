@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `4%`
+**Overall Progress:** `6%`
 
 ## Overview
 
@@ -66,25 +66,25 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 1.3: Create HttpResponse abstraction
 
-- [ ] 🟥 **Define HttpResponse interface**
-  - [ ] 🟥 Write test: HttpResponse interface contract tests
-  - [ ] 🟥 Implement: Create `datadog.communication.http.client.HttpResponse` interface
-    - [ ] 🟥 Method: `code()` returns int
-    - [ ] 🟥 Method: `isSuccessful()` returns boolean
-    - [ ] 🟥 Method: `header(String)` returns String
-    - [ ] 🟥 Method: `headers(String)` returns List<String>
-    - [ ] 🟥 Method: `body()` returns InputStream
-    - [ ] 🟥 Method: `close()` for resource cleanup
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpResponse*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Define HttpResponse interface**
+  - [x] 🟩 Write test: HttpResponse interface contract tests
+  - [x] 🟩 Implement: Create `datadog.communication.http.client.HttpResponse` interface
+    - [x] 🟩 Method: `code()` returns int
+    - [x] 🟩 Method: `isSuccessful()` returns boolean
+    - [x] 🟩 Method: `header(String)` returns String (case-insensitive)
+    - [x] 🟩 Method: `headers(String)` returns List<String> (case-insensitive)
+    - [x] 🟩 Method: `body()` returns InputStream
+    - [x] 🟩 Method: `close()` for resource cleanup
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpResponse*"`
+  - [x] 🟩 Update PLAN.md
 
-- [ ] 🟥 **Create HttpResponse implementations**
-  - [ ] 🟥 Write test: OkHttpResponse adapter tests
-  - [ ] 🟥 Implement: `datadog.communication.http.okhttp.OkHttpResponse` (wraps okhttp3.Response)
-  - [ ] 🟥 Write test: JdkHttpResponse adapter tests
-  - [ ] 🟥 Implement: `datadog.communication.http.jdk.JdkHttpResponse` (wraps HttpResponse<InputStream>)
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpResponse*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create HttpResponse implementations**
+  - [x] 🟩 Write test: OkHttpResponse adapter tests (9 tests covering all methods)
+  - [x] 🟩 Implement: `datadog.communication.http.okhttp.OkHttpResponse` (wraps okhttp3.Response)
+  - [ ] 🟥 Write test: JdkHttpResponse adapter tests (deferred to Phase 4)
+  - [ ] 🟥 Implement: `datadog.communication.http.jdk.JdkHttpResponse` (wraps HttpResponse<InputStream>) (deferred to Phase 4)
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpResponse*"`
+  - [x] 🟩 Update PLAN.md
 
 ### Task 1.4: Create HttpRequest abstraction
 
