@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `14%`
+**Overall Progress:** `16%`
 
 ## Overview
 
@@ -163,19 +163,21 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 2.3: Implementation selection logic
 
-- [ ] 🟥 **Create HttpClientFactory with configuration support**
-  - [ ] 🟥 Write test: Test Java version detection
-  - [ ] 🟥 Write test: Test configuration property parsing
-  - [ ] 🟥 Implement: `datadog.communication.http.client.HttpClientFactory`
-    - [ ] 🟥 Read system property `dd.http.client.implementation` (values: `auto`, `okhttp`, `jdk`)
-    - [ ] 🟥 If `auto` (default): Use `Platform.isJavaVersionAtLeast(11)` to select
-    - [ ] 🟥 If `okhttp`: Force OkHttp implementation
-    - [ ] 🟥 If `jdk`: Force JDK HttpClient (fail on Java < 11)
-    - [ ] 🟥 Return OkHttp builder for Java < 11 or when configured
-    - [ ] 🟥 Return JDK builder for Java >= 11 or when configured
-  - [ ] 🟥 Write test: Test forced implementation selection
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpClientFactory*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Create HttpClientFactory with configuration support**
+  - [x] 🟩 Write test: Test Java version detection (9 tests)
+  - [x] 🟩 Write test: Test configuration property parsing
+  - [x] 🟩 Implement: `datadog.communication.http.client.HttpClientFactory`
+    - [x] 🟩 Read system property `dd.http.client.implementation` (values: `auto`, `okhttp`, `jdk`)
+    - [x] 🟩 If `auto` (default): Use `JavaVirtualMachine.isJavaVersionAtLeast(11)` to select
+    - [x] 🟩 If `okhttp`: Force OkHttp implementation
+    - [x] 🟩 If `jdk`: Log warning, fallback to OkHttp (JDK client in Phase 4)
+    - [x] 🟩 Return OkHttp builder for Java < 11 or when configured
+    - [x] 🟩 Return OkHttp builder for now (JDK builder in Phase 4)
+  - [x] 🟩 Write test: Test forced implementation selection
+  - [x] 🟩 Write test: Test case-insensitive config, invalid values
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpClientFactory*"`
+  - [x] 🟩 Update PLAN.md
+  - [x] 🟩 Note: JDK HttpClient will be implemented in Phase 4, currently falls back to OkHttp
 
 ---
 
