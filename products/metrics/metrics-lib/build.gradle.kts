@@ -1,5 +1,8 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   `java-library`
+  id("com.gradleup.shadow")
 }
 
 description = "StatsD client"
@@ -18,6 +21,15 @@ dependencies {
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
   testImplementation(group = "com.google.protobuf", name = "protobuf-java", version = "3.14.0")
+}
+
+tasks.named<ShadowJar>("shadowJar") {
+  dependencies {
+    val deps = project.extra["deps"] as Map<*, *>
+    val excludeShared = deps["excludeShared"] as groovy.lang.Closure<*>
+    excludeShared.delegate = this
+    excludeShared.call()
+  }
 }
 
 val minimumBranchCoverage by extra(0.5)

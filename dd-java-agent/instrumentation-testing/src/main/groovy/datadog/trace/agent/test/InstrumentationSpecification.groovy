@@ -429,6 +429,12 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
     injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
+    // Enable health and perf metrics to trigger DDSketchHistograms loading
+    // Health metrics enables AgentMeter initialization with MonitoringImpl
+    // Perf metrics enables CoreTracer's traceWriteTimer creation
+    // This ensures Histograms.Factory is registered before DataStreams creates StatsGroup instances
+    injectSysConfig(GeneralConfig.HEALTH_METRICS_ENABLED, "true")
+    injectSysConfig(GeneralConfig.PERF_METRICS_ENABLED, "true")
   }
 
   void setup() {
