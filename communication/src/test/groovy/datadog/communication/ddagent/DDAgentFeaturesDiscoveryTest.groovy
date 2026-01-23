@@ -5,8 +5,8 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V04_ENDPOIN
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V05_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V07_CONFIG_ENDPOINT
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 import datadog.common.container.ContainerInfo
 import datadog.metrics.api.Monitoring

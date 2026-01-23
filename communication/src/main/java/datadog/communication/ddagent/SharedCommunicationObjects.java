@@ -5,7 +5,10 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpUrl;
+import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
@@ -17,8 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +34,13 @@ public class SharedCommunicationObjects {
    * use regular HTTP, UDS or named pipe.
    */
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public OkHttpClient agentHttpClient;
+  public HttpClient agentHttpClient;
 
   /**
    * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
    * this client is not configured to use UDS or named pipe.
    */
-  private volatile OkHttpClient intakeHttpClient;
+  private volatile HttpClient intakeHttpClient;
 
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public long httpClientTimeout;
@@ -87,8 +88,8 @@ public class SharedCommunicationObjects {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
       agentHttpClient =
-          OkHttpUtils.buildHttpClient(
-              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+          HttpUtils.buildHttpClient(
+              HttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
     }
   }
 
@@ -153,8 +154,16 @@ public class SharedCommunicationObjects {
       createRemaining(config);
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
+    // Unwrap HttpClient to get okhttp3.OkHttpClient for DefaultConfigurationPoller
+    okhttp3.OkHttpClient okHttpClient =
+        agentHttpClient instanceof OkHttpClient
+            ? ((OkHttpClient) agentHttpClient).unwrap()
+            : null;
+    if (okHttpClient == null) {
+      throw new IllegalStateException("agentHttpClient must be OkHttpClient implementation");
+    }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, okHttpClient);
   }
 
   // for testing
@@ -234,8 +243,8 @@ public class SharedCommunicationObjects {
     }
   }
 
-  public OkHttpClient getIntakeHttpClient() {
-    OkHttpClient client = this.intakeHttpClient;
+  public HttpClient getIntakeHttpClient() {
+    HttpClient client = this.intakeHttpClient;
     if (client != null) {
       return client;
     }
@@ -243,7 +252,7 @@ public class SharedCommunicationObjects {
     synchronized (this) {
       if (this.intakeHttpClient == null) {
         this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(
+            HttpUtils.buildHttpClient(
                 forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
       }
       return this.intakeHttpClient;
