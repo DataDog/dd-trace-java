@@ -247,7 +247,7 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(
+  public void applyAdvices(
       ElementMatcher<? super MethodDescription> matcher,
       String adviceClass,
       String... additionalAdviceClasses) {
