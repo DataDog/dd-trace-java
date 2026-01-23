@@ -28,11 +28,8 @@ final class HttpUrlFactory {
   static HttpUrl parse(String url) {
     Objects.requireNonNull(url, "url");
 
-    // Determine which implementation to use based on HttpClientFactory
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpUrl not available");
-      }
+    // Use JDK HttpClient implementation if available
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         URI uri = new URI(url);
         // Use cached reflection to call JdkHttpUrl.wrap(uri)
@@ -58,10 +55,7 @@ final class HttpUrlFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpUrl.Builder newBuilder() {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpUrl builder not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to create JdkHttpUrl.JdkHttpUrlBuilder
         return (HttpUrl.Builder) JdkHttpClientSupport.JDK_URL_BUILDER_CONSTRUCTOR.newInstance();

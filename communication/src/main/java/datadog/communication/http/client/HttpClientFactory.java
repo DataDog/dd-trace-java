@@ -31,19 +31,8 @@ final class HttpClientFactory {
   private static final String OKHTTP = "okhttp";
   private static final String JDK = "jdk";
 
-  private static volatile boolean usingJdk = false;
-
   private HttpClientFactory() {
     // Utility class
-  }
-
-  /**
-   * Returns true if the factory is configured to use JDK HttpClient.
-   *
-   * @return true if using JDK, false if using OkHttp
-   */
-  static boolean isUsingJdkImplementation() {
-    return usingJdk;
   }
 
   /**
@@ -98,7 +87,6 @@ final class HttpClientFactory {
   }
 
   private static HttpClient.Builder createOkHttpBuilder() {
-    usingJdk = false;
     return new OkHttpClient.OkHttpClientBuilder();
   }
 
@@ -106,17 +94,14 @@ final class HttpClientFactory {
   private static HttpClient.Builder createJdkBuilder() {
     if (!JdkHttpClientSupport.isAvailable()) {
       log.warn("JDK HttpClient not available, falling back to OkHttp");
-      usingJdk = false;
       return new OkHttpClient.OkHttpClientBuilder();
     }
 
-    usingJdk = true;
     try {
       // Use cached reflection to instantiate JDK HttpClient builder
       return (HttpClient.Builder) JdkHttpClientSupport.JDK_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
     } catch (Exception e) {
       log.warn("Failed to instantiate JDK HttpClient builder, falling back to OkHttp", e);
-      usingJdk = false;
       return new OkHttpClient.OkHttpClientBuilder();
     }
   }

@@ -23,10 +23,7 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody of(String content) {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpRequestBody not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofString()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_STRING_METHOD.invoke(null, content);
@@ -46,10 +43,7 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody msgpack(List<ByteBuffer> buffers) {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpRequestBody not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofMsgpack()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_MSGPACK_METHOD.invoke(null, buffers);
@@ -69,10 +63,7 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody gzip(HttpRequestBody body) {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpRequestBody not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofGzip()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_GZIP_METHOD.invoke(null, body);
@@ -91,10 +82,7 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody.MultipartBuilder multipart() {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpRequestBody not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.multipartBuilder()
         return (HttpRequestBody.MultipartBuilder) JdkHttpClientSupport.JDK_BODY_MULTIPART_BUILDER_METHOD.invoke(null);
