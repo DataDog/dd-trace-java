@@ -374,6 +374,23 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
   - [ ] 🟥 Test: Fix failing tests
   - [x] ✅ Update PLAN.md
 
+### Task 5.9: Make OkHttpUtils generic and rename to HttpUtils
+
+**CRITICAL**: OkHttpUtils currently creates okhttp3 objects internally and then wraps them,
+which means it will ALWAYS use OkHttp even when JDK HttpClient is available. This task makes
+the implementation truly generic by using the factory pattern for dynamic client selection.
+
+- [ ] 🟥 **Refactor OkHttpUtils to use factories internally**
+  - [ ] 🟥 Implement: Replace `new okhttp3.OkHttpClient.Builder()` with `HttpClient.newBuilder()`
+  - [ ] 🟥 Implement: Replace `new Request.Builder()` with `HttpRequest.newBuilder()`
+  - [ ] 🟥 Implement: Ensure all internal code uses abstract types
+  - [ ] 🟥 Implement: Rename class from `OkHttpUtils` to `HttpUtils`
+  - [ ] 🟥 Implement: Update all references throughout codebase
+  - [ ] 🟥 Implement: Update imports in all dependent files
+  - [ ] 🟥 Test: Verify compilation succeeds
+  - [ ] 🟥 Test: Run `./gradlew :communication:test`
+  - [ ] 🟥 Update PLAN.md
+
 ---
 
 ## Phase 6: Update Dependent Modules

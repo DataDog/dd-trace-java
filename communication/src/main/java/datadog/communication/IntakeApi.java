@@ -1,7 +1,7 @@
 package datadog.communication;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpRequest;
 import datadog.communication.http.client.HttpRequestBody;
@@ -54,7 +54,7 @@ public class IntakeApi implements BackendApi {
       String uri,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
+      @Nullable HttpUtils.CustomListener requestListener,
       boolean requestCompression)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
@@ -68,7 +68,7 @@ public class IntakeApi implements BackendApi {
 
     if (requestListener != null) {
       // TODO: Add support for event listeners in abstract API
-      // requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
+      // requestBuilder.tag(HttpUtils.CustomListener.class, requestListener);
     }
 
     if (requestCompression) {
@@ -81,7 +81,7 @@ public class IntakeApi implements BackendApi {
 
     HttpRequest request = requestBuilder.build();
     try (HttpResponse response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
         InputStream responseBodyStream = response.body();

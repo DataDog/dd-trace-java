@@ -1,6 +1,6 @@
 package datadog.communication;
 
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.communication.http.client.HttpRequestBody;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
@@ -14,7 +14,7 @@ public interface BackendApi {
       String uri,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
+      @Nullable HttpUtils.CustomListener requestListener,
       boolean requestCompression)
       throws IOException;
 }

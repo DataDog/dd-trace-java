@@ -1,7 +1,7 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID;
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -11,7 +11,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpRequest;
 import datadog.communication.http.client.HttpResponse;
@@ -210,7 +210,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         HttpRequest request =
             HttpRequest.newBuilder()
                 .put(
-                    OkHttpUtils.msgpackRequestBodyOf(
+                    HttpUtils.msgpackRequestBodyOf(
                         singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                 .url(agentBaseUrl.resolve(candidate))
                 .build();
