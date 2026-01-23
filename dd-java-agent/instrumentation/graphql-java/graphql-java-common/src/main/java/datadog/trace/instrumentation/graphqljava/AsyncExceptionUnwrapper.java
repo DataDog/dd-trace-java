@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.graphqljava;
 import java.util.concurrent.CompletionException;
 
 public final class AsyncExceptionUnwrapper {
-  private static final int MAX_UNWRAP_DEPTH = 32;
 
   private AsyncExceptionUnwrapper() {}
 
