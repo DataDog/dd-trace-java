@@ -1,6 +1,6 @@
 # HTTP Client Abstraction Implementation Plan
 
-**Overall Progress:** `6%`
+**Overall Progress:** `8%`
 
 ## Overview
 
@@ -88,21 +88,24 @@ Refactor the `:communication` module to introduce an abstraction layer for HTTP 
 
 ### Task 1.4: Create HttpRequest abstraction
 
-- [ ] 🟥 **Define HttpRequest and Builder**
-  - [ ] 🟥 Write test: HttpRequest builder tests
-  - [ ] 🟥 Implement: Create `datadog.communication.http.client.HttpRequest` interface
-    - [ ] 🟥 Method: `url()` returns HttpUrl
-    - [ ] 🟥 Method: `method()` returns String
-    - [ ] 🟥 Method: `headers()` returns Map<String, List<String>>
-    - [ ] 🟥 Method: `body()` returns HttpRequestBody
-  - [ ] 🟥 Implement: Create `datadog.communication.http.client.HttpRequest.Builder`
-    - [ ] 🟥 Method: `url(HttpUrl)`, `url(String)`
-    - [ ] 🟥 Method: `get()`, `post(HttpRequestBody)`, `put(HttpRequestBody)`
-    - [ ] 🟥 Method: `header(String, String)`, `addHeader(String, String)`
-    - [ ] 🟥 Method: `tag(Class<T>, T)` for CustomListener support
-    - [ ] 🟥 Method: `build()` returns HttpRequest
-  - [ ] 🟥 Test: Run `./gradlew :communication:test --tests "*HttpRequest*"`
-  - [ ] 🟥 Update PLAN.md
+- [x] 🟩 **Define HttpRequest and Builder**
+  - [x] 🟩 Write test: HttpRequest builder tests (11 tests)
+  - [x] 🟩 Implement: Create `datadog.communication.http.client.HttpRequest` interface
+    - [x] 🟩 Method: `url()` returns HttpUrl
+    - [x] 🟩 Method: `method()` returns String
+    - [x] 🟩 Method: `header(String)` returns String (single value)
+    - [x] 🟩 Method: `headers(String)` returns List<String> (all values)
+    - [x] 🟩 Method: `body()` returns HttpRequestBody
+    - [x] 🟩 Method: `tag(Class<T>)` returns T for metadata
+  - [x] 🟩 Implement: Create `datadog.communication.http.client.HttpRequest.Builder`
+    - [x] 🟩 Method: `url(HttpUrl)`, `url(String)`
+    - [x] 🟩 Method: `get()`, `post(HttpRequestBody)`, `put(HttpRequestBody)`
+    - [x] 🟩 Method: `header(String, String)` (replaces), `addHeader(String, String)` (appends)
+    - [x] 🟩 Method: `tag(Class<T>, T)` for CustomListener support
+    - [x] 🟩 Method: `build()` returns HttpRequest
+  - [x] 🟩 Implement: OkHttpRequest adapter and builder
+  - [x] 🟩 Test: Run `./gradlew :communication:test --tests "*HttpRequest*"`
+  - [x] 🟩 Update PLAN.md
 
 ### Task 1.5: Create HttpListener abstraction
 
