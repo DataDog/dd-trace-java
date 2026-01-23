@@ -51,7 +51,7 @@ final class CachedData {
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
 
-      // Metrics histogram implementation
+      // sketches-java used by dd-trace-core (DataStreams) and metrics
       exclude(dependency('com.datadoghq:sketches-java'))
 
       // javac plugin client

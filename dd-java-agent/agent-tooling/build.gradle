@@ -65,10 +65,7 @@ dependencies {
   api project(':dd-trace-core')
   implementation project(':dd-java-agent:agent-crashtracking')
   // Need metrics-lib for MonitoringImpl and DDAgentStatsDClientManager
-  // Exclude sketches-java since it's bundled in metrics-agent (metrics/ directory only)
-  implementation(project(':products:metrics:metrics-lib')) {
-    exclude group: 'com.datadoghq', module: 'sketches-java'
-  }
+  implementation project(':products:metrics:metrics-lib')
 
   main_java25Implementation project(':dd-trace-core')
 
