@@ -101,11 +101,11 @@ public void adviceTransformations(AdviceTransformation transformation) {
 
 ### Applying Multiple Advices (Advanced)
 
-If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvice()`:
+If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvices()`:
 
 ```java
 public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+    transformation.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),

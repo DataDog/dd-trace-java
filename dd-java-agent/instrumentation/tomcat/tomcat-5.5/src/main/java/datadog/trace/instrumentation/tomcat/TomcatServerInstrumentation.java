@@ -82,7 +82,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("service")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.coyote.Response"))),

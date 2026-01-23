@@ -288,12 +288,12 @@ public void adviceTransformations(AdviceTransformation transformation) {
 
 ### Applying Multiple Advice Classes
 
-The `applyAdvice` method supports applying multiple advice classes to the same method matcher using varargs. This is useful when you need to apply different advices for different target systems:
+The `applyAdvices` method supports applying multiple advice classes to the same method matcher using varargs. This is useful when you need to apply different advices for different target systems:
 
 ```java
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+    transformation.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -492,7 +492,7 @@ In the Tomcat instrumentation, we apply both context tracking and tracing advice
 ```java
 @Override
 public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+    transformation.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
