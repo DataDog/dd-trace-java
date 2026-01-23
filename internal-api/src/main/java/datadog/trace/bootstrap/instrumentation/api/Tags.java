@@ -174,4 +174,6 @@ public class Tags {
   public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
   public static final String LLMOBS_EMBEDDING_SPAN_KIND = "embedding";
   public static final String LLMOBS_RETRIEVAL_SPAN_KIND = "retrieval";
+  public static final String DSM_TRANSACTION_ID = "dsm.transaction.id";
+  public static final String DSM_TRANSACTION_CHECKPOINT = "dsm.transaction.checkpoint";
 }

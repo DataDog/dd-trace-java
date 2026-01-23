@@ -11,6 +11,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -68,8 +70,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return true;
   }
 
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
+
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+              request,
+              DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
