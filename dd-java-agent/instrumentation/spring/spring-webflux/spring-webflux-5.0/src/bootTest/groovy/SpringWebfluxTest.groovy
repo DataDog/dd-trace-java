@@ -58,11 +58,6 @@ class SpringWebfluxTest extends InstrumentationSpecification {
     false
   }
 
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"

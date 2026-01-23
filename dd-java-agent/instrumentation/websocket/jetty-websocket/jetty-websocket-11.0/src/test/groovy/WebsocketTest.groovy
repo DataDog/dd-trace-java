@@ -21,11 +21,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL
 
 class WebsocketTest extends InstrumentationSpecification {
 
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-  }
-
   def "test jetty advices with endpoint class #endpoint.class and message type #msgType"() {
     setup:
     def url = "ws://inmemory/test/param"
