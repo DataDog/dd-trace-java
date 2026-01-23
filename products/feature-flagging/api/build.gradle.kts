@@ -41,7 +41,7 @@ java {
 }
 
 dependencies {
-  api("dev.openfeature:sdk:1.18.2")
+  api("dev.openfeature:sdk:1.20.1")
 
   compileOnly(project(":products:feature-flagging:bootstrap"))
 
