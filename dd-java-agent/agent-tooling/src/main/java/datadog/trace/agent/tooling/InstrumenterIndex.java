@@ -363,14 +363,10 @@ final class InstrumenterIndex {
     return (flags & 1) != 0;
   }
 
-  static short encodeTargetSystems(final Set<InstrumenterModule.TargetSystem> targetSystems) {
-    short i = 1;
+  static short encodeTargetSystems(Set<InstrumenterModule.TargetSystem> targetSystems) {
     short ret = 0;
-    for (InstrumenterModule.TargetSystem targetSystem : InstrumenterModule.TargetSystem.values()) {
-      if (targetSystems.contains(targetSystem)) {
-        ret += i;
-      }
-      i <<= 1;
+    for (InstrumenterModule.TargetSystem ts : targetSystems) {
+      ret |= (short) (1 << ts.ordinal());
     }
     return ret;
   }
