@@ -13,4 +13,3 @@ kind: mergegate # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/4948100
 rules:
   - require: labels
   - require: commit-signatures
-  - require: reviewers-approval
