@@ -2,6 +2,29 @@
 
 This guide covers the fundamentals of working with Gradle in this project. Understanding these concepts will help you navigate the build system and contribute effectively.
 
+## Quick Reference
+
+**Core Concepts:**
+- [Gradle Files](#what-are-gradle-files) — Groovy vs Kotlin DSL
+- [Build Lifecycle](#gradle-build-lifecycle) — Initialization → Configuration → Execution phases
+- [Tasks](#gradle-tasks) — Lifecycle tasks, inputs/outputs, lazy configuration
+- [Configurations](#gradle-configurations) — Understadning their relations and their role; `api` vs `implementation`
+- [Dependencies](#dependencies) — Use single GAV strings, exclusions, resolution strategies, locking
+- [Convention Plugins](#convention-plugins) — Project and settings plugins in our build logic `buildSrc/`
+- [Lazy API](#gradle-lazy-api) — Use `named()`, `register()`, `configureEach()` for performance
+
+**dd-trace-java Specifics:**
+- [Custom Extensions](#useful-dd-trace-java-extensions) — `testJvmConstraints`, `tracerJava`, CI slots, git change tracking
+- [Script Plugins](#script-plugins) — Standalone `.gradle` files (deprecated, ongoing effort migrate those to convention plugins)
+- [Our Daemon JVM](#gradle-daemon-jvm) — Configuring the JVM that runs Gradle
+
+**Troubleshooting:**
+- [Build Scans & Diagnostics](#troubleshooting) — Develocity, `--info`, `--scan`, critical path analysis
+- [Configuration Cache](#configuration-cache-issues) — Common violations and fixes
+
+> [!TIP]
+> First time with Gradle? Start with [Gradle Files](#what-are-gradle-files), [Build Lifecycle](#gradle-build-lifecycle), and [Tasks](#gradle-tasks).
+
 ## What are Gradle Files?
 
 Gradle builds are defined through a set of build scripts. These scripts can be written in two Domain Specific Languages (DSLs): **Groovy DSL** and **Kotlin DSL**.
@@ -9,6 +32,9 @@ Gradle builds are defined through a set of build scripts. These scripts can be w
 ### Groovy DSL
 
 The original Gradle DSL uses Groovy syntax. Files use the `.gradle` extension.
+
+Avoid Groovy DSL if you can, small project, however since the project still rely 
+heaviliy on _script plugins_ written in Groovy, this is not always straighforward to use Kotlin DSL.
 
 ```Gradle
 plugins {
@@ -1089,6 +1115,9 @@ dependencyResolutionManagement {
 
 ## Script Plugins
 
+> [!WARNING]
+> ❌ Don't create new ones. **Script plugins are deprecated.** Gradle 9 documentation no longer mentions them as a recommended practice. They bring several issues.
+
 Script plugins are standalone `.gradle` or `.gradle.kts` files that can be applied using the `apply from:` syntax. In this project, they are located in the `gradle/` directory.
 
 ```Gradle Kotlin DSL
@@ -1096,15 +1125,15 @@ Script plugins are standalone `.gradle` or `.gradle.kts` files that can be appli
 apply(from = "$rootDir/gradle/some-script.gradle")
 ```
 
-> [!WARNING]
-> **Script plugins are deprecated.** Gradle 9 documentation no longer mentions them as a recommended practice. They bring several issues:
->
-> - **No type safety**: When written in Groovy DSL, you lose IDE support and compile-time checking
-> - **Mixed DSL confusion**: Projects often end up with a mix of Groovy and Kotlin scripts
-> - **Poor discoverability**: Applied scripts are harder to trace than plugin IDs
-> - **No caching**: Script plugins are re-evaluated on every build
->
-> **Migrate to convention plugins** in `buildSrc/` or an included build (like `build-logic/`) for better maintainability and performance.
+As warned, don't wrtite new ones, use convention plugins instead !
+
+- **No type safety**: When written in Groovy DSL, you lose IDE support and compile-time checking
+- **Mixed DSL confusion**: Projects often end up with a mix of Groovy and Kotlin scripts
+- **Poor discoverability**: Applied scripts are harder to trace than plugin IDs
+- **No caching**: Script plugins are re-evaluated on every build
+
+There's an ongoing effort to **migrate all of them to convention plugins** for better 
+maintainability and performance.
 
 ## Gradle Lazy API
 
