@@ -1,5 +1,6 @@
 package datadog.communication.http;
 
+import datadog.communication.http.client.HttpResponse;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ConnectException;
@@ -64,24 +65,24 @@ public class HttpRetryPolicy implements AutoCloseable {
 
   public boolean shouldRetry(Exception e) {
     if (e instanceof ConnectException) {
-      return shouldRetry((okhttp3.Response) null);
+      return shouldRetry((HttpResponse) null);
     }
     if (e instanceof InterruptedIOException) {
       if (suppressInterrupts) {
-        return shouldRetry((okhttp3.Response) null);
+        return shouldRetry((HttpResponse) null);
       }
     }
     if (e instanceof InterruptedException) {
       if (suppressInterrupts) {
         // remember interrupted status to restore the thread's interrupted flag later
         interrupted = true;
-        return shouldRetry((okhttp3.Response) null);
+        return shouldRetry((HttpResponse) null);
       }
     }
     return false;
   }
 
-  public boolean shouldRetry(@Nullable okhttp3.Response response) {
+  public boolean shouldRetry(@Nullable HttpResponse response) {
     if (retriesLeft == 0) {
       return false;
     }
@@ -113,7 +114,7 @@ public class HttpRetryPolicy implements AutoCloseable {
     }
   }
 
-  private long getRateLimitResetTime(okhttp3.Response response) {
+  private long getRateLimitResetTime(HttpResponse response) {
     String rateLimitHeader = response.header(X_RATELIMIT_RESET_HTTP_HEADER);
     if (rateLimitHeader == null) {
       return RATE_LIMIT_RESET_TIME_UNDEFINED;

@@ -3,11 +3,11 @@ package datadog.communication;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
+import datadog.communication.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +27,7 @@ public class BackendApiFactory {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     if (intake.isAgentlessEnabled(config)) {
-      HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
+      HttpUrl agentlessUrl = HttpUrl.parse(intake.getAgentlessUrl(config));
       String apiKey = config.getApiKey();
       if (apiKey == null || apiKey.isEmpty()) {
         throw new FatalAgentMisconfigurationError(

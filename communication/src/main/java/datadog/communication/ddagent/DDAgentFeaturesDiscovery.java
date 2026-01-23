@@ -1,7 +1,7 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID;
+import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -11,23 +11,25 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpRequest;
+import datadog.communication.http.client.HttpResponse;
+import datadog.communication.http.client.HttpUrl;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +70,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
 
-  private final OkHttpClient client;
+  private final HttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
@@ -103,7 +105,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private volatile State discoveryState;
 
   public DDAgentFeaturesDiscovery(
-      OkHttpClient client,
+      HttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
@@ -151,16 +153,21 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      final Request.Builder requestBuilder =
-          new Request.Builder().url(agentBaseUrl.resolve("info").url());
+      HttpRequest.Builder requestBuilder =
+          HttpRequest.newBuilder().url(agentBaseUrl.resolve("info"));
       final String containerId = ContainerInfo.get().getContainerId();
       if (containerId != null) {
         requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
       }
-      try (Response response = client.newCall(requestBuilder.build()).execute()) {
+      HttpRequest request = requestBuilder.get().build();
+      try (HttpResponse response = client.execute(request)) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
-          fallback = !processInfoResponse(newState, response.body().string());
+          InputStream bodyStream = response.body();
+          byte[] bytes = new byte[8192];
+          int bytesRead = bodyStream.read(bytes);
+          String bodyString = bytesRead > 0 ? new String(bytes, 0, bytesRead) : "";
+          fallback = !processInfoResponse(newState, bodyString);
         }
       } catch (Throwable error) {
         errorQueryingEndpoint("info", error);
@@ -199,19 +206,19 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private String probeTracesEndpoint(State newState, String[] endpoints) {
     for (String candidate : endpoints) {
-      try (Response response =
-          client
-              .newCall(
-                  new Request.Builder()
-                      .put(
-                          OkHttpUtils.msgpackRequestBodyOf(
-                              singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .url(agentBaseUrl.resolve(candidate))
-                      .build())
-              .execute()) {
-        if (response.code() != 404) {
-          newState.state = response.header(DATADOG_AGENT_STATE);
-          return candidate;
+      try {
+        HttpRequest request =
+            HttpRequest.newBuilder()
+                .put(
+                    HttpUtils.msgpackRequestBodyOf(
+                        singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
+                .url(agentBaseUrl.resolve(candidate))
+                .build();
+        try (HttpResponse response = client.execute(request)) {
+          if (response.code() != 404) {
+            newState.state = response.header(DATADOG_AGENT_STATE);
+            return candidate;
+          }
         }
       } catch (Throwable e) {
         errorQueryingEndpoint(candidate, e);
@@ -220,7 +227,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return V03_ENDPOINT;
   }
 
-  private void processInfoResponseHeaders(Response response) {
+  private void processInfoResponseHeaders(HttpResponse response) {
     String newContainerTagsHash = response.header(DATADOG_CONTAINER_TAGS_HASH);
     if (newContainerTagsHash != null) {
       ContainerInfo containerInfo = ContainerInfo.get();

@@ -1,16 +1,17 @@
 package datadog.communication;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpRequest;
+import datadog.communication.http.client.HttpRequestBody;
+import datadog.communication.http.client.HttpResponse;
+import datadog.communication.http.client.HttpUrl;
 import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,14 +32,14 @@ public class IntakeApi implements BackendApi {
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final boolean responseCompression;
   private final HttpUrl hostUrl;
-  private final OkHttpClient httpClient;
+  private final HttpClient httpClient;
 
   public IntakeApi(
       HttpUrl hostUrl,
       String apiKey,
       String traceId,
       HttpRetryPolicy.Factory retryPolicyFactory,
-      OkHttpClient httpClient,
+      HttpClient httpClient,
       boolean responseCompression) {
     this.hostUrl = hostUrl;
     this.apiKey = apiKey;
@@ -51,14 +52,14 @@ public class IntakeApi implements BackendApi {
   @Override
   public <T> T post(
       String uri,
-      RequestBody requestBody,
+      HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
+      @Nullable HttpUtils.CustomListener requestListener,
       boolean requestCompression)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
-    Request.Builder requestBuilder =
-        new Request.Builder()
+    HttpRequest.Builder requestBuilder =
+        HttpRequest.newBuilder()
             .url(url)
             .post(requestBody)
             .addHeader(DD_API_KEY_HEADER, apiKey)
@@ -66,7 +67,8 @@ public class IntakeApi implements BackendApi {
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
 
     if (requestListener != null) {
-      requestBuilder.tag(OkHttpUtils.CustomListener.class, requestListener);
+      // TODO: Add support for event listeners in abstract API
+      // requestBuilder.tag(HttpUtils.CustomListener.class, requestListener);
     }
 
     if (requestCompression) {
@@ -77,12 +79,12 @@ public class IntakeApi implements BackendApi {
       requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
-    Request request = requestBuilder.build();
-    try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+    HttpRequest request = requestBuilder.build();
+    try (HttpResponse response =
+        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
-        InputStream responseBodyStream = response.body().byteStream();
+        InputStream responseBodyStream = response.body();
 
         String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
         if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
@@ -92,15 +94,25 @@ public class IntakeApi implements BackendApi {
 
         return responseParser.apply(responseBodyStream);
       } else {
+        String errorBody = "";
+        try {
+          InputStream errorStream = response.body();
+          if (errorStream != null) {
+            byte[] bytes = new byte[8192];
+            int read = errorStream.read(bytes);
+            if (read > 0) {
+              errorBody = new String(bytes, 0, read);
+            }
+          }
+        } catch (IOException e) {
+          // Ignore errors reading error body
+        }
         throw new IOException(
             "Request to "
                 + uri
                 + " returned error response "
                 + response.code()
-                + ": "
-                + response.message()
-                + "; "
-                + (response.body() != null ? response.body().string() : ""));
+                + (errorBody.isEmpty() ? "" : "; " + errorBody));
       }
     }
   }

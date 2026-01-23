@@ -1,5 +1,6 @@
 package datadog.communication.http
 
+import datadog.communication.http.okhttp.OkHttpResponse
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -17,7 +18,7 @@ class HttpRetryPolicyTest extends Specification {
 
     when:
     while (retry <= maxRetries) {
-      def shouldRetry = retryPolicy.shouldRetry((Response) null)
+      def shouldRetry = retryPolicy.shouldRetry(null)
       shouldRetries << shouldRetry
       if (shouldRetry) {
         backoffs << retryPolicy.getBackoffDelay()
@@ -55,7 +56,7 @@ class HttpRetryPolicyTest extends Specification {
 
     when:
     def retries = 0
-    while (retryPolicy.shouldRetry(response)) {
+    while (retryPolicy.shouldRetry(OkHttpResponse.wrap(response))) {
       retries++
     }
 

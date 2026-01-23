@@ -1,0 +1,1 @@
+I want to refactor the :communication module to introduce an abstraction of OkHttp. The goal is to be able to swap OkHttp by the JDK 11 http client when available. So I do no more want OkHttp API anywhere except in the communication module as an implementation.
