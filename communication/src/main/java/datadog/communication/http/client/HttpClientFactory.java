@@ -1,7 +1,6 @@
 package datadog.communication.http.client;
 
 import datadog.communication.http.okhttp.OkHttpClient;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.InstrumenterConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
@@ -26,8 +25,6 @@ final class HttpClientFactory {
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientFactory.class);
 
-  private static final String CONFIG_PROPERTY = "dd.http.client.implementation";
-  private static final String AUTO = "auto";
   private static final String OKHTTP = "okhttp";
   private static final String JDK = "jdk";
 
@@ -41,68 +38,38 @@ final class HttpClientFactory {
    *
    * @return a new Builder
    */
-  static HttpClient.Builder newBuilder() {
-    String implementation = getConfiguredImplementation();
-
-    switch (implementation.toLowerCase()) {
-      case OKHTTP:
-        log.debug("Using OkHttp client (configured: okhttp)");
-        return createOkHttpBuilder();
-
-      case JDK:
-        if (!JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-          log.warn("JDK HttpClient requires Java 11+, falling back to OkHttp");
-          return createOkHttpBuilder();
-        }
-        log.debug("Using JDK HttpClient (configured: jdk)");
-        return createJdkBuilder();
-
-      case AUTO:
-      default:
-        return selectImplementationAutomatically();
-    }
-  }
-
-  private static String getConfiguredImplementation() {
-    String value = InstrumenterConfig.get().getHttpClientImplementation();
-    if (value == null || value.trim().isEmpty()) {
-      return AUTO;
-    }
-    String normalized = value.trim().toLowerCase();
-    if (!normalized.equals(AUTO) && !normalized.equals(OKHTTP) && !normalized.equals(JDK)) {
-      log.warn("Invalid value for {}: '{}', defaulting to 'auto'", CONFIG_PROPERTY, value);
-      return AUTO;
-    }
-    return normalized;
-  }
-
-  private static HttpClient.Builder selectImplementationAutomatically() {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      log.debug("Java 11+ detected, using JDK HttpClient");
-      return createJdkBuilder();
-    } else {
-      log.debug("Java 8-10 detected, using OkHttp client");
-      return createOkHttpBuilder();
-    }
-  }
-
-  private static HttpClient.Builder createOkHttpBuilder() {
-    return new OkHttpClient.OkHttpClientBuilder();
-  }
-
   @SuppressForbidden // Dynamically load JDK11+ version
-  private static HttpClient.Builder createJdkBuilder() {
-    if (!JdkHttpClientSupport.isAvailable()) {
-      log.warn("JDK HttpClient not available, falling back to OkHttp");
+  static HttpClient.Builder newBuilder() {
+    String config = InstrumenterConfig.get().getHttpClientImplementation();
+    if (config != null) {
+      config = config.trim().toLowerCase();
+    }
+
+    // Force OkHttp if explicitly configured
+    if (OKHTTP.equals(config)) {
+      log.debug("Using OkHttp client (configured: okhttp)");
       return new OkHttpClient.OkHttpClientBuilder();
     }
 
-    try {
-      // Use cached reflection to instantiate JDK HttpClient builder
-      return (HttpClient.Builder) JdkHttpClientSupport.JDK_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
-    } catch (Exception e) {
-      log.warn("Failed to instantiate JDK HttpClient builder, falling back to OkHttp", e);
-      return new OkHttpClient.OkHttpClientBuilder();
+    // Try JDK HttpClient if available (auto mode or explicitly configured as jdk)
+    if (JdkHttpClientSupport.isAvailable()) {
+      if (JDK.equals(config)) {
+        log.debug("Using JDK HttpClient (configured: jdk)");
+      } else {
+        log.debug("Using JDK HttpClient (auto: Java 11+ detected)");
+      }
+
+      try {
+        return (HttpClient.Builder) JdkHttpClientSupport.JDK_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
+      } catch (Exception e) {
+        log.warn("Failed to instantiate JDK HttpClient builder, falling back to OkHttp", e);
+      }
+    } else if (JDK.equals(config)) {
+      log.warn("JDK HttpClient configured but not available (Java < 11), falling back to OkHttp");
     }
+
+    // Use OkHttp (fallback or auto on Java < 11)
+    log.debug("Using OkHttp client");
+    return new OkHttpClient.OkHttpClientBuilder();
   }
 }
