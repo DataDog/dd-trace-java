@@ -1,10 +1,12 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
 
-import static datadog.metrics.api.DDSketchHistograms.*;
-import static datadog.metrics.api.Utils.mergeTags;
+import static datadog.metrics.impl.DDSketchHistograms.*;
+import static datadog.metrics.impl.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.metrics.api.Histogram;
+import datadog.metrics.api.Recording;
 import datadog.metrics.statsd.StatsDClient;
 
 /**

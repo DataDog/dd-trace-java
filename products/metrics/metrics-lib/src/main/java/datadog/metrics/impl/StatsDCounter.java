@@ -1,7 +1,8 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
 
-import static datadog.metrics.api.Utils.mergeTags;
+import static datadog.metrics.impl.Utils.mergeTags;
 
+import datadog.metrics.api.Counter;
 import datadog.metrics.statsd.StatsDClient;
 
 public final class StatsDCounter implements Counter {

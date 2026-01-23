@@ -15,7 +15,9 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
+import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.statsd.StatsDClient
 import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
@@ -343,6 +345,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressForbidden
   void setupSpec() {
+    AgentMeter.registerIfAbsent(
+    STATS_D_CLIENT,
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS)
+    )
 
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
@@ -379,8 +385,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
 
-    TEST_TRACER =
-    Spy(
+    TEST_TRACER = Spy(
     CoreTracer.builder()
     .writer(TEST_WRITER)
     .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))

@@ -5,7 +5,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
-import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.statsd.StatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery

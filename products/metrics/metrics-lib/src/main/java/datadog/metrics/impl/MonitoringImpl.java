@@ -1,5 +1,8 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
 
+import datadog.metrics.api.Counter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
 import datadog.metrics.statsd.StatsDClient;
 import java.util.concurrent.TimeUnit;
 

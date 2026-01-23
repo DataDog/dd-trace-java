@@ -3,6 +3,7 @@ package datadog.metrics.api
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 

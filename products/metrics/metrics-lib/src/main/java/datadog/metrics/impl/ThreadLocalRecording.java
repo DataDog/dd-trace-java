@@ -1,4 +1,6 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
+
+import datadog.metrics.api.Recording;
 
 public class ThreadLocalRecording extends Recording {
 

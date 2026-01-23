@@ -1,6 +1,7 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
 
 import com.datadoghq.sketch.ddsketch.DDSketch;
+import datadog.metrics.api.Histogram;
 import java.nio.ByteBuffer;
 
 /** Wrapper around the DDSketch library so that it can be used in an instrumentation */
