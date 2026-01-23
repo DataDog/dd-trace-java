@@ -1,5 +1,7 @@
 package datadog.metrics.api
 
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.impl.ThreadLocalRecording
 import datadog.metrics.statsd.StatsDClient
 import org.junit.jupiter.api.Assertions
 import spock.lang.Specification

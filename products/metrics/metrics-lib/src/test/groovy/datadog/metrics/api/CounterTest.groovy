@@ -1,6 +1,6 @@
 package datadog.metrics.api
 
-
+import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.statsd.StatsDClient
 import spock.lang.Specification
 

@@ -8,7 +8,7 @@ import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.metrics.statsd.StatsDClient
-import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext

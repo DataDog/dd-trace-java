@@ -1,4 +1,4 @@
-package datadog.metrics.api;
+package datadog.metrics.impl;
 
 import java.util.Arrays;
 

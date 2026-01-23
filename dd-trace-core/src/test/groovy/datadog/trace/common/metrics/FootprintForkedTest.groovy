@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.WellKnownTags
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
@@ -24,6 +25,9 @@ class FootprintForkedTest extends DDSpecification {
 
   def "footprint less than 10MB"() {
     setup:
+    // Initialize metrics-lib histograms to register the DDSketch implementation
+    DDSketchHistograms.histograms()
+
     CountDownLatch latch = new CountDownLatch(1)
     ValidatingSink sink = new ValidatingSink(latch)
     DDAgentFeaturesDiscovery features = Stub(DDAgentFeaturesDiscovery) {

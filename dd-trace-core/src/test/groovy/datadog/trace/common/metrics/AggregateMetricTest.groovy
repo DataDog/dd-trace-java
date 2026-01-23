@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.metrics.agent.AgentMeter
-import datadog.metrics.api.MonitoringImpl
+import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.statsd.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
