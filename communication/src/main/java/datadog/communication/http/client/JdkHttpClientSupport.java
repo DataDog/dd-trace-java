@@ -1,12 +1,14 @@
 package datadog.communication.http.client;
 
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION_AUTO;
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION_JDK;
+
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.InstrumenterConfig;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,18 +134,9 @@ final class JdkHttpClientSupport {
    * Determines if JDK HttpClient should be loaded based on Java version and configuration.
    */
   private static boolean shouldLoadJdkHttpClient() {
-    // Check Java version first - JDK HttpClient requires Java 11+
-    if (!JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      return false;
-    }
-
-    // Check configuration - if user forces okhttp, don't load JDK classes
-    String implementation = InstrumenterConfig.get().getHttpClientImplementation();
-    if (implementation != null && "okhttp".equalsIgnoreCase(implementation.trim())) {
-      return false;
-    }
-
-    return true;
+    String config = InstrumenterConfig.get().getHttpClientImplementation();
+    return (HTTP_CLIENT_IMPLEMENTATION_JDK.equals(config) || HTTP_CLIENT_IMPLEMENTATION_AUTO.equals(config)) &&
+        JavaVirtualMachine.isJavaVersionAtLeast(11);
   }
 
   /**
