@@ -80,10 +80,10 @@ dependencies {
   implementation libs.moshi
   implementation libs.jctools
 
-  // Required for DataStream Monitoring product
-  implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
-
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
+
+  // sketches-java is shared
+  compileOnly group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor
@@ -91,6 +91,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation project(':remote-config:remote-config-core')
+  testImplementation project(':products:metrics:metrics-lib')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.17'

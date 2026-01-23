@@ -47,5 +47,7 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude(dependency("com.github.jnr::"))
     exclude(dependency("org.ow2.asm::"))
 
+    // sketches-java is in shared
+    exclude(dependency("com.datadoghq:sketches-java"))
   }
 }

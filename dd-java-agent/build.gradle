@@ -370,6 +370,7 @@ dependencies {
   sharedShadowInclude project(':products:metrics:metrics-api'), {
     transitive = false
   }
+  sharedShadowInclude group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
