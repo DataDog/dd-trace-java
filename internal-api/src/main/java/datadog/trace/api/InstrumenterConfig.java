@@ -32,6 +32,9 @@ import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_EN
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION;
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION_AUTO;
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION_JDK;
+import static datadog.trace.api.config.GeneralConfig.HTTP_CLIENT_IMPLEMENTATION_OKHTTP;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -367,7 +370,11 @@ public class InstrumenterConfig {
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
-    httpClientImplementation = configProvider.getString(HTTP_CLIENT_IMPLEMENTATION, "auto");
+    String httpClientImplementation = configProvider.getString(HTTP_CLIENT_IMPLEMENTATION, HTTP_CLIENT_IMPLEMENTATION_AUTO);
+    if (!HTTP_CLIENT_IMPLEMENTATION_JDK.equals(httpClientImplementation) && !HTTP_CLIENT_IMPLEMENTATION_OKHTTP.equals(httpClientImplementation)) {
+      httpClientImplementation = HTTP_CLIENT_IMPLEMENTATION_AUTO;
+    }
+    this.httpClientImplementation = httpClientImplementation;
   }
 
   public boolean isCodeOriginEnabled() {
@@ -810,6 +817,8 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
+        + ", httpClientImplementation='"
+        + httpClientImplementation
         + '}';
   }
 }
