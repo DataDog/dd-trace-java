@@ -15,6 +15,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -23,6 +24,7 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -128,6 +130,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (null != queueSpan) {
           queueSpan.finish();
         }
+
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .trackTransaction(
+                span,
+                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+                val.headers(),
+                DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);

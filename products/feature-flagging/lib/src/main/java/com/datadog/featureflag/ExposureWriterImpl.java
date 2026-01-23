@@ -6,6 +6,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -20,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import okhttp3.RequestBody;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,7 @@ public class ExposureWriterImpl implements ExposureWriter {
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
 
-  private final MpscBlockingConsumerArrayQueue<ExposureEvent> queue;
+  private final MessagePassingBlockingQueue<ExposureEvent> queue;
   private final Thread serializerThread;
 
   public ExposureWriterImpl(final SharedCommunicationObjects sco, final Config config) {
@@ -44,7 +45,7 @@ public class ExposureWriterImpl implements ExposureWriter {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config) {
-    this.queue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final Map<String, String> context = new HashMap<>(4);
     context.put("service", config.getServiceName() == null ? "unknown" : config.getServiceName());
     if (config.getEnv() != null) {
@@ -84,7 +85,7 @@ public class ExposureWriterImpl implements ExposureWriter {
   }
 
   private static class ExposureSerializingHandler implements Runnable {
-    private final MpscBlockingConsumerArrayQueue<ExposureEvent> queue;
+    private final MessagePassingBlockingQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
@@ -100,7 +101,7 @@ public class ExposureWriterImpl implements ExposureWriter {
 
     public ExposureSerializingHandler(
         final BackendApiFactory backendApiFactory,
-        final MpscBlockingConsumerArrayQueue<ExposureEvent> queue,
+        final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
         final Map<String, String> context,
