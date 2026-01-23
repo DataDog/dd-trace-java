@@ -28,7 +28,7 @@ final class HttpUrlFactory {
   static HttpUrl parse(String url) {
     Objects.requireNonNull(url, "url");
 
-    // Use JDK HttpClient implementation if available
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         URI uri = new URI(url);
@@ -37,15 +37,16 @@ final class HttpUrlFactory {
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException("Invalid URL: " + url, e);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create JDK HttpUrl", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      okhttp3.HttpUrl okHttpUrl = okhttp3.HttpUrl.parse(url);
-      if (okHttpUrl == null) {
-        throw new IllegalArgumentException("Invalid URL: " + url);
-      }
-      return OkHttpUrl.wrap(okHttpUrl);
     }
+
+    // Use OkHttp implementation (fallback or default)
+    okhttp3.HttpUrl okHttpUrl = okhttp3.HttpUrl.parse(url);
+    if (okHttpUrl == null) {
+      throw new IllegalArgumentException("Invalid URL: " + url);
+    }
+    return OkHttpUrl.wrap(okHttpUrl);
   }
 
   /**
@@ -55,15 +56,17 @@ final class HttpUrlFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpUrl.Builder newBuilder() {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to create JdkHttpUrl.JdkHttpUrlBuilder
         return (HttpUrl.Builder) JdkHttpClientSupport.JDK_URL_BUILDER_CONSTRUCTOR.newInstance();
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create JDK HttpUrl builder", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return new OkHttpUrl.OkHttpUrlBuilder();
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return new OkHttpUrl.OkHttpUrlBuilder();
   }
 }

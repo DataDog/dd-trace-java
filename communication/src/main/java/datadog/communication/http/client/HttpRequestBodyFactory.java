@@ -23,16 +23,18 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody of(String content) {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofString()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_STRING_METHOD.invoke(null, content);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create JDK request body", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return OkHttpRequestBody.ofString(content);
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return OkHttpRequestBody.ofString(content);
   }
 
   /**
@@ -43,16 +45,18 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody msgpack(List<ByteBuffer> buffers) {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofMsgpack()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_MSGPACK_METHOD.invoke(null, buffers);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create msgpack body", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return OkHttpRequestBody.ofMsgpack(buffers);
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return OkHttpRequestBody.ofMsgpack(buffers);
   }
 
   /**
@@ -63,16 +67,18 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody gzip(HttpRequestBody body) {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.ofGzip()
         return (HttpRequestBody) JdkHttpClientSupport.JDK_BODY_OF_GZIP_METHOD.invoke(null, body);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create gzip body", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return OkHttpRequestBody.ofGzip(body);
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return OkHttpRequestBody.ofGzip(body);
   }
 
   /**
@@ -82,15 +88,17 @@ final class HttpRequestBodyFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequestBody.MultipartBuilder multipart() {
+    // Try JDK HttpClient implementation if available
     if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to call JdkHttpRequestBody.multipartBuilder()
         return (HttpRequestBody.MultipartBuilder) JdkHttpClientSupport.JDK_BODY_MULTIPART_BUILDER_METHOD.invoke(null);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to create multipart builder", e);
+        // Fall through to OkHttp implementation
       }
-    } else {
-      return OkHttpRequestBody.multipartBuilder();
     }
+
+    // Use OkHttp implementation (fallback or default)
+    return OkHttpRequestBody.multipartBuilder();
   }
 }
