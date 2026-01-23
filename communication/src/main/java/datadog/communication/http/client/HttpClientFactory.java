@@ -3,6 +3,7 @@ package datadog.communication.http.client;
 import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.InstrumenterConfig;
+import java.lang.reflect.Constructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +31,19 @@ final class HttpClientFactory {
   private static final String OKHTTP = "okhttp";
   private static final String JDK = "jdk";
 
+  private static volatile boolean usingJdk = false;
+
   private HttpClientFactory() {
     // Utility class
+  }
+
+  /**
+   * Returns true if the factory is configured to use JDK HttpClient.
+   *
+   * @return true if using JDK, false if using OkHttp
+   */
+  static boolean isUsingJdkImplementation() {
+    return usingJdk;
   }
 
   /**
@@ -49,13 +61,12 @@ final class HttpClientFactory {
         return createOkHttpBuilder();
 
       case JDK:
-        log.debug("JDK HttpClient requested but not yet implemented, falling back to OkHttp");
-        // TODO Phase 4: Implement JDK HttpClient
-        // if (!JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-        //   throw new IllegalStateException("JDK HttpClient requires Java 11+");
-        // }
-        // return createJdkBuilder();
-        return createOkHttpBuilder();
+        if (!JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+          log.warn("JDK HttpClient requires Java 11+, falling back to OkHttp");
+          return createOkHttpBuilder();
+        }
+        log.debug("Using JDK HttpClient (configured: jdk)");
+        return createJdkBuilder();
 
       case AUTO:
       default:
@@ -78,11 +89,8 @@ final class HttpClientFactory {
 
   private static HttpClient.Builder selectImplementationAutomatically() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
-      log.debug("Java 11+ detected, but JDK HttpClient not yet implemented, using OkHttp");
-      // TODO Phase 4: Use JDK HttpClient on Java 11+
-      // log.debug("Java 11+ detected, using JDK HttpClient");
-      // return createJdkBuilder();
-      return createOkHttpBuilder();
+      log.debug("Java 11+ detected, using JDK HttpClient");
+      return createJdkBuilder();
     } else {
       log.debug("Java 8-10 detected, using OkHttp client");
       return createOkHttpBuilder();
@@ -90,11 +98,23 @@ final class HttpClientFactory {
   }
 
   private static HttpClient.Builder createOkHttpBuilder() {
+    usingJdk = false;
     return new OkHttpClient.OkHttpClientBuilder();
   }
 
-  // TODO Phase 4: Implement JDK HttpClient builder
-  // private static HttpClient.Builder createJdkBuilder() {
-  //   return new JdkHttpClient.JdkHttpClientBuilder();
-  // }
+  private static HttpClient.Builder createJdkBuilder() {
+    usingJdk = true;
+    try {
+      // Use reflection to load JDK HttpClient builder from java11 source set
+      Class<?> jdkClientClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient");
+      Class<?> builderClass = Class.forName("datadog.communication.http.jdk.JdkHttpClient$JdkHttpClientBuilder");
+      Constructor<?> constructor = builderClass.getDeclaredConstructor();
+      constructor.setAccessible(true);
+      return (HttpClient.Builder) constructor.newInstance();
+    } catch (Exception e) {
+      log.warn("Failed to load JDK HttpClient implementation, falling back to OkHttp", e);
+      usingJdk = false;
+      return new OkHttpClient.OkHttpClientBuilder();
+    }
+  }
 }
