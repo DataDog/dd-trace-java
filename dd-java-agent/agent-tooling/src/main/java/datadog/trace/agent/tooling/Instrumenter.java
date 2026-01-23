@@ -113,6 +113,13 @@ public interface Instrumenter {
     void applyAdvice(
         ElementMatcher<? super MethodDescription> matcher,
         String adviceClass,
+        default void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+      applyAdvices(matcher, adviceClass, (String[]) null);
+    }
+
+    void applyAdvices(
+        ElementMatcher<? super MethodDescription> matcher,
+        String adviceClass,
         String... additionalAdviceClasses);
   }
 
