@@ -20,10 +20,7 @@ final class HttpRequestFactory {
    */
   @SuppressForbidden // Dynamically load JDK11+ version
   static HttpRequest.Builder newBuilder() {
-    if (HttpClientFactory.isUsingJdkImplementation()) {
-      if (!JdkHttpClientSupport.isAvailable()) {
-        throw new RuntimeException("JDK HttpRequest builder not available");
-      }
+    if (JdkHttpClientSupport.isAvailable()) {
       try {
         // Use cached reflection to create JdkHttpRequest.JdkHttpRequestBuilder
         return (HttpRequest.Builder) JdkHttpClientSupport.JDK_REQUEST_BUILDER_CONSTRUCTOR.newInstance();
