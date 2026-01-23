@@ -67,4 +67,9 @@ public class RestletDecorator
   protected int status(final HttpExchange exchange) {
     return exchange.getResponseCode();
   }
+
+  @Override
+  protected String getRequestHeader(final HttpExchange exchange, String key) {
+    return exchange.getRequestHeaders().getFirst(key);
+  }
 }

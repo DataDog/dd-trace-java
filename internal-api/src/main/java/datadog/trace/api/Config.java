@@ -357,6 +357,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
@@ -1228,6 +1229,7 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+  private final String dataStreamsTransactionExtractors;
 
   private final boolean serviceDiscoveryEnabled;
 
@@ -2751,6 +2753,8 @@ public class Config {
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
+    dataStreamsTransactionExtractors =
+        configProvider.getString(DATA_STREAMS_TRANSACTION_EXTRACTORS);
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
@@ -4597,6 +4601,10 @@ public class Config {
 
   public float getDataStreamsBucketDurationSeconds() {
     return dataStreamsBucketDurationSeconds;
+  }
+
+  public String getDataStreamsTransactionExtractors() {
+    return dataStreamsTransactionExtractors;
   }
 
   public long getDataStreamsBucketDurationNanoseconds() {

@@ -4,35 +4,65 @@
 # Check required JVM.
 #
 
-function check-jvm() {
-    local JAVA_HOME_NAME=$1
-    local EXPECTED_JAVA_VERSION=$2
-    if [ -z "${!JAVA_HOME_NAME}" ]; then
-        echo "❌ $JAVA_HOME_NAME is not set. Please set $JAVA_HOME_NAME to refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
-        exit 1
-    elif ! "${!JAVA_HOME_NAME}/bin/java" -version 2>&1 | grep -q "version \"$EXPECTED_JAVA_VERSION" ; then
-        echo "❌ $JAVA_HOME_NAME is set to ${!JAVA_HOME_NAME}, but it does not refer to a JDK $EXPECTED_JAVA_VERSION installation." >&2
-        exit 1
+function get-java-major-version() {
+    local JAVA_COMMAND=$1
+    local VERSION_STRING
+    VERSION_STRING=$("$JAVA_COMMAND" -version 2>&1 | grep version | head -n 1)
+
+    # Extract version number from output like 'version "21.0.1"' or 'version "1.8.0_392"'
+    if echo "$VERSION_STRING" | grep -q 'version "1\.'; then
+        # Old versioning scheme (Java 8 and earlier): 1.X.Y_Z -> major version is X
+        echo "$VERSION_STRING" | sed -n 's/.*version "1\.\([0-9]*\).*/\1/p'
     else
-        echo "✅ $JAVA_HOME_NAME is set to $(readlink -f "${!JAVA_HOME_NAME}")."
+        # New versioning scheme (Java 9+): X.Y.Z -> major version is X
+        echo "$VERSION_STRING" | sed -n 's/.*version "\([0-9]*\).*/\1/p'
     fi
 }
 
-function check-jvm-from-path() {
-    local EXPECTED_JAVA_VERSION=$1
-    if java -version 2>&1 | grep version | grep -q -v "version \"$EXPECTED_JAVA_VERSION"; then
-        echo "❌ The java command from path is not $EXPECTED_JAVA_VERSION. Please set JAVA_HOME environment varible to a JDK $EXPECTED_JAVA_VERSION." >&2
+function check-jdk() {
+    local JAVA_COMMAND=$1
+    local MIN_JAVA_VERSION=$2
+    local JAVA_VERSION
+    JAVA_VERSION=$(get-java-major-version "$JAVA_COMMAND")
+
+    if [ -z "$JAVA_VERSION" ]; then
+        echo "❌ Could not determine Java version from $JAVA_COMMAND." >&2
         exit 1
+    elif [ "$JAVA_VERSION" -lt "$MIN_JAVA_VERSION" ]; then
+        echo "🟨 $JAVA_COMMAND refers to JDK $JAVA_VERSION but JDK $MIN_JAVA_VERSION or above is recommended." >&2
+    else
+        echo "✅ $JAVA_COMMAND is set to JDK $JAVA_VERSION."
     fi
 }
 
-echo "ℹ️ Checking required JVM:"
+function show-available-jdks() {
+    ./gradlew -q javaToolchains | awk '
+        /^ \+ / {
+            # Extract JDK name from lines starting with " + "
+            jdk_name = substr($0, 4)
+        }
+        /^     \| Location:/ {
+            # Extract location and print with JDK name
+            sub(/^     \| Location: +/, "")
+            if (jdk_name != "") {
+                print "✅ " jdk_name " from " $0 "."
+                jdk_name = ""
+            }
+        }
+    '
+}
+
+echo "ℹ️ Checking JDK:"
 if [ -e "$JAVA_HOME" ]; then
-    check-jvm "JAVA_HOME" "21"
+    check-jdk "$JAVA_HOME/bin/java" "21"
 elif command -v java &> /dev/null; then
-    check-jvm-from-path "21"
+    check-jdk "java" "21"
+else
+    echo "❌ No Java installation found. Please install JDK 21 or above." >&2
+    exit 1
 fi
-echo "ℹ️ Other JDK versions will be automatically downloaded by Gradle toolchain resolver."
+echo "ℹ️ Checking other JDKs available for testing:"
+show-available-jdks
 
 
 #
