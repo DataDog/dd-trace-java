@@ -135,12 +135,12 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                                                            |
-|-----------------------|----------------------------------------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repository settings, plugin management                                          |
-| `build.gradle.kts`    | Project-specific build configuration                                                               |
-| `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration |
-| `gradle/`             | Version catalogs and wrapper files and script plugins                                              |
+| Location              | Purpose                                                                                                                                       |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                     |
+| `build.gradle.kts`    | Project-specific build configuration                                                                                                          |
+| `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration. It's possible to use different location(s) but it requires explicit declaration(s). |
+| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                         |
 
 > [!CAUTION]
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
@@ -642,8 +642,9 @@ tasks.register("generateCode") {
 | `dependencyScope(...)` | Declarable | Bucket for declaring dependencies                             |
 
 > [!TIP]
-> Prefer factory methods over manually setting `isCanBeResolved`/`isCanBeConsumed` flags. They make 
-> the configuration's purpose explicit and prevent accidental misconfiguration.
+> While it's not always possible, prefer factory methods over manually setting 
+> `isCanBeResolved`/`isCanBeConsumed` flags. They make the configuration's purpose
+> explicit and prevent accidental misconfiguration.
 
 ### Viewing Configurations
 
@@ -1027,7 +1028,7 @@ The root `build.gradle.kts` defines aggregate tasks that orchestrate testing acr
 
 ## Convention Plugins
 
-Convention plugins are the recommended way to share build logic across projects. They encapsulate
+Convention plugins are the recommended way to share _build logic_ across projects. They encapsulate
 common configuration patterns and can be applied like any other plugin.
 
 > [!TIP]
