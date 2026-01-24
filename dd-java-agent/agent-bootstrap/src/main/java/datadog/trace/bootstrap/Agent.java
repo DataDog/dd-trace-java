@@ -1481,9 +1481,12 @@ public class Agent {
     if (isDebugMode()) {
       logLevel = "DEBUG";
     } else {
-      logLevel = ddGetProperty("dd.log.level");
+      logLevel = ddGetProperty("dd.trace.log.level");
       if (null == logLevel) {
-        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        logLevel = ddGetProperty("dd.log.level");
+        if (null == logLevel) {
+          logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        }
       }
     }
 
