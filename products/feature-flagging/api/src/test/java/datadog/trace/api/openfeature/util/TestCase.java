@@ -1,20 +1,52 @@
 package datadog.trace.api.openfeature.util;
 
 import dev.openfeature.sdk.ErrorCode;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class TestCase<E> {
 
   public Class<E> type;
   public String flag;
   public E defaultValue;
-  public final MutableContext context = new MutableContext();
+  private final MutableContext baseContext = new MutableContext();
+  private String targetingKeyOverride;
+  private boolean hasTargetingKeyOverride = false;
   public Result<E> result;
+
+  // Custom context wrapper that preserves empty targeting key (OF.7 compliance)
+  public final EvaluationContext context = new EvaluationContext() {
+    @Override
+    public String getTargetingKey() {
+      return hasTargetingKeyOverride ? targetingKeyOverride : baseContext.getTargetingKey();
+    }
+
+    @Override
+    public Value getValue(String key) {
+      return baseContext.getValue(key);
+    }
+
+    @Override
+    public Set<String> keySet() {
+      return baseContext.keySet();
+    }
+
+    @Override
+    public Map<String, Value> asMap() {
+      return baseContext.asMap();
+    }
+
+    @Override
+    public Map<String, Object> asObjectMap() {
+      return baseContext.asObjectMap();
+    }
+  };
 
   @SuppressWarnings("unchecked")
   public TestCase(final E defaultValue) {
@@ -28,37 +60,39 @@ public class TestCase<E> {
   }
 
   public TestCase<E> targetingKey(final String targetingKey) {
-    context.setTargetingKey(targetingKey);
+    // Preserve the targeting key directly to support empty string (OF.7)
+    this.targetingKeyOverride = targetingKey;
+    this.hasTargetingKeyOverride = true;
     return this;
   }
 
   public TestCase<E> context(final String key, final String value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
   public TestCase<E> context(final String key, final Integer value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
   public TestCase<E> context(final String key, final Double value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
   public TestCase<E> context(final String key, final Boolean value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
   public TestCase<E> context(final String key, final Structure value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
   public TestCase<E> context(final String key, final List<Value> value) {
-    context.add(key, value);
+    baseContext.add(key, value);
     return this;
   }
 
