@@ -35,25 +35,24 @@ public class MeterInstaller {
   private static StatsDClient createStatsDClient(Config config) {
     if (!config.isHealthMetricsEnabled()) {
       return StatsDClient.NO_OP;
-    } else {
-      String host = config.getHealthMetricsStatsdHost();
-      if (host == null) {
-        host = config.getJmxFetchStatsdHost();
-      }
-      Integer port = config.getHealthMetricsStatsdPort();
-      if (port == null) {
-        port = config.getJmxFetchStatsdPort();
-      }
-
-      return statsDClientManager()
-          .statsDClient(
-              host,
-              port,
-              config.getDogStatsDNamedPipe(),
-              // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
-              "datadog:tracer".replace(':', '.'),
-              generateConstantTags(config));
     }
+    String host = config.getHealthMetricsStatsdHost();
+    if (host == null) {
+      host = config.getJmxFetchStatsdHost();
+    }
+    Integer port = config.getHealthMetricsStatsdPort();
+    if (port == null) {
+      port = config.getJmxFetchStatsdPort();
+    }
+
+    return statsDClientManager()
+        .statsDClient(
+            host,
+            port,
+            config.getDogStatsDNamedPipe(),
+            // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
+            "datadog:tracer".replace(':', '.'),
+            generateConstantTags(config));
   }
 
   private static String[] generateConstantTags(final Config config) {
