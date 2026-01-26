@@ -18,6 +18,11 @@ public class GraphQLUnwrapExceptionInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
+  public String muzzleDirective() {
+    return "graphql-java-common";
+  }
+
+  @Override
   public String instrumentedType() {
     return "graphql.execution.DataFetcherExceptionHandlerParameters";
   }
