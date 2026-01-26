@@ -95,8 +95,7 @@ public final class KnownTypesIndex {
     public void buildIndex() {
       log.debug("Generating KnownTypesIndex");
       InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
-      for (InstrumenterModule module :
-          instrumenterIndex.modules(InstrumenterModuleFilter.ALL_MODULES)) {
+      for (InstrumenterModule module : instrumenterIndex.modules()) {
         for (Instrumenter member : module.typeInstrumentations()) {
           int transformationId = instrumenterIndex.transformationId(member);
           if (member instanceof Instrumenter.ForSingleType) {

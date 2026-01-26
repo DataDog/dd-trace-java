@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.trace.agent.tooling.InstrumenterModuleFilter.ALL_MODULES;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.disjoint;
@@ -79,6 +80,10 @@ final class InstrumenterIndex {
     this.instrumentationCount = instrumentationCount;
     this.transformationCount = transformationCount;
     this.packedNames = packedNames;
+  }
+
+  public Iterable<InstrumenterModule> modules() {
+    return modules(ALL_MODULES);
   }
 
   public Iterable<InstrumenterModule> modules(final InstrumenterModuleFilter filter) {
