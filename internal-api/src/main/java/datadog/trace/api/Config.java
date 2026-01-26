@@ -357,6 +357,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
@@ -402,6 +403,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
@@ -1228,6 +1230,7 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+  private final String dataStreamsTransactionExtractors;
 
   private final boolean serviceDiscoveryEnabled;
 
@@ -2716,7 +2719,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    logLevel = configProvider.getString(LOG_LEVEL);
+    logLevel = configProvider.getString(TRACE_LOG_LEVEL, null, LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -2751,6 +2754,8 @@ public class Config {
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
+    dataStreamsTransactionExtractors =
+        configProvider.getString(DATA_STREAMS_TRANSACTION_EXTRACTORS);
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
@@ -4597,6 +4602,10 @@ public class Config {
 
   public float getDataStreamsBucketDurationSeconds() {
     return dataStreamsBucketDurationSeconds;
+  }
+
+  public String getDataStreamsTransactionExtractors() {
+    return dataStreamsTransactionExtractors;
   }
 
   public long getDataStreamsBucketDurationNanoseconds() {

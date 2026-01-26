@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createManual;
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.MAX_NUM_EXTRACTORS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -17,20 +18,31 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.datastreams.*;
+import datadog.trace.api.datastreams.Backlog;
+import datadog.trace.api.datastreams.DataStreamsContext;
+import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.InboxItem;
+import datadog.trace.api.datastreams.NoopPathwayContext;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
+import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -47,6 +59,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+  static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -69,6 +82,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+
+  // contains a list of active extractors by type. Thread-safe via volatile with immutable
+  // snapshots.
+  private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
+      extractorsByType;
 
   public DefaultDataStreamsMonitoring(
       Config config,
@@ -184,6 +202,38 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     serviceNameOverride.remove();
   }
 
+  @Override
+  public void trackTransaction(String transactionId, String checkpointName) {
+    inbox.offer(
+        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
+  }
+
+  @Override
+  public void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader) {
+    if (!supportsDataStreams || source == null || extractorsByType == null) {
+      return;
+    }
+
+    List<DataStreamsTransactionExtractor> extractorList = extractorsByType.get(extractorType);
+    if (extractorList == null) {
+      return;
+    }
+
+    for (DataStreamsTransactionExtractor extractor : extractorList) {
+      String transactionId = sourceReader.readHeader(source, extractor.getValue());
+      if (transactionId != null && !transactionId.isEmpty()) {
+        trackTransaction(transactionId, extractor.getName());
+
+        span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+        span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
+      }
+    }
+  }
+
   private static String getThreadServiceName() {
     return serviceNameOverride.get();
   }
@@ -215,6 +265,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
+  @Override
   public void trackBacklog(DataStreamsTags tags, long value) {
     inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
   }
@@ -337,6 +388,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
       agentSupportsDataStreams = features.supportsDataStreams();
       checkDynamicConfig();
+      // only load extractors on startup
+      updateExtractorsFromConfig();
 
       if (!configSupportsDataStreams) {
         log.debug("Data streams is disabled");
@@ -380,6 +433,17 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
               statsBucket.addBacklog(backlog);
+            } else if (payload instanceof TransactionInfo) {
+              TransactionInfo transactionInfo = (TransactionInfo) payload;
+              StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
+              statsBucket.addTransaction(transactionInfo);
+              // we want to force flush when the transaction payload gets too big
+              // with 512kb and approx 20 bytes per transaction we're looking at ~26k
+              // transaction/sec
+              // this should be enough for 99.9% of the users
+              if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
+                inbox.offer(REPORT);
+              }
             } else if (payload instanceof SchemaRegistryUsage) {
               SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
               StatsBucket statsBucket =
@@ -455,6 +519,34 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         break;
       default:
     }
+  }
+
+  /* updateExtractorsFromConfig can be called to update extractors at runtime */
+  private void updateExtractorsFromConfig() {
+    if (!supportsDataStreams) {
+      return;
+    }
+
+    List<DataStreamsTransactionExtractor> extractors =
+        traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+    if (extractors == null) {
+      return;
+    }
+
+    // Build a new immutable snapshot
+    Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> newMap =
+        new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
+
+    // we support up to MAX_NUM_EXTRACTORS
+    for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
+      DataStreamsTransactionExtractor extractor = extractors.get(i);
+      List<DataStreamsTransactionExtractor> list =
+          newMap.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
+      list.add(extractor);
+    }
+
+    extractorsByType = newMap;
+    log.debug("Added {} data streams transaction extractors", extractors.size());
   }
 
   private void checkDynamicConfig() {

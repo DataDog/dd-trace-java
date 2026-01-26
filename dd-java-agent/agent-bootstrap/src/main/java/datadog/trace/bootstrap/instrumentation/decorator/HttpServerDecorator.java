@@ -13,6 +13,8 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -95,6 +97,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   protected abstract int status(RESPONSE response);
 
+  protected String getRequestHeader(REQUEST request, String key) {
+    // This method was not marked as abstract in order to avoid changing all server instrumentation
+    // at once.
+    // Instead, only ones required (by DSM specifically) have it implemented.
+    // This can change in the future.
+    return null;
+  }
+
   protected String requestedSessionId(REQUEST request) {
     return null;
   }
@@ -173,6 +183,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     return span.start(extracted);
   }
+
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
 
   public AgentSpan onRequest(
       final AgentSpan span,
@@ -326,6 +340,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+            request,
+            DSM_TRANSACTION_SOURCE_READER);
     return span;
   }
 

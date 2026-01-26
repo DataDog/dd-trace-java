@@ -1089,6 +1089,14 @@
         "aliases": []
       }
     ],
+    "DD_DATA_STREAMS_TRANSACTION_EXTRACTORS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_DBM_INJECT_SQL_BASEHASH": [
       {
         "version": "A",
@@ -2201,12 +2209,12 @@
         "aliases": ["DD_LOGS_INJECTION"]
       }
     ],
-    "DD_LOG_LEVEL": [
+    "DD_TRACE_LOG_LEVEL": [
       {
-        "version": "B",
+        "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": ["DD_LOG_LEVEL"]
       }
     ],
     "DD_LOG_FORMAT_JSON": [
