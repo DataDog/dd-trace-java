@@ -11,5 +11,4 @@ branches:
 schema-version: v1
 kind: mergegate # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/4948100574/MergeGate
 rules:
-  - require: labels
   - require: commit-signatures
