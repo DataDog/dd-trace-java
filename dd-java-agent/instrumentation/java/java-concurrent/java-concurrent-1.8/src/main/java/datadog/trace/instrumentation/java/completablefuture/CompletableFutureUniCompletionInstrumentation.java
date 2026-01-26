@@ -3,18 +3,14 @@ package datadog.trace.instrumentation.java.completablefuture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +26,7 @@ import java.util.Map;
  * f.thenApplyAsync({ r -> ... })
  * }</pre>
  *
- * The general idea is to capture the current scope at the time of creation of the {@code
+ * <p>The general idea is to capture the current scope at the time of creation of the {@code
  * UniCompletion} and then activate that scope around the processing that happens in the {@code
  * tryFire} method.
  *
@@ -45,8 +41,7 @@ import java.util.Map;
  * continuation {@code ConcurrentContinuation}, have been introduced to deal with the benign race
  * taking place that decides which thread actually get to run the user code that was supplied.
  */
-@AutoService(InstrumenterModule.class)
-public class CompletableFutureUniCompletionInstrumentation extends InstrumenterModule.Tracing
+public class CompletableFutureUniCompletionInstrumentation
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForSingleType,
         Instrumenter.HasMethodAdvice,
@@ -56,18 +51,9 @@ public class CompletableFutureUniCompletionInstrumentation extends InstrumenterM
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";
   static final String ADVICE_BASE = JAVA_UTIL_CONCURRENT + ".CompletableFutureAdvice$";
 
-  public CompletableFutureUniCompletionInstrumentation() {
-    super("java_completablefuture", "java_concurrent");
-  }
-
   @Override
   public String instrumentedType() {
     return UNI_COMPLETION;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(UNI_COMPLETION, ConcurrentState.class.getName());
   }
 
   @Override
@@ -77,9 +63,6 @@ public class CompletableFutureUniCompletionInstrumentation extends InstrumenterM
 
   @Override
   public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
-    if (!isEnabled()) {
-      return Collections.emptyMap();
-    }
     String[] classes = {
       // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
       "java.util.concurrent.CompletableFuture$Completion",

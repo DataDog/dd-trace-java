@@ -7,13 +7,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -23,13 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * it can cause the trace to never be reported. Add matchers below to disable async propagation
  * during this period.
  */
-@AutoService(InstrumenterModule.class)
-public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
+public final class AsyncPropagatingDisableInstrumentation
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
-  public AsyncPropagatingDisableInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME);
-  }
 
   private static final ElementMatcher.Junction<TypeDescription> RX_WORKERS =
       nameStartsWith("rx.").and(extendsClass(named("rx.Scheduler$Worker")));
