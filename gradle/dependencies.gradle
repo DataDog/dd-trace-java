@@ -19,7 +19,7 @@ final class CachedData {
       exclude(project(':components:context'))
       exclude(project(':components:environment'))
       exclude(project(':components:json'))
-      exclude(project(':products:feature-flagging:bootstrap'))
+      exclude(project(':products:feature-flagging:feature-flagging-bootstrap'))
       exclude(project(':products:metrics:metrics-agent'))
       exclude(project(':products:metrics:metrics-api'))
       exclude(project(':products:metrics:metrics-lib'))

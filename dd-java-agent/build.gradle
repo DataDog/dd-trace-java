@@ -225,7 +225,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intak
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
 // Include metrics-lib directly (metrics-agent classes stay in bootstrap via agent-bootstrap)
 includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', includedJarFileTree)
-includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -359,7 +359,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
-  shadowInclude project(path: ':products:feature-flagging:bootstrap')
+  shadowInclude project(path: ':products:feature-flagging:feature-flagging-bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared

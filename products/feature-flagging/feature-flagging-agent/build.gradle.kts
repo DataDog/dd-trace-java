@@ -13,7 +13,7 @@ description = "Feature flagging agent system"
 
 dependencies {
   api(libs.slf4j)
-  api(project(":products:feature-flagging:lib"))
+  api(project(":products:feature-flagging:feature-flagging-lib"))
   api(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))
