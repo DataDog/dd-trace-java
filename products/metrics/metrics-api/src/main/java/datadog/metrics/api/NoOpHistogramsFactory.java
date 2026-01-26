@@ -1,6 +1,6 @@
 package datadog.metrics.api;
 
-final class NoOpHistograms implements Histograms {
+final class NoOpHistogramsFactory implements Histograms.Factory {
   @Override
   public Histogram newHistogram() {
     return NoOpHistogram.INSTANCE;

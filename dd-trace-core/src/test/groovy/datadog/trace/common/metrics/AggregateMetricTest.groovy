@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.metrics.agent.AgentMeter
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -23,7 +24,7 @@ class AggregateMetricTest extends DDSpecification {
   def setupSpec() {
     // Initialize AgentMeter with monitoring - this is the standard mechanism used in production
     def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
-    AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring)
+    AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY)
     // Create a timer to trigger DDSketchHistograms loading and Factory registration
     // This simulates what happens during CoreTracer initialization (traceWriteTimer)
     monitoring.newTimer("test.init")

@@ -1,39 +1,24 @@
 package datadog.metrics.api;
 
-public interface Histograms {
-  Histograms NO_OP = new NoOpHistograms();
-
-  Histogram newHistogram();
-
-  Histogram newLogHistogram();
-
-  Histogram newHistogram(double relativeAccuracy, int maxNumBins);
+public class Histograms {
+  static final Factory NO_OP = new NoOpHistogramsFactory();
+  static volatile Factory factory = NO_OP;
 
   /**
-   * Factory holder for the Histograms implementation. The implementation is registered at runtime
-   * by metrics-lib.
+   * Register a Histograms implementation. This is called by metrics-lib to provide the DDSketch
+   * implementation.
    */
-  final class Factory {
-    private static volatile Histograms instance = NO_OP;
-
-    /**
-     * Register a Histograms implementation. This is called by metrics-lib to provide the DDSketch
-     * implementation.
-     */
-    public static void register(Histograms histograms) {
-      if (histograms != null) {
-        instance = histograms;
-      }
+  public static void register(Factory histograms) {
+    if (histograms != null) {
+      Histograms.factory = histograms;
     }
+  }
 
-    /**
-     * Get the registered Histograms implementation. Returns NO_OP if no implementation has been
-     * registered.
-     */
-    public static Histograms get() {
-      return instance;
-    }
+  public interface Factory {
+    Histogram newHistogram();
 
-    private Factory() {}
+    Histogram newLogHistogram();
+
+    Histogram newHistogram(double relativeAccuracy, int maxNumBins);
   }
 }

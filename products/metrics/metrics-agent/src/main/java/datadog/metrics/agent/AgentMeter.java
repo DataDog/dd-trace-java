@@ -2,6 +2,7 @@ package datadog.metrics.agent;
 
 import static datadog.metrics.api.Monitoring.DISABLED;
 
+import datadog.metrics.api.Histograms;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.statsd.StatsDClient;
 
@@ -20,12 +21,13 @@ public class AgentMeter {
   }
 
   public static synchronized void registerIfAbsent(
-      StatsDClient statsDClient, Monitoring monitoring) {
+      StatsDClient statsDClient, Monitoring monitoring, Histograms.Factory historgramFactory) {
     if (statsDClient != null && AgentMeter.statsdClient == StatsDClient.NO_OP) {
       AgentMeter.statsdClient = statsDClient;
     }
     if (monitoring != null && monitoring != DISABLED) {
       AgentMeter.monitoring = monitoring;
     }
+    Histograms.register(historgramFactory);
   }
 }

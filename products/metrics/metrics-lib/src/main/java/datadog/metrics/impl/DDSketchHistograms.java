@@ -8,7 +8,7 @@ import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore;
 import datadog.metrics.api.Histogram;
 import datadog.metrics.api.Histograms;
 
-public final class DDSketchHistograms implements Histograms {
+public final class DDSketchHistograms implements Histograms.Factory {
   private static final BitwiseLinearlyInterpolatedMapping INDEX_MAPPING =
       new BitwiseLinearlyInterpolatedMapping(1.0 / 128.0);
   // use the same gamma and index offset as the Datadog backend, to avoid doing any conversions in
@@ -16,17 +16,7 @@ public final class DDSketchHistograms implements Histograms {
   // that would lead to a loss of precision
   private static final LogarithmicMapping LOG_INDEX_MAPPING =
       new LogarithmicMapping(1.015625, 1.8761281912861705);
-
-  private static final DDSketchHistograms INSTANCE = new DDSketchHistograms();
-
-  static {
-    // Register this implementation with the factory in metrics-api
-    Histograms.Factory.register(INSTANCE);
-  }
-
-  public static Histograms histograms() {
-    return INSTANCE;
-  }
+  public static final Histograms.Factory FACTORY = new DDSketchHistograms();
 
   private DDSketchHistograms() {}
 

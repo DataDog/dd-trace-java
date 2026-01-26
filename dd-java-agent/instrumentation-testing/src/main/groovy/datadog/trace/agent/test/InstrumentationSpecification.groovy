@@ -27,6 +27,7 @@ import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
 import datadog.instrument.classinject.ClassInjector
@@ -351,7 +352,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   void setupSpec() {
     AgentMeter.registerIfAbsent(
     STATS_D_CLIENT,
-    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS)
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
+    DDSketchHistograms.FACTORY
     )
 
     // If this fails, it's likely the result of another test loading Config before it can be

@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.statsd.StatsDClient;
+import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
@@ -28,7 +29,7 @@ public class MeterInstaller {
         config.isHealthMetricsEnabled()
             ? new MonitoringImpl(statsDClient, 10, SECONDS)
             : MonitoringImpl.DISABLED;
-    AgentMeter.registerIfAbsent(statsDClient, monitoring);
+    AgentMeter.registerIfAbsent(statsDClient, monitoring, DDSketchHistograms.FACTORY);
   }
 
   private static StatsDClient createStatsDClient(Config config) {

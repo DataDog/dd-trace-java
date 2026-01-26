@@ -21,4 +21,16 @@ public interface Histogram {
   void clear();
 
   ByteBuffer serialize();
+
+  static Histogram newHistogram() {
+    return Histograms.factory.newHistogram();
+  }
+
+  static Histogram newLogHistogram() {
+    return Histograms.factory.newLogHistogram();
+  }
+
+  static Histogram newHistogram(double relativeAccuracy, int maxNumBins) {
+    return Histograms.factory.newHistogram(relativeAccuracy, maxNumBins);
+  }
 }
