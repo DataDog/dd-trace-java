@@ -142,6 +142,6 @@ org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=jmhRuntimeClasspath,runtimeClasspath,testRuntimeClasspath,traceAgentTestRuntimeClasspath
 org.spockframework:spock-bom:2.4-groovy-3.0=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath,traceAgentTestCompileClasspath,traceAgentTestRuntimeClasspath
 org.spockframework:spock-core:2.4-groovy-3.0=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath,traceAgentTestCompileClasspath,traceAgentTestRuntimeClasspath
-org.testcontainers:testcontainers:1.21.3=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath,traceAgentTestCompileClasspath,traceAgentTestRuntimeClasspath
+org.testcontainers:testcontainers:1.21.4=jmhRuntimeClasspath,testCompileClasspath,testRuntimeClasspath,traceAgentTestCompileClasspath,traceAgentTestRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=annotationProcessor,jmhAnnotationProcessor,spotbugsPlugins

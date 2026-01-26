@@ -54,6 +54,7 @@ org.junit.jupiter:junit-jupiter:5.14.1=testCompileClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-commons:1.14.1=testCompileClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-engine:1.14.1=testCompileClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-launcher:1.14.1=testRuntimeClasspath
+org.junit:junit-bom:5.14.0=spotbugs
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-core:4.4.0=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-junit-jupiter:4.4.0=testCompileClasspath,testRuntimeClasspath
