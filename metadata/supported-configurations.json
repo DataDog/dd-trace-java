@@ -10733,7 +10733,7 @@
       {
         "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": ["DD_INTEGRATION_WEBSOCKET_ENABLED", "DD_TRACE_INTEGRATION_WEBSOCKET_ENABLED"]
       }
     ],
