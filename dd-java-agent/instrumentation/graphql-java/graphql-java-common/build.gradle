@@ -1,6 +1,7 @@
 
 muzzle {
   pass {
+    name = "graphql-java-common"
     group = "com.graphql-java"
     module = 'graphql-java'
     versions = '[14.0,)'

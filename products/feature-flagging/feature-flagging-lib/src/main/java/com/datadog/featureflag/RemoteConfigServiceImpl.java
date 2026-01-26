@@ -16,10 +16,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
+import java.time.OffsetDateTime;
 import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -76,9 +73,6 @@ public class RemoteConfigServiceImpl
 
   static class DateAdapter extends JsonAdapter<Date> {
 
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]'Z'").withZone(ZoneOffset.UTC);
-
     @Nullable
     @Override
     public Date fromJson(@Nonnull final JsonReader reader) throws IOException {
@@ -87,9 +81,10 @@ public class RemoteConfigServiceImpl
         return null;
       }
       try {
-        final TemporalAccessor temporalAccessor = DATE_TIME_FORMATTER.parse(date);
-        final Instant instant = Instant.from(temporalAccessor);
-        return Date.from(instant);
+        // Use OffsetDateTime which handles variable precision fractional seconds (0-9 digits)
+        // and UTC offsets (+01:00, -05:00, Z)
+        final OffsetDateTime odt = OffsetDateTime.parse(date);
+        return Date.from(odt.toInstant());
       } catch (Exception e) {
         // ignore wrongly set dates
         return null;
