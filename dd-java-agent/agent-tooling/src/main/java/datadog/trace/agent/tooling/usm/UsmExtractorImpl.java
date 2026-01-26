@@ -23,7 +23,8 @@ public class UsmExtractorImpl implements UsmExtractor {
     if (message.validate()) {
       BaseUsmMessage bm = (BaseUsmMessage) message;
 
-      log.debug(" sending ioctl: " + String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
+      log.debug(
+          " sending ioctl: {}", String.format("%08x", UsmMessageImpl.USM_IOCTL_ID.intValue()));
       NativeLong res =
           CLibrary.Instance.ioctl(
               new NativeLong(0),

@@ -597,8 +597,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final AgentSpanContext context = converter.toContext(referencedContext);
       if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
         log.debug(
-            "Expected to have a DDSpanContext or ExtractedContext but got "
-                + context.getClass().getName());
+            "Expected to have a DDSpanContext or ExtractedContext but got {}",
+            context.getClass().getName());
         return this;
       }
 

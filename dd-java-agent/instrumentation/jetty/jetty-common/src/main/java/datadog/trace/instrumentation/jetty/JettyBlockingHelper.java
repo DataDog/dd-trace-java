@@ -77,7 +77,7 @@ public class JettyBlockingHelper {
       isAsyncStartedMH =
           lookup().findVirtual(Request.class, "isAsyncStarted", methodType(boolean.class));
     } catch (NoSuchMethodException | IllegalAccessException e) {
-      log.debug("Could not find " + Request.class.getName() + "#isAsyncStarted()");
+      log.debug("Could not find {}#isAsyncStarted()", Request.class.getName());
 
       try {
         Class<?> asyncContinuationCls =

@@ -164,8 +164,8 @@ public class TraceProcessingWorker implements AutoCloseable {
         Thread.currentThread().interrupt();
       }
       log.debug(
-          "Datadog trace processor exited. Publishing traces stopped. Unpublished traces left: "
-              + !queuesAreEmpty());
+          "Datadog trace processor exited. Publishing traces stopped. Unpublished traces left: {}",
+          !queuesAreEmpty());
     }
 
     private void runDutyCycle() throws InterruptedException {
