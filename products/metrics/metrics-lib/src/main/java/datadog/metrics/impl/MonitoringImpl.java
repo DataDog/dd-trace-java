@@ -3,7 +3,7 @@ package datadog.metrics.impl;
 import datadog.metrics.api.Counter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
-import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 import java.util.concurrent.TimeUnit;
 
 public final class MonitoringImpl implements Monitoring {

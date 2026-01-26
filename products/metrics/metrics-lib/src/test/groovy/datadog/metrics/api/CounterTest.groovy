@@ -1,7 +1,7 @@
 package datadog.metrics.api
 
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import spock.lang.Specification
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS

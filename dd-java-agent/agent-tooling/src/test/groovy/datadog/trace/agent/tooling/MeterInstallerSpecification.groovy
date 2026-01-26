@@ -7,7 +7,7 @@ import static datadog.trace.api.config.GeneralConfig.VERSION
 
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 

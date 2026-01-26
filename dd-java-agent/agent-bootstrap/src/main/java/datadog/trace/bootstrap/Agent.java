@@ -23,7 +23,7 @@ import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
-import datadog.metrics.statsd.StatsDClientManager;
+import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.WithGlobalTracer;

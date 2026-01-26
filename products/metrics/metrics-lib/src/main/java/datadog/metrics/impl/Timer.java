@@ -7,7 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.metrics.api.Histogram;
 import datadog.metrics.api.Recording;
-import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 
 /**
  * A timer which records times in a histogram, and flushes stats from the histogram after a

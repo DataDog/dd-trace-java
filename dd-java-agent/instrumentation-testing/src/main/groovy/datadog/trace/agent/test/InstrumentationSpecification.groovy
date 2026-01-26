@@ -28,7 +28,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery

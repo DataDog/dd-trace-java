@@ -1,4 +1,4 @@
-package datadog.metrics.statsd
+package datadog.metrics.api.statsd
 
 import datadog.metrics.api.Monitoring
 import datadog.metrics.api.NoOpCounter

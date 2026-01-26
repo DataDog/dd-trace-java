@@ -1,4 +1,4 @@
-package datadog.metrics.statsd;
+package datadog.metrics.api.statsd;
 
 final class NoOpStatsDClient implements StatsDClient {
 

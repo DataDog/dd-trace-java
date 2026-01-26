@@ -1,7 +1,7 @@
 package datadog.trace.core.test
 
 
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.datastreams.NoopPathwayContext

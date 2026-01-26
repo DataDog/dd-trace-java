@@ -11,7 +11,7 @@ import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer

@@ -3,7 +3,7 @@ package datadog.metrics.agent;
 import static datadog.metrics.api.Monitoring.DISABLED;
 
 import datadog.metrics.api.Monitoring;
-import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 
 public class AgentMeter {
   private static volatile StatsDClient statsdClient = StatsDClient.NO_OP;

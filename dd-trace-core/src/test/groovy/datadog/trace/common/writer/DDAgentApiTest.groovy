@@ -7,7 +7,7 @@ import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.metrics.api.Monitoring
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.Config

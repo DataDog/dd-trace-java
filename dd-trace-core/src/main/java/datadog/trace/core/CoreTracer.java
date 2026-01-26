@@ -26,7 +26,7 @@ import datadog.environment.ThreadSupport;
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
-import datadog.metrics.statsd.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;

@@ -5,8 +5,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
-import datadog.metrics.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.core.DDTraceCoreInfo;

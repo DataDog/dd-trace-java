@@ -4,7 +4,7 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.statsd.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.Config
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
