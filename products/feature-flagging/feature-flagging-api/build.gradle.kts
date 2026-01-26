@@ -43,9 +43,9 @@ java {
 dependencies {
   api("dev.openfeature:sdk:1.20.1")
 
-  compileOnly(project(":products:feature-flagging:bootstrap"))
+  compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
 
-  testImplementation(project(":products:feature-flagging:bootstrap"))
+  testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
