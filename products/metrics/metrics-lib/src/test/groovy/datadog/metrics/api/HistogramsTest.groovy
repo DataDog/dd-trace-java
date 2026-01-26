@@ -42,11 +42,11 @@ class HistogramsTest extends DDSpecification {
     def histogram
 
     if (relativeAccuracy == null) {
-      histogram = DDSketchHistograms.histograms().newHistogram()
+      histogram = DDSketchHistograms.FACTORY.newHistogram()
       relativeAccuracy = 0.01
     }
     else {
-      histogram = DDSketchHistograms.histograms().newHistogram(relativeAccuracy, 1024)
+      histogram = DDSketchHistograms.FACTORY.newHistogram(relativeAccuracy, 1024)
     }
 
     long[] data = sortedRandomData(size) {
@@ -103,7 +103,7 @@ class HistogramsTest extends DDSpecification {
 
   def "test serialization of empty histogram after clear"() {
     setup:
-    def histogram = DDSketchHistograms.histograms().newHistogram()
+    def histogram = DDSketchHistograms.FACTORY.newHistogram()
     when: "add values to sketch and clear"
     histogram.accept(1)
     histogram.accept(2)

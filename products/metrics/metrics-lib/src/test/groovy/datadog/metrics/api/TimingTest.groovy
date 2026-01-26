@@ -1,5 +1,6 @@
 package datadog.metrics.api
 
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.impl.ThreadLocalRecording
 import datadog.metrics.api.statsd.StatsDClient
@@ -9,6 +10,10 @@ import spock.lang.Specification
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class TimingTest extends Specification {
+
+  def setupSpec() {
+    Histograms.register(DDSketchHistograms.FACTORY)
+  }
 
   def "timer times stuff"() {
     setup:
