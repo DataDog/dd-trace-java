@@ -123,32 +123,26 @@ convert-startup-benchmarks:
       job: linux-java-spring-petclinic-microbenchmark-startup-tracing
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-spring-petclinic-microbenchmark-startup-profiling
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-spring-petclinic-microbenchmark-startup-appsec
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-spring-petclinic-microbenchmark-startup-iast
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-insecure-bank-microbenchmark-startup-tracing
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-insecure-bank-microbenchmark-startup-iast
       artifacts: true
       ref: sarahchen6/migrate-java-microbenchmarks
-      optional: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -230,32 +224,26 @@ convert-dacapo-benchmarks:
       job: linux-java-dacapo-microbenchmark-baseline
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-dacapo-microbenchmark-tracing
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-dacapo-microbenchmark-profiling
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-dacapo-microbenchmark-appsec
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-dacapo-microbenchmark-iast
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
     - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
       job: linux-java-dacapo-microbenchmark-iast_GLOBAL
       artifacts: true
       ref: sarahchen6/migrate-dacapo-microbenchmarks
-      optional: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
