@@ -1,6 +1,6 @@
 ---
 schema-version: v1
-kind: mergequeue # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue
+kind: mergequeue # https://datadoghq.atlassian.net/wiki/x/XgUQug
 enable: true
 merge_method: squash
 branches:
