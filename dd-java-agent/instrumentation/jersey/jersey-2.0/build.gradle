@@ -92,3 +92,14 @@ configurations.named('jersey2JettyTestRuntimeClasspath') {
     force "org.eclipse.jetty:jetty-server:9.1.1.v20140108"
   }
 }
+configurations.configureEach {
+  resolutionStrategy.componentSelection {
+    all {
+      if (candidate.group == 'org.glassfish.jersey.core'
+        && candidate.module == 'jersey-common'
+        && candidate.version.startsWith('4.0.1')) {
+        reject('Version 4.0.1 is broken')
+      }
+    }
+  }
+}
