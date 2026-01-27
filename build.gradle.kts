@@ -72,7 +72,7 @@ allprojects {
 
     // Gradle files and other formats we process globally from root
     if (project == rootProject) {
-      val commonExcludes = listOf("build/**", "dd-java-agent/agent-jmxfetch/**")
+      val commonExcludes = listOf("build/**", "buildSrc/build/**", "dd-java-agent/agent-jmxfetch/**")
 
       kotlinGradle {
         toggleOffOn()
