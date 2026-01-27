@@ -93,8 +93,8 @@ final class InstrumenterIndex {
   }
 
   /**
-   * Queries the index to select modules that either belong to the enabled targetSystems
-   * or that provide an ExcludeFilter
+   * Queries the index to select modules that either belong to the enabled targetSystems or that
+   * provide an ExcludeFilter
    *
    * @param enabledSystems the enabled target systems
    * @return an iterable of modules that apply.
