@@ -213,7 +213,7 @@ def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, F
 }
 
 includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedJarFileTree)
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'jmxfetch', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedJarFileTree)
@@ -223,6 +223,8 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+// Include metrics-lib directly (metrics-agent classes stay in bootstrap via agent-bootstrap)
+includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', includedJarFileTree)
 includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
@@ -241,6 +243,8 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':components:context'))
     exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':products:metrics:metrics-api'))
+    exclude(project(':products:metrics:metrics-agent'))
     exclude(dependency('org.slf4j::'))
     // use dd-instrument-java's embedded copy of asm
     exclude(dependency('org.ow2.asm:asm:'))
@@ -366,6 +370,7 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
