@@ -99,6 +99,7 @@ org.junit.platform:junit-platform-launcher:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-runner:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-api:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=testRuntimeClasspath
+org.junit:junit-bom:5.14.0=spotbugs
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-core:4.4.0=testRuntimeClasspath
 org.msgpack:msgpack-core:0.8.24=testRuntimeClasspath

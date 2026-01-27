@@ -35,6 +35,7 @@ dependencies {
   implementation libs.bundles.asm
   implementation project(':internal-api')
   implementation project(':communication')
+  implementation project(':products:metrics:metrics-lib')
   compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-java-agent:agent-builder')
   compileOnly project(':dd-trace-core')

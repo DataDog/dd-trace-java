@@ -85,9 +85,8 @@ public final class Initializer {
         if (reasonNotLoaded != null) {
           LOG.debug(
               SEND_TELEMETRY,
-              "Failed to load JVM access library: "
-                  + jvmAccessHolder.getReasonNotLoaded().getMessage()
-                  + ". Crash tracking will need to rely on user provided JVM arguments.");
+              "Failed to load JVM access library: {}. Crash tracking will need to rely on user provided JVM arguments.",
+              jvmAccessHolder.getReasonNotLoaded().getMessage());
           return false;
         } else {
           JVMAccess.Flags flags = jvmAccessHolder.getComponent().flags();
@@ -230,7 +229,8 @@ public final class Initializer {
       if (!rslt && LOG.isDebugEnabled()) {
         LOG.debug(
             SEND_TELEMETRY,
-            "Unable to set OnError flag to " + onErrorVal + ". Crash-tracking may not work.");
+            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+            onErrorVal);
       }
 
       CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
@@ -269,9 +269,8 @@ public final class Initializer {
       if (!rslt && LOG.isDebugEnabled()) {
         LOG.debug(
             SEND_TELEMETRY,
-            "Unable to set OnOutOfMemoryError flag to "
-                + onOutOfMemoryVal
-                + ". OOME tracking may not work.");
+            "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+            onOutOfMemoryVal);
       }
 
       OOMENotifierScriptInitializer.initialize(notifierScript);
@@ -298,7 +297,8 @@ public final class Initializer {
     } else {
       LOG.warn(
           SEND_TELEMETRY,
-          msg + " [{}] (Change the logging level to debug to see the full stacktrace)",
+          "{} [{}] (Change the logging level to debug to see the full stacktrace)",
+          msg,
           t.getMessage());
     }
   }

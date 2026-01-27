@@ -1,8 +1,8 @@
 package datadog.trace.core
 
 import datadog.environment.JavaVirtualMachine
+import datadog.metrics.api.Monitoring
 import datadog.trace.api.Config
-import datadog.communication.monitor.Monitoring
 import datadog.trace.SamplingPriorityMetadataChecker
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId

@@ -77,8 +77,8 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       assertTrue(argLinePreserved, "Original argLine was not preserved");
 
     } catch (Exception | Error e) {
-      LOGGER.info("Build output:\n\n" + stdOutBaos);
-      LOGGER.info("Build error:\n\n" + stdErrBaos);
+      LOGGER.info("Build output:\n\n{}", stdOutBaos);
+      LOGGER.info("Build error:\n\n{}", stdErrBaos);
       throw e;
     }
   }

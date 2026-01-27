@@ -139,8 +139,8 @@ public class EvalProcessingWorker implements AutoCloseable {
         Thread.currentThread().interrupt();
       }
       log.debug(
-          "eval processor worker exited. submitting evals stopped. unsubmitted evals left: "
-              + !queuesAreEmpty());
+          "eval processor worker exited. submitting evals stopped. unsubmitted evals left: {}",
+          !queuesAreEmpty());
     }
 
     private void runDutyCycle() throws InterruptedException {
