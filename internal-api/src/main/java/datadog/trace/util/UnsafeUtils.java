@@ -67,6 +67,15 @@ public abstract class UnsafeUtils {
       }
       field.setAccessible(true);
       Object fieldValue = field.get(original);
+      boolean isFinal = Modifier.isFinal(field.getModifiers());
+      if (isFinal) {
+        log.warn(
+            "JEP 500: Final field '{}' in cloned object class '{}' is being mutated. This will soon be disallowed. Field type: {}. Field declaring class: {}.",
+            field.getName(),
+            clone.getClass().getName(),
+            field.getType().getName(),
+            field.getDeclaringClass().getName());
+      }
       field.set(clone, fieldValue);
     }
   }
