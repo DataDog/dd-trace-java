@@ -44,7 +44,7 @@ include ':dd-java-agent:instrumentation:google-http-client'
 5. Choose an appropriate parent class for the instrumentation:
    - `InstrumenterModule.Tracing` for tracing instrumentations (most common)
    - `InstrumenterModule.ContextTracking` for context propagation only (without creating spans)
-   - Other target systems as appropriate (see [Instrumentation classes](./how_instrumentations_work.md#instrumentation-classes))
+   - Or any other target system as appropriate (see [Instrumentation classes](./how_instrumentations_work.md#instrumentation-classes))
 6. Since this instrumentation class will only modify one specific type, it can implement
    the `Instrumenter.ForSingleType `interface which provides the `instrumentedType()` method. (
    see [Type Matching](./how_instrumentations_work.md#type-matching))

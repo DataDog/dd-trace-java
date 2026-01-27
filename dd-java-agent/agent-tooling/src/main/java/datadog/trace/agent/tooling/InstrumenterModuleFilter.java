@@ -9,12 +9,13 @@ public interface InstrumenterModuleFilter {
   InstrumenterModuleFilter ALL_MODULES = (name, systems, excludeProvider) -> true;
 
   static InstrumenterModuleFilter forTargetSystemsOrExcludeProvider(
-      final Set<InstrumenterModule.TargetSystem> targetSystems) {
-    return (name, systems, excludeProvider) -> excludeProvider || !disjoint(targetSystems, systems);
+      final Set<InstrumenterModule.TargetSystem> enabledSystems) {
+    return (instrumenterModuleName, targetSystems, isExcludeProvider)
+        -> isExcludeProvider || !disjoint(enabledSystems, targetSystems);
   }
 
   boolean test(
       String instrumenterModuleName,
       Set<InstrumenterModule.TargetSystem> targetSystems,
-      boolean excludeProvider);
+      boolean isExcludeProvider);
 }

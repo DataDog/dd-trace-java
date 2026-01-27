@@ -183,9 +183,7 @@ public class AgentInstaller {
 
     // combine known modules indexed at build-time with extensions contributed at run-time
     Iterable<InstrumenterModule> instrumenterModules =
-        withExtensions(
-            instrumenterIndex.modules(
-                InstrumenterModuleFilter.forTargetSystemsOrExcludeProvider(enabledSystems)));
+        withExtensions(instrumenterIndex.modules(enabledSystems));
 
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion

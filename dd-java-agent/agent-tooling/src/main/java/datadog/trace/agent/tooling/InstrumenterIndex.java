@@ -58,7 +58,7 @@ final class InstrumenterIndex {
   private final InstrumenterModule[] modules;
 
   // packed sequence of module type names and their expected member names:
-  // module1, targetSystems, flags, memberCount, memberA, memberB, (overrides), module2,
+  // module1, targetSystems, flags, memberCount, memberA, memberB, (targetSystemOverrides), module2,
   // memberCount, memberC, ...
   // (each string is encoded as its length plus that number of ASCII bytes)
   private final byte[] packedNames;
@@ -152,7 +152,7 @@ final class InstrumenterIndex {
   }
 
   public boolean isAdviceEnabled(
-      String adviceClass, Set<InstrumenterModule.TargetSystem> targetSystems) {
+      String adviceClass, Set<InstrumenterModule.TargetSystem> enabledSystems) {
     if (memberAdviceTargetOverrides == null) {
       return true;
     }
@@ -258,7 +258,7 @@ final class InstrumenterIndex {
     skipName();
     if (hasModuleOverrides) {
       // skip next N custom overrides
-      for (int i = 0; i < readNumber(); i++) {
+      for (int i = 0, overrideCount = readNumber(); i < overrideCount; i++) {
         skipName();
         // skip the target system short
         this.nameIndex += 2;
