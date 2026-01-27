@@ -96,12 +96,12 @@ final class InstrumenterIndex {
    * Queries the index to select modules that are either eligible to the provided targetSystems
    * either are ExcludeFilterProvider
    *
-   * @param targetSystems the enabled target systems
+   * @param enabledSystems the enabled target systems
    * @return an iterable of modules that apply.
    */
   public Iterable<InstrumenterModule> modules(
-      final Set<InstrumenterModule.TargetSystem> targetSystems) {
-    return modules(forTargetSystemsOrExcludeProvider(targetSystems));
+      final Set<InstrumenterModule.TargetSystem> enabledSystems) {
+    return modules(forTargetSystemsOrExcludeProvider(enabledSystems));
   }
 
   public Iterable<InstrumenterModule> modules() {
