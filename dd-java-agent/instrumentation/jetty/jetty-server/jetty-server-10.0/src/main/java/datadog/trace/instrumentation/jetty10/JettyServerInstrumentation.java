@@ -89,7 +89,10 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
+    transformer.applyAdvice(
+        takesNoArguments().and(named("handle")),
+        packageName + ".ContextTrackingAdvice",
+        packageName + ".HandleAdvice");
     transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
 
     if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {

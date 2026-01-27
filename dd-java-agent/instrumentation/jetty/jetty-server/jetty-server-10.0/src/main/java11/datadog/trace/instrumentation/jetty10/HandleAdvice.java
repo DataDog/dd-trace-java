@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty10;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -13,7 +14,6 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
 public class HandleAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(
       @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
@@ -24,7 +24,9 @@ public class HandleAdvice {
       return ((Context) existingContext).attach();
     }
 
-    final Context parentContext = DECORATE.extract(req);
+    final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+    final Context parentContext =
+        (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
     final Context context = DECORATE.startSpan(req, parentContext);
     span = spanFromContext(context);
     DECORATE.afterStart(span);
