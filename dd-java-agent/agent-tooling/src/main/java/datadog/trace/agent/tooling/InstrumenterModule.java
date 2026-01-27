@@ -216,7 +216,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
     }
   }
@@ -228,7 +228,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
 
@@ -247,7 +247,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
     }
   }
@@ -266,7 +266,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       if (enabledSystems.contains(TargetSystem.IAST)) {
         return true;
       }
@@ -315,7 +315,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.USM);
     }
   }
@@ -327,7 +327,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
   }
@@ -339,7 +339,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CONTEXT_TRACKING);
     }
   }

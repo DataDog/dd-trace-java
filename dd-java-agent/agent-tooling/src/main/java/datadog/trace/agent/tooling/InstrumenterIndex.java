@@ -53,6 +53,12 @@ final class InstrumenterIndex {
   // Special memberCount that indicates a module contains itself as a transformation
   private static final int SELF_MEMBERSHIP = 0xFF;
 
+  /** Bit to signal that the encoded item has target system overrides */
+  private static final int HAS_TARGET_SYSTEMS_OVERRIDES_FLAG = 0x01;
+
+  /** Bit to signal that the encoded item is instance of <code>ExcludeFilterProvider</code> */
+  private static final int IS_EXCLUDE_FILTER_PROVIDER_FLAG = 0x02;
+
   static final ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
 
   private final int instrumentationCount;
@@ -76,7 +82,7 @@ final class InstrumenterIndex {
   // current member details
   private int transformationId = -1;
   private String memberName;
-  private Map<String, Set<InstrumenterModule.TargetSystem>> memberAdviceTargetOverrides;
+  private Map<String, Set<InstrumenterModule.TargetSystem>> memberAdviceTargetSystemOverrides;
 
   private InstrumenterIndex(int instrumentationCount, int transformationCount, byte[] packedNames) {
     this.modules = new InstrumenterModule[instrumentationCount];
@@ -106,8 +112,8 @@ final class InstrumenterIndex {
   }
 
   final class ModuleIterator implements Iterator<InstrumenterModule> {
-    private InstrumenterModule module;
     private final InstrumenterModuleFilter filter;
+    private InstrumenterModule module;
 
     ModuleIterator(final InstrumenterModuleFilter filter) {
       this.filter = filter;
@@ -162,17 +168,18 @@ final class InstrumenterIndex {
       return transformationId;
     }
     // reset back the overrides
-    memberAdviceTargetOverrides = null;
+    memberAdviceTargetSystemOverrides = null;
     return -1;
   }
 
   public boolean isAdviceEnabled(
       String adviceClass, Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    if (memberAdviceTargetOverrides == null) {
+    if (memberAdviceTargetSystemOverrides == null) {
       return true;
     }
     Set<InstrumenterModule.TargetSystem> targetSystemOverrides =
-        memberAdviceTargetOverrides.get(adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
+        memberAdviceTargetSystemOverrides.get(
+            adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
     return null == targetSystemOverrides || !disjoint(targetSystemOverrides, enabledSystems);
   }
 
@@ -182,7 +189,7 @@ final class InstrumenterIndex {
     instrumentationId = -1;
     transformationId = -1;
     memberCount = 0;
-    memberAdviceTargetOverrides = null;
+    memberAdviceTargetSystemOverrides = null;
     hasTargetSystemOverrides = false;
   }
 
@@ -211,7 +218,7 @@ final class InstrumenterIndex {
     final byte flags = (byte) readNumber();
     final boolean isExcludeProvider = decodeModuleIsExcludeProvider(flags);
     hasTargetSystemOverrides = decodeModuleHasTargetSystemOverrides(flags);
-    memberAdviceTargetOverrides = null;
+    memberAdviceTargetSystemOverrides = null;
     memberCount = readNumber();
     if (SELF_MEMBERSHIP == memberCount) {
       transformationId++;
@@ -256,12 +263,12 @@ final class InstrumenterIndex {
     if (hasTargetSystemOverrides) {
       int overrideCount = readNumber();
       if (overrideCount > 0) {
-        memberAdviceTargetOverrides = new HashMap<>(overrideCount * 4 / 3, 0.75f);
+        memberAdviceTargetSystemOverrides = new HashMap<>(overrideCount * 4 / 3, 0.75f);
         for (int i = 0; i < overrideCount; i++) {
-          memberAdviceTargetOverrides.put(readName(), decodeTargetSystems(readShort()));
+          memberAdviceTargetSystemOverrides.put(readName(), decodeTargetSystems(readShort()));
         }
       } else {
-        memberAdviceTargetOverrides = null;
+        memberAdviceTargetSystemOverrides = null;
       }
     }
   }
@@ -368,19 +375,19 @@ final class InstrumenterIndex {
   }
 
   static byte encodeModuleFlags(final InstrumenterModule module, final boolean hasCustomOverrides) {
-    byte ret = (byte) (hasCustomOverrides ? 1 : 0);
+    byte ret = (byte) (hasCustomOverrides ? HAS_TARGET_SYSTEMS_OVERRIDES_FLAG : 0);
     if (module instanceof ExcludeFilterProvider) {
-      ret |= (byte) 0x2;
+      ret |= (byte) IS_EXCLUDE_FILTER_PROVIDER_FLAG;
     }
     return ret;
   }
 
   static boolean decodeModuleIsExcludeProvider(byte flags) {
-    return (flags & 2) != 0;
+    return (flags & IS_EXCLUDE_FILTER_PROVIDER_FLAG) != 0;
   }
 
   static boolean decodeModuleHasTargetSystemOverrides(byte flags) {
-    return (flags & 1) != 0;
+    return (flags & HAS_TARGET_SYSTEMS_OVERRIDES_FLAG) != 0;
   }
 
   static short encodeTargetSystems(Set<InstrumenterModule.TargetSystem> targetSystems) {

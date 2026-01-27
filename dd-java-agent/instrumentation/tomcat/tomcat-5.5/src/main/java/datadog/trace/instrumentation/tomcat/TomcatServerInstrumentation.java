@@ -24,7 +24,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -150,8 +149,11 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         serverScope = ((Context) existingCtx).attach();
         return;
       }
+      final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      final Context parentContext =
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
 
-      final Context context = DECORATE.startSpan(req, Java8BytecodeBridge.getCurrentContext());
+      final Context context = DECORATE.startSpan(req, parentContext);
       serverScope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
