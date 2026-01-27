@@ -28,7 +28,14 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
       BiConsumer<AgentSpan, T> decorate) {
     return future
         .thenApply(response -> wrap(response, span, decorate))
-        .whenComplete((_r, t) -> DECORATE.finishSpan(span, t));
+        .whenComplete(
+            (_r, t) -> {
+              if (t != null) {
+                // Only finish if there was an error; otherwise, HttpResponseWrapper.close will
+                // finish it later.
+                DECORATE.finishSpan(span, t);
+              }
+            });
   }
 
   private final HttpResponseFor<T> delegate;
