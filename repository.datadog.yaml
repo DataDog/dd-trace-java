@@ -9,6 +9,6 @@ branches:
     require_reason_for_skip_checks: true
 ---
 schema-version: v1
-kind: mergegate # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/4948100574/MergeGate
+kind: mergegate # https://datadoghq.atlassian.net/wiki/x/3gXuJgE
 rules:
   - require: commit-signatures
