@@ -30,6 +30,66 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
 
+# Conversion template for benchmark artifacts
+.convert-benchmarks:
+  stage: benchmarks
+  timeout: 1h
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:88265497
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
+    - when: on_success
+      interruptible: true
+  before_script:
+    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
+    - export CONVERTED_DIR="${ARTIFACTS_DIR}/converted" && mkdir -p "${CONVERTED_DIR}"
+    # Determine baseline_or_candidate based on branch
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "master" ]; then
+        export BASELINE_OR_CANDIDATE="baseline"
+      else
+        export BASELINE_OR_CANDIDATE="candidate"
+      fi
+    # Extract version from upstream.env if available
+    - |
+      if [ -f upstream.env ]; then
+        source upstream.env
+        export UPSTREAM_TRACER_VERSION="${UPSTREAM_TRACER_VERSION:-unknown}"
+      else
+        export UPSTREAM_TRACER_VERSION="unknown"
+      fi
+    # Get CPU model and kernel version
+    - |
+      if command -v lscpu >/dev/null 2>&1; then
+        export CPU_MODEL=$(lscpu | grep -m1 "Model name:" | sed 's/Model name:[[:space:]]*//' || echo "unknown")
+      elif [ -f /proc/cpuinfo ]; then
+        export CPU_MODEL=$(grep -m1 "model name" /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[[:space:]]*//' || echo "unknown")
+      else
+        export CPU_MODEL="unknown"
+      fi
+    - export KERNEL_VERSION=$(uname -a || echo "Unknown")
+    - export CI_JOB_DATE=$(date +%s)
+    - export CI_COMMIT_SHORT_SHA="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:0:7}}"
+    - export CI_COMMIT_TIMESTAMP="${CI_COMMIT_TIMESTAMP:-$(date +%s)}"
+  artifacts:
+    name: "converted-benchmarks"
+    paths:
+      - reports/converted/
+    expire_in: 3 months
+    when: always
+  variables:
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+
 # benchmarks-startup:
 #   extends: .benchmarks
 #   script:
@@ -53,6 +113,214 @@
 #     - ./steps/capture-hardware-software-info.sh
 #     - ./steps/run-benchmarks.sh dacapo
 #     - ./steps/analyze-results.sh dacapo
+
+# Convert startup benchmark artifacts
+convert-startup-benchmarks:
+  extends: .convert-benchmarks
+  stage: benchmark-conversion
+  needs: []
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
+    - when: on_success
+      interruptible: true
+  script:
+    - !reference [.convert-benchmarks, before_script]
+    - |
+      echo "=== Converting startup benchmark artifacts ==="
+      # Find all startup benchmark artifacts
+      # Artifacts are in artifacts/startup-{app}/{variant}/startup_*.csv
+      find artifacts -type d -name "startup-*" 2>/dev/null | while read app_dir; do
+        app_name=$(basename "$app_dir" | sed 's/startup-//')
+        echo "Processing startup artifacts for application: $app_name"
+        
+        # Find all variant directories
+        find "$app_dir" -mindepth 1 -maxdepth 1 -type d | while read variant_dir; do
+          variant=$(basename "$variant_dir")
+          echo "  Processing variant: $variant"
+          
+          # Check if there are CSV files
+          if [ -n "$(find "$variant_dir" -name "startup_*.csv" 2>/dev/null | head -1)" ]; then
+            # Build extra_params JSON
+            extra_params="{\
+              \"baseline_or_candidate\":\"${BASELINE_OR_CANDIDATE}\", \
+              \"application\":\"${app_name}\", \
+              \"release_version\":\"${UPSTREAM_TRACER_VERSION}\", \
+              \"cpu_model\":\"${CPU_MODEL}\", \
+              \"kernel_version\":\"${KERNEL_VERSION}\", \
+              \"ci_job_date\":\"${CI_JOB_DATE}\", \
+              \"ci_job_id\":\"${CI_JOB_ID}\", \
+              \"ci_pipeline_id\":\"${CI_PIPELINE_ID}\", \
+              \"git_commit_sha\":\"${CI_COMMIT_SHORT_SHA}\", \
+              \"git_commit_date\":\"${CI_COMMIT_TIMESTAMP}\", \
+              \"git_branch\":\"${CI_COMMIT_REF_NAME}\" \
+            }"
+            
+            # Convert using JavaStartup converter from relenv-benchmark-analyzer
+            output_file="${CONVERTED_DIR}/startup/${app_name}/${variant}/benchmark-${BASELINE_OR_CANDIDATE}.json"
+            mkdir -p "$(dirname "$output_file")"
+            
+            benchmark_analyzer convert \
+              --framework=javastartup \
+              --extra-params="$extra_params" \
+              --outpath="$output_file" \
+              "$variant_dir" || {
+              echo "ERROR: Failed to convert startup artifacts for $app_name/$variant"
+              continue
+            }
+            
+            echo "Converted to: $output_file"
+          else
+            echo "WARNING: No CSV files found in $variant_dir"
+          fi
+        done
+      done
+    - |
+      if [ ! -d "${CONVERTED_DIR}/startup" ] || [ -z "$(find "${CONVERTED_DIR}/startup" -name "*.json" 2>/dev/null)" ]; then
+        echo "WARNING: No startup benchmark artifacts were converted"
+      fi
+
+# Convert dacapo benchmark artifacts
+convert-dacapo-benchmarks:
+  extends: .convert-benchmarks
+  stage: benchmark-conversion
+  needs: []
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
+    - when: on_success
+      interruptible: true
+  script:
+    - !reference [.convert-benchmarks, before_script]
+    - |
+      echo "=== Converting dacapo benchmark artifacts ==="
+      # Find all dacapo benchmark artifacts
+      # Artifacts are in artifacts/dacapo/{variant}/{benchmark}/
+      find artifacts -type d -path "*/dacapo/*" 2>/dev/null | while read dacapo_dir; do
+        # Extract variant and benchmark from path: artifacts/dacapo/{variant}/{benchmark}
+        path_parts=$(echo "$dacapo_dir" | sed 's|artifacts/dacapo/||')
+        variant=$(echo "$path_parts" | cut -d'/' -f1)
+        benchmark=$(echo "$path_parts" | cut -d'/' -f2)
+        
+        if [ -z "$benchmark" ] || [ "$benchmark" == "$variant" ]; then
+          # Try alternative path structure
+          benchmark=$(basename "$dacapo_dir")
+          variant=$(basename "$(dirname "$dacapo_dir")")
+        fi
+        
+        echo "Processing dacapo artifacts: variant=$variant, benchmark=$benchmark"
+        
+        # Check if there are CSV files in scratch/ or log files
+        if [ -n "$(find "$dacapo_dir" -name "dacapo-latency-usec-simple-*.csv" -path "*/scratch/*" 2>/dev/null | head -1)" ] || \
+           [ -n "$(find "$dacapo_dir" -name "dacapo-*.log" 2>/dev/null | head -1)" ]; then
+          # Build extra_params JSON
+          extra_params="{\
+            \"baseline_or_candidate\":\"${BASELINE_OR_CANDIDATE}\", \
+            \"application\":\"${benchmark}\", \
+            \"release_version\":\"${UPSTREAM_TRACER_VERSION}\", \
+            \"cpu_model\":\"${CPU_MODEL}\", \
+            \"kernel_version\":\"${KERNEL_VERSION}\", \
+            \"ci_job_date\":\"${CI_JOB_DATE}\", \
+            \"ci_job_id\":\"${CI_JOB_ID}\", \
+            \"ci_pipeline_id\":\"${CI_PIPELINE_ID}\", \
+            \"git_commit_sha\":\"${CI_COMMIT_SHORT_SHA}\", \
+            \"git_commit_date\":\"${CI_COMMIT_TIMESTAMP}\", \
+            \"git_branch\":\"${CI_COMMIT_REF_NAME}\", \
+            \"variant\":\"${variant}\" \
+          }"
+          
+          # Convert using JavaDacapo converter from relenv-benchmark-analyzer
+          output_file="${CONVERTED_DIR}/dacapo/${variant}/${benchmark}/benchmark-${BASELINE_OR_CANDIDATE}.json"
+          mkdir -p "$(dirname "$output_file")"
+          
+          benchmark_analyzer convert \
+            --framework=javadacapo \
+            --extra-params="$extra_params" \
+            --outpath="$output_file" \
+            "$dacapo_dir" || {
+            echo "ERROR: Failed to convert dacapo artifacts for $variant/$benchmark"
+            continue
+          }
+          
+          echo "Converted to: $output_file"
+        else
+          echo "WARNING: No CSV or log files found in $dacapo_dir"
+        fi
+      done
+    - |
+      if [ ! -d "${CONVERTED_DIR}/dacapo" ] || [ -z "$(find "${CONVERTED_DIR}/dacapo" -name "*.json" 2>/dev/null)" ]; then
+        echo "WARNING: No dacapo benchmark artifacts were converted"
+      fi
+
+# Convert load benchmark artifacts
+convert-load-benchmarks:
+  extends: .convert-benchmarks
+  stage: benchmark-conversion
+  needs: []
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: manual
+      allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
+    - when: on_success
+      interruptible: true
+  script:
+    - !reference [.convert-benchmarks, before_script]
+    - |
+      echo "=== Processing load benchmark artifacts ==="
+      find artifacts -name "candidate-*.converted.json" -o -name "baseline-*.converted.json" 2>/dev/null | while read json_file; do
+        echo "Processing load benchmark file: $json_file"
+        
+        # Verify it's valid JSON
+        if ! python3 -m json.tool "$json_file" > /dev/null 2>&1; then
+          echo "WARNING: Invalid JSON file: $json_file"
+          continue
+        fi
+        
+        # Extract information from filename
+        filename=$(basename "$json_file")
+        if [[ "$filename" =~ candidate-([^-]+)--([^-]+)--([0-9]+)\.converted\.json ]]; then
+          stage="${BASH_REMATCH[1]}"
+          product="${BASH_REMATCH[2]}"
+          run_id="${BASH_REMATCH[3]}"
+          type="candidate"
+        elif [[ "$filename" =~ baseline-([^-]+)--([^-]+)--([0-9]+)\.converted\.json ]]; then
+          stage="${BASH_REMATCH[1]}"
+          product="${BASH_REMATCH[2]}"
+          run_id="${BASH_REMATCH[3]}"
+          type="baseline"
+        else
+          echo "WARNING: Could not parse filename: $filename"
+          continue
+        fi
+        
+        # Copy to organized structure
+        output_dir="${CONVERTED_DIR}/load/${product}/${stage}"
+        mkdir -p "$output_dir"
+        cp "$json_file" "$output_dir/benchmark-${type}-run${run_id}.json"
+        
+        echo "Organized to: $output_dir/benchmark-${type}-run${run_id}.json"
+      done
+    - |
+      if [ ! -d "${CONVERTED_DIR}/load" ] || [ -z "$(find "${CONVERTED_DIR}/load" -name "*.json" 2>/dev/null)" ]; then
+        echo "WARNING: No load benchmark artifacts were found"
+      fi
 
 # benchmarks-post-results:
 #   extends: .benchmarks
