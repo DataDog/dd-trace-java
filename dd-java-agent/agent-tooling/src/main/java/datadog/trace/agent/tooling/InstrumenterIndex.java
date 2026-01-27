@@ -391,6 +391,14 @@ final class InstrumenterIndex {
   }
 
   static short encodeTargetSystems(Set<InstrumenterModule.TargetSystem> targetSystems) {
+    final int allTargetSystemsCount = InstrumenterModule.TargetSystem.values().length;
+    // Safety check to ensure we don’t overflow the index if additional TargetSystem enums are added
+    if (allTargetSystemsCount > 16) {
+      throw new IllegalStateException(
+          "Using a short will only allow encoding 16 different target systems, but found "
+              + allTargetSystemsCount
+              + ". Please use a larger data type for encoding/decoding this field.");
+    }
     short ret = 0;
     for (InstrumenterModule.TargetSystem ts : targetSystems) {
       ret |= (short) (1 << ts.ordinal());
