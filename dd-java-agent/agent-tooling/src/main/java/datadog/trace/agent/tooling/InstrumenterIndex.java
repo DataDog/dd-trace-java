@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.InstrumenterModuleFilter.ALL_MODULES;
+import static datadog.trace.agent.tooling.InstrumenterModuleFilter.forTargetSystemsOrExcludeProvider;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.disjoint;
@@ -82,6 +83,16 @@ final class InstrumenterIndex {
     this.packedNames = packedNames;
   }
 
+  /**
+   * Queries the index to select modules that are either eligible to the provided targetSystems either are ExcludeFilterProvider
+   *
+   * @param targetSystems the enabled target systems
+   * @return an iterable of modules that apply.
+   */
+  public Iterable<InstrumenterModule> modules(final Set<InstrumenterModule.TargetSystem> targetSystems) {
+    return modules(forTargetSystemsOrExcludeProvider(targetSystems));
+  }
+
   public Iterable<InstrumenterModule> modules() {
     return modules(ALL_MODULES);
   }
@@ -119,17 +130,23 @@ final class InstrumenterIndex {
     }
   }
 
-  /** Maximum known count of {@link InstrumenterModule} instrumentations. */
+  /**
+   * Maximum known count of {@link InstrumenterModule} instrumentations.
+   */
   public int instrumentationCount() {
     return instrumentationCount;
   }
 
-  /** Maximum known count of {@link Instrumenter} transformations. */
+  /**
+   * Maximum known count of {@link Instrumenter} transformations.
+   */
   public int transformationCount() {
     return transformationCount;
   }
 
-  /** Returns the id allocated to the instrumentation; {@code -1} if unknown. */
+  /**
+   * Returns the id allocated to the instrumentation; {@code -1} if unknown.
+   */
   public int instrumentationId(InstrumenterModule module) {
     if (module.getClass().getName().equals(moduleName)) {
       return instrumentationId;
@@ -137,7 +154,9 @@ final class InstrumenterIndex {
     return -1;
   }
 
-  /** Returns the id allocated to the transformation; {@code -1} if unknown. */
+  /**
+   * Returns the id allocated to the transformation; {@code -1} if unknown.
+   */
   public int transformationId(Instrumenter member) {
     if (null == memberName && memberCount > 0) {
       nextMember(); // move through expected members as transformations are applied
@@ -158,10 +177,12 @@ final class InstrumenterIndex {
     }
     Set<InstrumenterModule.TargetSystem> adviceOverrides =
         memberAdviceTargetOverrides.get(adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
-    return null == adviceOverrides || !disjoint(adviceOverrides, targetSystems);
+    return null == adviceOverrides || !disjoint(adviceOverrides, enabledSystems);
   }
 
-  /** Resets the iteration to the start of the index. */
+  /**
+   * Resets the iteration to the start of the index.
+   */
   void restart() {
     nameIndex = 0;
     instrumentationId = -1;
@@ -171,12 +192,16 @@ final class InstrumenterIndex {
     hasModuleOverrides = false;
   }
 
-  /** Is there another known {@link InstrumenterModule} left in the index? */
+  /**
+   * Is there another known {@link InstrumenterModule} left in the index?
+   */
   boolean hasNextModule() {
     return instrumentationCount - instrumentationId > 1;
   }
 
-  /** Returns the next {@link InstrumenterModule} in the index. */
+  /**
+   * Returns the next {@link InstrumenterModule} in the index.
+   */
   InstrumenterModule nextModule(InstrumenterModuleFilter filter) {
     while (memberCount > 0) {
       skipMember(); // skip past unmatched members from previous module
@@ -229,7 +254,9 @@ final class InstrumenterIndex {
     }
   }
 
-  /** Moves onto the next member in the expected sequence. */
+  /**
+   * Moves onto the next member in the expected sequence.
+   */
   private void nextMember() {
     memberCount--;
     transformationId++;
@@ -251,7 +278,9 @@ final class InstrumenterIndex {
     }
   }
 
-  /** Skips past the next member in the expected sequence. */
+  /**
+   * Skips past the next member in the expected sequence.
+   */
   private void skipMember() {
     memberCount--;
     transformationId++;
@@ -266,7 +295,9 @@ final class InstrumenterIndex {
     }
   }
 
-  /** Reads a single-byte-encoded string from the packed name sequence. */
+  /**
+   * Reads a single-byte-encoded string from the packed name sequence.
+   */
   private String readName() {
     int length = readNumber();
     String name = new String(packedNames, nameIndex, length, ISO_8859_1);
@@ -274,13 +305,17 @@ final class InstrumenterIndex {
     return name;
   }
 
-  /** Skips a single-byte-encoded string from the packed name sequence. */
+  /**
+   * Skips a single-byte-encoded string from the packed name sequence.
+   */
   private void skipName() {
     int length = readNumber();
     nameIndex += length;
   }
 
-  /** Reads an unsigned byte from the packed name sequence. */
+  /**
+   * Reads an unsigned byte from the packed name sequence.
+   */
   private int readNumber() {
     return 0xFF & (int) packedNames[nameIndex++];
   }
@@ -293,7 +328,7 @@ final class InstrumenterIndex {
     URL indexResource = instrumenterClassLoader.getResource(INSTRUMENTER_INDEX_NAME);
     if (null != indexResource) {
       try (DataInputStream in =
-          new DataInputStream(new BufferedInputStream(indexResource.openStream()))) {
+               new DataInputStream(new BufferedInputStream(indexResource.openStream()))) {
         int instrumentationCount = in.readInt();
         int transformationCount = in.readInt();
         int packedNamesLength = in.readInt();
@@ -317,7 +352,9 @@ final class InstrumenterIndex {
         indexGenerator.packedNames.toByteArray());
   }
 
-  /** Loads instrumentation modules annotated with {@code @AutoService}. */
+  /**
+   * Loads instrumentation modules annotated with {@code @AutoService}.
+   */
   static List<InstrumenterModule> loadModules(ClassLoader loader) throws IOException {
     List<InstrumenterModule> modules = new ArrayList<>();
     for (String moduleName : loadModuleNames(loader)) {
@@ -334,14 +371,16 @@ final class InstrumenterIndex {
     return modules;
   }
 
-  /** Loads the type names of instrumentation modules annotated with {@code @AutoService}. */
+  /**
+   * Loads the type names of instrumentation modules annotated with {@code @AutoService}.
+   */
   private static String[] loadModuleNames(ClassLoader loader) throws IOException {
     Set<String> lines = new LinkedHashSet<>();
     Enumeration<URL> urls =
         loader.getResources("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule");
     while (urls.hasMoreElements()) {
       try (BufferedReader reader =
-          new BufferedReader(new InputStreamReader(urls.nextElement().openStream(), UTF_8))) {
+               new BufferedReader(new InputStreamReader(urls.nextElement().openStream(), UTF_8))) {
         String line = reader.readLine();
         while (line != null) {
           lines.add(line);
@@ -424,7 +463,9 @@ final class InstrumenterIndex {
     }
   }
 
-  /** Generates an index from known {@link InstrumenterModule}s on the build class-path. */
+  /**
+   * Generates an index from known {@link InstrumenterModule}s on the build class-path.
+   */
   static final class IndexGenerator {
     final ByteArrayOutputStream packedNames = new ByteArrayOutputStream();
 
@@ -486,7 +527,7 @@ final class InstrumenterIndex {
 
     public void writeIndex(Path indexFile) throws IOException {
       try (DataOutputStream out =
-          new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(indexFile)))) {
+               new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(indexFile)))) {
         out.writeInt(instrumentationCount);
         out.writeInt(transformationCount);
         out.writeInt(packedNames.size());
