@@ -301,7 +301,29 @@ convert-dacapo-benchmarks:
 convert-load-benchmarks:
   extends: .convert-benchmarks
   stage: benchmark-conversion
-  needs: []
+  needs:
+    - job: linux-java-spring-petclinic-microbenchmark-load-tracing
+      artifacts: true
+    - job: linux-java-spring-petclinic-microbenchmark-load-profiling
+      artifacts: true
+    - job: linux-java-spring-petclinic-microbenchmark-load-appsec
+      artifacts: true
+    - job: linux-java-spring-petclinic-microbenchmark-load-iast
+      artifacts: true
+    - job: linux-java-spring-petclinic-microbenchmark-load-code_origins
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-no_agent
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-tracing
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-profiling
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-iast
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-iast_GLOBAL
+      artifacts: true
+    - job: linux-java-insecure-bank-microbenchmark-load-iast_FULL
+      artifacts: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -317,6 +339,11 @@ convert-load-benchmarks:
     - !reference [.convert-benchmarks, before_script]
     - |
       echo "=== Processing load benchmark artifacts ==="
+      # Check if artifacts directory exists
+      if [ ! -d "artifacts" ]; then
+        echo "WARNING: artifacts directory not found. No load benchmark artifacts to process."
+        exit 0
+      fi
       find artifacts -name "candidate-*.converted.json" -o -name "baseline-*.converted.json" 2>/dev/null | while read json_file; do
         echo "Processing load benchmark file: $json_file"
         
