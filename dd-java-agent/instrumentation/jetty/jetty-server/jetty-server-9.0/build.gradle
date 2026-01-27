@@ -18,6 +18,14 @@ muzzle {
 apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
 

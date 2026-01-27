@@ -2,8 +2,10 @@ package datadog.gradle.plugin.testJvmConstraints
 
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.api.provider.Provider
+import org.gradle.internal.jvm.inspection.JavaInstallationRegistry
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -51,17 +53,14 @@ class TestJvmSpec(val project: Project) {
       throw GradleException("testJvm property is blank")
     }
 
-    // "stable" is calculated as the largest X found in JAVA_X_HOME
+    // "stable" is calculated as the largest Java version found via toolchains or JAVA_X_HOME
     when (testJvm) {
       "stable" -> {
-        val javaVersions = project.providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
-          javaHomes
-            .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) && it.key != "JAVA_26_HOME" } // JDK 26 is EA
-            .map { Regex("^JAVA_(\\d+)_HOME$").find(it.key)!!.groupValues[1].toInt() }
-        }.get()
+        val javaVersions = discoverJavaVersionsViaToolchains()
+          ?: discoverJavaVersionsViaEnvVars()
 
         if (javaVersions.isEmpty()) {
-          throw GradleException("No valid JAVA_X_HOME environment variables found.")
+          throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
         }
 
         javaVersions.max().toString()
@@ -70,7 +69,7 @@ class TestJvmSpec(val project: Project) {
       else -> testJvm
     }
   }.map {
-    project.logger.info("normalized testJvm: $it")
+    project.logger.info("normalized testJvm: {}", it)
     it
   }
 
@@ -86,9 +85,13 @@ class TestJvmSpec(val project: Project) {
   private val testJvmSpec = normalizedTestJvm.map {
     val (distribution, version) = Regex("([a-zA-Z]*)([0-9]+)").matchEntire(it)?.groupValues?.drop(1) ?: listOf("", "")
 
+    // Allow looking up JAVA_<TESTJVM>_HOME environment variable (e.g., JAVA_IBM8_HOME, JAVA_SEMERU8_HOME),
+    // because gradle doesn't offer a way to distinguish ibm8 or semeru8
+    val envVarValue = project.providers.environmentVariable("JAVA_${it.uppercase()}_HOME").orNull
+
     when {
       Files.exists(Paths.get(it)) -> it.normalizeToJDKJavaHome().toToolchainSpec()
-
+      envVarValue != null && Files.exists(Paths.get(envVarValue)) -> envVarValue.normalizeToJDKJavaHome().toToolchainSpec()
       version.isNotBlank() -> {
         // Best effort to make a spec for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
@@ -99,6 +102,10 @@ class TestJvmSpec(val project: Project) {
         DefaultToolchainSpec(project.serviceOf<PropertyFactory>()).apply {
           languageVersion.set(JavaLanguageVersion.of(version.toInt()))
           when (distribution.lowercase()) {
+            "" -> {
+              // No-op
+            }
+
             "oracle" -> {
               vendor.set(JvmVendorSpec.ORACLE)
             }
@@ -107,7 +114,10 @@ class TestJvmSpec(val project: Project) {
               vendor.set(JvmVendorSpec.AZUL)
             }
 
-            "semeru" -> {
+            // Note: Both IBM and Semeru report java.vendor = "IBM Corporation",
+            // so JvmVendorSpec cannot distinguish them. Use JAVA_IBM8_HOME or
+            // JAVA_SEMERU8_HOME env vars for reliable selection.
+            "ibm", "semeru" -> {
               vendor.set(JvmVendorSpec.IBM)
               implementation.set(JvmImplementation.J9)
             }
@@ -115,6 +125,10 @@ class TestJvmSpec(val project: Project) {
             "graalvm" -> {
               vendor.set(JvmVendorSpec.GRAAL_VM)
               nativeImageCapable.set(true)
+            }
+
+            else -> {
+              throw GradleException("Unknown JVM distribution '$distribution'. Supported: oracle, zulu, ibm, semeru, graalvm.")
             }
           }
         }
@@ -131,7 +145,7 @@ class TestJvmSpec(val project: Project) {
       )
     }
   }.map {
-    project.logger.info("testJvm home path: $it")
+    project.logger.info("testJvm home path: {}", it)
     it
   }
 
@@ -154,7 +168,7 @@ class TestJvmSpec(val project: Project) {
         )
       }
     }.flatMap { it }.map {
-      project.logger.info("testJvm launcher: ${it.executablePath}")
+      project.logger.info("testJvm launcher: {}", it.executablePath)
       it
     }
 
@@ -169,4 +183,38 @@ class TestJvmSpec(val project: Project) {
   private val Project.javaToolchains: JavaToolchainService
     get() =
       extensions.getByName("javaToolchains") as JavaToolchainService
+
+  /**
+   * Discovers available Java versions via Gradle's internal JavaInstallationRegistry.
+   */
+  private fun discoverJavaVersionsViaToolchains(): List<Int>? {
+    val registry = (project as ProjectInternal).services.get(JavaInstallationRegistry::class.java)
+    val versions = registry.toolchains().mapNotNull { installation ->
+        installation.metadata.languageVersion.majorVersion.toInt()
+    }
+
+    return if (versions.isNotEmpty()) {
+      project.logger.info("Discovered Java versions via toolchains: {}", versions)
+      versions
+    } else {
+      null
+    }
+  }
+
+  /**
+   * Discovers available Java versions via JAVA_X_HOME environment variables.
+   * Fallback method when toolchain discovery is not available.
+   */
+  private fun discoverJavaVersionsViaEnvVars(): List<Int> {
+    val versions = project.providers.environmentVariablesPrefixedBy("JAVA_").map { javaHomes ->
+      javaHomes
+        .filter { it.key.matches(Regex("^JAVA_[0-9]+_HOME$")) }
+        .mapNotNull { Regex("^JAVA_(\\d+)_HOME$").find(it.key)?.groupValues?.get(1)?.toIntOrNull() }
+    }.get()
+
+    if (versions.isNotEmpty()) {
+      project.logger.info("Discovered Java versions via JAVA_X_HOME env vars: {}", versions)
+    }
+    return versions
+  }
 }

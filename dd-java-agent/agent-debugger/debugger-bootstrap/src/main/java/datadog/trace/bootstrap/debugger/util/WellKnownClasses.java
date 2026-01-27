@@ -141,7 +141,6 @@ public class WellKnownClasses {
     } catch (NoSuchMethodException e) {
       getModuleNameMethod = null;
     }
-    ;
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>

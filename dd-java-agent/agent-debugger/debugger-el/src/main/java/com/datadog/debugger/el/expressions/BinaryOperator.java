@@ -19,7 +19,7 @@ public enum BinaryOperator {
     }
   };
 
-  private String symbol;
+  private final String symbol;
 
   BinaryOperator(String symbol) {
     this.symbol = symbol;

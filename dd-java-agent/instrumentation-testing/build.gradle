@@ -8,13 +8,15 @@ dependencies {
   api libs.guava
 
   api project(':dd-java-agent:testing')
+  api project(':products:metrics:metrics-api')
+  api project(':products:metrics:metrics-lib')
 
   implementation project(':dd-java-agent:agent-debugger')
 
   implementation(libs.junit.jupiter)
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
   // test instrumenting java 1.1 bytecode

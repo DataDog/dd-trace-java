@@ -231,7 +231,7 @@ tasks.register('extractLatestMuleServices', Sync) {
 // build the mule application via maven
 tasks.register('mvnPackage', Exec) {
   workingDir("$appDir")
-  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
+  environment["JAVA_HOME"] = getLazyJavaHomeFor(8)
 
   List<String> mvnArgs = [
     "$rootDir/mvnw",

@@ -23,7 +23,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(InstrumenterModule.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
+public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public WrapRunnableAsNewTaskInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "new-task-for");

@@ -37,8 +37,8 @@ protobuf {
 dependencies {
   api libs.slf4j
 
-  compileOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  compileOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
@@ -62,7 +62,7 @@ dependencies {
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')
   jmh project(':dd-java-agent:agent-builder')
-  jmh project(':dd-java-agent:instrumentation:iast-instrumenter')
+  jmh project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')

@@ -30,7 +30,7 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.appsec.api.blocking.BlockingContentType
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ConfigKey

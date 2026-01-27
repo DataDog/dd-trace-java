@@ -14,7 +14,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
@@ -221,7 +220,6 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
@@ -357,6 +355,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
@@ -402,6 +401,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
@@ -992,7 +992,6 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
-  private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -1228,6 +1227,7 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+  private final String dataStreamsTransactionExtractors;
 
   private final boolean serviceDiscoveryEnabled;
 
@@ -2215,7 +2215,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -2716,7 +2715,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    logLevel = configProvider.getString(LOG_LEVEL);
+    logLevel = configProvider.getString(TRACE_LOG_LEVEL, null, LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -2751,6 +2750,8 @@ public class Config {
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
+    dataStreamsTransactionExtractors =
+        configProvider.getString(DATA_STREAMS_TRANSACTION_EXTRACTORS);
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
@@ -2952,8 +2953,7 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
-    this.optimizedMapEnabled =
-        configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.optimizedMapEnabled = configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, true);
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
@@ -4600,6 +4600,10 @@ public class Config {
     return dataStreamsBucketDurationSeconds;
   }
 
+  public String getDataStreamsTransactionExtractors() {
+    return dataStreamsTransactionExtractors;
+  }
+
   public long getDataStreamsBucketDurationNanoseconds() {
     // Rounds to the nearest millisecond before converting to nanos
     int milliseconds = Math.round(dataStreamsBucketDurationSeconds * 1000);
@@ -5407,7 +5411,7 @@ public class Config {
   }
 
   public boolean isAppSecRaspEnabled() {
-    return appSecRaspEnabled;
+    return instrumenterConfig.isAppSecRaspEnabled();
   }
 
   public boolean isAppSecStackTraceEnabled() {
@@ -6164,7 +6168,7 @@ public class Config {
         + ", appSecScaEnabled="
         + appSecScaEnabled
         + ", appSecRaspEnabled="
-        + appSecRaspEnabled
+        + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
         + dataJobsOpenLineageEnabled
         + ", dataJobsOpenLineageTimeoutEnabled="

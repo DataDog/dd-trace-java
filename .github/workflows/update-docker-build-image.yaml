@@ -25,7 +25,7 @@ jobs:
           policy: self.update-docker-build-image.create-pr
 
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Define the Docker build image tag to use
         id: define-tag
         run: |
@@ -71,7 +71,7 @@ jobs:
           git commit -m "feat(ci): Update Docker build image" .gitlab-ci.yml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
-        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
         if: steps.check-changes.outputs.commit_changes == 'true'
         with:
           token: "${{ steps.octo-sts.outputs.token }}"

@@ -7,7 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;

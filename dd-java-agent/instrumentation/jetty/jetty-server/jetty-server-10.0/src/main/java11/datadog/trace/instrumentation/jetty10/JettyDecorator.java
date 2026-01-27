@@ -79,6 +79,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   }
 
   @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeader(key);
+  }
+
+  @Override
   protected BlockResponseFunction createBlockResponseFunction(Request request, Request connection) {
     return new JettyBlockResponseFunction(request);
   }

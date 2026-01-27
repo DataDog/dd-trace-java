@@ -155,13 +155,18 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     LOG.info("re-transformation done");
   }
 
+  protected void waitForSpecificLine(String appUrl, String line) throws IOException {
+    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
+    sendRequest(url);
+  }
+
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
     controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();
-    LOG.info("AppUrl = " + appUrl);
+    LOG.info("AppUrl = {}", appUrl);
     return appUrl;
   }
 

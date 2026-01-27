@@ -2,6 +2,7 @@ import static org.gradle.api.plugins.JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAM
 import static org.gradle.api.tasks.SourceSet.MAIN_SOURCE_SET_NAME
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 
 plugins {
   id 'com.gradleup.shadow'
@@ -14,8 +15,8 @@ tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  subProj.pluginManager.withPlugin("dd-trace-java.instrument") {
-    subProj.extensions.configure(InstrumentExtension) {
+  subProj.pluginManager.withPlugin("dd-trace-java.build-time-instrumentation") {
+    subProj.extensions.configure(BuildTimeInstrumentationExtension) {
       it.plugins.addAll(
         'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
         'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
@@ -23,12 +24,11 @@ subprojects { Project subProj ->
         )
     }
 
-    subProj.configurations.register("instrumentPluginClasspath") {
-      it.visible = false
-      it.canBeConsumed = false
-      it.canBeResolved = true
-
-      it.dependencies.add(subProj.dependencies.project(path: ':dd-java-agent:agent-tooling', configuration: 'instrumentPluginClasspath'))
+    subProj.configurations.named('buildTimeInstrumentationPlugin') {
+      it.dependencies.add(subProj.dependencies.project(
+        path: ':dd-java-agent:agent-tooling',
+        configuration: 'buildTimeInstrumentationToolingPlugins'
+        ))
     }
   }
 
@@ -67,9 +67,7 @@ subprojects { Project subProj ->
 
       // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
       testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
-      // FIXME: we should enable this, but currently this fails tests for google http client
-      //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
-      testImplementation project(':dd-java-agent:instrumentation:classloading')
+      testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8')
 
       testImplementation project(':dd-java-agent:instrumentation-testing')
     }
@@ -88,7 +86,7 @@ subprojects { Project subProj ->
     }
   }
 
-  subProj.apply plugin: 'dd-trace-java.instrument'
+  subProj.apply plugin: 'dd-trace-java.build-time-instrumentation'
   subProj.apply plugin: 'dd-trace-java.muzzle'
 }
 
@@ -149,6 +147,11 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
   }
   sourceSets.main.resources.srcDir(indexTask)
   return indexTask
+}
+
+instrumentationNaming {
+  exclusions = ["org-json-20230227"] // org-json does not use semver
+  suffixes = ["-common", "-stubs", "-iast"]
 }
 
 registerIndexTask(

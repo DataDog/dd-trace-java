@@ -21,7 +21,7 @@ dependencies {
   compileOnly group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.141.59'
 
   testFixturesApi project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
-  testFixturesApi project(':dd-java-agent:instrumentation:junit:junit-5.3')
+  testFixturesApi project(':dd-java-agent:instrumentation:junit:junit-5:junit-5.3')
   testFixturesApi(libs.junit.platform.launcher)
   testFixturesApi(libs.junit.jupiter.engine)
 

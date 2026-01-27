@@ -7,13 +7,22 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # run workflow when a release branch is created
+  # run workflow when any branch is created
   create:
 
 jobs:
+  # TODO: Remove this job after confirming the github.ref when a release branch is created
+  print-github-ref:
+    name: "Print full github.ref"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print github.ref
+        run: |
+          echo "github.ref: ${{ github.ref }}"
+
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name != 'create' || startsWith(github.ref, 'refs/heads/release/v')
+    if: github.event_name != 'create' || contains(github.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,7 +33,7 @@ jobs:
         with:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
-      
+
       - name: Define base branch
         id: define-base-branch
         run: |
@@ -36,7 +45,7 @@ jobs:
           echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
       
       - name: Checkout the repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.define-base-branch.outputs.base_branch }}
       
@@ -83,7 +92,7 @@ jobs:
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
       - name: Push changes
-        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"

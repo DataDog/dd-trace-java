@@ -19,14 +19,17 @@ final class CachedData {
       exclude(project(':components:context'))
       exclude(project(':components:environment'))
       exclude(project(':components:json'))
-      exclude(project(':components:yaml'))
-      exclude(project(':products:feature-flagging:bootstrap'))
+      exclude(project(':products:feature-flagging:feature-flagging-bootstrap'))
+      exclude(project(':products:metrics:metrics-agent'))
+      exclude(project(':products:metrics:metrics-api'))
+      exclude(project(':products:metrics:metrics-lib'))
       exclude(project(':remote-config:remote-config-api'))
       exclude(project(':remote-config:remote-config-core'))
       exclude(project(':telemetry'))
       exclude(project(':utils:config-utils'))
       exclude(project(':utils:container-utils'))
       exclude(project(':utils:filesystem-utils'))
+      exclude(project(':utils:queue-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))
@@ -47,6 +50,9 @@ final class CachedData {
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
+
+      // sketches-java used by dd-trace-core (DataStreams) and metrics
+      exclude(dependency('com.datadoghq:sketches-java'))
 
       // javac plugin client
       exclude(dependency('com.datadoghq:dd-javac-plugin-client'))

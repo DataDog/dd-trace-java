@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -22,10 +21,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
+import datadog.metrics.agent.AgentMeter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -33,10 +34,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
-import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -57,7 +56,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -79,17 +77,15 @@ import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
 import datadog.trace.common.sampling.TraceSamplingRules;
-import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
+import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
-import datadog.trace.core.histogram.Histograms;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -143,12 +139,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   public static final CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
-
-  private static final String LANG_STATSD_TAG = "lang";
-  private static final String LANG_VERSION_STATSD_TAG = "lang_version";
-  private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
-  private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
-  private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
   /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
   private final long startTimeNano;
@@ -205,8 +195,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   /** number of spans in a pending trace before they get flushed */
   private final int partialFlushMinSpans;
 
-  private final StatsDClient statsDClient;
-  private final Monitoring monitoring;
   private final Monitoring performanceMonitoring;
 
   private final HealthMetrics healthMetrics;
@@ -258,11 +246,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public ConfigSnapshot captureTraceConfig() {
     return dynamicConfig.captureTraceConfig();
-  }
-
-  @Override
-  public AgentHistogram newHistogram(double relativeAccuracy, int maxNumBins) {
-    return Histograms.newHistogram(relativeAccuracy, maxNumBins);
   }
 
   @Override
@@ -543,7 +526,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           taggedHeaders,
           baggageMapping,
           partialFlushMinSpans,
-          statsDClient,
           healthMetrics,
           tagInterceptor,
           strictTraceWrites,
@@ -576,7 +558,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final Map<String, String> taggedHeaders,
       final Map<String, String> baggageMapping,
       final int partialFlushMinSpans,
-      final StatsDClient statsDClient,
       final HealthMetrics healthMetrics,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
@@ -604,7 +585,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         taggedHeaders,
         baggageMapping,
         partialFlushMinSpans,
-        statsDClient,
         healthMetrics,
         tagInterceptor,
         strictTraceWrites,
@@ -636,7 +616,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final Map<String, String> taggedHeaders,
       final Map<String, String> baggageMapping,
       final int partialFlushMinSpans,
-      final StatsDClient statsDClient,
       final HealthMetrics healthMetrics,
       final TagInterceptor tagInterceptor,
       final boolean strictTraceWrites,
@@ -655,6 +634,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
     assert baggageMapping != null;
+
+    // preload this enum to avoid triggering classloading on the hot path
+    TraceCollector.PublishState.values();
 
     if (reportInTracerFlare) {
       TracerFlare.addReporter(this);
@@ -679,6 +661,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     } else {
       traceSamplingRules = TraceSamplingRules.deserialize(traceSamplingRulesJson);
     }
+
+    DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
+    String dataStreamsTransactionExtractorsJson = config.getDataStreamsTransactionExtractors();
+    if (dataStreamsTransactionExtractorsJson == null) {
+      dataStreamsTransactionExtractors = DataStreamsTransactionExtractors.EMPTY;
+    } else {
+      dataStreamsTransactionExtractors =
+          DataStreamsTransactionExtractors.deserialize(dataStreamsTransactionExtractorsJson);
+    }
+
     // Get initial Span Sampling Rules from config
     String spanSamplingRulesJson = config.getSpanSamplingRules();
     String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
@@ -708,6 +700,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             .setSpanSamplingRules(spanSamplingRules.getRules())
             .setTraceSamplingRules(traceSamplingRules.getRules(), traceSamplingRulesJson)
             .setTracingTags(config.getMergedSpanTags())
+            .setDataStreamsTransactionExtractors(dataStreamsTransactionExtractors.getExtractors())
             .apply();
 
     this.logs128bTraceIdEnabled = Config.get().isLogs128bitTraceIdEnabled();
@@ -717,32 +710,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
 
-    if (statsDClient != null) {
-      this.statsDClient = statsDClient;
-    } else if (writer == null || writer instanceof DDAgentWriter) {
-      this.statsDClient = createStatsDClient(config);
-    } else {
-      // avoid creating internal StatsD client when using external trace writer
-      this.statsDClient = StatsDClient.NO_OP;
-    }
-
-    monitoring =
-        config.isHealthMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
-            : Monitoring.DISABLED;
-
     this.healthMetrics =
         healthMetrics != null
             ? healthMetrics
             : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(this.statsDClient)
+                ? new TracerHealthMetrics(AgentMeter.statsDClient())
                 : HealthMetrics.NO_OP);
     this.healthMetrics.start();
 
     performanceMonitoring =
-        config.isPerfMetricsEnabled()
-            ? new MonitoringImpl(this.statsDClient, 10, SECONDS)
-            : Monitoring.DISABLED;
+        config.isPerfMetricsEnabled() ? AgentMeter.monitoring() : Monitoring.DISABLED;
 
     traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
 
@@ -760,7 +737,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (sharedCommunicationObjects == null) {
       sharedCommunicationObjects = new SharedCommunicationObjects();
     }
-    sharedCommunicationObjects.monitoring = monitoring;
+    sharedCommunicationObjects.monitoring = AgentMeter.monitoring();
     sharedCommunicationObjects.createRemaining(config);
 
     tracingConfigPoller = new TracingConfigPoller(dynamicConfig);
@@ -1397,7 +1374,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     pendingTraceBuffer.close();
     writer.close();
     RumInjector.shutdownTelemetry();
-    statsDClient.close();
+    AgentMeter.statsDClient().close();
     metricsAggregator.close();
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
@@ -1461,60 +1438,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     TracerFlare.addText(zip, "span_metrics.txt", SpanMetricRegistry.getInstance().summary());
   }
 
-  private static StatsDClient createStatsDClient(final Config config) {
-    if (!config.isHealthMetricsEnabled()) {
-      return StatsDClient.NO_OP;
-    } else {
-      String host = config.getHealthMetricsStatsdHost();
-      if (host == null) {
-        host = config.getJmxFetchStatsdHost();
-      }
-      Integer port = config.getHealthMetricsStatsdPort();
-      if (port == null) {
-        port = config.getJmxFetchStatsdPort();
-      }
-
-      return statsDClientManager()
-          .statsDClient(
-              host,
-              port,
-              config.getDogStatsDNamedPipe(),
-              // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
-              "datadog:tracer".replace(':', '.'),
-              generateConstantTags(config));
-    }
-  }
-
-  private static String[] generateConstantTags(final Config config) {
-    final List<String> constantTags = new ArrayList<>();
-
-    constantTags.add(statsdTag(LANG_STATSD_TAG, "java"));
-    constantTags.add(statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION));
-    constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME));
-    constantTags.add(statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR));
-    constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
-    constantTags.add(statsdTag("service", config.getServiceName()));
-
-    final Map<String, String> mergedSpanTags = config.getMergedSpanTags();
-    final String version = mergedSpanTags.get(GeneralConfig.VERSION);
-    if (version != null && !version.isEmpty()) {
-      constantTags.add(statsdTag("version", version));
-    }
-
-    final String env = mergedSpanTags.get(GeneralConfig.ENV);
-    if (env != null && !env.isEmpty()) {
-      constantTags.add(statsdTag("env", env));
-    }
-
-    return constantTags.toArray(new String[0]);
-  }
-
   Recording writeTimer() {
     return traceWriteTimer.start();
-  }
-
-  private static String statsdTag(final String tagPrefix, final String tagValue) {
-    return tagPrefix + ":" + tagValue;
   }
 
   private static <K, V> Map<V, K> invertMap(Map<K, V> map) {

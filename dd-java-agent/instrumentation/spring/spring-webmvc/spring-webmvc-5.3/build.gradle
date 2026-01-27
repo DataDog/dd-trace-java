@@ -26,5 +26,5 @@ dependencies {
 
   testImplementation(libs.spock.spring)
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 }

@@ -5,17 +5,24 @@ plugins {
   `jvm-test-suite`
 }
 
+// The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
+// allow to schedule workers on different JDK version.
 java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(8)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
   }
 }
 
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "dd-trace-java.instrument"
-      implementationClass = "InstrumentPlugin"
+      id = "dd-trace-java.build-time-instrumentation"
+      implementationClass = "datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin"
     }
 
     create("muzzle-plugin") {
@@ -66,7 +73,7 @@ dependencies {
   implementation(gradleApi())
   implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.1")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

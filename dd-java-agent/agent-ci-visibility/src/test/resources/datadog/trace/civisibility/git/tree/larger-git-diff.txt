@@ -1,16 +1,16 @@
-diff --git a/java/maven-junit4/pom.xml b/java/maven-junit4/pom.xml
+diff --git java/maven-junit4/pom.xml java/maven-junit4/pom.xml
 index 6d73cda..2a1f220 100644
---- a/java/maven-junit4/pom.xml
-+++ b/java/maven-junit4/pom.xml
+--- java/maven-junit4/pom.xml
++++ java/maven-junit4/pom.xml
 @@ -10 +10 @@
      
 -<name>java-maven-junit4</name>
 +<name>java-maven-junit4-test-project</name>
 ~
-diff --git a/java/maven-junit5/module-a/pom.xml b/java/maven-junit5/module-a/pom.xml
+diff --git java/maven-junit5/module-a/pom.xml java/maven-junit5/module-a/pom.xml
 index 29a3a73..4567037 100644
---- a/java/maven-junit5/module-a/pom.xml
-+++ b/java/maven-junit5/module-a/pom.xml
+--- java/maven-junit5/module-a/pom.xml
++++ java/maven-junit5/module-a/pom.xml
 @@ -8,3 +8,3 @@
          
 -<groupId>com.datadog.ci.test</groupId>
@@ -53,10 +53,10 @@ index 29a3a73..4567037 100644
 @@ -34 +40 @@
  </project>
 ~
-diff --git a/java/maven-junit5/module-b/pom.xml b/java/maven-junit5/module-b/pom.xml
+diff --git java/maven-junit5/module-b/pom.xml java/maven-junit5/module-b/pom.xml
 deleted file mode 100644
 index f18dd09..0000000
---- a/java/maven-junit5/module-b/pom.xml
+--- java/maven-junit5/module-b/pom.xml
 +++ /dev/null
 @@ -1,17 +0,0 @@
 -<?xml version="1.0"?>
@@ -91,10 +91,10 @@ index f18dd09..0000000
 ~
 -</project>
 ~
-diff --git a/java/maven-junit5/pom.xml b/java/maven-junit5/pom.xml
+diff --git java/maven-junit5/pom.xml java/maven-junit5/pom.xml
 index 7b92d64..834a61c 100644
---- a/java/maven-junit5/pom.xml
-+++ b/java/maven-junit5/pom.xml
+--- java/maven-junit5/pom.xml
++++ java/maven-junit5/pom.xml
 @@ -14 +14 @@
          
 -<module>module-b</module>

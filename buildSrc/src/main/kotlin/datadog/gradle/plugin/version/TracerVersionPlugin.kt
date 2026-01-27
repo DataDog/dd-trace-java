@@ -28,6 +28,10 @@ class TracerVersionPlugin @Inject constructor(
        .orElse(false)
     )
 
+    extension.versionQualifier.set(
+      providerFactory.gradleProperty("tracerVersion.qualifier")
+    )
+
     val versionProvider = versionProvider(targetProject, extension)
     targetProject.allprojects {
       version = versionProvider
@@ -126,6 +130,14 @@ class TracerVersionPlugin @Inject constructor(
     return buildString {
       append(version.toString())
 
+      // Add optional version qualifier (e.g., "-ddprof")
+      if (extension.versionQualifier.isPresent) {
+        val qualifier = extension.versionQualifier.get()
+        if (qualifier.isNotBlank()) {
+          append("-").append(qualifier)
+        }
+      }
+
       if (hasLaterCommits) {
         append(if (extension.useSnapshot.get()) "-SNAPSHOT" else describeTrailer)
       }
@@ -144,5 +156,6 @@ class TracerVersionPlugin @Inject constructor(
     val useSnapshot = objectFactory.property(Boolean::class)
       .convention(true)
     val detectDirty = objectFactory.property(Boolean::class)
+    val versionQualifier = objectFactory.property(String::class)
   }
 }
