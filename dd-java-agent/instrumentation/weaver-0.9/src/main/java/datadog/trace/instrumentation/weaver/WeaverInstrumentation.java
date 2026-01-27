@@ -11,7 +11,6 @@ import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sbt.testing.TaskDef;
 import weaver.framework.SuiteEvent;
@@ -57,13 +56,13 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
         boolean isFinal = Modifier.isFinal(queueField.getModifiers());
         if (isFinal) {
           try {
-            Logger log = LoggerFactory.getLogger(SbtTaskCreationAdvice.class);
-            log.warn(
-                "JEP 500: Final field 'queue' in class '{}' is being mutated. This will soon be disallowed. Field type: {}. Field declaring class: {}.",
-                sbtTask.getClass().getName(),
-                queueField.getType().getName(),
-                queueField.getDeclaringClass().getName());
-          } catch (Throwable logError) {
+            LoggerFactory.getLogger("datadog.trace.instrumentation.weaver.WeaverInstrumentation")
+                .warn(
+                    "JEP 500: Final field 'queue' in class '{}' is being mutated. This will soon be disallowed. Field type: {}. Field declaring class: {}.",
+                    sbtTask.getClass().getName(),
+                    queueField.getType().getName(),
+                    queueField.getDeclaringClass().getName());
+          } catch (Throwable ignored) {
             // Ignore logging errors to avoid failing instrumentation
           }
         }
