@@ -19,6 +19,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -124,13 +125,13 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         return null;
       }
       final String inputSql = sql;
+      final AgentSpan activeSpan = activeSpan();
       final DBInfo dbInfo =
           JDBCDecorator.parseDBInfo(
               connection, InstrumentationContext.get(Connection.class, DBInfo.class));
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
-        dbService =
-            traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
+        dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);
       }
 
       boolean append =
@@ -140,11 +141,12 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           SQLCommenter.inject(
               sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
       if (sql != originalSql // intentional reference comparison to check if injection happened
+          && activeSpan != null
           && Config.get().isDbmInjectSqlBaseHash()
           && Config.get().isExperimentalPropagateProcessTagsEnabled()) {
         // if the base hash was injected in the comment, we need to write it to the span as well,
         // so that the query and the span can be re-matched in the backed
-        activeSpan().setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
+        activeSpan.setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
       }
       return inputSql;
     }
