@@ -46,13 +46,14 @@ import org.slf4j.LoggerFactory;
 public final class CombiningTransformerBuilder
     implements Instrumenter.TypeTransformer, Instrumenter.MethodTransformer {
 
+  private static final Logger log = LoggerFactory.getLogger(CombiningTransformerBuilder.class);
+
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
   private static final ElementMatcher.Junction<TypeDescription> NOT_DECORATOR_MATCHER =
       not(
           declaresAnnotation(
               namedOneOf("javax.decorator.Decorator", "jakarta.decorator.Decorator")));
-  private static final Logger log = LoggerFactory.getLogger(CombiningTransformerBuilder.class);
 
   /** Associates context stores with the class-loader matchers to activate them. */
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
