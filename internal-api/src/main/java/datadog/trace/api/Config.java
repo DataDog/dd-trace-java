@@ -14,7 +14,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
@@ -221,7 +220,6 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
@@ -994,7 +992,6 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
-  private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -2218,7 +2215,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -5415,7 +5411,7 @@ public class Config {
   }
 
   public boolean isAppSecRaspEnabled() {
-    return appSecRaspEnabled;
+    return instrumenterConfig.isAppSecRaspEnabled();
   }
 
   public boolean isAppSecStackTraceEnabled() {
@@ -6172,7 +6168,7 @@ public class Config {
         + ", appSecScaEnabled="
         + appSecScaEnabled
         + ", appSecRaspEnabled="
-        + appSecRaspEnabled
+        + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
         + dataJobsOpenLineageEnabled
         + ", dataJobsOpenLineageTimeoutEnabled="
