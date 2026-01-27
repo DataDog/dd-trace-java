@@ -32,7 +32,6 @@
 
 # Conversion template for benchmark artifacts
 .convert-benchmarks:
-  stage: benchmarks
   timeout: 1h
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:88265497
@@ -119,30 +118,18 @@ convert-startup-benchmarks:
   extends: .convert-benchmarks
   stage: benchmark-conversion
   needs:
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-spring-petclinic-microbenchmark-startup-tracing
+    - job: linux-java-spring-petclinic-microbenchmark-startup-tracing
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-spring-petclinic-microbenchmark-startup-profiling
+    - job: linux-java-spring-petclinic-microbenchmark-startup-profiling
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-spring-petclinic-microbenchmark-startup-appsec
+    - job: linux-java-spring-petclinic-microbenchmark-startup-appsec
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-spring-petclinic-microbenchmark-startup-iast
+    - job: linux-java-spring-petclinic-microbenchmark-startup-iast
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-insecure-bank-microbenchmark-startup-tracing
+    - job: linux-java-insecure-bank-microbenchmark-startup-tracing
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-insecure-bank-microbenchmark-startup-iast
+    - job: linux-java-insecure-bank-microbenchmark-startup-iast
       artifacts: true
-      ref: sarahchen6/migrate-java-microbenchmarks
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -220,30 +207,18 @@ convert-dacapo-benchmarks:
   extends: .convert-benchmarks
   stage: benchmark-conversion
   needs:
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-baseline
+    - job: linux-java-dacapo-microbenchmark-baseline
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-tracing
+    - job: linux-java-dacapo-microbenchmark-tracing
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-profiling
+    - job: linux-java-dacapo-microbenchmark-profiling
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-appsec
+    - job: linux-java-dacapo-microbenchmark-appsec
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-iast
+    - job: linux-java-dacapo-microbenchmark-iast
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
-    - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
-      job: linux-java-dacapo-microbenchmark-iast_GLOBAL
+    - job: linux-java-dacapo-microbenchmark-iast_GLOBAL
       artifacts: true
-      ref: sarahchen6/migrate-dacapo-microbenchmarks
   rules:
     - if: '$POPULATE_CACHE'
       when: never
