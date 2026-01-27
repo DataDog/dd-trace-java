@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 
+import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -92,9 +93,7 @@ public final class AdviceAppliesOnScanner {
                         if (!overriddenTargetSystems.isEmpty()) {
                           log.debug(
                               "Found @AppliesOn on {} → {}", className, overriddenTargetSystems);
-                          map.put(
-                              className.substring(className.lastIndexOf('.') + 1),
-                              overriddenTargetSystems);
+                          map.put(Strings.getSimpleName(adviceClassName), overriddenTargetSystems);
                         }
                       }
                     };

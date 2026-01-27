@@ -10,6 +10,7 @@ import static java.util.Collections.singletonList;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
+import datadog.trace.util.Strings;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -178,8 +179,7 @@ final class InstrumenterIndex {
       return true;
     }
     Set<InstrumenterModule.TargetSystem> targetSystemOverrides =
-        memberAdviceTargetSystemOverrides.get(
-            adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
+        memberAdviceTargetSystemOverrides.get(Strings.getSimpleName(adviceClass));
     return null == targetSystemOverrides || !disjoint(targetSystemOverrides, enabledSystems);
   }
 
