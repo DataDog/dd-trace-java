@@ -41,7 +41,9 @@ import org.slf4j.LoggerFactory;
  * Maintains an index of known {@link InstrumenterModule}s and their expected transformations.
  *
  * <p>This index is not thread-safe; it expects only one thread to iterate over it at a time. It
- * also assumes indexed types have simple ASCII names which are less than 256 characters long.
+ * also assumes indexed types have simple ASCII names which are less than 256 characters long. Also,
+ * because it encodes enabled systems as a 2-byte bitset, it can support at most 16 distinct
+ * TargetSystem values.
  */
 final class InstrumenterIndex {
   private static final Logger log = LoggerFactory.getLogger(InstrumenterIndex.class);
@@ -69,7 +71,7 @@ final class InstrumenterIndex {
   private int instrumentationId = -1;
   private String moduleName;
   private int memberCount;
-  private boolean hasModuleOverrides;
+  private boolean hasTargetSystemOverrides;
 
   // current member details
   private int transformationId = -1;
@@ -84,12 +86,14 @@ final class InstrumenterIndex {
   }
 
   /**
-   * Queries the index to select modules that are either eligible to the provided targetSystems either are ExcludeFilterProvider
+   * Queries the index to select modules that are either eligible to the provided targetSystems
+   * either are ExcludeFilterProvider
    *
    * @param targetSystems the enabled target systems
    * @return an iterable of modules that apply.
    */
-  public Iterable<InstrumenterModule> modules(final Set<InstrumenterModule.TargetSystem> targetSystems) {
+  public Iterable<InstrumenterModule> modules(
+      final Set<InstrumenterModule.TargetSystem> targetSystems) {
     return modules(forTargetSystemsOrExcludeProvider(targetSystems));
   }
 
@@ -130,23 +134,17 @@ final class InstrumenterIndex {
     }
   }
 
-  /**
-   * Maximum known count of {@link InstrumenterModule} instrumentations.
-   */
+  /** Maximum known count of {@link InstrumenterModule} instrumentations. */
   public int instrumentationCount() {
     return instrumentationCount;
   }
 
-  /**
-   * Maximum known count of {@link Instrumenter} transformations.
-   */
+  /** Maximum known count of {@link Instrumenter} transformations. */
   public int transformationCount() {
     return transformationCount;
   }
 
-  /**
-   * Returns the id allocated to the instrumentation; {@code -1} if unknown.
-   */
+  /** Returns the id allocated to the instrumentation; {@code -1} if unknown. */
   public int instrumentationId(InstrumenterModule module) {
     if (module.getClass().getName().equals(moduleName)) {
       return instrumentationId;
@@ -154,9 +152,7 @@ final class InstrumenterIndex {
     return -1;
   }
 
-  /**
-   * Returns the id allocated to the transformation; {@code -1} if unknown.
-   */
+  /** Returns the id allocated to the transformation; {@code -1} if unknown. */
   public int transformationId(Instrumenter member) {
     if (null == memberName && memberCount > 0) {
       nextMember(); // move through expected members as transformations are applied
@@ -175,33 +171,27 @@ final class InstrumenterIndex {
     if (memberAdviceTargetOverrides == null) {
       return true;
     }
-    Set<InstrumenterModule.TargetSystem> adviceOverrides =
+    Set<InstrumenterModule.TargetSystem> targetSystemOverrides =
         memberAdviceTargetOverrides.get(adviceClass.substring(adviceClass.lastIndexOf('.') + 1));
-    return null == adviceOverrides || !disjoint(adviceOverrides, enabledSystems);
+    return null == targetSystemOverrides || !disjoint(targetSystemOverrides, enabledSystems);
   }
 
-  /**
-   * Resets the iteration to the start of the index.
-   */
+  /** Resets the iteration to the start of the index. */
   void restart() {
     nameIndex = 0;
     instrumentationId = -1;
     transformationId = -1;
     memberCount = 0;
     memberAdviceTargetOverrides = null;
-    hasModuleOverrides = false;
+    hasTargetSystemOverrides = false;
   }
 
-  /**
-   * Is there another known {@link InstrumenterModule} left in the index?
-   */
+  /** Is there another known {@link InstrumenterModule} left in the index? */
   boolean hasNextModule() {
     return instrumentationCount - instrumentationId > 1;
   }
 
-  /**
-   * Returns the next {@link InstrumenterModule} in the index.
-   */
+  /** Returns the next {@link InstrumenterModule} in the index. */
   InstrumenterModule nextModule(InstrumenterModuleFilter filter) {
     while (memberCount > 0) {
       skipMember(); // skip past unmatched members from previous module
@@ -219,19 +209,19 @@ final class InstrumenterIndex {
     final Set<InstrumenterModule.TargetSystem> moduleTargetSystems = decodeTargetSystems(systems);
     // flags
     final byte flags = (byte) readNumber();
-    final boolean excludeProvider = decodeModuleIsExclusionProvider(flags);
-    hasModuleOverrides = decodeModuleHasAdviceTargetOverrides(flags);
+    final boolean isExcludeProvider = decodeModuleIsExcludeProvider(flags);
+    hasTargetSystemOverrides = decodeModuleHasTargetSystemOverrides(flags);
     memberAdviceTargetOverrides = null;
     memberCount = readNumber();
     if (SELF_MEMBERSHIP == memberCount) {
       transformationId++;
       memberName = moduleName;
       memberCount = 0;
-      decodeAdviceOverrides();
+      decodeTargetSystemOverrides();
     } else {
       memberName = null;
     }
-    if (filter.test(moduleName, moduleTargetSystems, excludeProvider)) {
+    if (filter.test(moduleName, moduleTargetSystems, isExcludeProvider)) {
       if (module == null) {
         module = buildModule();
         modules[instrumentationId] = module;
@@ -254,18 +244,16 @@ final class InstrumenterIndex {
     }
   }
 
-  /**
-   * Moves onto the next member in the expected sequence.
-   */
+  /** Moves onto the next member in the expected sequence. */
   private void nextMember() {
     memberCount--;
     transformationId++;
     memberName = readName();
-    decodeAdviceOverrides();
+    decodeTargetSystemOverrides();
   }
 
-  private void decodeAdviceOverrides() {
-    if (hasModuleOverrides) {
+  private void decodeTargetSystemOverrides() {
+    if (hasTargetSystemOverrides) {
       int overrideCount = readNumber();
       if (overrideCount > 0) {
         memberAdviceTargetOverrides = new HashMap<>(overrideCount * 4 / 3, 0.75f);
@@ -278,14 +266,12 @@ final class InstrumenterIndex {
     }
   }
 
-  /**
-   * Skips past the next member in the expected sequence.
-   */
+  /** Skips past the next member in the expected sequence. */
   private void skipMember() {
     memberCount--;
     transformationId++;
     skipName();
-    if (hasModuleOverrides) {
+    if (hasTargetSystemOverrides) {
       // skip next N custom overrides
       for (int i = 0, overrideCount = readNumber(); i < overrideCount; i++) {
         skipName();
@@ -295,9 +281,7 @@ final class InstrumenterIndex {
     }
   }
 
-  /**
-   * Reads a single-byte-encoded string from the packed name sequence.
-   */
+  /** Reads a single-byte-encoded string from the packed name sequence. */
   private String readName() {
     int length = readNumber();
     String name = new String(packedNames, nameIndex, length, ISO_8859_1);
@@ -305,17 +289,13 @@ final class InstrumenterIndex {
     return name;
   }
 
-  /**
-   * Skips a single-byte-encoded string from the packed name sequence.
-   */
+  /** Skips a single-byte-encoded string from the packed name sequence. */
   private void skipName() {
     int length = readNumber();
     nameIndex += length;
   }
 
-  /**
-   * Reads an unsigned byte from the packed name sequence.
-   */
+  /** Reads an unsigned byte from the packed name sequence. */
   private int readNumber() {
     return 0xFF & (int) packedNames[nameIndex++];
   }
@@ -328,7 +308,7 @@ final class InstrumenterIndex {
     URL indexResource = instrumenterClassLoader.getResource(INSTRUMENTER_INDEX_NAME);
     if (null != indexResource) {
       try (DataInputStream in =
-               new DataInputStream(new BufferedInputStream(indexResource.openStream()))) {
+          new DataInputStream(new BufferedInputStream(indexResource.openStream()))) {
         int instrumentationCount = in.readInt();
         int transformationCount = in.readInt();
         int packedNamesLength = in.readInt();
@@ -352,9 +332,7 @@ final class InstrumenterIndex {
         indexGenerator.packedNames.toByteArray());
   }
 
-  /**
-   * Loads instrumentation modules annotated with {@code @AutoService}.
-   */
+  /** Loads instrumentation modules annotated with {@code @AutoService}. */
   static List<InstrumenterModule> loadModules(ClassLoader loader) throws IOException {
     List<InstrumenterModule> modules = new ArrayList<>();
     for (String moduleName : loadModuleNames(loader)) {
@@ -371,16 +349,14 @@ final class InstrumenterIndex {
     return modules;
   }
 
-  /**
-   * Loads the type names of instrumentation modules annotated with {@code @AutoService}.
-   */
+  /** Loads the type names of instrumentation modules annotated with {@code @AutoService}. */
   private static String[] loadModuleNames(ClassLoader loader) throws IOException {
     Set<String> lines = new LinkedHashSet<>();
     Enumeration<URL> urls =
         loader.getResources("META-INF/services/datadog.trace.agent.tooling.InstrumenterModule");
     while (urls.hasMoreElements()) {
       try (BufferedReader reader =
-               new BufferedReader(new InputStreamReader(urls.nextElement().openStream(), UTF_8))) {
+          new BufferedReader(new InputStreamReader(urls.nextElement().openStream(), UTF_8))) {
         String line = reader.readLine();
         while (line != null) {
           lines.add(line);
@@ -399,11 +375,11 @@ final class InstrumenterIndex {
     return ret;
   }
 
-  static boolean decodeModuleIsExclusionProvider(byte flags) {
+  static boolean decodeModuleIsExcludeProvider(byte flags) {
     return (flags & 2) != 0;
   }
 
-  static boolean decodeModuleHasAdviceTargetOverrides(byte flags) {
+  static boolean decodeModuleHasTargetSystemOverrides(byte flags) {
     return (flags & 1) != 0;
   }
 
@@ -463,9 +439,7 @@ final class InstrumenterIndex {
     }
   }
 
-  /**
-   * Generates an index from known {@link InstrumenterModule}s on the build class-path.
-   */
+  /** Generates an index from known {@link InstrumenterModule}s on the build class-path. */
   static final class IndexGenerator {
     final ByteArrayOutputStream packedNames = new ByteArrayOutputStream();
 
@@ -485,7 +459,7 @@ final class InstrumenterIndex {
               findModuleTargetSystems(module);
           for (Instrumenter instrumenter : module.typeInstrumentations()) {
             final Map<String, Set<InstrumenterModule.TargetSystem>> overrides =
-                AdviceAppliesOnScanner.extractCustomAdvices(instrumenter);
+                AdviceAppliesOnScanner.extractTargetSystemOverrides(instrumenter);
             overrides.forEach((ignored, systems) -> moduleTargetSystems.addAll(systems));
             if (!overrides.isEmpty()) {
               adviceOverrides.put(instrumenter, overrides);
@@ -527,7 +501,7 @@ final class InstrumenterIndex {
 
     public void writeIndex(Path indexFile) throws IOException {
       try (DataOutputStream out =
-               new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(indexFile)))) {
+          new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(indexFile)))) {
         out.writeInt(instrumentationCount);
         out.writeInt(transformationCount);
         out.writeInt(packedNames.size());

@@ -26,7 +26,7 @@ public final class AdviceAppliesOnScanner {
   private static final String APPLIESON_ANNOTATION_DESC =
       "Ldatadog/trace/agent/tooling/annotation/AppliesOn;";
 
-  public static Map<String, Set<InstrumenterModule.TargetSystem>> extractCustomAdvices(
+  public static Map<String, Set<InstrumenterModule.TargetSystem>> extractTargetSystemOverrides(
       Instrumenter instrumenter) throws IOException {
     if (!(instrumenter instanceof Instrumenter.HasMethodAdvice)) {
       return emptyMap();

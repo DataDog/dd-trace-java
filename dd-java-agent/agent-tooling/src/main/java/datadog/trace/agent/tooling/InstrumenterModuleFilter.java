@@ -10,8 +10,8 @@ public interface InstrumenterModuleFilter {
 
   static InstrumenterModuleFilter forTargetSystemsOrExcludeProvider(
       final Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    return (instrumenterModuleName, targetSystems, isExcludeProvider)
-        -> isExcludeProvider || !disjoint(enabledSystems, targetSystems);
+    return (instrumenterModuleName, targetSystems, isExcludeProvider) ->
+        isExcludeProvider || !disjoint(enabledSystems, targetSystems);
   }
 
   boolean test(
