@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -33,6 +34,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builds {@link InstrumenterModule}s into a single combining-matcher and splitting-transformer.
@@ -42,6 +45,8 @@ import net.bytebuddy.utility.JavaModule;
  */
 public final class CombiningTransformerBuilder
     implements Instrumenter.TypeTransformer, Instrumenter.MethodTransformer {
+
+  private static final Logger log = LoggerFactory.getLogger(CombiningTransformerBuilder.class);
 
   // Added here instead of byte-buddy's ignores because it's relatively
   // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
@@ -57,6 +62,7 @@ public final class CombiningTransformerBuilder
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
+  private final Set<InstrumenterModule.TargetSystem> enabledSystems;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -80,7 +86,9 @@ public final class CombiningTransformerBuilder
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
 
   public CombiningTransformerBuilder(
-      AgentBuilder agentBuilder, InstrumenterIndex instrumenterIndex) {
+      AgentBuilder agentBuilder,
+      InstrumenterIndex instrumenterIndex,
+      Set<InstrumenterModule.TargetSystem> enabledSystems) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -89,6 +97,7 @@ public final class CombiningTransformerBuilder
     this.transformers = new AdviceStack[knownTransformationCount];
     this.nextRuntimeInstrumentationId = knownInstrumentationCount;
     this.nextRuntimeTransformationId = knownTransformationCount;
+    this.enabledSystems = enabledSystems;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -239,7 +248,26 @@ public final class CombiningTransformerBuilder
   }
 
   @Override
-  public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+  public void applyAdvices(
+      ElementMatcher<? super MethodDescription> matcher,
+      String adviceClass,
+      String... additionalAdviceClasses) {
+    addAdviceIfEnabled(matcher, adviceClass);
+
+    if (additionalAdviceClasses != null) {
+      for (String adviceClassName : additionalAdviceClasses) {
+        addAdviceIfEnabled(matcher, adviceClassName);
+      }
+    }
+  }
+
+  private void addAdviceIfEnabled(
+      ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+    if (!instrumenterIndex.isAdviceEnabled(adviceClass, enabledSystems)) {
+      log.debug("Skipping advice class {} as it is not enabled", adviceClass);
+      return;
+    }
+    log.debug("Installing advice class {}", adviceClass);
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
       customMapping = customMapping.with(postProcessor);

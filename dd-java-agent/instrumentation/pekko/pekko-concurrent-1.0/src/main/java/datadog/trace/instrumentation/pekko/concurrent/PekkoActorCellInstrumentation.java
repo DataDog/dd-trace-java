@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.dispatch.Envelope;
 
 @AutoService(InstrumenterModule.class)
-public class PekkoActorCellInstrumentation extends InstrumenterModule.Tracing
+public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoActorCellInstrumentation() {
