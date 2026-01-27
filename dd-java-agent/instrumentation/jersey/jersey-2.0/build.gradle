@@ -98,7 +98,7 @@ configurations.configureEach {
       if (candidate.group == 'org.glassfish.jersey.core'
         && candidate.module == 'jersey-common'
         && candidate.version.startsWith('4.0.1')) {
-        reject('Version 4.0.1 is broken')
+        reject('Version 4.0.1 is broken, see https://github.com/eclipse-ee4j/jersey/issues/6064')
       }
     }
   }
