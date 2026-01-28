@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounter;
@@ -15,15 +16,20 @@ import io.opentelemetry.context.Context;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
-  private static final RatelimitedLogger log =
-      new RatelimitedLogger(LoggerFactory.getLogger(OtelDoubleCounter.class), 5, TimeUnit.MINUTES);
+  private static final Logger LOGGER = LoggerFactory.getLogger(OtelDoubleCounter.class);
+  private static final RatelimitedLogger RATELIMITED_LOGGER =
+      new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
+
+  private final OtelMetricStorage storage;
 
   OtelDoubleCounter(OtelInstrumentDescriptor descriptor) {
     super(descriptor);
+    this.storage = OtelMetricStorage.newDoubleSumStorage(descriptor);
   }
 
   @Override
@@ -34,12 +40,11 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
   @Override
   public void add(double value, Attributes attributes) {
     if (value < 0) {
-      log.warn(
-          "Counters can only increase. Instrument "
-              + getDescriptor().getName()
-              + " has recorded a negative value.");
+      RATELIMITED_LOGGER.warn(
+          "Counters can only increase. Instrument {} has recorded a negative value.",
+          getDescriptor().getName());
     } else {
-      // FIXME: implement recording
+      storage.recordDouble(value, attributes);
     }
   }
 

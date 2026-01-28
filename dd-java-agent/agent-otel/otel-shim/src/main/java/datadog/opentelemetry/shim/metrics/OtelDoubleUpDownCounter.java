@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUN
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounter;
 import io.opentelemetry.api.metrics.DoubleUpDownCounterBuilder;
@@ -16,9 +17,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDownCounter {
+  private final OtelMetricStorage storage;
 
   OtelDoubleUpDownCounter(OtelInstrumentDescriptor descriptor) {
     super(descriptor);
+    this.storage = OtelMetricStorage.newDoubleSumStorage(descriptor);
   }
 
   @Override
@@ -28,7 +31,7 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
 
   @Override
   public void add(double value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordDouble(value, attributes);
   }
 
   @Override

@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongGauge;
 import io.opentelemetry.api.metrics.LongGaugeBuilder;
@@ -16,9 +17,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLongGauge extends OtelInstrument implements LongGauge {
+  private final OtelMetricStorage storage;
 
   OtelLongGauge(OtelInstrumentDescriptor descriptor) {
     super(descriptor);
+    this.storage = OtelMetricStorage.newLongValueStorage(descriptor);
   }
 
   @Override
@@ -28,7 +31,7 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
 
   @Override
   public void set(long value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordLong(value, attributes);
   }
 
   @Override

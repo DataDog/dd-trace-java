@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** Uniquely describes an instrument for the Meter that created it. */
-final class OtelInstrumentDescriptor {
+public final class OtelInstrumentDescriptor {
   private final String instrumentName;
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
@@ -27,6 +27,14 @@ final class OtelInstrumentDescriptor {
 
   public String getName() {
     return instrumentName;
+  }
+
+  public OtelInstrumentType getType() {
+    return instrumentType;
+  }
+
+  public boolean hasLongValues() {
+    return longValues;
   }
 
   @Nullable

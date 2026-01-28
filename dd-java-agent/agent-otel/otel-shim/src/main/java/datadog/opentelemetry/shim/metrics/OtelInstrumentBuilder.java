@@ -3,7 +3,6 @@ package datadog.opentelemetry.shim.metrics;
 import javax.annotation.Nullable;
 
 final class OtelInstrumentBuilder {
-
   private final OtelMeter meter;
   private final String instrumentName;
   private final OtelInstrumentType instrumentType;
@@ -81,6 +80,7 @@ final class OtelInstrumentBuilder {
     this.unit = unit;
   }
 
+  /** Captures the instrument details built so far as a descriptor. */
   OtelInstrumentDescriptor toDescriptor() {
     return new OtelInstrumentDescriptor(
         instrumentName, instrumentType, longValues, description, unit);

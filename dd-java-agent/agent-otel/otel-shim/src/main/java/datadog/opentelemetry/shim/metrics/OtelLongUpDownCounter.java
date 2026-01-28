@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUN
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
@@ -17,9 +18,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCounter {
+  private final OtelMetricStorage storage;
 
   OtelLongUpDownCounter(OtelInstrumentDescriptor descriptor) {
     super(descriptor);
+    this.storage = OtelMetricStorage.newLongSumStorage(descriptor);
   }
 
   @Override
@@ -29,7 +32,7 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
 
   @Override
   public void add(long value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordLong(value, attributes);
   }
 
   @Override
