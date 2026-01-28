@@ -17,7 +17,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat("1.32.0")
+    googleJavaFormat("1.33.0")
   }
 }
 
