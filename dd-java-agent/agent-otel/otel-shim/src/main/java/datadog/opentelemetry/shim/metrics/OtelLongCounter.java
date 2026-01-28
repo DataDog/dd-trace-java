@@ -34,11 +34,6 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
 
   @Override
   public void add(long value, Attributes attributes) {
-    add(value, attributes, Context.current());
-  }
-
-  @Override
-  public void add(long value, Attributes attributes, Context context) {
     if (value < 0) {
       log.warn(
           "Counters can only increase. Instrument "
@@ -47,6 +42,11 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
     } else {
       // FIXME: implement recording
     }
+  }
+
+  @Override
+  public void add(long value, Attributes attributes, Context unused) {
+    add(value, attributes);
   }
 
   static final class Builder implements LongCounterBuilder {

@@ -37,11 +37,6 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
 
   @Override
   public void record(long value, Attributes attributes) {
-    record(value, attributes, Context.current());
-  }
-
-  @Override
-  public void record(long value, Attributes attributes, Context context) {
     if (value < 0) {
       log.warn(
           "Histograms can only record non-negative values. Instrument "
@@ -50,6 +45,11 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
     } else {
       // FIXME: implement recording
     }
+  }
+
+  @Override
+  public void record(long value, Attributes attributes, Context unused) {
+    record(value, attributes);
   }
 
   static final class Builder implements LongHistogramBuilder {

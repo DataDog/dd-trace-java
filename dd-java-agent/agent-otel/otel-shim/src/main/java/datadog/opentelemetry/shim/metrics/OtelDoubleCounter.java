@@ -33,11 +33,6 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
 
   @Override
   public void add(double value, Attributes attributes) {
-    add(value, attributes, Context.current());
-  }
-
-  @Override
-  public void add(double value, Attributes attributes, Context context) {
     if (value < 0) {
       log.warn(
           "Counters can only increase. Instrument "
@@ -46,6 +41,11 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
     } else {
       // FIXME: implement recording
     }
+  }
+
+  @Override
+  public void add(double value, Attributes attributes, Context unused) {
+    add(value, attributes);
   }
 
   static final class Builder implements DoubleCounterBuilder {

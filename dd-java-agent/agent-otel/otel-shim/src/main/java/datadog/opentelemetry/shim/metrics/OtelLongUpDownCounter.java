@@ -29,12 +29,12 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
 
   @Override
   public void add(long value, Attributes attributes) {
-    add(value, attributes, Context.current());
+    // FIXME: implement recording
   }
 
   @Override
-  public void add(long value, Attributes attributes, Context context) {
-    // FIXME: implement recording
+  public void add(long value, Attributes attributes, Context unused) {
+    add(value, attributes);
   }
 
   static final class Builder implements LongUpDownCounterBuilder {

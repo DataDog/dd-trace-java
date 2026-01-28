@@ -39,11 +39,6 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
 
   @Override
   public void record(double value, Attributes attributes) {
-    record(value, attributes, Context.current());
-  }
-
-  @Override
-  public void record(double value, Attributes attributes, Context context) {
     if (value < 0) {
       log.warn(
           "Histograms can only record non-negative values. Instrument "
@@ -52,6 +47,11 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     } else {
       // FIXME: implement recording
     }
+  }
+
+  @Override
+  public void record(double value, Attributes attributes, Context unused) {
+    record(value, attributes);
   }
 
   static final class Builder implements DoubleHistogramBuilder {
