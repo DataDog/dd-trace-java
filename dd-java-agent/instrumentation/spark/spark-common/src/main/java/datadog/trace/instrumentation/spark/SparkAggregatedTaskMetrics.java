@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentHistogram;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import org.apache.spark.TaskFailedReason;
@@ -53,12 +52,12 @@ class SparkAggregatedTaskMetrics {
   private long totalTaskRunTimeSinceLastStage = 0L;
   private long skewTime = 0;
 
-  private AgentHistogram taskRunTimeHistogram;
-  private AgentHistogram inputBytesHistogram;
-  private AgentHistogram outputBytesHistogram;
-  private AgentHistogram shuffleReadBytesHistogram;
-  private AgentHistogram shuffleWriteBytesHistogram;
-  private AgentHistogram diskBytesSpilledHistogram;
+  private Histogram taskRunTimeHistogram;
+  private Histogram inputBytesHistogram;
+  private Histogram outputBytesHistogram;
+  private Histogram shuffleReadBytesHistogram;
+  private Histogram shuffleWriteBytesHistogram;
+  private Histogram diskBytesSpilledHistogram;
 
   public SparkAggregatedTaskMetrics() {}
 
@@ -258,14 +257,14 @@ class SparkAggregatedTaskMetrics {
    * usually involve either input/output or shuffle read/write operations, resulting in an average
    * of 3 histograms having non-zero values
    */
-  private AgentHistogram lazyHistogramAccept(AgentHistogram hist, double value) {
+  private Histogram lazyHistogramAccept(Histogram hist, double value) {
     if (hist != null) {
       hist.accept(value);
     } else {
       if (value != 0) {
         // All the callbacks in DatadogSparkListener are called from the same thread, meaning we
         // don't risk to lose values by creating the histogram this way
-        hist = AgentTracer.get().newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+        hist = Histogram.newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
         if (taskCompletedCount > 1) {
           // Filling all the previous 0s that we might have missed
           hist.accept(0, taskCompletedCount - 1);
@@ -283,7 +282,7 @@ class SparkAggregatedTaskMetrics {
         + metrics.resultSerializationTime();
   }
 
-  private static String histogramToBase64(AgentHistogram hist) {
+  private static String histogramToBase64(Histogram hist) {
     ByteBuffer bb = hist.serialize();
 
     byte[] bytes;

@@ -18,7 +18,7 @@ import org.apache.pekko.dispatch.Envelope;
 import org.apache.pekko.routing.RoutedActorCell;
 
 @AutoService(InstrumenterModule.class)
-public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
+public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoRoutedActorCellInstrumentation() {

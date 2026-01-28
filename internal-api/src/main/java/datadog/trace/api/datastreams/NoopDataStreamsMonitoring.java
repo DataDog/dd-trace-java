@@ -56,6 +56,16 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void clearThreadServiceName() {}
 
   @Override
+  public void trackTransaction(String transactionId, String checkpointName) {}
+
+  @Override
+  public void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader) {}
+
+  @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
 
   @Override

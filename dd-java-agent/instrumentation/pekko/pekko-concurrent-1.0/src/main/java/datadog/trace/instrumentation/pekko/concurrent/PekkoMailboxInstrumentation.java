@@ -18,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class PekkoMailboxInstrumentation extends InstrumenterModule.Tracing
+public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public PekkoMailboxInstrumentation() {

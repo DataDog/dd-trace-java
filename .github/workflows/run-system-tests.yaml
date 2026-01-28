@@ -23,13 +23,13 @@ jobs:
       group: APM Larger Runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           path: |
             ~/.gradle/caches
@@ -62,7 +62,8 @@ jobs:
     - build
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
     uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned for releases only
-    secrets: inherit
+    secrets:
+      TEST_OPTIMIZATION_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
     permissions:
       contents: read
       id-token: write
@@ -76,6 +77,7 @@ jobs:
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: true
+      push_to_test_optimization: true
 
   # Ensure the main job is run to completion
   check:
