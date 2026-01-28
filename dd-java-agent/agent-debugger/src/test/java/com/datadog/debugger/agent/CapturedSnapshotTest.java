@@ -91,13 +91,9 @@ import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import utils.SourceCompiler;
 
 public class CapturedSnapshotTest extends CapturingTestBase {
-  private static final Logger log = LoggerFactory.getLogger(CapturedSnapshotTest.class);
-
   private static final ProbeId PROBE_ID1 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f6", 0);
   private static final ProbeId PROBE_ID2 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f7", 0);
   private static final ProbeId PROBE_ID3 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f8", 0);
@@ -2855,14 +2851,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     try {
       Field instanceField = singletonClass.getDeclaredField("INSTANCE");
       instanceField.setAccessible(true);
-      boolean isFinal = Modifier.isFinal(instanceField.getModifiers());
-      if (isFinal) {
-        log.warn(
-            "JEP 500: Final field 'INSTANCE' in class '{}' is being mutated. This will soon be disallowed. Field type: {}. Field declaring class: {}.",
-            singletonClass.getName(),
-            instanceField.getType().getName(),
-            instanceField.getDeclaringClass().getName());
-      }
       Field modifiersField = Field.class.getDeclaredField("modifiers");
       modifiersField.setAccessible(true);
       modifiersField.setInt(instanceField, instanceField.getModifiers() & ~Modifier.FINAL);

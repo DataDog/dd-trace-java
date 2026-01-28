@@ -7,11 +7,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.asm.Advice;
-import org.slf4j.LoggerFactory;
 import sbt.testing.TaskDef;
 import weaver.framework.SuiteEvent;
 
@@ -53,19 +51,6 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
       try {
         Field queueField = sbtTask.getClass().getDeclaredField("queue");
         queueField.setAccessible(true);
-        boolean isFinal = Modifier.isFinal(queueField.getModifiers());
-        if (isFinal) {
-          try {
-            LoggerFactory.getLogger("datadog.trace.instrumentation.weaver.WeaverInstrumentation")
-                .warn(
-                    "JEP 500: Final field 'queue' in class '{}' is being mutated. This will soon be disallowed. Field type: {}. Field declaring class: {}.",
-                    sbtTask.getClass().getName(),
-                    queueField.getType().getName(),
-                    queueField.getDeclaringClass().getName());
-          } catch (Throwable ignored) {
-            // Ignore logging errors to avoid failing instrumentation
-          }
-        }
         Object queue = queueField.get(sbtTask);
         if (queue instanceof ConcurrentLinkedQueue) {
           // disney's implementation (0.8.4+) uses a ConcurrentLinkedQueue for the field
