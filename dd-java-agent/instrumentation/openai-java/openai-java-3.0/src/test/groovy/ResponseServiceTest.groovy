@@ -7,6 +7,7 @@ import com.openai.core.http.StreamResponse
 import com.openai.models.responses.Response
 import com.openai.models.responses.ResponseStreamEvent
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.openai_java.OpenAiDecorator
 import java.util.concurrent.CompletableFuture
@@ -162,7 +163,7 @@ class ResponseServiceTest extends OpenAiTest {
 
   def "create streaming response with tool input test"() {
     runnableUnderTrace("parent") {
-      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParamsWithToolInput(true))
+      StreamResponse<ResponseStreamEvent> streamResponse = openAiClient.responses().createStreaming(responseCreateParams)
       try (Stream stream = streamResponse.stream()) {
         stream.forEach {
           // consume the stream
@@ -171,10 +172,21 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null)
+    List<LLMObs.LLMMessage> inputTags = []
+    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags)
+    and:
+    !inputTags.isEmpty()
+    inputTags[2].toolResults[0].result == '{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}'
+
+    where:
+    responseCreateParams << [responseCreateParamsWithToolInput(false), responseCreateParamsWithToolInput(true)]
   }
 
   private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
+    assertResponseTrace(isStreaming, reqModel, respModel, reasoning, null)
+  }
+
+  private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning, List inputTagsOut) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -195,6 +207,10 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_name" String
             "_ml_obs_tag.metadata" Map
             "_ml_obs_tag.input" List
+            def inputTags = tag("_ml_obs_tag.input")
+            if (inputTagsOut != null && inputTags != null) {
+              inputTagsOut.addAll(inputTags)
+            }
             "_ml_obs_tag.output" List
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.output_tokens" Long
