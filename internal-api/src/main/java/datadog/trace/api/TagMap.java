@@ -45,7 +45,7 @@ import java.util.stream.StreamSupport;
  */
 public interface TagMap extends Map<String, Object>, Iterable<TagMap.Entry> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
-  TagMap EMPTY = TagMapFactory.INSTANCE.empty();
+  static final TagMap EMPTY = TagMapFactory.INSTANCE.empty();
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   static TagMap fromMap(Map<String, ?> map) {
@@ -2689,15 +2689,14 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public void forEach(Consumer<? super datadog.trace.api.TagMap.Entry> consumer) {
+  public void forEach(Consumer<? super TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(TagMap.Entry.newAnyEntry(entry));
     }
   }
 
   @Override
-  public <T> void forEach(
-      T thisObj, BiConsumer<T, ? super datadog.trace.api.TagMap.Entry> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(thisObj, TagMap.Entry.newAnyEntry(entry));
     }
@@ -2705,7 +2704,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
 
   @Override
   public <T, U> void forEach(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super datadog.trace.api.TagMap.Entry> consumer) {
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.Entry> consumer) {
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       consumer.accept(thisObj, otherObj, TagMap.Entry.newAnyEntry(entry));
     }
