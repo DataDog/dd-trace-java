@@ -141,8 +141,7 @@ public class OpenAiDecorator extends ClientDecorator {
     try {
       int value = Integer.parseInt(firstHeader);
       span.setMetric(metric, value);
-    } catch (NumberFormatException ex) {
-      // ~
+    } catch (NumberFormatException ignore) {
     }
   }
 }

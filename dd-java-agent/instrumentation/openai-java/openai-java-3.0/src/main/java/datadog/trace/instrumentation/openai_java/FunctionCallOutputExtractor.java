@@ -33,8 +33,8 @@ public class FunctionCallOutputExtractor {
               FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
               false,
               FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
-    } catch (ClassNotFoundException e) {
-      // Output class not found, assuming openai-java version 3.x
+    } catch (Throwable t) {
+      log.debug("Output class not found, assuming openai-java version 3.x", t);
     }
 
     if (outputClass != null) {
@@ -65,7 +65,7 @@ public class FunctionCallOutputExtractor {
         if (Boolean.TRUE.equals(isString)) {
           return METHOD_HANDLES.invoke(AS_STRING_METHOD, output);
         } else {
-          log.debug("FunctionCallOutput.output() returned non-string Output type, skipping");
+          // FunctionCallOutput.output() returned non-string Output type, skipping
           return null;
         }
       }
@@ -75,8 +75,8 @@ public class FunctionCallOutputExtractor {
           output.getClass().getName());
       return null;
 
-    } catch (Exception e) {
-      log.debug("Error extracting output from FunctionCallOutput", e);
+    } catch (Throwable t) {
+      log.debug("Error extracting output from FunctionCallOutput", t);
       return null;
     }
   }
