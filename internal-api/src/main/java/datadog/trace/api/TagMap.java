@@ -3236,9 +3236,8 @@ final class TagValueConversions {
       return TagMap.EntryReader.INT;
     } else if (value instanceof Byte) {
       return TagMap.EntryReader.INT;
-    } else if (value instanceof Character) {
-      return TagMap.EntryReader.OBJECT;
     } else {
+      // NOTE: Character is currently deliberately treated as OBJECT
       return TagMap.EntryReader.OBJECT;
     }
   }
@@ -3291,7 +3290,7 @@ final class TagValueConversions {
             || (value instanceof Short)
             || (value instanceof Byte);
 
-    // Char is just treated as Object
+    // NOTE: Character is just treated as Object
     return !isSupportedPrimitive;
   }
 
