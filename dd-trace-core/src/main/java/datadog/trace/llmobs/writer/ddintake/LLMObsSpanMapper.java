@@ -308,7 +308,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
-          writable.writeString(key, null);
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             if (!(val instanceof List)) {
               LOGGER.warn(
@@ -316,6 +315,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
+            writable.writeString(key, null);
             writable.startMap(1);
             // llm span kind must have llm objects
             List<LLMObs.LLMMessage> messages = (List<LLMObs.LLMMessage>) val;
@@ -380,6 +380,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
+            writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
             writable.writeString("documents", null);
@@ -390,6 +391,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
               writable.writeString(document.getText(), null);
             }
           } else {
+            writable.writeString(key, null);
             writable.startMap(1);
             writable.writeString("value", null);
             writable.writeObject(val, null);
