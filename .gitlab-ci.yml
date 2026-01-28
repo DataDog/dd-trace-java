@@ -375,9 +375,8 @@ spotless:
   stage: tests
   needs: []
   variables:
-    KUBERNETES_MEMORY_REQUEST: 10Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
-    GRADLE_MEM_PERCENT: 60
+    GRADLE_WORKERS: 10
+    GRADLE_MEM_PERCENT: 80
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -739,11 +738,12 @@ test_debugger:
 test_smoke:
   extends: .test_job
   variables:
+    GRADLE_WORKERS: 6
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_8
+    matrix: *test_matrix_6
 
 test_ssi_smoke:
   extends: .test_job
