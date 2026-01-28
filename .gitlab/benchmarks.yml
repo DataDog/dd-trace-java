@@ -34,7 +34,7 @@
 .convert-benchmarks:
   timeout: 1h
   tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:88265497
+  image: python:3.9-slim
   rules:
     - if: '$POPULATE_CACHE'
       when: never
@@ -47,8 +47,26 @@
     - when: on_success
       interruptible: true
   before_script:
+    - apt-get update && apt-get install -y --no-install-recommends git procps && rm -rf /var/lib/apt/lists/*
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CONVERTED_DIR="${ARTIFACTS_DIR}/converted" && mkdir -p "${CONVERTED_DIR}"
+    # Install benchmark-analyzer from relenv-benchmark-analyzer
+    - |
+      if [ -z "$CI_JOB_TOKEN" ]; then
+        echo "WARNING: CI_JOB_TOKEN not set, skipping benchmark-analyzer installation"
+      else
+        echo "Installing benchmark-analyzer from relenv-benchmark-analyzer..."
+        git clone --branch sarahchen6/add-java-microbenchmark-scripts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/relenv-benchmark-analyzer /tmp/benchmark-analyzer
+        cd /tmp/benchmark-analyzer
+        sed -i "s#ssh://git@github.com/DataDog#https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog#g" setup.cfg
+        python3 -m venv /tmp/benchmark-analyzer/.venv
+        source /tmp/benchmark-analyzer/.venv/bin/activate
+        pip install .
+        sed -i "s#https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog#ssh://git@github.com/DataDog#g" setup.cfg
+        # Add to PATH so benchmark_analyzer command is available in all script sections
+        export PATH="/tmp/benchmark-analyzer/.venv/bin:$PATH"
+        benchmark_analyzer --version || echo "WARNING: benchmark_analyzer --version failed"
+      fi
     # Determine baseline_or_candidate based on branch
     - |
       if [ "$CI_COMMIT_BRANCH" == "master" ]; then
