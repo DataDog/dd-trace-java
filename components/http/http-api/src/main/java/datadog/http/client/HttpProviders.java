@@ -29,8 +29,8 @@ public final class HttpProviders {
   static HttpClient.Builder newClientBuilder() {
     if (HTTP_CLIENT_BUILDER_CONSTRUCTOR == null) {
       HTTP_CLIENT_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpClient$JdkHttpClientBuilder",
-          "datadog.http.client.jdk.OkHttpClient$OkHttpClientBuilder");
+          "datadog.http.client.jdk.JdkHttpClient$Builder",
+          "datadog.http.client.jdk.OkHttpClient$Builder");
     }
     try {
       return (HttpClient.Builder) HTTP_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
@@ -42,8 +42,8 @@ public final class HttpProviders {
   static HttpRequest.Builder newRequestBuilder() {
     if (HTTP_REQUEST_BUILDER_CONSTRUCTOR == null) {
       HTTP_REQUEST_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpRequest$JdkHttpRequestBuilder",
-          "datadog.http.client.okhttp.OkHttpRequest$OkHttpRequestBuilder");
+          "datadog.http.client.jdk.JdkHttpRequest$Builder",
+          "datadog.http.client.okhttp.OkHttpRequest$Builder");
     }
     try {
       return (HttpRequest.Builder) HTTP_REQUEST_BUILDER_CONSTRUCTOR.newInstance();
@@ -55,8 +55,8 @@ public final class HttpProviders {
   static HttpUrl.Builder newUrlBuilder() {
     if (HTTP_URL_BUILDER_CONSTRUCTOR == null) {
       HTTP_URL_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpUrl$JdkHttpUrlBuilder",
-          "datadog.http.client.okhttp.OkHttpUrl$OkHttpUrlBuilder");
+          "datadog.http.client.jdk.JdkHttpUrl$Builder",
+          "datadog.http.client.okhttp.OkHttpUrl$Builder");
     }
     try {
       return (HttpUrl.Builder) HTTP_URL_BUILDER_CONSTRUCTOR.newInstance();
