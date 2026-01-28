@@ -2845,6 +2845,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     return listener;
   }
 
+  // TODO: JEP 500 - avoid mutating final fields
   private void setCorrelationSingleton(Object instance) {
     Class<?> singletonClass = CorrelationAccess.class.getDeclaredClasses()[0];
     try {
