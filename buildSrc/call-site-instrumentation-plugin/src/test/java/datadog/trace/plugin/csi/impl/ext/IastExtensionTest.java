@@ -1,243 +1,314 @@
-package datadog.trace.plugin.csi.impl.ext
+package datadog.trace.plugin.csi.impl.ext;
 
-import com.github.javaparser.JavaParser
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
-import com.github.javaparser.ast.stmt.IfStmt
-import datadog.trace.agent.tooling.csi.CallSites
-import datadog.trace.plugin.csi.AdviceGenerator
-import datadog.trace.plugin.csi.PluginApplication.Configuration
-import datadog.trace.plugin.csi.impl.AdviceGeneratorImpl
-import datadog.trace.plugin.csi.impl.BaseCsiPluginTest
-import datadog.trace.plugin.csi.impl.CallSiteSpecification
-import datadog.trace.plugin.csi.impl.assertion.AdviceAssert
-import datadog.trace.plugin.csi.impl.assertion.AssertBuilder
-import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert
-import datadog.trace.plugin.csi.impl.ext.tests.IastExtensionCallSite
-import groovy.transform.CompileDynamic
-import spock.lang.TempDir
+import static datadog.trace.plugin.csi.impl.CallSiteFactory.pointcutParser;
+import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.stmt.IfStmt;
+import datadog.trace.agent.tooling.csi.CallSites;
+import datadog.trace.plugin.csi.AdviceGenerator;
+import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
+import datadog.trace.plugin.csi.PluginApplication.Configuration;
+import datadog.trace.plugin.csi.impl.AdviceGeneratorImpl;
+import datadog.trace.plugin.csi.impl.BaseCsiPluginTest;
+import datadog.trace.plugin.csi.impl.CallSiteSpecification;
+import datadog.trace.plugin.csi.impl.assertion.AdviceAssert;
+import datadog.trace.plugin.csi.impl.assertion.AssertBuilder;
+import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert;
+import datadog.trace.plugin.csi.impl.ext.tests.IastExtensionCallSite;
+import java.io.File;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.objectweb.asm.Type;
 
-import static datadog.trace.plugin.csi.impl.CallSiteFactory.pointcutParser
-import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType
-
-@CompileDynamic
 class IastExtensionTest extends BaseCsiPluginTest {
 
-  @TempDir
-  private File buildDir
-  private Path targetFolder
-  private Path projectFolder
-  private Path srcFolder
+  @TempDir private File buildDir;
+  private Path targetFolder;
+  private Path projectFolder;
+  private Path srcFolder;
 
-  void setup() {
-    targetFolder = buildDir.toPath().resolve('target')
-    Files.createDirectories(targetFolder)
-    projectFolder = buildDir.toPath().resolve('project')
-    Files.createDirectories(projectFolder)
-    srcFolder = projectFolder.resolve('src/main/java')
-    Files.createDirectories(srcFolder)
+  @BeforeEach
+  void setup() throws Exception {
+    targetFolder = buildDir.toPath().resolve("target");
+    Files.createDirectories(targetFolder);
+    projectFolder = buildDir.toPath().resolve("project");
+    Files.createDirectories(projectFolder);
+    srcFolder = projectFolder.resolve("src/main/java");
+    Files.createDirectories(srcFolder);
   }
 
-  void 'test that extension only applies to iast advices'() {
-    setup:
-    final type = classNameToType(typeName)
-    final callSite = Mock(CallSiteSpecification) {
-      getSpi() >> type
+  static Stream<Arguments> testThatExtensionOnlyAppliesToIastAdvicesProvider() {
+    return Stream.of(
+        Arguments.of(CallSites.class.getName(), false),
+        Arguments.of(IastExtension.IAST_CALL_SITES_FQCN, true));
+  }
+
+  @ParameterizedTest
+  @MethodSource("testThatExtensionOnlyAppliesToIastAdvicesProvider")
+  void testThatExtensionOnlyAppliesToIastAdvices(String typeName, boolean expected) {
+    Type type = classNameToType(typeName);
+    Type[] types = new Type[] {type};
+    CallSiteSpecification callSite = mock(CallSiteSpecification.class);
+    when(callSite.getSpi()).thenReturn(types);
+    IastExtension extension = new IastExtension();
+
+    boolean applies = extension.appliesTo(callSite);
+
+    assertEquals(expected, applies);
+  }
+
+  @Test
+  void testThatExtensionGeneratesACallSiteWithTelemetry() throws Exception {
+    Configuration config = mock(Configuration.class);
+    when(config.getTargetFolder()).thenReturn(targetFolder);
+    when(config.getSrcFolder()).thenReturn(getCallSiteSrcFolder());
+    when(config.getClassPath()).thenReturn(Collections.emptyList());
+    CallSiteSpecification spec = buildClassSpecification(IastExtensionCallSite.class);
+    AdviceGenerator generator = buildAdviceGenerator(buildDir);
+    CallSiteResult result = generator.generate(spec);
+    if (!result.isSuccess()) {
+      throw new IllegalArgumentException("Error with call site " + IastExtensionCallSite.class);
     }
-    final extension = new IastExtension()
+    IastExtension extension = new IastExtension();
 
-    when:
-    final applies = extension.appliesTo(callSite)
+    extension.apply(config, result);
 
-    then:
-    applies == expected
-
-    where:
-    typeName                           | expected
-    CallSites.name                     | false
-    IastExtension.IAST_CALL_SITES_FQCN | true
+    assertNoErrors(result);
+    IastExtensionCallSiteAssert asserter = assertCallSites(result.getFile());
+    asserter.iastAdvices(
+        0,
+        advice -> {
+          advice.pointcut(
+              "javax/servlet/http/HttpServletRequest",
+              "getHeader",
+              "(Ljava/lang/String;)Ljava/lang/String;");
+          advice.instrumentedMetric(
+              "IastMetric.INSTRUMENTED_SOURCE",
+              metric -> {
+                metric.metricStatements(
+                    "IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 3, 1);");
+              });
+          advice.executedMetric(
+              "IastMetric.EXECUTED_SOURCE",
+              metric -> {
+                metric.metricStatements(
+                    "handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, \"datadog/trace/api/iast/telemetry/IastMetric\", \"EXECUTED_SOURCE\", \"Ldatadog/trace/api/iast/telemetry/IastMetric;\");",
+                    "handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_3);",
+                    "handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);",
+                    "handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, \"datadog/trace/api/iast/telemetry/IastMetricCollector\", \"add\", \"(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V\", false);");
+              });
+        });
+    asserter.iastAdvices(
+        1,
+        advice -> {
+          advice.pointcut(
+              "javax/servlet/http/HttpServletRequest",
+              "getInputStream",
+              "()Ljavax/servlet/ServletInputStream;");
+          advice.instrumentedMetric(
+              "IastMetric.INSTRUMENTED_SOURCE",
+              metric -> {
+                metric.metricStatements(
+                    "IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 127, 1);");
+              });
+          advice.executedMetric(
+              "IastMetric.EXECUTED_SOURCE",
+              metric -> {
+                metric.metricStatements(
+                    "handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, \"datadog/trace/api/iast/telemetry/IastMetric\", \"EXECUTED_SOURCE\", \"Ldatadog/trace/api/iast/telemetry/IastMetric;\");",
+                    "handler.instruction(net.bytebuddy.jar.asm.Opcodes.BIPUSH, 127);",
+                    "handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);",
+                    "handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, \"datadog/trace/api/iast/telemetry/IastMetricCollector\", \"add\", \"(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V\", false);");
+              });
+        });
+    asserter.iastAdvices(
+        2,
+        advice -> {
+          advice.pointcut(
+              "javax/servlet/ServletRequest", "getReader", "()Ljava/io/BufferedReader;");
+          advice.instrumentedMetric(
+              "IastMetric.INSTRUMENTED_PROPAGATION",
+              metric -> {
+                metric.metricStatements(
+                    "IastMetricCollector.add(IastMetric.INSTRUMENTED_PROPAGATION, 1);");
+              });
+          advice.executedMetric(
+              "IastMetric.EXECUTED_PROPAGATION",
+              metric -> {
+                metric.metricStatements(
+                    "handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, \"datadog/trace/api/iast/telemetry/IastMetric\", \"EXECUTED_PROPAGATION\", \"Ldatadog/trace/api/iast/telemetry/IastMetric;\");",
+                    "handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);",
+                    "handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, \"datadog/trace/api/iast/telemetry/IastMetricCollector\", \"add\", \"(Ldatadog/trace/api/iast/telemetry/IastMetric;I)V\", false);");
+              });
+        });
   }
 
-  void 'test that extension generates a call site with telemetry'() {
-    setup:
-    final config = Mock(Configuration) {
-      getTargetFolder() >> targetFolder
-      getSrcFolder() >> getCallSiteSrcFolder()
-      getClassPath() >> []
+  private static AdviceGenerator buildAdviceGenerator(File targetFolder) {
+    return new AdviceGeneratorImpl(targetFolder, pointcutParser());
+  }
+
+  private static Path getCallSiteSrcFolder() throws Exception {
+    File file = new File(Thread.currentThread().getContextClassLoader().getResource("").toURI());
+    return file.toPath().resolve("../../../../src/test/java");
+  }
+
+  private static ClassOrInterfaceDeclaration parse(File path) throws Exception {
+    return new JavaParser()
+        .parse(path)
+        .getResult()
+        .get()
+        .getPrimaryType()
+        .get()
+        .asClassOrInterfaceDeclaration();
+  }
+
+  private static IastExtensionCallSiteAssert assertCallSites(File generated) {
+    try {
+      return new IastExtensionAssertBuilder(generated).build();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
-    final spec = buildClassSpecification(IastExtensionCallSite)
-    final generator = buildAdviceGenerator(buildDir)
-    final result = generator.generate(spec)
-    if (!result.success) {
-      throw new IllegalArgumentException("Error with call site ${IastExtensionCallSite}")
-    }
-    final extension = new IastExtension()
-
-    when:
-    extension.apply(config, result)
-
-    then: 'the call site provider is modified with telemetry'
-    assertNoErrors result
-    assertCallSites(result.file) {
-      advices(0) {
-        pointcut('javax/servlet/http/HttpServletRequest', 'getHeader', '(Ljava/lang/String;)Ljava/lang/String;')
-        instrumentedMetric('IastMetric.INSTRUMENTED_SOURCE') {
-          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 3, 1);')
-        }
-        executedMetric('IastMetric.EXECUTED_SOURCE') {
-          metricStatements(
-            'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_SOURCE", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
-            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_3);',
-            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
-            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
-          )
-        }
-      }
-      advices(1) {
-        pointcut('javax/servlet/http/HttpServletRequest', 'getInputStream', '()Ljavax/servlet/ServletInputStream;')
-        instrumentedMetric('IastMetric.INSTRUMENTED_SOURCE') {
-          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_SOURCE, (byte) 127, 1);')
-        }
-        executedMetric('IastMetric.EXECUTED_SOURCE') {
-          metricStatements(
-            'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_SOURCE", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
-            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.BIPUSH, 127);',
-            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
-            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;BI)V", false);'
-          )
-        }
-      }
-      advices(2) {
-        pointcut('javax/servlet/ServletRequest', 'getReader', '()Ljava/io/BufferedReader;')
-        instrumentedMetric('IastMetric.INSTRUMENTED_PROPAGATION') {
-          metricStatements('IastMetricCollector.add(IastMetric.INSTRUMENTED_PROPAGATION, 1);')
-        }
-        executedMetric('IastMetric.EXECUTED_PROPAGATION') {
-          metricStatements(
-            'handler.field(net.bytebuddy.jar.asm.Opcodes.GETSTATIC, "datadog/trace/api/iast/telemetry/IastMetric", "EXECUTED_PROPAGATION", "Ldatadog/trace/api/iast/telemetry/IastMetric;");',
-            'handler.instruction(net.bytebuddy.jar.asm.Opcodes.ICONST_1);',
-            'handler.method(net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC, "datadog/trace/api/iast/telemetry/IastMetricCollector", "add", "(Ldatadog/trace/api/iast/telemetry/IastMetric;I)V", false);'
-          )
-        }
-      }
-    }
-  }
-
-  private static AdviceGenerator buildAdviceGenerator(final File targetFolder) {
-    return new AdviceGeneratorImpl(targetFolder, pointcutParser())
-  }
-
-  private static Path getCallSiteSrcFolder() {
-    final file = Thread.currentThread().contextClassLoader.getResource('')
-    return Paths.get(file.toURI()).resolve('../../../../src/test/java')
-  }
-
-  private static ClassOrInterfaceDeclaration parse(final File path) {
-    final parsedAdvice = new JavaParser().parse(path).getResult().get()
-    return parsedAdvice.primaryType.get().asClassOrInterfaceDeclaration()
-  }
-
-  private static void assertCallSites(final File generated, @DelegatesTo(IastExtensionCallSiteAssert) final Closure closure) {
-    final asserter = new IastExtensionAssertBuilder(generated).build()
-    closure.delegate = asserter
-    closure(asserter)
   }
 
   static class IastExtensionCallSiteAssert extends CallSiteAssert {
 
-    IastExtensionCallSiteAssert(CallSiteAssert base) {
-      interfaces = base.interfaces
-      spi = base.spi
-      helpers = base.helpers
-      advices = base.advices
-      enabled = base.enabled
-      enabledArgs = base.enabledArgs
+    IastExtensionCallSiteAssert(
+        Set<Class<?>> interfaces,
+        Set<Class<?>> spi,
+        Set<Class<?>> helpers,
+        List<AdviceAssert> advices,
+        Method enabled,
+        Set<String> enabledArgs) {
+      super(interfaces, spi, helpers, advices, enabled, enabledArgs);
     }
 
-    void advices(int index, @DelegatesTo(IastExtensionAdviceAssert) Closure closure) {
-      final asserter = advices[index]
-      closure.delegate = asserter
-      closure(asserter)
-    }
-
-    void advices(@DelegatesTo(IastExtensionAdviceAssert) Closure closure) {
-      advices.each {
-        closure.delegate = it
-        closure(it)
-      }
+    public void iastAdvices(int index, Consumer<IastExtensionAdviceAssert> assertions) {
+      IastExtensionAdviceAssert asserter = (IastExtensionAdviceAssert) advices.get(index);
+      assertions.accept(asserter);
     }
   }
 
   static class IastExtensionAdviceAssert extends AdviceAssert {
 
-    protected IastExtensionMetricAsserter instrumented
-    protected IastExtensionMetricAsserter executed
+    protected IastExtensionMetricAsserter instrumented;
+    protected IastExtensionMetricAsserter executed;
 
-    void instrumentedMetric(final String metric, @DelegatesTo(IastExtensionMetricAsserter) Closure closure) {
-      assert metric == instrumented.metric
-      closure.delegate = instrumented
-      closure(instrumented)
+    IastExtensionAdviceAssert(
+        String owner,
+        String method,
+        String descriptor,
+        IastExtensionMetricAsserter instrumented,
+        IastExtensionMetricAsserter executed,
+        List<String> statements) {
+      super(null, owner, method, descriptor, statements);
+      this.instrumented = instrumented;
+      this.executed = executed;
     }
 
-    void executedMetric(final String metric, @DelegatesTo(IastExtensionMetricAsserter) Closure closure) {
-      assert metric == executed.metric
-      closure.delegate = executed
-      closure(executed)
+    public void instrumentedMetric(
+        String metric, Consumer<IastExtensionMetricAsserter> assertions) {
+      assertEquals(metric, instrumented.metric);
+      assertions.accept(instrumented);
+    }
+
+    public void executedMetric(String metric, Consumer<IastExtensionMetricAsserter> assertions) {
+      assertEquals(metric, executed.metric);
+      assertions.accept(executed);
     }
   }
 
   static class IastExtensionMetricAsserter {
-    protected String metric
-    protected Collection<String> statements
+    protected String metric;
+    protected List<String> statements;
 
-    void metricStatements(String... values) {
-      assert values.toList() == statements
+    IastExtensionMetricAsserter(String metric, List<String> statements) {
+      this.metric = metric;
+      this.statements = statements;
+    }
+
+    public void metricStatements(String... values) {
+      assertArrayEquals(values, statements.toArray(new String[0]));
     }
   }
 
-  static class IastExtensionAssertBuilder extends AssertBuilder<IastExtensionCallSiteAssert> {
+  static class IastExtensionAssertBuilder extends AssertBuilder {
 
     IastExtensionAssertBuilder(File file) {
-      super(file)
+      super(file);
     }
 
     @Override
-    IastExtensionCallSiteAssert build() {
-      final base = super.build()
-      return new IastExtensionCallSiteAssert(base)
+    public IastExtensionCallSiteAssert build() {
+      CallSiteAssert base = super.build();
+      return new IastExtensionCallSiteAssert(
+          base.getInterfaces(),
+          base.getSpi(),
+          base.getHelpers(),
+          base.getAdvices(),
+          base.getEnabled(),
+          base.getEnabledArgs());
     }
 
     @Override
     protected List<AdviceAssert> getAdvices(ClassOrInterfaceDeclaration type) {
-      final acceptMethod = type.getMethodsByName('accept').first()
-      return getMethodCalls(acceptMethod).findAll {
-        it.nameAsString == 'addAdvice'
-      }.collect {
-        def (owner, method, descriptor) = it.arguments.subList(1, 4)*.asStringLiteralExpr()*.asString()
-        final handlerLambda = it.arguments[4].asLambdaExpr()
-        final statements = handlerLambda.body.asBlockStmt().statements
-        final instrumentedStmt = statements.get(0).asIfStmt()
-        final executedStmt = statements.get(1).asIfStmt()
-        return new IastExtensionAdviceAssert([
-          owner     : owner,
-          method    : method,
-          descriptor: descriptor,
-          instrumented : buildMetricAsserter(instrumentedStmt),
-          executed: buildMetricAsserter(executedStmt),
-          statements: statements.findAll { !it.isIfStmt() }
-        ])
-      }
+      return getMethodCalls(type.getMethodsByName("accept").get(0)).stream()
+          .filter(methodCall -> methodCall.getNameAsString().equals("addAdvice"))
+          .map(
+              methodCall -> {
+                String owner = methodCall.getArgument(1).asStringLiteralExpr().asString();
+                String method = methodCall.getArgument(2).asStringLiteralExpr().asString();
+                String descriptor = methodCall.getArgument(3).asStringLiteralExpr().asString();
+                List<com.github.javaparser.ast.stmt.Statement> statements =
+                    methodCall
+                        .getArgument(4)
+                        .asLambdaExpr()
+                        .getBody()
+                        .asBlockStmt()
+                        .getStatements();
+                IfStmt instrumentedStmt = statements.get(0).asIfStmt();
+                IfStmt executedStmt = statements.get(1).asIfStmt();
+                List<String> nonIfStatements =
+                    statements.stream()
+                        .filter(stmt -> !stmt.isIfStmt())
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+                return new IastExtensionAdviceAssert(
+                    owner,
+                    method,
+                    descriptor,
+                    buildMetricAsserter(instrumentedStmt),
+                    buildMetricAsserter(executedStmt),
+                    nonIfStatements);
+              })
+          .collect(Collectors.toList());
     }
 
-    protected IastExtensionMetricAsserter buildMetricAsserter(final IfStmt ifStmt) {
-      final condition = ifStmt.getCondition().asMethodCallExpr()
-      return new IastExtensionMetricAsserter(
-        metric: condition.getScope().get().toString(),
-        statements: ifStmt.getThenStmt().asBlockStmt().statements*.toString()
-      )
+    protected IastExtensionMetricAsserter buildMetricAsserter(IfStmt ifStmt) {
+      String metric = ifStmt.getCondition().asMethodCallExpr().getScope().get().toString();
+      List<String> statements =
+          ifStmt.getThenStmt().asBlockStmt().getStatements().stream()
+              .map(Object::toString)
+              .collect(Collectors.toList());
+      return new IastExtensionMetricAsserter(metric, statements);
     }
   }
 }

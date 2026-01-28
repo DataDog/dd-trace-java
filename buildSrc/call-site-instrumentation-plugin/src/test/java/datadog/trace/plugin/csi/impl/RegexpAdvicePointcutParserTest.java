@@ -1,136 +1,162 @@
-package datadog.trace.plugin.csi.impl
+package datadog.trace.plugin.csi.impl;
 
-import spock.lang.Specification
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-final class RegexpAdvicePointcutParserTest extends Specification {
+import datadog.trace.plugin.csi.util.MethodType;
+import org.junit.jupiter.api.Test;
 
-  def 'resolve constructor'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+class RegexpAdvicePointcutParserTest {
 
-    when:
-    final signature = pointcutParser.parse("void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>()")
+  @Test
+  void resolveConstructor() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == '<init>'
-    signature.methodType.descriptor == '()V'
+    MethodType signature =
+        pointcutParser.parse(
+            "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>()");
+
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("<init>", signature.getMethodName());
+    assertEquals("()V", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve constructor with args'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveConstructorWithArgs() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>(java.lang.String)")
+    MethodType signature =
+        pointcutParser.parse(
+            "void datadog.trace.plugin.csi.samples.SignatureParserExample.<init>(java.lang.String)");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == '<init>'
-    signature.methodType.descriptor == '(Ljava/lang/String;)V'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("<init>", signature.getMethodName());
+    assertEquals("(Ljava/lang/String;)V", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve without args'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveWithoutArgs() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.noParams()")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.noParams()");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'noParams'
-    signature.methodType.descriptor == '()Ljava/lang/String;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("noParams", signature.getMethodName());
+    assertEquals("()Ljava/lang/String;", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve one param'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveOneParam() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.oneParam(java.util.Map)")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.oneParam(java.util.Map)");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'oneParam'
-    signature.methodType.descriptor == '(Ljava/util/Map;)Ljava/lang/String;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("oneParam", signature.getMethodName());
+    assertEquals("(Ljava/util/Map;)Ljava/lang/String;", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve multiple params'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveMultipleParams() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.multipleParams(java.lang.String, int, java.util.List)")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.multipleParams(java.lang.String, int, java.util.List)");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'multipleParams'
-    signature.methodType.descriptor == '(Ljava/lang/String;ILjava/util/List;)Ljava/lang/String;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("multipleParams", signature.getMethodName());
+    assertEquals(
+        "(Ljava/lang/String;ILjava/util/List;)Ljava/lang/String;",
+        signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve varargs'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveVarargs() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.varargs(java.lang.String[])")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.String datadog.trace.plugin.csi.samples.SignatureParserExample.varargs(java.lang.String[])");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'varargs'
-    signature.methodType.descriptor == '([Ljava/lang/String;)Ljava/lang/String;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("varargs", signature.getMethodName());
+    assertEquals(
+        "([Ljava/lang/String;)Ljava/lang/String;", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve primitive'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolvePrimitive() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("int datadog.trace.plugin.csi.samples.SignatureParserExample.primitive()")
+    MethodType signature =
+        pointcutParser.parse(
+            "int datadog.trace.plugin.csi.samples.SignatureParserExample.primitive()");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'primitive'
-    signature.methodType.descriptor == '()I'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("primitive", signature.getMethodName());
+    assertEquals("()I", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve primitive array type'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolvePrimitiveArrayType() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("byte[] datadog.trace.plugin.csi.samples.SignatureParserExample.primitiveArray()")
+    MethodType signature =
+        pointcutParser.parse(
+            "byte[] datadog.trace.plugin.csi.samples.SignatureParserExample.primitiveArray()");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'primitiveArray'
-    signature.methodType.descriptor == '()[B'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("primitiveArray", signature.getMethodName());
+    assertEquals("()[B", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve object array type'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveObjectArrayType() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.Object[] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.Object[] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'objectArray'
-    signature.methodType.descriptor == '()[Ljava/lang/Object;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("objectArray", signature.getMethodName());
+    assertEquals("()[Ljava/lang/Object;", signature.getMethodType().getDescriptor());
   }
 
-  def 'resolve multi dimensional object array type'() {
-    setup:
-    final pointcutParser = new RegexpAdvicePointcutParser()
+  @Test
+  void resolveMultiDimensionalObjectArrayType() {
+    RegexpAdvicePointcutParser pointcutParser = new RegexpAdvicePointcutParser();
 
-    when:
-    final signature = pointcutParser.parse("java.lang.Object[][][] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()")
+    MethodType signature =
+        pointcutParser.parse(
+            "java.lang.Object[][][] datadog.trace.plugin.csi.samples.SignatureParserExample.objectArray()");
 
-    then:
-    signature.owner.className == 'datadog.trace.plugin.csi.samples.SignatureParserExample'
-    signature.methodName == 'objectArray'
-    signature.methodType.descriptor == '()[[[Ljava/lang/Object;'
+    assertEquals(
+        "datadog.trace.plugin.csi.samples.SignatureParserExample",
+        signature.getOwner().getClassName());
+    assertEquals("objectArray", signature.getMethodName());
+    assertEquals("()[[[Ljava/lang/Object;", signature.getMethodType().getDescriptor());
   }
 }

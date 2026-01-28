@@ -1,109 +1,96 @@
-package datadog.trace.plugin.csi.impl
+package datadog.trace.plugin.csi.impl;
 
-import datadog.trace.plugin.csi.util.MethodType
-import org.objectweb.asm.Type
-import spock.lang.Specification
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import javax.servlet.ServletRequest
-import javax.servlet.http.HttpServletRequest
+import datadog.trace.plugin.csi.util.MethodType;
+import java.lang.reflect.Method;
+import javax.servlet.ServletRequest;
+import javax.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.Test;
+import org.objectweb.asm.Type;
 
-class TypeResolverPoolTest extends Specification {
+class TypeResolverPoolTest {
 
-  def 'test resolve primitive'() {
-    setup:
-    final resolver = new TypeResolverPool()
+  @Test
+  void testResolvePrimitive() {
+    TypeResolverPool resolver = new TypeResolverPool();
 
-    when:
-    final result = resolver.resolveType(Type.INT_TYPE)
+    Class<?> result = resolver.resolveType(Type.INT_TYPE);
 
-    then:
-    result == int.class
+    assertEquals(int.class, result);
   }
 
-  def 'test resolve primitive array'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getType('[I')
+  @Test
+  void testResolvePrimitiveArray() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type = Type.getType("[I");
 
-    when:
-    final result = resolver.resolveType(type)
+    Class<?> result = resolver.resolveType(type);
 
-    then:
-    result == int[].class
+    assertEquals(int[].class, result);
   }
 
-  def 'test resolve primitive multidimensional array'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getType('[[[I')
+  @Test
+  void testResolvePrimitiveMultidimensionalArray() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type = Type.getType("[[[I");
 
-    when:
-    final result = resolver.resolveType(type)
+    Class<?> result = resolver.resolveType(type);
 
-    then:
-    result == int[][][].class
+    assertEquals(int[][][].class, result);
   }
 
-  def 'test resolve class'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getType(String)
+  @Test
+  void testResolveClass() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type = Type.getType(String.class);
 
-    when:
-    final result = resolver.resolveType(type)
+    Class<?> result = resolver.resolveType(type);
 
-    then:
-    result == String
+    assertEquals(String.class, result);
   }
 
+  @Test
+  void testResolveClassArray() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type = Type.getType(String[].class);
 
-  def 'test resolve class array'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getType(String[])
+    Class<?> result = resolver.resolveType(type);
 
-    when:
-    final result = resolver.resolveType(type)
-
-    then:
-    result == String[]
+    assertEquals(String[].class, result);
   }
 
-  def 'test resolve class multidimensional array'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getType(String[][][])
+  @Test
+  void testResolveClassMultidimensionalArray() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type = Type.getType(String[][][].class);
 
-    when:
-    final result = resolver.resolveType(type)
+    Class<?> result = resolver.resolveType(type);
 
-    then:
-    result == String[][][]
+    assertEquals(String[][][].class, result);
   }
 
-  def 'test type resolver from method'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final type = Type.getMethodType(Type.getType(String[]), Type.getType(String), Type.getType(String))
+  @Test
+  void testTypeResolverFromMethod() {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type type =
+        Type.getMethodType(
+            Type.getType(String[].class), Type.getType(String.class), Type.getType(String.class));
 
-    when:
-    final result = resolver.resolveType(type.getReturnType())
+    Class<?> result = resolver.resolveType(type.getReturnType());
 
-    then:
-    result == String[]
+    assertEquals(String[].class, result);
   }
 
-  def 'test inherited methods'() {
-    setup:
-    final resolver = new TypeResolverPool()
-    final owner = Type.getType(HttpServletRequest)
-    final name = 'getParameter'
-    final descriptor = Type.getMethodType(Type.getType(String), Type.getType(String))
+  @Test
+  void testInheritedMethods() throws Exception {
+    TypeResolverPool resolver = new TypeResolverPool();
+    Type owner = Type.getType(HttpServletRequest.class);
+    String name = "getParameter";
+    Type descriptor = Type.getMethodType(Type.getType(String.class), Type.getType(String.class));
 
-    when:
-    final result = resolver.resolveMethod(new MethodType(owner, name, descriptor))
+    Method result = (Method) resolver.resolveMethod(new MethodType(owner, name, descriptor));
 
-    then:
-    result == ServletRequest.getDeclaredMethod('getParameter', String)
+    assertEquals(ServletRequest.class.getDeclaredMethod("getParameter", String.class), result);
   }
 }
