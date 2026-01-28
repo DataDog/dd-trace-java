@@ -158,7 +158,11 @@ public class SymbolAggregator {
     while (!jarsToScanQueue.isEmpty()) {
       String jarPath = jarsToScanQueue.poll();
       LOGGER.debug("Scanning queued jar: {}", jarPath);
-      scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      try {
+        scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      } catch (Exception ex) {
+        LOGGER.debug("Failed to scan jar {}", jarPath, ex);
+      }
     }
   }
 

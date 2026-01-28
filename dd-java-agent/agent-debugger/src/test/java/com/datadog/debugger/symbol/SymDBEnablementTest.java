@@ -25,9 +25,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -111,11 +113,7 @@ class SymDBEnablementTest {
 
   @Test
   public void parseLoadedClass() throws ClassNotFoundException, IOException {
-    final String CLASS_NAME = "com.datadog.debugger.symbol.SymbolExtraction01";
-    URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
-    URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
-    URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
-    Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
+    Class<?> testClass = loadSymbolClassFromJar();
     when(instr.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
     when(config.getThirdPartyIncludes())
         .thenReturn(
@@ -130,12 +128,48 @@ class SymDBEnablementTest {
     verify(instr).addTransformer(any(SymbolExtractionTransformer.class));
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(symbolAggregator, times(2))
-        .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
+        .parseClass(
+            any(),
+            captor.capture(),
+            any(),
+            eq(getClass().getResource("/debugger-symbol.jar").getFile()));
     assertEquals(
         "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(0));
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(1));
+  }
+
+  @Test
+  public void processCorruptedJar() throws ClassNotFoundException, MalformedURLException {
+    Class<?> testClass = loadSymbolClassFromJar();
+    when(instr.getAllLoadedClasses())
+        .thenReturn(new Class[] {SymDBEnablementTest.class, testClass});
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
+    SymbolAggregator symbolAggregatorMock = mock(SymbolAggregator.class);
+    doAnswer(
+            invocation -> {
+              Path arg = invocation.getArgument(1, Path.class);
+              if (arg.toString().endsWith("/debugger-symbol.jar")) {
+                return null;
+              }
+              throw new IOException("Corrupted jar");
+            })
+        .when(symbolAggregatorMock)
+        .scanJar(any(), any(), any(), any());
+    SymDBEnablement symDBEnablement =
+        new SymDBEnablement(instr, config, symbolAggregatorMock, classNameFiltering);
+    symDBEnablement.startSymbolExtraction();
+    verify(symbolAggregatorMock, times(2)).scanJar(any(), any(), any(), any());
+  }
+
+  private Class<?> loadSymbolClassFromJar() throws MalformedURLException, ClassNotFoundException {
+    final String CLASS_NAME = "com.datadog.debugger.symbol.SymbolExtraction01";
+    URL jarFileUrl = getClass().getResource("/debugger-symbol.jar");
+    URL jarUrl = new URL("jar:file:" + jarFileUrl.getFile() + "!/");
+    URLClassLoader urlClassLoader = new URLClassLoader(new URL[] {jarUrl}, null);
+    Class<?> testClass = urlClassLoader.loadClass(CLASS_NAME);
+    return testClass;
   }
 
   @Test
