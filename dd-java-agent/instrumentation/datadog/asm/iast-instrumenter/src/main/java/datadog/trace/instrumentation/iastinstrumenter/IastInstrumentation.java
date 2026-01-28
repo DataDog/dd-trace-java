@@ -41,12 +41,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST) || isRaspEnabled();
-  }
-
-  private boolean isRaspEnabled() {
-    return InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED
-        && Config.get().isAppSecRaspEnabled();
+    return enabledSystems.contains(TargetSystem.IAST) || enabledSystems.contains(TargetSystem.RASP);
   }
 
   @Override
@@ -127,7 +122,7 @@ public class IastInstrumentation extends CallSiteInstrumentation {
       if (iastActive) {
         spi.add(IastCallSites.class);
       }
-      if (Config.get().isAppSecRaspEnabled()) {
+      if (InstrumenterConfig.get().isAppSecRaspEnabled()) {
         spi.add(RaspCallSites.class);
       }
       CallSiteSupplier supplier = new IastCallSiteSupplier(spi.toArray(new Class[0]));

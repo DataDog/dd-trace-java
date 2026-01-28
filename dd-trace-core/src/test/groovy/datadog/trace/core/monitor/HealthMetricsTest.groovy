@@ -1,6 +1,6 @@
 package datadog.trace.core.monitor
 
-import datadog.trace.api.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.RemoteApi
 import datadog.trace.common.writer.RemoteWriter

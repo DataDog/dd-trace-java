@@ -19,7 +19,7 @@ import zio.Fiber;
 import zio.Supervisor;
 
 @AutoService(InstrumenterModule.class)
-public class ZioRuntimeInstrumentation extends InstrumenterModule.Tracing
+public class ZioRuntimeInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public ZioRuntimeInstrumentation() {

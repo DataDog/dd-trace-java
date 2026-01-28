@@ -2,17 +2,17 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.core.test.DDCoreSpecification
+import java.nio.charset.StandardCharsets
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import spock.lang.Timeout
-
-import java.nio.charset.StandardCharsets
 
 @Timeout(10)
 class TracingConfigPollerTest extends DDCoreSpecification {
@@ -169,7 +169,14 @@ class TracingConfigPollerTest extends DDCoreSpecification {
               "tag_name": "custom.header"
             }
           ],
-          "tracing_sampling_rate": 1.3
+          "tracing_sampling_rate": 1.3,
+          "data_streams_transaction_extractors": [
+            {
+              "name": "test",
+              "type": "unknown",
+              "value": "value"
+            }
+          ]
         }
       }
     """.getBytes(StandardCharsets.UTF_8), null)
@@ -183,6 +190,10 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     tracer.captureTraceConfig().traceSampleRate == 1.0 // should be clamped to 1.0
     tracer.captureTraceConfig().requestHeaderTags == ["x-custom-header": "custom.header"]
     tracer.captureTraceConfig().responseHeaderTags == ["x-custom-header": "custom.header"]
+    tracer.captureTraceConfig().getDataStreamsTransactionExtractors().size() == 1
+    tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].name == "test"
+    tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].type == DataStreamsTransactionExtractor.Type.UNKNOWN
+    tracer.captureTraceConfig().getDataStreamsTransactionExtractors()[0].value == "value"
 
     when:
     // Remove service level config

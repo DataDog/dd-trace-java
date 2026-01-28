@@ -19,11 +19,11 @@ tasks.named("compileJava", JavaCompile) {
 }
 
 dependencies {
-  implementation project(':products:feature-flagging:api')
+  implementation project(':products:feature-flagging:feature-flagging-api')
   implementation 'org.springframework.boot:spring-boot-starter-web'
 
   testImplementation project(':dd-smoke-tests')
-  testImplementation project(':products:feature-flagging:lib')
+  testImplementation project(':products:feature-flagging:feature-flagging-lib')
 }
 
 tasks.withType(Test).configureEach {

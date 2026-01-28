@@ -42,7 +42,7 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  */
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
-public final class VirtualThreadInstrumentation extends InstrumenterModule.Tracing
+public final class VirtualThreadInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public VirtualThreadInstrumentation() {

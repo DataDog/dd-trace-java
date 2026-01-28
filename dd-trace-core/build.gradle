@@ -66,9 +66,14 @@ dependencies {
   api project(':dd-trace-api')
   api project(':communication')
   api project(':internal-api')
+  api project(':products:metrics:metrics-agent')
+  // Note: dd-trace-core should NOT depend on metrics-lib directly
+  // metrics-lib (with sketches-java) is bundled in metrics-agent shadowJar
+  // and loaded from the metrics/ directory in the agent jar
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:queue-utils')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
@@ -76,9 +81,12 @@ dependencies {
   implementation libs.moshi
   implementation libs.jctools
 
-  implementation group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
-
   implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
+
+  // sketches-java is shared
+  compileOnly group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
+
+  jmhImplementation(libs.jctools)
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor libs.autoservice.processor
@@ -86,6 +94,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation project(':remote-config:remote-config-core')
+  testImplementation project(':products:metrics:metrics-lib')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.17'

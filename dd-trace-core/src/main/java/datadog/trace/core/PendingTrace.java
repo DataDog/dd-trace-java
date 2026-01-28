@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import datadog.communication.monitor.Recording;
+import datadog.metrics.api.Recording;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;

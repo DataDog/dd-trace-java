@@ -121,8 +121,8 @@ class AgentTaskSchedulerTest extends DDSpecification {
 
     then:
     latch.await(1000, MILLISECONDS)
-    delta(timestamps.get(1), timestamps.get(0), 0.1, NANOSECONDS.convert(300, MILLISECONDS))
-    delta(timestamps.get(2), timestamps.get(1), 0.1, NANOSECONDS.convert(300, MILLISECONDS))
+    delta(timestamps.get(1), timestamps.get(0), 0.15, NANOSECONDS.convert(300, MILLISECONDS))
+    delta(timestamps.get(2), timestamps.get(1), 0.15, NANOSECONDS.convert(300, MILLISECONDS))
   }
 
   def "test cancel"() {

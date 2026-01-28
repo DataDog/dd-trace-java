@@ -41,6 +41,8 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    *   <li>{@link TargetSystem#USM usm}
+   *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
+   *   <li>{@link TargetSystem#RASP rasp}
    * </ul>
    */
   public enum TargetSystem {
@@ -51,6 +53,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     CIVISIBILITY,
     USM,
     LLMOBS,
+    CONTEXT_TRACKING,
+    RASP,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
@@ -217,7 +221,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
     }
   }
@@ -229,7 +233,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
 
@@ -248,7 +252,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
     }
   }
@@ -267,7 +271,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       if (enabledSystems.contains(TargetSystem.IAST)) {
         return true;
       }
@@ -316,7 +320,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.USM);
     }
   }
@@ -328,8 +332,20 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    }
+  }
+
+  /** Parent class for all the context tracking instrumentations */
+  public abstract static class ContextTracking extends InstrumenterModule {
+    public ContextTracking(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CONTEXT_TRACKING);
     }
   }
 }
