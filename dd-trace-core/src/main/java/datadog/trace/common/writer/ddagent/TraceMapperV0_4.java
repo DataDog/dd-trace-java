@@ -127,30 +127,30 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
       tags.forEach(
           writable,
-          (writ, entry) -> {
+          (w, entry) -> {
             if (!entry.isNumber()) return;
 
-            writ.writeString(entry.tag(), TAG_CACHE);
+            w.writeString(entry.tag(), TAG_CACHE);
 
             switch (entry.type()) {
               case TagMap.EntryReader.INT:
-                writ.writeInt(entry.intValue());
+                w.writeInt(entry.intValue());
                 break;
 
               case TagMap.EntryReader.LONG:
-                writ.writeLong(entry.longValue());
+                w.writeLong(entry.longValue());
                 break;
 
               case TagMap.EntryReader.FLOAT:
-                writ.writeFloat(entry.floatValue());
+                w.writeFloat(entry.floatValue());
                 break;
 
               case TagMap.EntryReader.DOUBLE:
-                writ.writeDouble(entry.doubleValue());
+                w.writeDouble(entry.doubleValue());
                 break;
 
               default:
-                writ.writeObject(entry.objectValue(), VALUE_CACHE);
+                w.writeObject(entry.objectValue(), VALUE_CACHE);
                 break;
             }
           });
@@ -181,17 +181,17 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
       tags.forEach(
           writable,
-          (writ, entryReader) -> {
+          (w, entryReader) -> {
             if (entryReader.isNumber()) return;
 
             String tag = entryReader.tag();
             Object value = entryReader.objectValue();
             if (value instanceof Map) {
               // Write map as flat map
-              writeFlatMap(writ, tag, (Map) value);
+              writeFlatMap(w, tag, (Map) value);
             } else {
-              writ.writeString(tag, TAG_CACHE);
-              writ.writeObjectString(value, VALUE_CACHE);
+              w.writeString(tag, TAG_CACHE);
+              w.writeObjectString(value, VALUE_CACHE);
             }
           });
     }
