@@ -60,8 +60,12 @@
         libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
         libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
         && rm -rf /var/lib/apt/lists/*
+      rm -rf "$PYENV_ROOT"
       git clone --depth 1 https://github.com/pyenv/pyenv.git --branch "v$PYENV_BRANCH_VERSION" --single-branch "$PYENV_ROOT"
-      pyenv install "$PYTHON_VERSION"
+      # Check if Python 3.9.6 is already installed, if not install it
+      if [ ! -d "$PYENV_ROOT/versions/$PYTHON_VERSION" ]; then
+        pyenv install "$PYTHON_VERSION"
+      fi
       pyenv global "$PYTHON_VERSION"
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CONVERTED_DIR="${ARTIFACTS_DIR}/converted" && mkdir -p "${CONVERTED_DIR}"
@@ -78,9 +82,11 @@
         source /tmp/benchmark-analyzer/.venv/bin/activate
         pip install .
         sed -i "s#https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog#ssh://git@github.com/DataDog#g" setup.cfg
-        # Add to PATH so benchmark_analyzer command is available in all script sections
-        export PATH="/tmp/benchmark-analyzer/.venv/bin:$PATH"
         benchmark_analyzer --version || echo "WARNING: benchmark_analyzer --version failed"
+      fi
+    - |
+      if [ -d "/tmp/benchmark-analyzer/.venv/bin" ]; then
+        export PATH="/tmp/benchmark-analyzer/.venv/bin:$PATH"
       fi
     # Determine baseline_or_candidate based on branch
     - |
