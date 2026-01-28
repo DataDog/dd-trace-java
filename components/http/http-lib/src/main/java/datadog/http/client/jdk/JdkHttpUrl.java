@@ -87,8 +87,8 @@ public final class JdkHttpUrl implements HttpUrl {
   }
 
   @Override
-  public Builder newBuilder() {
-    return new JdkHttpUrlBuilder(delegate);
+  public HttpUrl.Builder newBuilder() {
+    return new Builder(delegate);
   }
 
   @Override
@@ -112,14 +112,14 @@ public final class JdkHttpUrl implements HttpUrl {
   /**
    * Builder for JdkHttpUrl.
    */
-  public static final class JdkHttpUrlBuilder implements HttpUrl.Builder {
+  public static final class Builder implements HttpUrl.Builder {
 
     private String scheme;
     private String host;
     private int port = -1;
     private StringBuilder path = new StringBuilder();
 
-    JdkHttpUrlBuilder(URI baseUri) {
+    Builder(URI baseUri) {
       this.scheme = baseUri.getScheme();
       this.host = baseUri.getHost();
       this.port = baseUri.getPort();
@@ -128,24 +128,24 @@ public final class JdkHttpUrl implements HttpUrl {
       }
     }
 
-    public JdkHttpUrlBuilder() {
+    public Builder() {
       this.scheme = "http";
     }
 
     @Override
-    public Builder scheme(String scheme) {
+    public HttpUrl.Builder scheme(String scheme) {
       this.scheme = Objects.requireNonNull(scheme, "scheme");
       return this;
     }
 
     @Override
-    public Builder host(String host) {
+    public HttpUrl.Builder host(String host) {
       this.host = Objects.requireNonNull(host, "host");
       return this;
     }
 
     @Override
-    public Builder port(int port) {
+    public HttpUrl.Builder port(int port) {
       if (port < 0 || port > 65535) {
         throw new IllegalArgumentException("Invalid port: " + port);
       }
@@ -154,7 +154,7 @@ public final class JdkHttpUrl implements HttpUrl {
     }
 
     @Override
-    public Builder addPathSegment(String segment) {
+    public HttpUrl.Builder addPathSegment(String segment) {
       if (segment == null || segment.isEmpty()) {
         return this;
       }
