@@ -46,7 +46,8 @@ class FootprintForkedTest extends DDSpecification {
       1000,
       1000,
       100,
-      SECONDS)
+      SECONDS,
+      false)
     // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
     def baseline = footprint(aggregator, features)
     aggregator.start()
