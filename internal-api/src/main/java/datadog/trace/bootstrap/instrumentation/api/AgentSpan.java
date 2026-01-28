@@ -77,6 +77,8 @@ public interface AgentSpan
 
   AgentSpan setTag(String key, Object value);
 
+  AgentSpan setTag(TagMap.EntryReader entry);
+
   AgentSpan setAllTags(Map<String, ?> map);
 
   @Override
@@ -90,6 +92,8 @@ public interface AgentSpan
 
   @Override
   AgentSpan setMetric(CharSequence key, double value);
+
+  AgentSpan setMetric(TagMap.EntryReader metricEntry);
 
   @Override
   AgentSpan setSpanType(final CharSequence type);

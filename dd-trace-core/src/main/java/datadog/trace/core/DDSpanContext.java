@@ -751,6 +751,18 @@ public class DDSpanContext
     }
   }
 
+  public void setMetric(final TagMap.EntryReader entry) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(entry);
+    }
+  }
+
+  public void removeTag(String tag) {
+    synchronized (unsafeTags) {
+      unsafeTags.remove(tag);
+    }
+  }
+
   /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
@@ -786,6 +798,20 @@ public class DDSpanContext
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(TagMap.EntryReader entry) {
+    if (entry == null) return;
+
+    // prcheck to avoid boxing
+    boolean intercepted =
+        precheckIntercept(entry.tag())
+            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(entry);
       }
     }
   }
