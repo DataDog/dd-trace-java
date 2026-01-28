@@ -374,6 +374,9 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    KUBERNETES_MEMORY_REQUEST: 10Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
