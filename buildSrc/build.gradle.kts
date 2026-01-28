@@ -3,7 +3,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.1.0"
+  id("com.diffplug.spotless") version "8.2.1"
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
@@ -22,8 +22,8 @@ kotlin {
 gradlePlugin {
   plugins {
     create("instrument-plugin") {
-      id = "dd-trace-java.instrument"
-      implementationClass = "InstrumentPlugin"
+      id = "dd-trace-java.build-time-instrumentation"
+      implementationClass = "datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin"
     }
 
     create("muzzle-plugin") {

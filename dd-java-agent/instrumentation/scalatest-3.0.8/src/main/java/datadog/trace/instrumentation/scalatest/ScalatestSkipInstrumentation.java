@@ -12,7 +12,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.scalatest.Filter;
 import org.scalatest.Tracker;
@@ -24,11 +23,6 @@ public class ScalatestSkipInstrumentation extends InstrumenterModule.CiVisibilit
 
   public ScalatestSkipInstrumentation() {
     super("ci-visibility", "scalatest");
-  }
-
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems);
   }
 
   @Override

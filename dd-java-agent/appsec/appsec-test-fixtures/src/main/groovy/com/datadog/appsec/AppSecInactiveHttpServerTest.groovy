@@ -1,7 +1,7 @@
 package com.datadog.appsec
 
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.api.Config
@@ -44,7 +44,7 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
     def config = Config.get()
     sco.createRemaining(config)
     assert sco.configurationPoller(config) == null
-    assert sco.monitoring instanceof Monitoring.DisabledMonitoring
+    assert sco.monitoring == Monitoring.DISABLED
 
     AppSecSystem.start(ss, sco)
     assert !AppSecSystem.active

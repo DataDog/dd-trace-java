@@ -15,6 +15,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
@@ -30,6 +31,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -83,6 +85,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.Utils",
       packageName + ".AvroSchemaExtractor",
     };
   }
@@ -202,6 +205,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (TIME_IN_QUEUE_ENABLED) {
         setter.injectTimeInQueue(record.headers());
       }
+
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
+              record,
+              DSM_TRANSACTION_SOURCE_READER);
       return activateSpan(span);
     }
 
