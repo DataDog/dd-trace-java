@@ -195,7 +195,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid class access modifiers: {}", bit);
       }
     }
     return results;
@@ -250,8 +250,11 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException(
-              "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
+          LOGGER.debug(
+              "Invalid access modifiers method[{}::{}]: {}",
+              classNode.name,
+              methodNode.name + methodNode.desc,
+              bit);
       }
     }
     // if class is an interface && method has code && non-static this is a default method
@@ -302,7 +305,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid access modifiers: {}", bit);
       }
     }
     return results;
