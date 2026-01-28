@@ -14,22 +14,25 @@ import org.slf4j.LoggerFactory;
 public class FunctionCallOutputExtractor {
   private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
 
+  private static final Class<ResponseInputItem.FunctionCallOutput> FUNCTION_CALL_OUTPUT_CLASS =
+      ResponseInputItem.FunctionCallOutput.class;
   private static final MethodHandles METHOD_HANDLES =
-      new MethodHandles(ResponseInputItem.FunctionCallOutput.class.getClassLoader());
+      new MethodHandles(FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
 
   private static final MethodHandle OUTPUT_METHOD;
   private static final MethodHandle IS_STRING_METHOD;
   private static final MethodHandle AS_STRING_METHOD;
 
   static {
-    OUTPUT_METHOD = METHOD_HANDLES.method(ResponseInputItem.FunctionCallOutput.class, "output");
+    OUTPUT_METHOD = METHOD_HANDLES.method(FUNCTION_CALL_OUTPUT_CLASS, "output");
 
     Class<?> outputClass = null;
     try {
       outputClass =
-          ResponseInputItem.FunctionCallOutput.class
-              .getClassLoader()
-              .loadClass("com.openai.models.responses.ResponseInputItem$FunctionCallOutput$Output");
+          Class.forName(
+              FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
+              false,
+              FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
     } catch (ClassNotFoundException e) {
       // Output class not found, assuming openai-java version 3.x
     }
