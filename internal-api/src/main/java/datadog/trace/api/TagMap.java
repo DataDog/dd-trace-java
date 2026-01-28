@@ -2876,7 +2876,6 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
 
-    // TODO: optimize to take advantage of EntryReader
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       entryReadingHelper.set(entry);
 
