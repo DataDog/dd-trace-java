@@ -198,20 +198,7 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - |
-      # Try agent, curl it locally
-      # Maven url https://repo1.maven.org/maven2/io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar
-      # MagicMirror url https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current//io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar
-      curl --fail \
-        --silent \
-        --show-error \
-        --location \
-        --output \
-        /tmp/gradle-cgroup2-patcher.jar \
-        ${MAVEN_REPOSITORY_PROXY}/io/github/bric3/gradle/cgroup2/patcher/gradle-cgroup2-patcher/0.0.1/gradle-cgroup2-patcher-0.0.1.jar \
-        || echo "No local agent found"
-      file /tmp/gradle-cgroup2-patcher.jar
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX -javaagent:/tmp/gradle-cgroup2-patcher.jar -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # for weird reasons, gradle will always "chmod 700" the .gradle folder
@@ -607,7 +594,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX $PROFILER_COMMAND -javaagent:/tmp/gradle-cgroup2-patcher.jar -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:

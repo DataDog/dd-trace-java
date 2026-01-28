@@ -4,7 +4,16 @@ class CapturedSnapshot301 {
     return value // beae1817-f3b0-4ea8-a74f-000000000001
   }
 
-  fun f2(value: Int): Int = value
+  fun f2(value: Int): Int {
+    (1..3)
+      .filter {
+        it > 0
+      }
+      .forEach {
+        println(it)
+    }
+    return value
+  }
 
   companion object {
     fun main(arg: String): Int {
