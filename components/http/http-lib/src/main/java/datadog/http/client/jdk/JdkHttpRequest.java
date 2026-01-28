@@ -68,15 +68,15 @@ public final class JdkHttpRequest implements HttpRequest {
   /**
    * Builder for JdkHttpRequest.
    */
-  public static final class JdkHttpRequestBuilder implements HttpRequest.Builder {
+  public static final class Builder implements HttpRequest.Builder {
     private final java.net.http.HttpRequest.Builder delegate;
 
-    public JdkHttpRequestBuilder() {
+    public Builder() {
       this.delegate = java.net.http.HttpRequest.newBuilder();
     }
 
     @Override
-    public Builder url(HttpUrl url) {
+    public HttpRequest.Builder url(HttpUrl url) {
       if (!(url instanceof JdkHttpUrl)) {
         throw new IllegalArgumentException("HttpUrl must be JdkHttpUrl implementation");
       }
@@ -86,19 +86,19 @@ public final class JdkHttpRequest implements HttpRequest {
     }
 
     @Override
-    public Builder url(String url) {
+    public HttpRequest.Builder url(String url) {
       this.delegate.uri(URI.create(url));
       return this;
     }
 
     @Override
-    public Builder get() {
+    public HttpRequest.Builder get() {
       this.delegate.GET();
       return this;
     }
 
     @Override
-    public Builder post(HttpRequestBody body) {
+    public HttpRequest.Builder post(HttpRequestBody body) {
       if (!(body instanceof JdkHttpRequestBody)) {
         throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
       }
@@ -108,7 +108,7 @@ public final class JdkHttpRequest implements HttpRequest {
     }
 
     @Override
-    public Builder put(HttpRequestBody body) {
+    public HttpRequest.Builder put(HttpRequestBody body) {
       if (!(body instanceof JdkHttpRequestBody)) {
         throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
       }
@@ -117,13 +117,13 @@ public final class JdkHttpRequest implements HttpRequest {
     }
 
     @Override
-    public Builder header(String name, String value) {
+    public HttpRequest.Builder header(String name, String value) {
       this.delegate.setHeader(name, value);
       return this;
     }
 
     @Override
-    public Builder addHeader(String name, String value) {
+    public HttpRequest.Builder addHeader(String name, String value) {
       this.delegate.header(name, value);
       return this;
     }

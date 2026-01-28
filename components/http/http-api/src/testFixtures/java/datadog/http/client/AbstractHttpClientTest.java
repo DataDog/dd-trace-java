@@ -8,6 +8,8 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 
 import java.io.IOException;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,10 +31,10 @@ public abstract class AbstractHttpClientTest {
     this.baseUrl = "http://localhost:"+server.getPort();
   }
 
-  // @AfterEach
-  // void tearDown() throws IOException {
-  //   server.shutdown();
-  // }
+  @AfterEach
+  void tearDown() {
+    this.server.reset();
+  }
 
   @Test
   void testGetRequest() throws IOException {
@@ -111,51 +113,72 @@ public abstract class AbstractHttpClientTest {
     response.close();
   }
 
-  // @Test
-  // void testRequestHeaders() throws IOException, InterruptedException {
-  //   server.enqueue(new MockResponse()
-  //       .setResponseCode(200));
-  //
-  //   HttpUrl url = HttpUrl.parse(server.url("/test").toString());
-  //   HttpRequest request = HttpRequest.newBuilder()
-  //       .url(url)
-  //       .header("X-Custom-Header", "custom-value")
-  //       .header("Accept", "application/json")
-  //       .get()
-  //       .build();
-  //
-  //   HttpResponse response = client.execute(request);
-  //
-  //   assertEquals(200, response.code());
-  //
-  //   RecordedRequest recordedRequest = server.takeRequest();
-  //   assertEquals("custom-value", recordedRequest.getHeader("X-Custom-Header"));
-  //   assertEquals("application/json", recordedRequest.getHeader("Accept"));
-  //
-  //   response.close();
-  // }
-  //
-  // @Test
-  // void testResponseHeaders() throws IOException {
-  //   server.enqueue(new MockResponse()
-  //       .setResponseCode(200)
-  //       .addHeader("X-Server-Header", "server-value")
-  //       .addHeader("Content-Type", "text/plain")
-  //       .setBody("test"));
-  //
-  //   HttpUrl url = HttpUrl.parse(server.url("/test").toString());
-  //   HttpRequest request = HttpRequest.newBuilder()
-  //       .url(url)
-  //       .get()
-  //       .build();
-  //
-  //   HttpResponse response = client.execute(request);
-  //
-  //   assertEquals("server-value", response.header("X-Server-Header"));
-  //   assertEquals("text/plain", response.header("Content-Type"));
-  //
-  //   response.close();
-  // }
+  @Test
+  void testRequestHeaders() throws IOException {
+    org.mockserver.model.HttpRequest expectedRequest = request()
+        .withMethod("GET")
+        .withPath("/test")
+        .withHeader("Accept", "text/plain")
+        .withHeader("X-Custom-Header", "custom-value1", "custom-value2", "custom-value3");
+    this.server.when(expectedRequest).respond(response().withStatusCode(200));
+
+    HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .get()
+        .header("Accept", "text/plain")
+        .addHeader("X-Custom-Header", "custom-value1")
+        .addHeader("X-Custom-Header", "custom-value2")
+        .addHeader("X-Custom-Header", "custom-value3")
+        .build();
+
+    HttpResponse response = this.client.execute(request);
+
+    assertNotNull(response);
+    assertEquals(200, response.code());
+    assertTrue(response.isSuccessful());
+
+    this.server.verify(expectedRequest);
+
+    response.close();
+  }
+
+
+  @Test
+  void testResponseHeaders() throws IOException {
+    org.mockserver.model.HttpRequest expectedRequest = request()
+        .withMethod("GET")
+        .withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse = response()
+        .withStatusCode(200)
+        .withHeader("Content-Type", "text/plain")
+        .withHeader("X-Custom-Header", "value1", "value2", "value3")
+        .withBody("test-response");
+    this.server.when(expectedRequest).respond(resultResponse);
+
+    HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .get()
+        .build();
+
+    HttpResponse response = this.client.execute(request);
+
+    assertNotNull(response);
+    assertEquals(200, response.code());
+    assertTrue(response.isSuccessful());
+    assertEquals("text/plain", response.header("Content-Type"));
+    assertEquals("value1", response.header("X-Custom-Header"));
+    List<String> customHeaderValues = response.headers("X-Custom-Header");
+    assertEquals(3, customHeaderValues.size());
+    assertEquals("value1", customHeaderValues.get(0));
+    assertEquals("value2", customHeaderValues.get(1));
+    assertEquals("value3", customHeaderValues.get(2));
+
+    this.server.verify(expectedRequest);
+
+    response.close();
+  }
 
   @Test
   void testNewBuilder() {

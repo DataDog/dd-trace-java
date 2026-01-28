@@ -79,7 +79,7 @@ public final class JdkHttpClient implements HttpClient {
   /**
    * Builder for JdkHttpClient.
    */
-  public static final class JdkHttpClientBuilder implements HttpClient.Builder {
+  public static final class Builder implements HttpClient.Builder {
 
     private final java.net.http.HttpClient.Builder delegate;
     private HttpListener eventListener;
@@ -87,22 +87,22 @@ public final class JdkHttpClient implements HttpClient {
     private String namedPipe;
     private boolean clearText;
 
-    public JdkHttpClientBuilder() {
+    public Builder() {
       this.delegate = java.net.http.HttpClient.newBuilder();
     }
 
-    JdkHttpClientBuilder(java.net.http.HttpClient.Builder delegate) {
+    Builder(java.net.http.HttpClient.Builder delegate) {
       this.delegate = Objects.requireNonNull(delegate, "delegate");
     }
 
     @Override
-    public Builder connectTimeout(long timeout, TimeUnit unit) {
+    public HttpClient.Builder connectTimeout(long timeout, TimeUnit unit) {
       delegate.connectTimeout(Duration.ofMillis(unit.toMillis(timeout)));
       return this;
     }
 
     @Override
-    public Builder readTimeout(long timeout, TimeUnit unit) {
+    public HttpClient.Builder readTimeout(long timeout, TimeUnit unit) {
       // JDK HttpClient doesn't have a separate read timeout
       // It uses the overall request timeout, which we'll set on a per-request basis
       // Store for later use in request builder if needed
@@ -110,14 +110,14 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder writeTimeout(long timeout, TimeUnit unit) {
+    public HttpClient.Builder writeTimeout(long timeout, TimeUnit unit) {
       // JDK HttpClient doesn't have a separate write timeout
       // It uses the overall request timeout, which we'll set on a per-request basis
       return this;
     }
 
     @Override
-    public Builder proxy(Proxy proxy) {
+    public HttpClient.Builder proxy(Proxy proxy) {
       if (proxy == null || proxy.type() == Proxy.Type.DIRECT) {
         delegate.proxy(ProxySelector.getDefault());
       } else {
@@ -128,7 +128,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder proxyAuthenticator(String username, String password) {
+    public HttpClient.Builder proxyAuthenticator(String username, String password) {
       delegate.authenticator(new Authenticator() {
         @Override
         protected PasswordAuthentication getPasswordAuthentication() {
@@ -143,7 +143,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder unixDomainSocket(File socketFile) {
+    public HttpClient.Builder unixDomainSocket(File socketFile) {
       this.unixDomainSocket = socketFile;
       // Unix domain socket support will be implemented in Task 4.3
       // For Java 16+: Use StandardProtocolFamily.UNIX
@@ -152,7 +152,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder namedPipe(String pipeName) {
+    public HttpClient.Builder namedPipe(String pipeName) {
       this.namedPipe = pipeName;
       // Named pipe support is Windows-specific and not directly supported by JDK HttpClient
       // Would require custom implementation
@@ -160,7 +160,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder clearText(boolean clearText) {
+    public HttpClient.Builder clearText(boolean clearText) {
       this.clearText = clearText;
       // JDK HttpClient supports both HTTP and HTTPS by default
       // No special configuration needed for clear text
@@ -168,27 +168,27 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public Builder retryOnConnectionFailure(boolean retry) {
+    public HttpClient.Builder retryOnConnectionFailure(boolean retry) {
       // JDK HttpClient doesn't have built-in retry mechanism
       // Retry logic should be implemented at application level
       return this;
     }
 
     @Override
-    public Builder maxRequests(int maxRequests) {
+    public HttpClient.Builder maxRequests(int maxRequests) {
       // JDK HttpClient doesn't expose connection pool configuration
       // It manages connections internally
       return this;
     }
 
     @Override
-    public Builder dispatcher(Executor executor) {
+    public HttpClient.Builder dispatcher(Executor executor) {
       delegate.executor(executor);
       return this;
     }
 
     @Override
-    public Builder eventListener(HttpListener listener) {
+    public HttpClient.Builder eventListener(HttpListener listener) {
       this.eventListener = listener;
       // JDK HttpClient doesn't have an event listener API like OkHttp
       // We'll need to wrap requests to call listener methods
