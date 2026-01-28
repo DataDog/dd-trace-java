@@ -368,6 +368,30 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      * These objects might be primitive box objects.
      */
     static final byte ANY = 0;
+    
+    public static final Entry create(String tag, Object value) {
+      return TagMap.Entry.newAnyEntry(tag, value);
+    }
+    
+    public static final Entry create(String tag, CharSequence value) {
+      return TagMap.Entry.newObjectEntry(tag, value);
+    }
+    
+    public static final Entry create(String tag, int value) {
+      return TagMap.Entry.newIntEntry(tag, value);
+    }
+    
+    public static final Entry create(String tag, long value) {
+      return TagMap.Entry.newLongEntry(tag, value);
+    }
+    
+    public static final Entry create(String tag, float value) {
+      return TagMap.Entry.newFloatEntry(tag, value);
+    }
+    
+    public static final Entry create(String tag, double value) {
+      return TagMap.Entry.newDoubleEntry(tag, value);
+    }
 
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
       return newAnyEntry(entry.getKey(), entry.getValue());
