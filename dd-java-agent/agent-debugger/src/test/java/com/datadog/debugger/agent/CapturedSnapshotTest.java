@@ -67,8 +67,6 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -2845,19 +2843,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     return listener;
   }
 
-  // TODO: JEP 500 - avoid mutating final fields
-  private void setCorrelationSingleton(Object instance) {
-    Class<?> singletonClass = CorrelationAccess.class.getDeclaredClasses()[0];
-    try {
-      Field instanceField = singletonClass.getDeclaredField("INSTANCE");
-      instanceField.setAccessible(true);
-      Field modifiersField = Field.class.getDeclaredField("modifiers");
-      modifiersField.setAccessible(true);
-      modifiersField.setInt(instanceField, instanceField.getModifiers() & ~Modifier.FINAL);
-      instanceField.set(null, instance);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      e.printStackTrace();
-    }
+  private void setCorrelationSingleton(CorrelationAccess instance) {
+    CorrelationAccess.setTestInstance(instance);
   }
 
   private Snapshot assertOneSnapshot(TestSnapshotListener listener) {
