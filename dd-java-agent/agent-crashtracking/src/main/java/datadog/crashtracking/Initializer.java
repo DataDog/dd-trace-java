@@ -8,6 +8,7 @@ import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
+import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,7 +77,8 @@ public final class Initializer {
   public static boolean initialize(boolean forceJmx) {
     try {
       FlagAccess access = null;
-      if (forceJmx) {
+      // Native images don't support the native ddprof library, use JMX instead
+      if (forceJmx || Platform.isNativeImage()) {
         access =
             new JMXFlagAccess(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class));
       } else {
