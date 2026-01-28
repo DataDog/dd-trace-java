@@ -17,8 +17,7 @@ import org.mockserver.integration.ClientAndServer;
 import org.mockserver.junit.jupiter.MockServerExtension;
 
 @ExtendWith(MockServerExtension.class)
-public abstract class AbstractHttpClientTest {
-
+public class HttpClientTest {
   private ClientAndServer server;
   private HttpClient client;
   private String baseUrl;
@@ -142,7 +141,6 @@ public abstract class AbstractHttpClientTest {
 
     response.close();
   }
-
 
   @Test
   void testResponseHeaders() throws IOException {
