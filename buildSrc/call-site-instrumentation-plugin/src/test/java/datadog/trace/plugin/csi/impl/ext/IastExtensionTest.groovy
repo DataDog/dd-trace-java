@@ -13,7 +13,6 @@ import datadog.trace.plugin.csi.impl.assertion.AdviceAssert
 import datadog.trace.plugin.csi.impl.assertion.AssertBuilder
 import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert
 import datadog.trace.plugin.csi.impl.ext.tests.IastExtensionCallSite
-import datadog.trace.plugin.csi.impl.ext.tests.SourceTypes
 import groovy.transform.CompileDynamic
 import spock.lang.TempDir
 

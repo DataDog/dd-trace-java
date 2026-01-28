@@ -12,7 +12,7 @@ import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.stream.Collectors
+
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.ParameterSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification
