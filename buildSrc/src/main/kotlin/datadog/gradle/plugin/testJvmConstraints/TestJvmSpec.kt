@@ -152,7 +152,7 @@ class TestJvmSpec(val project: Project) {
     project.providers.zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
       // Only change test JVM if it's not the one we are running the gradle build with
       if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
-        project.providers.provider<JavaLauncher?> { null }
+        project.objects.property(JavaLauncher::class.java) // Empty property - no value set
       } else {
         // The provider always says that a value is present so we need to wrap it for proper error messages
         project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {

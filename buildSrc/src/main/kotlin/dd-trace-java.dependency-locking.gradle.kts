@@ -10,12 +10,16 @@
  * See https://docs.gradle.org/current/userguide/dependency_locking.html
  */
 
-project.dependencyLocking {
-  lockAllConfigurations()
-  // lockmode set to LENIENT because there are resolution
-  // errors in the build with an apiguardian dependency.
-  // See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
-  lockMode = LockMode.LENIENT
+// Configure dependency locking after java plugin is fully applied
+// to avoid conflicts with Gradle 9's test suite creation
+pluginManager.withPlugin("java") {
+  project.dependencyLocking {
+    lockAllConfigurations()
+    // lockmode set to LENIENT because there are resolution
+    // errors in the build with an apiguardian dependency.
+    // See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
+    lockMode = LockMode.LENIENT
+  }
 }
 
 tasks.register("resolveAndLockAll") {

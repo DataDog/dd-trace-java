@@ -4,7 +4,7 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.9.6'
   id 'net.ltgt.errorprone' version '3.1.0'
 }
 

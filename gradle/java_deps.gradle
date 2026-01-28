@@ -1,3 +1,6 @@
+// TODO: Gradle 9 Migration - The groovy plugin application causes conflicts with
+// the new JVM Test Suite system when java is already applied by another plugin.
+// This needs restructuring - see: https://docs.gradle.org/current/userguide/jvm_test_suite_plugin.html
 apply plugin: 'groovy'
 
 dependencies {
