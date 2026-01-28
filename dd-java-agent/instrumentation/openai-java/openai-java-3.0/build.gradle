@@ -1,5 +1,4 @@
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 def minVer = '3.0.0'
 
@@ -21,5 +20,13 @@ dependencies {
   latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
 
   testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
+
+  // Exclude the conflicting dependency to avoid NoSuchFieldError: Class okhttp3.MediaType does not have member field 'okhttp3.MediaType$Companion Companion'
+  configurations.testRuntimeClasspath {
+    exclude group: 'com.datadoghq.okhttp3'
+  }
+  configurations.latestDepTestRuntimeClasspath {
+    exclude group: 'com.datadoghq.okhttp3'
+  }
 }
 
