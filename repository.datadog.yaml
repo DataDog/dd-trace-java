@@ -7,8 +7,3 @@ branches:
   master:
     allow_skip_checks: true
     require_reason_for_skip_checks: true
----
-schema-version: v1
-kind: mergegate # https://datadoghq.atlassian.net/wiki/x/3gXuJgE
-rules:
-  - require: commit-signatures
