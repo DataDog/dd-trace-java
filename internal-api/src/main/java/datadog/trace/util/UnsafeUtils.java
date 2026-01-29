@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -57,6 +58,10 @@ public abstract class UnsafeUtils {
     }
   }
 
+  // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
+  // https://openjdk.org/jeps/500.
+  // However, in this case we skip final fields, so it is safe.
+  @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
       if ((field.getModifiers() & Modifier.FINAL) != 0) {
