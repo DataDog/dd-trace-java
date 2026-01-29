@@ -1,0 +1,36 @@
+# Thresholds set based on guidance in https://datadoghq.atlassian.net/wiki/x/LgI1LgE#How-to-choose-thresholds-for-pre-release-gates%3F
+
+experiments:
+  - name: Run SLO breach check
+    steps:
+      - name: SLO breach check
+        run: fail_on_breach
+        # https://datadoghq.atlassian.net/wiki/x/LgI1LgE#How-to-choose-a-warning-range-for-pre-release-gates%3F
+        warning_range: 10
+        # File spec
+        #   https://datadoghq.atlassian.net/wiki/x/LgI1LgE#Specification
+        # Measurements
+        #   https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario
+        scenarios:
+          # Note that thresholds there are chosen based the confidence interval with a 10% adjustment.
+
+          # Standard macrobenchmarks
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fonly-tracing&trendsType=scenario
+          - name: normal_operation/only-tracing
+            thresholds:
+              - agg_http_req_duration_p50 < 2.6 ms
+              - agg_http_req_duration_p99 < 8.5 ms
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fotel-latest&trendsType=scenario
+          - name: normal_operation/otel-latest
+            thresholds:
+              - agg_http_req_duration_p50 < 2.5 ms
+              - agg_http_req_duration_p99 < 10 ms
+
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fonly-tracing&trendsType=scenario
+          - name: high_load/only-tracing
+            thresholds:
+              - throughput > 1100.0 op/s
+          # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fotel-latest&trendsType=scenario
+          - name: high_load/otel-latest
+            thresholds:
+              - throughput > 1100.0 op/s
