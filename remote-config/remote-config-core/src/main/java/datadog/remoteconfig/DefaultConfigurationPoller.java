@@ -7,6 +7,9 @@ import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpResponse;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -43,11 +46,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +64,7 @@ public class DefaultConfigurationPoller
   private final String tracerVersion;
   private final String containerId;
   private final String entityId;
-  private final OkHttpClient httpClient;
+  private final HttpClient httpClient;
   private final RatelimitedLogger ratelimitedLogger;
   private final Supplier<String> urlSupplier;
   private final PollerScheduler scheduler;
@@ -91,7 +89,7 @@ public class DefaultConfigurationPoller
       String containerId,
       String entityId,
       Supplier<String> urlSupplier,
-      OkHttpClient client) {
+      HttpClient client) {
     this(
         config,
         tracerVersion,
@@ -109,7 +107,7 @@ public class DefaultConfigurationPoller
       String containerId,
       String entityId,
       Supplier<String> urlSupplier,
-      OkHttpClient httpClient,
+      HttpClient httpClient,
       AgentTaskScheduler taskScheduler) {
     this.config = config;
     this.tracerVersion = tracerVersion;
@@ -287,8 +285,8 @@ public class DefaultConfigurationPoller
     return true;
   }
 
-  private Response fetchConfiguration() throws IOException {
-    Request request =
+  private HttpResponse fetchConfiguration() throws IOException {
+    HttpRequest request =
         this.requestFactory.newConfigurationRequest(
             getSubscribedProductNames(),
             this.nextClientState,
@@ -298,8 +296,7 @@ public class DefaultConfigurationPoller
       throw new IOException("Endpoint has not been discovered yet");
     }
     log.debug("Sending Remote configuration request: {}", request);
-    Call call = this.httpClient.newCall(request);
-    return call.execute();
+    return this.httpClient.execute(request);
   }
 
   private Collection<String> getSubscribedProductNames() {
@@ -324,8 +321,8 @@ public class DefaultConfigurationPoller
     return configStates;
   }
 
-  void sendRequest(Consumer<ResponseBody> responseBodyConsumer) throws IOException {
-    try (Response response = fetchConfiguration()) {
+  void sendRequest(Consumer<HttpResponse> responseConsumer) throws IOException {
+    try (HttpResponse response = fetchConfiguration()) {
       if (response.code() == 404) {
         log.debug("Remote configuration endpoint is disabled");
         return;
@@ -334,40 +331,27 @@ public class DefaultConfigurationPoller
         log.debug("No configuration changes (HTTP 204 No Content)");
         return;
       }
-      ResponseBody body = response.body();
       if (response.isSuccessful()) {
-        if (body == null) {
-          ratelimitedLogger.warn("No body content while retrieving remote configuration");
-          return;
-        }
-        responseBodyConsumer.accept(body);
+        responseConsumer.accept(response);
         return;
       }
       // Retrieve body content for detailed error messages
-      if (body != null) {
-        try {
-          ratelimitedLogger.warn(
-              "Failed to retrieve remote configuration: unexpected response code {} {} {}",
-              response.message(),
-              response.code(),
-              body.string());
-        } catch (IOException ex) {
-          ExceptionHelper.rateLimitedLogException(
-              ratelimitedLogger, log, ex, "Error while getting error message body");
-        }
-      } else {
+      try {
         ratelimitedLogger.warn(
             "Failed to retrieve remote configuration: unexpected response code {} {}",
-            response.message(),
-            response.code());
+            response.code(),
+            response.bodyAsString());
+      } catch (IOException ex) {
+        ExceptionHelper.rateLimitedLogException(
+            ratelimitedLogger, log, ex, "Error while getting error message body");
       }
     }
   }
 
-  private void handleAgentResponse(ResponseBody body) {
+  private void handleAgentResponse(HttpResponse response) {
     RemoteConfigResponse fleetResponse;
 
-    try (InputStream inputStream = new SizeCheckedInputStream(body.byteStream(), maxPayloadSize)) {
+    try (InputStream inputStream = new SizeCheckedInputStream(response.body(), maxPayloadSize)) {
       Optional<RemoteConfigResponse> maybeFleetResp;
       maybeFleetResp = this.responseFactory.fromInputStream(inputStream);
       if (!maybeFleetResp.isPresent()) {

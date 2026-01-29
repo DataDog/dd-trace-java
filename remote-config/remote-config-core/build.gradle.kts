@@ -30,14 +30,15 @@ val excludedClassesInstructionCoverage by extra(
 )
 
 dependencies {
+  api(project(":components:http:http-api"))
   api(project(":remote-config:remote-config-api"))
 
   implementation(libs.slf4j)
-  implementation(libs.okhttp)
   implementation(libs.moshi)
   implementation(libs.bundles.cafe.crypto)
 
   implementation(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))
+  testImplementation(libs.okhttp)
 }
