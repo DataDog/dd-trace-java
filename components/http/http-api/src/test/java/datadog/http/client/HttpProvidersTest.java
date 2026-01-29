@@ -1,5 +1,6 @@
 package datadog.http.client;
 
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -41,6 +42,18 @@ abstract class HttpProvidersTest {
   @Test
   void testRequestBodyOfString() {
     HttpRequestBody body = HttpProviders.requestBodyOfString("content");
+    assertType(body);
+  }
+
+  @Test
+  void testRequestBodyOfBytes() {
+    HttpRequestBody body = HttpProviders.requestBodyOfBytes(new byte[0]);
+    assertType(body);
+  }
+
+  @Test
+  void testRequestBodyOfByteBuffers() {
+    HttpRequestBody body = HttpProviders.requestBodyOfByteBuffers(emptyList());
     assertType(body);
   }
 
