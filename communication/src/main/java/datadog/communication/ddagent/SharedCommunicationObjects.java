@@ -6,10 +6,9 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
 import datadog.communication.http.HttpUtils;
-import datadog.communication.http.client.HttpClient;
-import datadog.communication.http.client.HttpUrl;
-import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.communication.monitor.Monitoring;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpUrl;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
@@ -154,16 +153,8 @@ public class SharedCommunicationObjects {
       createRemaining(config);
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
-    // Unwrap HttpClient to get okhttp3.OkHttpClient for DefaultConfigurationPoller
-    okhttp3.OkHttpClient okHttpClient =
-        agentHttpClient instanceof OkHttpClient
-            ? ((OkHttpClient) agentHttpClient).unwrap()
-            : null;
-    if (okHttpClient == null) {
-      throw new IllegalStateException("agentHttpClient must be OkHttpClient implementation");
-    }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, okHttpClient);
+        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
   }
 
   // for testing
