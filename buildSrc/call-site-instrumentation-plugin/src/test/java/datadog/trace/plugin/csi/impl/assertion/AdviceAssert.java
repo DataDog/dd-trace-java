@@ -1,23 +1,37 @@
-package datadog.trace.plugin.csi.impl.assertion
+package datadog.trace.plugin.csi.impl.assertion;
 
-class AdviceAssert {
-  protected String type
-  protected String owner
-  protected String method
-  protected String descriptor
-  protected Collection<String> statements
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-  void type(String type) {
-    assert type == this.type
+import java.util.List;
+
+public class AdviceAssert {
+  protected String type;
+  protected String owner;
+  protected String method;
+  protected String descriptor;
+  protected List<String> statements;
+
+  public AdviceAssert(
+      String type, String owner, String method, String descriptor, List<String> statements) {
+    this.type = type;
+    this.owner = owner;
+    this.method = method;
+    this.descriptor = descriptor;
+    this.statements = statements;
   }
 
-  void pointcut(String owner, String method, String descriptor) {
-    assert owner == this.owner
-    assert method == this.method
-    assert descriptor == this.descriptor
+  public void type(String type) {
+    assertEquals(type, this.type);
   }
 
-  void statements(String... values) {
-    assert values.toList() == statements
+  public void pointcut(String owner, String method, String descriptor) {
+    assertEquals(owner, this.owner);
+    assertEquals(method, this.method);
+    assertEquals(descriptor, this.descriptor);
+  }
+
+  public void statements(String... values) {
+    assertArrayEquals(values, statements.toArray(new String[0]));
   }
 }
