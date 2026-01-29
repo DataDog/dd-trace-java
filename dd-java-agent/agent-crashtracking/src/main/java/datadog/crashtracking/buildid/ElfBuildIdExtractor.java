@@ -147,14 +147,21 @@ public class ElfBuildIdExtractor implements BuildIdExtractor {
 
       // Read note name
       byte[] name = new byte[namesz];
-      raf.read(name);
-      raf.skipBytes(nameLen - namesz);
+      if (raf.read(name) != namesz) {
+        throw new IOException("Failed to read note name");
+      }
+      int skipped = raf.skipBytes(nameLen - namesz);
+      if (skipped != nameLen - namesz) {
+        throw new IOException("Failed to skip padding after note name");
+      }
 
       // Check if this is the GNU build ID note
       if (type == NT_GNU_BUILD_ID && Arrays.equals(name, GNU_NOTE_NAME)) {
         // Read build ID
         byte[] buildIdBytes = new byte[descsz];
-        raf.read(buildIdBytes);
+        if (raf.read(buildIdBytes) != descsz) {
+          throw new IOException("Failed to read build ID");
+        }
 
         // Convert to hex string
         StringBuilder hex = new StringBuilder(descsz * 2);
@@ -164,7 +171,10 @@ public class ElfBuildIdExtractor implements BuildIdExtractor {
         return hex.toString();
       } else {
         // Skip descriptor
-        raf.skipBytes(descLen);
+        skipped = raf.skipBytes(descLen);
+        if (skipped != descLen) {
+          throw new IOException("Failed to skip descriptor");
+        }
       }
     }
     return null;
