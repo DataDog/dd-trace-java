@@ -15,17 +15,13 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketAddress;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JavaGatewayInterfaceInstrumentation
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+        Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "com.ibm.ctg.client.JavaGatewayInterface";
@@ -34,12 +30,6 @@ public final class JavaGatewayInterfaceInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    // Only instrument subclasses that have a socket field (TcpJavaGateway, SslJavaGateway)
-    return declaresField(named("socJGate"));
   }
 
   @Override
@@ -74,20 +64,12 @@ public final class JavaGatewayInterfaceInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Enter final AgentScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.FieldValue("socJGate") final Socket socket) {
+        @Advice.Thrown final Throwable throwable) {
       if (null == scope) {
         return;
       }
 
       final AgentSpan span = scope.span();
-
-      if (socket != null) {
-        final SocketAddress socketAddress = socket.getLocalSocketAddress();
-        if (socketAddress instanceof InetSocketAddress) {
-          DECORATE.onLocalConnection(span, (InetSocketAddress) socketAddress);
-        }
-      }
 
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
