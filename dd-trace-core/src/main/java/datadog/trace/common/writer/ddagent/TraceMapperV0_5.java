@@ -204,9 +204,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
     public void accept(Metadata metadata) {
       final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      
+
       TagMap tags = metadata.getTags();
-      
+
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
@@ -220,7 +220,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
               + (metadata.topLevel() ? 1 : 0)
               + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
-      
+
       for (TagMap.EntryReader entry : tags) {
         if (entry.isNumber()) {
           ++metricsSize;
@@ -233,7 +233,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
           }
         }
       }
-      
+
       writable.startMap(metaSize);
       // we don't need to deduplicate any overlap between tags and baggage here
       // since they will be accumulated into maps in the same order downstream,
@@ -256,10 +256,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
         writeDictionaryEncoded(writable, PROCESS_TAGS_KEY);
         writeDictionaryEncoded(writable, processTags);
       }
-      
+
       for (TagMap.EntryReader entry : tags) {
         if (entry.isNumber()) continue;
-        
+
         String key = entry.tag();
         Object value = entry.objectValue();
 
@@ -295,11 +295,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_ID);
       writable.writeLong(metadata.getThreadId());
-      
-      for ( EntryReader entry: metadata.getTags() ) {
-    	if (!entry.isNumber()) continue;
-      
-    	writeDictionaryEncoded(writable, entry.tag());
+
+      for (EntryReader entry : metadata.getTags()) {
+        if (!entry.isNumber()) continue;
+
+        writeDictionaryEncoded(writable, entry.tag());
         switch (entry.type()) {
           case TagMap.EntryReader.INT:
             writable.writeInt(entry.intValue());
