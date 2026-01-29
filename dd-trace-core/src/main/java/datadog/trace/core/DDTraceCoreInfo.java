@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -17,7 +19,7 @@ public class DDTraceCoreInfo {
     try (final BufferedReader br =
         new BufferedReader(
             new InputStreamReader(
-                DDTraceCoreInfo.class.getResourceAsStream("/dd-trace-core.version"), "UTF-8"))) {
+                DDTraceCoreInfo.class.getResourceAsStream("/dd-trace-core.version"), UTF_8))) {
       final StringBuilder sb = new StringBuilder();
 
       for (int c = br.read(); c != -1; c = br.read()) {

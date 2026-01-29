@@ -20,7 +20,7 @@ import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class ListenableFutureInstrumentation extends InstrumenterModule.Tracing
+public class ListenableFutureInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public ListenableFutureInstrumentation() {

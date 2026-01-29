@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -15,24 +14,14 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -64,14 +53,11 @@ import net.bytebuddy.matcher.ElementMatcher;
  *               <- + close AgentScope if available
  * }</pre>
  */
-@AutoService(InstrumenterModule.class)
-public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.Tracing
+public final class ThreadPoolExecutorInstrumentation
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-
-  private static final String TPE = "java.util.concurrent.ThreadPoolExecutor";
+        Instrumenter.HasMethodAdvice {
+  static final String TPE = "java.util.concurrent.ThreadPoolExecutor";
 
   // executors which do their own wrapping before calling super,
   // leading to double wrapping, once at the child level and once
@@ -80,10 +66,6 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
       not(
           isDeclaredBy(
               namedOneOf("org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor")));
-
-  public ThreadPoolExecutorInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME);
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -94,15 +76,6 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return not(named("java.util.concurrent.ScheduledThreadPoolExecutor"))
         .and(extendsClass(named(TPE)));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put(TPE, Boolean.class.getName());
-    stores.put(Runnable.class.getName(), State.class.getName());
-    stores.put(RunnableFuture.class.getName(), State.class.getName());
-    return Collections.unmodifiableMap(stores);
   }
 
   @Override
@@ -127,21 +100,6 @@ public final class ThreadPoolExecutorInstrumentation extends InstrumenterModule.
     transformer.applyAdvice(
         named("remove").and(isMethod()).and(returns(Runnable.class)),
         getClass().getName() + "$Remove");
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    Map<ExcludeFilter.ExcludeType, List<String>> map = new HashMap<>(2);
-    map.put(
-        RUNNABLE,
-        Arrays.asList(
-            "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
-            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
-    map.put(
-        EXECUTOR,
-        Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor"));
-
-    return Collections.unmodifiableMap(map);
   }
 
   public static final class Init {

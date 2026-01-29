@@ -47,17 +47,17 @@ public final class ResourcesFeatureInstrumentation
       tracerResources.add("profiling/jfr/overrides/minimal.jfp");
 
       // jmxfetch configs
-      tracerResources.add("metrics/project.properties");
-      tracerResources.add("metrics/org/datadog/jmxfetch/default-jmx-metrics.yaml");
-      tracerResources.add("metrics/org/datadog/jmxfetch/new-gc-default-jmx-metrics.yaml");
-      tracerResources.add("metrics/org/datadog/jmxfetch/old-gc-default-jmx-metrics.yaml");
+      tracerResources.add("jmxfetch/project.properties");
+      tracerResources.add("jmxfetch/org/datadog/jmxfetch/default-jmx-metrics.yaml");
+      tracerResources.add("jmxfetch/org/datadog/jmxfetch/new-gc-default-jmx-metrics.yaml");
+      tracerResources.add("jmxfetch/org/datadog/jmxfetch/old-gc-default-jmx-metrics.yaml");
 
       // tracer's jmxfetch configs
-      tracerResources.add("metrics/jmxfetch-config.yaml");
-      tracerResources.add("metrics/jmxfetch-websphere-config.yaml");
+      tracerResources.add("jmxfetch/jmxfetch-config.yaml");
+      tracerResources.add("jmxfetch/jmxfetch-websphere-config.yaml");
 
       // jmxfetch integrations metricconfigs
-      String metricConfigsPath = "metrics/datadog/trace/agent/jmxfetch/";
+      String metricConfigsPath = "jmxfetch/datadog/trace/agent/jmxfetch/";
       String metricConfigs = metricConfigsPath + "metricconfigs.txt";
       tracerResources.add(metricConfigs);
       try (InputStream is = ClassLoader.getSystemResourceAsStream(metricConfigs);

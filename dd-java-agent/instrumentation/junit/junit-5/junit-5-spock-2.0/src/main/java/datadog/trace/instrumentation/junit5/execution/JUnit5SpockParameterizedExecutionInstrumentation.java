@@ -9,7 +9,6 @@ import datadog.trace.api.Config;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.util.Strings;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -32,9 +31,8 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override

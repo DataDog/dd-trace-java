@@ -39,9 +39,7 @@ sourceSets {
 }
 
 configurations {
-  register("instrumentPluginClasspath") {
-    canBeConsumed = true
-    canBeResolved = false
+  consumable("buildTimeInstrumentationToolingPlugins") {
     extendsFrom runtimeElements
   }
 
@@ -66,6 +64,8 @@ dependencies {
 
   api project(':dd-trace-core')
   implementation project(':dd-java-agent:agent-crashtracking')
+  // Need metrics-lib for MonitoringImpl and DDAgentStatsDClientManager
+  implementation project(':products:metrics:metrics-lib')
 
   main_java25Implementation project(':dd-trace-core')
 
