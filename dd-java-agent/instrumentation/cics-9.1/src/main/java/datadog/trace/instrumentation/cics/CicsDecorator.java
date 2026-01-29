@@ -69,20 +69,6 @@ public class CicsDecorator extends ClientDecorator {
   }
 
   /**
-   * Adds local connection details to a span from a socket address.
-   *
-   * @param span the span to decorate
-   * @param localAddr the socket (can be null)
-   */
-  public AgentSpan onLocalConnection(final AgentSpan span, final InetSocketAddress localAddr) {
-    if (localAddr != null && localAddr.getAddress() != null) {
-      span.setTag("network.local.address", localAddr.getAddress().getHostAddress());
-      span.setTag("network.local.port", localAddr.getPort());
-    }
-    return span;
-  }
-
-  /**
    * Converts ECI interaction verb code to string representation.
    *
    * @param verb the interaction verb code
