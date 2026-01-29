@@ -1,8 +1,10 @@
 package datadog.http.client.okhttp;
 
 import datadog.http.client.HttpResponse;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import okhttp3.ResponseBody;
 
 /**
  * OkHttp-based implementation of HttpResponse.
@@ -65,6 +67,12 @@ public final class OkHttpResponse implements HttpResponse {
       return null;
     }
     return body.byteStream();
+  }
+
+  @Override
+  public String bodyAsString() throws IOException {
+    ResponseBody body = delegate.body();
+    return body == null ? "" : body.string();
   }
 
   @Override

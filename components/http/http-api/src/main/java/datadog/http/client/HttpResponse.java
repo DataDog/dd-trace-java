@@ -1,6 +1,7 @@
 package datadog.http.client;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
@@ -52,6 +53,13 @@ public interface HttpResponse extends Closeable {
    * @return the response body stream
    */
   InputStream body();
+
+  /**
+   * Returns the response body as a String using Content-Type charset or UTF-8 if absent.
+   * @return the response body as a String
+   * @throws IOException if an I/O error occurs
+   */
+  String bodyAsString() throws IOException;
 
   // TODO Not sure if it's the response that should be closed, or the response body.
   /**
