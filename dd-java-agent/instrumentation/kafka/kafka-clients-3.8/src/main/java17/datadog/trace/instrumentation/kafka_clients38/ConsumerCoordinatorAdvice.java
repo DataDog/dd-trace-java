@@ -32,8 +32,8 @@ public class ConsumerCoordinatorAdvice {
       return;
     }
 
-    String consumerGroup = kafkaConsumerInfo.getConsumerGroup().get();
-    Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().get();
+    String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
+    Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
     String clusterId = null;
     if (consumerMetadata != null) {
       clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
