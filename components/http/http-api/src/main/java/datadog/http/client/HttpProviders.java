@@ -30,7 +30,7 @@ public final class HttpProviders {
     if (HTTP_CLIENT_BUILDER_CONSTRUCTOR == null) {
       HTTP_CLIENT_BUILDER_CONSTRUCTOR = findConstructor(
           "datadog.http.client.jdk.JdkHttpClient$Builder",
-          "datadog.http.client.jdk.OkHttpClient$Builder");
+          "datadog.http.client.okhttp.OkHttpClient$Builder");
     }
     try {
       return (HttpClient.Builder) HTTP_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
