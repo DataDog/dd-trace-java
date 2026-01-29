@@ -1,6 +1,9 @@
 package datadog.remoteconfig;
 
 import com.squareup.moshi.Moshi;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpUrl;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.CachedTargetFile;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
@@ -15,10 +18,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,19 +80,19 @@ public class PollerRequestFactory {
     return httpUrl;
   }
 
-  public Request newConfigurationRequest(
+  public HttpRequest newConfigurationRequest(
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities) {
-    Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
-    MediaType applicationJson = MediaType.parse("application/json");
-    RequestBody requestBody =
-        RequestBody.create(
-            applicationJson,
-            buildRemoteConfigRequestJson(
-                productNames, clientState, cachedTargetFiles, capabilities));
-    requestBuilder.post(requestBody);
+    HttpRequest.Builder requestBuilder =
+        HttpRequest.newBuilder()
+            .url(this.url)
+            .addHeader("Content-Type", "application/json; charset=utf-8")
+            .post(
+                HttpRequestBody.of(
+                    buildRemoteConfigRequestJson(
+                        productNames, clientState, cachedTargetFiles, capabilities)));
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
     }
