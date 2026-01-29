@@ -33,8 +33,6 @@ dependencies {
   implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.bundles.groovy)
-  testImplementation(libs.bundles.spock)
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)

@@ -2,6 +2,7 @@ package datadog.trace.plugin.csi.impl.assertion;
 
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
@@ -30,14 +31,8 @@ public class AssertBuilder {
 
   public CallSiteAssert build() {
     CompilationUnit javaFile;
-    try {
-      javaFile = parseJavaFile(file);
-    } catch (FileNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-    if (javaFile.getParsed() != Node.Parsedness.PARSED) {
-      throw new IllegalStateException("Failed to parse file: " + file);
-    }
+    javaFile = parseJavaFile(file);
+    assertEquals(Node.Parsedness.PARSED, javaFile.getParsed());
     ClassOrInterfaceDeclaration targetType =
         javaFile.getPrimaryType().get().asClassOrInterfaceDeclaration();
     Set<Class<?>> interfaces = getInterfaces(targetType);
@@ -203,9 +198,13 @@ public class AssertBuilder {
     }
   }
 
-  private static CompilationUnit parseJavaFile(File file) throws FileNotFoundException {
+  private static CompilationUnit parseJavaFile(File file) {
     JavaSymbolSolver solver = new JavaSymbolSolver(typeResolver());
     JavaParser parser = new JavaParser(new ParserConfiguration().setSymbolResolver(solver));
-    return parser.parse(file).getResult().get();
+    try {
+      return parser.parse(file).getResult().get();
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
