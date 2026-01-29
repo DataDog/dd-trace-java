@@ -58,10 +58,8 @@ public class ProductState {
     errors = null;
 
     List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
-    List<ParsedConfigKey> changedKeys = new ArrayList<>();
     boolean changesDetected = false;
 
-    // Step 1: Detect all changes
     for (ParsedConfigKey configKey : relevantKeys) {
       try {
         RemoteConfigResponse.Targets.ConfigTarget target =
@@ -70,28 +68,14 @@ public class ProductState {
 
         if (isTargetChanged(configKey, target)) {
           changesDetected = true;
-          changedKeys.add(configKey);
+          byte[] content = getTargetFileContent(fleetResponse, configKey);
+          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
         }
       } catch (ReportableException e) {
         recordError(e);
       }
     }
 
-    // Step 2: For products other than ASM_DD, apply changes immediately
-    if (product != Product.ASM_DD) {
-      for (ParsedConfigKey configKey : changedKeys) {
-        try {
-          byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
-        } catch (ReportableException e) {
-          recordError(e);
-        }
-      }
-    }
-
-    // Step 3: Remove obsolete configurations (for all products)
-    // For ASM_DD, this is critical: removes MUST happen before applies to prevent
-    // duplicate rule warnings from the ddwaf rule parser and causing memory spikes.
     List<ParsedConfigKey> keysToRemove =
         cachedTargetFiles.keySet().stream()
             .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
@@ -102,22 +86,6 @@ public class ProductState {
       callListenerRemoveTarget(hinter, configKey);
     }
 
-    // Step 4: For ASM_DD, apply changes AFTER removes
-    // TODO: This is a temporary solution. The proper fix requires better synchronization
-    // between remove and add/update operations. This should be discussed
-    // with the guild to determine the best long-term design approach.
-    if (product == Product.ASM_DD) {
-      for (ParsedConfigKey configKey : changedKeys) {
-        try {
-          byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
-        } catch (ReportableException e) {
-          recordError(e);
-        }
-      }
-    }
-
-    // Step 5: Commit if there were changes
     if (changesDetected) {
       try {
         callListenerCommit(hinter);
