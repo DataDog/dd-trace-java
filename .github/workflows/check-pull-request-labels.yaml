@@ -30,6 +30,7 @@ jobs:
               'comp:',
               'inst:',
               'tag:',
+              'mergequeue-status:',
               'performance:',  // To refactor to 'ci: ' in the future
               'run-tests:'     // Unused since GitLab migration
             ]
