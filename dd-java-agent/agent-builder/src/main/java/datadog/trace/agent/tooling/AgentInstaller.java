@@ -182,7 +182,8 @@ public class AgentInstaller {
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
     // combine known modules indexed at build-time with extensions contributed at run-time
-    Iterable<InstrumenterModule> instrumenterModules = withExtensions(instrumenterIndex.modules());
+    Iterable<InstrumenterModule> instrumenterModules =
+        withExtensions(instrumenterIndex.modules(enabledSystems));
 
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -200,7 +201,7 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
@@ -295,7 +296,7 @@ public class AgentInstaller {
 
   public static Set<InstrumenterModule.TargetSystem> getEnabledSystems() {
     EnumSet<InstrumenterModule.TargetSystem> enabledSystems =
-        EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
+        EnumSet.of(InstrumenterModule.TargetSystem.CONTEXT_TRACKING);
     InstrumenterConfig cfg = InstrumenterConfig.get();
     if (cfg.isTraceEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.TRACING);
@@ -308,6 +309,9 @@ public class AgentInstaller {
     }
     if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(InstrumenterModule.TargetSystem.IAST);
+    }
+    if (cfg.isRaspEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.RASP);
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.CIVISIBILITY);

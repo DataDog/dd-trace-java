@@ -85,7 +85,7 @@ public class TagInterceptor {
   }
 
   public boolean needsIntercept(TagMap map) {
-    for (TagMap.Entry entry : map) {
+    for (TagMap.EntryReader entry : map) {
       if (needsIntercept(entry.tag())) return true;
     }
     return false;

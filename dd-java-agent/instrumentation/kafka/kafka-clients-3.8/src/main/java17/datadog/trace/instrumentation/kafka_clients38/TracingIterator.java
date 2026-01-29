@@ -18,6 +18,7 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -128,6 +129,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         if (null != queueSpan) {
           queueSpan.finish();
         }
+
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .trackTransaction(
+                span,
+                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+                val.headers(),
+                Utils.DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);

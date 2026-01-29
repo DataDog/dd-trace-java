@@ -5,6 +5,8 @@ import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 
 import com.datadog.debugger.instrumentation.ASMHelper;
+import datadog.trace.agent.tooling.stratum.SourceMap;
+import datadog.trace.agent.tooling.stratum.parser.Parser;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,9 +30,11 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolExtractor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractor.class);
 
   public static Scope extract(byte[] classFileBuffer, String jarName) {
     ClassNode classNode = parseClassFile(classFileBuffer);
@@ -40,7 +44,16 @@ public class SymbolExtractor {
   private static Scope extractScopes(ClassNode classNode, String jarName) {
     try {
       String sourceFile = extractSourceFile(classNode);
-      List<Scope> methodScopes = extractMethods(classNode, sourceFile);
+      SourceRemapper sourceRemapper = SourceRemapper.NOOP_REMAPPER;
+      if (classNode.sourceDebug != null) {
+        List<SourceMap> sourceMaps = Parser.parse(classNode.sourceDebug);
+        if (sourceMaps.isEmpty()) {
+          throw new IllegalStateException("No source maps found for " + classNode.name);
+        }
+        SourceMap sourceMap = sourceMaps.get(0);
+        sourceRemapper = SourceRemapper.getSourceRemapper(classNode.sourceFile, sourceMap);
+      }
+      List<Scope> methodScopes = extractMethods(classNode, sourceFile, sourceRemapper);
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
@@ -67,9 +80,8 @@ public class SymbolExtractor {
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
           .build();
     } catch (Exception ex) {
-      LoggerFactory.getLogger(SymbolExtractor.class)
-          .debug(
-              "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
+      LOGGER.debug(
+          "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
   }
@@ -102,10 +114,11 @@ public class SymbolExtractor {
     return fields;
   }
 
-  private static List<Scope> extractMethods(ClassNode classNode, String sourceFile) {
+  private static List<Scope> extractMethods(
+      ClassNode classNode, String sourceFile, SourceRemapper sourceRemapper) {
     List<Scope> methodScopes = new ArrayList<>();
     for (MethodNode method : classNode.methods) {
-      MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
+      MethodLineInfo methodLineInfo = extractMethodLineInfo(method, sourceRemapper);
       List<Scope> varScopes = new ArrayList<>();
       List<Symbol> methodSymbols = new ArrayList<>();
       int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
@@ -182,7 +195,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid class access modifiers: {}", bit);
       }
     }
     return results;
@@ -237,8 +250,11 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException(
-              "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
+          LOGGER.debug(
+              "Invalid access modifiers method[{}::{}]: {}",
+              classNode.name,
+              methodNode.name + methodNode.desc,
+              bit);
       }
     }
     // if class is an interface && method has code && non-static this is a default method
@@ -289,7 +305,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid access modifiers: {}", bit);
       }
     }
     return results;
@@ -464,7 +480,8 @@ public class SymbolExtractor {
     return ranges;
   }
 
-  private static MethodLineInfo extractMethodLineInfo(MethodNode methodNode) {
+  private static MethodLineInfo extractMethodLineInfo(
+      MethodNode methodNode, SourceRemapper sourceRemapper) {
     Map<Label, Integer> map = new HashMap<>();
     List<Integer> lineNo = new ArrayList<>();
     Set<Integer> dedupSet = new HashSet<>();
@@ -473,10 +490,11 @@ public class SymbolExtractor {
     while (node != null) {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
-        if (dedupSet.add(lineNumberNode.line)) {
-          lineNo.add(lineNumberNode.line);
+        int newLine = sourceRemapper.remapSourceLine(lineNumberNode.line);
+        if (dedupSet.add(newLine)) {
+          lineNo.add(newLine);
         }
-        maxLine = Math.max(lineNumberNode.line, maxLine);
+        maxLine = Math.max(newLine, maxLine);
       }
       if (node.getType() == AbstractInsnNode.LABEL) {
         if (node instanceof LabelNode) {

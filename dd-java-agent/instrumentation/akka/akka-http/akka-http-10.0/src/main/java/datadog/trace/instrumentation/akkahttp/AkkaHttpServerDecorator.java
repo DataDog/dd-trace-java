@@ -89,6 +89,12 @@ public class AkkaHttpServerDecorator
   }
 
   @Override
+  protected String getRequestHeader(HttpRequest httpRequest, String key) {
+    Optional<akka.http.javadsl.model.HttpHeader> header = httpRequest.getHeader(key);
+    return header.map(HttpHeader::value).orElse(null);
+  }
+
+  @Override
   protected boolean isAppSecOnResponseSeparate() {
     return true;
   }
