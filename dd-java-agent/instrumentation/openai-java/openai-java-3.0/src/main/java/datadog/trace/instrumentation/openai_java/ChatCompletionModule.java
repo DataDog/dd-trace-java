@@ -15,6 +15,7 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CommonTags",
       packageName + ".ChatCompletionDecorator",
       packageName + ".OpenAiDecorator",
       packageName + ".HttpResponseWrapper",

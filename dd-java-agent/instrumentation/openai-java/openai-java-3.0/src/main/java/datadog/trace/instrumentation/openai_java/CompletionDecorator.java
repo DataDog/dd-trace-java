@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.openai_java;
 
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_MODEL;
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
-
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
 import datadog.trace.api.Config;
@@ -25,25 +22,29 @@ public class CompletionDecorator {
 
   public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
-    span.setTag("openai.request.endpoint", "v1/completions");
-    span.setTag("openai.request.method", "POST");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/completions");
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
 
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
 
-    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
+    params
+        .model()
+        ._value()
+        .asString()
+        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
     params
         .prompt()
         .flatMap(p -> p.string())
         .ifPresent(
             input ->
                 span.setTag(
-                    "_ml_obs_tag.input",
+                    CommonTags.INPUT,
                     Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
 
     Map<String, Object> metadata = new HashMap<>();
@@ -57,7 +58,7 @@ public class CompletionDecorator {
                 metadata.put("stream_options", Collections.singletonMap("include_usage", true));
               }
             });
-    span.setTag("_ml_obs_tag.metadata", metadata);
+    span.setTag(CommonTags.METADATA, metadata);
   }
 
   public void withCompletion(AgentSpan span, Completion completion) {
@@ -66,23 +67,23 @@ public class CompletionDecorator {
     }
 
     String modelName = completion.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
+    span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
+    span.setTag(CommonTags.MODEL_NAME, modelName);
+    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
             .map(v -> LLMObs.LLMMessage.from(null, v.text()))
             .collect(Collectors.toList());
-    span.setTag("_ml_obs_tag.output", output);
+    span.setTag(CommonTags.OUTPUT, output);
 
     completion
         .usage()
         .ifPresent(
             usage -> {
-              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
-              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
-              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
+              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
+              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
             });
   }
 
@@ -97,9 +98,9 @@ public class CompletionDecorator {
 
     Completion firstCompletion = completions.get(0);
     String modelName = firstCompletion.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
+    span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
+    span.setTag(CommonTags.MODEL_NAME, modelName);
+    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
     for (Completion completion : completions) {
@@ -119,16 +120,16 @@ public class CompletionDecorator {
             .sorted(Map.Entry.comparingByKey())
             .map(entry -> LLMObs.LLMMessage.from(null, entry.getValue().toString()))
             .collect(Collectors.toList());
-    span.setTag("_ml_obs_tag.output", output);
+    span.setTag(CommonTags.OUTPUT, output);
 
     Completion lastCompletion = completions.get(completions.size() - 1);
     lastCompletion
         .usage()
         .ifPresent(
             usage -> {
-              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
-              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
-              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
+              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
+              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
             });
   }
 }

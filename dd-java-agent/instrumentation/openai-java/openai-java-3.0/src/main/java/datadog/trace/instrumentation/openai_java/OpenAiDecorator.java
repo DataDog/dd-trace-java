@@ -5,7 +5,6 @@ import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -18,15 +17,23 @@ import java.util.List;
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
 
-  public static final String INTEGRATION = "openai";
-  public static final String INSTRUMENTATION_NAME = "openai-java";
-  public static final CharSequence SPAN_NAME = UTF8BytesString.create("openai.request");
-
-  public static final String REQUEST_MODEL = "openai.request.model";
-  public static final String RESPONSE_MODEL = "openai.response.model";
-  public static final String OPENAI_ORGANIZATION_NAME = "openai.organization";
+  private static final String INTEGRATION = "openai";
+  private static final String INSTRUMENTATION_NAME = "openai-java";
+  private static final CharSequence SPAN_NAME = UTF8BytesString.create("openai.request");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create(INTEGRATION);
+
+  private static final String METRIC_PREFIX = "openai.organization.ratelimit.";
+  private static final String REQUESTS_LIMIT_METRIC = METRIC_PREFIX + "requests.limit";
+  private static final String REQUESTS_REMAINING_METRIC = METRIC_PREFIX + "requests.remaining";
+  private static final String TOKENS_LIMIT_METRIC = METRIC_PREFIX + "tokens.limit";
+  private static final String TOKENS_REMAINING_METRIC = METRIC_PREFIX + "tokens.remaining";
+
+  private static final String HEADER_PREFIX = "x-ratelimit-";
+  private static final String LIMIT_REQUESTS_HEADER = HEADER_PREFIX + "limit-requests";
+  private static final String REMAINING_REQUESTS_HEADER = HEADER_PREFIX + "remaining-requests";
+  private static final String LIMIT_TOKENS_HEADER = HEADER_PREFIX + "limit-tokens";
+  private static final String REMAINING_TOKENS_HEADER = HEADER_PREFIX + "remaining-tokens";
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
@@ -34,7 +41,7 @@ public class OpenAiDecorator extends ClientDecorator {
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     afterStart(span);
-    span.setTag("openai.api_base", clientOptions.baseUrl());
+    span.setTag(CommonTags.OPENAI_API_BASE, clientOptions.baseUrl());
     return span;
   }
 
@@ -73,19 +80,18 @@ public class OpenAiDecorator extends ClientDecorator {
   public AgentSpan afterStart(AgentSpan span) {
     if (llmObsEnabled) {
       // set UST (unified service tags, env, service, version)
-      span.setTag("_ml_obs_tag.env", wellKnownTags.getEnv());
-      span.setTag("_ml_obs_tag.service", wellKnownTags.getService());
-      span.setTag("_ml_obs_tag.version", wellKnownTags.getVersion());
+      span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
+      span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
+      span.setTag(CommonTags.VERSION, wellKnownTags.getVersion());
 
-      span.setTag("_ml_obs_tag." + LLMObsTags.ML_APP, Config.get().getLlmObsMlApp());
+      span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
 
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
       if (parent != null) {
         parentSpanId = String.valueOf(parent.getSpanId());
-        ;
       }
-      span.setTag("_ml_obs_tag.parent_id", parentSpanId);
+      span.setTag(CommonTags.PARENT_ID, parentSpanId);
     }
     return super.afterStart(span);
   }
@@ -93,7 +99,7 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
     if (llmObsEnabled) {
-      Object spanKindTag = span.getTag("_ml_obs_tag.span.kind");
+      Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
         boolean isRootSpan = span.getLocalRootSpan() == span;
@@ -110,25 +116,12 @@ public class OpenAiDecorator extends ClientDecorator {
     }
     List<String> values = headers.values("openai-organization");
     if (!values.isEmpty()) {
-      span.setTag(OPENAI_ORGANIZATION_NAME, values.get(0));
+      span.setTag(CommonTags.OPENAI_ORGANIZATION, values.get(0));
     }
-    setMetricFromHeader(
-        span,
-        "openai.organization.ratelimit.requests.limit",
-        headers,
-        "x-ratelimit-limit-requests");
-    setMetricFromHeader(
-        span,
-        "openai.organization.ratelimit.requests.remaining",
-        headers,
-        "x-ratelimit-remaining-requests");
-    setMetricFromHeader(
-        span, "openai.organization.ratelimit.tokens.limit", headers, "x-ratelimit-limit-tokens");
-    setMetricFromHeader(
-        span,
-        "openai.organization.ratelimit.tokens.remaining",
-        headers,
-        "x-ratelimit-remaining-tokens");
+    setMetricFromHeader(span, REQUESTS_LIMIT_METRIC, headers, LIMIT_REQUESTS_HEADER);
+    setMetricFromHeader(span, REQUESTS_REMAINING_METRIC, headers, REMAINING_REQUESTS_HEADER);
+    setMetricFromHeader(span, TOKENS_LIMIT_METRIC, headers, LIMIT_TOKENS_HEADER);
+    setMetricFromHeader(span, TOKENS_REMAINING_METRIC, headers, REMAINING_TOKENS_HEADER);
   }
 
   private static void setMetricFromHeader(

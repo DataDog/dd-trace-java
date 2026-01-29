@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.openai_java;
 
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_MODEL;
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
-
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.Embedding;
 import com.openai.models.embeddings.EmbeddingCreateParams;
@@ -27,25 +24,30 @@ public class EmbeddingDecorator {
 
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
     span.setResourceName(EMBEDDINGS_CREATE);
-    span.setTag("openai.request.endpoint", "v1/embeddings");
-    span.setTag("openai.request.method", "POST");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/embeddings");
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
 
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND);
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_EMBEDDING_SPAN_KIND);
     if (params == null) {
       return;
     }
-    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
+    params
+        .model()
+        ._value()
+        .asString()
+        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
-    span.setTag("_ml_obs_tag.input", embeddingDocuments(params.input()));
+    span.setTag(CommonTags.INPUT, embeddingDocuments(params.input()));
 
     Map<String, Object> metadata = new HashMap<>();
     Optional<String> encodingFormat = params.encodingFormat().flatMap(v -> v._value().asString());
     encodingFormat.ifPresent(v -> metadata.put("encoding_format", v));
     params.dimensions().ifPresent(v -> metadata.put("dimensions", v));
-    span.setTag("_ml_obs_tag.metadata", metadata);
+    span.setTag(CommonTags.METADATA, metadata);
   }
 
   private List<LLMObs.Document> embeddingDocuments(EmbeddingCreateParams.Input input) {
@@ -64,16 +66,16 @@ public class EmbeddingDecorator {
     }
 
     String modelName = response.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
+    span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
+    span.setTag(CommonTags.MODEL_NAME, modelName);
+    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     if (!response.data().isEmpty()) {
       int embeddingCount = response.data().size();
       Embedding firstEmbedding = response.data().get(0);
       int embeddingSize = firstEmbedding.embedding().size();
       span.setTag(
-          "_ml_obs_tag.output",
+          CommonTags.OUTPUT,
           String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
   }

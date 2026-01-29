@@ -9,7 +9,7 @@ import com.openai.models.responses.ResponseStreamEvent
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.openai_java.OpenAiDecorator
+import datadog.trace.instrumentation.openai_java.CommonTags
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
@@ -225,15 +225,15 @@ class ResponseServiceTest extends OpenAiTest {
             "openai.request.method" "POST"
             "openai.request.endpoint" "v1/responses"
             "openai.api_base" openAiBaseApi
-            "$OpenAiDecorator.RESPONSE_MODEL" respModel
+            "$CommonTags.OPENAI_RESPONSE_MODEL" respModel
             if (!isStreaming) {
               "openai.organization.ratelimit.requests.limit" 10000
               "openai.organization.ratelimit.requests.remaining" Integer
               "openai.organization.ratelimit.tokens.limit" 50000000
               "openai.organization.ratelimit.tokens.remaining" Integer
             }
-            "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
-            "$OpenAiDecorator.REQUEST_MODEL" reqModel
+            "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
+            "$CommonTags.OPENAI_REQUEST_MODEL" reqModel
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

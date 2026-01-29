@@ -1,3 +1,5 @@
+import datadog.trace.instrumentation.openai_java.CommonTags
+
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -7,7 +9,6 @@ import com.openai.core.http.StreamResponse
 import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.openai_java.OpenAiDecorator
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
@@ -171,9 +172,9 @@ class CompletionServiceTest extends OpenAiTest {
             "openai.organization.ratelimit.requests.remaining" Integer
             "openai.organization.ratelimit.tokens.limit" 90000
             "openai.organization.ratelimit.tokens.remaining" Integer
-            "$OpenAiDecorator.REQUEST_MODEL" "gpt-3.5-turbo-instruct"
-            "$OpenAiDecorator.RESPONSE_MODEL" "gpt-3.5-turbo-instruct:20230824-v2"
-            "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
+            "$CommonTags.OPENAI_REQUEST_MODEL" "gpt-3.5-turbo-instruct"
+            "$CommonTags.OPENAI_RESPONSE_MODEL" "gpt-3.5-turbo-instruct:20230824-v2"
+            "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

@@ -5,7 +5,7 @@ import com.openai.models.embeddings.CreateEmbeddingResponse
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.openai_java.OpenAiDecorator
+import datadog.trace.instrumentation.openai_java.CommonTags
 
 class EmbeddingServiceTest extends OpenAiTest {
 
@@ -71,9 +71,9 @@ class EmbeddingServiceTest extends OpenAiTest {
             "openai.organization.ratelimit.requests.remaining" Integer
             "openai.organization.ratelimit.tokens.limit" 10000000
             "openai.organization.ratelimit.tokens.remaining" Integer
-            "$OpenAiDecorator.REQUEST_MODEL" "text-embedding-ada-002"
-            "$OpenAiDecorator.RESPONSE_MODEL" "text-embedding-ada-002-v2"
-            "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
+            "$CommonTags.OPENAI_REQUEST_MODEL" "text-embedding-ada-002"
+            "$CommonTags.OPENAI_RESPONSE_MODEL" "text-embedding-ada-002-v2"
+            "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

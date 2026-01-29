@@ -15,6 +15,7 @@ public class CompletionModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".CommonTags",
       packageName + ".CompletionDecorator",
       packageName + ".OpenAiDecorator",
       packageName + ".HttpResponseWrapper",

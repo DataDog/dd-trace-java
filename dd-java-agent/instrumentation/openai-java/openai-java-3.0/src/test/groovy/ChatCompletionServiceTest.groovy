@@ -10,7 +10,7 @@ import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.openai_java.OpenAiDecorator
+import datadog.trace.instrumentation.openai_java.CommonTags
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
@@ -336,9 +336,9 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "openai.organization.ratelimit.requests.remaining" Integer
             "openai.organization.ratelimit.tokens.limit" 150000000
             "openai.organization.ratelimit.tokens.remaining" Integer
-            "$OpenAiDecorator.REQUEST_MODEL" "gpt-4o-mini"
-            "$OpenAiDecorator.RESPONSE_MODEL" "gpt-4o-mini-2024-07-18"
-            "$OpenAiDecorator.OPENAI_ORGANIZATION_NAME" "datadog-staging"
+            "$CommonTags.OPENAI_REQUEST_MODEL" "gpt-4o-mini"
+            "$CommonTags.OPENAI_RESPONSE_MODEL" "gpt-4o-mini-2024-07-18"
+            "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()

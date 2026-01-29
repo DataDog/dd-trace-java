@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.openai_java;
 
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_MODEL;
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
-
 import com.openai.helpers.ChatCompletionAccumulator;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
@@ -33,20 +30,24 @@ public class ChatCompletionDecorator {
   public void withChatCompletionCreateParams(
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
-    span.setTag("openai.request.endpoint", "v1/chat/completions");
-    span.setTag("openai.request.method", "POST");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/chat/completions");
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
 
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
-    params.model()._value().asString().ifPresent(str -> span.setTag(REQUEST_MODEL, str));
+    params
+        .model()
+        ._value()
+        .asString()
+        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     span.setTag(
-        "_ml_obs_tag.input",
+        CommonTags.INPUT,
         params.messages().stream()
             .map(ChatCompletionDecorator::llmMessage)
             .collect(Collectors.toList()));
@@ -66,7 +67,7 @@ public class ChatCompletionDecorator {
                 metadata.put("stream_options", Collections.singletonMap("include_usage", true));
               }
             });
-    span.setTag("_ml_obs_tag.metadata", metadata);
+    span.setTag(CommonTags.METADATA, metadata);
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
@@ -96,23 +97,23 @@ public class ChatCompletionDecorator {
       return;
     }
     String modelName = completion.model();
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
+    span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
+    span.setTag(CommonTags.MODEL_NAME, modelName);
+    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
             .map(ChatCompletionDecorator::llmMessage)
             .collect(Collectors.toList());
-    span.setTag("_ml_obs_tag.output", output);
+    span.setTag(CommonTags.OUTPUT, output);
 
     completion
         .usage()
         .ifPresent(
             usage -> {
-              span.setTag("_ml_obs_metric.input_tokens", usage.promptTokens());
-              span.setTag("_ml_obs_metric.output_tokens", usage.completionTokens());
-              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
+              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
+              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
             });
   }
 

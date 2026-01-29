@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.openai_java;
 
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.REQUEST_MODEL;
-import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.RESPONSE_MODEL;
-
 import com.openai.core.JsonField;
 import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
@@ -39,13 +36,13 @@ public class ResponseDecorator {
 
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
     span.setResourceName(RESPONSES_CREATE);
-    span.setTag("openai.request.endpoint", "v1/responses");
-    span.setTag("openai.request.method", "POST");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/responses");
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
 
-    span.setTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND);
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -53,7 +50,7 @@ public class ResponseDecorator {
     // ResponsesModel to Optional<ResponsesModel> in
     // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
     String modelName = extractResponseModel(params._model());
-    span.setTag(REQUEST_MODEL, modelName);
+    span.setTag(CommonTags.OPENAI_REQUEST_MODEL, modelName);
 
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
@@ -108,11 +105,11 @@ public class ResponseDecorator {
     }
 
     if (!inputMessages.isEmpty()) {
-      span.setTag("_ml_obs_tag.input", inputMessages);
+      span.setTag(CommonTags.INPUT, inputMessages);
     }
 
     extractReasoningFromParams(params)
-        .ifPresent(reasoningMap -> span.setTag("_ml_obs_request.reasoning", reasoningMap));
+        .ifPresent(reasoningMap -> span.setTag(CommonTags.REQUEST_REASONING, reasoningMap));
   }
 
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
@@ -397,18 +394,18 @@ public class ResponseDecorator {
     }
 
     String modelName = extractResponseModel(response._model());
-    span.setTag(RESPONSE_MODEL, modelName);
-    span.setTag("_ml_obs_tag.model_name", modelName);
-    span.setTag("_ml_obs_tag.model_provider", "openai");
+    span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
+    span.setTag(CommonTags.MODEL_NAME, modelName);
+    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> outputMessages = extractResponseOutputMessages(response.output());
     if (!outputMessages.isEmpty()) {
-      span.setTag("_ml_obs_tag.output", outputMessages);
+      span.setTag(CommonTags.OUTPUT, outputMessages);
     }
 
     Map<String, Object> metadata = new HashMap<>();
 
-    Object reasoningTag = span.getTag("_ml_obs_request.reasoning");
+    Object reasoningTag = span.getTag(CommonTags.REQUEST_REASONING);
     if (reasoningTag != null) {
       metadata.put("reasoning", reasoningTag);
     }
@@ -462,17 +459,16 @@ public class ResponseDecorator {
         .usage()
         .ifPresent(
             usage -> {
-              span.setTag("_ml_obs_metric.input_tokens", usage.inputTokens());
-              span.setTag("_ml_obs_metric.output_tokens", usage.outputTokens());
-              span.setTag("_ml_obs_metric.total_tokens", usage.totalTokens());
+              span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
+              span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
+              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
               span.setTag(
-                  "_ml_obs_metric.cache_read_input_tokens",
-                  usage.inputTokensDetails().cachedTokens());
+                  CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
               long reasoningTokens = usage.outputTokensDetails().reasoningTokens();
               metadata.put("reasoning_tokens", reasoningTokens);
             });
 
-    span.setTag("_ml_obs_tag.metadata", metadata);
+    span.setTag(CommonTags.METADATA, metadata);
   }
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {
