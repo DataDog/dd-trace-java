@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.TagMap.Entry;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -17,9 +18,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import datadog.trace.api.TagMap.Entry;
 
 /**
  * Since TagMap.Entry is thread safe and has involves complicated multi-thread type resolution code,
@@ -47,6 +51,21 @@ public class TagMapEntryTest {
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.FLOAT));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.DOUBLE));
   }
+  
+  @Test
+  public void objectEntry_via_create() {
+    test(
+        () -> TagMap.Entry.create("foo", "bar"),
+        TagMap.Entry.OBJECT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue("bar", entry),
+                checkEquals("bar", entry::stringValue),
+                checkFalse(entry::isNumber),
+                checkTrue(entry::isObject),
+                checkType(TagMap.Entry.OBJECT, entry)));
+  }
 
   @Test
   public void objectEntry() {
@@ -58,8 +77,25 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue("bar", entry),
                 checkEquals("bar", entry::stringValue),
+                checkFalse(entry::isNumber),
                 checkTrue(entry::isObject),
-                checkFalse(entry::isNumber)));
+                checkType(TagMap.Entry.OBJECT, entry)));
+  }
+  
+  @Test
+  public void anyEntry_via_create() {
+	Map<String, String> map = new HashMap<>();
+	
+    test(
+        () -> TagMap.Entry.create("foo", map),
+        TagMap.Entry.ANY,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(map, entry),
+                checkTrue(entry::isObject),
+                checkFalse(entry::isNumber),
+                checkType(TagMap.Entry.OBJECT, entry)));
   }
 
   @Test
@@ -73,15 +109,14 @@ public class TagMapEntryTest {
                 checkValue("bar", entry),
                 checkTrue(entry::isObject),
                 checkFalse(entry::isNumber),
-                checkKey("foo", entry),
-                checkValue("bar", entry)));
+                checkType(TagMap.EntryReader.OBJECT, entry)));
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void booleanEntry(boolean value) {
+  public void booleanEntry_via_create(boolean value) {
     test(
-        () -> TagMap.Entry.newBooleanEntry("foo", value),
+        () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
         (entry) ->
             multiCheck(
@@ -124,6 +159,21 @@ public class TagMapEntryTest {
                 checkFalse(entry::isObject),
                 checkType(TagMap.Entry.BOOLEAN, entry),
                 checkValue(value, entry)));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
+  public void intEntry_via_create(int value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
   }
 
   @ParameterizedTest
@@ -219,6 +269,35 @@ public class TagMapEntryTest {
         Integer.MAX_VALUE,
         Long.MAX_VALUE
       })
+  public void longEntry_via_create(long value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.LONG,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkTrue(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.LONG, entry)));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(
+      longs = {
+        Long.MIN_VALUE,
+        Integer.MIN_VALUE,
+        -1_048_576L,
+        -256L,
+        -128L,
+        -1L,
+        0L,
+        1L,
+        128L,
+        256L,
+        1_048_576L,
+        Integer.MAX_VALUE,
+        Long.MAX_VALUE
+      })
   public void longEntry(long value) {
     test(
         () -> TagMap.Entry.newLongEntry("foo", value),
@@ -289,6 +368,20 @@ public class TagMapEntryTest {
                 checkTrue(() -> entry.is(TagMap.Entry.LONG)),
                 checkValue(value, entry)));
   }
+  
+  @ParameterizedTest
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  public void floatEntry_via_create(float value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.FLOAT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkTrue(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.FLOAT, entry)));
+  }
 
   @ParameterizedTest
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
@@ -330,6 +423,21 @@ public class TagMapEntryTest {
                 checkValue(value, entry),
                 checkTrue(entry::isNumericPrimitive),
                 checkType(TagMap.Entry.FLOAT, entry)));
+  }
+  
+  @ParameterizedTest
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  public void doubleEntry_via_create(double value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.DOUBLE,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkType(TagMap.Entry.DOUBLE, entry)));
   }
 
   @ParameterizedTest
@@ -422,7 +530,7 @@ public class TagMapEntryTest {
   static final void testSingleThreaded(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
     Entry entry = entrySupplier.get();
-    assertEquals(rawType, entry.rawType);
+    assertEquals(rawType, entry.rawType, "rawType");
 
     Check checks = checkSupplier.apply(entry);
     checks.check();
@@ -431,7 +539,7 @@ public class TagMapEntryTest {
   static final void testMultiThreaded(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
     Entry sharedEntry = entrySupplier.get();
-    assertEquals(rawType, sharedEntry.rawType);
+    assertEquals(rawType, sharedEntry.rawType, "rawType");
 
     Check checks = checkSupplier.apply(sharedEntry);
 
@@ -716,8 +824,8 @@ public class TagMapEntryTest {
   static final Check checkType(byte entryType, TagMap.Entry entry) {
     // TODO: TVC checks
     return multiCheck(
-        checkTrue(() -> entry.is(entryType), "type is " + entryType),
-        checkEquals(entryType, entry::type));
+        checkTrue(() -> entry.is(entryType), "Entry::is(type) type=" + entryType),
+        checkEquals(entryType, entry::type, "Entry::type check"));
   }
 
   static final Check multiCheck(Check... checks) {
