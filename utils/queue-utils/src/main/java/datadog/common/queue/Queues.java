@@ -22,7 +22,7 @@ import org.jctools.queues.SpscArrayQueue;
  */
 public final class Queues {
 
-  private static final boolean CAN_USE_VARHANDLES = JavaVirtualMachine.isJavaVersionAtLeast(25);
+  private static final boolean CAN_USE_VARHANDLES = JavaVirtualMachine.isJavaVersionAtLeast(9);
 
   private Queues() {}
 

@@ -32,7 +32,7 @@ public class MpscArrayQueueVarHandle<E> extends BaseQueue<E> {
    * @return current producer limit
    */
   private long laProducerLimit() {
-    return producerLimit.getAcquire();
+    return producerLimit.getVolatile();
   }
 
   /**

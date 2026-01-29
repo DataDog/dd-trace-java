@@ -205,7 +205,7 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
 
   /** Load producer index with acquire semantics (pairs with store release). */
   protected final long laProducerIndex() {
-    return tail.getAcquire();
+    return tail.getVolatile();
   }
 
   /**
@@ -229,7 +229,7 @@ abstract class BaseQueue<E> extends AbstractQueue<E> implements MessagePassingQu
 
   /** Load consumer index with acquire semantics (pairs with store release). */
   protected final long laConsumerIndex() {
-    return head.getAcquire();
+    return head.getVolatile();
   }
 
   /**
