@@ -8,7 +8,9 @@ import javax.resource.cci.InteractionSpec
 import javax.resource.spi.ConnectionManager
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static org.mockito.Mockito.any
 import static org.mockito.Mockito.mock
+import static org.mockito.Mockito.when
 
 /**
  * Tests for ECIInteractionInstrumentation.
