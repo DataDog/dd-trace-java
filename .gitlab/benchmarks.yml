@@ -60,12 +60,8 @@
         libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
         libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev \
         && rm -rf /var/lib/apt/lists/*
-      rm -rf "$PYENV_ROOT"
       git clone --depth 1 https://github.com/pyenv/pyenv.git --branch "v$PYENV_BRANCH_VERSION" --single-branch "$PYENV_ROOT"
-      # Check if Python 3.9.6 is already installed, if not install it
-      if [ ! -d "$PYENV_ROOT/versions/$PYTHON_VERSION" ]; then
-        pyenv install "$PYTHON_VERSION"
-      fi
+      pyenv install "$PYTHON_VERSION"
       pyenv global "$PYTHON_VERSION"
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - export CONVERTED_DIR="${ARTIFACTS_DIR}/converted" && mkdir -p "${CONVERTED_DIR}"
@@ -75,6 +71,7 @@
         echo "WARNING: CI_JOB_TOKEN not set, skipping benchmark-analyzer installation"
       else
         echo "Installing benchmark-analyzer from relenv-benchmark-analyzer..."
+        export PATH="/pyenv/shims:/pyenv/bin:$PATH"
         git clone --branch sarahchen6/add-java-microbenchmark-scripts https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/relenv-benchmark-analyzer /tmp/benchmark-analyzer
         cd /tmp/benchmark-analyzer
         sed -i "s#ssh://git@github.com/DataDog#https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog#g" setup.cfg
@@ -181,7 +178,6 @@ convert-startup-benchmarks:
     - when: on_success
       interruptible: true
   script:
-    - !reference [.convert-benchmarks, before_script]
     - |
       echo "=== Converting startup benchmark artifacts ==="
       # Check if artifacts directory exists
@@ -270,7 +266,6 @@ convert-dacapo-benchmarks:
     - when: on_success
       interruptible: true
   script:
-    - !reference [.convert-benchmarks, before_script]
     - |
       echo "=== Converting dacapo benchmark artifacts ==="
       # Check if artifacts directory exists
@@ -375,7 +370,6 @@ convert-load-benchmarks:
     - when: on_success
       interruptible: true
   script:
-    - !reference [.convert-benchmarks, before_script]
     - |
       echo "=== Processing load benchmark artifacts ==="
       # Check if artifacts directory exists
