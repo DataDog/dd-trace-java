@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.TagMap.Entry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,12 +19,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
-import datadog.trace.api.TagMap.Entry;
 
 /**
  * Since TagMap.Entry is thread safe and has involves complicated multi-thread type resolution code,
@@ -51,7 +49,7 @@ public class TagMapEntryTest {
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.FLOAT));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.DOUBLE));
   }
-  
+
   @Test
   public void objectEntry_via_create() {
     test(
@@ -81,11 +79,11 @@ public class TagMapEntryTest {
                 checkTrue(entry::isObject),
                 checkType(TagMap.Entry.OBJECT, entry)));
   }
-  
+
   @Test
   public void anyEntry_via_create() {
-	Map<String, String> map = new HashMap<>();
-	
+    Map<String, String> map = new HashMap<>();
+
     test(
         () -> TagMap.Entry.create("foo", map),
         TagMap.Entry.ANY,
@@ -160,7 +158,7 @@ public class TagMapEntryTest {
                 checkType(TagMap.Entry.BOOLEAN, entry),
                 checkValue(value, entry)));
   }
-  
+
   @ParameterizedTest
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
   public void intEntry_via_create(int value) {
@@ -280,7 +278,7 @@ public class TagMapEntryTest {
                 checkTrue(entry::isNumericPrimitive),
                 checkType(TagMap.Entry.LONG, entry)));
   }
-  
+
   @ParameterizedTest
   @ValueSource(
       longs = {
@@ -368,7 +366,7 @@ public class TagMapEntryTest {
                 checkTrue(() -> entry.is(TagMap.Entry.LONG)),
                 checkValue(value, entry)));
   }
-  
+
   @ParameterizedTest
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
   public void floatEntry_via_create(float value) {
@@ -424,7 +422,7 @@ public class TagMapEntryTest {
                 checkTrue(entry::isNumericPrimitive),
                 checkType(TagMap.Entry.FLOAT, entry)));
   }
-  
+
   @ParameterizedTest
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})

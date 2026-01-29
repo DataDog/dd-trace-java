@@ -379,7 +379,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       // NOTE: From the static typing, know that value is not a primitive box
       return TagMap.Entry.newObjectEntry(tag, value);
     }
-    
+
     public static final Entry create(String tag, boolean value) {
       return TagMap.Entry.newBooleanEntry(tag, value);
     }
