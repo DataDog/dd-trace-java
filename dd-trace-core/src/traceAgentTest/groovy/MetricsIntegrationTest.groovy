@@ -1,5 +1,7 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
+import datadog.metrics.api.Histograms
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -19,6 +21,10 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class MetricsIntegrationTest extends AbstractTraceAgentTest {
 
+  def setupSpec() {
+    // Initialize metrics-lib histograms to register the DDSketch implementation
+    Histograms.register(DDSketchHistograms.FACTORY)
+  }
 
   def "send metrics to trace agent should notify with OK event"() {
     setup:

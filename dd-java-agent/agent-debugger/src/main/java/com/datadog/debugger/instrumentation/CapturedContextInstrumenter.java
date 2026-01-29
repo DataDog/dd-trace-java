@@ -30,6 +30,7 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassFileLines;
+import com.datadog.debugger.util.JvmLanguage;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;

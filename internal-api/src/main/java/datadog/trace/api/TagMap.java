@@ -2876,7 +2876,6 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
 
-    // TODO: optimize to take advantage of EntryReader
     for (Map.Entry<String, Object> entry : this.entrySet()) {
       entryReadingHelper.set(entry);
 
@@ -3237,9 +3236,8 @@ final class TagValueConversions {
       return TagMap.EntryReader.INT;
     } else if (value instanceof Byte) {
       return TagMap.EntryReader.INT;
-    } else if (value instanceof Character) {
-      return TagMap.EntryReader.OBJECT;
     } else {
+      // NOTE: Character is currently deliberately treated as OBJECT
       return TagMap.EntryReader.OBJECT;
     }
   }
@@ -3292,7 +3290,7 @@ final class TagValueConversions {
             || (value instanceof Short)
             || (value instanceof Byte);
 
-    // Char is just treated as Object
+    // NOTE: Character is just treated as Object
     return !isSupportedPrimitive;
   }
 

@@ -6,37 +6,21 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
-import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.FORK_JOIN_POOL_INSTRUMENTATION_NAME;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class JavaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
+public class JavaForkJoinPoolInstrumentation
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public JavaForkJoinPoolInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, FORK_JOIN_POOL_INSTRUMENTATION_NAME);
-  }
 
   @Override
   public String instrumentedType() {
     return "java.util.concurrent.ForkJoinPool";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 
   @Override

@@ -5,6 +5,13 @@ class CapturedSnapshot301 {
   }
 
   fun f2(value: Int): Int {
+    (1..3)
+      .filter {
+        it > 0
+      }
+      .forEach {
+        println(it)
+    }
     return value
   }
 

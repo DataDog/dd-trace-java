@@ -3,6 +3,8 @@ muzzle {
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
     versions = '[2,)'
+    // Version 4.0.1 is broken, see https://github.com/eclipse-ee4j/jersey/issues/6064
+    skipVersions = ['4.0.1']
     assertInverse = true
   }
 }
@@ -63,6 +65,7 @@ dependencies {
   jersey3JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
+  jersey3JettyTestImplementation('jakarta.servlet:jakarta.servlet-api:6.0.0')
   jersey3JettyTestImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   jersey3JettyTestImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   jersey3JettyTestImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-jetty-http', version : jersey3Version
@@ -89,5 +92,17 @@ configurations.named('jersey2JettyTestRuntimeClasspath') {
     // override version in testImplementation
     force "org.glassfish.jersey.core:jersey-common:${jersey2Version}"
     force "org.eclipse.jetty:jetty-server:9.1.1.v20140108"
+  }
+}
+configurations.configureEach {
+  resolutionStrategy.componentSelection {
+    all {
+      if (candidate.group == 'org.glassfish.jersey.core'
+        && candidate.module == 'jersey-common'
+        && candidate.version.startsWith('4.0.1')
+        && name.startsWith('latestDep')) {
+        reject('Version 4.0.1 is broken, see https://github.com/eclipse-ee4j/jersey/issues/6064')
+      }
+    }
   }
 }

@@ -20,8 +20,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.3"
-  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+  id("com.gradle.develocity") version "4.3.1"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -106,6 +106,9 @@ include(
   ":components:environment",
   ":components:json",
   ":components:native-loader",
+  ":products:metrics:metrics-agent",
+  ":products:metrics:metrics-api",
+  ":products:metrics:metrics-lib",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
@@ -143,10 +146,10 @@ include(":dd-java-agent:agent-aiguard")
 
 // Feature Flagging
 include(
-  ":products:feature-flagging:agent",
-  ":products:feature-flagging:api",
-  ":products:feature-flagging:bootstrap",
-  ":products:feature-flagging:lib"
+  ":products:feature-flagging:feature-flagging-agent",
+  ":products:feature-flagging:feature-flagging-api",
+  ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-lib"
 )
 
 // misc
@@ -156,6 +159,7 @@ include(
   ":utils:container-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
   ":utils:test-utils",

@@ -10,7 +10,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class TagValueConversionsTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-  public void boolean_(boolean value) {
+
+  public void booleanConversions(boolean value) {
     Boolean box = Boolean.valueOf(value);
 
     assertEquals(TagMap.EntryReader.BOOLEAN, TagValueConversions.typeOf(box));
@@ -30,7 +31,7 @@ public class TagValueConversionsTest {
 
   @ParameterizedTest
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
-  public void int_(int value) {
+  public void intConversions(int value) {
     Integer box = Integer.valueOf(value);
 
     assertEquals(TagMap.EntryReader.INT, TagValueConversions.typeOf(box));
@@ -50,7 +51,7 @@ public class TagValueConversionsTest {
 
   @ParameterizedTest
   @ValueSource(bytes = {Byte.MIN_VALUE, -32, -1, 0, 1, 32, Byte.MAX_VALUE})
-  public void byte_(byte value) {
+  public void byteConversions(byte value) {
     Byte box = Byte.valueOf(value);
 
     assertEquals(TagMap.EntryReader.INT, TagValueConversions.typeOf(box));
@@ -70,7 +71,7 @@ public class TagValueConversionsTest {
 
   @ParameterizedTest
   @ValueSource(shorts = {Short.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Short.MAX_VALUE})
-  public void short_(short value) {
+  public void shortConversions(short value) {
     Short box = Short.valueOf(value);
 
     assertEquals(TagMap.EntryReader.INT, TagValueConversions.typeOf(box));
@@ -105,7 +106,7 @@ public class TagValueConversionsTest {
         Integer.MAX_VALUE,
         Long.MAX_VALUE
       })
-  public void long_(long value) {
+  public void longConversions(long value) {
     Long box = Long.valueOf(value);
 
     assertEquals(TagMap.EntryReader.LONG, TagValueConversions.typeOf(box));
@@ -125,7 +126,7 @@ public class TagValueConversionsTest {
 
   @ParameterizedTest
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
-  public void float_(float value) {
+  public void floatConversions(float value) {
     Float box = Float.valueOf(value);
 
     assertEquals(TagMap.EntryReader.FLOAT, TagValueConversions.typeOf(box));
@@ -146,7 +147,7 @@ public class TagValueConversionsTest {
   @ParameterizedTest
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
-  public void double_(double value) {
+  public void doubleConversions(double value) {
     Double box = Double.valueOf(value);
 
     assertEquals(TagMap.EntryReader.DOUBLE, TagValueConversions.typeOf(box));
