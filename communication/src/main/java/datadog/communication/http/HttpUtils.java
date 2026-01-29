@@ -1,15 +1,16 @@
 package datadog.communication.http;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.client.HttpClient;
-import datadog.communication.http.client.HttpRequest;
-import datadog.communication.http.client.HttpRequestBody;
-import datadog.communication.http.client.HttpResponse;
-import datadog.communication.http.client.HttpUrl;
 import datadog.environment.SystemProperties;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import java.io.File;
 import java.io.IOException;
@@ -18,8 +19,7 @@ import java.net.Proxy;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import okhttp3.Dispatcher;
-import okhttp3.EventListener;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ public final class HttpUtils {
 
   public static HttpClient buildHttpClient(
       final Config config,
-      final Dispatcher dispatcher,
+      final Executor executor,
       final HttpUrl url,
       final Boolean retryOnConnectionFailure,
       final Integer maxRunningRequests,
@@ -85,7 +85,7 @@ public final class HttpUtils {
     return buildHttpClient(
         discoverApmSocket(config),
         config.getAgentNamedPipe(),
-        dispatcher,
+        executor,
         isPlainHttp(url),
         retryOnConnectionFailure,
         maxRunningRequests,
@@ -96,20 +96,10 @@ public final class HttpUtils {
         timeoutMillis);
   }
 
-  /**
-   * Custom event listener for HTTP requests.
-   * NOTE: This is OkHttp-specific and only works when OkHttp is the active implementation.
-   * For generic event listening, use HttpListener in the abstract API.
-   *
-   * @deprecated Use HttpListener in the abstract API instead
-   */
-  @Deprecated
-  public abstract static class CustomListener extends EventListener {}
-
   private static HttpClient buildHttpClient(
       final String unixDomainSocketPath,
       final String namedPipe,
-      final Dispatcher dispatcher,
+      final Executor executor,
       final boolean isHttp,
       final Boolean retryOnConnectionFailure,
       final Integer maxRunningRequests,
@@ -128,8 +118,8 @@ public final class HttpUtils {
         .readTimeout(timeoutMillis, MILLISECONDS);
 
     // Configure dispatcher/executor
-    if (dispatcher != null) {
-      builder.dispatcher(dispatcher.executorService());
+    if (executor != null) {
+      builder.dispatcher(executor);
     } else {
       builder.dispatcher(RejectingExecutorService.INSTANCE);
     }
@@ -242,7 +232,7 @@ public final class HttpUtils {
    * Content-Type header should be set to "application/json" separately.
    */
   public static HttpRequestBody jsonRequestBodyOf(byte[] json) {
-    return HttpRequestBody.of(new String(json, java.nio.charset.StandardCharsets.UTF_8));
+    return HttpRequestBody.of(new String(json, UTF_8));
   }
 
   public static HttpResponse sendWithRetries(

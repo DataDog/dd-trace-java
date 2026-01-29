@@ -1,6 +1,6 @@
 package datadog.communication.http;
 
-import datadog.communication.http.client.HttpResponse;
+import datadog.http.client.HttpResponse;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ConnectException;
