@@ -7,6 +7,7 @@ import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.util.Collections;
 import java.util.List;
@@ -75,10 +76,12 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+  @Flaky
+  // @DisabledIf(
+  //     value = "datadog.environment.JavaVirtualMachine#isJ9",
+  //     disabledReason = "Flaky on J9 JVMs")
   void testAddSourceFileProbeHugeInnerClasses() throws Exception {
+    waitForSpecificLine(appUrl, " totalentries: 5");
     LogProbe logProbe =
         LogProbe.builder()
             .probeId(PROBE_ID)

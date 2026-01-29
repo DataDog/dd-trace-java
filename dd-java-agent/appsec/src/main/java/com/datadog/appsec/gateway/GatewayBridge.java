@@ -58,6 +58,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -358,7 +359,7 @@ public class GatewayBridge {
         new MapDataBundle.Builder(CAPACITY_3_4)
             .add(KnownAddresses.IO_NET_URL, request.getUrl())
             .add(KnownAddresses.IO_NET_REQUEST_METHOD, request.getMethod())
-            .add(KnownAddresses.IO_NET_REQUEST_HEADERS, request.getHeaders());
+            .add(KnownAddresses.IO_NET_REQUEST_HEADERS, toLowerCaseHeaders(request.getHeaders()));
 
     if (downstreamSampler().isSampled(ctx, request.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, request);
@@ -398,7 +399,7 @@ public class GatewayBridge {
     final MapDataBundle.Builder bundleBuilder =
         new MapDataBundle.Builder(CAPACITY_3_4)
             .add(KnownAddresses.IO_NET_RESPONSE_STATUS, Integer.toString(response.getStatus()))
-            .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, response.getHeaders());
+            .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, toLowerCaseHeaders(response.getHeaders()));
     // ignore the response if not sampled
     if (downstreamSampler().isSampled(ctx, response.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, response);
@@ -427,6 +428,19 @@ public class GatewayBridge {
         httpClientResponseSubInfo = null;
       }
     }
+  }
+
+  private Map<String, List<String>> toLowerCaseHeaders(final Map<String, List<String>> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return headers;
+    }
+    final Map<String, List<String>> result = new HashMap<>(headers.size());
+    for (final Map.Entry<String, List<String>> entry : headers.entrySet()) {
+      final String key = entry.getKey();
+      final List<String> value = entry.getValue();
+      result.put(key == null ? null : key.toLowerCase(Locale.ROOT), value);
+    }
+    return result;
   }
 
   private Object parseHttpClientBody(

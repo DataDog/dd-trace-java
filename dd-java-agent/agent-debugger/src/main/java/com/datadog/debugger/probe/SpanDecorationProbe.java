@@ -201,6 +201,10 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
         } catch (EvaluationException ex) {
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
           continue;
+        } catch (Exception ex) {
+          // catch all for unexpected exceptions
+          status.addError(new EvaluationError(decoration.when.getDslExpression(), ex.getMessage()));
+          continue;
         }
       }
       if (!(status instanceof SpanDecorationStatus)) {

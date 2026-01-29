@@ -10,6 +10,7 @@ com.datadoghq.okio:okio:1.17.6=testRuntimeClasspath
 com.datadoghq:dd-instrument-java:0.0.3=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:java-dogstatsd-client:4.4.3=testRuntimeClasspath
+com.datadoghq:sketches-java:0.8.3=testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
 com.github.jnr:jffi:1.3.13=testRuntimeClasspath
 com.github.jnr:jnr-a64asm:1.0.0=testRuntimeClasspath

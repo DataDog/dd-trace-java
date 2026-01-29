@@ -6,8 +6,13 @@ import datadog.trace.bootstrap.instrumentation.usm.UsmMessageFactory
 import java.lang.reflect.Field
 import javax.net.ssl.HttpsURLConnection
 import spock.lang.AutoCleanup
+import spock.lang.Requires
 import spock.lang.Shared
 
+// IBM JVM has different protocol support for TLS
+@Requires({
+  !System.getProperty("java.vm.name").contains("IBM J9 VM")
+})
 class SslSocketTest extends InstrumentationSpecification {
   @AutoCleanup
   @Shared

@@ -6,7 +6,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.SocketUtils;
 import datadog.communication.http.OkHttpUtils;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;

@@ -5,6 +5,8 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor;
@@ -20,7 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +37,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
 
   private final PrioritizationStrategy prioritizationStrategy;
-  private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
-  private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
+  private final MessagePassingBlockingQueue<Object> primaryQueue;
+  private final MessagePassingBlockingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
@@ -121,14 +122,14 @@ public class TraceProcessingWorker implements AutoCloseable {
     return primaryQueue.remainingCapacity();
   }
 
-  private static MpscBlockingConsumerArrayQueue<Object> createQueue(int capacity) {
-    return new MpscBlockingConsumerArrayQueue<>(capacity);
+  private static MessagePassingBlockingQueue<Object> createQueue(int capacity) {
+    return Queues.mpscBlockingConsumerArrayQueue(capacity);
   }
 
   public static class TraceSerializingHandler implements Runnable {
 
-    private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
-    private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
+    private final MessagePassingBlockingQueue<Object> primaryQueue;
+    private final MessagePassingBlockingQueue<Object> secondaryQueue;
     private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
@@ -136,8 +137,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     private long lastTicks;
 
     public TraceSerializingHandler(
-        final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
-        final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
+        final MessagePassingBlockingQueue<Object> primaryQueue,
+        final MessagePassingBlockingQueue<Object> secondaryQueue,
         final HealthMetrics healthMetrics,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
@@ -163,8 +164,8 @@ public class TraceProcessingWorker implements AutoCloseable {
         Thread.currentThread().interrupt();
       }
       log.debug(
-          "Datadog trace processor exited. Publishing traces stopped. Unpublished traces left: "
-              + !queuesAreEmpty());
+          "Datadog trace processor exited. Publishing traces stopped. Unpublished traces left: {}",
+          !queuesAreEmpty());
     }
 
     private void runDutyCycle() throws InterruptedException {

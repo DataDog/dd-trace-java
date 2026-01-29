@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.instrumentation.jetty9.HttpChannelHandleVisitor;
@@ -19,7 +20,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -37,8 +37,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice,
         ExcludeFilterProvider {
-
-  private boolean appSecNotFullyDisabled;
 
   public JettyServerInstrumentation() {
     super("jetty");
@@ -61,12 +59,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
       "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
     };
-  }
-
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    this.appSecNotFullyDisabled = enabledSystems.contains(TargetSystem.APPSEC);
-    return super.isApplicable(enabledSystems);
   }
 
   @Override
@@ -100,7 +92,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(takesNoArguments().and(named("handle")), packageName + ".HandleAdvice");
     transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
 
-    if (appSecNotFullyDisabled) {
+    if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       transformer.applyAdvice(
           named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
           packageName + ".HandleExceptionAdvice");

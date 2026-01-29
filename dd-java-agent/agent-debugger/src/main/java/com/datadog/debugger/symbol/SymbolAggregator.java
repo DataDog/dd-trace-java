@@ -124,6 +124,9 @@ public class SymbolAggregator {
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
+    if (jarScope == null) {
+      return;
+    }
     jarScope = applyFilters(jarScope);
     addJarScope(jarScope, false);
     symDBReport.incClassCount(jarName);

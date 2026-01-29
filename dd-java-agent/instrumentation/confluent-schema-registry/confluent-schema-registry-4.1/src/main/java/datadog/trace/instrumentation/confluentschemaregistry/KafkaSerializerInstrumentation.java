@@ -7,15 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.MethodTransformer;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.common.serialization.Serializer;
 
@@ -23,13 +19,8 @@ import org.apache.kafka.common.serialization.Serializer;
  * Instruments Confluent Schema Registry serializers (Avro, Protobuf, and JSON) to capture
  * serialization operations.
  */
-@AutoService(InstrumenterModule.class)
-public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
+public class KafkaSerializerInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  public KafkaSerializerInstrumentation() {
-    super("confluent-schema-registry", "kafka");
-  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -38,21 +29,6 @@ public class KafkaSerializerInstrumentation extends InstrumenterModule.Tracing
       "io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer",
       "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer"
     };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      packageName + ".SchemaIdExtractor"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.common.serialization.Serializer", "java.lang.Boolean");
-    return contextStores;
   }
 
   @Override

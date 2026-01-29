@@ -4,19 +4,15 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import com.google.auto.service.AutoService;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
 public final class NativeImageGeneratorRunnerInstrumentation
-    extends AbstractNativeImageInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
@@ -71,6 +67,10 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "com.datadog.profiling.controller.openjdk.events.SmapEntryEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory$SmapParseErrorEvent:build_time,"
               + "com.datadog.profiling.ddprof.JavaProfilerLoader:run_time,"
+              + "com.datadoghq.profiler.ThreadContext:run_time,"
+              + "com.datadoghq.profiler.BufferWriter:run_time,"
+              + "com.datadoghq.profiler.BufferWriter8:run_time,"
+              + "com.datadoghq.profiler.BufferWriter9:run_time,"
               + "datadog.environment.JavaVirtualMachine:rerun,"
               + "datadog.environment.OperatingSystem:rerun,"
               + "datadog.environment.OperatingSystem$Architecture:rerun,"

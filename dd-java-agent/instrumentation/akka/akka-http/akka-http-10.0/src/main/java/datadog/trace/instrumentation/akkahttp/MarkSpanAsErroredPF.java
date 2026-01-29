@@ -21,7 +21,7 @@ public class MarkSpanAsErroredPF
 
   @Override
   public Function1<RequestContext, Future<RouteResult>> apply(Throwable x, boolean isCheck)
-      throws Exception, Exception {
+      throws Exception {
     AgentSpan agentSpan = AgentTracer.activeSpan();
     if (agentSpan != null) {
       agentSpan.addThrowable(x);
