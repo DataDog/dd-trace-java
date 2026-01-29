@@ -4,6 +4,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 public final class HttpProviders {
   private static volatile boolean compatibilityMode = false;
@@ -13,6 +15,8 @@ public final class HttpProviders {
   private static volatile Constructor<?> HTTP_URL_BUILDER_CONSTRUCTOR;
   private static volatile Method HTTP_URL_PARSE_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_STRING_METHOD;
+  private static volatile Method HTTP_REQUEST_BODY_OF_BYTES_METHOD;
+  private static volatile Method HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD;
 
   private HttpProviders() {
   }
@@ -24,6 +28,8 @@ public final class HttpProviders {
     HTTP_URL_BUILDER_CONSTRUCTOR = null;
     HTTP_URL_PARSE_METHOD = null;
     HTTP_REQUEST_BODY_OF_STRING_METHOD = null;
+    HTTP_REQUEST_BODY_OF_BYTES_METHOD = null;
+    HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = null;
   }
 
   static HttpClient.Builder newClientBuilder() {
@@ -95,6 +101,36 @@ public final class HttpProviders {
     }
   }
 
+  static HttpRequestBody requestBodyOfBytes(byte[] bytes) {
+    if (HTTP_REQUEST_BODY_OF_BYTES_METHOD == null) {
+      HTTP_REQUEST_BODY_OF_BYTES_METHOD = findMethod(
+          "datadog.http.client.jdk.JdkHttpRequestBody",
+          "datadog.http.client.okhttp.OkHttpRequestBody",
+          "ofBytes",
+          byte[].class);
+    }
+    try {
+      return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTES_METHOD.invoke(null, (Object) bytes);
+    } catch (IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("Failed to call ofBytes method", e);
+    }
+  }
+
+  static HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers) {
+    if (HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD == null) {
+      HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = findMethod(
+          "datadog.http.client.jdk.JdkHttpRequestBody",
+          "datadog.http.client.okhttp.OkHttpRequestBody",
+          "ofByteBuffers",
+          List.class);
+    }
+    try {
+      return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD.invoke(null, buffers);
+    } catch (IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("Failed to call ofByteBuffers method", e);
+    }
+  }
+
   private static Method findMethod(String defaultClientClass, String compatClientClass, String name, Class<?>... parameterTypes) {
     Class<?> clientClass = findClientClass(defaultClientClass, compatClientClass);
     try {
@@ -121,7 +157,7 @@ public final class HttpProviders {
     if (!compatibilityMode) {
       try {
         clazz = Class.forName(defaultClientClass);
-      } catch (ClassNotFoundException ignored) {
+      } catch (ClassNotFoundException | UnsupportedClassVersionError ignored) {
         compatibilityMode = true;
       }
     }

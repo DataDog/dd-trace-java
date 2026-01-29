@@ -4,9 +4,6 @@ import datadog.http.client.HttpClientTest;
 import datadog.http.client.HttpProviders;
 import org.junit.jupiter.api.BeforeAll;
 
-/**
- * Test for OkHttpClient using shared test fixtures.
- */
 public class OkHttpClientTest extends HttpClientTest {
   @BeforeAll
   static void forceOkHttpClient() {

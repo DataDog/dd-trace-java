@@ -1,5 +1,7 @@
 package datadog.http.client.jdk;
 
+import static java.util.Objects.requireNonNull;
+
 import datadog.http.client.HttpRequestBody;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -8,7 +10,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.zip.GZIPOutputStream;
 
@@ -94,43 +95,62 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
 
   /**
    * Creates a request body from a String using UTF-8 encoding.
+   *
+   * @param content the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if content is null
    */
-  public static JdkHttpRequestBody ofString(String body) {
-    return new JdkHttpRequestBody(BodyPublishers.ofString(body));
+  public static JdkHttpRequestBody ofString(String content) {
+    return new JdkHttpRequestBody(BodyPublishers.ofString(content));
   }
 
   /**
-   * Creates a request body from MessagePack-encoded ByteBuffers.
+   * Creates a request body from raw bytes.
+   *
+   * @param bytes the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the byte array is null
    */
-  public static JdkHttpRequestBody ofMsgpack(List<ByteBuffer> buffers) throws IOException {
-    Objects.requireNonNull(buffers, "buffers");
-
-    // TODO Check usage
-    // TODO Use backed array if available and avoid byte[] allocation
-
-    // Calculate total size
-    int totalSize = 0;
-    for (ByteBuffer buffer : buffers) {
-      totalSize += buffer.remaining();
-    }
-
-    // Create byte array from buffers
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(totalSize);
-    for (ByteBuffer buffer : buffers) {
-      byte[] bytes = new byte[buffer.remaining()];
-      buffer.duplicate().get(bytes);
-      baos.write(bytes);
-    }
-    byte[] allBytes = baos.toByteArray();
-
-    return new JdkHttpRequestBody(BodyPublishers.ofByteArray(allBytes));
+  public static JdkHttpRequestBody ofBytes(byte[] bytes) {
+    return new JdkHttpRequestBody(BodyPublishers.ofByteArray(bytes));
   }
+
+  /**
+   * Creates a request body from a list of ByteBuffers.
+   *
+   * @param buffers the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the list of buffers is null
+   */
+  public static JdkHttpRequestBody ofByteBuffers(List<ByteBuffer> buffers) {
+    requireNonNull(buffers, "buffers");
+    if (buffers.isEmpty()) {
+      return new JdkHttpRequestBody(BodyPublishers.noBody());
+    }
+    return new JdkHttpRequestBody(BodyPublishers.fromPublisher(new ByteBufferPublisher(buffers)));
+  }
+
+  private static final class ByteBufferPublisher implements Flow.Publisher<ByteBuffer> {
+    private final List<ByteBuffer> buffers;
+
+    ByteBufferPublisher(List<ByteBuffer> buffers) {
+      this.buffers = buffers;
+    }
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+      this.buffers.forEach(subscriber::onNext);
+      subscriber.onComplete();
+    }
+  }
+
+
 
   /**
    * Wraps a request body with gzip compression.
    */
   public static JdkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
-    Objects.requireNonNull(body, "body");
+    requireNonNull(body, "body");
 
     // Compress the body content
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
