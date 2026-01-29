@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 public class CicsDecorator extends ClientDecorator {
   public static final CharSequence CICS_CLIENT = UTF8BytesString.create("cics-client");
