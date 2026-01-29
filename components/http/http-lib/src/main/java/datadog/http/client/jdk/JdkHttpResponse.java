@@ -1,7 +1,11 @@
 package datadog.http.client.jdk;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.http.client.HttpResponse;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Objects;
 
@@ -62,6 +66,44 @@ public final class JdkHttpResponse implements HttpResponse {
   public InputStream body() {
     return delegate.body();
   }
+
+  @Override
+  public String bodyAsString() throws IOException {
+    try (InputStream body = body()) {
+      return new String(body.readAllBytes(), parseCharset());
+    }
+  }
+
+  private Charset parseCharset() {
+  return this.delegate.headers()
+      .firstValue("Content-Type")
+      .map(contentType -> {
+        try {
+          // Parse media type parameters
+          int semicolon = contentType.indexOf(';');
+          if (semicolon == -1) {
+            return UTF_8;
+          }
+          String params = contentType.substring(semicolon + 1);
+          // Use fast path single character split with limit
+          for (String param : params.split(";", 10)) {
+            String[] keyValue = param.split("=", 2);
+            if (keyValue.length == 2 && keyValue[0].trim().equalsIgnoreCase("charset")) {
+              String charset = keyValue[1].trim();
+              // Remove quotes if present
+              if (charset.startsWith("\"") && charset.endsWith("\"")) {
+                charset = charset.substring(1, charset.length() - 1);
+              }
+              return Charset.forName(charset);
+            }
+          }
+        } catch (Exception e) {
+          return UTF_8;
+        }
+        return UTF_8;
+      })
+      .orElse(UTF_8);
+}
 
   @Override
   public void close() {
