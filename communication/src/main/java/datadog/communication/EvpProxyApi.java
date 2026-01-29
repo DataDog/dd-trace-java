@@ -2,12 +2,12 @@ package datadog.communication;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.HttpUtils;
-import datadog.communication.http.client.HttpClient;
-import datadog.communication.http.client.HttpRequest;
-import datadog.communication.http.client.HttpRequestBody;
-import datadog.communication.http.client.HttpResponse;
-import datadog.communication.http.client.HttpUrl;
 import datadog.communication.util.IOThrowingFunction;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
