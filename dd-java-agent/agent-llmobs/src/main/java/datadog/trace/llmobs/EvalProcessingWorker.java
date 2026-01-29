@@ -11,17 +11,17 @@ import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.llmobs.domain.LLMObsEval;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import okhttp3.Headers;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,29 +51,32 @@ public class EvalProcessingWorker implements AutoCloseable {
       log.error("Agentless eval metric submission requires an API key");
     }
 
-    Headers headers;
+    String headerName;
+    String headerValue;
     HttpUrl submissionUrl;
     if (isAgentless) {
       submissionUrl =
-          HttpUrl.get(
+          HttpUrl.parse(
               "https://"
                   + EVAL_METRIC_API_DOMAIN
                   + "."
                   + config.getSite()
                   + "/"
                   + EVAL_METRIC_API_PATH);
-      headers = Headers.of(DD_API_KEY_HEADER_NAME, config.getApiKey());
+      headerName = DD_API_KEY_HEADER_NAME;
+      headerValue = config.getApiKey();
     } else {
       submissionUrl =
-          HttpUrl.get(
+          HttpUrl.parse(
               sco.agentUrl.toString()
                   + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
                   + EVAL_METRIC_API_PATH);
-      headers = Headers.of(EVP_SUBDOMAIN_HEADER_NAME, EVAL_METRIC_API_DOMAIN);
+      headerName = EVP_SUBDOMAIN_HEADER_NAME;
+      headerValue = EVAL_METRIC_API_DOMAIN;
     }
 
     EvalSerializingHandler serializingHandler =
-        new EvalSerializingHandler(queue, flushInterval, timeUnit, submissionUrl, headers);
+        new EvalSerializingHandler(queue, flushInterval, timeUnit, submissionUrl, headerName, headerValue);
     this.serializerThread = newAgentThread(LLMOBS_EVALS_PROCESSOR, serializingHandler);
   }
 
@@ -105,9 +108,10 @@ public class EvalProcessingWorker implements AutoCloseable {
 
     private final Moshi moshi;
     private final JsonAdapter<LLMObsEval.Request> evalJsonAdapter;
-    private final OkHttpClient httpClient;
+    private final HttpClient httpClient;
     private final HttpUrl submissionUrl;
-    private final Headers headers;
+    private final String headerName;
+    private final String headerValue;
 
     private final List<LLMObsEval> buffer = new ArrayList<>();
 
@@ -116,14 +120,16 @@ public class EvalProcessingWorker implements AutoCloseable {
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,
-        final Headers headers) {
+        final String headerName,
+        final String headerValue) {
       this.queue = queue;
       this.moshi = new Moshi.Builder().add(LLMObsEval.class, new LLMObsEval.Adapter()).build();
 
       this.evalJsonAdapter = moshi.adapter(LLMObsEval.Request.class);
-      this.httpClient = new OkHttpClient();
+      this.httpClient = HttpClient.newBuilder().build();
       this.submissionUrl = submissionUrl;
-      this.headers = headers;
+      this.headerName = headerName;
+      this.headerValue = headerValue;
 
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -169,14 +175,14 @@ public class EvalProcessingWorker implements AutoCloseable {
 
         String reqBod = evalJsonAdapter.toJson(llmobsEvalReq);
 
-        RequestBody requestBody =
-            RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
-        Request request =
-            new Request.Builder().headers(headers).url(submissionUrl).post(requestBody).build();
+        HttpRequest request = HttpRequest.newBuilder()
+            .header("Content-Type", "application/json; charset=utf-8")
+            .header(headerName, headerValue)
+            .url(submissionUrl)
+            .post(HttpRequestBody.of(reqBod))
+            .build();
 
-        try (okhttp3.Response response =
-            OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
-
+        try (HttpResponse response = HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
           if (response.isSuccessful()) {
             log.debug("successfully flushed evaluation request with {} evals", this.buffer.size());
             this.buffer.clear();
@@ -184,7 +190,7 @@ public class EvalProcessingWorker implements AutoCloseable {
             log.error(
                 "Could not submit eval metrics (HTTP code {}) {}",
                 response.code(),
-                response.body() != null ? response.body().string() : "");
+                response.bodyAsString());
           }
         } catch (Exception e) {
           log.error("Could not submit eval metrics", e);
