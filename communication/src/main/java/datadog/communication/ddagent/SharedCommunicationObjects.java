@@ -8,7 +8,6 @@ import datadog.common.socket.SocketUtils;
 import datadog.communication.http.HttpUtils;
 import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpUrl;
-import datadog.communication.http.okhttp.OkHttpClient;
 import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
@@ -154,16 +153,8 @@ public class SharedCommunicationObjects {
       createRemaining(config);
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
-    // Unwrap HttpClient to get okhttp3.OkHttpClient for DefaultConfigurationPoller
-    okhttp3.OkHttpClient okHttpClient =
-        agentHttpClient instanceof OkHttpClient
-            ? ((OkHttpClient) agentHttpClient).unwrap()
-            : null;
-    if (okHttpClient == null) {
-      throw new IllegalStateException("agentHttpClient must be OkHttpClient implementation");
-    }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, okHttpClient);
+        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
   }
 
   // for testing
