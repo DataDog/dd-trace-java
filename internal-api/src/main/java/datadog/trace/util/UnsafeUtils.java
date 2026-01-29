@@ -1,6 +1,5 @@
 package datadog.trace.util;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -58,11 +57,12 @@ public abstract class UnsafeUtils {
     }
   }
 
-  // TODO: JEP 500 - avoid mutating final fields
-  @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
-      if ((field.getModifiers() & Modifier.STATIC) != 0) {
+      if ((field.getModifiers() & Modifier.FINAL) != 0) {
+        log.debug(
+            "Skipping cloning final field {}. Final fields cannot be mutated. See JEP 500 for more details.",
+            field.getName());
         continue;
       }
       field.setAccessible(true);
