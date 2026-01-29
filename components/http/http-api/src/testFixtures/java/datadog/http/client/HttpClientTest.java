@@ -89,6 +89,35 @@ public class HttpClientTest {
   }
 
   @Test
+  void testPutRequest() throws IOException {
+    String payload = "{\"key\":\"value\"}";
+    org.mockserver.model.HttpRequest expectedRequest = request()
+        .withMethod("PUT")
+        .withPath("/test")
+        .withHeader("Content-Type", "application/json")
+        .withBody(payload);
+    this.server.when(expectedRequest).respond(response().withStatusCode(200));
+
+    HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
+    HttpRequestBody body = HttpRequestBody.of(payload);
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .header("Content-Type", "application/json")
+        .put(body)
+        .build();
+
+    HttpResponse response = this.client.execute(request);
+
+    assertNotNull(response);
+    assertEquals(200, response.code());
+    assertTrue(response.isSuccessful());
+
+    this.server.verify(expectedRequest);
+
+    response.close();
+  }
+
+  @Test
   void testErrorResponse() throws IOException {
     org.mockserver.model.HttpRequest expectedRequest = request()
         .withMethod("GET")
