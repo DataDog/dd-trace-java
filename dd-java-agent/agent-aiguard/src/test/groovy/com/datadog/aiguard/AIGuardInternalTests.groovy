@@ -365,7 +365,7 @@ class AIGuardInternalTests extends DDSpecification {
     final messages = [
       new AIGuard.Message(
       "assistant",
-      null,
+      (String) null,
       [AIGuard.ToolCall.toolCall('call_1', 'execute_shell', '{"cmd": "ls -lah"}')],
       null
       )
@@ -468,6 +468,180 @@ class AIGuardInternalTests extends DDSpecification {
     .code(status)
     .body(body == null ? null : ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
     .build()
+  }
+
+  void 'test JSON serialization with text content parts'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final messages = [AIGuard.Message.message('user', [AIGuard.ContentPart.text('Hello world')])]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages.size() == 1
+      assert receivedMessages[0].contentParts.size() == 1
+      assert receivedMessages[0].contentParts[0].type == AIGuard.ContentPart.Type.TEXT
+      assert receivedMessages[0].contentParts[0].text == 'Hello world'
+      return span
+    }
+  }
+
+  void 'test JSON serialization with image_url content parts'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final messages = [
+      AIGuard.Message.message('user', [AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')])
+    ]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages.size() == 1
+      assert receivedMessages[0].contentParts.size() == 1
+      assert receivedMessages[0].contentParts[0].type == AIGuard.ContentPart.Type.IMAGE_URL
+      assert receivedMessages[0].contentParts[0].imageUrl.url == 'https://example.com/image.jpg'
+      return span
+    }
+  }
+
+  void 'test JSON serialization with mixed content parts'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final messages = [
+      AIGuard.Message.message('user', [
+        AIGuard.ContentPart.text('Describe this image:'),
+        AIGuard.ContentPart.imageUrl('https://example.com/image.jpg'),
+        AIGuard.ContentPart.text('What do you see?')
+      ])
+    ]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages.size() == 1
+      assert receivedMessages[0].contentParts.size() == 3
+      assert receivedMessages[0].contentParts[0].type == AIGuard.ContentPart.Type.TEXT
+      assert receivedMessages[0].contentParts[0].text == 'Describe this image:'
+      assert receivedMessages[0].contentParts[1].type == AIGuard.ContentPart.Type.IMAGE_URL
+      assert receivedMessages[0].contentParts[1].imageUrl.url == 'https://example.com/image.jpg'
+      assert receivedMessages[0].contentParts[2].type == AIGuard.ContentPart.Type.TEXT
+      assert receivedMessages[0].contentParts[2].text == 'What do you see?'
+      return span
+    }
+  }
+
+  void 'test content parts order is preserved'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final parts = (0..4).collect {
+      it % 2 == 0 ? AIGuard.ContentPart.text("Text $it") : AIGuard.ContentPart.imageUrl("https://example.com/image${it}.jpg")
+    }
+    final messages = [AIGuard.Message.message('user', parts)]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages[0].contentParts.size() == 5
+      (0..4).each { i ->
+        if (i % 2 == 0) {
+          assert receivedMessages[0].contentParts[i].type == AIGuard.ContentPart.Type.TEXT
+          assert receivedMessages[0].contentParts[i].text == "Text $i"
+        } else {
+          assert receivedMessages[0].contentParts[i].type == AIGuard.ContentPart.Type.IMAGE_URL
+          assert receivedMessages[0].contentParts[i].imageUrl.url == "https://example.com/image${i}.jpg"
+        }
+      }
+      return span
+    }
+  }
+
+  void 'test content part text truncation'() {
+    given:
+    final maxContent = Config.get().getAiGuardMaxContentSize()
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final longText = (0..maxContent).collect { 'A' }.join()
+    final messages = [
+      AIGuard.Message.message('user', [AIGuard.ContentPart.text(longText), AIGuard.ContentPart.text('Short text')])
+    ]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages[0].contentParts.size() == 2
+      assert receivedMessages[0].contentParts[0].text.length() == maxContent
+      assert receivedMessages[0].contentParts[0].text.length() < longText.length()
+      assert receivedMessages[0].contentParts[1].text == 'Short text'
+      return span
+    }
+    assertTelemetry('ai_guard.truncated', 'type:content')
+  }
+
+  void 'test content part image_url not truncated even with long data URI'() {
+    given:
+    final maxContent = Config.get().getAiGuardMaxContentSize()
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    // Create a very long data URI (longer than max content size)
+    final longDataUri = 'data:image/png;base64,' + (0..(maxContent + 1000)).collect { 'A' }.join()
+    final messages = [
+      AIGuard.Message.message('user', [
+        AIGuard.ContentPart.text('Image:'),
+        AIGuard.ContentPart.imageUrl(longDataUri)
+      ])
+    ]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages[0].contentParts.size() == 2
+      assert receivedMessages[0].contentParts[1].type == AIGuard.ContentPart.Type.IMAGE_URL
+      // Image URL should NOT be truncated
+      assert receivedMessages[0].contentParts[1].imageUrl.url == longDataUri
+      assert receivedMessages[0].contentParts[1].imageUrl.url.length() > maxContent
+      return span
+    }
+  }
+
+  void 'test backward compatibility with string content'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final messages = [AIGuard.Message.message('user', 'Hello world')]
+
+    when:
+    aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      final meta = it[1] as Map<String, Object>
+      final receivedMessages = meta.messages as List<AIGuard.Message>
+      assert receivedMessages.size() == 1
+      assert receivedMessages[0].content == 'Hello world'
+      assert receivedMessages[0].contentParts == null
+      return span
+    }
   }
 
   private static class TestSuite {

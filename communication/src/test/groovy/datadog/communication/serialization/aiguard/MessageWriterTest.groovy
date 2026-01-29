@@ -116,4 +116,127 @@ class MessageWriterTest extends DDSpecification {
   private static String asString(final Value value) {
     return value.asStringValue().asString()
   }
+
+  void 'test write message with text content parts'() {
+    given:
+    final message = AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Hello world')
+    ])
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringKeyMap(unpacker.unpackValue())
+      value.size() == 2
+      asString(value.role) == 'user'
+
+      final contentParts = value.content.asArrayValue().list()
+      contentParts.size() == 1
+
+      final part = asStringKeyMap(contentParts[0])
+      asString(part.type) == 'text'
+      asString(part.text) == 'Hello world'
+    }
+  }
+
+  void 'test write message with image_url content parts'() {
+    given:
+    final message = AIGuard.Message.message('user', [
+      AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')
+    ])
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringKeyMap(unpacker.unpackValue())
+      value.size() == 2
+      asString(value.role) == 'user'
+
+      final contentParts = value.content.asArrayValue().list()
+      contentParts.size() == 1
+
+      final part = asStringKeyMap(contentParts[0])
+      asString(part.type) == 'image_url'
+
+      final imageUrl = asStringKeyMap(part.image_url)
+      asString(imageUrl.url) == 'https://example.com/image.jpg'
+    }
+  }
+
+  void 'test write message with mixed content parts'() {
+    given:
+    final message = AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Describe this:'),
+      AIGuard.ContentPart.imageUrl('https://example.com/image.jpg'),
+      AIGuard.ContentPart.text('What is it?')
+    ])
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringKeyMap(unpacker.unpackValue())
+      value.size() == 2
+      asString(value.role) == 'user'
+
+      final contentParts = value.content.asArrayValue().list()
+      contentParts.size() == 3
+
+      final part1 = asStringKeyMap(contentParts[0])
+      asString(part1.type) == 'text'
+      asString(part1.text) == 'Describe this:'
+
+      final part2 = asStringKeyMap(contentParts[1])
+      asString(part2.type) == 'image_url'
+      final imageUrl = asStringKeyMap(part2.image_url)
+      asString(imageUrl.url) == 'https://example.com/image.jpg'
+
+      final part3 = asStringKeyMap(contentParts[2])
+      asString(part3.type) == 'text'
+      asString(part3.text) == 'What is it?'
+    }
+  }
+
+  void 'test content parts type serializes as string not integer'() {
+    given:
+    final message = AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Test')
+    ])
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringKeyMap(unpacker.unpackValue())
+      final contentParts = value.content.asArrayValue().list()
+      final part = asStringKeyMap(contentParts[0])
+
+      // Verify type is a string value, not an integer
+      part.type.isStringValue()
+      !part.type.isIntegerValue()
+      asString(part.type) == 'text'
+    }
+  }
+
+  void 'test backward compatibility with string content'() {
+    given:
+    final message = AIGuard.Message.message('user', 'Plain text message')
+
+    when:
+    writer.writeObject(message, encodingCache)
+
+    then:
+    try (final unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+      final value = asStringValueMap(unpacker.unpackValue())
+      value.size() == 2
+      value.role == 'user'
+      value.content == 'Plain text message'
+    }
+  }
 }

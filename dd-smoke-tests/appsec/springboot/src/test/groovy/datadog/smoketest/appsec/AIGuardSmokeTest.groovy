@@ -102,4 +102,62 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
   }
+
+  void 'test multimodal content parts evaluation'() {
+    given:
+    def request = new Request.Builder()
+    .url("http://localhost:${httpPort}/aiguard/multimodal")
+    .get()
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    assert response.code() == 200
+    final body = new JsonSlurper().parse(response.body().bytes())
+    assert body.reason == 'Multimodal prompt detected'
+    assert body.action == 'ALLOW'
+
+    and:
+    waitForTraceCount(2) // default call + internal API mock
+    final span = traces*.spans
+    ?.flatten()
+    ?.find {
+      it.resource == 'ai_guard'
+    } as DecodedSpan
+    assert span.meta.get('ai_guard.action') == 'ALLOW'
+    assert span.meta.get('ai_guard.reason') == 'Multimodal prompt detected'
+    assert span.meta.get('ai_guard.target') == 'prompt'
+
+    // Verify content parts in metaStruct
+    final messages = span.metaStruct.get('ai_guard').messages as List<Map<String, Object>>
+    assert messages.size() == 2
+    with(messages[0]) {
+      role == 'system'
+      content == 'You are a beautiful AI'
+    }
+    with(messages[1]) {
+      role == 'user'
+      def contentParts = it.content as List<Map<String, Object>>
+      assert contentParts != null
+      assert contentParts.size() == 3
+
+      with(contentParts[0]) {
+        type == 'text'
+        text == 'Describe this image:'
+      }
+
+      with(contentParts[1]) {
+        type == 'image_url'
+        def imageUrl = it.image_url as Map<String, Object>
+        assert imageUrl.url == 'https://example.com/image.jpg'
+      }
+
+      with(contentParts[2]) {
+        type == 'text'
+        text == 'What do you see?'
+      }
+    }
+  }
 }
