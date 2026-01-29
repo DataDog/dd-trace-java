@@ -1067,7 +1067,7 @@ public class TagMapTest {
 
     assertEquals(size, count(map.keySet()));
     assertEquals(size, count(map.tagIterator()));
-    
+
     assertEquals(size, count(map.values().iterator()));
     assertEquals(size, count(map.valueIterator()));
     assertEquals(size, count(map.values()));
