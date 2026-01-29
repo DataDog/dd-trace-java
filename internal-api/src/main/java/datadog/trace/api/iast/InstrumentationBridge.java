@@ -29,6 +29,7 @@ import datadog.trace.api.iast.sink.WeakRandomnessModule;
 import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.api.iast.sink.XPathInjectionModule;
 import datadog.trace.api.iast.sink.XssModule;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -124,6 +125,10 @@ public abstract class InstrumentationBridge {
     }
   }
 
+  // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
+  // https://openjdk.org/jeps/500.
+  // However, in this case the method is called on a non-final field, so it is safe.
+  @SuppressForbidden
   private static void set(final Field field, final IastModule module) {
     try {
       field.set(null, module);
