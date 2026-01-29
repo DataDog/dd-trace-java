@@ -40,6 +40,12 @@ public class SizeCheckedInputStream extends InputStream {
     return updateCurrentSize(in.read(b, off, (int) safeLen));
   }
 
+  @Override
+  public void close() throws IOException {
+    this.in.close();
+    super.close();
+  }
+
   private int updateCurrentSize(int delta) {
     if (delta > 0) {
       currentSize += delta;
