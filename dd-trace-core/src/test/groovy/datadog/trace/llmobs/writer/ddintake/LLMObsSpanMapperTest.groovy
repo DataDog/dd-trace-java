@@ -27,7 +27,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
 
     // Create a real LLMObs span using the tracer
-    def llmSpan = tracer.buildSpan("chat-completion")
+    def llmSpan = tracer.buildSpan("openai.request")
+      .withResourceName("createCompletion")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-4")
       .withTag("_ml_obs_tag.model_provider", "openai")
@@ -95,7 +96,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     result["spans"].size() == 1
 
     def spanData = result["spans"][0]
-    spanData["name"] == "chat-completion"
+    spanData["name"] == "OpenAI.createCompletion"
     spanData.containsKey("span_id")
     spanData.containsKey("trace_id")
     spanData.containsKey("start_ns")
@@ -104,8 +105,18 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     spanData.containsKey("meta")
     spanData["meta"]["span.kind"] == "llm"
-    spanData["meta"].containsKey("input.messages")
-    spanData["meta"].containsKey("output.messages")
+    spanData["meta"].containsKey("input")
+    spanData["meta"]["input"].containsKey("messages")
+    spanData["meta"]["input"]["messages"][0].containsKey("content")
+    spanData["meta"]["input"]["messages"][0]["content"] == "Hello, what's the weather like?"
+    spanData["meta"]["input"]["messages"][0].containsKey("role")
+    spanData["meta"]["input"]["messages"][0]["role"] == "user"
+    spanData["meta"].containsKey("output")
+    spanData["meta"]["output"].containsKey("messages")
+    spanData["meta"]["output"]["messages"][0].containsKey("content")
+    spanData["meta"]["output"]["messages"][0]["content"] == "I'll help you check the weather."
+    spanData["meta"]["output"]["messages"][0].containsKey("role")
+    spanData["meta"]["output"]["messages"][0]["role"] == "assistant"
     spanData["meta"].containsKey("metadata")
 
     spanData.containsKey("metrics")

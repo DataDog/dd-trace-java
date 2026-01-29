@@ -1,0 +1,73 @@
+method: POST
+path: completions
+-- begin request body --
+{"model":"gpt-3.5-turbo-instruct","prompt":"Tell me a story about building the best SDK!","stream_options":{"include_usage":true},"stream":true}
+-- end request body -- 
+status code: 200
+-- begin response headers --
+access-control-allow-origin: *
+access-control-expose-headers: X-Request-ID
+alt-svc: h3=":443"; ma=86400
+cache-control: no-cache, must-revalidate
+cf-cache-status: DYNAMIC
+cf-ray: 9c1967cffa7ca379-SEA
+content-type: text/event-stream
+date: Wed, 21 Jan 2026 20:01:47 GMT
+openai-model: gpt-3.5-turbo-instruct:20230824-v2
+openai-organization: datadog-staging
+openai-processing-ms: 95
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+via: envoy-router-58f784fdf8-h7vhd
+x-content-type-options: nosniff
+x-envoy-upstream-service-time: 122
+x-openai-proxy-wasm: v0.1
+x-ratelimit-limit-requests: 3500
+x-ratelimit-limit-tokens: 90000
+x-ratelimit-remaining-requests: 3498
+x-ratelimit-remaining-tokens: 89988
+x-ratelimit-reset-requests: 17ms
+x-ratelimit-reset-tokens: 8ms
+x-request-id: req_b38fdd445e8740f7a7c839d8fc3a8f0f
+-- end response headers --
+-- begin response body --
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":"\n\n","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":"Once","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" upon","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" a","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" time","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":",","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" in","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" a","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" bustling","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" tech","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" company","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":",","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" a","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" team","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" of","index":0,"logprobs":null,"finish_reason":null}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"choices":[{"text":" developers","index":0,"logprobs":null,"finish_reason":"length"}],"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":null}
+
+data: {"id":"cmpl-D0YgdJiHB2iT9tGNDksAYfjFzq6nz","object":"text_completion","created":1769025707,"model":"gpt-3.5-turbo-instruct:20230824-v2","usage":{"prompt_tokens":10,"completion_tokens":16,"total_tokens":26},"choices":[]}
+
+data: [DONE]
+
+��
+-- end response body --
