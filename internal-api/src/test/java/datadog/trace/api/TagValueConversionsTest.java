@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class TagValueConversionsTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
-
   public void booleanConversions(boolean value) {
     Boolean box = Boolean.valueOf(value);
 
