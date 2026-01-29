@@ -370,10 +370,13 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     static final byte ANY = 0;
 
     public static final Entry create(String tag, Object value) {
+      // NOTE: From the static typing, it is possible that value is a primitive box, so need to call
+      // Any variant
       return TagMap.Entry.newAnyEntry(tag, value);
     }
 
     public static final Entry create(String tag, CharSequence value) {
+      // NOTE: From the static typing, know that value is not a primitive box
       return TagMap.Entry.newObjectEntry(tag, value);
     }
 
