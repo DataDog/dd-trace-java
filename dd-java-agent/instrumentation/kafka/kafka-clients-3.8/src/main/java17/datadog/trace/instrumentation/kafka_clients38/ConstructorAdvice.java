@@ -44,7 +44,8 @@ public class ConstructorAdvice {
     }
     // new - searching context for ConsumerDelegate and OffsetCommitCallbackInvoker instead of
     // ConsumerCoordinator and KafkaConsumer
-    if (kafkaConsumerInfo.getConsumerGroup() != null || kafkaConsumerInfo.getmetadata() != null) {
+    if (kafkaConsumerInfo.getConsumerGroup().isPresent()
+        || kafkaConsumerInfo.getmetadata().isPresent()) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
     }
