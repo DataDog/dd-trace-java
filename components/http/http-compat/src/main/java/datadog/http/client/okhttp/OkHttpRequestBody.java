@@ -1,11 +1,12 @@
 package datadog.http.client.okhttp;
 
+import static java.util.Objects.requireNonNull;
+
 import datadog.http.client.HttpRequestBody;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
@@ -50,40 +51,77 @@ public final class OkHttpRequestBody implements HttpRequestBody {
 
   /**
    * Creates a request body from a String using UTF-8 encoding.
+   *
+   * @param content the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if content is null
    */
-  public static OkHttpRequestBody ofString(String body) {
-    return new OkHttpRequestBody(RequestBody.create(null, body));
+  public static OkHttpRequestBody ofString(String content) {
+    return new OkHttpRequestBody(RequestBody.create(null, content));
   }
 
   /**
-   * Creates a request body from MessagePack-encoded ByteBuffers.
+   * Creates a request body from raw bytes.
+   *
+   * @param bytes the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the byte array is null
    */
-  public static OkHttpRequestBody ofMsgpack(List<ByteBuffer> buffers) throws IOException {
-    Objects.requireNonNull(buffers, "buffers");
+  public static OkHttpRequestBody ofBytes(byte[] bytes) {
+    return new OkHttpRequestBody(RequestBody.create(null, bytes));
+  }
 
-    // Calculate total size
-    int totalSize = 0;
-    for (ByteBuffer buffer : buffers) {
-      totalSize += buffer.remaining();
+  /**
+   * Creates a request body from a list of ByteBuffers.
+   *
+   * @param buffers the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the list of buffers is null
+   */
+  public static OkHttpRequestBody ofByteBuffers(List<ByteBuffer> buffers) {
+    requireNonNull(buffers, "buffers");
+    return new OkHttpRequestBody(new ByteBufferRequestBody(buffers));
+  }
+
+  private static class ByteBufferRequestBody extends RequestBody {
+
+    private static final MediaType MSGPACK = MediaType.get("application/msgpack");
+
+    private final List<ByteBuffer> buffers;
+
+    private ByteBufferRequestBody(List<ByteBuffer> buffers) {
+      this.buffers = buffers;
     }
 
-    // Create byte array from buffers
-    Buffer okioBuffer = new Buffer();
-    for (ByteBuffer buffer : buffers) {
-      byte[] bytes = new byte[buffer.remaining()];
-      buffer.duplicate().get(bytes);
-      okioBuffer.write(bytes);
+    @Override
+    public long contentLength() {
+      long length = 0;
+      for (ByteBuffer buffer : buffers) {
+        length += buffer.remaining();
+      }
+      return length;
     }
 
-    byte[] allBytes = okioBuffer.readByteArray();
-    return new OkHttpRequestBody(RequestBody.create(null, allBytes));
+    @Override
+    public MediaType contentType() {
+      return MSGPACK;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      for (ByteBuffer buffer : buffers) {
+        while (buffer.hasRemaining()) {
+          sink.write(buffer);
+        }
+      }
+    }
   }
 
   /**
    * Wraps a request body with gzip compression.
    */
   public static OkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
-    Objects.requireNonNull(body, "body");
+    requireNonNull(body, "body");
 
     // Compress the body content
     Buffer buffer = new Buffer();

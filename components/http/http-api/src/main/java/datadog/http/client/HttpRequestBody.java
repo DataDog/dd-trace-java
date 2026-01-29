@@ -2,6 +2,8 @@ package datadog.http.client;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  * Abstraction for HTTP request bodies, providing content writing capabilities.
@@ -35,6 +37,30 @@ public interface HttpRequestBody {
    */
   static HttpRequestBody of(String content) {
     return HttpProviders.requestBodyOfString(content);
+  }
+
+  /**
+   * Creates a request body from raw bytes.
+   * Content-Type should be set via request headers.
+   *
+   * @param bytes the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the byte array is null
+   */
+  static HttpRequestBody of(byte[] bytes) {
+    return HttpProviders.requestBodyOfBytes(bytes);
+  }
+
+  /**
+   * Creates a request body from a list of ByteBuffers.
+   * Content-Type should be set via request headers.
+   *
+   * @param buffers the string content
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the list of buffers is null
+   */
+  static HttpRequestBody of(List<ByteBuffer> buffers) {
+    return HttpProviders.requestBodyOfByteBuffers(buffers);
   }
 
   // /**
