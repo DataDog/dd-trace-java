@@ -1,7 +1,5 @@
 package datadog.http.client.jdk;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.http.client.HttpRequestBody;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,13 +7,9 @@ import java.io.OutputStream;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.Flow;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -65,7 +59,8 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-      // Nothing special to do
+      // We can handle whatever you've got
+      subscription.request(Long.MAX_VALUE);
     }
 
     @Override
