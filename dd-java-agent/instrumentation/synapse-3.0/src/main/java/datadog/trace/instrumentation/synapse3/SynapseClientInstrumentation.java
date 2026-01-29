@@ -21,6 +21,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
+import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpClientConnection;
 import org.apache.synapse.transport.passthru.TargetContext;
 
@@ -114,7 +115,7 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpClientConnection connection) {
       // check and remove context so it won't be finished twice
-      Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context) {
         return context.attach();
       }
@@ -129,15 +130,30 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       if (null == scope) {
         return;
       }
-      AgentSpan span = spanFromContext(scope.context());
-      DECORATE.onResponse(span, connection.getHttpResponse());
+      final AgentSpan span = spanFromContext(scope.context());
+      final HttpResponse httpResponse = connection.getHttpResponse();
+      boolean isFinal = false;
+      if (httpResponse != null && httpResponse.getStatusLine() != null) {
+        int statusCode = httpResponse.getStatusLine().getStatusCode();
+        // 1xx (e.g. 100 Continue) - not final response
+        isFinal = statusCode >= 200;
+      }
+
+      if (isFinal) {
+        DECORATE.onResponse(span, httpResponse);
+      }
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      DECORATE.beforeFinish(scope.context());
-      scope.close();
-      if (span != null) {
-        span.finish();
+      if ((isFinal || error != null)
+          && connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY) != null) {
+        DECORATE.beforeFinish(scope.context());
+        scope.close();
+        if (span != null) {
+          span.finish();
+        }
+      } else {
+        scope.close();
       }
     }
   }
