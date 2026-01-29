@@ -54,6 +54,14 @@ public class HttpRequestTest {
   }
 
   @Test
+  void testWithoutMethod() {
+    HttpRequest request = HttpRequest.newBuilder()
+        .url("http://localhost:8080/test")
+        .build();
+    assertEquals("GET", request.method());
+  }
+
+  @Test
   void testRequestWithUrlString() {
     HttpRequest request = HttpRequest.newBuilder()
         .url("http://localhost:8080/test")
@@ -96,7 +104,7 @@ public class HttpRequestTest {
   }
 
   @Test
-  void testBuildWithoutUrl() {
+  void testWithoutUrl() {
     assertThrows(IllegalStateException.class, () -> HttpRequest.newBuilder()
         .get()
         .build());
@@ -125,5 +133,26 @@ public class HttpRequestTest {
     List<String> missing = request.headers("X-Missing");
     assertNotNull(missing);
     assertTrue(missing.isEmpty());
+  }
+
+  @Test
+  void testEmptyHeaderValue() {
+    HttpRequest request = HttpRequest.newBuilder()
+        .url("http://localhost:8080/test")
+        .header("X-Empty-Header", "")
+        .get()
+        .build();
+
+    assertEquals("", request.header("X-Empty-Header"));
+  }
+
+  @Test
+  void testNullHeader() {
+    HttpRequest.Builder builder = HttpRequest.newBuilder()
+        .url("http://localhost:8080/test");
+    assertThrows(NullPointerException.class, () -> builder.header(null, "value"));
+    assertThrows(NullPointerException.class, () -> builder.header("X-Custom-Header", null));
+    assertThrows(NullPointerException.class, () -> builder.addHeader(null, "value"));
+    assertThrows(NullPointerException.class, () -> builder.addHeader("X-Custom-Header", null));
   }
 }
