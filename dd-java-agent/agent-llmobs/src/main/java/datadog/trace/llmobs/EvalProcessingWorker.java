@@ -1,5 +1,7 @@
 package datadog.trace.llmobs;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.LLMOBS_EVALS_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -176,7 +178,7 @@ public class EvalProcessingWorker implements AutoCloseable {
         String reqBod = evalJsonAdapter.toJson(llmobsEvalReq);
 
         HttpRequest request = HttpRequest.newBuilder()
-            .header("Content-Type", "application/json; charset=utf-8")
+            .header(CONTENT_TYPE, APPLICATION_JSON)
             .header(headerName, headerValue)
             .url(submissionUrl)
             .post(HttpRequestBody.of(reqBod))
