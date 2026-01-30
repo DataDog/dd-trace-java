@@ -1,15 +1,18 @@
 package datadog.http.client;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.Test;
 
 public class HttpRequestBodyTest {
@@ -119,5 +122,35 @@ public class HttpRequestBodyTest {
     headers.put("Content-Disposition", "form-data; name=\"test\"");
     assertThrows(NullPointerException.class, () -> builder.addPart(null, partBody));
     assertThrows(NullPointerException.class, () -> builder.addPart(headers, null));
+  }
+
+  @Test
+  void testGzipBody() throws IOException {
+    String content = "this is test content for gzip compression";
+    HttpRequestBody originalBody = HttpRequestBody.of(content);
+    HttpRequestBody gzippedBody = HttpRequestBody.gzip(originalBody);
+    assertNotNull(gzippedBody);
+    // Content length is known since compression is done eagerly
+    assertTrue(gzippedBody.contentLength() > 0);
+    // Dump zipped content to bytes
+    ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
+    gzippedBody.writeTo(compressedOut);
+    byte[] compressedBytes = compressedOut.toByteArray();
+    // Decompress and verify content matches original
+    try (GZIPInputStream gzipIn = new GZIPInputStream(new ByteArrayInputStream(compressedBytes));
+        ByteArrayOutputStream decompressedOut = new ByteArrayOutputStream()) {
+      byte[] buffer = new byte[1024];
+      int len;
+      while ((len = gzipIn.read(buffer)) != -1) {
+        decompressedOut.write(buffer, 0, len);
+      }
+      String decompressedContent = decompressedOut.toString("UTF-8");
+      assertEquals(content, decompressedContent);
+    }
+  }
+
+  @Test
+  void testGzipNullBody() {
+    assertThrows(NullPointerException.class, () -> HttpRequestBody.gzip(null));
   }
 }
