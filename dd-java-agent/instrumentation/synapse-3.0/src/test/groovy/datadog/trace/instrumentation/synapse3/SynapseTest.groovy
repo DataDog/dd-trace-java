@@ -26,6 +26,7 @@ import org.apache.synapse.ServerConfigurationInformation
 import org.apache.synapse.ServerContextInformation
 import org.apache.synapse.ServerManager
 import org.apache.synapse.transport.passthru.PassThroughHttpListener
+import spock.lang.IgnoreRest
 import spock.lang.Shared
 
 import java.lang.reflect.Field
@@ -148,6 +149,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     statusCode == 200
   }
 
+  //@IgnoreRest
   def "test passthru request is traced"() {
     setup:
     def request = new Request.Builder()
@@ -198,6 +200,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     statusCode == 500
   }
 
+  //@IgnoreRest
   def "test client request is traced"() {
     setup:
     def request = new Request.Builder()
