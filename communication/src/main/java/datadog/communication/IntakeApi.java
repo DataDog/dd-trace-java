@@ -4,6 +4,7 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.HttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpResponse;
@@ -54,7 +55,7 @@ public class IntakeApi implements BackendApi {
       String uri,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable HttpUtils.CustomListener requestListener,
+      @Nullable HttpRequestListener requestListener,
       boolean requestCompression)
       throws IOException {
     HttpUrl url = hostUrl.resolve(uri);
@@ -64,12 +65,8 @@ public class IntakeApi implements BackendApi {
             .post(requestBody)
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
-            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
-
-    if (requestListener != null) {
-      // TODO: Add support for event listeners in abstract API
-      // requestBuilder.tag(HttpUtils.CustomListener.class, requestListener);
-    }
+            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId)
+            .listener(requestListener);
 
     if (requestCompression) {
       requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
@@ -84,36 +81,27 @@ public class IntakeApi implements BackendApi {
         HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         log.debug("Request to {} returned successful response: {}", uri, response.code());
-        InputStream responseBodyStream = response.body();
-
-        String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
-        if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
-          log.debug("Response content encoding is {}, unzipping response body", contentEncoding);
-          responseBodyStream = new GZIPInputStream(responseBodyStream);
+        try (InputStream responseBodyStream = streamFromResponse(response)) {
+          return responseParser.apply(responseBodyStream);
         }
-
-        return responseParser.apply(responseBodyStream);
       } else {
-        String errorBody = "";
-        try {
-          InputStream errorStream = response.body();
-          if (errorStream != null) {
-            byte[] bytes = new byte[8192];
-            int read = errorStream.read(bytes);
-            if (read > 0) {
-              errorBody = new String(bytes, 0, read);
-            }
-          }
-        } catch (IOException e) {
-          // Ignore errors reading error body
-        }
         throw new IOException(
             "Request to "
                 + uri
                 + " returned error response "
                 + response.code()
-                + (errorBody.isEmpty() ? "" : "; " + errorBody));
+                + response.bodyAsString());
       }
     }
+  }
+
+  static InputStream streamFromResponse(HttpResponse response) throws IOException {
+    InputStream responseBodyStream = response.body();
+    String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
+    if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
+      log.debug("Response content encoding is {}, unzipping response body", contentEncoding);
+      responseBodyStream = new GZIPInputStream(responseBodyStream);
+    }
+    return responseBodyStream;
   }
 }

@@ -4,6 +4,7 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.HttpUtils;
 import datadog.communication.util.IOThrowingFunction;
 import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpResponse;
@@ -55,7 +56,7 @@ public class EvpProxyApi implements BackendApi {
       String uri,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable HttpUtils.CustomListener requestListener,
+      @Nullable HttpRequestListener requestListener,
       boolean requestCompression)
       throws IOException {
     final HttpUrl url = evpProxyUrl.resolve(uri);
