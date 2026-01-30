@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -7,7 +9,8 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
-import datadog.communication.http.OkHttpUtils;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -40,8 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,8 +50,6 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationApiImpl implements ConfigurationApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationApiImpl.class);
-
-  private static final MediaType JSON = MediaType.get("application/json");
 
   private static final String SETTINGS_URI = "libraries/tests/services/setting";
   private static final String SKIPPABLE_TESTS_URI = "ci/tests/skippable";
@@ -127,9 +126,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         new EnvelopeDto<>(
             new DataDto<>(uuid, "ci_app_test_service_libraries_settings", tracerEnvironment));
     String json = requestAdapter.toJson(settingsRequest);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
 
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS)
             .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SETTINGS_ERRORS)
@@ -139,6 +138,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     CiVisibilitySettings settings =
         backendApi.post(
             SETTINGS_URI,
+            APPLICATION_JSON,
             requestBody,
             is -> settingsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
             telemetryListener,
@@ -165,7 +165,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
   @Override
   public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_REQUEST_ERRORS)
@@ -177,10 +177,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     EnvelopeDto<TracerEnvironment> request =
         new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
     MultiEnvelopeDto<TestIdentifierJson> response =
         backendApi.post(
             SKIPPABLE_TESTS_URI,
+            APPLICATION_JSON,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
             telemetryListener,
@@ -214,7 +215,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestFQN>> getFlakyTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.FLAKY_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.FLAKY_TESTS_REQUEST_ERRORS)
@@ -227,10 +228,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         new EnvelopeDto<>(
             new DataDto<>(uuid, "flaky_test_from_libraries_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
     Collection<DataDto<TestIdentifierJson>> response =
         backendApi.post(
             FLAKY_TESTS_URI,
+            APPLICATION_JSON,
             requestBody,
             is -> testIdentifiersResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data,
             telemetryListener,
@@ -261,7 +263,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   @Override
   public Map<String, Collection<TestFQN>> getKnownTestsByModule(TracerEnvironment tracerEnvironment)
       throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.KNOWN_TESTS_REQUEST_ERRORS)
@@ -273,10 +275,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     EnvelopeDto<TracerEnvironment> request =
         new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
     String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
     KnownTestsDto knownTests =
         backendApi.post(
             KNOWN_TESTS_URI,
+            APPLICATION_JSON,
             requestBody,
             is ->
                 testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
@@ -323,7 +326,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
       throws IOException {
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST)
             .requestErrors(CiVisibilityCountMetric.TEST_MANAGEMENT_TESTS_REQUEST_ERRORS)
@@ -344,10 +347,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                     commitSha,
                     tracerEnvironment.getBranch())));
     String json = testManagementRequestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
     TestManagementTestsDto testManagementTestsDto =
         backendApi.post(
             TEST_MANAGEMENT_TESTS_URI,
+            APPLICATION_JSON,
             requestBody,
             is ->
                 testManagementTestsResponseAdapter.fromJson(Okio.buffer(Okio.source(is)))
