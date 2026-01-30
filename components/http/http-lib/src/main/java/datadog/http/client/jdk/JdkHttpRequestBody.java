@@ -149,21 +149,17 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
     }
   }
 
-
-
   /**
    * Wraps a request body with gzip compression.
    */
   public static JdkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
     requireNonNull(body, "body");
-
     // Compress the body content
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try (GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
       body.writeTo(gzipOut);
     }
     byte[] compressedBytes = baos.toByteArray();
-
     return new JdkHttpRequestBody(BodyPublishers.ofByteArray(compressedBytes));
   }
 
