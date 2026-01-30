@@ -1,5 +1,7 @@
 package datadog.communication;
 
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
+
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.HttpUtils;
 import datadog.communication.util.IOThrowingFunction;
@@ -54,6 +56,7 @@ public class EvpProxyApi implements BackendApi {
   @Override
   public <T> T post(
       String uri,
+      String contentType,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable HttpRequestListener requestListener,
@@ -66,7 +69,8 @@ public class EvpProxyApi implements BackendApi {
             .url(url)
             .addHeader(X_DATADOG_EVP_SUBDOMAIN_HEADER, subdomain)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
-            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId);
+            .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId)
+            .addHeader(CONTENT_TYPE, contentType);
 
     if (requestListener != null) {
       // TODO: Add support for event listeners in abstract API
