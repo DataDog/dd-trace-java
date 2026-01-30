@@ -1,10 +1,16 @@
 package com.datadog.debugger.uploader;
 
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
 
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
@@ -18,17 +24,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Dispatcher;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +83,7 @@ public class BatchUploader {
   private final String containerId;
   private final String entityId;
   private final ExecutorService okHttpExecutorService;
-  private final OkHttpClient client;
+  private final HttpClient client;
   private final HttpUrl urlBase;
   private final Callback responseCallback;
   private final String apiKey;
@@ -135,10 +130,10 @@ public class BatchUploader {
       String entityId) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
-    if (endpoint == null || endpoint.length() == 0) {
+    if (endpoint == null || endpoint.isEmpty()) {
       throw new IllegalArgumentException("Endpoint url is empty");
     }
-    urlBase = HttpUrl.get(endpoint);
+    urlBase = HttpUrl.parse(endpoint);
     LOGGER.debug("Started BatchUploader[{}] with target url {}", name, urlBase);
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
@@ -156,9 +151,9 @@ public class BatchUploader {
     this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
     client =
-        OkHttpUtils.buildHttpClient(
+        HttpUtils.buildHttpClient(
             config,
-            new Dispatcher(okHttpExecutorService),
+            okHttpExecutorService,
             urlBase,
             true, /* retry */
             MAX_RUNNING_REQUESTS,
@@ -224,7 +219,7 @@ public class BatchUploader {
    * Note that this method is only visible for testing and should not be used from outside this
    * class.
    */
-  OkHttpClient getClient() {
+  HttpClient getClient() {
     return client;
   }
 
@@ -244,7 +239,7 @@ public class BatchUploader {
     buildAndSendRequest(body, contentLength, tags);
   }
 
-  private void buildAndSendRequest(RequestBody body, int contentLength, String tags) {
+  private void buildAndSendRequest(HttpRequestBody body, String contentType, int contentLength, String tags) {
     debuggerMetrics.histogram("batch.uploader.request.size", contentLength);
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug("[{}] Uploading batch data size={} bytes", name, contentLength);
@@ -253,7 +248,10 @@ public class BatchUploader {
     if (tags != null && !tags.isEmpty()) {
       builder.addQueryParameter("ddtags", tags);
     }
-    Request.Builder requestBuilder = new Request.Builder().url(builder.build()).post(body);
+    HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+        .url(builder.build())
+        .header(CONTENT_TYPE, contentType)
+        .post(body);
     if (apiKey != null) {
       if (apiKey.isEmpty()) {
         LOGGER.debug("API key is empty");
@@ -274,8 +272,8 @@ public class BatchUploader {
     if (entityId != null) {
       requestBuilder.addHeader(HEADER_DD_ENTITY_ID, entityId);
     }
-    Request request = requestBuilder.build();
-    LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, request.body().contentType());
+    HttpRequest request = requestBuilder.build();
+    LOGGER.debug("[{}] Sending request: {} CT: {}", name, request, contentType);
     enqueueCall(client, request, responseCallback, retryPolicy, 0, inflightRequests);
   }
 
@@ -301,8 +299,8 @@ public class BatchUploader {
   }
 
   private static void enqueueCall(
-      OkHttpClient client,
-      Request request,
+      HttpClient client,
+      HttpRequest request,
       Callback responseCallback,
       RetryPolicy retryPolicy,
       int failureCount,
@@ -318,7 +316,7 @@ public class BatchUploader {
     private final String name;
     private final RatelimitedLogger ratelimitedLogger;
     private final Phaser inflightRequests;
-    private final OkHttpClient client;
+    private final HttpClient client;
     private final RetryPolicy retryPolicy;
 
     public ResponseCallback(
