@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
+import datadog.http.client.HttpResponse;
 import datadog.trace.relocate.api.IOLogger;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -36,12 +36,17 @@ public abstract class RemoteApi {
   protected void countAndLogFailedSend(
       final int traceCount,
       final int sizeInBytes,
-      final okhttp3.Response response,
+      final HttpResponse response,
       final IOException outer) {
     // count the failed traces
     failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
-    String responseBody = getResponseBody(response);
+    String responseBody;
+    try {
+      responseBody = response.bodyAsString();
+    } catch (IOException e) {
+      responseBody = "";
+    }
     String sendErrorString =
         createSendLogMessage(
             traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
@@ -49,11 +54,11 @@ public abstract class RemoteApi {
     ioLogger.error(sendErrorString, toLoggerResponse(response, responseBody), outer);
   }
 
-  protected static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
+  protected static IOLogger.Response toLoggerResponse(HttpResponse response, String body) {
     if (response == null) {
       return null;
     }
-    return new IOLogger.Response(response.code(), response.message(), body);
+    return new IOLogger.Response(response.code(), "", body);
   }
 
   protected String createSendLogMessage(
@@ -75,17 +80,6 @@ public abstract class RemoteApi {
         + ", Failed: "
         + failedTraces
         + ".";
-  }
-
-  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-  protected static String getResponseBody(okhttp3.Response response) {
-    if (response != null) {
-      try {
-        return response.body().string().trim();
-      } catch (NullPointerException | IOException ignored) {
-      }
-    }
-    return "";
   }
 
   protected abstract Response sendSerializedTraces(final Payload payload);
