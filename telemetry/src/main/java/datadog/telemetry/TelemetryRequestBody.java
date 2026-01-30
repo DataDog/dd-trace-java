@@ -3,6 +3,7 @@ package datadog.telemetry;
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.environment.JavaVirtualMachine;
+import datadog.http.client.HttpRequestBody;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -16,16 +17,13 @@ import datadog.trace.api.ProcessTags;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.Nullable;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
 import okio.Buffer;
-import okio.BufferedSink;
 
-public class TelemetryRequestBody extends RequestBody {
+public class TelemetryRequestBody implements HttpRequestBody {
 
   public static class SerializationException extends RuntimeException {
     public SerializationException(String requestPartName, Throwable cause) {
@@ -371,15 +369,14 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.endObject();
   }
 
-  @Nullable
   @Override
-  public MediaType contentType() {
-    return TelemetryRequest.JSON;
+  public long contentLength() {
+    return body.size();
   }
 
   @Override
-  public void writeTo(BufferedSink sink) throws IOException {
-    sink.write(body, body.size());
+  public void writeTo(OutputStream out) throws IOException {
+    body.copyTo(out);
   }
 
   public long size() {

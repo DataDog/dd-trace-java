@@ -103,7 +103,7 @@ public class TelemetryRunnable implements Runnable {
           "Couldn't send an app-started event on {} attempt out of {}.",
           attempt,
           APP_STARTED_RETRIES);
-      // Sleep between retries to allow OkHttp to release a non-daemon writer thread that would
+      // Sleep between retries to allow http client to release a non-daemon writer thread that would
       // otherwise prevent the application from exiting.
       Thread.sleep(APP_STARTED_PAUSE_BETWEEN_RETRIES_MILLIS);
     }
