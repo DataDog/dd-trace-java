@@ -1,12 +1,11 @@
 package datadog.trace.civisibility.coverage.report;
 
-import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpRequestListener;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -19,9 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
 import okio.BufferedSink;
 
 public class CoverageReportUploader {
@@ -49,7 +45,7 @@ public class CoverageReportUploader {
     event.put("format", format);
     event.put("type", "coverage_report");
     String eventJson = eventAdapter.toJson(event);
-    RequestBody eventBody = jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
+    RequestBody eventBody = HttpUtils.jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
 
     RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
 
@@ -60,7 +56,7 @@ public class CoverageReportUploader {
             .addFormDataPart("event", "event.json", eventBody)
             .build();
 
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
             .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)

@@ -1,24 +1,23 @@
 package datadog.trace.civisibility.git.tree
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 import com.squareup.moshi.Moshi
-import datadog.communication.http.HttpRetryPolicy
-import datadog.communication.http.OkHttpUtils
-import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.communication.BackendApi
 import datadog.communication.EvpProxyApi
+import datadog.communication.http.HttpRetryPolicy
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
+import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.test.util.MultipartRequestParser
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
+import java.nio.file.Files
+import java.nio.file.Path
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.TempDir
-
-import java.nio.file.Files
-import java.nio.file.Path
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class GitDataApiTest extends Specification {
 
@@ -118,9 +117,9 @@ class GitDataApiTest extends Specification {
 
   private BackendApi givenEvpProxy() {
     String traceId = "a-trace-id"
-    HttpUrl proxyUrl = HttpUrl.get(intakeServer.address)
+    HttpUrl proxyUrl = HttpUrl.from(intakeServer.address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
-    OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
+    HttpClient client = HttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
     return new EvpProxyApi(traceId, proxyUrl, "api", retryPolicyFactory, client, true)
   }
 
