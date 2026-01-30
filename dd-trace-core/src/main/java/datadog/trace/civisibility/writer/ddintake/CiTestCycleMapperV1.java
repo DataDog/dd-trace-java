@@ -1,12 +1,12 @@
 package datadog.trace.civisibility.writer.ddintake;
 
-import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
-import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
 
+import datadog.communication.http.HttpUtils;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
@@ -27,8 +27,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import okhttp3.RequestBody;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class CiTestCycleMapperV1 implements RemoteMapper {
 
@@ -419,7 +423,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     }
 
     @Override
-    public RequestBody toRequest() {
+    public HttpRequestBody toRequest() {
       // If traceCount is 0, we write a map with 0 elements in MsgPack format.
       List<ByteBuffer> buffers;
       if (traceCount() == 0) {
@@ -429,9 +433,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       } else {
         buffers = Collections.singletonList(body);
       }
-      return compressionEnabled
-          ? gzippedMsgpackRequestBodyOf(buffers)
-          : msgpackRequestBodyOf(buffers);
+      return compressionEnabled ? HttpUtils.gzippedMsgpackRequestBodyOf(buffers) : HttpRequestBody.of(buffers);
     }
   }
 }

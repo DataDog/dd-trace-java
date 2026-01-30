@@ -1,12 +1,10 @@
 package datadog.trace.civisibility.writer.ddintake;
 
-import static datadog.communication.http.OkHttpUtils.gzippedRequestBodyOf;
-import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
-import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-
+import datadog.communication.http.HttpUtils;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.coverage.TestReport;
@@ -188,8 +186,8 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static class PayloadV2 extends Payload {
 
     // backend requires _some_ JSON to be present
-    private static final RequestBody DUMMY_JSON_BODY =
-        jsonRequestBodyOf("{\"dummy\":true}".getBytes());
+    private static final HttpRequestBody DUMMY_JSON_BODY =
+        HttpRequestBody.of("{\"dummy\":true}");
 
     private final boolean compressionEnabled;
 
@@ -237,7 +235,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     }
 
     @Override
-    public RequestBody toRequest() {
+    public HttpRequestBody toRequest() {
       List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         // If traceCount is 0, we write a map with 0 elements in MsgPack format.
@@ -247,7 +245,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       } else {
         buffers = Collections.singletonList(body);
       }
-      RequestBody coverageBody = msgpackRequestBodyOf(buffers);
+      RequestBody coverageBody = HttpUtils.msgpackRequestBodyOf(buffers);
 
       MultipartBody multipartBody =
           new MultipartBody.Builder()
@@ -256,7 +254,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
               .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
               .build();
 
-      return compressionEnabled ? gzippedRequestBodyOf(multipartBody) : multipartBody;
+      return compressionEnabled ? HttpUtils.gzippedRequestBodyOf((HttpRequestBody) multipartBody) : multipartBody;
     }
   }
 }
