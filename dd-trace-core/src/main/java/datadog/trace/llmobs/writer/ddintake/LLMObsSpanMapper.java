@@ -1,10 +1,10 @@
 package datadog.trace.llmobs.writer.ddintake;
 
-import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
-
+import datadog.communication.http.HttpUtils;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.api.llmobs.LLMObs;
@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -447,7 +446,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
     }
 
     @Override
-    public RequestBody toRequest() {
+    public HttpRequestBody toRequest() {
       List<ByteBuffer> buffers;
       if (traceCount() == 0) {
         buffers = Collections.singletonList(msgpackMapHeader(0));
@@ -459,7 +458,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                 msgpackArrayHeader(spansWritten),
                 body);
       }
-      return gzippedMsgpackRequestBodyOf(buffers);
+      return HttpUtils.gzippedMsgpackRequestBodyOf(buffers);
     }
   }
 }
