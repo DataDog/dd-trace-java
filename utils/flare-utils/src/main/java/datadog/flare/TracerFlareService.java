@@ -157,16 +157,16 @@ final class TracerFlareService {
     try {
       long flareEndMillis = System.currentTimeMillis();
 
-      HttpRequestBody report = HttpRequestBody.of(buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
-      HttpRequestBody form =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("source", "tracer_java")
-              .addFormDataPart("case_id", caseId)
-              .addFormDataPart("email", email)
-              .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
-              .build();
+      HttpRequestBody report =
+          HttpRequestBody.of(buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
+
+      HttpRequestBody.MultipartBuilder multipartBuilder = HttpRequestBody.multipart();
+      multipartBuilder.addFormDataPart("source", "tracer_java");
+      multipartBuilder.addFormDataPart("case_id", caseId);
+      multipartBuilder.addFormDataPart("email", email);
+      multipartBuilder.addFormDataPart("hostname", hostname);
+      multipartBuilder.addFormDataPart("flare_file", getFlareName(flareEndMillis), report);
+      HttpRequestBody form = multipartBuilder.build();
 
       HttpRequest flareRequest =
           HttpUtils.prepareRequest(flareUrl, Collections.emptyMap())
