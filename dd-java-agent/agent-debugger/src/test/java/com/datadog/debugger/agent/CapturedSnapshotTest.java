@@ -16,9 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +49,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -67,8 +64,6 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -1629,9 +1624,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void staticLambda() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot07";
-    CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
-    setCorrelationSingleton(spyCorrelationAccess);
-    doReturn(true).when(spyCorrelationAccess).isAvailable();
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
     TestSnapshotListener listener =
         installProbes(createLineProbe(LINE_PROBE_ID1, CLASS_NAME, line));
@@ -1647,9 +1639,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void capturingLambda() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot07";
-    CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
-    setCorrelationSingleton(spyCorrelationAccess);
-    doReturn(true).when(spyCorrelationAccess).isAvailable();
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
     TestSnapshotListener listener =
         installProbes(createLineProbe(LINE_PROBE_ID2, CLASS_NAME, line));
@@ -1666,9 +1655,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void multiLambdas() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot07";
-    CorrelationAccess spyCorrelationAccess = spy(CorrelationAccess.instance());
-    setCorrelationSingleton(spyCorrelationAccess);
-    doReturn(true).when(spyCorrelationAccess).isAvailable();
     int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
     TestSnapshotListener listener =
         installProbes(createLineProbe(LINE_PROBE_ID3, CLASS_NAME, line));
@@ -2843,20 +2829,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     return listener;
-  }
-
-  private void setCorrelationSingleton(Object instance) {
-    Class<?> singletonClass = CorrelationAccess.class.getDeclaredClasses()[0];
-    try {
-      Field instanceField = singletonClass.getDeclaredField("INSTANCE");
-      instanceField.setAccessible(true);
-      Field modifiersField = Field.class.getDeclaredField("modifiers");
-      modifiersField.setAccessible(true);
-      modifiersField.setInt(instanceField, instanceField.getModifiers() & ~Modifier.FINAL);
-      instanceField.set(null, instance);
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      e.printStackTrace();
-    }
   }
 
   private Snapshot assertOneSnapshot(TestSnapshotListener listener) {

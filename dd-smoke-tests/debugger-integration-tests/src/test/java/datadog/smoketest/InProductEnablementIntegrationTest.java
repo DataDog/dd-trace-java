@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -88,6 +90,30 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Exception Replay");
     waitForReTransformation(appUrl); // wait for retransformation of removed probes
+  }
+
+  // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
+  // TODO by not providing endpoints
+
+  @Test
+  @DisplayName("testExceptionReplayEnablementFailure")
+  void testExceptionReplayEnablementFailure() throws Exception {
+    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=false"); // enabled by default
+    additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+    this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
+    appUrl = startAppAndAndGetUrl();
+    waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
+  }
+
+  private MockResponse noEndpointDispatch(RecordedRequest request) {
+    if (request.getPath().equals("/info")) {
+      // no debugger endpoints
+      String info =
+          "{\"endpoints\": [\"" + TRACE_URL_PATH + "\", \"" + LOG_UPLOAD_URL_PATH + "\"]}";
+      return new MockResponse().setResponseCode(200).setBody(info);
+    }
+    return datadogAgentDispatch(request);
   }
 
   private void waitForFeatureStarted(String appUrl, String feature) throws IOException {

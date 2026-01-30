@@ -213,6 +213,11 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             .result(new Result<>("default").reason(ERROR.name()).errorCode(TARGETING_KEY_MISSING)),
+        // OF.7: Empty string is a valid targeting key - evaluation should proceed as normal
+        new TestCase<>("default")
+            .flag("simple-string")
+            .targetingKey("")
+            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
         new TestCase<>("default")
             .flag("non-existent-flag")
             .targetingKey("user-123")
