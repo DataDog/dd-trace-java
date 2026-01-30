@@ -4,9 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -40,7 +40,8 @@ public class CircuitBreakerOperatorInstrumentation
               result,
               CircuitBreakerDecorator.DECORATE,
               circuitBreaker,
-              InstrumentationContext.get(Publisher.class, AgentSpan.class)::put);
+              // this needs to be separated from tracing
+              InstrumentationContext.get(Publisher.class, Context.class)::put);
     }
   }
 }
