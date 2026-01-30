@@ -1,8 +1,16 @@
 package datadog.trace.util;
 
+import static net.bytebuddy.matcher.ElementMatchers.isFinal;
+
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.asm.ModifierAdjustment;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.dynamic.DynamicType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
@@ -12,6 +20,8 @@ public abstract class UnsafeUtils {
   private static final Logger log = LoggerFactory.getLogger(UnsafeUtils.class);
 
   private static final Unsafe UNSAFE = getUnsafe();
+
+  private static final Map<String, Class<?>> CLASS_CACHE = new ConcurrentHashMap<>();
 
   private static Unsafe getUnsafe() {
     try {
@@ -37,7 +47,7 @@ public abstract class UnsafeUtils {
    * @param <T> Type of the object being cloned
    */
   @SuppressWarnings("unchecked")
-  public static <T> T tryShallowClone(T original) {
+  public static <T> T originalTryShallowClone(T original) {
     if (UNSAFE == null) {
       log.debug("Unsafe is unavailable, {} will not be cloned", original);
       return original;
@@ -58,16 +68,49 @@ public abstract class UnsafeUtils {
     }
   }
 
+  public static <T> T tryShallowClone(T original) {
+    if (UNSAFE == null) {
+      log.debug("Unsafe is unavailable, {} will not be cloned", original);
+      return original;
+    }
+    try {
+      Class<?> clazz = original.getClass();
+      if (!CLASS_CACHE.containsKey(clazz.getName())) {
+        CLASS_CACHE.put(clazz.getName(), createNonFinalSubclass(clazz));
+      }
+      Class<?> nonFinalSubclass = CLASS_CACHE.get(clazz.getName());
+
+      T clone = (T) UNSAFE.allocateInstance(nonFinalSubclass);
+
+      while (clazz != Object.class) {
+        cloneFields(clazz, original, clone);
+        clazz = clazz.getSuperclass();
+      }
+      return clone;
+
+    } catch (Throwable t) {
+      log.debug("Error while cloning {}: {}", original, t);
+      t.printStackTrace();
+      return original;
+    }
+  }
+
+  private static Class<?> createNonFinalSubclass(Class<?> clazz) throws Exception {
+    DynamicType.Unloaded<?> dynamicType =
+        new ByteBuddy()
+            .subclass(clazz)
+            .visit(new ModifierAdjustment().withFieldModifiers(isFinal(), FieldManifestation.PLAIN))
+            .make();
+    return dynamicType.load(clazz.getClassLoader()).getLoaded();
+  }
+
   // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
   // https://openjdk.org/jeps/500.
   // However, in this case we skip final fields, so it is safe.
   @SuppressForbidden
   private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
     for (Field field : clazz.getDeclaredFields()) {
-      if ((field.getModifiers() & Modifier.FINAL) != 0) {
-        log.debug(
-            "Skipping cloning final field {}. Final fields cannot be mutated. See JEP 500 for more details.",
-            field.getName());
+      if ((field.getModifiers() & Modifier.STATIC) != 0) {
         continue;
       }
       field.setAccessible(true);
