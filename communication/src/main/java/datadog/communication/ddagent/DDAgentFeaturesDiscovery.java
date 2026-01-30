@@ -4,27 +4,24 @@ import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
 import static java.util.Collections.emptySet;
-import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.HttpUtils;
-import datadog.communication.http.client.HttpClient;
-import datadog.communication.http.client.HttpRequest;
-import datadog.communication.http.client.HttpResponse;
-import datadog.communication.http.client.HttpUrl;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
@@ -207,11 +204,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private String probeTracesEndpoint(State newState, String[] endpoints) {
     for (String candidate : endpoints) {
       try {
-        HttpRequest request =
-            HttpRequest.newBuilder()
-                .put(
-                    HttpUtils.msgpackRequestBodyOf(
-                        singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
+        HttpRequest request = HttpRequest.newBuilder()
+                .put(HttpRequestBody.of(PROBE_MESSAGE))
                 .url(agentBaseUrl.resolve(candidate))
                 .build();
         try (HttpResponse response = client.execute(request)) {
