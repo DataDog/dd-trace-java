@@ -1,15 +1,15 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.common.metrics.EventListener
-import datadog.trace.common.metrics.OkHttpSink
+import datadog.trace.common.metrics.HttpSink
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring
-import okhttp3.HttpUrl
 import spock.lang.Ignore
 import spock.util.concurrent.PollingConditions
 
@@ -27,8 +27,8 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
     def sharedCommunicationObjects = new SharedCommunicationObjects()
     sharedCommunicationObjects.createRemaining(Config.get())
 
-    OkHttpSink sink = new OkHttpSink(
-      OkHttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
+    HttpSink sink = new HttpSink(
+      HttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
       Config.get().getAgentUrl(),
       DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
       false,

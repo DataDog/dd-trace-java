@@ -25,7 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.common.metrics.EventListener;
-import datadog.trace.common.metrics.OkHttpSink;
+import datadog.trace.common.metrics.HttpSink;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
@@ -76,7 +76,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier) {
     this(
-        new OkHttpSink(
+        new HttpSink(
             sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
             V01_DATASTREAMS_ENDPOINT,
