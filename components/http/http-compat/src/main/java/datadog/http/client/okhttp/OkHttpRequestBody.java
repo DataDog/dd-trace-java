@@ -7,8 +7,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPOutputStream;
+import okhttp3.Headers;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import okio.BufferedSink;
@@ -163,6 +166,66 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     @Override
     public void writeTo(BufferedSink sink) throws IOException {
       body.writeTo(sink.outputStream());
+    }
+  }
+
+  /**
+   * OkHttp-based implementation of MultipartBuilder.
+   * Wraps okhttp3.MultipartBody.Builder.
+   */
+  public static final class MultipartBuilder implements HttpRequestBody.MultipartBuilder {
+    private final MultipartBody.Builder delegate;
+
+    public MultipartBuilder() {
+      this.delegate = new MultipartBody.Builder().setType(MultipartBody.FORM);
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addFormDataPart(String name, String value) {
+      requireNonNull(name, "name");
+      requireNonNull(value, "value");
+      delegate.addFormDataPart(name, value);
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addFormDataPart(
+        String name, String filename, HttpRequestBody body) {
+      requireNonNull(name, "name");
+      requireNonNull(filename, "filename");
+      requireNonNull(body, "body");
+      delegate.addFormDataPart(name, filename, toRequestBody(body));
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addPart(
+        Map<String, String> headers, HttpRequestBody body) {
+      requireNonNull(headers, "headers");
+      requireNonNull(body, "body");
+      Headers.Builder headersBuilder = new Headers.Builder();
+      for (Map.Entry<String, String> entry : headers.entrySet()) {
+        headersBuilder.add(entry.getKey(), entry.getValue());
+      }
+      delegate.addPart(headersBuilder.build(), toRequestBody(body));
+      return this;
+    }
+
+    @Override
+    public String contentType() {
+      return delegate.build().contentType().toString();
+    }
+
+    @Override
+    public HttpRequestBody build() {
+      return new OkHttpRequestBody(delegate.build());
+    }
+
+    private static RequestBody toRequestBody(HttpRequestBody body) {
+      if (body instanceof OkHttpRequestBody) {
+        return ((OkHttpRequestBody) body).unwrap();
+      }
+      return new HttpRequestBodyAdapter(body);
     }
   }
 }
