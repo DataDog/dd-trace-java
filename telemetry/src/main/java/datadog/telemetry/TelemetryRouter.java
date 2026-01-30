@@ -1,9 +1,9 @@
 package datadog.telemetry;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpUrl;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +33,7 @@ public class TelemetryRouter {
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
 
-    Request.Builder httpRequestBuilder = request.httpRequest();
+    HttpRequest.Builder httpRequestBuilder = request.httpRequest();
     TelemetryClient.Result result = currentClient.sendHttpRequest(httpRequestBuilder);
 
     boolean requestFailed =

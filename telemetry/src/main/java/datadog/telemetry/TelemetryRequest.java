@@ -1,7 +1,10 @@
 package datadog.telemetry;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
+import datadog.http.client.HttpRequest;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -20,8 +23,6 @@ import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
-import okhttp3.MediaType;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,6 @@ public class TelemetryRequest {
   private static final Logger log = LoggerFactory.getLogger(TelemetryRequest.class);
 
   static final String API_VERSION = "v2";
-  static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
   private final EventSource eventSource;
   private final EventSink eventSink;
@@ -54,12 +54,11 @@ public class TelemetryRequest {
     this.requestBody.beginRequest(debug);
   }
 
-  public Request.Builder httpRequest() {
+  public HttpRequest.Builder httpRequest() {
     long bodySize = requestBody.endRequest();
 
-    Request.Builder builder =
-        new Request.Builder()
-            .addHeader("Content-Type", String.valueOf(JSON))
+    HttpRequest.Builder builder = HttpRequest.newBuilder()
+            .addHeader("Content-Type", APPLICATION_JSON)
             .addHeader("Content-Length", String.valueOf(bodySize))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
