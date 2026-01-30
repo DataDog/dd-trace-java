@@ -89,7 +89,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
       String lambdaRequestId = awsContext.getAwsRequestId();
-      AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(in, lambdaRequestId);
+      AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan(INVOCATION_SPAN_NAME);
@@ -123,6 +123,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         }
         String lambdaRequestId = awsContext.getAwsRequestId();
 
+        AgentTracer.get().notifyAppSecEnd(span);
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
