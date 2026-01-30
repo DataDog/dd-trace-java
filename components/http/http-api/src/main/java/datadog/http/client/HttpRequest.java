@@ -62,7 +62,6 @@ public interface HttpRequest {
    * Builder for constructing HttpRequest instances.
    */
   interface Builder {
-
     /**
      * Sets the request URL.
      *
@@ -119,6 +118,13 @@ public interface HttpRequest {
      * @return this builder
      */
     Builder addHeader(String name, String value);
+
+    /**
+     * Sets the request listener.
+     * @param listener the listener to notify of request events or {@code null} to remove any existing listener.
+     * @return this builder
+     */
+    Builder listener(@Nullable HttpRequestListener listener);
 
     /**
      * Builds the HttpRequest.

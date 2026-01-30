@@ -2,6 +2,7 @@ package datadog.http.client.jdk;
 
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.util.List;
@@ -10,12 +11,16 @@ import java.util.List;
  * JDK HttpClient-based implementation of HttpRequest.
  */
 public final class JdkHttpRequest implements HttpRequest {
-  private final java.net.http.HttpRequest delegate;
+  final java.net.http.HttpRequest delegate;
+  /** The request listener, {@code null} if no listener is set. */
+  HttpRequestListener listener;
 
-  private JdkHttpRequest(java.net.http.HttpRequest delegate) {
+  private JdkHttpRequest(java.net.http.HttpRequest delegate, HttpRequestListener listener) {
     this.delegate = delegate;
+    this.listener = listener;
   }
 
+  // TODO Remove if not used
   /**
    * Wraps a java.net.http.HttpRequest.
    *
@@ -26,7 +31,7 @@ public final class JdkHttpRequest implements HttpRequest {
     if (jdkRequest == null) {
       return null;
     }
-    return new JdkHttpRequest(jdkRequest);
+    return new JdkHttpRequest(jdkRequest, null);
   }
 
   /**
@@ -70,6 +75,7 @@ public final class JdkHttpRequest implements HttpRequest {
    */
   public static final class Builder implements HttpRequest.Builder {
     private final java.net.http.HttpRequest.Builder delegate;
+    private HttpRequestListener listener;
 
     public Builder() {
       this.delegate = java.net.http.HttpRequest.newBuilder();
@@ -129,8 +135,14 @@ public final class JdkHttpRequest implements HttpRequest {
     }
 
     @Override
+    public HttpRequest.Builder listener(HttpRequestListener listener) {
+      this.listener = listener;
+      return this;
+    }
+
+    @Override
     public HttpRequest build() {
-      return new JdkHttpRequest(this.delegate.build());
+      return new JdkHttpRequest(this.delegate.build(), this.listener);
     }
   }
 }

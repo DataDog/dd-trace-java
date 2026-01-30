@@ -1,20 +1,21 @@
 package datadog.http.client.okhttp;
 
 import datadog.http.client.HttpClient;
-import datadog.http.client.HttpListener;
 import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpResponse;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import okhttp3.Authenticator;
+import okhttp3.Call;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
-import okhttp3.Route;
+import okhttp3.EventListener;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * OkHttp-based implementation that wraps okhttp3.OkHttpClient.
@@ -47,13 +48,57 @@ public final class OkHttpClient implements HttpClient {
     this.delegate.connectionPool().evictAll();
   }
 
+  static class OkHttpListener extends EventListener {
+    private final HttpRequestListener listener;
+    private Response response;
+
+
+    static OkHttpListener fetch(Call call) {
+      return call.request().tag(OkHttpListener.class);
+    }
+
+    static OkHttpListener wrap(HttpRequestListener listener) {
+      if (listener == null) {
+        return null;
+      }
+      return new OkHttpListener(listener);
+    }
+
+    private OkHttpListener(HttpRequestListener listener) {
+      this.listener = listener;
+    }
+
+    @Override
+    public void callStart(Call call) {
+      Request request = call.request();
+      this.listener.onRequestStart(OkHttpRequest.wrap(request));
+    }
+
+    @Override
+    public void responseHeadersEnd(Call call, Response response) {
+      this.response = response;
+    }
+
+    @Override
+    public void callEnd(Call call) {
+      Request request = call.request();
+      this.listener.onRequestEnd(OkHttpRequest.wrap(request), OkHttpResponse.wrap(this.response));
+    }
+
+    @Override
+    public void callFailed(Call call, IOException ioe) {
+      Request request = call.request();
+      this.listener.onRequestFailure(OkHttpRequest.wrap(request), ioe);
+    }
+  }
+
   /**
    * Builder for OkHttpClient.
    */
   public static final class Builder implements HttpClient.Builder {
 
     private final okhttp3.OkHttpClient.Builder delegate;
-    private HttpListener eventListener;
+    private HttpRequestListener eventListener;
 
     public Builder() {
       this.delegate = new okhttp3.OkHttpClient.Builder();
@@ -144,16 +189,9 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClient.Builder eventListener(HttpListener listener) {
-      this.eventListener = listener;
-      // OkHttp has EventListener, but mapping to our abstraction
-      // will be implemented in future phase
-      return this;
-    }
-
-    @Override
     public HttpClient build() {
-      return new OkHttpClient(delegate.build());
+      okhttp3.OkHttpClient okHttpClient = this.delegate.eventListenerFactory(OkHttpListener::fetch).build();
+      return new OkHttpClient(okHttpClient);
     }
   }
 }

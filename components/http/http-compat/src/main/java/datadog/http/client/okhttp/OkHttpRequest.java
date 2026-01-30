@@ -2,7 +2,10 @@ package datadog.http.client.okhttp;
 
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpUrl;
+import datadog.http.client.okhttp.OkHttpClient.OkHttpListener;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -118,6 +121,12 @@ public final class OkHttpRequest implements HttpRequest {
     @Override
     public HttpRequest.Builder addHeader(String name, String value) {
       this.delegate.addHeader(name, value);
+      return this;
+    }
+
+    @Override
+    public HttpRequest.Builder listener(@Nullable HttpRequestListener listener) {
+      this.delegate.tag(OkHttpListener.class, OkHttpListener.wrap(listener));
       return this;
     }
 
