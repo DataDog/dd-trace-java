@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
+import org.junit.jupiter.api.Test;
+
 public class SpanTest {
   static final CoreTracer TRACER = CoreTracer.builder().build();
   
