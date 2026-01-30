@@ -203,11 +203,16 @@ public final class HttpUtils {
   }
 
   /**
-   * Creates a msgpack request body from ByteBuffers.
-   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   * Creates a msgpack request body from a list of ByteBuffers.
+   * Equivalent to {@code of(buffers)} but semantically indicates msgpack content.
+   * Content-Type header should be set to "application/msgpack" separately.
+   *
+   * @param buffers the msgpack content as ByteBuffers
+   * @return a new HttpRequestBody
+   * @throws NullPointerException if the list of buffers is null
    */
   public static HttpRequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return HttpRequestBody.msgpack(buffers);
+    return HttpRequestBody.of(buffers);
   }
 
   /**
@@ -215,7 +220,7 @@ public final class HttpUtils {
    * Uses the factory pattern to automatically select JDK or OkHttp implementation.
    */
   public static HttpRequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
-    return HttpRequestBody.gzip(HttpRequestBody.msgpack(buffers));
+    return HttpRequestBody.gzip(HttpRequestBody.of(buffers));
   }
 
   /**
