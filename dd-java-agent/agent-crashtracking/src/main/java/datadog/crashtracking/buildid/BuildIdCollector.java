@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import org.jctools.queues.MessagePassingQueue;
@@ -29,12 +30,15 @@ public class BuildIdCollector {
 
   class Collector implements Runnable {
     private final BuildIdExtractor extractor = BuildIdExtractor.create();
+    private final long deadline;
 
-    Collector() {}
+    Collector(long timeout, TimeUnit unit) {
+      this.deadline = unit.toNanos(timeout) + System.nanoTime();
+    }
 
     @Override
     public void run() {
-      while (true) {
+      while (System.nanoTime() <= deadline) {
         final Path path = workQueue.poll();
         if (path == null) {
           if (!collecting.get()) {
@@ -64,7 +68,7 @@ public class BuildIdCollector {
 
   public void resolveBuildId(Path path) {
     if (collecting.compareAndSet(false, true)) {
-      AgentTaskScheduler.get().execute(new Collector());
+      AgentTaskScheduler.get().execute(new Collector(5, SECONDS));
     }
     final String filename = path.getFileName().toString();
     if (!processed.add(filename)) {
