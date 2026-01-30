@@ -6,7 +6,7 @@ import java.util.Objects;
 
 public final class StackFrame {
 
-  public final String file;
+  public final String path;
   public final Integer line;
   public final String function;
 
@@ -23,14 +23,14 @@ public final class StackFrame {
   public String relativeAddress;
 
   public StackFrame(
-      String file,
+      String path,
       Integer line,
       String function,
       String buildId,
       BuildInfo.BuildIdType buildIdType,
       BuildInfo.FileType fileType,
       String relativeAddress) {
-    this.file = file;
+    this.path = path;
     this.line = line;
     this.function = function;
     this.buildId = buildId;
@@ -48,7 +48,7 @@ public final class StackFrame {
       return false;
     }
     StackFrame that = (StackFrame) o;
-    return Objects.equals(file, that.file)
+    return Objects.equals(path, that.path)
         && Objects.equals(line, that.line)
         && Objects.equals(function, that.function)
         && Objects.equals(buildId, that.buildId)
@@ -59,6 +59,6 @@ public final class StackFrame {
 
   @Override
   public int hashCode() {
-    return Objects.hash(file, line, function, buildId, buildIdType, fileType, relativeAddress);
+    return Objects.hash(path, line, function, buildId, buildIdType, fileType, relativeAddress);
   }
 }

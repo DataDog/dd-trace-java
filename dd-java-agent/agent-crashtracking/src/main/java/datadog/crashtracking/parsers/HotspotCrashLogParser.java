@@ -91,25 +91,6 @@ public final class HotspotCrashLogParser {
           String[] parts = SPACE_SPLITTER.split(line);
           if (parts.length > 3) {
             functionName = parts[3];
-
-            // Extract module name (e.g., java.base@21.0.1)
-            if (parts.length > 4 && parts[4].contains("@")) {
-              int atIdx = parts[4].indexOf('@');
-              filename = parts[4].substring(0, atIdx);
-            }
-
-            // Extract relative address from bracket [0x...+0x...]
-            int bracketStart = line.indexOf('[');
-            if (bracketStart > 0) {
-              int bracketEnd = line.indexOf(']', bracketStart);
-              if (bracketEnd > 0) {
-                String bracketContent = line.substring(bracketStart + 1, bracketEnd);
-                int plusIdx = bracketContent.indexOf('+');
-                if (plusIdx > 0 && plusIdx + 1 < bracketContent.length()) {
-                  relAddress = bracketContent.substring(plusIdx + 1);
-                }
-              }
-            }
           }
           break;
         }
@@ -370,15 +351,15 @@ public final class HotspotCrashLogParser {
 
     for (StackFrame frame : frames) {
       // enrich with the build id if collected (best effort)
-      if (frame.file == null) {
+      if (frame.path == null) {
         enrichedFrames.add(frame);
         continue;
       }
-      final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.file);
+      final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.path);
       if (buildInfo != null) {
         enrichedFrames.add(
             new StackFrame(
-                normalizeFilename(frame.file),
+                normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
                 buildInfo.buildId,
@@ -388,7 +369,7 @@ public final class HotspotCrashLogParser {
       } else {
         enrichedFrames.add(
             new StackFrame(
-                normalizeFilename(frame.file),
+                normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
                 null,
