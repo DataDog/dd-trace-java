@@ -1,6 +1,9 @@
 package datadog.trace.civisibility.communication;
 
-import datadog.communication.http.OkHttpUtils;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
+import datadog.http.client.HttpResponse;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -10,10 +13,8 @@ import datadog.trace.api.civisibility.telemetry.tag.ResponseCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
 import java.io.IOException;
 import javax.annotation.Nullable;
-import okhttp3.Call;
-import okhttp3.Response;
 
-public class TelemetryListener extends OkHttpUtils.CustomListener {
+public class TelemetryListener implements HttpRequestListener {
 
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
@@ -25,7 +26,6 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
   private final @Nullable CiVisibilityDistributionMetric requestDurationMetric;
   private final @Nullable CiVisibilityDistributionMetric responseBytesMetric;
   private long callStartTimestamp;
-  private boolean responseCompressed;
 
   private TelemetryListener(
       CiVisibilityMetricCollector metricCollector,
@@ -42,60 +42,64 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
     this.responseBytesMetric = responseBytesMetric;
   }
 
-  public void callStart(Call call) {
+  @Override
+  public void onRequestStart(HttpRequest request) {
     callStartTimestamp = System.currentTimeMillis();
     if (requestCountMetric != null) {
       metricCollector.add(
           requestCountMetric,
           1,
-          GZIP_ENCODING.equalsIgnoreCase(call.request().header(CONTENT_ENCODING_HEADER))
+          GZIP_ENCODING.equalsIgnoreCase(request.header(CONTENT_ENCODING_HEADER))
               ? RequestCompressed.TRUE
               : null);
     }
-  }
 
-  public void requestBodyEnd(Call call, long byteCount) {
-    if (requestBytesMetric != null) {
-      metricCollector.add(requestBytesMetric, (int) byteCount);
+    HttpRequestBody body;
+    if (requestBytesMetric != null && (body = request.body()) != null) {
+      metricCollector.add(requestBytesMetric, (int) body.contentLength());
     }
-  }
-
-  public void responseHeadersEnd(Call call, Response response) {
-    if (requestErrorsMetric != null) {
-      if (!response.isSuccessful()) {
-        int responseCode = response.code();
-        metricCollector.add(
-            requestErrorsMetric, 1, ErrorType.from(responseCode), StatusCode.from(responseCode));
-      }
-    }
-    responseCompressed = GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
   }
 
   @Override
-  public void responseBodyEnd(Call call, long byteCount) {
-    if (responseBytesMetric != null) {
-      metricCollector.add(
-          responseBytesMetric,
-          (int) byteCount,
-          responseCompressed ? ResponseCompressed.TRUE : null);
+  public void onRequestEnd(HttpRequest request, @Nullable HttpResponse response) {
+    if (response != null) {
+      if (requestErrorsMetric != null) {
+        if (!response.isSuccessful()) {
+          int responseCode = response.code();
+          metricCollector.add(
+              requestErrorsMetric, 1, ErrorType.from(responseCode), StatusCode.from(responseCode));
+        }
+      }
+
+      if (responseBytesMetric != null) {
+        boolean responseCompressed = GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
+        try {
+          int contentLength = Integer.parseInt(response.header("Content-Length"));
+          metricCollector.add(
+              responseBytesMetric,
+              contentLength,
+              responseCompressed ? ResponseCompressed.TRUE : null);
+        } catch (NumberFormatException e) {
+          metricCollector.add(responseBytesMetric, 0);
+        }
+      }
     }
+
+    onRequestEnd();
   }
 
-  public void callEnd(Call call) {
-    if (requestDurationMetric != null) {
-      int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
-      metricCollector.add(requestDurationMetric, durationMillis);
-    }
-  }
-
-  public void callFailed(Call call, IOException ioe) {
-    if (requestDurationMetric != null) {
-      int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
-      metricCollector.add(requestDurationMetric, durationMillis);
-    }
-
+  @Override
+  public void onRequestFailure(HttpRequest request, IOException exception) {
+    onRequestEnd();
     if (requestErrorsMetric != null) {
       metricCollector.add(requestErrorsMetric, 1, ErrorType.NETWORK);
+    }
+  }
+
+  void onRequestEnd() {
+    if (requestDurationMetric != null) {
+      int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
+      metricCollector.add(requestDurationMetric, durationMillis);
     }
   }
 
@@ -136,7 +140,7 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       return this;
     }
 
-    public OkHttpUtils.CustomListener build() {
+    public HttpRequestListener build() {
       return new TelemetryListener(
           metricCollector,
           requestCountMetric,
