@@ -1,5 +1,6 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Histograms
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
@@ -8,9 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.metrics.AggregateMetric
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.MetricKey
-import datadog.trace.common.metrics.OkHttpSink
+import datadog.trace.common.metrics.HttpSink
 import datadog.trace.common.metrics.SerializingMetricWriter
-import okhttp3.HttpUrl
 
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -31,7 +31,7 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
     def latch = new CountDownLatch(1)
     def listener = new BlockingListener(latch)
     def agentUrl = Config.get().getAgentUrl()
-    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(HttpUrl.parse(agentUrl), 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true, false, [:])
+    HttpSink sink = new HttpSink(HttpUtils.buildHttpClient(HttpUrl.parse(agentUrl), 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true, false, [:])
     sink.register(listener)
 
     when:
