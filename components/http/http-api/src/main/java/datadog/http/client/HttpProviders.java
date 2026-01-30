@@ -20,12 +20,18 @@ public final class HttpProviders {
   private static volatile Method HTTP_REQUEST_BODY_OF_STRING_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTES_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD;
+  private static volatile Constructor<?> HTTP_MULTIPART_BUILDER_CONSTRUCTOR;
 
   private HttpProviders() {
   }
 
   public static void forceCompatClient() {
+    // Skip if already in compat mode
+    if (compatibilityMode) {
+      return;
+    }
     compatibilityMode = true;
+    // Clear all references to make sure to reload them
     HTTP_CLIENT_BUILDER_CONSTRUCTOR = null;
     HTTP_REQUEST_BUILDER_CONSTRUCTOR = null;
     HTTP_URL_BUILDER_CONSTRUCTOR = null;
@@ -34,6 +40,7 @@ public final class HttpProviders {
     HTTP_REQUEST_BODY_OF_STRING_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTES_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = null;
+    HTTP_MULTIPART_BUILDER_CONSTRUCTOR = null;
   }
 
   static HttpClient.Builder newClientBuilder() {
@@ -150,6 +157,19 @@ public final class HttpProviders {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD.invoke(null, buffers);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call ofByteBuffers method", e);
+    }
+  }
+
+  static HttpRequestBody.MultipartBuilder requestBodyMultipart() {
+    if (HTTP_MULTIPART_BUILDER_CONSTRUCTOR == null) {
+      HTTP_MULTIPART_BUILDER_CONSTRUCTOR = findConstructor(
+          "datadog.http.client.jdk.JdkHttpRequestBody$MultipartBuilder",
+          "datadog.http.client.okhttp.OkHttpRequestBody$MultipartBuilder");
+    }
+    try {
+      return (HttpRequestBody.MultipartBuilder) HTTP_MULTIPART_BUILDER_CONSTRUCTOR.newInstance();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Failed to call multipart builder constructor", e);
     }
   }
 
