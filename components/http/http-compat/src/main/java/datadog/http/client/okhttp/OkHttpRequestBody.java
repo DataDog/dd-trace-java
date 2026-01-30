@@ -24,6 +24,13 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     this.delegate = delegate;
   }
 
+  static HttpRequestBody wrap(RequestBody body) {
+    if (body == null) {
+      return null;
+    }
+    return new OkHttpRequestBody(body);
+  }
+
   /**
    * Unwraps to get the RequestBody.
    *
