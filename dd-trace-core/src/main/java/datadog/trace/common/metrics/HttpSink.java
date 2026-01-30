@@ -1,8 +1,6 @@
 package datadog.trace.common.metrics;
 
-import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
-import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.communication.http.OkHttpUtils.prepareRequest;
+import static datadog.communication.http.HttpUtils.prepareRequest;
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD;
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED;
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR;
@@ -10,6 +8,12 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.Queues;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,24 +24,20 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class OkHttpSink implements Sink, EventListener {
+public final class HttpSink implements Sink, EventListener {
 
-  private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
+  private static final Logger log = LoggerFactory.getLogger(HttpSink.class);
 
   private static final long ASYNC_THRESHOLD_LATENCY = SECONDS.toNanos(1);
 
-  private final OkHttpClient client;
+  private final HttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
-  private final MessagePassingQueue<Request> enqueuedRequests = Queues.spscArrayQueue(16);
+  private final MessagePassingQueue<HttpRequest> enqueuedRequests = Queues.spscArrayQueue(16);
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final boolean bufferingEnabled;
@@ -45,17 +45,17 @@ public final class OkHttpSink implements Sink, EventListener {
   private final Map<String, String> headers;
 
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
-  private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
+  private volatile AgentTaskScheduler.Scheduled<HttpSink> future;
 
-  public OkHttpSink(
-      OkHttpClient client,
+  public HttpSink(
+      HttpClient client,
       String agentUrl,
       String path,
       boolean bufferingEnabled,
       boolean compressionEnabled,
       Map<String, String> headers) {
     this.client = client;
-    this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
+    this.metricsUrl = HttpUrl.parse(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
     this.bufferingEnabled = bufferingEnabled;
     this.compressionEnabled = compressionEnabled;
@@ -74,7 +74,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
       send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
-      AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
+      AgentTaskScheduler.Scheduled<HttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
         // async mode has been started but request latency is normal,
         // there is no pending work, so switch off async mode
@@ -91,11 +91,11 @@ public final class OkHttpSink implements Sink, EventListener {
     }
   }
 
-  private RequestBody makeRequestBody(ByteBuffer buffer) {
+  private HttpRequestBody makeRequestBody(ByteBuffer buffer) {
     if (compressionEnabled) {
-      return gzippedMsgpackRequestBodyOf(Collections.singletonList(buffer));
+      return HttpUtils.gzippedMsgpackRequestBodyOf(Collections.singletonList(buffer));
     } else {
-      return msgpackRequestBodyOf(Collections.singletonList(buffer));
+      return HttpUtils.msgpackRequestBodyOf(Collections.singletonList(buffer));
     }
   }
 
@@ -118,9 +118,9 @@ public final class OkHttpSink implements Sink, EventListener {
     return asyncRequestCounter.get();
   }
 
-  private void send(Request request) {
+  private void send(HttpRequest request) {
     long start = System.nanoTime();
-    try (final okhttp3.Response response = client.newCall(request).execute()) {
+    try (final HttpResponse response = client.execute(request)) {
       if (!response.isSuccessful()) {
         handleFailure(response);
       } else {
@@ -145,28 +145,28 @@ public final class OkHttpSink implements Sink, EventListener {
     this.listeners.add(listener);
   }
 
-  private void handleFailure(okhttp3.Response response) throws IOException {
+  private void handleFailure(HttpResponse response) throws IOException {
     final int code = response.code();
     if (code == 404) {
       onEvent(DOWNGRADED, "could not find endpoint");
     } else if (code >= 400 && code < 500) {
-      onEvent(BAD_PAYLOAD, response.body().string());
+      onEvent(BAD_PAYLOAD, response.bodyAsString());
     } else if (code >= 500) {
-      onEvent(ERROR, response.body().string());
+      onEvent(ERROR, response.bodyAsString());
     }
   }
 
-  private static final class Sender implements AgentTaskScheduler.Task<OkHttpSink> {
+  private static final class Sender implements AgentTaskScheduler.Task<HttpSink> {
 
-    private final MessagePassingQueue<Request> inbox;
+    private final MessagePassingQueue<HttpRequest> inbox;
 
-    private Sender(MessagePassingQueue<Request> inbox) {
+    private Sender(MessagePassingQueue<HttpRequest> inbox) {
       this.inbox = inbox;
     }
 
     @Override
-    public void run(OkHttpSink target) {
-      Request request;
+    public void run(HttpSink target) {
+      HttpRequest request;
       while ((request = inbox.poll()) != null) {
         target.send(request);
       }
