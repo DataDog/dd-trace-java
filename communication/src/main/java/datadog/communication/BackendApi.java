@@ -12,6 +12,7 @@ public interface BackendApi {
 
   <T> T post(
       String uri,
+      String contextType,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable HttpRequestListener requestListener,

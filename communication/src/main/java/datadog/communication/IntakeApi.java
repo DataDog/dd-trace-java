@@ -1,5 +1,7 @@
 package datadog.communication;
 
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
+
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.HttpUtils;
 import datadog.communication.util.IOThrowingFunction;
@@ -53,6 +55,7 @@ public class IntakeApi implements BackendApi {
   @Override
   public <T> T post(
       String uri,
+      String contentType,
       HttpRequestBody requestBody,
       IOThrowingFunction<InputStream, T> responseParser,
       @Nullable HttpRequestListener requestListener,
@@ -66,6 +69,7 @@ public class IntakeApi implements BackendApi {
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(X_DATADOG_TRACE_ID_HEADER, traceId)
             .addHeader(X_DATADOG_PARENT_ID_HEADER, traceId)
+            .addHeader(CONTENT_TYPE, contentType)
             .listener(requestListener);
 
     if (requestCompression) {
