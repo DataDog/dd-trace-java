@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.rxjava2;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import io.reactivex.MaybeObserver;
 import io.reactivex.disposables.Disposable;
+import javax.annotation.Nonnull;
 
 /** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
 public final class TracingMaybeObserver<T> implements MaybeObserver<T> {
   private final MaybeObserver<T> observer;
-  private final AgentSpan parentSpan;
+  private final Context parentSpan;
 
-  public TracingMaybeObserver(final MaybeObserver<T> observer, final AgentSpan parentSpan) {
+  public TracingMaybeObserver(
+      @Nonnull final MaybeObserver<T> observer, @Nonnull final Context parentSpan) {
     this.observer = observer;
     this.parentSpan = parentSpan;
   }
@@ -24,21 +24,21 @@ public final class TracingMaybeObserver<T> implements MaybeObserver<T> {
 
   @Override
   public void onSuccess(final T value) {
-    try (final AgentScope scope = activateSpan(parentSpan)) {
+    try (final ContextScope scope = parentSpan.attach()) {
       observer.onSuccess(value);
     }
   }
 
   @Override
   public void onError(final Throwable e) {
-    try (final AgentScope scope = activateSpan(parentSpan)) {
+    try (final ContextScope scope = parentSpan.attach()) {
       observer.onError(e);
     }
   }
 
   @Override
   public void onComplete() {
-    try (final AgentScope scope = activateSpan(parentSpan)) {
+    try (final ContextScope scope = parentSpan.attach()) {
       observer.onComplete();
     }
   }
