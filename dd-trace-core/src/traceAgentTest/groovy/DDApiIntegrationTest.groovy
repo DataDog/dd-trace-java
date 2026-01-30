@@ -1,8 +1,10 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
@@ -16,13 +18,10 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.MonitoringImpl
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import spock.lang.Shared
-
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import spock.lang.Shared
 
 class DDApiIntegrationTest extends AbstractTraceAgentTest {
   def tracer
@@ -77,13 +76,13 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
 
   def beforeTest(boolean enableV05) {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
-    HttpUrl agentUrl = HttpUrl.get(Config.get().getAgentUrl())
-    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
+    HttpUrl agentUrl = HttpUrl.parse(Config.get().getAgentUrl())
+    HttpClient httpClient = HttpUtils.buildHttpClient(agentUrl, 5000)
     discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, enableV05, true)
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
-    HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
-    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
+    HttpUrl udsAgentUrl = HttpUrl.parse(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
+    HttpClient udsClient = HttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
     udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, enableV05, true)
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)

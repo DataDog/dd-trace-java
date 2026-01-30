@@ -2,6 +2,8 @@ package datadog.trace.common.writer
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpUrl
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
@@ -16,7 +18,6 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.communication.serialization.ByteBufferConsumer
@@ -27,7 +28,6 @@ import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.test.util.Flaky
-import okhttp3.HttpUrl
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 
@@ -319,8 +319,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
-    def agentUrl = HttpUrl.get(agent.address)
-    def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
+    def agentUrl = HttpUrl.from(agent.address)
+    def client = HttpUtils.buildHttpClient(agentUrl, 1000)
     def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
@@ -378,8 +378,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
-    def agentUrl = HttpUrl.get(agent.address)
-    def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
+    def agentUrl = HttpUrl.from(agent.address)
+    def client = HttpUtils.buildHttpClient(agentUrl, 1000)
     def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()

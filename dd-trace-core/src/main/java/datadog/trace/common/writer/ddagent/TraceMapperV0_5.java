@@ -1,12 +1,11 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -21,7 +20,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import okhttp3.RequestBody;
 
 public final class TraceMapperV0_5 implements TraceMapper {
 
@@ -164,8 +162,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    public RequestBody toRequest() {
-      return msgpackRequestBodyOf(toList());
+    public HttpRequestBody toRequest() {
+      return HttpRequestBody.of(toList());
     }
 
     private List<ByteBuffer> toList() {

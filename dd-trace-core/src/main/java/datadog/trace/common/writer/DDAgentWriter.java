@@ -1,6 +1,6 @@
 package datadog.trace.common.writer;
 
-import static datadog.communication.http.OkHttpUtils.buildHttpClient;
+import static datadog.communication.http.HttpUtils.buildHttpClient;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -8,6 +8,8 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.monitor.Monitoring;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -15,8 +17,6 @@ import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.TimeUnit;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
 
 public class DDAgentWriter extends RemoteWriter {
 
@@ -135,8 +135,8 @@ public class DDAgentWriter extends RemoteWriter {
     }
 
     public DDAgentWriter build() {
-      final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
-      final OkHttpClient client =
+      final HttpUrl agentUrl = HttpUrl.parse("http://" + agentHost + ":" + traceAgentPort);
+      final HttpClient client =
           null == featureDiscovery || null == agentApi
               ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
               : null;

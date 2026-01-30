@@ -7,10 +7,10 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXMAP;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
 
+import datadog.http.client.HttpRequestBody;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import okhttp3.RequestBody;
 
 public abstract class Payload {
 
@@ -55,7 +55,7 @@ public abstract class Payload {
 
   public abstract void writeTo(WritableByteChannel channel) throws IOException;
 
-  public abstract RequestBody toRequest();
+  public abstract HttpRequestBody toRequest();
 
   protected int msgpackArrayHeaderSize(int count) {
     if (count < 0x10) {

@@ -3,11 +3,13 @@ package datadog.trace.common.writer
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
 import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.StatsDClient
@@ -21,8 +23,6 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -449,8 +449,8 @@ class DDAgentApiTest extends DDCoreSpecification {
   }
 
   def createAgentApi(String url) {
-    HttpUrl agentUrl = HttpUrl.get(url)
-    OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
+    HttpUrl agentUrl = HttpUrl.parse(url)
+    HttpClient client = HttpUtils.buildHttpClient(agentUrl, 1000)
     DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
