@@ -23,7 +23,11 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ServerlessInfo;
 import datadog.common.version.VersionInfo;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Platform;
@@ -56,17 +60,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Dispatcher;
-import okhttp3.Headers;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +91,7 @@ public final class ProfileUploader {
 
   private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
-  private static final Headers EVENT_HEADER =
+  private static final Map<String, String> EVENT_HEADER =
       Headers.of(
           "Content-Disposition",
           "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
@@ -118,7 +111,7 @@ public final class ProfileUploader {
   private final ConfigProvider configProvider;
 
   private final ExecutorService okHttpExecutorService;
-  private final OkHttpClient client;
+  private final HttpClient client;
   private final IOLogger ioLogger;
   private final boolean agentless;
   private final boolean summaryOn413;
@@ -148,7 +141,7 @@ public final class ProfileUploader {
     this.ioLogger = ioLogger;
     this.terminationTimeout = terminationTimeout;
 
-    url = HttpUrl.get(config.getFinalProfilingUrl());
+    url = HttpUrl.parse(config.getFinalProfilingUrl());
     agentless = config.isProfilingAgentless();
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
 
@@ -199,9 +192,9 @@ public final class ProfileUploader {
             new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
     client =
-        OkHttpUtils.buildHttpClient(
+        HttpUtils.buildHttpClient(
             config,
-            new Dispatcher(okHttpExecutorService),
+            okHttpExecutorService,
             url,
             true,
             MAX_RUNNING_REQUESTS,
@@ -364,12 +357,11 @@ public final class ProfileUploader {
   }
 
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-  private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
+  private IOLogger.Response getLoggerResponse(final HttpResponse response) {
     if (response != null) {
       try {
-        final ResponseBody body = response.body();
         return new IOLogger.Response(
-            response.code(), response.message(), body == null ? "<null>" : body.string().trim());
+            response.code(), "", response.bodyAsString().trim());
       } catch (final NullPointerException | IOException ignored) {
       }
     }
@@ -404,7 +396,7 @@ public final class ProfileUploader {
     return jsonAdapter.toJson(data).getBytes(StandardCharsets.UTF_8);
   }
 
-  private MultipartBody makeRequestBody(
+  private HttpRequestBody makeRequestBody(
       @Nonnull final RecordingData data, final CompressingRequestBody body) {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder().setType(MultipartBody.FORM);
@@ -420,7 +412,7 @@ public final class ProfileUploader {
 
     final CompressingRequestBody body =
         new CompressingRequestBody(compressionType, data::getStream);
-    final RequestBody requestBody = makeRequestBody(data, body);
+    final HttpRequestBody requestBody = makeRequestBody(data, body);
 
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
@@ -429,7 +421,7 @@ public final class ProfileUploader {
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
     return client.newCall(
-        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+        HttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
   }
 
   private boolean canEnqueueMoreRequests() {
@@ -447,7 +439,7 @@ public final class ProfileUploader {
    * Note that this method is only visible for testing and should not be used from outside this
    * class.
    */
-  OkHttpClient getClient() {
+  HttpClient getClient() {
     return client;
   }
 
