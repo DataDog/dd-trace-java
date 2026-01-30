@@ -10,28 +10,7 @@ import javax.annotation.Nullable;
  * <p>This replaces the OkHttp-specific CustomListener/EventListener pattern with a
  * clean abstraction that works across implementations.
  */
-public interface HttpListener {
-
-  /**
-   * No-op listener that ignores all events.
-   */
-  HttpListener NONE = new HttpListener() {
-    @Override
-    public void onRequestStart(HttpRequest request) {
-      // No-op
-    }
-
-    @Override
-    public void onRequestEnd(HttpRequest request, @Nullable HttpResponse response) {
-      // No-op
-    }
-
-    @Override
-    public void onRequestFailure(HttpRequest request, IOException exception) {
-      // No-op
-    }
-  };
-
+public interface HttpRequestListener {
   /**
    * Called when a request is about to be sent.
    *
