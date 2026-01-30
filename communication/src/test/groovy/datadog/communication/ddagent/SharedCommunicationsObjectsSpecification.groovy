@@ -1,10 +1,10 @@
 package datadog.communication.ddagent
 
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 
@@ -72,13 +72,13 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
   void 'createRemaining with everything populated'() {
     Config config = Mock()
 
-    def url = HttpUrl.get("http://example.com")
-    OkHttpClient okHttpClient = Mock()
+    def url = HttpUrl.parse("http://example.com")
+    HttpClient httpClient = Mock()
     Monitoring monitoring = Mock()
     DDAgentFeaturesDiscovery agentFeaturesDiscovery = Mock()
 
     sco.agentUrl = url
-    sco.agentHttpClient = okHttpClient
+    sco.agentHttpClient = httpClient
     sco.monitoring = monitoring
     sco.featuresDiscovery = agentFeaturesDiscovery
 
@@ -91,7 +91,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.isForceClearTextHttpForIntakeClient()
     0 * _
     sco.agentUrl.is(url)
-    sco.agentHttpClient.is(okHttpClient)
+    sco.agentHttpClient.is(httpClient)
     sco.monitoring.is(monitoring)
     sco.featuresDiscovery.is(agentFeaturesDiscovery)
   }
