@@ -40,7 +40,6 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".SynapseServerDecorator",
-      packageName + ".SynapseServerInstrumentation$ServerResponseAdvice",
     };
   }
 
