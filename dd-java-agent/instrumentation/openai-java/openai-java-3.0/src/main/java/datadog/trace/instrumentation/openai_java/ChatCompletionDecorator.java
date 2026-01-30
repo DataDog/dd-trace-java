@@ -30,7 +30,7 @@ public class ChatCompletionDecorator {
   public void withChatCompletionCreateParams(
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
-    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/chat/completions");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/chat/completions");
     span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;

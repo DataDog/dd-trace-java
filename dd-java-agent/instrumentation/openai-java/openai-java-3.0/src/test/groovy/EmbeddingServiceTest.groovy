@@ -65,7 +65,7 @@ class EmbeddingServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "openai.request.method" "POST"
-            "openai.request.endpoint" "v1/embeddings"
+            "openai.request.endpoint" "/v1/embeddings"
             "openai.api_base" openAiBaseApi
             "openai.organization.ratelimit.requests.limit" 10000
             "openai.organization.ratelimit.requests.remaining" Integer

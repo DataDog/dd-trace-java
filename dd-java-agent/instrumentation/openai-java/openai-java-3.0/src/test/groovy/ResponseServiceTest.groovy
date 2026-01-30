@@ -223,7 +223,7 @@ class ResponseServiceTest extends OpenAiTest {
               "_ml_obs_request.reasoning" reasoning
             }
             "openai.request.method" "POST"
-            "openai.request.endpoint" "v1/responses"
+            "openai.request.endpoint" "/v1/responses"
             "openai.api_base" openAiBaseApi
             "$CommonTags.OPENAI_RESPONSE_MODEL" respModel
             if (!isStreaming) {

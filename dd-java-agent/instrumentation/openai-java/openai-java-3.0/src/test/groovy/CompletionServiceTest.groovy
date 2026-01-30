@@ -166,7 +166,7 @@ class CompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "openai.request.method" "POST"
-            "openai.request.endpoint" "v1/completions"
+            "openai.request.endpoint" "/v1/completions"
             "openai.api_base" openAiBaseApi
             "openai.organization.ratelimit.requests.limit" 3500
             "openai.organization.ratelimit.requests.remaining" Integer

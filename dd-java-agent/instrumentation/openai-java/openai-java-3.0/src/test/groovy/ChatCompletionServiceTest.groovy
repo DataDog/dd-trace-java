@@ -330,7 +330,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "openai.request.method" "POST"
-            "openai.request.endpoint" "v1/chat/completions"
+            "openai.request.endpoint" "/v1/chat/completions"
             "openai.api_base" openAiBaseApi
             "openai.organization.ratelimit.requests.limit" 30000
             "openai.organization.ratelimit.requests.remaining" Integer

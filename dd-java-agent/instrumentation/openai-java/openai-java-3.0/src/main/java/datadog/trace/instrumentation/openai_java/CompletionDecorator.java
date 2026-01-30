@@ -22,7 +22,7 @@ public class CompletionDecorator {
 
   public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
-    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/completions");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/completions");
     span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;

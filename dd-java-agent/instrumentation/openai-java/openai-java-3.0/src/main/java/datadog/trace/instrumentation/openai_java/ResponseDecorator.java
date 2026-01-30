@@ -36,7 +36,7 @@ public class ResponseDecorator {
 
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
     span.setResourceName(RESPONSES_CREATE);
-    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/responses");
+    span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/responses");
     span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
