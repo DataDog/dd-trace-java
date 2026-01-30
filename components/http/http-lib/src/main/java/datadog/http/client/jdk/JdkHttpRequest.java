@@ -12,11 +12,14 @@ import java.util.List;
  */
 public final class JdkHttpRequest implements HttpRequest {
   final java.net.http.HttpRequest delegate;
+  /** The request body, {@code null} if no body is set. */
+  private final HttpRequestBody body;
   /** The request listener, {@code null} if no listener is set. */
   HttpRequestListener listener;
 
-  private JdkHttpRequest(java.net.http.HttpRequest delegate, HttpRequestListener listener) {
+  private JdkHttpRequest(java.net.http.HttpRequest delegate, HttpRequestBody body, HttpRequestListener listener) {
     this.delegate = delegate;
+    this.body = body;
     this.listener = listener;
   }
 
@@ -31,7 +34,7 @@ public final class JdkHttpRequest implements HttpRequest {
     if (jdkRequest == null) {
       return null;
     }
-    return new JdkHttpRequest(jdkRequest, null);
+    return new JdkHttpRequest(jdkRequest,  null,null);
   }
 
   /**
@@ -63,18 +66,17 @@ public final class JdkHttpRequest implements HttpRequest {
     return this.delegate.headers().allValues(name);
   }
 
-  // @Override
-  // public HttpRequestBody body() {
-  //   // JDK HttpRequest doesn't provide access to the BodyPublisher content
-  //   // This is a limitation of the JDK API
-  //   return null;
-  // }
+  @Override
+  public HttpRequestBody body() {
+    return this.body;
+  }
 
   /**
    * Builder for JdkHttpRequest.
    */
   public static final class Builder implements HttpRequest.Builder {
     private final java.net.http.HttpRequest.Builder delegate;
+    private HttpRequestBody body;
     private HttpRequestListener listener;
 
     public Builder() {
@@ -108,8 +110,8 @@ public final class JdkHttpRequest implements HttpRequest {
       if (!(body instanceof JdkHttpRequestBody)) {
         throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
       }
-      java.net.http.HttpRequest.BodyPublisher bodyPublisher = ((JdkHttpRequestBody) body).publisher();
-      this.delegate.POST(bodyPublisher);
+      this.body = body;
+      this.delegate.POST(((JdkHttpRequestBody) body).publisher());
       return this;
     }
 
@@ -118,6 +120,7 @@ public final class JdkHttpRequest implements HttpRequest {
       if (!(body instanceof JdkHttpRequestBody)) {
         throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
       }
+      this.body = body;
       this.delegate.PUT(((JdkHttpRequestBody) body).publisher());
       return this;
     }
@@ -142,7 +145,7 @@ public final class JdkHttpRequest implements HttpRequest {
 
     @Override
     public HttpRequest build() {
-      return new JdkHttpRequest(this.delegate.build(), this.listener);
+      return new JdkHttpRequest(this.delegate.build(), this.body, this.listener);
     }
   }
 }

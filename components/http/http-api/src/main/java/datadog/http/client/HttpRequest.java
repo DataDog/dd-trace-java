@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
  * or JDK HttpClient's HttpRequest.
  */
 public interface HttpRequest {
+  String CONTENT_TYPE = "Content-Type";
+  String APPLICATION_JSON = "application/json; charset=utf-8";
 
   /**
    * Returns the request URL.
@@ -41,13 +43,13 @@ public interface HttpRequest {
    */
   List<String> headers(String name);
 
-  // /**
-  //  * Returns the request body, or null if this request has no body (e.g., GET requests).
-  //  *
-  //  * @return the request body, or null
-  //  */
-  // @Nullable
-  // HttpRequestBody body();
+  /**
+   * Returns the request body, or null if this request has no body (e.g., GET requests).
+   *
+   * @return the request body, or null
+   */
+  @Nullable
+  HttpRequestBody body();
 
   /**
    * Creates a new builder for constructing HTTP requests.

@@ -29,6 +29,15 @@ public final class JdkHttpUrl implements HttpUrl {
   }
 
   /**
+   * Creates an HttpUrl from an URI.
+   * @param uri the URI to get an HttpUrl from
+   * @return the HttpUrl related to the URI
+   */
+  public static HttpUrl from(URI uri) {
+    return wrap(uri);
+  }
+
+  /**
    * Wraps a java.net.URI.
    *
    * @param uri the URI to wrap

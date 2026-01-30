@@ -60,6 +60,11 @@ public final class OkHttpRequest implements HttpRequest {
     return this.delegate.headers(name);
   }
 
+  @Override
+  public HttpRequestBody body() {
+    return OkHttpRequestBody.wrap(this.delegate.body());
+  }
+
   /**
    * Builder for OkHttpRequest.
    */

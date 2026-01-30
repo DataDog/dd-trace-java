@@ -6,9 +6,6 @@ import javax.annotation.Nullable;
 /**
  * Listener for HTTP request lifecycle events. Implementations can track request timing,
  * log requests, or handle errors.
- *
- * <p>This replaces the OkHttp-specific CustomListener/EventListener pattern with a
- * clean abstraction that works across implementations.
  */
 public interface HttpRequestListener {
   /**

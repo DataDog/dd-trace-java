@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import java.net.URI;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,6 +37,12 @@ abstract class HttpProvidersTest {
   @Test
   void testHttpUrlParse() {
     HttpUrl url = HttpProviders.httpUrlParse("http://localhost");
+    assertType(url);
+  }
+
+  @Test
+  void testHttpUrlFromUri() {
+    HttpUrl url = HttpProviders.httpUrlFrom(URI.create("http://localhost"));
     assertType(url);
   }
 
