@@ -1,17 +1,15 @@
 package datadog.trace.logging.intake
 
-
 import com.squareup.moshi.Moshi
 import datadog.communication.BackendApi
-import datadog.communication.http.OkHttpUtils
 import datadog.communication.util.IOThrowingFunction
 import datadog.communication.util.IOUtils
-import okhttp3.RequestBody
+import datadog.http.client.HttpRequestBody
+import datadog.http.client.HttpRequestListener
+import java.util.zip.GZIPInputStream
+import javax.annotation.Nullable
 import okio.Buffer
 import spock.lang.Specification
-
-import javax.annotation.Nullable
-import java.util.zip.GZIPInputStream
 
 class LogsDispatcherTest extends Specification {
 
@@ -73,7 +71,7 @@ class LogsDispatcherTest extends Specification {
     private int requestsReceived = 0
 
     @Override
-    <T> T post(String uri, RequestBody requestBody, IOThrowingFunction<InputStream, T> responseParser, @Nullable OkHttpUtils.CustomListener requestListener, boolean requestCompression) throws IOException {
+    <T> T post(String uri, String contentType, HttpRequestBody requestBody, IOThrowingFunction<InputStream, T> responseParser, @Nullable HttpRequestListener requestListener, boolean requestCompression) throws IOException {
       if (!requestCompression) {
         throw new AssertionError((Object) "Expected request to be compressed")
       }
