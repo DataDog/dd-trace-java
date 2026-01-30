@@ -1,11 +1,14 @@
 package datadog.trace.civisibility.git.tree;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
-import datadog.communication.http.OkHttpUtils;
 import datadog.communication.util.IOUtils;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -64,9 +67,9 @@ public class GitDataApi {
         new SearchCommitsRequest(commits, new Meta(gitRemoteUrl));
 
     String json = searchCommitsRequestAdapter.toJson(searchCommitsRequest);
-    RequestBody requestBody = RequestBody.create(JSON, json);
+    HttpRequestBody requestBody = HttpRequestBody.of(json);
 
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS)
             .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS_ERRORS)
@@ -76,6 +79,7 @@ public class GitDataApi {
     SearchCommitsResponse response =
         backendApi.post(
             SEARCH_COMMITS_URI,
+            APPLICATION_JSON,
             requestBody,
             is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
             telemetryListener,
@@ -96,10 +100,10 @@ public class GitDataApi {
       throws IOException {
     PushedSha pushedSha = new PushedSha(new Commit(currentCommitHash), new Meta(gitRemoteUrl));
     String pushedShaJson = pushedShaAdapter.toJson(pushedSha);
-    RequestBody pushedShaBody = RequestBody.create(JSON, pushedShaJson);
+    HttpRequestBody pushedShaBody = HttpRequestBody.of(pushedShaJson);
 
     byte[] packFileContents = Files.readAllBytes(packFile);
-    RequestBody packFileBody = RequestBody.create(OCTET_STREAM, packFileContents);
+    HttpRequestBody packFileBody = HttpRequestBody.of(packFileContents);
 
     String packFileName = packFile.getFileName().toString();
     String packFileNameWithoutRandomPrefix = packFileName.substring(packFileName.indexOf('-') + 1);
@@ -111,7 +115,7 @@ public class GitDataApi {
             .addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody)
             .build();
 
-    OkHttpUtils.CustomListener telemetryListener =
+    HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
             .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK)
             .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK_ERRORS)

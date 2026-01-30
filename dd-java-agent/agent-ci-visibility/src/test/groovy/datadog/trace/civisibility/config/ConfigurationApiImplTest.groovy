@@ -4,7 +4,9 @@ import datadog.communication.BackendApi
 import datadog.communication.EvpProxyApi
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
@@ -17,8 +19,6 @@ import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
 import java.util.concurrent.atomic.AtomicInteger
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -327,14 +327,14 @@ class ConfigurationApiImplTest extends Specification {
 
   private BackendApi givenEvpProxy(URI address, boolean responseCompression) {
     String traceId = "a-trace-id"
-    HttpUrl proxyUrl = HttpUrl.get(address)
+    HttpUrl proxyUrl = HttpUrl.from(address)
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0)
-    OkHttpClient client = OkHttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
+    HttpClient client = HttpUtils.buildHttpClient(proxyUrl, REQUEST_TIMEOUT_MILLIS)
     return new EvpProxyApi(traceId, proxyUrl, "api", retryPolicyFactory, client, responseCompression)
   }
 
   private BackendApi givenIntakeApi(URI address, boolean responseCompression) {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", address.toString(), Intake.API.getVersion()))
+    HttpUrl intakeUrl = HttpUrl.parse(String.format("%s/api/%s/", address.toString(), Intake.API.getVersion()))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
@@ -345,7 +345,7 @@ class ConfigurationApiImplTest extends Specification {
     HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
     retryPolicyFactory.create() >> retryPolicy
 
-    OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
+    HttpClient client = HttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
     return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, responseCompression)
   }
 
