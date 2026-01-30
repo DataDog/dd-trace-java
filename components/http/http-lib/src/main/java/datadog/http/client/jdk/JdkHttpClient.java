@@ -1,19 +1,19 @@
 package datadog.http.client.jdk;
 
+import static java.net.http.HttpResponse.BodyHandlers.ofInputStream;
+import static java.util.Objects.requireNonNull;
+
 import datadog.http.client.HttpClient;
-import datadog.http.client.HttpListener;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpResponse;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -52,21 +52,33 @@ public final class JdkHttpClient implements HttpClient {
 
   @Override
   public HttpResponse execute(HttpRequest request) throws IOException {
-    Objects.requireNonNull(request, "request");
-
+    requireNonNull(request, "request");
     if (!(request instanceof JdkHttpRequest)) {
       throw new IllegalArgumentException("HttpRequest must be JdkHttpRequest implementation");
     }
 
-    java.net.http.HttpRequest jdkRequest = ((JdkHttpRequest) request).unwrap();
+    JdkHttpRequest jdkHttpRequest = (JdkHttpRequest) request;
+    var httpRequest = jdkHttpRequest.delegate;
+    var listener = jdkHttpRequest.listener;
 
     try {
-      java.net.http.HttpResponse<InputStream> jdkResponse =
-          this.delegate.send(jdkRequest, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
-      return JdkHttpResponse.wrap(jdkResponse);
+      if (listener != null) {
+        listener.onRequestStart(request);
+      }
+      var jdkResponse =  this.delegate.send(httpRequest, ofInputStream());
+      var response = JdkHttpResponse.wrap(jdkResponse);
+      if (listener != null) {
+        listener.onRequestEnd(request, response);
+      }
+      return response;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Request interrupted", e);
+    } catch (IOException e) {
+      if (listener != null) {
+        listener.onRequestFailure(request, e);
+      }
+      throw e;
     }
   }
 
@@ -82,7 +94,6 @@ public final class JdkHttpClient implements HttpClient {
   public static final class Builder implements HttpClient.Builder {
 
     private final java.net.http.HttpClient.Builder delegate;
-    private HttpListener eventListener;
     private File unixDomainSocket;
     private String namedPipe;
     private boolean clearText;
@@ -92,7 +103,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     Builder(java.net.http.HttpClient.Builder delegate) {
-      this.delegate = Objects.requireNonNull(delegate, "delegate");
+      this.delegate = requireNonNull(delegate, "delegate");
     }
 
     @Override
@@ -184,14 +195,6 @@ public final class JdkHttpClient implements HttpClient {
     @Override
     public HttpClient.Builder dispatcher(Executor executor) {
       delegate.executor(executor);
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder eventListener(HttpListener listener) {
-      this.eventListener = listener;
-      // JDK HttpClient doesn't have an event listener API like OkHttp
-      // We'll need to wrap requests to call listener methods
       return this;
     }
 
