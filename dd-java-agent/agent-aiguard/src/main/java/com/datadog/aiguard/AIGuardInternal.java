@@ -1,6 +1,8 @@
 package com.datadog.aiguard;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT;
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.MESSAGES;
 import static datadog.trace.util.Strings.isBlank;
@@ -10,7 +12,12 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.aiguard.AIGuard;
@@ -40,14 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okio.BufferedSink;
+import okio.Buffer;
 
 /**
  * Concrete implementation of the SDK used to interact with the AIGuard REST API.
@@ -97,9 +97,9 @@ public class AIGuardInternal implements Evaluator {
             "SDK",
             "DD-AI-GUARD-LANGUAGE",
             "jvm");
-    final HttpUrl url = HttpUrl.get(endpoint).newBuilder().addPathSegment("evaluate").build();
+    final HttpUrl url = HttpUrl.parse(endpoint).newBuilder().addPathSegment("evaluate").build();
     final int timeout = config.getAiGuardTimeout();
-    final OkHttpClient client = buildClient(url, timeout);
+    final HttpClient client = buildClient(url, timeout);
     Installer.install(new AIGuardInternal(url, headers, client));
   }
 
@@ -110,11 +110,11 @@ public class AIGuardInternal implements Evaluator {
 
   private final HttpUrl url;
   private final Moshi moshi;
-  private final OkHttpClient client;
+  private final HttpClient client;
   private final Map<String, String> meta;
   private final Map<String, String> headers;
 
-  AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final OkHttpClient client) {
+  AIGuardInternal(final HttpUrl url, final Map<String, String> headers, final HttpClient client) {
     this.url = url;
     this.headers = headers;
     this.client = client;
@@ -237,12 +237,12 @@ public class AIGuardInternal implements Evaluator {
       final Map<String, Object> metaStruct = new HashMap<>(2);
       metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
-      final Request.Builder request =
-          new Request.Builder()
+      final HttpRequest.Builder request = HttpRequest.newBuilder()
               .url(url)
-              .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
+              .header(CONTENT_TYPE, APPLICATION_JSON)
+              .post(HttpRequestBody.of(formatRequestBody(moshi, messages, meta)));
       headers.forEach(request::header);
-      try (final Response response = client.newCall(request.build()).execute()) {
+      try (final HttpResponse response = client.execute(request.build())) {
         final Map<String, Object> result = parseResponseBody(response);
         final String actionStr = (String) result.get("action");
         if (actionStr == null) {
@@ -287,14 +287,27 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
+  private String formatRequestBody(final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) throws IOException{
+    Buffer sink = new Buffer();
+    final JsonWriter writer = JsonWriter.of(sink);
+    writer.beginObject(); // request
+    writer.name("data");
+    writer.beginObject(); // data
+    writer.name("attributes");
+    writer.beginObject(); // attributes
+    writer.name("messages");
+    moshi.adapter(Object.class).toJson(writer, messages);
+    writer.name("meta");
+    writer.jsonValue(meta);
+    writer.endObject(); // attributes
+    writer.endObject(); // data
+    writer.endObject(); // request
+    return sink.readUtf8();
+  }
+
   @SuppressWarnings("unchecked")
-  private Map<String, Object> parseResponseBody(final Response response) throws IOException {
-    final ResponseBody body = response.body();
-    if (body == null) {
-      throw fail(response.code(), null);
-    }
-    final JsonReader reader = JsonReader.of(body.source());
-    final Map<?, ?> parsedBody = moshi.adapter(Map.class).fromJson(reader);
+  private Map<String, Object> parseResponseBody(final HttpResponse response) throws IOException {
+    final Map<?, ?> parsedBody = moshi.adapter(Map.class).fromJson(response.bodyAsString());
     final Object errors = parsedBody.get("errors");
     if (errors != null) {
       throw fail(response.code(), errors);
@@ -307,8 +320,8 @@ public class AIGuardInternal implements Evaluator {
     return new AIGuardClientError("AI Guard service call failed, status: " + statusCode, errors);
   }
 
-  private static OkHttpClient buildClient(final HttpUrl url, final long timeout) {
-    return OkHttpUtils.buildHttpClient(url, timeout).newBuilder().build();
+  private static HttpClient buildClient(final HttpUrl url, final long timeout) {
+    return HttpUtils.buildHttpClient(url, timeout);
   }
 
   private static Map<String, String> mapOf(final String... props) {
@@ -417,45 +430,6 @@ public class AIGuardInternal implements Evaluator {
         }
         writer.endArray();
       }
-    }
-  }
-
-  static class MoshiJsonRequestBody extends RequestBody {
-
-    private static final MediaType JSON = MediaType.parse("application/json");
-
-    private final Moshi moshi;
-    private final Map<String, String> meta;
-    private final Collection<Message> messages;
-
-    public MoshiJsonRequestBody(
-        final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) {
-      this.moshi = moshi;
-      this.messages = messages;
-      this.meta = meta;
-    }
-
-    @Nullable
-    @Override
-    public MediaType contentType() {
-      return JSON;
-    }
-
-    @Override
-    public void writeTo(final BufferedSink sink) throws IOException {
-      final JsonWriter writer = JsonWriter.of(sink);
-      writer.beginObject(); // request
-      writer.name("data");
-      writer.beginObject(); // data
-      writer.name("attributes");
-      writer.beginObject(); // attributes
-      writer.name("messages");
-      moshi.adapter(Object.class).toJson(writer, messages);
-      writer.name("meta");
-      writer.jsonValue(meta);
-      writer.endObject(); // attributes
-      writer.endObject(); // data
-      writer.endObject(); // request
     }
   }
 }
