@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Abstraction for HTTP request bodies, providing content writing capabilities.
@@ -62,66 +63,66 @@ public interface HttpRequestBody {
     return HttpProviders.requestBodyOfByteBuffers(buffers);
   }
 
-  // /**
-  //  * Creates a request body from MessagePack-encoded ByteBuffers.
-  //  *
-  //  * @param buffers the list of ByteBuffers containing msgpack data
-  //  * @return a new HttpRequestBody
-  //  * @throws NullPointerException if buffers is null
-  //  */
-  // static HttpRequestBody msgpack(List<ByteBuffer> buffers) {
-  //   return HttpRequestBodyFactory.msgpack(buffers);
-  // }
-  //
-  // /**
-  //  * Wraps a request body with gzip compression.
-  //  *
-  //  * @param body the body to compress
-  //  * @return a new HttpRequestBody that compresses the delegate
-  //  * @throws NullPointerException if body is null
-  //  */
-  // static HttpRequestBody gzip(HttpRequestBody body) {
-  //   return HttpRequestBodyFactory.gzip(body);
-  // }
-  //
-  // /**
-  //  * Creates a builder for multipart form data.
-  //  *
-  //  * @return a new MultipartBuilder
-  //  */
-  // static MultipartBuilder multipart() {
-  //   return HttpRequestBodyFactory.multipart();
-  // }
-  //
-  // /**
-  //  * Builder for creating multipart/form-data request bodies.
-  //  */
-  // interface MultipartBuilder {
-  //
-  //   /**
-  //    * Adds a form data part with a text value.
-  //    *
-  //    * @param name the field name
-  //    * @param value the field value
-  //    * @return this builder
-  //    */
-  //   MultipartBuilder addFormDataPart(String name, String value);
-  //
-  //   /**
-  //    * Adds a form data part with a file.
-  //    *
-  //    * @param name the field name
-  //    * @param filename the filename
-  //    * @param body the file body
-  //    * @return this builder
-  //    */
-  //   MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body);
-  //
-  //   /**
-  //    * Builds the multipart request body.
-  //    *
-  //    * @return the constructed HttpRequestBody
-  //    */
-  //   HttpRequestBody build();
-  // }
+  /**
+   * Creates a builder for multipart/form-data request bodies.
+   *
+   * @return a new MultipartBuilder
+   */
+  static MultipartBuilder multipart() {
+    return HttpProviders.requestBodyMultipart();
+  }
+
+  /**
+   * Builder for creating multipart/form-data request bodies.
+   * Implements RFC 7578 multipart/form-data format.
+   */
+  interface MultipartBuilder {
+    /**
+     * Adds a form data part with a text value.
+     *
+     * @param name the field name
+     * @param value the field value
+     * @return this builder
+     * @throws NullPointerException if name or value is null
+     */
+    MultipartBuilder addFormDataPart(String name, String value);
+
+    /**
+     * Adds a form data part with a file attachment.
+     *
+     * @param name the field name
+     * @param filename the filename
+     * @param body the file content
+     * @return this builder
+     * @throws NullPointerException if any argument is null
+     */
+    MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body);
+
+    /**
+     * Adds a part with custom headers (advanced usage).
+     * Use this when you need full control over part headers.
+     *
+     * @param headers map of header name to value (e.g., Content-Disposition, Content-Type)
+     * @param body the part content
+     * @return this builder
+     * @throws NullPointerException if headers or body is null
+     */
+    MultipartBuilder addPart(Map<String, String> headers, HttpRequestBody body);
+
+    /**
+     * Returns the Content-Type header value for this multipart body.
+     * Includes the boundary parameter required for parsing.
+     * Can be called before or after build().
+     *
+     * @return the content type string (e.g., "multipart/form-data; boundary=...")
+     */
+    String contentType();
+
+    /**
+     * Builds the multipart request body.
+     *
+     * @return the constructed HttpRequestBody
+     */
+    HttpRequestBody build();
+  }
 }
