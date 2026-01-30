@@ -69,4 +69,83 @@ class AIGuardTest extends Specification {
     eval.action == ALLOW
     eval.reason == 'AI Guard is not enabled'
   }
+
+  void 'test ContentPart.text factory'() {
+    when:
+    final part = AIGuard.ContentPart.text('Hello world')
+
+    then:
+    part.type == AIGuard.ContentPart.Type.TEXT
+    part.text == 'Hello world'
+    part.imageUrl == null
+  }
+
+  void 'test ContentPart.imageUrl from String factory'() {
+    when:
+    final part = AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')
+
+    then:
+    part.type == AIGuard.ContentPart.Type.IMAGE_URL
+    part.text == null
+    part.imageUrl != null
+    part.imageUrl.url == 'https://example.com/image.jpg'
+  }
+
+  void 'test Message with contentParts'() {
+    when:
+    final message = AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Describe this image:'),
+      AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')
+    ])
+
+    then:
+    message.role == 'user'
+    message.content == null
+    message.contentParts != null
+    message.contentParts.size() == 2
+    message.contentParts[0].type == AIGuard.ContentPart.Type.TEXT
+    message.contentParts[0].text == 'Describe this image:'
+    message.contentParts[1].type == AIGuard.ContentPart.Type.IMAGE_URL
+    message.contentParts[1].imageUrl.url == 'https://example.com/image.jpg'
+  }
+
+  void 'test Message with plain content returns null contentParts'() {
+    when:
+    final message = AIGuard.Message.message('user', 'Hello')
+
+    then:
+    message.content == 'Hello'
+    message.contentParts == null
+  }
+
+  void 'test Message with contentParts returns null content'() {
+    when:
+    final message = AIGuard.Message.message('user', [AIGuard.ContentPart.text('Hello')])
+
+    then:
+    message.content == null
+    message.contentParts != null
+  }
+
+  void 'test Message validation allows null content for assistant with tool calls'() {
+    when:
+    final message = AIGuard.Message.assistant(
+      AIGuard.ToolCall.toolCall('1', 'test', '{}')
+      )
+
+    then:
+    message.role == 'assistant'
+    message.content == null
+    message.contentParts == null
+    message.toolCalls != null
+  }
+
+  void 'test Message allows empty contentParts list'() {
+    when:
+    def message = new AIGuard.Message('user', [], null, null)
+
+    then:
+    message.contentParts != null
+    message.contentParts.isEmpty()
+  }
 }
