@@ -9,12 +9,12 @@ import javax.annotation.Nonnull;
 /** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
 public final class TracingCompletableObserver implements CompletableObserver {
   private final CompletableObserver observer;
-  private final Context parentSpan;
+  private final Context parentContext;
 
   public TracingCompletableObserver(
-      @Nonnull final CompletableObserver observer, @Nonnull final Context parentSpan) {
+      @Nonnull final CompletableObserver observer, @Nonnull final Context parentContext) {
     this.observer = observer;
-    this.parentSpan = parentSpan;
+    this.parentContext = parentContext;
   }
 
   @Override
@@ -24,14 +24,14 @@ public final class TracingCompletableObserver implements CompletableObserver {
 
   @Override
   public void onError(final Throwable e) {
-    try (final ContextScope scope = parentSpan.attach()) {
+    try (final ContextScope scope = parentContext.attach()) {
       observer.onError(e);
     }
   }
 
   @Override
   public void onComplete() {
-    try (final ContextScope scope = parentSpan.attach()) {
+    try (final ContextScope scope = parentContext.attach()) {
       observer.onComplete();
     }
   }

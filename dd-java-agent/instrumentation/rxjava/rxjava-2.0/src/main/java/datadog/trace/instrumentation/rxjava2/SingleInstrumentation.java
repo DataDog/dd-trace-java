@@ -37,9 +37,9 @@ public final class SingleInstrumentation
   public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Single<?> single) {
-      Context parentSpan = Java8BytecodeBridge.getCurrentContext();
-      if (parentSpan != null) {
-        InstrumentationContext.get(Single.class, Context.class).put(single, parentSpan);
+      Context parentContext = Java8BytecodeBridge.getCurrentContext();
+      if (parentContext != null) {
+        InstrumentationContext.get(Single.class, Context.class).put(single, parentContext);
       }
     }
   }
