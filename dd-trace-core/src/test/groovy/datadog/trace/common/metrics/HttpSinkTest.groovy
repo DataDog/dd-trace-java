@@ -20,7 +20,7 @@ import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 
-class OkHttpSinkTest extends DDSpecification {
+class HttpSinkTest extends DDSpecification {
 
   def "http status code #responseCode yields #eventType"() {
     setup:
@@ -28,7 +28,7 @@ class OkHttpSinkTest extends DDSpecification {
     String path = V06_METRICS_ENDPOINT
     EventListener listener = Mock(EventListener)
     OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
+    HttpSink sink = new HttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
 
     when:
@@ -62,7 +62,7 @@ class OkHttpSinkTest extends DDSpecification {
     CountDownLatch latch = new CountDownLatch(2)
     EventListener listener = new BlockingListener(latch)
     OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
+    HttpSink sink = new HttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
     AtomicBoolean first = new AtomicBoolean(true)
 
