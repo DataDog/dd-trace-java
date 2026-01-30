@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -15,6 +16,7 @@ public final class HttpProviders {
   private static volatile Constructor<?> HTTP_REQUEST_BUILDER_CONSTRUCTOR;
   private static volatile Constructor<?> HTTP_URL_BUILDER_CONSTRUCTOR;
   private static volatile Method HTTP_URL_PARSE_METHOD;
+  private static volatile Method HTTP_URL_FROM_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_STRING_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTES_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD;
@@ -28,6 +30,7 @@ public final class HttpProviders {
     HTTP_REQUEST_BUILDER_CONSTRUCTOR = null;
     HTTP_URL_BUILDER_CONSTRUCTOR = null;
     HTTP_URL_PARSE_METHOD = null;
+    HTTP_URL_FROM_METHOD = null;
     HTTP_REQUEST_BODY_OF_STRING_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTES_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = null;
@@ -84,6 +87,21 @@ public final class HttpProviders {
       return (HttpUrl) HTTP_URL_PARSE_METHOD.invoke(null, url);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call parse method", e);
+    }
+  }
+
+  static HttpUrl httpUrlFrom(URI uri) {
+    if (HTTP_URL_FROM_METHOD == null) {
+      HTTP_URL_FROM_METHOD = findMethod(
+          "datadog.http.client.jdk.JdkHttpUrl",
+          "datadog.http.client.okhttp.OkHttpUrl",
+          "from",
+          URI.class);
+    }
+    try {
+      return (HttpUrl) HTTP_URL_FROM_METHOD.invoke(null, uri);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Failed to call from method", e);
     }
   }
 
