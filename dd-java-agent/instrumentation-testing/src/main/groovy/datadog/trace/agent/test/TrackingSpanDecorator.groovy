@@ -115,7 +115,7 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  public final AgentSpan setTag(TagMap.EntryReader entry) {
+  AgentSpan setTag(TagMap.EntryReader entry) {
     return delegate.setTag(entry)
   }
 
@@ -190,7 +190,7 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  public AgentSpan setMetric(TagMap.EntryReader entry) {
+  AgentSpan setMetric(TagMap.EntryReader entry) {
     return delegate.setMetric(entry)
   }
 
