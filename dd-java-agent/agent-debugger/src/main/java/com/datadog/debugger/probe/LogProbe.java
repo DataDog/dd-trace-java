@@ -23,10 +23,10 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -633,8 +633,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
     boolean shouldCommit = false;
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
-      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
+      snapshot.setTraceId(CorrelationIdentifier.getTraceId());
+      snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       if (isFullSnapshot()) {
         snapshot.setEntry(entryContext);
         snapshot.setExit(exitContext);
@@ -754,8 +754,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
-      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
-      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
+      snapshot.setTraceId(CorrelationIdentifier.getTraceId());
+      snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       snapshot.setMessage(status.getMessage());
       shouldCommit = true;
     }

@@ -18,7 +18,6 @@ import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -64,7 +63,6 @@ public final class Types {
   public static final Type CAPTURE_THROWABLE_TYPE =
       Type.getType(CapturedContext.CapturedThrowable.class);
   public static final Type THROWABLE_TYPE = Type.getType(Throwable.class);
-  public static final Type CORRELATION_ACCESS_TYPE = Type.getType(CorrelationAccess.class);
   public static final Type DEBUGGER_CONTEXT_TYPE = Type.getType(DebuggerContext.class);
   public static final Type METHOD_LOCATION_TYPE = Type.getType(MethodLocation.class);
   public static final Type CLASS_TYPE = Type.getType(Class.class);
