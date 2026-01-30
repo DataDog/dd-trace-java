@@ -139,14 +139,6 @@ public interface HttpClient extends Closeable {
     Builder dispatcher(Executor executor);
 
     /**
-     * Sets an event listener for request lifecycle events.
-     *
-     * @param listener the event listener
-     * @return this builder
-     */
-    Builder eventListener(HttpListener listener);
-
-    /**
      * Builds the HttpClient with the configured settings.
      *
      * @return the constructed HttpClient

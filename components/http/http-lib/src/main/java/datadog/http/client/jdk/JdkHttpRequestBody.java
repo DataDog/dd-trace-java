@@ -123,7 +123,6 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
    * @throws NullPointerException if the list of buffers is null
    */
   public static JdkHttpRequestBody ofByteBuffers(List<ByteBuffer> buffers) {
-    requireNonNull(buffers, "buffers");
     if (buffers.isEmpty()) {
       return new JdkHttpRequestBody(BodyPublishers.noBody());
     }

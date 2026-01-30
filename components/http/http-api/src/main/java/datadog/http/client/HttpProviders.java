@@ -1,8 +1,9 @@
 package datadog.http.client;
 
+import static java.util.Objects.requireNonNull;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -40,7 +41,7 @@ public final class HttpProviders {
     }
     try {
       return (HttpClient.Builder) HTTP_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call constructor", e);
     }
   }
@@ -53,7 +54,7 @@ public final class HttpProviders {
     }
     try {
       return (HttpRequest.Builder) HTTP_REQUEST_BUILDER_CONSTRUCTOR.newInstance();
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    } catch ( ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call constructor", e);
     }
   }
@@ -66,7 +67,7 @@ public final class HttpProviders {
     }
     try {
       return (HttpUrl.Builder) HTTP_URL_BUILDER_CONSTRUCTOR.newInstance();
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call constructor", e);
     }
   }
@@ -81,12 +82,13 @@ public final class HttpProviders {
     }
     try {
       return (HttpUrl) HTTP_URL_PARSE_METHOD.invoke(null, url);
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call parse method", e);
     }
   }
 
   static HttpRequestBody requestBodyOfString(String content) {
+    requireNonNull(content, "content");
     if (HTTP_REQUEST_BODY_OF_STRING_METHOD == null) {
       HTTP_REQUEST_BODY_OF_STRING_METHOD = findMethod(
           "datadog.http.client.jdk.JdkHttpRequestBody",
@@ -96,12 +98,13 @@ public final class HttpProviders {
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_STRING_METHOD.invoke(null, content);
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call ofString method", e);
     }
   }
 
   static HttpRequestBody requestBodyOfBytes(byte[] bytes) {
+    requireNonNull(bytes, "bytes");
     if (HTTP_REQUEST_BODY_OF_BYTES_METHOD == null) {
       HTTP_REQUEST_BODY_OF_BYTES_METHOD = findMethod(
           "datadog.http.client.jdk.JdkHttpRequestBody",
@@ -111,12 +114,13 @@ public final class HttpProviders {
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTES_METHOD.invoke(null, (Object) bytes);
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call ofBytes method", e);
     }
   }
 
   static HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers) {
+    requireNonNull(buffers, "buffers");
     if (HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD == null) {
       HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = findMethod(
           "datadog.http.client.jdk.JdkHttpRequestBody",
@@ -126,7 +130,7 @@ public final class HttpProviders {
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD.invoke(null, buffers);
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call ofByteBuffers method", e);
     }
   }
