@@ -30,8 +30,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
 
 public class CiTestCovMapperV2 implements RemoteMapper {
 
@@ -245,16 +243,14 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       } else {
         buffers = Collections.singletonList(body);
       }
-      RequestBody coverageBody = HttpUtils.msgpackRequestBodyOf(buffers);
+      HttpRequestBody coverageBody = HttpUtils.msgpackRequestBodyOf(buffers);
 
-      MultipartBody multipartBody =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
-              .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
-              .build();
+      HttpRequestBody.MultipartBuilder multipartBuilder = HttpRequestBody.multipart();
+      multipartBuilder.addFormDataPart("coverage1", "coverage1.msgpack", coverageBody);
+      multipartBuilder.addFormDataPart("event", "event.json", DUMMY_JSON_BODY);
+      HttpRequestBody multipartBody = multipartBuilder.build();
 
-      return compressionEnabled ? HttpUtils.gzippedRequestBodyOf((HttpRequestBody) multipartBody) : multipartBody;
+      return compressionEnabled ? HttpUtils.gzippedRequestBodyOf(multipartBody) : multipartBody;
     }
   }
 }
