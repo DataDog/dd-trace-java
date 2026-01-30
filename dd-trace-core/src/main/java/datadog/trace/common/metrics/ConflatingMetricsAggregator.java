@@ -115,7 +115,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         config.getMetricsIgnoredResources(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
-        new OkHttpSink(
+        new HttpSink(
             sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
             V06_METRICS_ENDPOINT,

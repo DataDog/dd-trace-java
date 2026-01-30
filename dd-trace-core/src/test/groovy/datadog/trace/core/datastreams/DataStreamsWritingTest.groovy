@@ -2,7 +2,8 @@ package datadog.trace.core.datastreams
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
@@ -12,7 +13,6 @@ import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.core.DDTraceCoreInfo
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
 import okio.BufferedSource
 import okio.GzipSource
 import okio.Okio
@@ -53,7 +53,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     given:
     def conditions = new PollingConditions(timeout: 2)
 
-    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    def testOkhttpClient = HttpUtils.buildHttpClient(HttpUrl.from(server.address), 5000L)
 
     def features = Stub(DDAgentFeaturesDiscovery) {
       supportsDataStreams() >> true
@@ -113,7 +113,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def conditions = new PollingConditions(timeout: 2)
 
-    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+    def testOkhttpClient = HttpUtils.buildHttpClient(HttpUrl.from(server.address), 5000L)
 
     def features = Stub(DDAgentFeaturesDiscovery) {
       supportsDataStreams() >> true
