@@ -1,17 +1,18 @@
 package datadog.trace.logging.intake;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.communication.util.IOThrowingFunction;
+import datadog.http.client.HttpRequestBody;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,6 @@ public class LogsDispatcher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsDispatcher.class);
 
-  private static final MediaType JSON = MediaType.get("application/json");
   private static final IOThrowingFunction<InputStream, Object> IGNORE_RESPONSE = is -> null;
 
   // Maximum array size if sending multiple logs in an array: 1000 entries
@@ -86,9 +86,9 @@ public class LogsDispatcher {
   private void flush(StringBuilder batch) {
     try {
       String json = batch.toString();
-      RequestBody requestBody = RequestBody.create(JSON, json);
-      RequestBody gzippedRequestBody = OkHttpUtils.gzippedRequestBodyOf(requestBody);
-      backendApi.post("logs", gzippedRequestBody, IGNORE_RESPONSE, null, true);
+      HttpRequestBody requestBody = HttpRequestBody.of(json);
+      HttpRequestBody gzippedRequestBody = HttpUtils.gzippedRequestBodyOf(requestBody);
+      backendApi.post("logs", APPLICATION_JSON, gzippedRequestBody, IGNORE_RESPONSE, null, true);
     } catch (IOException e) {
       LOGGER.error("Could not dispatch logs", e);
     }
