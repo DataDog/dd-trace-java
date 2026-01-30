@@ -4,6 +4,7 @@ import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROC
 
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.TraceUtils
 import java.nio.file.Paths
 
 class ProcessTagsForkedTest extends DDSpecification {
@@ -21,7 +22,6 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load default tags for jar #jar and main class #cls'() {
     given:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     CapturedEnvironment.useFixedProcessInfo(new CapturedEnvironment.ProcessInfo(cls, jar))
     ProcessTags.reset()
     def tags = ProcessTags.getTagsForSerialization()
@@ -35,9 +35,23 @@ class ProcessTagsForkedTest extends DDSpecification {
     null                                    | null            | "entrypoint.workdir:[^,]+"
   }
 
+  def 'should add process tags for service name set by user #userServiceName'() {
+    given:
+    if (userServiceName != null) {
+      injectSysConfig("service", userServiceName)
+    }
+    ProcessTags.reset()
+    def tags = ProcessTags.getTagsForSerialization()
+    expect:
+    tags =~ expected
+    where:
+    userServiceName | expected
+    null            | "svc.auto:${TraceUtils.normalizeServiceName(Config.get().getServiceName())}"
+    "custom"        | "svc.user:1"
+  }
+
   def 'should load default tags jboss (mode #mode)'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     if (jbossHome != null) {
       System.setProperty("jboss.home.dir", jbossHome)
     }
@@ -62,7 +76,6 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load websphere tags (#expected)'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.envGetter = key -> {
       switch (key) {
         case "WAS_CELL":
@@ -87,24 +100,24 @@ class ProcessTagsForkedTest extends DDSpecification {
     null     | "server1"  | "^((?!cluster.name|server.name|server.type).)*\$"
   }
 
-  def 'calculate process tags by default'() {
+  def 'can disable process tags'() {
     when:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
     def processTags = ProcessTags.tagsForSerialization
     then:
-    assert ProcessTags.enabled
-    assert (processTags != null)
+    assert !ProcessTags.enabled
+    assert (processTags == null)
     when:
     ProcessTags.addTag("test", "value")
     then:
-    assert (ProcessTags.tagsForSerialization != null)
-    assert (ProcessTags.tagsAsStringList != null)
-    assert (ProcessTags.tagsAsUTF8ByteStringList != null)
+    assert (ProcessTags.tagsForSerialization == null)
+    assert (ProcessTags.tagsAsStringList == null)
+    assert (ProcessTags.tagsAsUTF8ByteStringList == null)
   }
 
   def 'should lazily recalculate when a tag is added'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
     when:
     def processTags = ProcessTags.tagsForSerialization
@@ -131,7 +144,6 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'process tag value normalization'() {
     setup:
-    ProcessTags.reset()
     ProcessTags.addTag("test", testValue)
     expect:
     assert ProcessTags.tagsAsStringList != null

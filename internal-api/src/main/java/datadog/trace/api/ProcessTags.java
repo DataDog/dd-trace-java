@@ -33,16 +33,17 @@ public class ProcessTags {
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
-    static final SortedMap<String, String> TAGS = loadTags();
+    static final SortedMap<String, String> TAGS = loadTags(Config.get());
     static volatile UTF8BytesString serializedForm;
     static volatile List<UTF8BytesString> utf8ListForm;
     static volatile List<String> stringListForm;
 
-    private static SortedMap<String, String> loadTags() {
+    private static SortedMap<String, String> loadTags(final Config config) {
       SortedMap<String, String> tags = new TreeMap<>();
       if (enabled) {
         try {
           fillBaseTags(tags);
+          fillServiceNameTags(tags, config);
           fillJeeTags(tags);
         } catch (Throwable t) {
           LOGGER.debug("Unable to calculate default process tags", t);
@@ -112,8 +113,15 @@ public class ProcessTags {
         tags.put("entrypoint.type", "jar");
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), ENTRYPOINT_BASEDIR);
       }
-
       insertLastPathSegmentIfPresent(tags, SystemProperties.get("user.dir"), ENTRYPOINT_WORKDIR);
+    }
+
+    private static void fillServiceNameTags(final Map<String, String> tags, final Config config) {
+      if (config.isServiceNameSetByUser()) {
+        tags.put("svc.user", "1");
+      } else {
+        tags.put("svc.auto", config.getServiceName());
+      }
     }
 
     private static boolean fillJbossTags(Map<String, String> tags) {
@@ -233,7 +241,7 @@ public class ProcessTags {
     synchronized (Lazy.TAGS) {
       empty();
       enabled = config.isExperimentalPropagateProcessTagsEnabled();
-      Lazy.TAGS.putAll(Lazy.loadTags());
+      Lazy.TAGS.putAll(Lazy.loadTags(config));
     }
   }
 }
