@@ -1,9 +1,15 @@
 package datadog.flare;
 
 import static datadog.common.version.VersionInfo.VERSION;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
 
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.TimeUtils;
@@ -26,13 +32,6 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +42,7 @@ final class TracerFlareService {
 
   private static final String REPORT_PREFIX = "dd-java-flare-";
 
-  private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
+  private static final String OCTET_STREAM = "application/octet-stream";
 
   private static final int MAX_LOGFILE_SIZE_MB = 15;
 
@@ -52,7 +51,7 @@ final class TracerFlareService {
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
   private final Config config;
-  private final OkHttpClient okHttpClient;
+  private final HttpClient httpClient;
   private final HttpUrl flareUrl;
 
   private boolean logLevelOverridden;
@@ -60,10 +59,10 @@ final class TracerFlareService {
 
   private Scheduled<Runnable> scheduledCleanup;
 
-  TracerFlareService(Config config, OkHttpClient okHttpClient, HttpUrl agentUrl) {
+  TracerFlareService(Config config, HttpClient httpClient, HttpUrl agentUrl) {
     this.config = config;
-    this.okHttpClient = okHttpClient;
-    this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
+    this.httpClient = httpClient;
+    this.flareUrl = agentUrl.newBuilder().addPathSegment(FLARE_ENDPOINT).build();
 
     applyTriageReportTrigger(config.getTriageReportTrigger());
   }
@@ -158,11 +157,8 @@ final class TracerFlareService {
     try {
       long flareEndMillis = System.currentTimeMillis();
 
-      RequestBody report =
-          RequestBody.create(
-              OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
-
-      RequestBody form =
+      HttpRequestBody report = HttpRequestBody.of(buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
+      HttpRequestBody form =
           new MultipartBody.Builder()
               .setType(MultipartBody.FORM)
               .addFormDataPart("source", "tracer_java")
@@ -172,14 +168,17 @@ final class TracerFlareService {
               .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
               .build();
 
-      Request flareRequest =
-          OkHttpUtils.prepareRequest(flareUrl, Collections.emptyMap()).post(form).build();
+      HttpRequest flareRequest =
+          HttpUtils.prepareRequest(flareUrl, Collections.emptyMap())
+              .header(CONTENT_TYPE, OCTET_STREAM)
+              .post(form)
+              .build();
 
-      try (Response response = okHttpClient.newCall(flareRequest).execute()) {
+      try (HttpResponse response = httpClient.execute(flareRequest)) {
         if (response.code() == 404) {
           log.debug("Tracer flare endpoint is disabled, ignoring request");
         } else if (!response.isSuccessful()) {
-          log.warn("Tracer flare failed with: {} {}", response.code(), response.message());
+          log.warn("Tracer flare failed with: {}", response.code());
         } else {
           log.debug("Tracer flare sent successfully");
         }
