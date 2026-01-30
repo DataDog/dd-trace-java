@@ -47,7 +47,7 @@ class ProcessTagsForkedTest extends DDSpecification {
     where:
     userServiceName | expected
     null            | "svc.auto:${TraceUtils.normalizeServiceName(Config.get().getServiceName())}"
-    "custom"        | "svc.user:1"
+    "custom"        | "svc.user:true"
   }
 
   def 'should load default tags jboss (mode #mode)'() {

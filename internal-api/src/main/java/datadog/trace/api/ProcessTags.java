@@ -118,7 +118,7 @@ public class ProcessTags {
 
     private static void fillServiceNameTags(final Map<String, String> tags, final Config config) {
       if (config.isServiceNameSetByUser()) {
-        tags.put("svc.user", "1");
+        tags.put("svc.user", "true");
       } else {
         tags.put("svc.auto", config.getServiceName());
       }
