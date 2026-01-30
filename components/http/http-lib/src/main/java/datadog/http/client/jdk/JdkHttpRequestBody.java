@@ -1,5 +1,6 @@
 package datadog.http.client.jdk;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import datadog.http.client.HttpRequestBody;
@@ -9,8 +10,13 @@ import java.io.OutputStream;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -161,122 +167,148 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
     return new JdkHttpRequestBody(BodyPublishers.ofByteArray(compressedBytes));
   }
 
-  // /**
-  //  * Creates a builder for multipart form data.
-  //  */
-  // public static HttpRequestBody.MultipartBuilder multipartBuilder() {
-  //   return new JdkMultipartBuilder();
-  // }
-  //
-  // /**
-  //  * Multipart form data builder for JDK HttpClient.
-  //  * Implements RFC 7578 multipart/form-data format.
-  //  */
-  // public static final class JdkMultipartBuilder implements HttpRequestBody.MultipartBuilder {
-  //
-  //   private static final String CRLF = "\r\n";
-  //   private final String boundary;
-  //   private final List<Part> parts = new ArrayList<>();
-  //
-  //   JdkMultipartBuilder() {
-  //     this.boundary = randomBoundary();
-  //   }
-  //
-  //   // TODO Need to be replaced with a lighter generator
-  //   private static String randomBoundary() {
-  //       Random rnd = ThreadLocalRandom.current();
-  //       long msb = (rnd.nextLong() & 0xffff_ffff_ffff_0fffL) | 0x0000_0000_0000_4000L;
-  //       long lsb = (rnd.nextLong() & 0x3fff_ffff_ffff_ffffL) | 0x8000_0000_0000_0000L;
-  //       return new UUID(msb, lsb).toString().replace("-", "");
-  //   }
-  //
-  //   @Override
-  //   public MultipartBuilder addFormDataPart(String name, String value) {
-  //     Objects.requireNonNull(name, "name");
-  //     Objects.requireNonNull(value, "value");
-  //     parts.add(new StringPart(name, value));
-  //     return this;
-  //   }
-  //
-  //   @Override
-  //   public MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body) {
-  //     Objects.requireNonNull(name, "name");
-  //     Objects.requireNonNull(filename, "filename");
-  //     Objects.requireNonNull(body, "body");
-  //     parts.add(new FilePart(name, filename, body));
-  //     return this;
-  //   }
-  //
-  //   @Override
-  //   public HttpRequestBody build() {
-  //     try {
-  //       // Build multipart body according to RFC 7578
-  //       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-  //
-  //       for (Part part : parts) {
-  //         baos.write(("--" + boundary + CRLF).getBytes(UTF_8));
-  //         part.writeTo(baos);
-  //         baos.write(CRLF.getBytes(UTF_8));
-  //       }
-  //
-  //       // Final boundary
-  //       baos.write(("--" + boundary + "--" + CRLF).getBytes(UTF_8));
-  //
-  //       byte[] bodyBytes = baos.toByteArray();
-  //       HttpRequest.BodyPublisher publisher = BodyPublishers.ofByteArray(bodyBytes);
-  //
-  //       return new JdkHttpRequestBody(publisher);
-  //     } catch (IOException e) {
-  //       throw new RuntimeException("Failed to build multipart body", e);
-  //     }
-  //   }
-  //
-  //   /**
-  //    * Returns the Content-Type for this multipart body.
-  //    */
-  //   public String contentType() {
-  //     return "multipart/form-data; boundary=" + boundary;
-  //   }
-  //
-  //   private interface Part {
-  //     void writeTo(OutputStream out) throws IOException;
-  //   }
-  //
-  //   private static final class StringPart implements Part {
-  //     private final String name;
-  //     private final String value;
-  //
-  //     StringPart(String name, String value) {
-  //       this.name = name;
-  //       this.value = value;
-  //     }
-  //
-  //     @Override
-  //     public void writeTo(OutputStream out) throws IOException {
-  //       out.write(("Content-Disposition: form-data; name=\"" + name + "\"" + CRLF).getBytes(UTF_8));
-  //       out.write(CRLF.getBytes(UTF_8));
-  //       out.write(value.getBytes(UTF_8));
-  //     }
-  //   }
-  //
-  //   private static final class FilePart implements Part {
-  //     private final String name;
-  //     private final String filename;
-  //     private final HttpRequestBody body;
-  //
-  //     FilePart(String name, String filename, HttpRequestBody body) {
-  //       this.name = name;
-  //       this.filename = filename;
-  //       this.body = body;
-  //     }
-  //
-  //     @Override
-  //     public void writeTo(OutputStream out) throws IOException {
-  //       out.write(("Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"" + CRLF).getBytes(UTF_8));
-  //       out.write(("Content-Type: application/octet-stream" + CRLF).getBytes(UTF_8));
-  //       out.write(CRLF.getBytes(UTF_8));
-  //       body.writeTo(out);
-  //     }
-  //   }
-  // }
+  /**
+   * Multipart form data builder for JDK HttpClient.
+   * Implements RFC 7578 multipart/form-data format.
+   */
+  public static final class MultipartBuilder implements HttpRequestBody.MultipartBuilder {
+    private static final String CRLF = "\r\n";
+    private final String boundary;
+    private final List<Part> parts = new ArrayList<>();
+
+    public MultipartBuilder() {
+      this.boundary = randomBoundary();
+    }
+
+    private static String randomBoundary() {
+      Random rnd = ThreadLocalRandom.current();
+      long msb = (rnd.nextLong() & 0xffff_ffff_ffff_0fffL) | 0x0000_0000_0000_4000L;
+      long lsb = (rnd.nextLong() & 0x3fff_ffff_ffff_ffffL) | 0x8000_0000_0000_0000L;
+      return new UUID(msb, lsb).toString().replace("-", "");
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addFormDataPart(String name, String value) {
+      requireNonNull(name, "name");
+      requireNonNull(value, "value");
+      parts.add(new StringPart(name, value));
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addFormDataPart(
+        String name, String filename, HttpRequestBody body) {
+      requireNonNull(name, "name");
+      requireNonNull(filename, "filename");
+      requireNonNull(body, "body");
+      parts.add(new FilePart(name, filename, body));
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody.MultipartBuilder addPart(
+        Map<String, String> headers, HttpRequestBody body) {
+      requireNonNull(headers, "headers");
+      requireNonNull(body, "body");
+      parts.add(new CustomPart(headers, body));
+      return this;
+    }
+
+    @Override
+    public HttpRequestBody build() {
+      try {
+        // Build multipart body according to RFC 7578
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        for (Part part : parts) {
+          baos.write(("--" + boundary + CRLF).getBytes(UTF_8));
+          part.writeTo(baos);
+          baos.write(CRLF.getBytes(UTF_8));
+        }
+
+        // Final boundary
+        baos.write(("--" + boundary + "--" + CRLF).getBytes(UTF_8));
+
+        byte[] bodyBytes = baos.toByteArray();
+        HttpRequest.BodyPublisher publisher = BodyPublishers.ofByteArray(bodyBytes);
+
+        return new JdkHttpRequestBody(publisher);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to build multipart body", e);
+      }
+    }
+
+    @Override
+    public String contentType() {
+      return "multipart/form-data; boundary=" + boundary;
+    }
+
+    private interface Part {
+      void writeTo(OutputStream out) throws IOException;
+    }
+
+    private static final class StringPart implements Part {
+      private final String name;
+      private final String value;
+
+      StringPart(String name, String value) {
+        this.name = name;
+        this.value = value;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        out.write(
+            ("Content-Disposition: form-data; name=\"" + name + "\"" + CRLF).getBytes(UTF_8));
+        out.write(CRLF.getBytes(UTF_8));
+        out.write(value.getBytes(UTF_8));
+      }
+    }
+
+    private static final class FilePart implements Part {
+      private final String name;
+      private final String filename;
+      private final HttpRequestBody body;
+
+      FilePart(String name, String filename, HttpRequestBody body) {
+        this.name = name;
+        this.filename = filename;
+        this.body = body;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        out.write(
+            ("Content-Disposition: form-data; name=\""
+                    + name
+                    + "\"; filename=\""
+                    + filename
+                    + "\""
+                    + CRLF)
+                .getBytes(UTF_8));
+        out.write(("Content-Type: application/octet-stream" + CRLF).getBytes(UTF_8));
+        out.write(CRLF.getBytes(UTF_8));
+        body.writeTo(out);
+      }
+    }
+
+    private static final class CustomPart implements Part {
+      private final Map<String, String> headers;
+      private final HttpRequestBody body;
+
+      CustomPart(Map<String, String> headers, HttpRequestBody body) {
+        this.headers = headers;
+        this.body = body;
+      }
+
+      @Override
+      public void writeTo(OutputStream out) throws IOException {
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+          out.write((entry.getKey() + ": " + entry.getValue() + CRLF).getBytes(UTF_8));
+        }
+        out.write(CRLF.getBytes(UTF_8));
+        body.writeTo(out);
+      }
+    }
+  }
 }
