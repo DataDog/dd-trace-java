@@ -20,6 +20,7 @@ public final class HttpProviders {
   private static volatile Method HTTP_REQUEST_BODY_OF_STRING_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTES_METHOD;
   private static volatile Method HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD;
+  private static volatile Method HTTP_REQUEST_BODY_GZIP_METHOD;
   private static volatile Constructor<?> HTTP_MULTIPART_BUILDER_CONSTRUCTOR;
 
   private HttpProviders() {
@@ -40,6 +41,7 @@ public final class HttpProviders {
     HTTP_REQUEST_BODY_OF_STRING_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTES_METHOD = null;
     HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = null;
+    HTTP_REQUEST_BODY_GZIP_METHOD = null;
     HTTP_MULTIPART_BUILDER_CONSTRUCTOR = null;
   }
 
@@ -157,6 +159,22 @@ public final class HttpProviders {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD.invoke(null, buffers);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call ofByteBuffers method", e);
+    }
+  }
+
+  static HttpRequestBody requestBodyGzip(HttpRequestBody body) {
+    requireNonNull(body, "body");
+    if (HTTP_REQUEST_BODY_GZIP_METHOD == null) {
+      HTTP_REQUEST_BODY_GZIP_METHOD = findMethod(
+          "datadog.http.client.jdk.JdkHttpRequestBody",
+          "datadog.http.client.okhttp.OkHttpRequestBody",
+          "ofGzip",
+          HttpRequestBody.class);
+    }
+    try {
+      return (HttpRequestBody) HTTP_REQUEST_BODY_GZIP_METHOD.invoke(null, body);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Failed to call ofGzip method", e);
     }
   }
 

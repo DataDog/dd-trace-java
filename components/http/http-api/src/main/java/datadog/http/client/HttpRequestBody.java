@@ -64,6 +64,19 @@ public interface HttpRequestBody {
   }
 
   /**
+   * Wraps a request body with gzip compression.
+   * The body is compressed eagerly and the content length reflects the compressed size.
+   * Content-Encoding header should be set to "gzip" separately via request headers.
+   *
+   * @param body the body to compress
+   * @return a new gzip-compressed HttpRequestBody
+   * @throws NullPointerException if body is null
+   */
+  static HttpRequestBody gzip(HttpRequestBody body) {
+    return HttpProviders.requestBodyGzip(body);
+  }
+
+  /**
    * Creates a builder for multipart/form-data request bodies.
    *
    * @return a new MultipartBuilder
