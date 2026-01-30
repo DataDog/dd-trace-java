@@ -17,11 +17,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
 import datadog.common.version.VersionInfo;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.ErrorData;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.environment.SystemProperties;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -29,7 +31,8 @@ import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,14 +50,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Dispatcher;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,9 +69,6 @@ public final class CrashUploader {
   static final String TELEMETRY_API_VERSION = "v2";
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   static final String TELEMETRY_REQUEST_TYPE = "logs";
-
-  private static final MediaType APPLICATION_JSON =
-      MediaType.get("application/json; charset=utf-8");
 
   private static final class CallResult implements Callback {
     private final String kind; // for logging
@@ -116,8 +108,7 @@ public final class CrashUploader {
 
   private final HttpUrl telemetryUrl;
   private final HttpUrl errorTrackingUrl;
-  private final OkHttpClient uploadClient;
-  private final Dispatcher dispatcher;
+  private final HttpClient uploadClient;
   private final ExecutorService executor;
   private final boolean agentless;
   private final String tags;
@@ -131,8 +122,8 @@ public final class CrashUploader {
       @NonNull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
     this.config = config;
     this.storedConfig = storedConfig;
-    this.telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
-    this.errorTrackingUrl = HttpUrl.get(config.getFinalCrashTrackingErrorTrackingUrl());
+    this.telemetryUrl = HttpUrl.parse(config.getFinalCrashTrackingTelemetryUrl());
+    this.errorTrackingUrl = HttpUrl.parse(config.getFinalCrashTrackingErrorTrackingUrl());
     this.agentless = config.isCrashTrackingAgentless();
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     this.executor =
@@ -143,7 +134,6 @@ public final class CrashUploader {
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
             new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
-    this.dispatcher = new Dispatcher(executor);
 
     final StringBuilder tagsBuilder =
         new StringBuilder(storedConfig.tags != null ? storedConfig.tags : "");
@@ -165,9 +155,9 @@ public final class CrashUploader {
                 CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
 
     uploadClient =
-        OkHttpUtils.buildHttpClient(
+        HttpUtils.buildHttpClient(
             config,
-            dispatcher, /* dispatcher */
+            executor, /* dispatcher */
             telemetryUrl, // will be overridden in each request
             true, /* retryOnConnectionFailure */
             4, /* maxRunningRequests */ // not having one request blocking the others
@@ -415,7 +405,7 @@ public final class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
     return uploadClient.newCall(
-        OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
+        HttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
             .post(requestBody)
             .build());
   }
@@ -502,7 +492,7 @@ public final class CrashUploader {
     }
 
     return uploadClient.newCall(
-        OkHttpUtils.prepareRequest(errorTrackingUrl, headers, config, agentless)
+        HttpUtils.prepareRequest(errorTrackingUrl, headers, config, agentless)
             .post(requestBody)
             .build());
   }
