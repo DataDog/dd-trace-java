@@ -5,7 +5,11 @@ import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -16,9 +20,6 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,7 @@ public class DDIntakeApi extends RemoteApi {
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl hostUrl = null;
-    OkHttpClient httpClient = null;
+    HttpClient httpClient = null;
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     private String apiKey;
@@ -77,7 +78,7 @@ public class DDIntakeApi extends RemoteApi {
       return this;
     }
 
-    public DDIntakeApiBuilder httpClient(final OkHttpClient httpClient) {
+    public DDIntakeApiBuilder httpClient(final HttpClient httpClient) {
       this.httpClient = httpClient;
       return this;
     }
@@ -87,11 +88,11 @@ public class DDIntakeApi extends RemoteApi {
       final String trackName =
           (trackType != null ? trackType.name() : NOOP.name()).toLowerCase(Locale.ROOT);
       if (null == hostUrl) {
-        hostUrl = HttpUrl.get(String.format("https://%s-intake.%s", trackName, site));
+        hostUrl = HttpUrl.parse(String.format("https://%s-intake.%s", trackName, site));
       }
       final HttpUrl intakeUrl = hostUrl.resolve(String.format("/api/%s/%s", apiVersion, trackName));
-      final OkHttpClient client =
-          (httpClient != null) ? httpClient : OkHttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
+      final HttpClient client =
+          (httpClient != null) ? httpClient : HttpUtils.buildHttpClient(intakeUrl, timeoutMillis);
 
       return new DDIntakeApi(trackType, client, intakeUrl, apiKey, retryPolicyFactory);
     }
@@ -99,14 +100,14 @@ public class DDIntakeApi extends RemoteApi {
 
   private final TelemetryListener telemetryListener;
   private final TrackType trackType;
-  private final OkHttpClient httpClient;
+  private final HttpClient httpClient;
   private final HttpUrl intakeUrl;
   private final String apiKey;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
 
   private DDIntakeApi(
       TrackType trackType,
-      OkHttpClient httpClient,
+      HttpClient httpClient,
       HttpUrl intakeUrl,
       String apiKey,
       HttpRetryPolicy.Factory retryPolicyFactory) {
@@ -123,19 +124,18 @@ public class DDIntakeApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    final Request request =
-        new Request.Builder()
+    final HttpRequest request = HttpRequest.newBuilder()
             .url(intakeUrl)
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
             .post(payload.toRequest())
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener)
+            .listener(telemetryListener)
             .build();
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
-    try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+    try (HttpResponse response =
+        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());

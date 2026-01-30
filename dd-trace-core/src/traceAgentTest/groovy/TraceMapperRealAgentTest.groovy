@@ -1,5 +1,9 @@
+import static TraceGenerator.generateRandomTraces
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.Config
@@ -8,16 +12,12 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 
 import java.util.concurrent.TimeUnit
 
-import static TraceGenerator.generateRandomTraces
-
 class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
 
-  OkHttpClient client
+  HttpClient client
   MonitoringImpl monitoring
   DDAgentFeaturesDiscovery v05Discovery
   DDAgentFeaturesDiscovery v04Discovery
@@ -27,7 +27,7 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
   def setup() {
     def agentUrl = HttpUrl.parse(Config.get().getAgentUrl())
 
-    client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
+    client = HttpUtils.buildHttpClient(agentUrl, 30_000)
     monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
     v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)

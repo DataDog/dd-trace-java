@@ -13,6 +13,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
@@ -26,7 +27,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.TimeUnit;
-import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,13 +215,13 @@ public class WriterFactory {
       String llmObsAgentlessUrl = config.getLlMObsAgentlessUrl();
 
       if (config.getCiVisibilityAgentlessUrl() != null) {
-        hostUrl = HttpUrl.get(config.getCiVisibilityAgentlessUrl());
+        hostUrl = HttpUrl.parse(config.getCiVisibilityAgentlessUrl());
         log.info("Using host URL '{}' to report CI Visibility traces in Agentless mode.", hostUrl);
       } else if (config.isLlmObsEnabled()
           && config.isLlmObsAgentlessEnabled()
           && llmObsAgentlessUrl != null
           && !llmObsAgentlessUrl.isEmpty()) {
-        hostUrl = HttpUrl.get(llmObsAgentlessUrl);
+        hostUrl = HttpUrl.parse(llmObsAgentlessUrl);
         log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
       return DDIntakeApi.builder()

@@ -1,9 +1,10 @@
 package datadog.trace.common.writer
 
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.http.client.HttpUrl
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
@@ -23,7 +24,6 @@ import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.test.util.Flaky
-import okhttp3.HttpUrl
 import spock.lang.Shared
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -268,8 +268,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
-    def hostUrl = HttpUrl.get(intake.address)
-    def client = OkHttpUtils.buildHttpClient(hostUrl, 1000)
+    def hostUrl = HttpUrl.from(intake.address)
+    def client = HttpUtils.buildHttpClient(hostUrl, 1000)
     def api = DDIntakeApi.builder()
       .hostUrl(hostUrl)
       .httpClient(client)
@@ -326,8 +326,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
-    def hostUrl = HttpUrl.get(intake.address)
-    def client = OkHttpUtils.buildHttpClient(hostUrl, 1000)
+    def hostUrl = HttpUrl.from(intake.address)
+    def client = HttpUtils.buildHttpClient(hostUrl, 1000)
     def api = DDIntakeApi.builder()
       .hostUrl(hostUrl)
       .httpClient(client)
@@ -461,8 +461,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       }
     }
 
-    def hostUrl = HttpUrl.get(intake.address)
-    def client = OkHttpUtils.buildHttpClient(hostUrl, 1000)
+    def hostUrl = HttpUrl.from(intake.address)
+    def client = HttpUtils.buildHttpClient(hostUrl, 1000)
     def api = DDIntakeApi.builder()
       .hostUrl(hostUrl)
       .httpClient(client)
@@ -565,8 +565,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       }
     }
 
-    def hostUrl = HttpUrl.get(intake.address)
-    def client = OkHttpUtils.buildHttpClient(hostUrl, 1000)
+    def hostUrl = HttpUrl.from(intake.address)
+    def client = HttpUtils.buildHttpClient(hostUrl, 1000)
     def api = DDIntakeApi.builder()
       .hostUrl(hostUrl)
       .httpClient(client)
@@ -638,8 +638,8 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
       numRequests.incrementAndGet()
       numResponses.incrementAndGet()
     }
-    def hostUrl = HttpUrl.get(intake.address)
-    def client = OkHttpUtils.buildHttpClient(hostUrl, 1000)
+    def hostUrl = HttpUrl.from(intake.address)
+    def client = HttpUtils.buildHttpClient(hostUrl, 1000)
     def api = DDIntakeApi.builder()
       .hostUrl(hostUrl)
       .httpClient(client)

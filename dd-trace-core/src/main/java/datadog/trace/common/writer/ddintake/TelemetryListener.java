@@ -1,6 +1,9 @@
 package datadog.trace.common.writer.ddintake;
 
-import datadog.communication.http.OkHttpUtils;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
+import datadog.http.client.HttpResponse;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -8,11 +11,10 @@ import datadog.trace.api.civisibility.telemetry.tag.Endpoint;
 import datadog.trace.api.civisibility.telemetry.tag.ErrorType;
 import datadog.trace.api.civisibility.telemetry.tag.RequestCompressed;
 import datadog.trace.api.civisibility.telemetry.tag.StatusCode;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.IOException;
-import okhttp3.Call;
-import okhttp3.Response;
 
-public class TelemetryListener extends OkHttpUtils.CustomListener {
+public class TelemetryListener implements HttpRequestListener {
 
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
@@ -24,43 +26,43 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
     this.endpoint = endpoint;
   }
 
-  public void callStart(Call call) {
+  @Override
+  public void onRequestStart(HttpRequest request) {
     callStartTimestamp = System.currentTimeMillis();
     InstrumentationBridge.getMetricCollector()
         .add(
             CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS,
             1,
             endpoint,
-            GZIP_ENCODING.equalsIgnoreCase(call.request().header(CONTENT_ENCODING_HEADER))
+            GZIP_ENCODING.equalsIgnoreCase(request.header(CONTENT_ENCODING_HEADER))
                 ? RequestCompressed.TRUE
                 : null);
-  }
 
-  public void requestBodyEnd(Call call, long byteCount) {
+    HttpRequestBody body = request.body();
+    int byteCount = body == null ? 0 : (int) body.contentLength();
     InstrumentationBridge.getMetricCollector()
-        .add(CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_BYTES, (int) byteCount, endpoint);
+        .add(CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_BYTES, byteCount, endpoint);
   }
 
-  public void responseHeadersEnd(Call call, Response response) {
-    if (!response.isSuccessful()) {
-      int responseCode = response.code();
-      InstrumentationBridge.getMetricCollector()
-          .add(
-              CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS_ERRORS,
-              1,
-              endpoint,
-              ErrorType.from(responseCode),
-              StatusCode.from(responseCode));
+  @Override
+  public void onRequestEnd(HttpRequest request, @Nullable HttpResponse response) {
+    if (response != null) {
+      if (!response.isSuccessful()) {
+        int responseCode = response.code();
+        InstrumentationBridge.getMetricCollector()
+            .add(
+                CiVisibilityCountMetric.ENDPOINT_PAYLOAD_REQUESTS_ERRORS,
+                1,
+                endpoint,
+                ErrorType.from(responseCode),
+                StatusCode.from(responseCode));
+      }
     }
+    onRequestEnd();
   }
 
-  public void callEnd(Call call) {
-    int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
-    InstrumentationBridge.getMetricCollector()
-        .add(CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_REQUESTS_MS, durationMillis, endpoint);
-  }
-
-  public void callFailed(Call call, IOException ioe) {
+  @Override
+  public void onRequestFailure(HttpRequest request, IOException exception) {
     int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
     InstrumentationBridge.getMetricCollector()
         .add(CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_REQUESTS_MS, durationMillis, endpoint);
@@ -70,5 +72,12 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
             1,
             endpoint,
             ErrorType.NETWORK);
+    onRequestEnd();
+  }
+
+  void onRequestEnd() {
+    int durationMillis = (int) (System.currentTimeMillis() - callStartTimestamp);
+    InstrumentationBridge.getMetricCollector()
+        .add(CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_REQUESTS_MS, durationMillis, endpoint);
   }
 }

@@ -1,11 +1,15 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.prepareRequest;
+import static datadog.communication.http.HttpUtils.prepareRequest;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.metrics.api.Counter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
@@ -20,9 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,12 +59,12 @@ public class DDAgentApi extends RemoteApi {
                   Types.newParameterizedType(Map.class, String.class, Double.class)));
 
   private final DDAgentFeaturesDiscovery featuresDiscovery;
-  private final OkHttpClient httpClient;
+  private final HttpClient httpClient;
   private final HttpUrl agentUrl;
   private final Map<String, String> headers;
 
   public DDAgentApi(
-      OkHttpClient client,
+      HttpClient client,
       HttpUrl agentUrl,
       DDAgentFeaturesDiscovery featuresDiscovery,
       Monitoring monitoring,
@@ -102,7 +103,7 @@ public class DDAgentApi extends RemoteApi {
 
     HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
     try {
-      final Request request =
+      final HttpRequest request =
           prepareRequest(tracesUrl, headers)
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
               .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
@@ -120,19 +121,15 @@ public class DDAgentApi extends RemoteApi {
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
-          final okhttp3.Response response = httpClient.newCall(request).execute()) {
+          final HttpResponse response = httpClient.execute(request)) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
-
-        String responseString = getResponseBody(response);
-
+        String responseString = response.bodyAsString();
         if (response.code() != 200) {
-          agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
+          agentErrorCounter.incrementErrorCount("", payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code(), responseString);
         }
-
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
-
         try {
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =

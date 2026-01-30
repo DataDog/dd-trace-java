@@ -4,7 +4,11 @@ import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.OkHttpUtils;
+import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
@@ -15,9 +19,6 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,7 @@ public class DDEvpProxyApi extends RemoteApi {
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl agentUrl = null;
-    OkHttpClient httpClient = null;
+    HttpClient httpClient = null;
     String evpProxyEndpoint;
     boolean compressionEnabled;
 
@@ -69,7 +70,7 @@ public class DDEvpProxyApi extends RemoteApi {
       return this;
     }
 
-    public DDEvpProxyApiBuilder httpClient(final OkHttpClient httpClient) {
+    public DDEvpProxyApiBuilder httpClient(final HttpClient httpClient) {
       this.httpClient = httpClient;
       return this;
     }
@@ -87,10 +88,10 @@ public class DDEvpProxyApi extends RemoteApi {
       final HttpUrl proxiedApiUrl =
           evpProxyUrl.resolve(String.format("api/%s/%s", apiVersion, trackName));
 
-      final OkHttpClient client =
+      final HttpClient client =
           (httpClient != null)
               ? httpClient
-              : OkHttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
+              : HttpUtils.buildHttpClient(proxiedApiUrl, timeoutMillis);
 
       final HttpRetryPolicy.Factory retryPolicyFactory =
           new HttpRetryPolicy.Factory(5, 100, 2.0, true);
@@ -103,14 +104,14 @@ public class DDEvpProxyApi extends RemoteApi {
 
   private final TelemetryListener telemetryListener;
   private final TrackType trackType;
-  private final OkHttpClient httpClient;
+  private final HttpClient httpClient;
   private final HttpUrl proxiedApiUrl;
   private final String subdomain;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
 
   private DDEvpProxyApi(
       TrackType trackType,
-      OkHttpClient httpClient,
+      HttpClient httpClient,
       HttpUrl proxiedApiUrl,
       String subdomain,
       HttpRetryPolicy.Factory retryPolicyFactory,
@@ -128,22 +129,21 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    Request.Builder builder =
-        new Request.Builder()
+    HttpRequest.Builder builder = HttpRequest.newBuilder()
             .url(proxiedApiUrl)
             .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
-            .tag(OkHttpUtils.CustomListener.class, telemetryListener);
+            .listener(telemetryListener);
 
     if (isCompressionEnabled()) {
       builder.addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE);
     }
 
-    final Request request = builder.post(payload.toRequest()).build();
+    final HttpRequest request = builder.post(payload.toRequest()).build();
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
-    try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+    try (HttpResponse response =
+        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
       if (response.isSuccessful()) {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());
