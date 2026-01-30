@@ -26,7 +26,6 @@ public class EmbeddingDecorator {
     span.setResourceName(EMBEDDINGS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "v1/embeddings");
     span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
-    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
