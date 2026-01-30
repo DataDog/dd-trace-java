@@ -4,6 +4,7 @@ import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpResponse;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.Proxy;
@@ -53,8 +54,9 @@ public final class OkHttpClient implements HttpClient {
     private Response response;
 
 
-    static OkHttpListener fetch(Call call) {
-      return call.request().tag(OkHttpListener.class);
+    static EventListener fetch(Call call) {
+      OkHttpListener listener = call.request().tag(OkHttpListener.class);
+      return listener == null ? NONE : listener;
     }
 
     static OkHttpListener wrap(HttpRequestListener listener) {
@@ -75,7 +77,7 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public void responseHeadersEnd(Call call, Response response) {
+    public void responseHeadersEnd(@NonNull Call call, @NonNull Response response) {
       this.response = response;
     }
 
@@ -86,7 +88,7 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public void callFailed(Call call, IOException ioe) {
+    public void callFailed(Call call, @NonNull IOException ioe) {
       Request request = call.request();
       this.listener.onRequestFailure(OkHttpRequest.wrap(request), ioe);
     }

@@ -1,6 +1,7 @@
 package datadog.http.client.okhttp;
 
 import datadog.http.client.HttpUrl;
+import java.net.URI;
 import java.util.Objects;
 
 /**
@@ -29,6 +30,16 @@ public final class OkHttpUrl implements HttpUrl {
     }
     return wrap(parsed);
   }
+
+  /**
+   * Creates an HttpUrl from an URI.
+   * @param uri the URI to get an HttpUrl from
+   * @return the HttpUrl related to the URI
+   */
+  public static HttpUrl from(URI uri) {
+    return wrap(okhttp3.HttpUrl.get(uri));
+  }
+
 
   /**
    * Wraps an okhttp3.HttpUrl.

@@ -11,7 +11,6 @@ import java.util.List;
  * or JDK HttpClient's BodyPublisher.
  */
 public interface HttpRequestBody {
-
   /**
    * Returns the content length in bytes, or -1 if unknown (e.g., for gzipped content).
    *

@@ -1,5 +1,9 @@
 package datadog.http.client;
 
+import static java.util.Objects.requireNonNull;
+
+import java.net.URI;
+
 /**
  * Abstraction for HTTP URLs, providing URL parsing, building, and manipulation capabilities.
  * This abstraction is implementation-agnostic and can be backed by either OkHttp's HttpUrl
@@ -60,8 +64,20 @@ public interface HttpUrl {
    * @throws NullPointerException if url is null
    */
   static HttpUrl parse(String url) {
+    requireNonNull(url, "url");
     return HttpProviders.httpUrlParse(url);
   }
+
+  /**
+   * Creates an HttpUrl from an URI.
+   * @param uri the URI to get an HttpUrl from
+   * @return the HttpUrl related to the URI
+   */
+  static HttpUrl from(URI uri) {
+    requireNonNull(uri, "uri");
+    return HttpProviders.httpUrlFrom(uri);
+  }
+
 
   /**
    * Creates a new builder for constructing URLs.
