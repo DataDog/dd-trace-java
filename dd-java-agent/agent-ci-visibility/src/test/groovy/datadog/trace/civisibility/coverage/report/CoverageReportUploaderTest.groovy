@@ -1,22 +1,21 @@
 package datadog.trace.civisibility.coverage.report
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.BackendApi
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
-import datadog.communication.http.OkHttpUtils
+import datadog.communication.http.HttpUtils
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.intake.Intake
 import datadog.trace.test.util.MultipartRequestParser
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
+import java.util.zip.GZIPInputStream
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
-
-import java.util.zip.GZIPInputStream
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 class CoverageReportUploaderTest extends Specification {
 
@@ -79,7 +78,7 @@ class CoverageReportUploaderTest extends Specification {
   }
 
   private BackendApi givenIntakeApi() {
-    HttpUrl intakeUrl = HttpUrl.get(String.format("%s/api/%s/", server.address.toString(), Intake.CI_INTAKE.version))
+    HttpUrl intakeUrl = HttpUrl.parse(String.format("%s/api/%s/", server.address.toString(), Intake.CI_INTAKE.version))
 
     String apiKey = "api-key"
     String traceId = "a-trace-id"
@@ -90,7 +89,7 @@ class CoverageReportUploaderTest extends Specification {
     HttpRetryPolicy.Factory retryPolicyFactory = Stub(HttpRetryPolicy.Factory)
     retryPolicyFactory.create() >> retryPolicy
 
-    OkHttpClient client = OkHttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
+    HttpClient client = HttpUtils.buildHttpClient(intakeUrl, REQUEST_TIMEOUT_MILLIS)
     return new IntakeApi(intakeUrl, apiKey, traceId, retryPolicyFactory, client, false)
   }
 }
