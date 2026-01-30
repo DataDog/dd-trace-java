@@ -5,6 +5,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.http.HttpUtils;
+import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpRequestListener;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -13,12 +14,12 @@ import datadog.trace.civisibility.communication.TelemetryListener;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
-import okio.BufferedSink;
 
 public class CoverageReportUploader {
 
@@ -45,16 +46,15 @@ public class CoverageReportUploader {
     event.put("format", format);
     event.put("type", "coverage_report");
     String eventJson = eventAdapter.toJson(event);
-    RequestBody eventBody = HttpUtils.jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
+    HttpRequestBody eventBody = HttpUtils.jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
 
-    RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
+    HttpRequestBody coverageBody = new GzipStreamRequestBody(reportStream);
 
-    MultipartBody multipartBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("coverage", "coverage.gz", coverageBody)
-            .addFormDataPart("event", "event.json", eventBody)
-            .build();
+    HttpRequestBody.MultipartBuilder multipartBuilder = HttpRequestBody.multipart();
+    multipartBuilder.addFormDataPart("coverage", "coverage.gz", coverageBody);
+    multipartBuilder.addFormDataPart("event", "event.json", eventBody);
+    String contentType = multipartBuilder.contentType();
+    HttpRequestBody multipartBody = multipartBuilder.build();
 
     HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
@@ -64,14 +64,15 @@ public class CoverageReportUploader {
             .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
             .build();
 
-    backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);
+    backendApi.post(
+        "cicovreprt", contentType, multipartBody, responseStream -> null, telemetryListener, false);
   }
 
-  /** Request body that compresses a form data part */
-  private static class GzipMultipartRequestBody extends RequestBody {
+  /** Request body that compresses an input stream with gzip */
+  private static class GzipStreamRequestBody implements HttpRequestBody {
     private final InputStream stream;
 
-    private GzipMultipartRequestBody(InputStream stream) {
+    private GzipStreamRequestBody(InputStream stream) {
       this.stream = stream;
     }
 
@@ -80,21 +81,16 @@ public class CoverageReportUploader {
       return -1;
     }
 
-    @Override
-    public MediaType contentType() {
-      return null;
-    }
-
     @SuppressFBWarnings("OS_OPEN_STREAM")
     @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      GZIPOutputStream outputStream = new GZIPOutputStream(sink.outputStream());
+    public void writeTo(OutputStream out) throws IOException {
+      GZIPOutputStream outputStream = new GZIPOutputStream(out);
       byte[] buffer = new byte[8192];
       for (int readCount; (readCount = stream.read(buffer)) != -1; ) {
         outputStream.write(buffer, 0, readCount);
       }
       outputStream.finish();
-      // not closing output stream as it would close the underlying sink, which is managed by okhttp
+      // not closing output stream as it would close the underlying output stream
     }
   }
 }

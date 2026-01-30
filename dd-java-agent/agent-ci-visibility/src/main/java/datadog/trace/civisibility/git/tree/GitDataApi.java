@@ -19,9 +19,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.RequestBody;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +28,6 @@ public class GitDataApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GitDataApi.class);
 
-  private static final MediaType JSON = MediaType.get("application/json");
-  private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
   private static final String SEARCH_COMMITS_URI = "git/repository/search_commits";
   private static final String UPLOAD_PACKFILES_URI = "git/repository/packfile";
 
@@ -108,12 +103,11 @@ public class GitDataApi {
     String packFileName = packFile.getFileName().toString();
     String packFileNameWithoutRandomPrefix = packFileName.substring(packFileName.indexOf('-') + 1);
 
-    RequestBody requestBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("pushedSha", "pushedSha.json", pushedShaBody)
-            .addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody)
-            .build();
+    HttpRequestBody.MultipartBuilder multipartBuilder = HttpRequestBody.multipart();
+    multipartBuilder.addFormDataPart("pushedSha", "pushedSha.json", pushedShaBody);
+    multipartBuilder.addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody);
+    String contentType = multipartBuilder.contentType();
+    HttpRequestBody requestBody = multipartBuilder.build();
 
     HttpRequestListener telemetryListener =
         new TelemetryListener.Builder(metricCollector)
@@ -125,7 +119,12 @@ public class GitDataApi {
 
     String response =
         backendApi.post(
-            UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully, telemetryListener, false);
+            UPLOAD_PACKFILES_URI,
+            contentType,
+            requestBody,
+            IOUtils::readFully,
+            telemetryListener,
+            false);
     LOGGER.debug("Uploading pack file {} returned response {}", packFile, response);
   }
 
