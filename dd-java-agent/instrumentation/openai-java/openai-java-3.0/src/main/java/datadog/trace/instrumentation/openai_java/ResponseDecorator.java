@@ -455,6 +455,8 @@ public class ResponseDecorator {
       metadata.put("stream", true);
     }
 
+    span.setTag(CommonTags.METADATA, metadata);
+
     response
         .usage()
         .ifPresent(
@@ -464,11 +466,10 @@ public class ResponseDecorator {
               span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
               span.setTag(
                   CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
-              long reasoningTokens = usage.outputTokensDetails().reasoningTokens();
-              metadata.put("reasoning_tokens", reasoningTokens);
+              span.setTag(
+                  CommonTags.REASONING_OUTPUT_TOKENS,
+                  usage.outputTokensDetails().reasoningTokens());
             });
-
-    span.setTag(CommonTags.METADATA, metadata);
   }
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {

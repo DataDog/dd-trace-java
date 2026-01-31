@@ -29,6 +29,7 @@ interface CommonTags {
   String INPUT_TOKENS = METRIC_PREFIX + "input_tokens";
   String OUTPUT_TOKENS = METRIC_PREFIX + "output_tokens";
   String TOTAL_TOKENS = METRIC_PREFIX + "total_tokens";
+  String REASONING_OUTPUT_TOKENS = METRIC_PREFIX + "reasoning_output_tokens";
   String CACHE_READ_INPUT_TOKENS = METRIC_PREFIX + "cache_read_input_tokens";
 
   String REQUEST_REASONING = "_ml_obs_request.reasoning";
