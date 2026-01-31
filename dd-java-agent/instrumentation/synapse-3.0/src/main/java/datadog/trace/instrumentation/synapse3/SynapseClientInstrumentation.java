@@ -114,7 +114,7 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpClientConnection connection) {
-      // check and remove context so it won't be finished twice
+      // don't remove stored context here because the response callback may run multiple times
       Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context) {
         return context.attach();
