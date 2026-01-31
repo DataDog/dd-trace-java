@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,10 +40,8 @@ public class AssertBuilder {
     Method enabled = null;
     Set<String> enabledArgs = null;
     Object[] enabledDeclaration = getEnabledDeclaration(targetType, interfaces);
-    if (enabledDeclaration != null) {
-      enabled = (Method) enabledDeclaration[0];
-      enabledArgs = (Set<String>) enabledDeclaration[1];
-    }
+    enabled = (Method) enabledDeclaration[0];
+    enabledArgs = (Set<String>) enabledDeclaration[1];
     return new CallSiteAssert(
         interfaces,
         getSpi(targetType),
@@ -53,8 +52,8 @@ public class AssertBuilder {
   }
 
   protected Set<Class<?>> getSpi(ClassOrInterfaceDeclaration type) {
-    return type.getAnnotationByName("AutoService").stream()
-        .flatMap(
+    return type.getAnnotationByName("AutoService")
+        .<Set<Class<?>>>map(
             annotation ->
                 annotation.asNormalAnnotationExpr().getPairs().stream()
                     .filter(pair -> pair.getNameAsString().equals("value"))
@@ -70,9 +69,10 @@ public class AssertBuilder {
                                             .asReferenceType()
                                             .getTypeDeclaration()
                                             .get()
-                                            .getQualifiedName())))
-        .map(AssertBuilder::loadClass)
-        .collect(Collectors.toSet());
+                                            .getQualifiedName()))
+                    .map(AssertBuilder::loadClass)
+                    .collect(Collectors.toSet()))
+        .orElse(Collections.emptySet());
   }
 
   protected Set<Class<?>> getInterfaces(ClassOrInterfaceDeclaration type) {
@@ -93,31 +93,26 @@ public class AssertBuilder {
   }
 
   private static Class<?> loadClass(String qualifiedName) {
-    // Try the name as-is first
-    try {
-      return Class.forName(qualifiedName);
-    } catch (ClassNotFoundException e) {
-      // Try progressively replacing dots with $ from right to left for inner classes
-      // We need to try all possible combinations
-      String current = qualifiedName;
-      int lastDot = current.lastIndexOf('.');
-      while (lastDot > 0) {
-        current = current.substring(0, lastDot) + "$" + current.substring(lastDot + 1);
-        try {
-          return Class.forName(current);
-        } catch (ClassNotFoundException ex) {
-          // Continue trying with the next dot
-          lastDot = current.lastIndexOf('.', lastDot - 1);
+    // Try progressively replacing dots with $ from right to left for inner classes
+    String current = qualifiedName;
+    int lastDot = current.lastIndexOf('.');
+    do {
+      try {
+        return Class.forName(current);
+      } catch (ClassNotFoundException e) {
+        if (lastDot <= 0) {
+          throw new RuntimeException(new ClassNotFoundException(qualifiedName));
         }
+        current = current.substring(0, lastDot) + "$" + current.substring(lastDot + 1);
+        lastDot = current.lastIndexOf('.', lastDot - 1);
       }
-      throw new RuntimeException(new ClassNotFoundException(qualifiedName));
-    }
+    } while (true);
   }
 
   protected Object[] getEnabledDeclaration(
       ClassOrInterfaceDeclaration type, Set<Class<?>> interfaces) {
     if (!interfaces.contains(CallSites.HasEnabledProperty.class)) {
-      return null;
+      return new Object[] {null, null};
     }
     MethodDeclaration isEnabled = type.getMethodsByName("isEnabled").get(0);
     MethodCallExpr enabledMethodCall =
