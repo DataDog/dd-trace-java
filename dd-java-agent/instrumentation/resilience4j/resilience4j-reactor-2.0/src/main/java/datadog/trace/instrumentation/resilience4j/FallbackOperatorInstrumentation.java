@@ -5,9 +5,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
@@ -40,7 +40,7 @@ public class FallbackOperatorInstrumentation
 
       result =
           ReactorHelper.wrapFunction(
-              result, InstrumentationContext.get(Publisher.class, AgentSpan.class)::putIfAbsent);
+              result, InstrumentationContext.get(Publisher.class, Context.class)::putIfAbsent);
     }
 
     // 2.0.0+

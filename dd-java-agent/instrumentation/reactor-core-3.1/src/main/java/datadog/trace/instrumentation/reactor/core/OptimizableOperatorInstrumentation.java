@@ -7,13 +7,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -21,17 +17,12 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 /**
- * This instrumentation is responsible for transferring the {@link AgentSpan} when subscription
+ * This instrumentation is responsible for transferring the {@link Context} when subscription
  * optimization are made. In particular reactor's OptimizableOperators can do subscription via a
  * loop call instead of recursion.
  */
-@AutoService(InstrumenterModule.class)
-public class OptimizableOperatorInstrumentation extends InstrumenterModule.Tracing
+public class OptimizableOperatorInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public OptimizableOperatorInstrumentation() {
-    super("reactor-core");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -41,14 +32,6 @@ public class OptimizableOperatorInstrumentation extends InstrumenterModule.Traci
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
-    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
-    return ret;
   }
 
   @Override
@@ -70,12 +53,12 @@ public class OptimizableOperatorInstrumentation extends InstrumenterModule.Traci
       if (s == null || arg == null) {
         return;
       }
-      AgentSpan span = InstrumentationContext.get(Publisher.class, AgentSpan.class).get(self);
-      if (span == null) {
-        span = InstrumentationContext.get(Subscriber.class, AgentSpan.class).get(arg);
+      Context context = InstrumentationContext.get(Publisher.class, Context.class).get(self);
+      if (context == null) {
+        context = InstrumentationContext.get(Subscriber.class, Context.class).get(arg);
       }
-      if (span != null) {
-        InstrumentationContext.get(Subscriber.class, AgentSpan.class).putIfAbsent(s, span);
+      if (context != null) {
+        InstrumentationContext.get(Subscriber.class, Context.class).putIfAbsent(s, context);
       }
     }
   }
