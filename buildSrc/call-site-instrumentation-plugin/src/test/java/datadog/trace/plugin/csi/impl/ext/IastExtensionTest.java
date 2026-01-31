@@ -4,6 +4,7 @@ import static datadog.trace.plugin.csi.impl.CallSiteFactory.pointcutParser;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,13 +31,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.objectweb.asm.Type;
 
 class IastExtensionTest extends BaseCsiPluginTest {
@@ -56,14 +55,14 @@ class IastExtensionTest extends BaseCsiPluginTest {
     Files.createDirectories(srcFolder);
   }
 
-  static Stream<Arguments> testThatExtensionOnlyAppliesToIastAdvicesProvider() {
-    return Stream.of(
-        Arguments.of(CallSites.class.getName(), false),
-        Arguments.of(IastExtension.IAST_CALL_SITES_FQCN, true));
-  }
-
   @ParameterizedTest
-  @MethodSource("testThatExtensionOnlyAppliesToIastAdvicesProvider")
+  @CsvSource(
+      delimiter = '|',
+      nullValues = "null",
+      value = {
+        "datadog.trace.agent.tooling.csi.CallSites      | false",
+        "datadog.trace.agent.tooling.iast.IastCallSites | true"
+      })
   void testThatExtensionOnlyAppliesToIastAdvices(String typeName, boolean expected) {
     Type type = classNameToType(typeName);
     Type[] types = new Type[] {type};
@@ -85,9 +84,7 @@ class IastExtensionTest extends BaseCsiPluginTest {
     CallSiteSpecification spec = buildClassSpecification(IastExtensionCallSite.class);
     AdviceGenerator generator = buildAdviceGenerator(buildDir);
     CallSiteResult result = generator.generate(spec);
-    if (!result.isSuccess()) {
-      throw new IllegalArgumentException("Error with call site " + IastExtensionCallSite.class);
-    }
+    assertTrue(result.isSuccess());
     IastExtension extension = new IastExtension();
 
     extension.apply(config, result);
