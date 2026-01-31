@@ -75,5 +75,9 @@ public class EmbeddingDecorator {
           CommonTags.OUTPUT,
           String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
+
+    CreateEmbeddingResponse.Usage usage = response.usage();
+    span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
+    span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
   }
 }

@@ -64,6 +64,8 @@ class EmbeddingServiceTest extends OpenAiTest {
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "_ml_obs_metric.input_tokens" Long
+            "_ml_obs_metric.total_tokens" Long
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/embeddings"
             "openai.api_base" openAiBaseApi
