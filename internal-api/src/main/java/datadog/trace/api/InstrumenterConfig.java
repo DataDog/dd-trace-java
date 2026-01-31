@@ -690,8 +690,8 @@ public class InstrumenterConfig {
               : ConfigProvider.getInstance());
 
   public static boolean getDefaultCodeOriginForSpanEnabled() {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
-      // activate by default Code Origin only for JDK25+
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
+      // activate by default Code Origin only for JDK21+
       return true;
     }
     return false;
