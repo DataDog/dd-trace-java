@@ -143,7 +143,8 @@ public class SymDBEnablement implements ProductListener {
       try {
         jarPath = JarScanner.extractJarPath(clazz, symDBReport);
       } catch (URISyntaxException e) {
-        throw new RuntimeException(e);
+        LOGGER.debug("Failed to extract jar path for class {}", clazz.getTypeName(), e);
+        continue;
       }
       if (jarPath == null) {
         continue;
@@ -152,7 +153,11 @@ public class SymDBEnablement implements ProductListener {
         symDBReport.addMissingJar(jarPath.toString());
         continue;
       }
-      symbolAggregator.scanJar(symDBReport, jarPath, baos, buffer);
+      try {
+        symbolAggregator.scanJar(symDBReport, jarPath, baos, buffer);
+      } catch (Exception ex) {
+        LOGGER.debug("Failed to scan jar {}", jarPath, ex);
+      }
     }
   }
 }

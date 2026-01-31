@@ -1,0 +1,32 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+def minVer = '3.0.0'
+
+muzzle {
+  pass {
+    group = "com.openai"
+    module = "openai-java"
+    versions = "[$minVer,)"
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.openai', name: 'openai-java', version: minVer
+  implementation project(':internal-api')
+
+  testImplementation group: 'com.openai', name: 'openai-java', version: minVer
+  latestDepTestImplementation group: 'com.openai', name: 'openai-java', version: '+'
+
+  testImplementation project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
+
+  // Exclude the conflicting dependency to avoid NoSuchFieldError: Class okhttp3.MediaType does not have member field 'okhttp3.MediaType$Companion Companion'
+  configurations.testRuntimeClasspath {
+    exclude group: 'com.datadoghq.okhttp3'
+  }
+  configurations.latestDepTestRuntimeClasspath {
+    exclude group: 'com.datadoghq.okhttp3'
+  }
+}
+
