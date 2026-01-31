@@ -41,8 +41,20 @@ public class OpenAiDecorator extends ClientDecorator {
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
     afterStart(span);
-    span.setTag(CommonTags.OPENAI_API_BASE, clientOptions.baseUrl());
+    String baseUrl = clientOptions.baseUrl();
+    span.setTag(CommonTags.OPENAI_API_BASE, baseUrl);
+    span.setTag(CommonTags.MODEL_PROVIDER, detectProvider(baseUrl));
+    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     return span;
+  }
+
+  private String detectProvider(String baseUrl) {
+    if (baseUrl != null) {
+      String lower = baseUrl.toLowerCase();
+      if (lower.contains("azure")) return "azure_openai";
+      if (lower.contains("deepseek")) return "deepseek";
+    }
+    return "openai";
   }
 
   public void finishSpan(AgentSpan span, Throwable err) {

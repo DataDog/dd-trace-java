@@ -23,7 +23,6 @@ public class CompletionDecorator {
   public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/completions");
-    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
@@ -69,7 +68,6 @@ public class CompletionDecorator {
     String modelName = completion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
-    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
@@ -100,7 +98,6 @@ public class CompletionDecorator {
     String modelName = firstCompletion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
-    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
     for (Completion completion : completions) {

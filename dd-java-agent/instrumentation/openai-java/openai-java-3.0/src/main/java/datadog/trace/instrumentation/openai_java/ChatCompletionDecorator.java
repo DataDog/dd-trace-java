@@ -31,7 +31,6 @@ public class ChatCompletionDecorator {
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/chat/completions");
-    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
@@ -99,7 +98,6 @@ public class ChatCompletionDecorator {
     String modelName = completion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
-    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()

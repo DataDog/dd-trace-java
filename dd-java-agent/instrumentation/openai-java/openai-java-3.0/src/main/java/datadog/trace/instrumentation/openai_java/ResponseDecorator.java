@@ -37,7 +37,6 @@ public class ResponseDecorator {
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
     span.setResourceName(RESPONSES_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/responses");
-    span.setTag(CommonTags.OPENAI_REQUEST_METHOD, "POST");
     if (!llmObsEnabled) {
       return;
     }
@@ -396,7 +395,6 @@ public class ResponseDecorator {
     String modelName = extractResponseModel(response._model());
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
-    span.setTag(CommonTags.MODEL_PROVIDER, "openai");
 
     List<LLMObs.LLMMessage> outputMessages = extractResponseOutputMessages(response.output());
     if (!outputMessages.isEmpty()) {
