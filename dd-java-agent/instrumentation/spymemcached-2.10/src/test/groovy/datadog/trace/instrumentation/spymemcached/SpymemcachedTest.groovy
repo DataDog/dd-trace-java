@@ -26,7 +26,6 @@ import java.util.concurrent.locks.ReentrantLock
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.*
-import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.COMPONENT_NAME
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
 abstract class SpymemcachedTest extends VersionedNamingTestBase {
