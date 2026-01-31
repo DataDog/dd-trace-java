@@ -196,5 +196,10 @@ public final class TraceInstrumentationConfig {
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
 
+  public static final String TRACE_RESOURCE_RENAMING_ENABLED = "trace.resource.renaming.enabled";
+
+  public static final String TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT =
+      "trace.resource.renaming.always.simplified.endpoint";
+
   private TraceInstrumentationConfig() {}
 }
