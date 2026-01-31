@@ -44,26 +44,25 @@ build-exploration-tests-image:
       - "*_surefire-reports.tar.gz"
       - "*_debugger-dumps.tar.gz"
 
-# TODO fix them
-# exploration-tests-method-jsoup:
-#   needs: [ build ]
-#   dependencies:
-#     - build
-#   <<: *common-exploration-tests
-#   variables:
-#     PROJECT: jsoup
-#   script:
-#     - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
-#
-# exploration-tests-line-jsoup:
-#   needs: [ build ]
-#   dependencies:
-#     - build
-#   <<: *common-exploration-tests
-#   variables:
-#     PROJECT: jsoup
-#   script:
-#     - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+exploration-tests-method-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
+
+exploration-tests-line-jsoup:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: jsoup
+  script:
+    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_${PROJECT}.txt"
 
 exploration-tests-method-jackson-core:
   needs: [ build ]
