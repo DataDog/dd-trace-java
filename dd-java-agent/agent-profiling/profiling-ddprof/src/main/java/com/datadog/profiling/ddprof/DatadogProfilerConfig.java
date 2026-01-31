@@ -142,7 +142,25 @@ public class DatadogProfilerConfig {
         PROFILING_DATADOG_PROFILER_WALL_COLLAPSING_DEFAULT);
   }
 
+  /**
+   * Checks whether the wall-clock context filter should be used.<br>
+   * The context filter will make wall-clock profiler to pick candidate threads only from threads
+   * with attached tracing context.<br>
+   * If context filter is not used (this method returns {@literal false}) all threads will be
+   * considered for wallclock sampling.
+   *
+   * @param configProvider the associated config provider
+   * @return {@literal true} if the wallclock sampler should use context filtering, {@literal false}
+   *     otherwise
+   */
   public static boolean getWallContextFilter(ConfigProvider configProvider) {
+    // Context filtering requires tracing to be enabled - without tracing,
+    // there are no span contexts to filter on, so threads would never be added
+    // to the filter, resulting in no walltime samples.
+    boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
+    if (!isTracingEnabled) {
+      return false;
+    }
     return getBoolean(
         configProvider,
         PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
