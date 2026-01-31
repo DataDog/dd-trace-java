@@ -56,7 +56,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertChatCompletionTrace(true)
+    assertChatCompletionTrace(true, null, [stream: true])
 
     where:
     params << [chatCompletionCreateParams(false), chatCompletionCreateParams(true)]
@@ -73,7 +73,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertChatCompletionTrace(true)
+    assertChatCompletionTrace(true, null, [stream: true])
 
     where:
     params << [chatCompletionCreateParams(false), chatCompletionCreateParams(true)]
@@ -117,7 +117,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertChatCompletionTrace(true)
+    assertChatCompletionTrace(true, null, [stream: true])
 
     where:
     params << [chatCompletionCreateParams(false), chatCompletionCreateParams(true)]
@@ -135,7 +135,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertChatCompletionTrace(true)
+    assertChatCompletionTrace(true, null, [stream: true])
 
     where:
     params << [chatCompletionCreateParams(false), chatCompletionCreateParams(true)]
@@ -148,7 +148,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag)
+    assertChatCompletionTrace(false, outputTag, [:])
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -179,7 +179,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(true, outputTag)
+    assertChatCompletionTrace(true, outputTag, [stream: true])
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -207,7 +207,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.choices().size() == 3
     and:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag)
+    assertChatCompletionTrace(false, outputTag, [n:3])
     and:
     outputTag.size() == 3
     outputTag.each { msg ->
@@ -229,7 +229,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.parse().choices().size() == 3
     and:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag)
+    assertChatCompletionTrace(false, outputTag, [n:3])
     and:
     outputTag.size() == 3
     outputTag.each { msg ->
@@ -253,7 +253,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(true, outputTag)
+    assertChatCompletionTrace(true, outputTag, [stream:true, n:3])
     and:
     outputTag.size() == 3
     outputTag.each {
@@ -278,7 +278,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
     resp.choices().size() == 3
     and:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag)
+    assertChatCompletionTrace(false, outputTag, [n:3])
     and:
     outputTag.size() == 3
     outputTag.each { msg ->
@@ -291,10 +291,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   private void assertChatCompletionTrace(boolean isStreaming) {
-    assertChatCompletionTrace(isStreaming, null)
+    assertChatCompletionTrace(isStreaming, null, [:])
   }
 
-  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut) {
+  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -313,7 +313,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.span.kind" "llm"
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
-            "_ml_obs_tag.metadata" Map
+            "_ml_obs_tag.metadata" metadata
             "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List
             def outputTags = tag("_ml_obs_tag.output")

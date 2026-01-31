@@ -66,6 +66,11 @@ public class ChatCompletionDecorator {
                 metadata.put("stream_options", Collections.singletonMap("include_usage", true));
               }
             });
+    params.topP().ifPresent(v -> metadata.put("top_p", v));
+    params.frequencyPenalty().ifPresent(v -> metadata.put("frequency_penalty", v));
+    params.presencePenalty().ifPresent(v -> metadata.put("presence_penalty", v));
+    params.n().ifPresent(v -> metadata.put("n", v));
+    params.seed().ifPresent(v -> metadata.put("seed", v));
     span.setTag(CommonTags.METADATA, metadata);
   }
 
