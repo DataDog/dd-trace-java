@@ -43,7 +43,7 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   public static class SbtTaskCreationAdvice {
-    // TODO: JEP 500 - avoid mutating final fields
+    // FIX THIS
     @SuppressForbidden
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onTaskCreation(
