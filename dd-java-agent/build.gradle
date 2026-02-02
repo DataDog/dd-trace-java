@@ -67,6 +67,7 @@ dependencies {
 def generalShadowJarConfig(ShadowJar shadowJarTask) {
   shadowJarTask.with {
     mergeServiceFiles()
+    zip64 = true
 
     duplicatesStrategy = DuplicatesStrategy.FAIL
 
