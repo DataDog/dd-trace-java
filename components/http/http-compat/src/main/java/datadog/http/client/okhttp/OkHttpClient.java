@@ -8,10 +8,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.Proxy;
+import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.EventListener;
@@ -44,9 +47,30 @@ public final class OkHttpClient implements HttpClient {
   }
 
   @Override
-  public void close() {
-    this.delegate.dispatcher().executorService().shutdown();
-    this.delegate.connectionPool().evictAll();
+  public CompletableFuture<HttpResponse> executeAsync(HttpRequest request) {
+    Objects.requireNonNull(request, "request");
+
+    if (!(request instanceof OkHttpRequest)) {
+      throw new IllegalArgumentException("HttpRequest must be OkHttpRequest implementation");
+    }
+
+    okhttp3.Request okRequest = ((OkHttpRequest) request).unwrap();
+    CompletableFuture<HttpResponse> future = new CompletableFuture<>();
+
+    // Note: OkHttpListener (via EventListener) already handles HttpRequestListener callbacks
+    this.delegate.newCall(okRequest).enqueue(new Callback() {
+      @Override
+      public void onResponse(@NonNull Call call, @NonNull Response response) {
+        future.complete(OkHttpResponse.wrap(response));
+      }
+
+      @Override
+      public void onFailure(@NonNull Call call, @NonNull IOException e) {
+        future.completeExceptionally(e);
+      }
+    });
+
+    return future;
   }
 
   static class OkHttpListener extends EventListener {
@@ -107,20 +131,10 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClient.Builder connectTimeout(long timeout, TimeUnit unit) {
-      delegate.connectTimeout(timeout, unit);
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder readTimeout(long timeout, TimeUnit unit) {
-      delegate.readTimeout(timeout, unit);
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder writeTimeout(long timeout, TimeUnit unit) {
-      delegate.writeTimeout(timeout, unit);
+    public HttpClient.Builder connectTimeout(Duration timeout) {
+      delegate.connectTimeout(timeout)
+              .readTimeout(timeout)
+              .writeTimeout(timeout);
       return this;
     }
 
@@ -163,21 +177,7 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClient.Builder retryOnConnectionFailure(boolean retry) {
-      delegate.retryOnConnectionFailure(retry);
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder maxRequests(int maxRequests) {
-      Dispatcher dispatcher = new Dispatcher();
-      dispatcher.setMaxRequests(maxRequests);
-      delegate.dispatcher(dispatcher);
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder dispatcher(Executor executor) {
+    public HttpClient.Builder executor(Executor executor) {
       // OkHttp Dispatcher requires ExecutorService
       // If the executor is already an ExecutorService, use it directly
       // Otherwise, we'll set up the dispatcher with default executor
