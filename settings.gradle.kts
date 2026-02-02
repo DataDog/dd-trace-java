@@ -623,6 +623,7 @@ include(
   ":dd-java-agent:instrumentation:redisson:redisson-3.10.3",
   ":dd-java-agent:instrumentation:weaver",
   ":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0",
+  ":dd-java-agent:instrumentation:websocket:java-websocket",
   ":dd-java-agent:instrumentation:websocket:javax-websocket-1.0",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket",
   ":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10",
