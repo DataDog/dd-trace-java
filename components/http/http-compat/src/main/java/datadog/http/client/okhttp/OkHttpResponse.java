@@ -4,6 +4,7 @@ import datadog.http.client.HttpResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Set;
 import okhttp3.ResponseBody;
 
 /**
@@ -58,6 +59,11 @@ public final class OkHttpResponse implements HttpResponse {
   @Override
   public List<String> headers(String name) {
     return delegate.headers(name);
+  }
+
+  @Override
+  public Set<String> headerNames() {
+    return delegate.headers().names();
   }
 
   @Override

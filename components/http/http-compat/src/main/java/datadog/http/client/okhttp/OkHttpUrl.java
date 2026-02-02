@@ -153,6 +153,12 @@ public final class OkHttpUrl implements HttpUrl {
     }
 
     @Override
+    public HttpUrl.Builder addQueryParameter(String name, String value) {
+      this.delegate.addQueryParameter(name, value);
+      return this;
+    }
+
+    @Override
     public HttpUrl build() {
       return OkHttpUrl.wrap(this.delegate.build());
     }

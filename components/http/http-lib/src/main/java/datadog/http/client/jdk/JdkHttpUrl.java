@@ -1,5 +1,8 @@
 package datadog.http.client.jdk;
 
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -122,11 +125,11 @@ public final class JdkHttpUrl implements HttpUrl {
    * Builder for JdkHttpUrl.
    */
   public static final class Builder implements HttpUrl.Builder {
-
+    private final StringBuilder query = new StringBuilder();
+    private final StringBuilder path = new StringBuilder();
     private String scheme;
     private String host;
     private int port = -1;
-    private StringBuilder path = new StringBuilder();
 
     Builder(URI baseUri) {
       this.scheme = baseUri.getScheme();
@@ -134,6 +137,9 @@ public final class JdkHttpUrl implements HttpUrl {
       this.port = baseUri.getPort();
       if (baseUri.getPath() != null) {
         this.path.append(baseUri.getPath());
+      }
+      if (baseUri.getQuery() != null) {
+        this.query.append(baseUri.getQuery());
       }
     }
 
@@ -175,15 +181,33 @@ public final class JdkHttpUrl implements HttpUrl {
     }
 
     @Override
+    public HttpUrl.Builder addQueryParameter(String name, String value) {
+      if (name == null || name.isEmpty()) {
+        return this;
+      }
+      if (query.length() > 0) {
+        query.append('&');
+      }
+      query.append(encode(name, UTF_8));
+      if (value != null) {
+        query.append('=').append(encode(value, UTF_8));
+      }
+      return this;
+    }
+
+    @Override
     public HttpUrl build() {
       try {
-        String uriString;
-        if (port == -1) {
-          uriString = scheme + "://" + host + path;
-        } else {
-          uriString = scheme + "://" + host + ":" + port + path;
+        StringBuilder uriBuilder = new StringBuilder();
+        uriBuilder.append(scheme).append("://").append(host);
+        if (port != -1) {
+          uriBuilder.append(':').append(port);
         }
-        URI uri = new URI(uriString);
+        uriBuilder.append(path);
+        if (query.length() > 0) {
+          uriBuilder.append('?').append(query);
+        }
+        URI uri = new URI(uriBuilder.toString());
         return JdkHttpUrl.wrap(uri);
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException("Invalid URL", e);

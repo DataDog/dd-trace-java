@@ -95,6 +95,9 @@ public final class HttpProviders {
     try {
       return (HttpUrl) HTTP_URL_PARSE_METHOD.invoke(null, url);
     } catch (ReflectiveOperationException e) {
+      if (e.getCause() instanceof IllegalArgumentException) {
+        throw (IllegalArgumentException) e.getCause();
+      }
       throw new RuntimeException("Failed to call parse method", e);
     }
   }

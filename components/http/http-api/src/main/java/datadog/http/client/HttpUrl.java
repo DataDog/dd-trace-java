@@ -3,6 +3,7 @@ package datadog.http.client;
 import static java.util.Objects.requireNonNull;
 
 import java.net.URI;
+import javax.annotation.Nullable;
 
 /**
  * Abstraction for HTTP URLs, providing URL parsing, building, and manipulation capabilities.
@@ -124,6 +125,15 @@ public interface HttpUrl {
      * @return this builder
      */
     Builder addPathSegment(String segment);
+
+    /**
+     * Adds a query parameter to the URL.
+     *
+     * @param name the parameter name
+     * @param value the parameter value
+     * @return this builder
+     */
+    Builder addQueryParameter(String name, @Nullable String value);
 
     /**
      * Builds the HttpUrl.

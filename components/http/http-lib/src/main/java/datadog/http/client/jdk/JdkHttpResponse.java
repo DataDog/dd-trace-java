@@ -6,8 +6,10 @@ import datadog.http.client.HttpResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * JDK HttpClient-based implementation of HttpResponse.
@@ -60,6 +62,12 @@ public final class JdkHttpResponse implements HttpResponse {
   @Override
   public List<String> headers(String name) {
     return delegate.headers().allValues(name);
+  }
+
+  @Override
+  public Set<String> headerNames() {
+    // No internal copy and already immutable
+    return delegate.headers().map().keySet();
   }
 
   @Override

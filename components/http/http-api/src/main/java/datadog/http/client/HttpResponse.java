@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Abstraction for HTTP responses, providing access to status code, headers, and body.
@@ -45,6 +46,14 @@ public interface HttpResponse extends Closeable {
    * @return list of header values, empty if not present
    */
   List<String> headers(String name);
+
+  /**
+   * Returns all header names in this response.
+   * Header names are returned in their canonical form.
+   *
+   * @return set of header names, empty if no headers present
+   */
+  Set<String> headerNames();
 
   /**
    * Returns the response body as an InputStream.
