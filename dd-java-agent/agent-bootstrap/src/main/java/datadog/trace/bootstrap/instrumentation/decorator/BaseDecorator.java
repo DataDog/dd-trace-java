@@ -47,7 +47,7 @@ public abstract class BaseDecorator {
   private final TagMap.Entry traceAnalyticsEntry;
 
   // Deliberately not volatile, reading null and repeating the calculation is safe
-  protected TagMap.Entry cachedComponentEntry = null;
+  private TagMap.Entry cachedComponentEntry = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -74,7 +74,7 @@ public abstract class BaseDecorator {
   protected abstract CharSequence component();
 
   /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
-  final TagMap.Entry componentEntry() {
+  protected final TagMap.Entry componentEntry() {
     TagMap.Entry componentEntry = cachedComponentEntry;
     if (componentEntry == null) {
       cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
