@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader;
 
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingInputStream;
 import io.airlift.compress.zstd.ZstdOutputStream;
@@ -9,21 +10,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FrameOutputStream;
 import net.jpountz.xxhash.XXHashFactory;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
-import okio.BufferedSink;
-import okio.Okio;
-import okio.Source;
 
 /**
- * A specialized {@linkplain RequestBody} subclass performing on-the fly compression of the uploaded
- * data.
+ * A specialized {@linkplain HttpRequestBody} implementation performing on-the-fly compression of
+ * the uploaded data.
  */
-final class CompressingRequestBody extends RequestBody {
+final class CompressingRequestBody implements HttpRequestBody {
 
   /*
    * LZ4 is not available in native image.
@@ -81,7 +76,7 @@ final class CompressingRequestBody extends RequestBody {
     int backoff(int ordinal);
   }
 
-  static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
+  static final String OCTET_STREAM = "application/octet-stream";
 
   // https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md#general-structure-of-lz4-frame-format
   private static final int[] LZ4_MAGIC = new int[] {0x04, 0x22, 0x4D, 0x18};
@@ -142,19 +137,13 @@ final class CompressingRequestBody extends RequestBody {
   }
 
   @Override
-  public long contentLength() throws IOException {
+  public long contentLength() {
     // uploading chunked streaming data -> the length is unknown
     return -1;
   }
 
-  @Nullable
   @Override
-  public MediaType contentType() {
-    return OCTET_STREAM;
-  }
-
-  @Override
-  public void writeTo(BufferedSink bufferedSink) throws IOException {
+  public void writeTo(OutputStream out) throws IOException {
     Throwable lastException = null;
     boolean shouldRetry = false;
     int retry = 1;
@@ -180,8 +169,7 @@ final class CompressingRequestBody extends RequestBody {
         // Got the input stream so clear the 'lastException'
         lastException = null;
         try {
-          ByteCountingOutputStream outputStream =
-              new ByteCountingOutputStream(bufferedSink.outputStream());
+          ByteCountingOutputStream outputStream = new ByteCountingOutputStream(out);
           attemptWrite(inputStream, outputStream);
           readBytes = inputStream.getReadBytes();
           writtenBytes = outputStream.getWrittenBytes();
@@ -252,13 +240,13 @@ final class CompressingRequestBody extends RequestBody {
                         flush();
                       }
                     }))) {
-      BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
-      try (Source source = Okio.buffer(Okio.source(inputStream))) {
-        sink.writeAll(source);
+      // Copy from input stream to output stream using standard Java I/O
+      byte[] buffer = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = inputStream.read(buffer)) != -1) {
+        sinkStream.write(buffer, 0, bytesRead);
       }
-      // a bit of cargo-culting to make sure that all writes have really-really been flushed
-      sink.emit();
-      sink.flush();
+      sinkStream.flush();
     }
   }
 
