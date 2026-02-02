@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.stmt.IfStmt;
-import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.plugin.csi.AdviceGenerator;
 import datadog.trace.plugin.csi.AdviceGenerator.CallSiteResult;
 import datadog.trace.plugin.csi.PluginApplication.Configuration;

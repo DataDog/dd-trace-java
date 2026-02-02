@@ -13,7 +13,8 @@ Migrate test Groovy files to Java using JUnit 5
 When converting groovy code to java code make sure that:
 - the Java code generated is compatible with JDK 8
 - when translating Spock test, favor using `@CsvSource` with `|` delimiters
-- when converting tuples always returns object array
+- when using a `@MethodSource`, use the test method name, and suffix it with `_arguments`
+- when converting tuples, create light dedicated structure instead to keep the typing system
 - Instead of checking a state and throwing an exception, use JUnit asserts
 - Do not wrap checked exception and throwing a Runtime exception, prefer adding a throws clause at method declaration
 - Do not mark local variables `final`
