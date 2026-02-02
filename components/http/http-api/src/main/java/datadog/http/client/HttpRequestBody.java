@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Abstraction for HTTP request bodies, providing content writing capabilities.
- * This abstraction is implementation-agnostic and can be backed by either OkHttp's RequestBody
- * or JDK HttpClient's BodyPublisher.
+ * Abstraction for HTTP request bodies, providing content writing capabilities. This abstraction is
+ * implementation-agnostic and can be backed by either OkHttp's RequestBody or JDK HttpClient's
+ * BodyPublisher.
  */
 public interface HttpRequestBody {
   /**
@@ -28,8 +28,8 @@ public interface HttpRequestBody {
   void writeTo(OutputStream out) throws IOException;
 
   /**
-   * Creates a request body from a String using UTF-8 encoding.
-   * Content-Type should be set via request headers.
+   * Creates a request body from a String using UTF-8 encoding. Content-Type should be set via
+   * request headers.
    *
    * @param content the string content
    * @return a new HttpRequestBody
@@ -40,8 +40,7 @@ public interface HttpRequestBody {
   }
 
   /**
-   * Creates a request body from raw bytes.
-   * Content-Type should be set via request headers.
+   * Creates a request body from raw bytes. Content-Type should be set via request headers.
    *
    * @param bytes the string content
    * @return a new HttpRequestBody
@@ -52,8 +51,8 @@ public interface HttpRequestBody {
   }
 
   /**
-   * Creates a request body from a list of ByteBuffers.
-   * Content-Type should be set via request headers.
+   * Creates a request body from a list of ByteBuffers. Content-Type should be set via request
+   * headers.
    *
    * @param buffers the string content
    * @return a new HttpRequestBody
@@ -64,9 +63,9 @@ public interface HttpRequestBody {
   }
 
   /**
-   * Wraps a request body with gzip compression.
-   * The body is compressed eagerly and the content length reflects the compressed size.
-   * Content-Encoding header should be set to "gzip" separately via request headers.
+   * Wraps a request body with gzip compression. The body is compressed eagerly and the content
+   * length reflects the compressed size. Content-Encoding header should be set to "gzip" separately
+   * via request headers.
    *
    * @param body the body to compress
    * @return a new gzip-compressed HttpRequestBody
@@ -86,8 +85,8 @@ public interface HttpRequestBody {
   }
 
   /**
-   * Builder for creating multipart/form-data request bodies.
-   * Implements RFC 7578 multipart/form-data format.
+   * Builder for creating multipart/form-data request bodies. Implements RFC 7578
+   * multipart/form-data format.
    */
   interface MultipartBuilder {
     /**
@@ -112,8 +111,8 @@ public interface HttpRequestBody {
     MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body);
 
     /**
-     * Adds a part with custom headers (advanced usage).
-     * Use this when you need full control over part headers.
+     * Adds a part with custom headers (advanced usage). Use this when you need full control over
+     * part headers.
      *
      * @param headers map of header name to value (e.g., Content-Disposition, Content-Type)
      * @param body the part content
@@ -123,9 +122,8 @@ public interface HttpRequestBody {
     MultipartBuilder addPart(Map<String, String> headers, HttpRequestBody body);
 
     /**
-     * Returns the Content-Type header value for this multipart body.
-     * Includes the boundary parameter required for parsing.
-     * Can be called before or after build().
+     * Returns the Content-Type header value for this multipart body. Includes the boundary
+     * parameter required for parsing. Can be called before or after build().
      *
      * @return the content type string (e.g., "multipart/form-data; boundary=...")
      */

@@ -13,10 +13,7 @@ public class HttpRequestTest {
   @Test
   void testGetRequest() {
     HttpUrl url = HttpUrl.parse("http://localhost:8080/api");
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     assertNotNull(request);
     assertEquals(url, request.url());
@@ -29,10 +26,7 @@ public class HttpRequestTest {
     String payload = "{\"key\":\"value\"}";
     HttpRequestBody body = HttpRequestBody.of(payload);
 
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .post(body)
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).post(body).build();
 
     assertNotNull(request);
     assertEquals(url, request.url());
@@ -45,28 +39,20 @@ public class HttpRequestTest {
     String payload = "{\"key\":\"value\"}";
     HttpRequestBody body = HttpRequestBody.of(payload);
 
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .put(body)
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).put(body).build();
 
     assertEquals("PUT", request.method());
   }
 
   @Test
   void testWithoutMethod() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url("http://localhost:8080/test").build();
     assertEquals("GET", request.method());
   }
 
   @Test
   void testRequestWithUrlString() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url("http://localhost:8080/test").get().build();
 
     assertNotNull(request);
     assertEquals("http://localhost:8080/test", request.url().url());
@@ -74,25 +60,27 @@ public class HttpRequestTest {
 
   @Test
   void testRequestWithSingleHeader() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .header("Content-Type", "application/json")
-        .get()
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .url("http://localhost:8080/test")
+            .header("Content-Type", "application/json")
+            .get()
+            .build();
 
     assertEquals("application/json", request.header("Content-Type"));
   }
 
   @Test
   void testRequestWithMultipleHeaders() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .addHeader("X-Custom-Header", "value1")
-        .addHeader("X-Custom-Header", "value2")
-        .get()
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .url("http://localhost:8080/test")
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .addHeader("X-Custom-Header", "value1")
+            .addHeader("X-Custom-Header", "value2")
+            .get()
+            .build();
 
     assertEquals("application/json", request.header("Content-Type"));
     assertEquals("application/json", request.header("Accept"));
@@ -105,29 +93,25 @@ public class HttpRequestTest {
 
   @Test
   void testWithoutUrl() {
-    assertThrows(IllegalStateException.class, () -> HttpRequest.newBuilder()
-        .get()
-        .build());
+    assertThrows(IllegalStateException.class, () -> HttpRequest.newBuilder().get().build());
   }
 
   @Test
   void testHeaderReplacement() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .header("Content-Type", "text/plain")
-        .header("Content-Type", "application/json")
-        .get()
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .url("http://localhost:8080/test")
+            .header("Content-Type", "text/plain")
+            .header("Content-Type", "application/json")
+            .get()
+            .build();
 
     assertEquals("application/json", request.header("Content-Type"));
   }
 
   @Test
   void testMissingHeader() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url("http://localhost:8080/test").get().build();
 
     assertNull(request.header("X-Missing"));
     List<String> missing = request.headers("X-Missing");
@@ -137,19 +121,19 @@ public class HttpRequestTest {
 
   @Test
   void testEmptyHeaderValue() {
-    HttpRequest request = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test")
-        .header("X-Empty-Header", "")
-        .get()
-        .build();
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .url("http://localhost:8080/test")
+            .header("X-Empty-Header", "")
+            .get()
+            .build();
 
     assertEquals("", request.header("X-Empty-Header"));
   }
 
   @Test
   void testNullHeader() {
-    HttpRequest.Builder builder = HttpRequest.newBuilder()
-        .url("http://localhost:8080/test");
+    HttpRequest.Builder builder = HttpRequest.newBuilder().url("http://localhost:8080/test");
     assertThrows(NullPointerException.class, () -> builder.header(null, "value"));
     assertThrows(NullPointerException.class, () -> builder.header("X-Custom-Header", null));
     assertThrows(NullPointerException.class, () -> builder.addHeader(null, "value"));

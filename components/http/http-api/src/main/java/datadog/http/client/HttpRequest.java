@@ -4,9 +4,9 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Abstraction for HTTP requests, providing access to URL, method, headers, body, and tags.
- * This abstraction is implementation-agnostic and can be backed by either OkHttp's Request
- * or JDK HttpClient's HttpRequest.
+ * Abstraction for HTTP requests, providing access to URL, method, headers, body, and tags. This
+ * abstraction is implementation-agnostic and can be backed by either OkHttp's Request or JDK
+ * HttpClient's HttpRequest.
  */
 public interface HttpRequest {
   String CONTENT_TYPE = "Content-Type";
@@ -60,9 +60,7 @@ public interface HttpRequest {
     return HttpProviders.newRequestBuilder();
   }
 
-  /**
-   * Builder for constructing HttpRequest instances.
-   */
+  /** Builder for constructing HttpRequest instances. */
   interface Builder {
     /**
      * Sets the request URL.
@@ -123,7 +121,9 @@ public interface HttpRequest {
 
     /**
      * Sets the request listener.
-     * @param listener the listener to notify of request events or {@code null} to remove any existing listener.
+     *
+     * @param listener the listener to notify of request events or {@code null} to remove any
+     *     existing listener.
      * @return this builder
      */
     Builder listener(@Nullable HttpRequestListener listener);

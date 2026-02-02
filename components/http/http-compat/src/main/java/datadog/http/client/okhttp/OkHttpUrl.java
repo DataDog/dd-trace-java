@@ -4,9 +4,7 @@ import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.util.Objects;
 
-/**
- * OkHttp-based implementation of HttpUrl that wraps okhttp3.HttpUrl.
- */
+/** OkHttp-based implementation of HttpUrl that wraps okhttp3.HttpUrl. */
 public final class OkHttpUrl implements HttpUrl {
 
   private final okhttp3.HttpUrl delegate;
@@ -33,13 +31,13 @@ public final class OkHttpUrl implements HttpUrl {
 
   /**
    * Creates an HttpUrl from an URI.
+   *
    * @param uri the URI to get an HttpUrl from
    * @return the HttpUrl related to the URI
    */
   public static HttpUrl from(URI uri) {
     return wrap(okhttp3.HttpUrl.get(uri));
   }
-
 
   /**
    * Wraps an okhttp3.HttpUrl.
@@ -112,9 +110,7 @@ public final class OkHttpUrl implements HttpUrl {
     return delegate.hashCode();
   }
 
-  /**
-   * Builder for OkHttpUrl.
-   */
+  /** Builder for OkHttpUrl. */
   public static final class Builder implements HttpUrl.Builder {
 
     private final okhttp3.HttpUrl.Builder delegate;
