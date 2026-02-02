@@ -31,8 +31,6 @@ import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.MethodLocation;
-import datadog.trace.bootstrap.debugger.ProbeImplementation;
-import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -282,21 +280,22 @@ public class DefaultExceptionDebuggerTest {
 
   @Test
   public void lambdaTruncatedInnerTraceFallback() {
-    RuntimeException exception = new RuntimeException("lambda") {
-      // mock the stacktrace to simulate a truncated one
-      @Override
-      public StackTraceElement[] getStackTrace() {
-        return new StackTraceElement[] {
-            new StackTraceElement("Main", "handleRequest", "Main.java", 11),
-            new StackTraceElement(
-                "jdk.internal.reflect.DirectMethodHandleAccessor",
-                "invoke",
-                "Unknown Source",
-                -1),
-            new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
+    RuntimeException exception =
+        new RuntimeException("lambda") {
+          // mock the stacktrace to simulate a truncated one
+          @Override
+          public StackTraceElement[] getStackTrace() {
+            return new StackTraceElement[] {
+              new StackTraceElement("Main", "handleRequest", "Main.java", 11),
+              new StackTraceElement(
+                  "jdk.internal.reflect.DirectMethodHandleAccessor",
+                  "invoke",
+                  "Unknown Source",
+                  -1),
+              new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
+            };
+          }
         };
-      }
-    };
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
