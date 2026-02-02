@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -11,6 +12,7 @@ import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.http.client.HttpRequestBody;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
@@ -21,7 +23,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,9 +171,8 @@ public class ExposureWriterImpl implements ExposureWriter {
         try {
           final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
           final String reqBod = jsonAdapter.toJson(exposures);
-          final RequestBody requestBody =
-              RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
-          evp.post("exposures", requestBody, stream -> null, null, false);
+          final HttpRequestBody requestBody = HttpRequestBody.of(reqBod);
+          evp.post("exposures", APPLICATION_JSON, requestBody, stream -> null, null, false);
           this.buffer.clear();
         } catch (Exception e) {
           LOGGER.error("Could not submit exposures", e);
