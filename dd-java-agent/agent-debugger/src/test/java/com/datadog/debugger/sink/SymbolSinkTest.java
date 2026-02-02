@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import okhttp3.MediaType;
 import org.junit.jupiter.api.Test;
 
 class SymbolSinkTest {
@@ -225,7 +224,7 @@ class SymbolSinkTest {
       assertEquals("event", eventContent.getPartName());
       BatchUploader.MultiPartContent symbolContent =
           symbolUploaderMock.multiPartContents.get(i + 1);
-      assertEquals(MediaType.get("application/gzip"), symbolContent.getMediaType());
+      assertEquals("application/gzip", symbolContent.getContentType());
     }
   }
 

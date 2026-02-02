@@ -9,6 +9,7 @@ import com.datadog.debugger.symbol.ServiceVersion;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayOutputStream;
@@ -22,8 +23,6 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.zip.GZIPOutputStream;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
 import okio.BufferedSink;
 import okio.Okio;
 import org.slf4j.Logger;
@@ -143,13 +142,13 @@ public class SymbolSink {
         payload.length,
         isCompressed);
     String fileName = "file.json";
-    MediaType mediaType = APPLICATION_JSON;
+    String contentType = APPLICATION_JSON;
     if (isCompressed) {
       fileName = "file.gz";
-      mediaType = APPLICATION_GZIP;
+      contentType = APPLICATION_GZIP;
     }
     symbolUploader.uploadAsMultipart(
-        "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType));
+        "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, contentType));
   }
 
   private static byte[] compressPayload(byte[] jsonBytes) {
