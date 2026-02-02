@@ -8,17 +8,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Abstraction for HTTP clients, providing request execution capabilities.
- * This abstraction is implementation-agnostic and can be backed by either OkHttp
- * or JDK HttpClient.
+ * Abstraction for HTTP clients, providing request execution capabilities. This abstraction is
+ * implementation-agnostic and can be backed by either OkHttp or JDK HttpClient.
  *
  * <p>HttpClient instances should be reused across requests for connection pooling.
  */
 public interface HttpClient {
 
   /**
-   * Executes an HTTP request synchronously and returns the response.
-   * The caller is responsible for closing the response.
+   * Executes an HTTP request synchronously and returns the response. The caller is responsible for
+   * closing the response.
    *
    * @param request the request to execute
    * @return the HTTP response
@@ -27,13 +26,12 @@ public interface HttpClient {
   HttpResponse execute(HttpRequest request) throws IOException;
 
   /**
-   * Executes an HTTP request asynchronously and returns a CompletableFuture.
-   * The caller is responsible for closing the response.
+   * Executes an HTTP request asynchronously and returns a CompletableFuture. The caller is
+   * responsible for closing the response.
    *
-   * <p>If the request has an {@link HttpRequestListener} attached, its callbacks
-   * will be invoked: {@code onRequestStart} before the request is sent,
-   * {@code onRequestEnd} when the response is received, or {@code onRequestFailure}
-   * if an error occurs.
+   * <p>If the request has an {@link HttpRequestListener} attached, its callbacks will be invoked:
+   * {@code onRequestStart} before the request is sent, {@code onRequestEnd} when the response is
+   * received, or {@code onRequestFailure} if an error occurs.
    *
    * @param request the request to execute
    * @return a CompletableFuture that completes with the HTTP response
@@ -49,9 +47,7 @@ public interface HttpClient {
     return HttpProviders.newClientBuilder();
   }
 
-  /**
-   * Builder for constructing HttpClient instances with custom configuration.
-   */
+  /** Builder for constructing HttpClient instances with custom configuration. */
   interface Builder {
 
     /**

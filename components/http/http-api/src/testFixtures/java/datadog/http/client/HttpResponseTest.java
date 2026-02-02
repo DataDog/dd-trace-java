@@ -29,9 +29,8 @@ public class HttpResponseTest {
   @BeforeEach
   void setUp(ClientAndServer server) {
     this.server = server;
-    this.client = HttpClient.newBuilder()
-        .build();
-    this.baseUrl = "http://localhost:"+server.getPort();
+    this.client = HttpClient.newBuilder().build();
+    this.baseUrl = "http://localhost:" + server.getPort();
   }
 
   @AfterEach
@@ -41,17 +40,13 @@ public class HttpResponseTest {
 
   @Test
   void testBody() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest = request()
-        .withMethod("GET")
-        .withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest =
+        request().withMethod("GET").withPath("/test");
     String responseBody = "content";
     this.server.when(expectedRequest).respond(response().withBody(responseBody));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -67,16 +62,12 @@ public class HttpResponseTest {
 
   @Test
   void testEmptyBody() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest = request()
-        .withMethod("GET")
-        .withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest =
+        request().withMethod("GET").withPath("/test");
     this.server.when(expectedRequest).respond(response());
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -92,18 +83,14 @@ public class HttpResponseTest {
 
   @Test
   void testHeader() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest = request()
-        .withMethod("GET")
-        .withPath("/test");
-    org.mockserver.model.HttpResponse resultResponse = response()
-        .withHeader("Content-Type", "text/plain");
+    org.mockserver.model.HttpRequest expectedRequest =
+        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse =
+        response().withHeader("Content-Type", "text/plain");
     this.server.when(expectedRequest).respond(resultResponse);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -120,20 +107,17 @@ public class HttpResponseTest {
 
   @Test
   void testHeaderNames() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest = request()
-        .withMethod("GET")
-        .withPath("/test");
-    org.mockserver.model.HttpResponse resultResponse = response()
-        .withHeader("Content-Type", "application/json")
-        .withHeader("X-Custom-Header", "custom-value")
-        .withHeader("X-Another-Header", "another-value");
+    org.mockserver.model.HttpRequest expectedRequest =
+        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse =
+        response()
+            .withHeader("Content-Type", "application/json")
+            .withHeader("X-Custom-Header", "custom-value")
+            .withHeader("X-Another-Header", "another-value");
     this.server.when(expectedRequest).respond(resultResponse);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request = HttpRequest.newBuilder()
-        .url(url)
-        .get()
-        .build();
+    HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     HttpResponse response = this.client.execute(request);
 

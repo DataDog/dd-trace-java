@@ -20,8 +20,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * JDK HttpClient-based implementation of HttpRequestBody.
- * Converts HttpRequestBody to java.net.http.HttpRequest.BodyPublisher.
+ * JDK HttpClient-based implementation of HttpRequestBody. Converts HttpRequestBody to
+ * java.net.http.HttpRequest.BodyPublisher.
  */
 public final class JdkHttpRequestBody implements HttpRequestBody {
   private final HttpRequest.BodyPublisher publisher;
@@ -149,9 +149,7 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
     }
   }
 
-  /**
-   * Wraps a request body with gzip compression.
-   */
+  /** Wraps a request body with gzip compression. */
   public static JdkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
     requireNonNull(body, "body");
     // Compress the body content
@@ -164,8 +162,7 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
   }
 
   /**
-   * Multipart form data builder for JDK HttpClient.
-   * Implements RFC 7578 multipart/form-data format.
+   * Multipart form data builder for JDK HttpClient. Implements RFC 7578 multipart/form-data format.
    */
   public static final class MultipartBuilder implements HttpRequestBody.MultipartBuilder {
     private static final String CRLF = "\r\n";
@@ -254,8 +251,7 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
 
       @Override
       public void writeTo(OutputStream out) throws IOException {
-        out.write(
-            ("Content-Disposition: form-data; name=\"" + name + "\"" + CRLF).getBytes(UTF_8));
+        out.write(("Content-Disposition: form-data; name=\"" + name + "\"" + CRLF).getBytes(UTF_8));
         out.write(CRLF.getBytes(UTF_8));
         out.write(value.getBytes(UTF_8));
       }
