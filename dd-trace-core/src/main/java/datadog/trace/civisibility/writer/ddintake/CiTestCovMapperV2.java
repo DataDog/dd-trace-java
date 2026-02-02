@@ -184,8 +184,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static class PayloadV2 extends Payload {
 
     // backend requires _some_ JSON to be present
-    private static final HttpRequestBody DUMMY_JSON_BODY =
-        HttpRequestBody.of("{\"dummy\":true}");
+    private static final HttpRequestBody DUMMY_JSON_BODY = HttpRequestBody.of("{\"dummy\":true}");
 
     private final boolean compressionEnabled;
 

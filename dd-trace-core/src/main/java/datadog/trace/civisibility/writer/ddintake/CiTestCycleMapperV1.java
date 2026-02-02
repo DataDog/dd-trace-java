@@ -433,7 +433,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       } else {
         buffers = Collections.singletonList(body);
       }
-      return compressionEnabled ? HttpUtils.gzippedMsgpackRequestBodyOf(buffers) : HttpRequestBody.of(buffers);
+      return compressionEnabled
+          ? HttpUtils.gzippedMsgpackRequestBodyOf(buffers)
+          : HttpRequestBody.of(buffers);
     }
   }
 }
