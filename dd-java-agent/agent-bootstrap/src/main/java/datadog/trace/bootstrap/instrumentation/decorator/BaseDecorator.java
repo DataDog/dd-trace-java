@@ -47,7 +47,7 @@ public abstract class BaseDecorator {
   private final TagMap.Entry traceAnalyticsEntry;
 
   // Deliberately not volatile, reading null and repeating the calculation is safe
-  protected TagMap.Entry cachedComponentEntry;
+  protected TagMap.Entry cachedComponentEntry = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
