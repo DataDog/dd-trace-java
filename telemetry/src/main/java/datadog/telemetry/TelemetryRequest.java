@@ -57,7 +57,8 @@ public class TelemetryRequest {
   public HttpRequest.Builder httpRequest() {
     long bodySize = requestBody.endRequest();
 
-    HttpRequest.Builder builder = HttpRequest.newBuilder()
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
             .addHeader("Content-Type", APPLICATION_JSON)
             .addHeader("Content-Length", String.valueOf(bodySize))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)

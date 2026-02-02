@@ -73,10 +73,7 @@ public class TelemetryClient {
   private final String apiKey;
 
   public TelemetryClient(
-      HttpClient httpClient,
-      HttpRetryPolicy.Factory httpRetryPolicy,
-      HttpUrl url,
-      String apiKey) {
+      HttpClient httpClient, HttpRetryPolicy.Factory httpRetryPolicy, HttpUrl url, String apiKey) {
     this.httpClient = httpClient;
     this.httpRetryPolicy = httpRetryPolicy;
     this.url = url;
@@ -103,10 +100,7 @@ public class TelemetryClient {
         return Result.NOT_FOUND;
       }
       if (!response.isSuccessful()) {
-        log.debug(
-            "Telemetry message {} failed with: {}.",
-            requestType,
-            response.code());
+        log.debug("Telemetry message {} failed with: {}.", requestType, response.code());
         return Result.FAILURE;
       }
     } catch (InterruptedIOException e) {
