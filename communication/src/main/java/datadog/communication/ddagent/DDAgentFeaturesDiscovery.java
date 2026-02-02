@@ -204,7 +204,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private String probeTracesEndpoint(State newState, String[] endpoints) {
     for (String candidate : endpoints) {
       try {
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request =
+            HttpRequest.newBuilder()
                 .put(HttpRequestBody.of(PROBE_MESSAGE))
                 .url(agentBaseUrl.resolve(candidate))
                 .build();
