@@ -25,8 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility class for HTTP operations with generic HTTP client support.
- * Automatically selects between JDK HttpClient (Java 11+) and OkHttp based on availability.
+ * Utility class for HTTP operations with generic HTTP client support. Automatically selects between
+ * JDK HttpClient (Java 11+) and OkHttp based on availability.
  */
 public final class HttpUtils {
   private static final Logger log = LoggerFactory.getLogger(HttpUtils.class);
@@ -59,15 +59,7 @@ public final class HttpUtils {
       final String namedPipe,
       final long timeoutMillis) {
     return buildHttpClient(
-        unixDomainSocketPath,
-        namedPipe,
-        null,
-        isHttp,
-        null,
-        null,
-        null,
-        null,
-        timeoutMillis);
+        unixDomainSocketPath, namedPipe, null, isHttp, null, null, null, null, timeoutMillis);
   }
 
   public static HttpClient buildHttpClient(
@@ -183,9 +175,9 @@ public final class HttpUtils {
   }
 
   /**
-   * Creates a msgpack request body from a list of ByteBuffers.
-   * Equivalent to {@code of(buffers)} but semantically indicates msgpack content.
-   * Content-Type header should be set to "application/msgpack" separately.
+   * Creates a msgpack request body from a list of ByteBuffers. Equivalent to {@code of(buffers)}
+   * but semantically indicates msgpack content. Content-Type header should be set to
+   * "application/msgpack" separately.
    *
    * @param buffers the msgpack content as ByteBuffers
    * @return a new HttpRequestBody
@@ -196,25 +188,25 @@ public final class HttpUtils {
   }
 
   /**
-   * Creates a gzipped msgpack request body from ByteBuffers.
-   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   * Creates a gzipped msgpack request body from ByteBuffers. Uses the factory pattern to
+   * automatically select JDK or OkHttp implementation.
    */
   public static HttpRequestBody gzippedMsgpackRequestBodyOf(List<ByteBuffer> buffers) {
     return HttpRequestBody.gzip(HttpRequestBody.of(buffers));
   }
 
   /**
-   * Wraps a request body with gzip compression.
-   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
+   * Wraps a request body with gzip compression. Uses the factory pattern to automatically select
+   * JDK or OkHttp implementation.
    */
   public static HttpRequestBody gzippedRequestBodyOf(HttpRequestBody delegate) {
     return HttpRequestBody.gzip(delegate);
   }
 
   /**
-   * Creates a JSON request body from raw bytes.
-   * Uses the factory pattern to automatically select JDK or OkHttp implementation.
-   * Content-Type header should be set to "application/json" separately.
+   * Creates a JSON request body from raw bytes. Uses the factory pattern to automatically select
+   * JDK or OkHttp implementation. Content-Type header should be set to "application/json"
+   * separately.
    */
   public static HttpRequestBody jsonRequestBodyOf(byte[] json) {
     return HttpRequestBody.of(new String(json, UTF_8));
