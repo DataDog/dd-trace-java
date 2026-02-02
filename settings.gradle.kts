@@ -482,6 +482,7 @@ include(
   ":dd-java-agent:instrumentation:ognl-appsec-3.3.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
+  ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",

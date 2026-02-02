@@ -16,6 +16,7 @@ import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
 import datadog.trace.api.aiguard.AIGuard.Action;
+import datadog.trace.api.aiguard.AIGuard.ContentPart;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
 import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.Options;
@@ -136,16 +137,37 @@ public class AIGuardInternal implements Evaluator {
     boolean contentTruncated = false;
     for (int i = messages.size() - size; i < messages.size(); i++) {
       final Message source = messages.get(i);
-      String content = source.getContent();
-      if (content != null && content.length() > maxContent) {
-        contentTruncated = true;
-        content = content.substring(0, maxContent);
-      }
+
       List<ToolCall> toolCalls = source.getToolCalls();
       if (toolCalls != null) {
         toolCalls = new ArrayList<>(toolCalls);
       }
-      result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
+
+      List<ContentPart> contentParts = source.getContentParts();
+      if (contentParts != null) {
+        final List<ContentPart> truncatedParts = new ArrayList<>(contentParts.size());
+        for (final ContentPart part : contentParts) {
+          if (part.getType() == ContentPart.Type.TEXT
+              && part.getText() != null
+              && part.getText().length() > maxContent) {
+            contentTruncated = true;
+            final String text = part.getText().substring(0, maxContent);
+            truncatedParts.add(ContentPart.text(text));
+          } else {
+            truncatedParts.add(part);
+          }
+        }
+
+        result.add(
+            new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
+      } else {
+        String content = source.getContent();
+        if (content != null && content.length() > maxContent) {
+          contentTruncated = true;
+          content = content.substring(0, maxContent);
+        }
+        result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
+      }
     }
     if (contentTruncated) {
       WafMetricCollector.get().aiGuardTruncated(CONTENT);
@@ -333,10 +355,43 @@ public class AIGuardInternal implements Evaluator {
     public void toJson(final JsonWriter writer, final Message value) throws IOException {
       writer.beginObject();
       writeValue(writer, "role", value.getRole());
-      writeValue(writer, "content", value.getContent());
+
+      if (value.getContentParts() != null) {
+        writeContentParts(writer, "content", value.getContentParts());
+      } else {
+        writeValue(writer, "content", value.getContent());
+      }
+
       writeArray(writer, "tool_calls", value.getToolCalls());
       writeValue(writer, "tool_call_id", value.getToolCallId());
       writer.endObject();
+    }
+
+    private void writeContentParts(
+        final JsonWriter writer, final String name, final List<ContentPart> contentParts)
+        throws IOException {
+      writer.name(name);
+      writer.beginArray();
+      for (final ContentPart part : contentParts) {
+        writer.beginObject();
+
+        writer.name("type");
+        writer.value(part.getType().toString());
+
+        if (part.getType() == ContentPart.Type.TEXT) {
+          writer.name("text");
+          writer.value(part.getText());
+        } else if (part.getType() == ContentPart.Type.IMAGE_URL) {
+          writer.name("image_url");
+          writer.beginObject();
+          writer.name("url");
+          writer.value(part.getImageUrl().getUrl());
+          writer.endObject();
+        }
+
+        writer.endObject();
+      }
+      writer.endArray();
     }
 
     private void writeValue(final JsonWriter writer, final String name, final Object value)
