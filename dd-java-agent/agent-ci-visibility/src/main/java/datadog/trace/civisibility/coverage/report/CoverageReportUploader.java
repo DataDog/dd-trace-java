@@ -46,7 +46,8 @@ public class CoverageReportUploader {
     event.put("format", format);
     event.put("type", "coverage_report");
     String eventJson = eventAdapter.toJson(event);
-    HttpRequestBody eventBody = HttpUtils.jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
+    HttpRequestBody eventBody =
+        HttpUtils.jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
 
     HttpRequestBody coverageBody = new GzipStreamRequestBody(reportStream);
 
