@@ -31,7 +31,7 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
     def latch = new CountDownLatch(1)
     def listener = new BlockingListener(latch)
     def agentUrl = Config.get().getAgentUrl()
-    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(HttpUrl.parse(agentUrl), 5000L), agentUrl, DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT, true, false, [:])
+    OkHttpSink sink = new OkHttpSink(OkHttpUtils.buildHttpClient(HttpUrl.parse(agentUrl), 5000L), agentUrl, DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT, true, false, [:])
     sink.register(listener)
 
     when:

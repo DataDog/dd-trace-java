@@ -15,8 +15,10 @@ import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+import datadog.trace.common.writer.ddagent.TraceMapperV1_0
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
@@ -76,7 +78,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces", "v1/traces"]
   }
 
   def "non-200 response"() {
@@ -425,13 +427,26 @@ class DDAgentApiTest extends DDCoreSpecification {
   Payload prepareTraces(String agentVersion, List<List<DDSpan>> traces) {
     Traces traceCapture = new Traces()
     def packer = new MsgPackWriter(new FlushingBuffer(1 << 20, traceCapture))
-    def traceMapper = agentVersion.equals("v0.5/traces")
-      ? new TraceMapperV0_5()
-      : new TraceMapperV0_4()
+
+    TraceMapper traceMapper
+    switch (agentVersion) {
+      case "v1/traces":
+        traceMapper = new TraceMapperV1_0()
+        break
+
+      case "v0.5/traces":
+        traceMapper = new TraceMapperV0_5()
+        break
+
+      default:
+        traceMapper = new TraceMapperV0_4()
+    }
+
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }
     packer.flush()
+
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount,
       traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
@@ -451,7 +466,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   def createAgentApi(String url) {
     HttpUrl agentUrl = HttpUrl.get(url)
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 }

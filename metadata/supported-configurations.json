@@ -3937,6 +3937,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_AGENT_V1_0_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_AKKA_ACTOR_ENABLED": [
       {
         "version": "A",

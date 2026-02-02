@@ -38,6 +38,7 @@ public class DDAgentWriter extends RemoteWriter {
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
+    boolean traceAgentV1Enabled = Config.get().isTraceAgentV1_0Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -143,7 +144,12 @@ public class DDAgentWriter extends RemoteWriter {
       if (null == featureDiscovery) {
         featureDiscovery =
             new DDAgentFeaturesDiscovery(
-                client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
+                client,
+                monitoring,
+                agentUrl,
+                traceAgentV05Enabled,
+                traceAgentV1Enabled,
+                metricsReportingEnabled);
       }
       if (null == agentApi) {
         agentApi =

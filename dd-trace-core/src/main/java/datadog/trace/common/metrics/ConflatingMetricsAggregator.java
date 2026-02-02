@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
@@ -115,7 +115,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         new OkHttpSink(
             sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
-            V6_METRICS_ENDPOINT,
+            V06_METRICS_ENDPOINT,
             config.isTracerMetricsBufferingEnabled(),
             false,
             DEFAULT_HEADERS),

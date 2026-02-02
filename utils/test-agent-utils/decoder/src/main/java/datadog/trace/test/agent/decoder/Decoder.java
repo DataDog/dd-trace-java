@@ -2,6 +2,7 @@ package datadog.trace.test.agent.decoder;
 
 import datadog.trace.test.agent.decoder.v04.raw.MessageV04;
 import datadog.trace.test.agent.decoder.v05.raw.MessageV05;
+import datadog.trace.test.agent.decoder.v1_0.raw.MessageV1_0;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,6 +19,10 @@ public class Decoder {
 
   public static DecodedMessage decodeV04(byte[] buffer) {
     return MessageV04.unpack(buffer);
+  }
+
+  public static DecodedMessage decodeV1(byte[] buffer) {
+    return MessageV1_0.unpack(buffer);
   }
 
   public static List<DecodedSpan> sortByStart(Collection<DecodedSpan> spans) {

@@ -174,6 +174,7 @@ public class SharedCommunicationObjects {
                   monitoring,
                   agentUrl,
                   config.isTraceAgentV05Enabled(),
+                  config.isTraceAgentV1_0Enabled(),
                   config.isTracerMetricsEnabled());
 
           if (paused) {

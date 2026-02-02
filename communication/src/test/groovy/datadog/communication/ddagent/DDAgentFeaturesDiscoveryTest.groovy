@@ -1,9 +1,20 @@
 package datadog.communication.ddagent
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V04_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V05_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V07_CONFIG_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V1_0_ENDPOINT
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
+
 import datadog.common.container.ContainerInfo
 import datadog.metrics.api.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
+import java.nio.file.Files
+import java.nio.file.Paths
 import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -14,15 +25,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
 import spock.lang.Shared
-
-import java.nio.file.Files
-import java.nio.file.Paths
-
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -50,20 +52,20 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, v05Enabled, v1_0Enabled, true)
 
     when: "/info available"
     features.discover()
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == expectedTraceEndpoint
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
-    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.getConfigEndpoint() == V07_CONFIG_ENDPOINT
     features.supportsDebugger()
     features.getDebuggerSnapshotEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
@@ -74,12 +76,19 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsLongRunning()
     !features.supportsTelemetryProxy()
     0 * _
+
+    where:
+    v05Enabled | v1_0Enabled | expectedTraceEndpoint
+    false      | false       | V04_ENDPOINT
+    true       | false       | V05_ENDPOINT
+    false      | true        | V1_0_ENDPOINT
+    true       | true        | V1_0_ENDPOINT
   }
 
   def "Should change discovery state atomically after discovery happened"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
@@ -105,7 +114,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with discoverIfOutdated"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info available"
     features.discoverIfOutdated()
@@ -114,13 +123,13 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
-    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.getConfigEndpoint() == V07_CONFIG_ENDPOINT
     features.supportsDebugger()
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
@@ -133,16 +142,16 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with client dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
     0 * _
   }
@@ -151,16 +160,16 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with data streams unavailable"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITHOUT_DATA_STREAMS_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.getDataStreamsEndpoint() == null
     !features.supportsDataStreams()
     features.state() == INFO_WITHOUT_DATA_STREAMS_STATE
@@ -170,7 +179,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with long running spans available"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
@@ -184,7 +193,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -197,7 +206,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.3/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -206,7 +215,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and agent returns ok"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -217,7 +226,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -226,7 +235,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 disabled"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -247,7 +256,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 unavailable agent side"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -268,7 +277,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback on very old agent"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -290,7 +299,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "disabling metrics disables metrics and dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, false)
 
     when: "/info unavailable"
     features.discover()
@@ -326,7 +335,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "discovery of metrics endpoint after agent upgrade enables dropping and metrics"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -354,7 +363,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "disappearance of info endpoint after agent downgrade disables metrics and dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, false, true)
 
     when: "/info available"
     features.discover()
@@ -383,7 +392,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "disappearance of metrics endpoint after agent downgrade disables metrics and dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, false, true)
 
     when: "/info available"
     features.discover()
@@ -413,7 +422,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with telemetry proxy"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
@@ -430,7 +439,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with old EVP proxy"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "/info available"
     features.discover()
@@ -449,7 +458,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with peer tag back propagation"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
 
     when: "/info available"
     features.discover()
@@ -482,7 +491,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test metrics disabled for agent version below 7.65"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "agent version is below 7.65"
     features.discover()
@@ -499,7 +508,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
       """
       infoResponse(request, response)
     }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     features.supportsMetrics() == expected
 
     where:
@@ -516,7 +525,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test metrics disabled for agent with unparseable version"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
 
     when: "agent version is unparseable"
     features.discover()
@@ -542,7 +551,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "should send container id as header on the info request and parse the hash in the response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, true)
     def oldContainerId = ContainerInfo.get().getContainerId()
     def oldContainerTagsHash = ContainerInfo.get().getContainerTagsHash()
     ContainerInfo.get().setContainerId("test")

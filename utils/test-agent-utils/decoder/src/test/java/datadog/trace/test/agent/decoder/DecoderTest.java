@@ -90,6 +90,43 @@ public class DecoderTest {
   }
 
   @Test
+  public void decodeV1_0() throws Throwable {
+    byte[] buffer = readResourceFile("/sample_v1_0.msgpack");
+
+    DecodedMessage message = Decoder.decodeV1(buffer);
+    List<DecodedTrace> traces = message.getTraces();
+    assertEquals(1, traces.size());
+    List<DecodedSpan> spans = traces.get(0).getSpans();
+    assertEquals(2, spans.size());
+    List<DecodedSpan> sorted = Decoder.sortByStart(spans);
+
+    DecodedSpan first = sorted.get(0);
+    long traceId = first.getTraceId();
+    validateSpan(
+        first,
+        traceId,
+        0,
+        "netty.request",
+        "GET /hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "netty"),
+        singletonMap("_dd.agent_psr", 1.0));
+
+    DecodedSpan second = sorted.get(1);
+    validateSpan(
+        second,
+        traceId,
+        first.getSpanId(),
+        "WebController.hello",
+        "WebController.hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "spring-webflux-controller"),
+        singletonMap("_dd.measured", 1));
+  }
+
+  @Test
   public void sortByStart() throws Throwable {
     byte[] buffer = readResourceFile("/greeting.msgpack");
     DecodedMessage message = Decoder.decode(buffer);

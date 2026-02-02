@@ -46,12 +46,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
-  public static final String V3_ENDPOINT = "v0.3/traces";
-  public static final String V4_ENDPOINT = "v0.4/traces";
-  public static final String V5_ENDPOINT = "v0.5/traces";
+  public static final String V03_ENDPOINT = "v0.3/traces";
+  public static final String V04_ENDPOINT = "v0.4/traces";
+  public static final String V05_ENDPOINT = "v0.5/traces";
+  public static final String V1_0_ENDPOINT = "v1/traces";
 
-  public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
-  public static final String V7_CONFIG_ENDPOINT = "v0.7/config";
+  public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
+  public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
@@ -72,8 +73,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
-  private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
+  private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
+  private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
@@ -107,14 +108,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
+      boolean enableV1_0Traces,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
-        enableV05Traces
-            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
-            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+        enableV1_0Traces
+            ? new String[] {V1_0_ENDPOINT, V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+            : (enableV05Traces
+                ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+                : new String[] {V04_ENDPOINT, V03_ENDPOINT});
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -217,7 +221,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint(candidate, e);
       }
     }
-    return V3_ENDPOINT;
+    return V03_ENDPOINT;
   }
 
   private void processInfoResponseHeaders(Response response) {

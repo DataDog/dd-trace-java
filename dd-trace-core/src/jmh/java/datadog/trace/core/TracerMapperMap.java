@@ -8,6 +8,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
+import datadog.trace.common.writer.ddagent.TraceMapperV1_0;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -20,11 +21,12 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
 public class TracerMapperMap {
-
   private static final int SPAN_COUNT = 1000;
 
   private static final TraceMapperV0_4 mapperV4 = new TraceMapperV0_4();
   private static final TraceMapperV0_5 mapperV5 = new TraceMapperV0_5();
+  private static final TraceMapperV1_0 mapperV1 = new TraceMapperV1_0();
+
   private static final CoreTracer tracer =
       CoreTracer.builder().writer(new LoggingWriter()).strictTraceWrites(true).build();
 
@@ -85,6 +87,26 @@ public class TracerMapperMap {
   @Benchmark
   public void mapEnrichedTracesWithOriginV5() {
     mapperV5.map(enrichedSpansWithOrigin, writer);
+  }
+
+  @Benchmark
+  public void mapTracesV1() {
+    mapperV1.map(spans, writer);
+  }
+
+  @Benchmark
+  public void mapEnrichedTracesV1() {
+    mapperV1.map(enrichedSpans, writer);
+  }
+
+  @Benchmark
+  public void mapTracesWithOriginV1() {
+    mapperV1.map(spansWithOrigin, writer);
+  }
+
+  @Benchmark
+  public void mapEnrichedTracesWithOriginV1() {
+    mapperV1.map(enrichedSpansWithOrigin, writer);
   }
 
   private DDSpan createEnrichedSpanWithOrigin(int iter, final String origin) {
