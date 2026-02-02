@@ -1,5 +1,6 @@
 package datadog.http.client.jdk;
 
+import static java.net.Proxy.Type.DIRECT;
 import static java.net.http.HttpResponse.BodyHandlers.ofInputStream;
 import static java.util.Objects.requireNonNull;
 
@@ -131,23 +132,22 @@ public final class JdkHttpClient implements HttpClient {
       this.delegate = java.net.http.HttpClient.newBuilder();
     }
 
-    Builder(java.net.http.HttpClient.Builder delegate) {
-      this.delegate = requireNonNull(delegate, "delegate");
-    }
-
     @Override
     public HttpClient.Builder connectTimeout(Duration timeout) {
-      delegate.connectTimeout(timeout);
+      requireNonNull(timeout, "timeout");
+      if (timeout.compareTo(Duration.ZERO) > 0) {
+        this.delegate.connectTimeout(timeout);
+      }
       return this;
     }
 
     @Override
     public HttpClient.Builder proxy(Proxy proxy) {
-      if (proxy == null || proxy.type() == Proxy.Type.DIRECT) {
-        delegate.proxy(ProxySelector.getDefault());
+      if (proxy == null || proxy.type() == DIRECT) {
+        this.delegate.proxy(ProxySelector.getDefault());
       } else {
         InetSocketAddress address = (InetSocketAddress) proxy.address();
-        delegate.proxy(ProxySelector.of(address));
+        this.delegate.proxy(ProxySelector.of(address));
       }
       return this;
     }
