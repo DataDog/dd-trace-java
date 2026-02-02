@@ -1,9 +1,11 @@
 package datadog.trace.api.git;
 
+import datadog.trace.api.DDTags;
+import datadog.trace.api.TagMap;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Objects;
 
-public class GitInfo {
-
+public final class GitInfo {
   public static final GitInfo NOOP = new GitInfo(null, null, null, CommitInfo.NOOP);
 
   private final String repositoryURL;
@@ -11,11 +13,18 @@ public class GitInfo {
   private final String tag;
   private final CommitInfo commit;
 
+  private final TagMap.Entry repositoryEntry;
+  private final TagMap.Entry commitEntry;
+
   public GitInfo(String repositoryURL, String branch, String tag, CommitInfo commit) {
     this.repositoryURL = repositoryURL;
     this.branch = branch;
     this.tag = tag;
     this.commit = commit;
+
+    // GitInfo is reused across many traces, so create entries once and reuse them (see addTags)
+    this.repositoryEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_REPOSITORY_URL, repositoryURL);
+    this.commitEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_COMMIT_SHA, commit.getSha());
   }
 
   public String getRepositoryURL() {
@@ -32,6 +41,11 @@ public class GitInfo {
 
   public CommitInfo getCommit() {
     return commit;
+  }
+
+  public void addTags(AgentSpan span) {
+    span.setTag(this.repositoryEntry);
+    span.setTag(this.commitEntry);
   }
 
   public boolean isEmpty() {
