@@ -72,7 +72,8 @@ public class TelemetryListener implements HttpRequestListener {
       }
 
       if (responseBytesMetric != null) {
-        boolean responseCompressed = GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
+        boolean responseCompressed =
+            GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
         try {
           int contentLength = Integer.parseInt(response.header("Content-Length"));
           metricCollector.add(
