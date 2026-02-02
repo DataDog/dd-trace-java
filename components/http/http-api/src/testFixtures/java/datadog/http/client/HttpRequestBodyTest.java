@@ -112,8 +112,7 @@ public class HttpRequestBodyTest {
     HttpRequestBody fileBody = HttpRequestBody.of("content");
     assertThrows(
         NullPointerException.class, () -> builder.addFormDataPart(null, "file.txt", fileBody));
-    assertThrows(
-        NullPointerException.class, () -> builder.addFormDataPart("name", null, fileBody));
+    assertThrows(NullPointerException.class, () -> builder.addFormDataPart("name", null, fileBody));
     assertThrows(
         NullPointerException.class, () -> builder.addFormDataPart("name", "file.txt", null));
 

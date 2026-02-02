@@ -7,17 +7,18 @@ import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.util.List;
 
-/**
- * JDK HttpClient-based implementation of HttpRequest.
- */
+/** JDK HttpClient-based implementation of HttpRequest. */
 public final class JdkHttpRequest implements HttpRequest {
   final java.net.http.HttpRequest delegate;
+
   /** The request body, {@code null} if no body is set. */
   private final HttpRequestBody body;
+
   /** The request listener, {@code null} if no listener is set. */
   HttpRequestListener listener;
 
-  private JdkHttpRequest(java.net.http.HttpRequest delegate, HttpRequestBody body, HttpRequestListener listener) {
+  private JdkHttpRequest(
+      java.net.http.HttpRequest delegate, HttpRequestBody body, HttpRequestListener listener) {
     this.delegate = delegate;
     this.body = body;
     this.listener = listener;
@@ -34,7 +35,7 @@ public final class JdkHttpRequest implements HttpRequest {
     if (jdkRequest == null) {
       return null;
     }
-    return new JdkHttpRequest(jdkRequest,  null,null);
+    return new JdkHttpRequest(jdkRequest, null, null);
   }
 
   /**
@@ -71,9 +72,7 @@ public final class JdkHttpRequest implements HttpRequest {
     return this.body;
   }
 
-  /**
-   * Builder for JdkHttpRequest.
-   */
+  /** Builder for JdkHttpRequest. */
   public static final class Builder implements HttpRequest.Builder {
     private final java.net.http.HttpRequest.Builder delegate;
     private HttpRequestBody body;
@@ -108,7 +107,8 @@ public final class JdkHttpRequest implements HttpRequest {
     @Override
     public HttpRequest.Builder post(HttpRequestBody body) {
       if (!(body instanceof JdkHttpRequestBody)) {
-        throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
+        throw new IllegalArgumentException(
+            "HttpRequestBody must be JdkHttpRequestBody implementation");
       }
       this.body = body;
       this.delegate.POST(((JdkHttpRequestBody) body).publisher());
@@ -118,7 +118,8 @@ public final class JdkHttpRequest implements HttpRequest {
     @Override
     public HttpRequest.Builder put(HttpRequestBody body) {
       if (!(body instanceof JdkHttpRequestBody)) {
-        throw new IllegalArgumentException("HttpRequestBody must be JdkHttpRequestBody implementation");
+        throw new IllegalArgumentException(
+            "HttpRequestBody must be JdkHttpRequestBody implementation");
       }
       this.body = body;
       this.delegate.PUT(((JdkHttpRequestBody) body).publisher());

@@ -6,9 +6,9 @@ import java.net.URI;
 import javax.annotation.Nullable;
 
 /**
- * Abstraction for HTTP URLs, providing URL parsing, building, and manipulation capabilities.
- * This abstraction is implementation-agnostic and can be backed by either OkHttp's HttpUrl
- * or java.net.URI.
+ * Abstraction for HTTP URLs, providing URL parsing, building, and manipulation capabilities. This
+ * abstraction is implementation-agnostic and can be backed by either OkHttp's HttpUrl or
+ * java.net.URI.
  */
 public interface HttpUrl {
 
@@ -34,8 +34,8 @@ public interface HttpUrl {
   String host();
 
   /**
-   * Returns the port of this URL. Returns the default port for the scheme if not explicitly set
-   * (80 for http, 443 for https).
+   * Returns the port of this URL. Returns the default port for the scheme if not explicitly set (80
+   * for http, 443 for https).
    *
    * @return the port number
    */
@@ -71,6 +71,7 @@ public interface HttpUrl {
 
   /**
    * Creates an HttpUrl from an URI.
+   *
    * @param uri the URI to get an HttpUrl from
    * @return the HttpUrl related to the URI
    */
@@ -78,7 +79,6 @@ public interface HttpUrl {
     requireNonNull(uri, "uri");
     return HttpProviders.httpUrlFrom(uri);
   }
-
 
   /**
    * Creates a new builder for constructing URLs.
@@ -89,9 +89,7 @@ public interface HttpUrl {
     return HttpProviders.newUrlBuilder();
   }
 
-  /**
-   * Builder for constructing HttpUrl instances.
-   */
+  /** Builder for constructing HttpUrl instances. */
   interface Builder {
 
     /**

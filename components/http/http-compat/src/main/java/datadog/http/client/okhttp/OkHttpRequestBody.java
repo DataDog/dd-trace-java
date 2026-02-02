@@ -17,8 +17,7 @@ import okio.Buffer;
 import okio.BufferedSink;
 
 /**
- * OkHttp-based implementation of HttpRequestBody.
- * Converts HttpRequestBody to okhttp3.RequestBody.
+ * OkHttp-based implementation of HttpRequestBody. Converts HttpRequestBody to okhttp3.RequestBody.
  */
 public final class OkHttpRequestBody implements HttpRequestBody {
   private final okhttp3.RequestBody delegate;
@@ -127,9 +126,7 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     }
   }
 
-  /**
-   * Wraps a request body with gzip compression.
-   */
+  /** Wraps a request body with gzip compression. */
   public static OkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
     requireNonNull(body, "body");
 
@@ -143,9 +140,7 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     return new OkHttpRequestBody(RequestBody.create(null, compressedBytes));
   }
 
-  /**
-   * Adapter to convert HttpRequestBody to OkHttp RequestBody.
-   */
+  /** Adapter to convert HttpRequestBody to OkHttp RequestBody. */
   private static final class HttpRequestBodyAdapter extends RequestBody {
     private final HttpRequestBody body;
 
@@ -169,10 +164,7 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     }
   }
 
-  /**
-   * OkHttp-based implementation of MultipartBuilder.
-   * Wraps okhttp3.MultipartBody.Builder.
-   */
+  /** OkHttp-based implementation of MultipartBuilder. Wraps okhttp3.MultipartBody.Builder. */
   public static final class MultipartBuilder implements HttpRequestBody.MultipartBuilder {
     private final MultipartBody.Builder delegate;
 
