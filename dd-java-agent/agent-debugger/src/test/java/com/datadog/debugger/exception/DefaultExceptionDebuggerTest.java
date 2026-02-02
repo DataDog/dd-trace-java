@@ -282,74 +282,39 @@ public class DefaultExceptionDebuggerTest {
 
   @Test
   public void lambdaTruncatedInnerTraceFallback() {
+    RuntimeException exception = new RuntimeException("lambda") {
+      // mock the stacktrace to simulate a truncated one
+      @Override
+      public StackTraceElement[] getStackTrace() {
+        return new StackTraceElement[] {
+            new StackTraceElement("Main", "handleRequest", "Main.java", 11),
+            new StackTraceElement(
+                "jdk.internal.reflect.DirectMethodHandleAccessor",
+                "invoke",
+                "Unknown Source",
+                -1),
+            new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
+        };
+      }
+    };
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
     AgentSpan span = mock(AgentSpan.class);
     doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
     when(span.getTag(anyString())).thenAnswer(inv -> spanTags.get(inv.getArgument(0)));
     when(span.getTags()).thenReturn(spanTags);
-
-    // Create an exception with a real truncated stack trace from Lambda
-    RuntimeException lambdaException =
-        new RuntimeException("lambda") {
-          @Override
-          public StackTraceElement[] getStackTrace() {
-            return new StackTraceElement[] {
-              new StackTraceElement("Main", "handleRequest", "Main.java", 11),
-              new StackTraceElement(
-                  "jdk.internal.reflect.DirectMethodHandleAccessor",
-                  "invoke",
-                  "Unknown Source",
-                  -1),
-              new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
-            };
-          }
-        };
-
-    // Set up the snapshot with a longer stack to represent original data
-    List<CapturedStackFrame> snapshotStack = new ArrayList<>();
-    snapshotStack.add(
-        CapturedStackFrame.from(new StackTraceElement("Main", "handleRequest", "Main.java", 11)));
-    for (int i = 0; i < 5; i++) {
-      snapshotStack.add(
-          CapturedStackFrame.from(
-              new StackTraceElement("Lambda.Frame" + i, "method", "Lambda.java", 100 + i)));
-    }
-
-    // Mock snapshot
-    Snapshot mockSnapshot = mock(Snapshot.class);
-    when(mockSnapshot.getId()).thenReturn("test-snapshot-id");
-    when(mockSnapshot.getStack()).thenReturn(snapshotStack);
-    when(mockSnapshot.getChainedExceptionIdx()).thenReturn(0);
-
-    // Mock probe
-    ProbeLocation mockLocation = mock(ProbeLocation.class);
-    when(mockLocation.getType()).thenReturn("Main");
-    when(mockLocation.getMethod()).thenReturn("handleRequest");
-    ProbeImplementation mockProbe = mock(ProbeImplementation.class);
-    when(mockProbe.getLocation()).thenReturn(mockLocation);
-    when(mockSnapshot.getProbe()).thenReturn(mockProbe);
-
-    // Mock exception state
-    ExceptionProbeManager.ThrowableState state = mock(ExceptionProbeManager.ThrowableState.class);
-    when(state.getSnapshots()).thenReturn(singletonList(mockSnapshot));
-    when(state.getExceptionId()).thenReturn("test-exception-id");
-    when(state.isSnapshotSent()).thenReturn(false);
-
-    // Create mock manager that returns our state
-    ExceptionProbeManager mockManager = mock(ExceptionProbeManager.class);
-    when(mockManager.isAlreadyInstrumented(anyString())).thenReturn(true);
-    when(mockManager.getStateByThrowable(lambdaException)).thenReturn(state);
-
-    DefaultExceptionDebugger testDebugger =
-        new DefaultExceptionDebugger(
-            mockManager, configurationUpdater, classNameFiltering, 100, 3, true);
-
-    // Test
-    testDebugger.handleException(lambdaException, span);
-
-    // Verify
+    exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
+    generateSnapshots(exception);
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception);
+    List<Snapshot> snapshots = state.getSnapshots();
+    // This should hit the `currentIdx < 0` branch and fallback to i=0
+    exceptionDebugger.handleException(exception, span);
     String tagName = String.format(SNAPSHOT_ID_TAG_FMT, 0);
     assertTrue(spanTags.containsKey(tagName));
-    assertEquals("test-snapshot-id", spanTags.get(tagName));
+    assertEquals(snapshots.get(0).getId(), spanTags.get(tagName));
   }
 
   private Object recordTags(InvocationOnMock invocationOnMock) {
