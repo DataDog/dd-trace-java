@@ -5705,6 +5705,11 @@ public class Config {
     return INSTANCE;
   }
 
+  public static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
+  }
+
   /**
    * This method is deprecated since the method of configuration will be changed in the future. The
    * properties instance should instead be passed directly into the DDTracer builder:
