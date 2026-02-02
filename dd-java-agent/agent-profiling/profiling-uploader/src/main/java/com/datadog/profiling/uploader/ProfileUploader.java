@@ -15,7 +15,9 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.squareup.moshi.JsonAdapter;
@@ -25,6 +27,7 @@ import datadog.common.container.ServerlessInfo;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.HttpUtils;
 import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpResponse;
 import datadog.http.client.HttpUrl;
@@ -50,12 +53,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -67,7 +73,7 @@ import org.slf4j.LoggerFactory;
 public final class ProfileUploader {
 
   private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
-  private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
+  private static final String APPLICATION_JSON = "application/json";
   private static final int TERMINATION_TIMEOUT_SEC = 5;
 
   static final int MAX_RUNNING_REQUESTS = 10;
@@ -91,27 +97,14 @@ public final class ProfileUploader {
 
   private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
 
-  private static final Map<String, String> EVENT_HEADER =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
-
-  private static final Headers V4_DATA_HEADERS =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\""
-              + V4_ATTACHMENT_NAME
-              + "\"; filename=\""
-              + V4_ATTACHMENT_FILENAME
-              + "\"");
-
   static final String SERVELESS_TAG = "functionname";
 
   private final Config config;
   private final ConfigProvider configProvider;
 
-  private final ExecutorService okHttpExecutorService;
+  private final ExecutorService executorService;
   private final HttpClient client;
+  private final AtomicInteger queuedRequestsCount = new AtomicInteger(0);
   private final IOLogger ioLogger;
   private final boolean agentless;
   private final boolean summaryOn413;
@@ -181,23 +174,21 @@ public final class ProfileUploader {
             quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
     uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
 
-    // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
+    // Thread pool for async request execution
+    executorService =
         new ThreadPoolExecutor(
             0,
-            Integer.MAX_VALUE,
+            MAX_RUNNING_REQUESTS,
             60,
-            TimeUnit.SECONDS,
+            SECONDS,
             new SynchronousQueue<>(),
             new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
     client =
         HttpUtils.buildHttpClient(
             config,
-            okHttpExecutorService,
+            executorService,
             url,
-            true,
-            MAX_RUNNING_REQUESTS,
             config.getProfilingProxyHost(),
             config.getProfilingProxyPort(),
             config.getProfilingProxyUsername(),
@@ -222,7 +213,7 @@ public final class ProfileUploader {
    *
    * @param type {@link RecordingType recording type}
    * @param data {@link RecordingData recording data}
-   * @param sync {@link boolean uploading synchronously}
+   * @param sync uploading synchronously
    */
   public void upload(final RecordingType type, final RecordingData data, final boolean sync) {
     upload(type, data, sync, () -> {});
@@ -248,7 +239,7 @@ public final class ProfileUploader {
    *
    * @param type {@link RecordingType recording type}
    * @param data {@link RecordingData recording data}
-   * @param sync {@link boolean uploading synchronously}
+   * @param sync uploading synchronously
    * @param onCompletion call-back to execute once the request is completed (successfully or
    *     failing)
    */
@@ -264,42 +255,54 @@ public final class ProfileUploader {
       return;
     }
 
-    Call call = makeRequest(type, data);
-    CountDownLatch latch = new CountDownLatch(sync ? 1 : 0);
+    HttpRequest request = makeRequest(type, data);
     AtomicBoolean handled = new AtomicBoolean(false);
 
-    call.enqueue(
-        new Callback() {
-          @Override
-          public void onResponse(final Call call, final Response response) throws IOException {
-            if (handled.compareAndSet(false, true)) {
-              handleResponse(call, response, data, onCompletion);
-              latch.countDown();
+    queuedRequestsCount.incrementAndGet();
+    CompletableFuture<HttpResponse> future = client.executeAsync(request)
+        .whenComplete((response, throwable) -> {
+          if (handled.compareAndSet(false, true)) {
+            try {
+              if (throwable != null) {
+                Exception e = throwable instanceof Exception
+                    ? (Exception) throwable
+                    : new IOException(throwable);
+                handleFailure(request, e, data, onCompletion);
+              } else {
+                handleResponse(request, response, data, onCompletion);
+              }
+            } finally {
+              if (response != null) {
+                response.close();
+              }
+              queuedRequestsCount.decrementAndGet();
             }
-          }
-
-          @Override
-          public void onFailure(final Call call, final IOException e) {
-            if (handled.compareAndSet(false, true)) {
-              handleFailure(call, e, data, onCompletion);
-              latch.countDown();
+          } else {
+            // Already handled by timeout - just close the response
+            if (response != null) {
+              response.close();
             }
           }
         });
+
     if (sync) {
       try {
         log.debug("Waiting at most {} seconds for upload to finish", uploadTimeout.plusSeconds(1));
-        if (!latch.await(uploadTimeout.plusSeconds(1).toMillis(), TimeUnit.MILLISECONDS)) {
-          // Usually this should not happen and timeouts should be handled by the client.
-          // But, in any case, we have this safety-break in place to prevent blocking finishing the
-          // sync request to a misbehaving server.
-          if (handled.compareAndSet(false, true)) {
-            handleFailure(call, null, data, onCompletion);
-          }
+        future.get(uploadTimeout.plusSeconds(1).toMillis(), TimeUnit.MILLISECONDS);
+      } catch (TimeoutException e) {
+        // Usually this should not happen and timeouts should be handled by the client.
+        // But, in any case, we have this safety-break in place to prevent blocking finishing the
+        // sync request to a misbehaving server.
+        if (handled.compareAndSet(false, true)) {
+          handleFailure(request, null, data, onCompletion);
+          queuedRequestsCount.decrementAndGet();
         }
+      } catch (ExecutionException e) {
+        // Already handled in whenComplete callback
       } catch (InterruptedException e) {
         if (handled.compareAndSet(false, true)) {
-          handleFailure(call, e, data, onCompletion);
+          handleFailure(request, e, data, onCompletion);
+          queuedRequestsCount.decrementAndGet();
         }
         // reset the interrupted flag
         Thread.currentThread().interrupt();
@@ -308,17 +311,17 @@ public final class ProfileUploader {
   }
 
   private void handleFailure(
-      final Call call,
+      final HttpRequest request,
       final Exception e,
       final RecordingData data,
       @Nonnull final Runnable onCompletion) {
     if (isEmptyReplyFromServer(e)) {
       ioLogger.error(
           "Failed to upload profile, received empty reply from "
-              + call.request().url()
+              + request.url()
               + " after uploading profile");
     } else {
-      ioLogger.error("Failed to upload profile to " + call.request().url(), e);
+      ioLogger.error("Failed to upload profile to " + request.url(), e);
     }
 
     data.release();
@@ -326,15 +329,14 @@ public final class ProfileUploader {
   }
 
   private void handleResponse(
-      final Call call,
-      final Response response,
+      final HttpRequest request,
+      final HttpResponse response,
       final RecordingData data,
-      @Nonnull final Runnable onCompletion)
-      throws IOException {
+      @Nonnull final Runnable onCompletion) {
     if (response.isSuccessful()) {
       ioLogger.success("Upload done");
     } else {
-      final String apiKey = call.request().header("DD-API-KEY");
+      final String apiKey = request.header("DD-API-KEY");
       if (response.code() == 404 && apiKey == null) {
         // if no API key and not found error we assume we're sending to the agent
         ioLogger.error(
@@ -347,10 +349,6 @@ public final class ProfileUploader {
         ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
     }
-
-    // Note: this whole callback never touches body and would be perfectly happy even if
-    // server never sends it.
-    response.close();
 
     data.release();
     onCompletion.run();
@@ -381,15 +379,14 @@ public final class ProfileUploader {
   }
 
   public void shutdown() {
-    okHttpExecutorService.shutdownNow();
+    executorService.shutdownNow();
     try {
-      okHttpExecutorService.awaitTermination(terminationTimeout, TimeUnit.SECONDS);
+      executorService.awaitTermination(terminationTimeout, SECONDS);
     } catch (final InterruptedException e) {
       // Note: this should only happen in main thread right before exiting, so eating up interrupted
       // state should be fine.
       log.debug("Wait for executor shutdown interrupted");
     }
-    client.connectionPool().evictAll();
   }
 
   private byte[] createEvent(@Nonnull final RecordingData data) {
@@ -398,17 +395,33 @@ public final class ProfileUploader {
 
   private HttpRequestBody makeRequestBody(
       @Nonnull final RecordingData data, final CompressingRequestBody body) {
-    final MultipartBody.Builder bodyBuilder =
-        new MultipartBody.Builder().setType(MultipartBody.FORM);
+    HttpRequestBody.MultipartBuilder multipartBuilder = HttpRequestBody.multipart();
 
     final byte[] event = createEvent(data);
-    final RequestBody eventBody = RequestBody.create(APPLICATION_JSON, event);
-    bodyBuilder.addPart(EVENT_HEADER, eventBody);
-    bodyBuilder.addPart(V4_DATA_HEADERS, body);
-    return bodyBuilder.build();
+    final HttpRequestBody eventBody = HttpRequestBody.of(event);
+    Map<String, String> eventHeaders = new HashMap<>();
+    eventHeaders.put(
+        "Content-Disposition",
+        "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
+    eventHeaders.put(CONTENT_TYPE, APPLICATION_JSON);
+    multipartBuilder.addPart(eventHeaders, eventBody);
+
+    Map<String, String> dataHeaders = new HashMap<>();
+    dataHeaders.put(
+        "Content-Disposition",
+        "form-data; name=\""
+            + V4_ATTACHMENT_NAME
+            + "\"; filename=\""
+            + V4_ATTACHMENT_FILENAME
+            + "\"");
+    dataHeaders.put(CONTENT_TYPE, CompressingRequestBody.OCTET_STREAM);
+    multipartBuilder.addPart(dataHeaders, body);
+
+    return multipartBuilder.build();
   }
 
-  private Call makeRequest(@Nonnull final RecordingType type, @Nonnull final RecordingData data) {
+  private HttpRequest makeRequest(
+      @Nonnull final RecordingType type, @Nonnull final RecordingData data) {
 
     final CompressingRequestBody body =
         new CompressingRequestBody(compressionType, data::getStream);
@@ -420,12 +433,11 @@ public final class ProfileUploader {
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
-    return client.newCall(
-        HttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+    return HttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build();
   }
 
   private boolean canEnqueueMoreRequests() {
-    return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
+    return queuedRequestsCount.get() < MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
