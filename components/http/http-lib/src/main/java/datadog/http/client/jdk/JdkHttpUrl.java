@@ -8,9 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
-/**
- * JDK-based implementation of HttpUrl that wraps java.net.URI.
- */
+/** JDK-based implementation of HttpUrl that wraps java.net.URI. */
 public final class JdkHttpUrl implements HttpUrl {
 
   private final URI delegate;
@@ -33,6 +31,7 @@ public final class JdkHttpUrl implements HttpUrl {
 
   /**
    * Creates an HttpUrl from an URI.
+   *
    * @param uri the URI to get an HttpUrl from
    * @return the HttpUrl related to the URI
    */
@@ -121,9 +120,7 @@ public final class JdkHttpUrl implements HttpUrl {
     return delegate.hashCode();
   }
 
-  /**
-   * Builder for JdkHttpUrl.
-   */
+  /** Builder for JdkHttpUrl. */
   public static final class Builder implements HttpUrl.Builder {
     private final StringBuilder query = new StringBuilder();
     private final StringBuilder path = new StringBuilder();

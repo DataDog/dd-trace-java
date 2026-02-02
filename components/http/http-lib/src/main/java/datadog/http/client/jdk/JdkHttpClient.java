@@ -19,10 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
-/**
- * JDK HttpClient-based implementation that wraps java.net.http.HttpClient.
- * Requires Java 11+.
- */
+/** JDK HttpClient-based implementation that wraps java.net.http.HttpClient. Requires Java 11+. */
 public final class JdkHttpClient implements HttpClient {
   private final java.net.http.HttpClient delegate;
 
@@ -67,7 +64,7 @@ public final class JdkHttpClient implements HttpClient {
       if (listener != null) {
         listener.onRequestStart(request);
       }
-      var jdkResponse =  this.delegate.send(httpRequest, ofInputStream());
+      var jdkResponse = this.delegate.send(httpRequest, ofInputStream());
       var response = JdkHttpResponse.wrap(jdkResponse);
       if (listener != null) {
         listener.onRequestEnd(request, response);
@@ -99,31 +96,30 @@ public final class JdkHttpClient implements HttpClient {
       listener.onRequestStart(request);
     }
 
-    return delegate.sendAsync(httpRequest, ofInputStream())
-        .thenApply(jdkResponse -> {
-          HttpResponse response = JdkHttpResponse.wrap(jdkResponse);
-          if (listener != null) {
-            listener.onRequestEnd(request, response);
-          }
-          return response;
-        })
-        .exceptionally(throwable -> {
-          Throwable cause = throwable instanceof CompletionException
-              ? throwable.getCause()
-              : throwable;
-          IOException ioException = cause instanceof IOException
-              ? (IOException) cause
-              : new IOException(cause);
-          if (listener != null) {
-            listener.onRequestFailure(request, ioException);
-          }
-          throw new CompletionException(ioException);
-        });
+    return delegate
+        .sendAsync(httpRequest, ofInputStream())
+        .thenApply(
+            jdkResponse -> {
+              HttpResponse response = JdkHttpResponse.wrap(jdkResponse);
+              if (listener != null) {
+                listener.onRequestEnd(request, response);
+              }
+              return response;
+            })
+        .exceptionally(
+            throwable -> {
+              Throwable cause =
+                  throwable instanceof CompletionException ? throwable.getCause() : throwable;
+              IOException ioException =
+                  cause instanceof IOException ? (IOException) cause : new IOException(cause);
+              if (listener != null) {
+                listener.onRequestFailure(request, ioException);
+              }
+              throw new CompletionException(ioException);
+            });
   }
 
-  /**
-   * Builder for JdkHttpClient.
-   */
+  /** Builder for JdkHttpClient. */
   public static final class Builder implements HttpClient.Builder {
 
     private final java.net.http.HttpClient.Builder delegate;
@@ -158,16 +154,17 @@ public final class JdkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder proxyAuthenticator(String username, String password) {
-      delegate.authenticator(new Authenticator() {
-        @Override
-        protected PasswordAuthentication getPasswordAuthentication() {
-          if (getRequestorType() == RequestorType.PROXY) {
-            return new PasswordAuthentication(username,
-                (password == null ? "" : password).toCharArray());
-          }
-          return null;
-        }
-      });
+      delegate.authenticator(
+          new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+              if (getRequestorType() == RequestorType.PROXY) {
+                return new PasswordAuthentication(
+                    username, (password == null ? "" : password).toCharArray());
+              }
+              return null;
+            }
+          });
       return this;
     }
 

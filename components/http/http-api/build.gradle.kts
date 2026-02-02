@@ -7,7 +7,6 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 description = "HTTP Client API"
 
-
 dependencies {
   // Add API implementations to test providers
   testRuntimeOnly(project(":components:http:http-compat"))

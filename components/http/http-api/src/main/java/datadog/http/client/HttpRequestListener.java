@@ -4,8 +4,8 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
- * Listener for HTTP request lifecycle events. Implementations can track request timing,
- * log requests, or handle errors.
+ * Listener for HTTP request lifecycle events. Implementations can track request timing, log
+ * requests, or handle errors.
  */
 public interface HttpRequestListener {
   /**

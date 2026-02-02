@@ -370,8 +370,10 @@ public class InstrumenterConfig {
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
-    String httpClientImplementation = configProvider.getString(HTTP_CLIENT_IMPLEMENTATION, HTTP_CLIENT_IMPLEMENTATION_AUTO);
-    if (!HTTP_CLIENT_IMPLEMENTATION_JDK.equals(httpClientImplementation) && !HTTP_CLIENT_IMPLEMENTATION_OKHTTP.equals(httpClientImplementation)) {
+    String httpClientImplementation =
+        configProvider.getString(HTTP_CLIENT_IMPLEMENTATION, HTTP_CLIENT_IMPLEMENTATION_AUTO);
+    if (!HTTP_CLIENT_IMPLEMENTATION_JDK.equals(httpClientImplementation)
+        && !HTTP_CLIENT_IMPLEMENTATION_OKHTTP.equals(httpClientImplementation)) {
       httpClientImplementation = HTTP_CLIENT_IMPLEMENTATION_AUTO;
     }
     this.httpClientImplementation = httpClientImplementation;

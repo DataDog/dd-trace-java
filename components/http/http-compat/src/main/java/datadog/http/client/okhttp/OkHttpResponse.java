@@ -7,9 +7,7 @@ import java.util.List;
 import java.util.Set;
 import okhttp3.ResponseBody;
 
-/**
- * OkHttp-based implementation of HttpResponse.
- */
+/** OkHttp-based implementation of HttpResponse. */
 public final class OkHttpResponse implements HttpResponse {
   private final okhttp3.Response delegate;
 

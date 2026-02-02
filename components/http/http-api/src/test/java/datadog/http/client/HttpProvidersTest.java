@@ -64,7 +64,7 @@ abstract class HttpProvidersTest {
     assertType(body);
   }
 
-  private  void assertType(Object builder) {
+  private void assertType(Object builder) {
     assertNotNull(builder);
     assertTrue(builder.getClass().getName().startsWith(getImplementationPackage()));
   }
@@ -73,7 +73,7 @@ abstract class HttpProvidersTest {
   static class OkHttpProvidersForkedTest extends HttpProvidersTest {
     @Override
     String getImplementationPackage() {
-      return  "datadog.http.client.okhttp";
+      return "datadog.http.client.okhttp";
     }
   }
 

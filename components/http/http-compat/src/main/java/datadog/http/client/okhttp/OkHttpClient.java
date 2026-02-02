@@ -12,7 +12,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Credentials;
@@ -21,10 +20,7 @@ import okhttp3.EventListener;
 import okhttp3.Request;
 import okhttp3.Response;
 
-/**
- * OkHttp-based implementation that wraps okhttp3.OkHttpClient.
- * Compatible with Java 8+.
- */
+/** OkHttp-based implementation that wraps okhttp3.OkHttpClient. Compatible with Java 8+. */
 public final class OkHttpClient implements HttpClient {
   private final okhttp3.OkHttpClient delegate;
 
@@ -58,17 +54,20 @@ public final class OkHttpClient implements HttpClient {
     CompletableFuture<HttpResponse> future = new CompletableFuture<>();
 
     // Note: OkHttpListener (via EventListener) already handles HttpRequestListener callbacks
-    this.delegate.newCall(okRequest).enqueue(new Callback() {
-      @Override
-      public void onResponse(@NonNull Call call, @NonNull Response response) {
-        future.complete(OkHttpResponse.wrap(response));
-      }
+    this.delegate
+        .newCall(okRequest)
+        .enqueue(
+            new Callback() {
+              @Override
+              public void onResponse(@NonNull Call call, @NonNull Response response) {
+                future.complete(OkHttpResponse.wrap(response));
+              }
 
-      @Override
-      public void onFailure(@NonNull Call call, @NonNull IOException e) {
-        future.completeExceptionally(e);
-      }
-    });
+              @Override
+              public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                future.completeExceptionally(e);
+              }
+            });
 
     return future;
   }
@@ -76,7 +75,6 @@ public final class OkHttpClient implements HttpClient {
   static class OkHttpListener extends EventListener {
     private final HttpRequestListener listener;
     private Response response;
-
 
     static EventListener fetch(Call call) {
       OkHttpListener listener = call.request().tag(OkHttpListener.class);
@@ -118,9 +116,7 @@ public final class OkHttpClient implements HttpClient {
     }
   }
 
-  /**
-   * Builder for OkHttpClient.
-   */
+  /** Builder for OkHttpClient. */
   public static final class Builder implements HttpClient.Builder {
 
     private final okhttp3.OkHttpClient.Builder delegate;
@@ -132,9 +128,7 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder connectTimeout(Duration timeout) {
-      delegate.connectTimeout(timeout)
-              .readTimeout(timeout)
-              .writeTimeout(timeout);
+      delegate.connectTimeout(timeout).readTimeout(timeout).writeTimeout(timeout);
       return this;
     }
 
@@ -146,12 +140,15 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder proxyAuthenticator(String username, String password) {
-      delegate.proxyAuthenticator((route, response) -> {
-        String credential = Credentials.basic(username, password == null ? "" : password);
-        return response.request().newBuilder()
-            .header("Proxy-Authorization", credential)
-            .build();
-      });
+      delegate.proxyAuthenticator(
+          (route, response) -> {
+            String credential = Credentials.basic(username, password == null ? "" : password);
+            return response
+                .request()
+                .newBuilder()
+                .header("Proxy-Authorization", credential)
+                .build();
+          });
       return this;
     }
 
@@ -192,7 +189,8 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient build() {
-      okhttp3.OkHttpClient okHttpClient = this.delegate.eventListenerFactory(OkHttpListener::fetch).build();
+      okhttp3.OkHttpClient okHttpClient =
+          this.delegate.eventListenerFactory(OkHttpListener::fetch).build();
       return new OkHttpClient(okHttpClient);
     }
   }

@@ -6,5 +6,4 @@ import datadog.http.client.HttpRequestBodyTest;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 @EnabledForJreRange(min = JAVA_11)
-public class JdkHttpRequestBodyTest extends HttpRequestBodyTest {
-}
+public class JdkHttpRequestBodyTest extends HttpRequestBodyTest {}

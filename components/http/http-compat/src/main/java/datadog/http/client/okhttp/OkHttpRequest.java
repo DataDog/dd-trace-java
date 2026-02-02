@@ -8,9 +8,7 @@ import datadog.http.client.okhttp.OkHttpClient.OkHttpListener;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.List;
 
-/**
- * OkHttp-based implementation of HttpRequest.
- */
+/** OkHttp-based implementation of HttpRequest. */
 public final class OkHttpRequest implements HttpRequest {
   private final okhttp3.Request delegate;
 
@@ -65,9 +63,7 @@ public final class OkHttpRequest implements HttpRequest {
     return OkHttpRequestBody.wrap(this.delegate.body());
   }
 
-  /**
-   * Builder for OkHttpRequest.
-   */
+  /** Builder for OkHttpRequest. */
   public static final class Builder implements HttpRequest.Builder {
     private final okhttp3.Request.Builder delegate;
 
@@ -100,7 +96,8 @@ public final class OkHttpRequest implements HttpRequest {
     @Override
     public HttpRequest.Builder post(HttpRequestBody body) {
       if (!(body instanceof OkHttpRequestBody)) {
-        throw new IllegalArgumentException("HttpRequestBody must be OkHttpRequestBody implementation");
+        throw new IllegalArgumentException(
+            "HttpRequestBody must be OkHttpRequestBody implementation");
       }
       okhttp3.RequestBody requestBody = ((OkHttpRequestBody) body).unwrap();
       this.delegate.post(requestBody);
@@ -110,7 +107,8 @@ public final class OkHttpRequest implements HttpRequest {
     @Override
     public HttpRequest.Builder put(HttpRequestBody body) {
       if (!(body instanceof OkHttpRequestBody)) {
-        throw new IllegalArgumentException("HttpRequestBody must be OkHttpRequestBody implementation");
+        throw new IllegalArgumentException(
+            "HttpRequestBody must be OkHttpRequestBody implementation");
       }
       okhttp3.RequestBody requestBody = ((OkHttpRequestBody) body).unwrap();
       this.delegate.put(requestBody);

@@ -178,9 +178,7 @@ public class HttpUrlTest {
   @Test
   void testNewBuilderAllowsModification() {
     HttpUrl original = HttpUrl.parse("https://example.com/api");
-    HttpUrl modified = original.newBuilder()
-        .addPathSegment("v2")
-        .build();
+    HttpUrl modified = original.newBuilder().addPathSegment("v2").build();
 
     assertTrue(modified.url().contains("/api"));
     assertTrue(modified.url().contains("v2"));
@@ -190,24 +188,22 @@ public class HttpUrlTest {
 
   @Test
   void testAddPathSegmentSingle() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addPathSegment("api")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder().scheme("https").host("example.com").addPathSegment("api").build();
 
     assertTrue(url.url().contains("/api"));
   }
 
   @Test
   void testAddPathSegmentMultiple() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addPathSegment("api")
-        .addPathSegment("v1")
-        .addPathSegment("users")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addPathSegment("api")
+            .addPathSegment("v1")
+            .addPathSegment("users")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("/api"));
@@ -217,12 +213,13 @@ public class HttpUrlTest {
 
   @Test
   void testAddPathSegmentWithPort() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .port(8443)
-        .addPathSegment("api")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .port(8443)
+            .addPathSegment("api")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains(":8443"));
@@ -233,11 +230,7 @@ public class HttpUrlTest {
 
   @Test
   void testBuilderSchemeHostPort() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("api.example.com")
-        .port(8443)
-        .build();
+    HttpUrl url = HttpUrl.builder().scheme("https").host("api.example.com").port(8443).build();
 
     assertEquals("https", url.scheme());
     assertEquals("api.example.com", url.host());
@@ -246,9 +239,7 @@ public class HttpUrlTest {
 
   @Test
   void testBuilderDefaultScheme() {
-    HttpUrl url = HttpUrl.builder()
-        .host("example.com")
-        .build();
+    HttpUrl url = HttpUrl.builder().host("example.com").build();
 
     assertEquals("http", url.scheme());
   }
@@ -257,31 +248,35 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterSingle() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("key", "value")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addQueryParameter("key", "value")
+            .build();
 
     String urlString = url.url();
     // OkHttp adds trailing slash, JDK doesn't - both are valid
-    assertTrue(urlString.matches("https://example\\.com/?\\?key=value"),
+    assertTrue(
+        urlString.matches("https://example\\.com/?\\?key=value"),
         "Expected URL with query parameter, got: " + urlString);
   }
 
   @Test
   void testAddQueryParameterMultiple() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("key1", "value1")
-        .addQueryParameter("key2", "value2")
-        .addQueryParameter("key3", "value3")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addQueryParameter("key1", "value1")
+            .addQueryParameter("key2", "value2")
+            .addQueryParameter("key3", "value3")
+            .build();
 
     String urlString = url.url();
     // OkHttp adds trailing slash, JDK doesn't - both are valid
-    assertTrue(urlString.matches("https://example\\.com/?\\?.*"),
+    assertTrue(
+        urlString.matches("https://example\\.com/?\\?.*"),
         "Expected URL with query parameters, got: " + urlString);
     assertTrue(urlString.contains("key1=value1"));
     assertTrue(urlString.contains("key2=value2"));
@@ -291,11 +286,12 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterWithNullValue() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("flag", null)
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addQueryParameter("flag", null)
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("flag"));
@@ -305,31 +301,35 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterWithEncoding() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("message", "hello world")
-        .addQueryParameter("special", "a=b&c=d")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addQueryParameter("message", "hello world")
+            .addQueryParameter("special", "a=b&c=d")
+            .build();
 
     String urlString = url.url();
     // Values should be URL encoded - accept both + and %20 for space
-    assertTrue(urlString.contains("message=hello+world") || urlString.contains("message=hello%20world"),
+    assertTrue(
+        urlString.contains("message=hello+world") || urlString.contains("message=hello%20world"),
         "Expected encoded space in URL, got: " + urlString);
-    assertTrue(urlString.contains("special=a%3Db%26c%3Dd"),
+    assertTrue(
+        urlString.contains("special=a%3Db%26c%3Dd"),
         "Expected encoded special chars in URL, got: " + urlString);
   }
 
   @Test
   void testAddQueryParameterWithPath() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addPathSegment("api")
-        .addPathSegment("v1")
-        .addQueryParameter("page", "1")
-        .addQueryParameter("limit", "10")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addPathSegment("api")
+            .addPathSegment("v1")
+            .addQueryParameter("page", "1")
+            .addQueryParameter("limit", "10")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("example.com/api/v1"));
@@ -340,9 +340,7 @@ public class HttpUrlTest {
   @Test
   void testAddQueryParameterFromExistingUrl() {
     HttpUrl baseUrl = HttpUrl.parse("https://example.com/api");
-    HttpUrl url = baseUrl.newBuilder()
-        .addQueryParameter("token", "abc123")
-        .build();
+    HttpUrl url = baseUrl.newBuilder().addQueryParameter("token", "abc123").build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("example.com/api"));
@@ -352,9 +350,7 @@ public class HttpUrlTest {
   @Test
   void testAddQueryParameterPreservesExistingQuery() {
     HttpUrl baseUrl = HttpUrl.parse("https://example.com/api?existing=param");
-    HttpUrl url = baseUrl.newBuilder()
-        .addQueryParameter("new", "value")
-        .build();
+    HttpUrl url = baseUrl.newBuilder().addQueryParameter("new", "value").build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("existing=param"));
@@ -363,11 +359,8 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterEmptyValue() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("key", "")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder().scheme("https").host("example.com").addQueryParameter("key", "").build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("key="));
@@ -375,12 +368,13 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterSpecialCharactersInName() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .addQueryParameter("my-key", "value")
-        .addQueryParameter("my_key", "value2")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .addQueryParameter("my-key", "value")
+            .addQueryParameter("my_key", "value2")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains("my-key=value"));
@@ -389,12 +383,13 @@ public class HttpUrlTest {
 
   @Test
   void testAddQueryParameterWithPort() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .port(8443)
-        .addQueryParameter("key", "value")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .port(8443)
+            .addQueryParameter("key", "value")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.contains(":8443"));
@@ -405,13 +400,14 @@ public class HttpUrlTest {
 
   @Test
   void testUrlReturnsCompleteUrl() {
-    HttpUrl url = HttpUrl.builder()
-        .scheme("https")
-        .host("example.com")
-        .port(8443)
-        .addPathSegment("api")
-        .addQueryParameter("key", "value")
-        .build();
+    HttpUrl url =
+        HttpUrl.builder()
+            .scheme("https")
+            .host("example.com")
+            .port(8443)
+            .addPathSegment("api")
+            .addQueryParameter("key", "value")
+            .build();
 
     String urlString = url.url();
     assertTrue(urlString.startsWith("https://"));

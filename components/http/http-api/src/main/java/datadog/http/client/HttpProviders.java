@@ -23,8 +23,7 @@ public final class HttpProviders {
   private static volatile Method HTTP_REQUEST_BODY_GZIP_METHOD;
   private static volatile Constructor<?> HTTP_MULTIPART_BUILDER_CONSTRUCTOR;
 
-  private HttpProviders() {
-  }
+  private HttpProviders() {}
 
   public static void forceCompatClient() {
     // Skip if already in compat mode
@@ -47,9 +46,10 @@ public final class HttpProviders {
 
   static HttpClient.Builder newClientBuilder() {
     if (HTTP_CLIENT_BUILDER_CONSTRUCTOR == null) {
-      HTTP_CLIENT_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpClient$Builder",
-          "datadog.http.client.okhttp.OkHttpClient$Builder");
+      HTTP_CLIENT_BUILDER_CONSTRUCTOR =
+          findConstructor(
+              "datadog.http.client.jdk.JdkHttpClient$Builder",
+              "datadog.http.client.okhttp.OkHttpClient$Builder");
     }
     try {
       return (HttpClient.Builder) HTTP_CLIENT_BUILDER_CONSTRUCTOR.newInstance();
@@ -60,22 +60,24 @@ public final class HttpProviders {
 
   static HttpRequest.Builder newRequestBuilder() {
     if (HTTP_REQUEST_BUILDER_CONSTRUCTOR == null) {
-      HTTP_REQUEST_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpRequest$Builder",
-          "datadog.http.client.okhttp.OkHttpRequest$Builder");
+      HTTP_REQUEST_BUILDER_CONSTRUCTOR =
+          findConstructor(
+              "datadog.http.client.jdk.JdkHttpRequest$Builder",
+              "datadog.http.client.okhttp.OkHttpRequest$Builder");
     }
     try {
       return (HttpRequest.Builder) HTTP_REQUEST_BUILDER_CONSTRUCTOR.newInstance();
-    } catch ( ReflectiveOperationException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to call constructor", e);
     }
   }
 
   static HttpUrl.Builder newUrlBuilder() {
     if (HTTP_URL_BUILDER_CONSTRUCTOR == null) {
-      HTTP_URL_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpUrl$Builder",
-          "datadog.http.client.okhttp.OkHttpUrl$Builder");
+      HTTP_URL_BUILDER_CONSTRUCTOR =
+          findConstructor(
+              "datadog.http.client.jdk.JdkHttpUrl$Builder",
+              "datadog.http.client.okhttp.OkHttpUrl$Builder");
     }
     try {
       return (HttpUrl.Builder) HTTP_URL_BUILDER_CONSTRUCTOR.newInstance();
@@ -86,11 +88,12 @@ public final class HttpProviders {
 
   static HttpUrl httpUrlParse(String url) {
     if (HTTP_URL_PARSE_METHOD == null) {
-      HTTP_URL_PARSE_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpUrl",
-          "datadog.http.client.okhttp.OkHttpUrl",
-          "parse",
-          String.class);
+      HTTP_URL_PARSE_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpUrl",
+              "datadog.http.client.okhttp.OkHttpUrl",
+              "parse",
+              String.class);
     }
     try {
       return (HttpUrl) HTTP_URL_PARSE_METHOD.invoke(null, url);
@@ -104,11 +107,12 @@ public final class HttpProviders {
 
   static HttpUrl httpUrlFrom(URI uri) {
     if (HTTP_URL_FROM_METHOD == null) {
-      HTTP_URL_FROM_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpUrl",
-          "datadog.http.client.okhttp.OkHttpUrl",
-          "from",
-          URI.class);
+      HTTP_URL_FROM_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpUrl",
+              "datadog.http.client.okhttp.OkHttpUrl",
+              "from",
+              URI.class);
     }
     try {
       return (HttpUrl) HTTP_URL_FROM_METHOD.invoke(null, uri);
@@ -120,11 +124,12 @@ public final class HttpProviders {
   static HttpRequestBody requestBodyOfString(String content) {
     requireNonNull(content, "content");
     if (HTTP_REQUEST_BODY_OF_STRING_METHOD == null) {
-      HTTP_REQUEST_BODY_OF_STRING_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpRequestBody",
-          "datadog.http.client.okhttp.OkHttpRequestBody",
-          "ofString",
-          String.class);
+      HTTP_REQUEST_BODY_OF_STRING_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpRequestBody",
+              "datadog.http.client.okhttp.OkHttpRequestBody",
+              "ofString",
+              String.class);
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_STRING_METHOD.invoke(null, content);
@@ -136,11 +141,12 @@ public final class HttpProviders {
   static HttpRequestBody requestBodyOfBytes(byte[] bytes) {
     requireNonNull(bytes, "bytes");
     if (HTTP_REQUEST_BODY_OF_BYTES_METHOD == null) {
-      HTTP_REQUEST_BODY_OF_BYTES_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpRequestBody",
-          "datadog.http.client.okhttp.OkHttpRequestBody",
-          "ofBytes",
-          byte[].class);
+      HTTP_REQUEST_BODY_OF_BYTES_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpRequestBody",
+              "datadog.http.client.okhttp.OkHttpRequestBody",
+              "ofBytes",
+              byte[].class);
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTES_METHOD.invoke(null, (Object) bytes);
@@ -152,11 +158,12 @@ public final class HttpProviders {
   static HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers) {
     requireNonNull(buffers, "buffers");
     if (HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD == null) {
-      HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpRequestBody",
-          "datadog.http.client.okhttp.OkHttpRequestBody",
-          "ofByteBuffers",
-          List.class);
+      HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpRequestBody",
+              "datadog.http.client.okhttp.OkHttpRequestBody",
+              "ofByteBuffers",
+              List.class);
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_OF_BYTE_BUFFERS_METHOD.invoke(null, buffers);
@@ -168,11 +175,12 @@ public final class HttpProviders {
   static HttpRequestBody requestBodyGzip(HttpRequestBody body) {
     requireNonNull(body, "body");
     if (HTTP_REQUEST_BODY_GZIP_METHOD == null) {
-      HTTP_REQUEST_BODY_GZIP_METHOD = findMethod(
-          "datadog.http.client.jdk.JdkHttpRequestBody",
-          "datadog.http.client.okhttp.OkHttpRequestBody",
-          "ofGzip",
-          HttpRequestBody.class);
+      HTTP_REQUEST_BODY_GZIP_METHOD =
+          findMethod(
+              "datadog.http.client.jdk.JdkHttpRequestBody",
+              "datadog.http.client.okhttp.OkHttpRequestBody",
+              "ofGzip",
+              HttpRequestBody.class);
     }
     try {
       return (HttpRequestBody) HTTP_REQUEST_BODY_GZIP_METHOD.invoke(null, body);
@@ -183,9 +191,10 @@ public final class HttpProviders {
 
   static HttpRequestBody.MultipartBuilder requestBodyMultipart() {
     if (HTTP_MULTIPART_BUILDER_CONSTRUCTOR == null) {
-      HTTP_MULTIPART_BUILDER_CONSTRUCTOR = findConstructor(
-          "datadog.http.client.jdk.JdkHttpRequestBody$MultipartBuilder",
-          "datadog.http.client.okhttp.OkHttpRequestBody$MultipartBuilder");
+      HTTP_MULTIPART_BUILDER_CONSTRUCTOR =
+          findConstructor(
+              "datadog.http.client.jdk.JdkHttpRequestBody$MultipartBuilder",
+              "datadog.http.client.okhttp.OkHttpRequestBody$MultipartBuilder");
     }
     try {
       return (HttpRequestBody.MultipartBuilder) HTTP_MULTIPART_BUILDER_CONSTRUCTOR.newInstance();
@@ -194,7 +203,11 @@ public final class HttpProviders {
     }
   }
 
-  private static Method findMethod(String defaultClientClass, String compatClientClass, String name, Class<?>... parameterTypes) {
+  private static Method findMethod(
+      String defaultClientClass,
+      String compatClientClass,
+      String name,
+      Class<?>... parameterTypes) {
     Class<?> clientClass = findClientClass(defaultClientClass, compatClientClass);
     try {
       return clientClass.getMethod(name, parameterTypes);
@@ -203,7 +216,8 @@ public final class HttpProviders {
     }
   }
 
-  private static Constructor<?> findConstructor(String defaultClientClass, String compatClientClass) {
+  private static Constructor<?> findConstructor(
+      String defaultClientClass, String compatClientClass) {
     Class<?> clientClass = findClientClass(defaultClientClass, compatClientClass);
     try {
       return clientClass.getConstructor();
@@ -211,7 +225,6 @@ public final class HttpProviders {
       throw new RuntimeException("Failed to find constructor", e);
     }
   }
-
 
   @NonNull
   private static Class<?> findClientClass(String defaultClientClass, String compatClientClass) {
