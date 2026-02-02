@@ -1,6 +1,6 @@
 package datadog.communication.http
 
-import datadog.communication.http.okhttp.OkHttpResponse
+import datadog.http.client.okhttp.OkHttpResponse
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response

@@ -109,7 +109,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.agentNamedPipe >> null
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
-    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
+    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
   }
 
   void 'supports ipv6 agent host w/ brackets'() {
@@ -125,7 +125,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     1 * config.agentNamedPipe >> null
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
-    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126/'
+    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
   }
 
   void 'creates intake http client'() {

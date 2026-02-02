@@ -12,6 +12,7 @@ import datadog.common.container.ContainerInfo
 import datadog.http.client.HttpClient
 import datadog.http.client.HttpRequest
 import datadog.http.client.HttpUrl
+import datadog.http.client.okhttp.OkHttpResponse
 import datadog.metrics.api.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings

@@ -139,7 +139,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       final State newState = new State();
       doDiscovery(newState);
       newState.lastTimeDiscovered = now;
-      // swap atomically states
+      // atomically swap states
       discoveryState = newState;
     }
   }
