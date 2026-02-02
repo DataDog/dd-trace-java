@@ -20,8 +20,6 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
 import net.jpountz.lz4.LZ4FrameOutputStream;
-import okio.BufferedSink;
-import okio.Okio;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -47,15 +45,6 @@ class CompressingRequestBodyTest {
         new CompressingRequestBody(
             compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
     assertEquals(-1, instance.contentLength());
-  }
-
-  @ParameterizedTest
-  @EnumSource(CompressionType.class)
-  void contentType(CompressionType compressionType) {
-    CompressingRequestBody instance =
-        new CompressingRequestBody(
-            compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
-    assertEquals(CompressingRequestBody.OCTET_STREAM, instance.contentType());
   }
 
   @Test
@@ -246,9 +235,7 @@ class CompressingRequestBodyTest {
 
   private static byte[] instanceWriteAsBytes(CompressingRequestBody instance) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try (BufferedSink sink = Okio.buffer(Okio.sink(baos))) {
-      instance.writeTo(sink);
-    }
+    instance.writeTo(baos);
     return baos.toByteArray();
   }
 
