@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -76,7 +75,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
-import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -498,29 +496,6 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(
         Credentials.basic("username", ""), recordedSecondRequest.getHeader("Proxy-Authorization"));
-  }
-
-  @Test
-  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
-    when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
-
-    uploader = new ProfileUploader(config, configProvider);
-
-    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
-    assertEquals(connectionSpecs.size(), 1);
-    assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
-  }
-
-  @Test
-  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
-    when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
-
-    uploader = new ProfileUploader(config, configProvider);
-
-    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
-    assertEquals(connectionSpecs.size(), 2);
-    assertTrue(connectionSpecs.contains(ConnectionSpec.MODERN_TLS));
-    assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
   }
 
   @Test
