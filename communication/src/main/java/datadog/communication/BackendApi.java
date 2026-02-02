@@ -1,8 +1,8 @@
 package datadog.communication;
 
 import datadog.communication.util.IOThrowingFunction;
-import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpRequestListener;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.annotation.Nullable;
