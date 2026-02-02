@@ -1,10 +1,16 @@
 package datadog.trace.lambda;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,13 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
-import okhttp3.ConnectionPool;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,21 +48,13 @@ public class LambdaHandler {
   private static final String START_INVOCATION = "/lambda/start-invocation";
   private static final String END_INVOCATION = "/lambda/end-invocation";
 
-  private static final Long REQUEST_TIMEOUT_IN_S = 3L;
-  private static final int MAX_IDLE_CONNECTIONS = 5;
-  private static final Long KEEP_ALIVE_DURATION = 300L;
+  private static final Duration REQUEST_TIMEOUT = Duration.ofMillis(3_000L);
+  private static final HttpClient HTTP_CLIENT = createHttpClient();
 
-  private static OkHttpClient HTTP_CLIENT =
-      new OkHttpClient.Builder()
-          .retryOnConnectionFailure(true)
-          .connectTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .writeTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .readTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .callTimeout(REQUEST_TIMEOUT_IN_S, SECONDS)
-          .connectionPool(new ConnectionPool(MAX_IDLE_CONNECTIONS, KEEP_ALIVE_DURATION, SECONDS))
-          .build();
+  private static HttpClient createHttpClient() {
+    return HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).build();
+  }
 
-  private static final MediaType jsonMediaType = MediaType.parse("application/json");
   private static final JsonAdapter<Object> adapter =
       new Moshi.Builder()
           .add(ByteArrayInputStream.class, new ReadFromInputStreamJsonAdapter())
@@ -73,24 +66,23 @@ public class LambdaHandler {
   private static String EXTENSION_BASE_URL = "http://127.0.0.1:8124";
 
   public static AgentSpanContext notifyStartInvocation(Object event, String lambdaRequestId) {
-    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(event));
-    try (Response response =
-        HTTP_CLIENT
-            .newCall(
-                new Request.Builder()
-                    .url(EXTENSION_BASE_URL + START_INVOCATION)
-                    .addHeader(DATADOG_META_LANG, "java")
-                    .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
-                    .post(body)
-                    .build())
-            .execute()) {
+    HttpRequestBody body = HttpRequestBody.of(writeValueAsString(event));
+    HttpUrl url = HttpUrl.parse(EXTENSION_BASE_URL + START_INVOCATION);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .url(url)
+            .header(CONTENT_TYPE, APPLICATION_JSON)
+            .addHeader(DATADOG_META_LANG, "java")
+            .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
+            .post(body)
+            .build();
+    try (HttpResponse response = HTTP_CLIENT.execute(request)) {
       if (response.isSuccessful()) {
-
         return extractContextAndGetSpanContext(
-            response.headers(),
+            response,
             (carrier, classifier) -> {
-              for (String headerName : carrier.names()) {
-                classifier.accept(headerName, carrier.get(headerName));
+              for (String headerName : carrier.headerNames()) {
+                classifier.accept(headerName, carrier.header(headerName));
               }
             });
       }
@@ -107,10 +99,12 @@ public class LambdaHandler {
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
-    RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(result));
-    Request.Builder builder =
-        new Request.Builder()
-            .url(EXTENSION_BASE_URL + END_INVOCATION)
+    HttpUrl url = HttpUrl.parse(EXTENSION_BASE_URL + END_INVOCATION);
+    HttpRequestBody body = HttpRequestBody.of(writeValueAsString(result));
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
+            .url(url)
+            .header(CONTENT_TYPE, APPLICATION_JSON)
             .addHeader(DATADOG_TRACE_ID, span.getTraceId().toString())
             .addHeader(DATADOG_SPAN_ID, DDSpanId.toString(span.getSpanId()))
             .addHeader(DATADOG_SAMPLING_PRIORITY, span.getSamplingPriority().toString())
@@ -140,7 +134,7 @@ public class LambdaHandler {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
 
-    try (Response response = HTTP_CLIENT.newCall(builder.build()).execute()) {
+    try (HttpResponse response = HTTP_CLIENT.execute(builder.build())) {
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
         return true;
