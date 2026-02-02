@@ -46,9 +46,6 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      variables:
-        PIPELINE_TYPE: 'merge-queue'
     - if: '$CI_COMMIT_BRANCH == "master"'
       auto_cancel:
         on_new_commit: none
@@ -588,7 +585,7 @@ muzzle-dep-report:
       when: on_success
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
-    - if: $PIPELINE_TYPE == "merge-queue"
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
   script:
     - *gitlab_base_ref_params
