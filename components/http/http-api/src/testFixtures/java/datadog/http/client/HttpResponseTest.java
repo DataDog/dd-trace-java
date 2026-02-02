@@ -12,6 +12,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,6 +114,33 @@ public class HttpResponseTest {
     // missing header
     assertNull(response.header("X-Missing-Header"));
     assertTrue(response.headers("X-Missing-Header").isEmpty());
+
+    response.close();
+  }
+
+  @Test
+  void testHeaderNames() throws IOException {
+    org.mockserver.model.HttpRequest expectedRequest = request()
+        .withMethod("GET")
+        .withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse = response()
+        .withHeader("Content-Type", "application/json")
+        .withHeader("X-Custom-Header", "custom-value")
+        .withHeader("X-Another-Header", "another-value");
+    this.server.when(expectedRequest).respond(resultResponse);
+
+    HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
+    HttpRequest request = HttpRequest.newBuilder()
+        .url(url)
+        .get()
+        .build();
+
+    HttpResponse response = this.client.execute(request);
+
+    Set<String> headerNames = response.headerNames();
+    assertTrue(headerNames.contains("Content-Type"));
+    assertTrue(headerNames.contains("X-Custom-Header"));
+    assertTrue(headerNames.contains("X-Another-Header"));
 
     response.close();
   }
