@@ -2,7 +2,7 @@ package datadog.communication.http;
 
 import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.time.temporal.ChronoUnit.MILLIS;
 
 import datadog.common.container.ContainerInfo;
 import datadog.environment.SystemProperties;
@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -66,8 +67,6 @@ public final class HttpUtils {
         null,
         null,
         null,
-        null,
-        null,
         timeoutMillis);
   }
 
@@ -75,8 +74,6 @@ public final class HttpUtils {
       final Config config,
       final Executor executor,
       final HttpUrl url,
-      final Boolean retryOnConnectionFailure,
-      final Integer maxRunningRequests,
       final String proxyHost,
       final Integer proxyPort,
       final String proxyUsername,
@@ -87,8 +84,6 @@ public final class HttpUtils {
         config.getAgentNamedPipe(),
         executor,
         isPlainHttp(url),
-        retryOnConnectionFailure,
-        maxRunningRequests,
         proxyHost,
         proxyPort,
         proxyUsername,
@@ -101,8 +96,6 @@ public final class HttpUtils {
       final String namedPipe,
       final Executor executor,
       final boolean isHttp,
-      final Boolean retryOnConnectionFailure,
-      final Integer maxRunningRequests,
       final String proxyHost,
       final Integer proxyPort,
       final String proxyUsername,
@@ -112,16 +105,13 @@ public final class HttpUtils {
     final HttpClient.Builder builder = HttpClient.newBuilder();
 
     // Configure timeouts
-    builder
-        .connectTimeout(timeoutMillis, MILLISECONDS)
-        .writeTimeout(timeoutMillis, MILLISECONDS)
-        .readTimeout(timeoutMillis, MILLISECONDS);
+    builder.connectTimeout(Duration.of(timeoutMillis, MILLIS));
 
     // Configure dispatcher/executor
     if (executor != null) {
-      builder.dispatcher(executor);
+      builder.executor(executor);
     } else {
-      builder.dispatcher(RejectingExecutorService.INSTANCE);
+      builder.executor(RejectingExecutorService.INSTANCE);
     }
 
     // Configure Unix domain socket or named pipe
@@ -136,16 +126,6 @@ public final class HttpUtils {
     // Force clear text (HTTP) if needed
     if (isHttp) {
       builder.clearText(true);
-    }
-
-    // Configure retry on connection failure
-    if (retryOnConnectionFailure != null) {
-      builder.retryOnConnectionFailure(retryOnConnectionFailure);
-    }
-
-    // Configure max concurrent requests
-    if (maxRunningRequests != null) {
-      builder.maxRequests(maxRunningRequests);
     }
 
     // Configure proxy

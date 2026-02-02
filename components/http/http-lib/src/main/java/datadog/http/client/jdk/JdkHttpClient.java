@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 
 import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpResponse;
 import java.io.File;
 import java.io.IOException;
@@ -14,8 +15,9 @@ import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * JDK HttpClient-based implementation that wraps java.net.http.HttpClient.
@@ -83,9 +85,40 @@ public final class JdkHttpClient implements HttpClient {
   }
 
   @Override
-  public void close() throws IOException {
-    // JDK HttpClient doesn't require explicit closing
-    // It manages its own resources and executors
+  public CompletableFuture<HttpResponse> executeAsync(HttpRequest request) {
+    requireNonNull(request, "request");
+    if (!(request instanceof JdkHttpRequest)) {
+      throw new IllegalArgumentException("HttpRequest must be JdkHttpRequest implementation");
+    }
+
+    JdkHttpRequest jdkHttpRequest = (JdkHttpRequest) request;
+    java.net.http.HttpRequest httpRequest = jdkHttpRequest.delegate;
+    HttpRequestListener listener = jdkHttpRequest.listener;
+
+    if (listener != null) {
+      listener.onRequestStart(request);
+    }
+
+    return delegate.sendAsync(httpRequest, ofInputStream())
+        .thenApply(jdkResponse -> {
+          HttpResponse response = JdkHttpResponse.wrap(jdkResponse);
+          if (listener != null) {
+            listener.onRequestEnd(request, response);
+          }
+          return response;
+        })
+        .exceptionally(throwable -> {
+          Throwable cause = throwable instanceof CompletionException
+              ? throwable.getCause()
+              : throwable;
+          IOException ioException = cause instanceof IOException
+              ? (IOException) cause
+              : new IOException(cause);
+          if (listener != null) {
+            listener.onRequestFailure(request, ioException);
+          }
+          throw new CompletionException(ioException);
+        });
   }
 
   /**
@@ -107,23 +140,8 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClient.Builder connectTimeout(long timeout, TimeUnit unit) {
-      delegate.connectTimeout(Duration.ofMillis(unit.toMillis(timeout)));
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder readTimeout(long timeout, TimeUnit unit) {
-      // JDK HttpClient doesn't have a separate read timeout
-      // It uses the overall request timeout, which we'll set on a per-request basis
-      // Store for later use in request builder if needed
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder writeTimeout(long timeout, TimeUnit unit) {
-      // JDK HttpClient doesn't have a separate write timeout
-      // It uses the overall request timeout, which we'll set on a per-request basis
+    public HttpClient.Builder connectTimeout(Duration timeout) {
+      delegate.connectTimeout(timeout);
       return this;
     }
 
@@ -179,21 +197,7 @@ public final class JdkHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClient.Builder retryOnConnectionFailure(boolean retry) {
-      // JDK HttpClient doesn't have built-in retry mechanism
-      // Retry logic should be implemented at application level
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder maxRequests(int maxRequests) {
-      // JDK HttpClient doesn't expose connection pool configuration
-      // It manages connections internally
-      return this;
-    }
-
-    @Override
-    public HttpClient.Builder dispatcher(Executor executor) {
+    public HttpClient.Builder executor(Executor executor) {
       delegate.executor(executor);
       return this;
     }

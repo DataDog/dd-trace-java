@@ -1,11 +1,11 @@
 package datadog.http.client;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.Proxy;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Abstraction for HTTP clients, providing request execution capabilities.
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>HttpClient instances should be reused across requests for connection pooling.
  */
-public interface HttpClient extends Closeable {
+public interface HttpClient {
 
   /**
    * Executes an HTTP request synchronously and returns the response.
@@ -27,10 +27,18 @@ public interface HttpClient extends Closeable {
   HttpResponse execute(HttpRequest request) throws IOException;
 
   /**
-   * Closes the client and releases any resources (connection pools, threads, etc.).
+   * Executes an HTTP request asynchronously and returns a CompletableFuture.
+   * The caller is responsible for closing the response.
+   *
+   * <p>If the request has an {@link HttpRequestListener} attached, its callbacks
+   * will be invoked: {@code onRequestStart} before the request is sent,
+   * {@code onRequestEnd} when the response is received, or {@code onRequestFailure}
+   * if an error occurs.
+   *
+   * @param request the request to execute
+   * @return a CompletableFuture that completes with the HTTP response
    */
-  @Override
-  void close() throws IOException;
+  CompletableFuture<HttpResponse> executeAsync(HttpRequest request);
 
   /**
    * Creates a new builder for constructing HTTP clients.
@@ -47,31 +55,12 @@ public interface HttpClient extends Closeable {
   interface Builder {
 
     /**
-     * Sets the connect timeout.
+     * Sets the client timeouts, including the connection.
      *
-     * @param timeout the timeout value
-     * @param unit the time unit
+     * @param timeout the timeout duration
      * @return this builder
      */
-    Builder connectTimeout(long timeout, TimeUnit unit);
-
-    /**
-     * Sets the read timeout.
-     *
-     * @param timeout the timeout value
-     * @param unit the time unit
-     * @return this builder
-     */
-    Builder readTimeout(long timeout, TimeUnit unit);
-
-    /**
-     * Sets the write timeout.
-     *
-     * @param timeout the timeout value
-     * @param unit the time unit
-     * @return this builder
-     */
-    Builder writeTimeout(long timeout, TimeUnit unit);
+    Builder connectTimeout(Duration timeout);
 
     /**
      * Sets the proxy configuration.
@@ -115,28 +104,12 @@ public interface HttpClient extends Closeable {
     Builder clearText(boolean clearText);
 
     /**
-     * Configures whether to retry requests on connection failures.
-     *
-     * @param retry true to retry on connection failure
-     * @return this builder
-     */
-    Builder retryOnConnectionFailure(boolean retry);
-
-    /**
-     * Sets the maximum number of concurrent requests.
-     *
-     * @param maxRequests the maximum number of requests
-     * @return this builder
-     */
-    Builder maxRequests(int maxRequests);
-
-    /**
      * Sets a custom executor for executing requests.
      *
      * @param executor the executor
      * @return this builder
      */
-    Builder dispatcher(Executor executor);
+    Builder executor(Executor executor);
 
     /**
      * Builds the HttpClient with the configured settings.
