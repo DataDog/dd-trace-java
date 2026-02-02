@@ -570,52 +570,52 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
   def infoResponse(HttpRequest request, String json, Headers headers = new Headers.Builder().build()) {
     return OkHttpResponse.wrap(new Response.Builder()
-      .code(200)
-      .request(mockOkHttpRequest(request))
-      .protocol(Protocol.HTTP_1_1)
-      .message("")
-      .headers(headers)
-      .body(ResponseBody.create(MediaType.get("application/json"), json))
-      .build())
+    .code(200)
+    .request(mockOkHttpRequest(request))
+    .protocol(Protocol.HTTP_1_1)
+    .message("")
+    .headers(headers)
+    .body(ResponseBody.create(MediaType.get("application/json"), json))
+    .build())
   }
 
   def notFound(HttpRequest request) {
     return OkHttpResponse.wrap(new Response.Builder()
-      .code(404)
-      .request(mockOkHttpRequest(request))
-      .protocol(Protocol.HTTP_1_1)
-      .message("")
-      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-      .body(ResponseBody.create(MediaType.get("application/json"), ""))
-      .build())
+    .code(404)
+    .request(mockOkHttpRequest(request))
+    .protocol(Protocol.HTTP_1_1)
+    .message("")
+    .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+    .body(ResponseBody.create(MediaType.get("application/json"), ""))
+    .build())
   }
 
   def clientError(HttpRequest request) {
     return OkHttpResponse.wrap(new Response.Builder()
-      .code(400)
-      .request(mockOkHttpRequest(request))
-      .protocol(Protocol.HTTP_1_1)
-      .message("")
-      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-      .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
-      .build())
+    .code(400)
+    .request(mockOkHttpRequest(request))
+    .protocol(Protocol.HTTP_1_1)
+    .message("")
+    .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+    .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
+    .build())
   }
 
   def success(HttpRequest request) {
     return OkHttpResponse.wrap(new Response.Builder()
-      .code(200)
-      .request(mockOkHttpRequest(request))
-      .protocol(Protocol.HTTP_1_1)
-      .message("")
-      .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
-      .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
-      .build())
+    .code(200)
+    .request(mockOkHttpRequest(request))
+    .protocol(Protocol.HTTP_1_1)
+    .message("")
+    .header(DDAgentFeaturesDiscovery.DATADOG_AGENT_STATE, PROBE_STATE)
+    .body(ResponseBody.create(MediaType.get("application/msgpack"), ""))
+    .build())
   }
 
   private Request mockOkHttpRequest(HttpRequest request) {
     return new Request.Builder()
-      .url(request.url().toString())
-      .build()
+    .url(request.url().toString())
+    .build()
   }
 
   private static String loadJsonFile(String name) {
