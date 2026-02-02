@@ -237,7 +237,8 @@ public class AIGuardInternal implements Evaluator {
       final Map<String, Object> metaStruct = new HashMap<>(2);
       metaStruct.put(META_STRUCT_MESSAGES, messagesForMetaStruct(messages));
       span.setMetaStruct(META_STRUCT_TAG, metaStruct);
-      final HttpRequest.Builder request = HttpRequest.newBuilder()
+      final HttpRequest.Builder request =
+          HttpRequest.newBuilder()
               .url(url)
               .header(CONTENT_TYPE, APPLICATION_JSON)
               .post(HttpRequestBody.of(formatRequestBody(moshi, messages, meta)));
@@ -287,7 +288,9 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
-  private String formatRequestBody(final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta) throws IOException{
+  private String formatRequestBody(
+      final Moshi moshi, final Collection<Message> messages, final Map<String, String> meta)
+      throws IOException {
     Buffer sink = new Buffer();
     final JsonWriter writer = JsonWriter.of(sink);
     writer.beginObject(); // request
