@@ -47,6 +47,7 @@ val excludedClassesCoverage by extra(
     "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
     "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
     "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
+    "datadog.communication.http.HttpUtils",
     "datadog.communication.monitor.DDAgentStatsDConnection",
     "datadog.communication.monitor.DDAgentStatsDConnection.*",
     "datadog.communication.monitor.LoggingStatsDClient",

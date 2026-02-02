@@ -5,6 +5,7 @@ import datadog.communication.monitor.Monitoring
 import datadog.http.client.HttpClient
 import datadog.http.client.HttpRequest
 import datadog.http.client.HttpUrl
+import datadog.http.client.okhttp.OkHttpResponse
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
 import okhttp3.Headers
