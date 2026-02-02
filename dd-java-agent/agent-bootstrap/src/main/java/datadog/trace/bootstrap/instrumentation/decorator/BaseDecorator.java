@@ -43,27 +43,28 @@ public abstract class BaseDecorator {
 
   protected final boolean traceAnalyticsEnabled;
   protected final double traceAnalyticsSampleRate;
-  
+
   private final TagMap.Entry traceAnalyticsEntry;
-  
+
   // Deliberately not volatile, reading null and repeating the calculation is safe
   protected TagMap.Entry cachedComponentEntry;
 
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
-    
+
     this.traceAnalyticsEnabled =
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
                 traceAnalyticsDefault(), instrumentationNames);
-        
+
     this.traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
-    
-    this.traceAnalyticsEntry = this.traceAnalyticsEnabled ?
-      TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate) :
-      null;
+
+    this.traceAnalyticsEntry =
+        this.traceAnalyticsEnabled
+            ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
+            : null;
   }
 
   protected abstract String[] instrumentationNames();
@@ -71,17 +72,14 @@ public abstract class BaseDecorator {
   protected abstract CharSequence spanType();
 
   protected abstract CharSequence component();
-  
-  /**
-   * Caches the component TagMap.Entry, so it isn't recreated for every trace
-   */
+
+  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
   final TagMap.Entry componentEntry() {
-	TagMap.Entry componentEntry = cachedComponentEntry;
-	if ( componentEntry == null ) {
-	  cachedComponentEntry = componentEntry = 
-		TagMap.Entry.create(Tags.COMPONENT, component());
-	}
-	return componentEntry;
+    TagMap.Entry componentEntry = cachedComponentEntry;
+    if (componentEntry == null) {
+      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+    }
+    return componentEntry;
   }
 
   protected boolean traceAnalyticsDefault() {
@@ -94,12 +92,12 @@ public abstract class BaseDecorator {
     }
 
     span.setTag(componentEntry());
-    
+
     // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
     // unclear which option is better here
     final CharSequence component = component();
     span.context().setIntegrationName(component);
-    
+
     TagMap.Entry traceAnalyticsEntry = this.traceAnalyticsEntry;
     if (traceAnalyticsEntry != null) {
       span.setMetric(traceAnalyticsEntry);
