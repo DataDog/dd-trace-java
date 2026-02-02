@@ -22,8 +22,8 @@ public class CodeOriginConfigTest {
   @EnabledOnJre(JRE.JAVA_21)
   @Test
   public void defaultConfigJDK21() {
-    assertFalse(Config.get().isDebuggerCodeOriginEnabled());
-    assertFalse(InstrumenterConfig.get().isCodeOriginEnabled());
+    assertTrue(Config.get().isDebuggerCodeOriginEnabled());
+    assertTrue(InstrumenterConfig.get().isCodeOriginEnabled());
   }
 
   @EnabledOnJre(JRE.JAVA_17)
