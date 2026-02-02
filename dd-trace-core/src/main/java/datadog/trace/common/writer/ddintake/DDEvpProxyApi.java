@@ -129,7 +129,8 @@ public class DDEvpProxyApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    HttpRequest.Builder builder = HttpRequest.newBuilder()
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
             .url(proxiedApiUrl)
             .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
             .listener(telemetryListener);

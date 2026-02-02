@@ -124,7 +124,8 @@ public class DDIntakeApi extends RemoteApi {
   public Response sendSerializedTraces(Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
 
-    final HttpRequest request = HttpRequest.newBuilder()
+    final HttpRequest request =
+        HttpRequest.newBuilder()
             .url(intakeUrl)
             .addHeader(DD_API_KEY_HEADER, apiKey)
             .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
