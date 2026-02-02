@@ -1,5 +1,7 @@
 package datadog.crashtracking;
 
+import static datadog.http.client.HttpRequest.APPLICATION_JSON;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_HOST;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PASSWORD;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_PROXY_PORT;
@@ -23,6 +25,8 @@ import datadog.crashtracking.dto.ErrorData;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.environment.SystemProperties;
 import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpUrl;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -46,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -70,39 +75,6 @@ public final class CrashUploader {
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   static final String TELEMETRY_REQUEST_TYPE = "logs";
 
-  private static final class CallResult implements Callback {
-    private final String kind; // for logging
-
-    private CallResult(String kind) {
-      this.kind = kind;
-    }
-
-    @Override
-    public void onFailure(Call call, IOException e) {
-      log.error("Failed to upload {} to {}, got exception", kind, call.request().url(), e);
-    }
-
-    @Override
-    public void onResponse(Call call, Response response) throws IOException {
-      if (response.isSuccessful()) {
-        log.info(
-            "Successfully uploaded the {} to {}, code = {} \"{}\"",
-            kind,
-            call.request().url(),
-            response.code(),
-            response.message());
-      } else {
-        log.error(
-            "Failed to upload {} to {}, code = {} \"{}\", body = \"{}\"",
-            kind,
-            call.request().url(),
-            response.code(),
-            response.message(),
-            response.body() != null ? response.body().string().trim() : "<null>");
-      }
-    }
-  }
-
   private final Config config;
   private final ConfigManager.StoredConfig storedConfig;
 
@@ -113,6 +85,7 @@ public final class CrashUploader {
   private final boolean agentless;
   private final String tags;
   private final long timeout;
+  private final AtomicInteger queuedRequestsCount = new AtomicInteger(0);
 
   public CrashUploader(@Nonnull final ConfigManager.StoredConfig storedConfig) {
     this(Config.get(), storedConfig);
@@ -159,8 +132,6 @@ public final class CrashUploader {
             config,
             executor, /* dispatcher */
             telemetryUrl, // will be overridden in each request
-            true, /* retryOnConnectionFailure */
-            4, /* maxRunningRequests */ // not having one request blocking the others
             configProvider.getString(CRASH_TRACKING_PROXY_HOST),
             configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
             configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
@@ -189,7 +160,7 @@ public final class CrashUploader {
           .value(
               "Crashtracker crash ping: " + (error != null ? error : "crash processing started"));
       writer.endObject();
-      handleCall(makeTelemetryRequest(makeTelemetryRequestBody(buf.readUtf8(), true)), "ping");
+      executeAsync(makeTelemetryRequest(makeTelemetryRequestBody(buf.readUtf8(), true)), "ping");
     } catch (Throwable t) {
       log.error("Failed to prepare the telemetry crash ping payload", t);
     }
@@ -213,7 +184,7 @@ public final class CrashUploader {
               null,
               null,
               "1.0");
-      handleCall(makeErrorTrackingRequest(makeErrorTrackingRequestBody(ping, true)), "ping");
+      executeAsync(makeErrorTrackingRequest(makeErrorTrackingRequestBody(ping, true)), "ping");
     } catch (Throwable t) {
       log.error("Failed to prepare the error tracking crash ping payload", t);
     }
@@ -237,7 +208,7 @@ public final class CrashUploader {
     try {
       remoteUpload(fileContent, true, storedConfig.sendToErrorTracking);
     } finally {
-      uploadClient.dispatcher().cancelAll();
+      executor.shutdownNow();
     }
   }
 
@@ -259,9 +230,8 @@ public final class CrashUploader {
     }
     int remaining;
     long deadline = MILLISECONDS.toNanos(timeout) + System.nanoTime();
-    // container that crashed
-    while ((remaining = dispatcher.queuedCallsCount() + dispatcher.runningCallsCount()) > 0
-        && deadline > System.nanoTime()) {
+    // Wait for queued requests to complete
+    while ((remaining = queuedRequestsCount.get()) > 0 && deadline > System.nanoTime()) {
       try {
         Thread.sleep(100); // good enough for this purpose even if we overflow
       } catch (InterruptedException ie) {
@@ -269,8 +239,7 @@ public final class CrashUploader {
       }
     }
     if (remaining > 0) {
-      dispatcher.cancelAll();
-      uploadClient.connectionPool().evictAll();
+      executor.shutdownNow();
       log.error(
           SEND_TELEMETRY,
           "Failed to fully send the crash report with UUID {}. Still {} calls remaining",
@@ -384,19 +353,17 @@ public final class CrashUploader {
 
   void uploadToTelemetry(@Nonnull CrashLog crashLog) {
     try {
-      handleCall(makeTelemetryRequest(makeTelemetryRequestBody(crashLog.toJson(), false)), "crash");
+      executeAsync(
+          makeTelemetryRequest(makeTelemetryRequestBody(crashLog.toJson(), false)), "crash");
     } catch (Throwable t) {
       log.error("Failed to make a telemetry request", t);
     }
   }
 
-  private Call makeTelemetryRequest(@Nonnull RequestBody requestBody) throws IOException {
+  private HttpRequest makeTelemetryRequest(@Nonnull HttpRequestBody requestBody) {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
-    MediaType contentType = requestBody.contentType();
-    if (contentType != null) {
-      headers.put("Content-Type", contentType.toString());
-    }
+    headers.put(CONTENT_TYPE, APPLICATION_JSON);
     headers.put("Content-Length", Long.toString(requestBody.contentLength()));
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
@@ -404,13 +371,12 @@ public final class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
-    return uploadClient.newCall(
-        HttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
-            .post(requestBody)
-            .build());
+    return HttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
+        .post(requestBody)
+        .build();
   }
 
-  private RequestBody makeTelemetryRequestBody(@Nonnull String payload, boolean isPing)
+  private HttpRequestBody makeTelemetryRequestBody(@Nonnull String payload, boolean isPing)
       throws IOException {
 
     try (Buffer buf = new Buffer()) {
@@ -464,25 +430,23 @@ public final class CrashUploader {
         writer.endObject();
       }
 
-      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
+      return HttpRequestBody.of(buf.readUtf8());
     }
   }
 
   void uploadToErrorTracking(@Nonnull CrashLog crashLog) {
     try {
-      handleCall(makeErrorTrackingRequest(makeErrorTrackingRequestBody(crashLog, false)), "crash");
+      executeAsync(
+          makeErrorTrackingRequest(makeErrorTrackingRequestBody(crashLog, false)), "crash");
     } catch (Throwable t) {
       log.error("Failed to make a error tracking request", t);
     }
   }
 
-  private Call makeErrorTrackingRequest(@Nonnull RequestBody requestBody) throws IOException {
+  private HttpRequest makeErrorTrackingRequest(@Nonnull HttpRequestBody requestBody) {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
-    MediaType contentType = requestBody.contentType();
-    if (contentType != null) {
-      headers.put("Content-Type", contentType.toString());
-    }
+    headers.put(CONTENT_TYPE, APPLICATION_JSON);
     headers.put("Content-Length", Long.toString(requestBody.contentLength()));
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
@@ -491,13 +455,12 @@ public final class CrashUploader {
       headers.put(HEADER_DD_EVP_SUBDOMAIN, ERROR_TRACKING_INTAKE);
     }
 
-    return uploadClient.newCall(
-        HttpUtils.prepareRequest(errorTrackingUrl, headers, config, agentless)
-            .post(requestBody)
-            .build());
+    return HttpUtils.prepareRequest(errorTrackingUrl, headers, config, agentless)
+        .post(requestBody)
+        .build();
   }
 
-  private RequestBody makeErrorTrackingRequestBody(@Nonnull CrashLog payload, boolean isPing)
+  private HttpRequestBody makeErrorTrackingRequestBody(@Nonnull CrashLog payload, boolean isPing)
       throws IOException {
     try (Buffer buf = new Buffer()) {
       try (JsonWriter writer = JsonWriter.of(buf)) {
@@ -553,7 +516,7 @@ public final class CrashUploader {
         }
         writer.endObject();
       }
-      return RequestBody.create(APPLICATION_JSON, buf.readByteString());
+      return HttpRequestBody.of(buf.readUtf8());
     }
   }
 
@@ -596,7 +559,42 @@ public final class CrashUploader {
     return (tags.toString());
   }
 
-  private void handleCall(final Call call, String kind) {
-    call.enqueue(new CallResult(kind));
+  private void executeAsync(final HttpRequest request, final String kind) {
+    queuedRequestsCount.incrementAndGet();
+    uploadClient
+        .executeAsync(request)
+        .whenComplete(
+            (response, throwable) -> {
+              try {
+                if (throwable != null) {
+                  log.error(
+                      "Failed to upload {} to {}, got exception", kind, request.url(), throwable);
+                } else if (response.isSuccessful()) {
+                  log.info(
+                      "Successfully uploaded the {} to {}, code = {}",
+                      kind,
+                      request.url(),
+                      response.code());
+                } else {
+                  String body = null;
+                  try {
+                    body = response.bodyAsString();
+                  } catch (IOException ignored) {
+                    // Ignore body read errors
+                  }
+                  log.error(
+                      "Failed to upload {} to {}, code = {}, body = \"{}\"",
+                      kind,
+                      request.url(),
+                      response.code(),
+                      body != null ? body.trim() : "<null>");
+                }
+              } finally {
+                if (response != null) {
+                  response.close();
+                }
+                queuedRequestsCount.decrementAndGet();
+              }
+            });
   }
 }
