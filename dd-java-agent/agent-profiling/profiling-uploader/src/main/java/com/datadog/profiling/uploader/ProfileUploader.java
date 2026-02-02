@@ -259,31 +259,35 @@ public final class ProfileUploader {
     AtomicBoolean handled = new AtomicBoolean(false);
 
     queuedRequestsCount.incrementAndGet();
-    CompletableFuture<HttpResponse> future = client.executeAsync(request)
-        .whenComplete((response, throwable) -> {
-          if (handled.compareAndSet(false, true)) {
-            try {
-              if (throwable != null) {
-                Exception e = throwable instanceof Exception
-                    ? (Exception) throwable
-                    : new IOException(throwable);
-                handleFailure(request, e, data, onCompletion);
-              } else {
-                handleResponse(request, response, data, onCompletion);
-              }
-            } finally {
-              if (response != null) {
-                response.close();
-              }
-              queuedRequestsCount.decrementAndGet();
-            }
-          } else {
-            // Already handled by timeout - just close the response
-            if (response != null) {
-              response.close();
-            }
-          }
-        });
+    CompletableFuture<HttpResponse> future =
+        client
+            .executeAsync(request)
+            .whenComplete(
+                (response, throwable) -> {
+                  if (handled.compareAndSet(false, true)) {
+                    try {
+                      if (throwable != null) {
+                        Exception e =
+                            throwable instanceof Exception
+                                ? (Exception) throwable
+                                : new IOException(throwable);
+                        handleFailure(request, e, data, onCompletion);
+                      } else {
+                        handleResponse(request, response, data, onCompletion);
+                      }
+                    } finally {
+                      if (response != null) {
+                        response.close();
+                      }
+                      queuedRequestsCount.decrementAndGet();
+                    }
+                  } else {
+                    // Already handled by timeout - just close the response
+                    if (response != null) {
+                      response.close();
+                    }
+                  }
+                });
 
     if (sync) {
       try {
@@ -358,8 +362,7 @@ public final class ProfileUploader {
   private IOLogger.Response getLoggerResponse(final HttpResponse response) {
     if (response != null) {
       try {
-        return new IOLogger.Response(
-            response.code(), "", response.bodyAsString().trim());
+        return new IOLogger.Response(response.code(), "", response.bodyAsString().trim());
       } catch (final NullPointerException | IOException ignored) {
       }
     }

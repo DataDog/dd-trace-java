@@ -78,7 +78,8 @@ public class EvalProcessingWorker implements AutoCloseable {
     }
 
     EvalSerializingHandler serializingHandler =
-        new EvalSerializingHandler(queue, flushInterval, timeUnit, submissionUrl, headerName, headerValue);
+        new EvalSerializingHandler(
+            queue, flushInterval, timeUnit, submissionUrl, headerName, headerValue);
     this.serializerThread = newAgentThread(LLMOBS_EVALS_PROCESSOR, serializingHandler);
   }
 
@@ -177,14 +178,16 @@ public class EvalProcessingWorker implements AutoCloseable {
 
         String reqBod = evalJsonAdapter.toJson(llmobsEvalReq);
 
-        HttpRequest request = HttpRequest.newBuilder()
-            .header(CONTENT_TYPE, APPLICATION_JSON)
-            .header(headerName, headerValue)
-            .url(submissionUrl)
-            .post(HttpRequestBody.of(reqBod))
-            .build();
+        HttpRequest request =
+            HttpRequest.newBuilder()
+                .header(CONTENT_TYPE, APPLICATION_JSON)
+                .header(headerName, headerValue)
+                .url(submissionUrl)
+                .post(HttpRequestBody.of(reqBod))
+                .build();
 
-        try (HttpResponse response = HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+        try (HttpResponse response =
+            HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
           if (response.isSuccessful()) {
             log.debug("successfully flushed evaluation request with {} evals", this.buffer.size());
             this.buffer.clear();
