@@ -7,11 +7,11 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # run workflow when any branch is created
+  # run workflow when any branch or tag is created
   create:
 
 jobs:
-  # TODO: Remove this job after confirming the github.ref when a release branch is created
+  # TODO: Remove this job after confirming the workflow succeeds for release branches
   print-github-ref:
     name: "Print full github.ref"
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
 
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name != 'create' || contains(github.ref, 'release/v')
+    if: github.event_name != 'create' || (contains(github.ref, 'tags/v') && endsWith(github.ref, '.0'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -40,7 +40,14 @@ jobs:
           if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
             BASE_BRANCH=${{ github.event.inputs.release-branch-name }}
           else
-            BASE_BRANCH=${GITHUB_REF#refs/heads/}
+            # Convert tag (e.g. v1.54.0) to release branch name (e.g. release/v1.54.x)
+            TAG=${GITHUB_REF#refs/tags/}
+            if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+              BASE_BRANCH="release/${TAG%.0}.x"
+            else
+              echo "ERROR: Tag $TAG is not in the expected format: vX.Y.0"
+              exit 1
+            fi
           fi
           echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
       
