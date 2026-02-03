@@ -1,3 +1,15 @@
+---
+name: techdebt
+description: Analyze branch changes for technical debt, code duplication, and unnecessary complexity
+user-invocable: true
+context: fork
+allowed-tools:
+  - Bash
+  - Read
+  - Grep
+  - Glob
+---
+
 # Techdebt Cleanup Skill
 
 Analyze changes on the current branch to identify and fix technical debt, code duplication, and unnecessary complexity.
