@@ -84,27 +84,31 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
       return;
     }
 
-    String httpMethod = httpMethodObj.toString();
-    String httpRoute = httpRouteObj != null ? httpRouteObj.toString() : null;
-    String httpUrl = httpUrlObj != null ? httpUrlObj.toString() : null;
+    try {
+      String httpMethod = httpMethodObj.toString();
+      String httpRoute = httpRouteObj != null ? httpRouteObj.toString() : null;
+      String httpUrl = httpUrlObj != null ? httpUrlObj.toString() : null;
 
-    // Resolve endpoint using EndpointResolver
-    // Pass unsafeTags directly - it's safe to use at this point since span is finished
-    String endpoint = endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
+      // Resolve endpoint using EndpointResolver
+      // Pass unsafeTags directly - it's safe to use at this point since span is finished
+      String endpoint = endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
 
-    if (endpoint != null && !endpoint.isEmpty()) {
-      // Combine method and endpoint into resource name using cached join
-      CharSequence resourceName = HttpResourceNames.join(httpMethod, endpoint);
-      spanContext.setResourceName(
-          resourceName, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING);
+      if (endpoint != null && !endpoint.isEmpty()) {
+        // Combine method and endpoint into resource name using cached join
+        CharSequence resourceName = HttpResourceNames.join(httpMethod, endpoint);
+        spanContext.setResourceName(
+            resourceName, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING);
 
-      log.debug(
-          "Updated resource name to '{}' for span {} (method={}, route={}, url={})",
-          resourceName,
-          spanContext.getSpanId(),
-          httpMethod,
-          httpRoute,
-          httpUrl);
+        log.debug(
+            "Updated resource name to '{}' for span {} (method={}, route={}, url={})",
+            resourceName,
+            spanContext.getSpanId(),
+            httpMethod,
+            httpRoute,
+            httpUrl);
+      }
+    } catch (Throwable t) {
+      log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
     }
   }
 }
