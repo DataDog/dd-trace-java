@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SP
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
+import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -217,5 +218,15 @@ public interface AgentSpan
   @Override
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
+  }
+
+  @Override
+  default ContextScope attach() {
+    Context current = Context.current();
+    if (current == Context.root() || current instanceof AgentSpan) {
+      return Context.super.attach();
+    } else {
+      return current.with(SPAN_KEY, this).attach();
+    }
   }
 }
