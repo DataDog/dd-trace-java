@@ -6,7 +6,7 @@ public class ResourceNamePriorities {
   public static final byte HTTP_404 = 2;
   public static final byte HTTP_FRAMEWORK_ROUTE = 3;
   public static final byte RPC_COMMAND_NAME = 3;
-  public static final byte HTTP_SERVER_RESOURCE_RENAMING = 4;
+  public static final byte HTTP_SERVER_RESOURCE_RENAMING = 3;
   public static final byte HTTP_SERVER_CONFIG_PATTERN_MATCH = 4;
   public static final byte HTTP_CLIENT_CONFIG_PATTERN_MATCH = 4;
   public static final byte TAG_INTERCEPTOR = 5;
