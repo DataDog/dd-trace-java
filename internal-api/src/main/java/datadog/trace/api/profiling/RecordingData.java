@@ -16,14 +16,21 @@
 package datadog.trace.api.profiling;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public abstract class RecordingData implements ProfilingSnapshot {
   protected final Instant start;
   protected final Instant end;
   protected final Kind kind;
+
+  // Reference counting for multiple listeners
+  private final AtomicInteger refCount = new AtomicInteger(0); // Start at 0
+  private volatile boolean released = false;
 
   public RecordingData(final Instant start, final Instant end, Kind kind) {
     this.start = start;
@@ -39,9 +46,33 @@ public abstract class RecordingData implements ProfilingSnapshot {
   public abstract RecordingInputStream getStream() throws IOException;
 
   /**
+   * Increment reference count. Must be called once for each handler that will process this
+   * RecordingData.
+   *
+   * <p>The reference count starts at 0, so every handler must call {@code retain()} before
+   * processing and {@code release()} when done. When the last handler calls {@code release()}, the
+   * reference count reaches 0 and resources are cleaned up.
+   *
+   * @return this instance for chaining
+   * @throws IllegalStateException if the recording has already been released
+   */
+  @Nonnull
+  public final RecordingData retain() {
+    if (released) {
+      throw new IllegalStateException("Cannot retain released RecordingData");
+    }
+    refCount.incrementAndGet();
+    return this;
+  }
+
+  /**
    * Releases the resources associated with the recording, for example the underlying file.
    *
-   * <p>Forgetting to releasing this when done streaming, will lead to one or more of the following:
+   * <p>This method uses reference counting to support multiple handlers. Each call to {@link
+   * #retain()} must be matched with a call to {@code release()}. The actual resource cleanup via
+   * {@link #doRelease()} happens when the reference count reaches zero.
+   *
+   * <p>Forgetting to release this when done streaming will lead to one or more of the following:
    *
    * <ul>
    *   <li>Memory leak
@@ -50,7 +81,28 @@ public abstract class RecordingData implements ProfilingSnapshot {
    *
    * <p>Please don't forget to call release when done streaming...
    */
-  public abstract void release();
+  public final void release() {
+    if (released) {
+      return; // Already released, no-op
+    }
+
+    int remaining = refCount.decrementAndGet();
+    if (remaining == 0) {
+      released = true;
+      doRelease();
+    } else if (remaining < 0) {
+      // Should never happen, but guard against it
+      throw new IllegalStateException("RecordingData over-released");
+    }
+  }
+
+  /**
+   * Actual resource cleanup implementation. Subclasses must override this method instead of {@link
+   * #release()}.
+   *
+   * <p>This method is called exactly once when the reference count reaches zero.
+   */
+  protected abstract void doRelease();
 
   /**
    * Returns the name of the recording from which the data is originating.
@@ -87,6 +139,19 @@ public abstract class RecordingData implements ProfilingSnapshot {
   @Nonnull
   public final Kind getKind() {
     return kind;
+  }
+
+  /**
+   * Returns the path to the underlying JFR file if available.
+   *
+   * <p>This method provides direct file access for parsers that can work with file paths more
+   * efficiently than streams. Implementations backed by files should override this method.
+   *
+   * @return the path to the JFR file, or {@code null} if the recording is not backed by a file
+   */
+  @Nullable
+  public Path getFile() {
+    return null;
   }
 
   @Override
