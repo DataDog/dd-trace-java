@@ -45,7 +45,7 @@ public final class DBInfo {
     this.poolName = poolName;
   }
 
-  public static class Builder {
+  public static final class Builder {
     private String type;
     private String subtype;
     // most DBs do support full propagation (inserting trace ID in query comments), so we default to
