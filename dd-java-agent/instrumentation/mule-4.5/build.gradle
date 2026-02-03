@@ -179,10 +179,12 @@ dependencies {
   mule46Services group: 'org.mule.services', name: 'mule-service-scheduler', version: '1.5.0', classifier: 'mule-service'
   mule46Services group: 'org.mule.services', name: 'mule-service-weave', version: '2.5.0', classifier: 'mule-service'
 
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.+'
-  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.+'
+  // TODO: Mule 4.11.0 seems to have a breaking change. Pin to 4.10.x until we can fix.
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: '4.10.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-core', version: '4.10.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: '4.10.+'
+  latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-service', version: '4.10.+'
+  // note: mule-module-javaee has its own version scheme
   latestDepForkedTestImplementation group: 'org.mule.runtime', name: 'mule-module-javaee', version: '4.+'
 
   /*
