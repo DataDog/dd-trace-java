@@ -75,7 +75,6 @@ public class ShellGitClient implements GitClient {
     this.latestCommitsSince = latestCommitsSince;
     this.latestCommitsLimit = latestCommitsLimit;
 
-    // Find actual git repo root by traversing upward to find .git
     String gitRepoRoot = findGitRepositoryRoot(new File(repoRoot).getAbsoluteFile());
     this.repoRoot = gitRepoRoot;
     this.safeDirectoryOption = "safe.directory=" + gitRepoRoot;
@@ -88,22 +87,17 @@ public class ShellGitClient implements GitClient {
    * directory or file (for worktrees).
    *
    * @param startDir The directory to start searching from
-   * @return The canonical path to the repository root, or the original path if no .git is found
+   * @return The absolute path to the repository root, or the original path if no .git is found
    */
-  private static String findGitRepositoryRoot(File startDir) {
-    try {
-      File current = startDir.getCanonicalFile();
-      while (current != null) {
-        File gitDir = new File(current, ".git");
-        if (gitDir.exists()) {
-          return current.getPath();
-        }
-        current = current.getParentFile();
+  static String findGitRepositoryRoot(File startDir) {
+    File current = startDir.getAbsoluteFile();
+    while (current != null) {
+      File gitDir = new File(current, ".git");
+      if (gitDir.exists()) {
+        return current.getPath();
       }
-    } catch (IOException e) {
-      LOGGER.debug("Could not get canonical path for {}", startDir, e);
+      current = current.getParentFile();
     }
-    // If no .git found or error occurred, return the original directory as fallback
     return startDir.getAbsolutePath();
   }
 
@@ -113,7 +107,7 @@ public class ShellGitClient implements GitClient {
    * @param gitArgs The git command arguments (everything after "git")
    * @return The complete command array including "git", "-c", "safe.directory=...", and the args
    */
-  String[] buildGitCommand(String... gitArgs) {
+  private String[] buildGitCommand(String... gitArgs) {
     String[] command = new String[gitArgs.length + 3];
     command[0] = "git";
     command[1] = "-c";

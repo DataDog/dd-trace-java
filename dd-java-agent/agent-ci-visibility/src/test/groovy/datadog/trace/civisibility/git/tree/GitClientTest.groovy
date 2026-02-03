@@ -23,57 +23,54 @@ class GitClientTest extends Specification {
   @TempDir
   private Path tempDir
 
-  def "test buildGitCommand adds safe directory option with absolute path"() {
-    given:
-    def repoRoot = "/path/to/repo"
-    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    def gitClient = new ShellGitClient(metricCollector, repoRoot, "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
-
-    when:
-    def command = gitClient.buildGitCommand("status", "--porcelain")
-
-    then:
-    command.length == 5
-    command[0] == "git"
-    command[1] == "-c"
-    command[2] == "safe.directory=/path/to/repo"
-    command[3] == "status"
-    command[4] == "--porcelain"
-  }
-
-  def "test buildGitCommand resolves relative path to absolute"() {
-    given:
-    def repoRoot = "."
-    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    def gitClient = new ShellGitClient(metricCollector, repoRoot, "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
-
-    when:
-    def command = gitClient.buildGitCommand("status")
-
-    then:
-    command.length == 4
-    command[0] == "git"
-    command[1] == "-c"
-    // The relative path "." should be resolved to an absolute path
-    command[2].startsWith("safe.directory=/")
-    !command[2].contains("safe.directory=.")
-    command[3] == "status"
-  }
-
-  def "test buildGitCommand finds repo root from subdirectory"() {
+  def "test find git repo root with .git directory"() {
     given:
     givenGitRepo()
-    // Create a subdirectory within the git repo
-    def subDir = tempDir.resolve("subdir")
-    Files.createDirectories(subDir)
-    def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
-    def gitClient = new ShellGitClient(metricCollector, subDir.toString(), "25 years ago", 10, GIT_COMMAND_TIMEOUT_MILLIS)
 
     when:
-    def command = gitClient.buildGitCommand("status")
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
 
     then:
-    command[2] == "safe.directory=" + tempDir.toRealPath().toString()
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root with .git file (worktree)"() {
+    given:
+    givenGitWorktree("ci/git/worktree")
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root defaults to original when no .git"() {
+    given:
+    def dirWithNoGit = tempDir.resolve("no_git_here")
+    Files.createDirectories(dirWithNoGit)
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(dirWithNoGit.toFile())
+
+    then:
+    repoRoot == dirWithNoGit.toAbsolutePath().toString()
   }
 
   def "test is not shallow"() {
@@ -480,6 +477,13 @@ class GitClientTest extends Specification {
 
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
+  }
+
+  private void givenGitWorktree(String resourceName) {
+    // Worktree has a .git file (not directory) that points to the actual git dir
+    def gitFile = Paths.get(getClass().getClassLoader().getResource(resourceName + "/git").toURI())
+    def tempGitFile = tempDir.resolve(GIT_FOLDER)
+    Files.copy(gitFile, tempGitFile)
   }
 
   private void givenGitRepo(String resourceName) {
