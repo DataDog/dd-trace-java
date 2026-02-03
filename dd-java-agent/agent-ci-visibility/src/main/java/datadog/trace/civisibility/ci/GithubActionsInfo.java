@@ -26,9 +26,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings(
+    value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
+    justification =
+        "The GitHub Actions runner diagnostics directories have well-known absolute paths on Linux runners")
 class GithubActionsInfo implements CIProviderInfo {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GithubActionsInfo.class);
