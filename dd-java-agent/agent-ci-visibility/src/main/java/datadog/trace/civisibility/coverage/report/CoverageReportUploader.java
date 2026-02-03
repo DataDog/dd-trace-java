@@ -11,7 +11,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.civisibility.communication.TelemetryListener;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -82,7 +81,6 @@ public class CoverageReportUploader {
       return -1;
     }
 
-    @SuppressFBWarnings("OS_OPEN_STREAM")
     @Override
     public void writeTo(OutputStream out) throws IOException {
       GZIPOutputStream outputStream = new GZIPOutputStream(out);
