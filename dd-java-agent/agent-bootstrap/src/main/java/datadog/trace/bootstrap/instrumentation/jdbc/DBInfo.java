@@ -2,8 +2,9 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import java.util.Objects;
 
-public class DBInfo {
-  public static DBInfo DEFAULT = new Builder().type("database").build();
+public final class DBInfo {
+  public static final DBInfo DEFAULT = new Builder().type("database").build();
+  
   private final String type;
   private final String subtype;
   private final boolean fullPropagationSupport;
