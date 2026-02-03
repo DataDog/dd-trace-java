@@ -243,16 +243,16 @@ class GitClientTest extends Specification {
 
     then:
     commits == [
-        "5b6f3a6dab5972d73a56dff737bd08d995255c08",
-        "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c",
-        "31ca182c0474f6265e660498c4fbcf775e23bba0",
-        "1bd740dd476c38d4b4d706d3ad7cb59cd0b84f7d",
-        "2b788c66fc4b58ce6ca7b94fbaf1b94a3ea3a93e",
-        "15d5d8e09cbf369f2fa6929c0b0c74b2b0a22193",
-        "6aaa4085c10d16b63a910043e35dbd35d2ef7f1c",
-        "10599ae3c17d66d642f9f143b1ff3dd236111e2a",
-        "5128e6f336cce5a431df68fa0ec42f8c8d0776b1",
-        "0c623e9dab4349960930337c936bf9975456e82f"
+      "5b6f3a6dab5972d73a56dff737bd08d995255c08",
+      "98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c",
+      "31ca182c0474f6265e660498c4fbcf775e23bba0",
+      "1bd740dd476c38d4b4d706d3ad7cb59cd0b84f7d",
+      "2b788c66fc4b58ce6ca7b94fbaf1b94a3ea3a93e",
+      "15d5d8e09cbf369f2fa6929c0b0c74b2b0a22193",
+      "6aaa4085c10d16b63a910043e35dbd35d2ef7f1c",
+      "10599ae3c17d66d642f9f143b1ff3dd236111e2a",
+      "5128e6f336cce5a431df68fa0ec42f8c8d0776b1",
+      "0c623e9dab4349960930337c936bf9975456e82f"
     ]
   }
 
@@ -266,14 +266,14 @@ class GitClientTest extends Specification {
 
     then:
     objects == [
-        "5b6f3a6dab5972d73a56dff737bd08d995255c08",
-        "c52914110869ff3999bca4837410511f17787e87",
-        "cd3407343e846f6707d34b77f38e86345063d0bf",
-        "e7fff9f77d05daca86a6bbec334a3304da23278b",
-        "a70ad1f15bda97e2f154a0ac6577e11d55ee05d3",
-        "3d02ff4958a9ef00b36b1f6e755e3e4e9c92ba5f",
-        "5ba3615fbe9ae3dd4338fae6f67f013c212f83b5",
-        "fd408d6995f1651a245c227d57529bf8a51ffe45"
+      "5b6f3a6dab5972d73a56dff737bd08d995255c08",
+      "c52914110869ff3999bca4837410511f17787e87",
+      "cd3407343e846f6707d34b77f38e86345063d0bf",
+      "e7fff9f77d05daca86a6bbec334a3304da23278b",
+      "a70ad1f15bda97e2f154a0ac6577e11d55ee05d3",
+      "3d02ff4958a9ef00b36b1f6e755e3e4e9c92ba5f",
+      "5ba3615fbe9ae3dd4338fae6f67f013c212f83b5",
+      "fd408d6995f1651a245c227d57529bf8a51ffe45"
     ]
   }
 
@@ -284,14 +284,14 @@ class GitClientTest extends Specification {
     when:
     def gitClient = givenGitClient()
     def packFilesDir = gitClient.createPackFiles([
-        "5b6f3a6dab5972d73a56dff737bd08d995255c08",
-        "c52914110869ff3999bca4837410511f17787e87",
-        "cd3407343e846f6707d34b77f38e86345063d0bf",
-        "e7fff9f77d05daca86a6bbec334a3304da23278b",
-        "a70ad1f15bda97e2f154a0ac6577e11d55ee05d3",
-        "3d02ff4958a9ef00b36b1f6e755e3e4e9c92ba5f",
-        "5ba3615fbe9ae3dd4338fae6f67f013c212f83b5",
-        "fd408d6995f1651a245c227d57529bf8a51ffe45"
+      "5b6f3a6dab5972d73a56dff737bd08d995255c08",
+      "c52914110869ff3999bca4837410511f17787e87",
+      "cd3407343e846f6707d34b77f38e86345063d0bf",
+      "e7fff9f77d05daca86a6bbec334a3304da23278b",
+      "a70ad1f15bda97e2f154a0ac6577e11d55ee05d3",
+      "3d02ff4958a9ef00b36b1f6e755e3e4e9c92ba5f",
+      "5ba3615fbe9ae3dd4338fae6f67f013c212f83b5",
+      "fd408d6995f1651a245c227d57529bf8a51ffe45"
     ])
 
     then:
@@ -315,7 +315,7 @@ class GitClientTest extends Specification {
 
     then:
     diff.linesByRelativePath == [
-        "src/Datadog.Trace/Logging/DatadogLogging.cs": lines(26, 32, 91, 95, 159, 160)
+      "src/Datadog.Trace/Logging/DatadogLogging.cs": lines(26, 32, 91, 95, 159, 160)
     ]
   }
 
@@ -449,13 +449,13 @@ class GitClientTest extends Specification {
     where:
     metrics                                                       | expectedOrder
     [
-        new ShellGitClient.BaseBranchMetric("main", 10, 2),
-        new ShellGitClient.BaseBranchMetric("master", 15, 1),
-        new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["master", "main", "origin/main"]
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 1),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["master", "main", "origin/main"]
     [
-        new ShellGitClient.BaseBranchMetric("main", 10, 2),
-        new ShellGitClient.BaseBranchMetric("master", 15, 2),
-        new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
+      new ShellGitClient.BaseBranchMetric("main", 10, 2),
+      new ShellGitClient.BaseBranchMetric("master", 15, 2),
+      new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
     []                                                            | []
   }
 

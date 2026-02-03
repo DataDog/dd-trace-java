@@ -321,8 +321,7 @@ public class ShellGitClient implements GitClient {
         () -> {
           try {
             return commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand("describe", "--tags", "--exact-match", commit));
+                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
           } catch (ShellCommandExecutor.ShellCommandFailedException e) {
             // if provided commit is not tagged,
             // command will fail because "--exact-match" is specified
@@ -791,10 +790,7 @@ public class ShellGitClient implements GitClient {
               .executeCommand(
                   IOUtils::readFully,
                   buildGitCommand(
-                      "symbolic-ref",
-                      "--quiet",
-                      "--short",
-                      "refs/remotes/" + remoteName + "/HEAD"))
+                      "symbolic-ref", "--quiet", "--short", "refs/remotes/" + remoteName + "/HEAD"))
               .trim();
       if (Strings.isNotBlank(defaultRef)) {
         return removeRemotePrefix(defaultRef, remoteName);
