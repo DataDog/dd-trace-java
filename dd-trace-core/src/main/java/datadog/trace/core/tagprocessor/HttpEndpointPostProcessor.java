@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.trace.api.TagMap;
+import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.DDSpanContext;
@@ -92,8 +93,8 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
     String endpoint = endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
 
     if (endpoint != null && !endpoint.isEmpty()) {
-      // Combine method and endpoint into resource name
-      String resourceName = httpMethod + " " + endpoint;
+      // Combine method and endpoint into resource name using cached join
+      CharSequence resourceName = HttpResourceNames.join(httpMethod, endpoint);
       spanContext.setResourceName(
           resourceName, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING);
 

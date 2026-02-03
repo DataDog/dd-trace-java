@@ -23,7 +23,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     processor.processTags(tags, mockContext, [])
 
     then:
-    1 * mockContext.setResourceName("GET /greeting", ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
+    1 * mockContext.setResourceName({ it.toString() == "GET /greeting" }, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
   }
 
   def "should compute simplified endpoint from URL when route is invalid"() {
@@ -41,7 +41,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     processor.processTags(tags, mockContext, [])
 
     then:
-    1 * mockContext.setResourceName("GET /users/{param:int}/orders/{param:int}", ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
+    1 * mockContext.setResourceName({ it.toString() == "GET /users/{param:int}/orders/{param:int}" }, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
   }
 
   def "should skip non-HTTP spans"() {
@@ -92,6 +92,6 @@ class HttpEndpointPostProcessorTest extends Specification {
     processor.processTags(tags, mockContext, [])
 
     then:
-    1 * mockContext.setResourceName("GET /users/{param:int}", ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
+    1 * mockContext.setResourceName({ it.toString() == "GET /users/{param:int}" }, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING)
   }
 }
