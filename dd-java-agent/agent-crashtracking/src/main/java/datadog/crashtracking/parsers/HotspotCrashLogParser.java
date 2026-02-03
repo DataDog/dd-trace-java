@@ -77,7 +77,7 @@ public final class HotspotCrashLogParser {
     String relAddress = null;
     char firstChar = line.charAt(0);
     if (line.length() > 1 && !Character.isSpaceChar(line.charAt(1))) {
-      // with can found kind of that in between the frames that we need to skip
+      // We can find entries like this in between the frames
       // Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
       return null;
     }
