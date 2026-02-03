@@ -1,0 +1,13 @@
+issuer: https://token.actions.githubusercontent.com
+
+subject_pattern: repo:DataDog/dd-trace-java:ref:refs/(heads/master|tags/v\d+\.\d+\.0)
+
+claim_pattern:
+  event_name: (workflow_dispatch|push)
+  ref: refs/(heads/master|tags/v\d+\.\d+\.0)
+  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/create-release-branch-and-pin-system-tests\.yaml@refs/heads/master
+
+permissions:
+  contents: write
+  pull_requests: write
+  workflows: write
