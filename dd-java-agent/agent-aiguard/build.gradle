@@ -25,6 +25,7 @@ dependencies {
   testImplementation project(':utils:test-utils')
   testImplementation('org.skyscreamer:jsonassert:1.5.3')
   testImplementation('com.fasterxml.jackson.core:jackson-databind:2.20.0')
+  testImplementation('org.mock-server:mockserver-netty-no-dependencies:5.15.0')
 }
 
 tasks.named("shadowJar", ShadowJar) {
