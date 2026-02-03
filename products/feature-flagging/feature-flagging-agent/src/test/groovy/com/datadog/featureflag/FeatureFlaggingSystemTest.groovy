@@ -2,13 +2,13 @@ package com.datadog.featureflag
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpUrl
 import datadog.remoteconfig.Capabilities
 import datadog.remoteconfig.ConfigurationDeserializer
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
-import okhttp3.HttpUrl
 
 class FeatureFlaggingSystemTest extends DDSpecification {
 
@@ -24,7 +24,7 @@ class FeatureFlaggingSystemTest extends DDSpecification {
       featuresDiscovery(_ as Config) >> discovery
     }
     sco.featuresDiscovery = discovery
-    sco.agentUrl = HttpUrl.get('http://localhost')
+    sco.agentUrl = HttpUrl.parse('http://localhost')
 
     when:
     FeatureFlaggingSystem.start(sco)
