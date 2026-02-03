@@ -1,93 +1,51 @@
 # Techdebt Cleanup Skill
 
-Analyze and refactor changes on the current branch to reduce technical debt, eliminate code duplication, and remove unnecessary complexity.
+Analyze changes on the current branch to identify and fix technical debt, code duplication, and unnecessary complexity.
 
 ## Instructions
 
-You are a senior engineer performing a technical debt review of the changes introduced on this branch. Your goal is to refine the code to be cleaner, simpler, and more maintainable.
+### Step 1: Get Branch Changes
 
-### Step 1: Gather Context
-
-Find the remote pointing to the upstream DataDog/dd-trace-java repository and get all changes:
+Find the upstream remote and compare against it:
 
 ```bash
-# Find upstream remote and get diff stats
-UPSTREAM=$(git remote -v | grep -E 'DataDog/dd-trace-java(.git)?\s' | head -1 | awk '{print $1}')
-echo "Upstream remote: $UPSTREAM"
+# Find upstream (DataDog org repo) and show changes
+UPSTREAM=$(git remote -v | grep -E 'DataDog/[^/]+(.git)?\s' | head -1 | awk '{print $1}')
+if [ -z "$UPSTREAM" ]; then
+  echo "No DataDog upstream found, using origin"
+  UPSTREAM="origin"
+fi
+echo "Comparing against: $UPSTREAM/master"
 git diff ${UPSTREAM}/master --stat
 git diff ${UPSTREAM}/master --name-status
 ```
 
-Then read the full diff to understand the changes:
+If no changes exist, inform the user and stop.
 
-```bash
-UPSTREAM=$(git remote -v | grep -E 'DataDog/dd-trace-java(.git)?\s' | head -1 | awk '{print $1}')
-git diff ${UPSTREAM}/master
-```
+If changes exist, read the diff and the full content of modified source files (not test files) to understand context.
 
-### Step 2: Analyze for Technical Debt
+### Step 2: Analyze for Issues
 
-Review all changes looking for these specific issues:
+Look for:
 
-#### Code Duplication
-- Similar code blocks that could be extracted into shared functions/methods
+**Code Duplication**
+- Similar code blocks that should be extracted into shared functions
 - Copy-pasted logic with minor variations
-- Repeated patterns that could use a common abstraction
 
-#### Unnecessary Complexity
-- Over-engineered solutions (abstractions for single use cases)
+**Unnecessary Complexity**
+- Over-engineered solutions (abstractions used only once)
 - Excessive indirection or layers
 - Backward compatibility shims that aren't needed
 
-#### Redundant Code
+**Redundant Code**
 - Dead code paths
-- Excessive null checks or error handling for impossible scenarios
-- Comments that just repeat what the code does
+- Overly defensive checks for impossible scenarios
 
-#### Verbose Patterns
-- Boilerplate that could be simplified
-- Explicit types where inference works
-- Unnecessarily defensive code
+### Step 3: Report and Fix
 
-### Step 3: Report Findings
+Present a concise summary of issues found with file:line references.
 
-Present findings in this format:
-
-```
-## Technical Debt Analysis
-
-### Summary
-- Files analyzed: X
-- Issues found: Y
-
-### Issues by Category
-
-#### 1. Code Duplication
-[List each instance with file:line references and explanation]
-
-#### 2. Unnecessary Complexity
-[List each instance with file:line references and explanation]
-
-#### 3. Redundant Code
-[List each instance with file:line references and explanation]
-
-### Recommended Refactorings
-[Prioritized list of specific changes to make]
-```
-
-### Step 4: Implement Fixes (if requested)
-
-If the user wants you to fix the issues:
-
-1. Start with the highest-impact, lowest-risk changes
-2. Make one logical change at a time
-3. Explain each change briefly
-4. Do NOT introduce new features or change behavior - only refactor
-
-### Guidelines
-
-- **Be conservative**: Only flag clear issues, not stylistic preferences
-- **Preserve behavior**: Refactoring must not change functionality
-- **Stay focused**: Only analyze changes on this branch, not the entire codebase
-- **Be specific**: Always include file paths and line numbers
-- **Prioritize**: Focus on issues that matter, skip trivial ones
+Then ask the user if they want you to fix the issues. When fixing:
+- Make one logical change at a time
+- Do NOT change behavior, only refactor
+- Skip trivial or stylistic issues
