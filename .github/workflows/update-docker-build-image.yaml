@@ -71,7 +71,7 @@ jobs:
           git commit -m "feat(ci): Update Docker build image" .gitlab-ci.yml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
-        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
         if: steps.check-changes.outputs.commit_changes == 'true'
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
