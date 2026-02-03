@@ -96,36 +96,25 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.featuresDiscovery.is(agentFeaturesDiscovery)
   }
 
-  void 'supports ipv6 agent host w/o brackets'() {
+  void 'supports ipv6 agent host #testcase'(String host, String expectedHost) {
     given:
-    injectSysConfig(AGENT_HOST, "2600:1f18:19c0:bd07:d55b::17")
+    injectSysConfig(AGENT_HOST, host)
     Config config = Mock()
 
     when:
     sco.createRemaining(config)
 
     then:
-    1 * config.getAgentUrl() >> 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
+    1 * config.getAgentUrl() >> "http://$expectedHost:8126"
     1 * config.agentNamedPipe >> null
     1 * config.agentTimeout >> 1
     1 * config.agentUnixDomainSocket >> null
-    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
-  }
+    sco.agentUrl.host() == expectedHost
 
-  void 'supports ipv6 agent host w/ brackets'() {
-    given:
-    injectSysConfig(AGENT_HOST, "[2600:1f18:19c0:bd07:d55b::17]")
-    Config config = Mock()
-
-    when:
-    sco.createRemaining(config)
-
-    then:
-    1 * config.getAgentUrl() >> 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
-    1 * config.agentNamedPipe >> null
-    1 * config.agentTimeout >> 1
-    1 * config.agentUnixDomainSocket >> null
-    sco.agentUrl as String == 'http://[2600:1f18:19c0:bd07:d55b::17]:8126'
+    where:
+    testcase          | host                             | expectedHost
+    'with bracket'    | '[2600:1f18:19c0:bd07:d55b::17]' | '[2600:1f18:19c0:bd07:d55b::17]'
+    'without bracket' | '2600:1f18:19c0:bd07:d55b::17'   | '[2600:1f18:19c0:bd07:d55b::17]'
   }
 
   void 'creates intake http client'() {
