@@ -107,8 +107,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
     // Calculate dynamic map size based on optional fields
-    final boolean hasHttpMethod = key.getHttpMethod().length() > 0;
-    final boolean hasHttpEndpoint = key.getHttpEndpoint().length() > 0;
+    final boolean hasHttpMethod = key.getHttpMethod() != null;
+    final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
     final int mapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
 
     writer.startMap(mapSize);

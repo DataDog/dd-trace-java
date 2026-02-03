@@ -67,8 +67,8 @@ public final class MetricKey {
     this.isTraceRoot = isTraceRoot;
     this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
-    this.httpMethod = null == httpMethod ? EMPTY : UTF8BytesString.create(httpMethod);
-    this.httpEndpoint = null == httpEndpoint ? EMPTY : UTF8BytesString.create(httpEndpoint);
+    this.httpMethod = httpMethod == null ? null : UTF8BytesString.create(httpMethod);
+    this.httpEndpoint = httpEndpoint == null ? null : UTF8BytesString.create(httpEndpoint);
 
     // Unrolled polynomial hashcode to avoid varargs allocation
     // and eliminate data dependency between iterations as in Arrays.hashCode.
@@ -77,17 +77,14 @@ public final class MetricKey {
     // https://richardstartin.github.io/posts/collecting-rocks-and-benchmarks
     // https://richardstartin.github.io/posts/still-true-in-java-9-handwritten-hash-codes-are-faster
 
-    // Only include httpMethod and httpEndpoint in hash if they are not EMPTY
+    // Only include httpMethod and httpEndpoint in hash if they are not null
     // This ensures backward compatibility when the feature is disabled
-    boolean includeEndpointInHash =
-        !this.httpMethod.equals(EMPTY) || !this.httpEndpoint.equals(EMPTY);
-
     this.hash =
         -196_513_505 * Boolean.hashCode(this.isTraceRoot)
             + -1_807_454_463 * this.spanKind.hashCode()
             + 887_503_681 * this.peerTags.hashCode()
-            + (includeEndpointInHash ? 28_629_151 * this.httpMethod.hashCode() : 0)
-            + (includeEndpointInHash ? 923_521 * this.httpEndpoint.hashCode() : 0)
+            + (this.httpMethod != null ? 28_629_151 * this.httpMethod.hashCode() : 0)
+            + (this.httpEndpoint != null ? 923_521 * this.httpEndpoint.hashCode() : 0)
             + 29_791 * this.resource.hashCode()
             + 961 * this.service.hashCode()
             + 31 * this.operationName.hashCode()
@@ -159,16 +156,15 @@ public final class MetricKey {
               && spanKind.equals(metricKey.spanKind)
               && peerTags.equals(metricKey.peerTags);
 
-      // Only compare httpMethod and httpEndpoint if at least one of them is not EMPTY
+      // Only compare httpMethod and httpEndpoint if at least one of them is not null
       // This ensures backward compatibility when the feature is disabled
-      boolean thisHasEndpoint = !httpMethod.equals(EMPTY) || !httpEndpoint.equals(EMPTY);
-      boolean otherHasEndpoint =
-          !metricKey.httpMethod.equals(EMPTY) || !metricKey.httpEndpoint.equals(EMPTY);
+      boolean thisHasEndpoint = httpMethod != null || httpEndpoint != null;
+      boolean otherHasEndpoint = metricKey.httpMethod != null || metricKey.httpEndpoint != null;
 
       if (thisHasEndpoint || otherHasEndpoint) {
         return basicEquals
-            && httpMethod.equals(metricKey.httpMethod)
-            && httpEndpoint.equals(metricKey.httpEndpoint);
+            && java.util.Objects.equals(httpMethod, metricKey.httpMethod)
+            && java.util.Objects.equals(httpEndpoint, metricKey.httpEndpoint);
       }
       return basicEquals;
     }

@@ -180,8 +180,8 @@ class SerializingMetricWriterTest extends DDSpecification {
         AggregateMetric value = pair.getRight()
         int metricMapSize = unpacker.unpackMapHeader()
         // Calculate expected map size based on optional fields
-        boolean hasHttpMethod = key.getHttpMethod().length() > 0
-        boolean hasHttpEndpoint = key.getHttpEndpoint().length() > 0
+        boolean hasHttpMethod = key.getHttpMethod() != null
+        boolean hasHttpEndpoint = key.getHttpEndpoint() != null
         int expectedMapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
@@ -217,7 +217,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
-        // HTTPMethod and HTTPEndpoint are optional - only present if non-empty
+        // HTTPMethod and HTTPEndpoint are optional - only present if non-null
         if (hasHttpMethod) {
           assert unpacker.unpackString() == "HTTPMethod"
           assert unpacker.unpackString() == key.getHttpMethod() as String
