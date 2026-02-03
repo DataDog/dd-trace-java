@@ -1,5 +1,6 @@
 package datadog.crashtracking.buildid;
 
+import static datadog.crashtracking.buildid.BuildInfo.EMPTY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -49,7 +50,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BuildIdCollector {
   static final Logger LOGGER = LoggerFactory.getLogger(BuildIdCollector.class);
-  static final BuildInfo EMPTY = new BuildInfo(null, null, null);
 
   /** Thread-safe map: accessed by both producer and consumer threads. */
   private final Map<String, BuildInfo> libraryBuildInfo = new ConcurrentHashMap<>();

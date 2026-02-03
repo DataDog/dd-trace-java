@@ -11,6 +11,8 @@ public class BuildInfo {
     PE,
   }
 
+  static final BuildInfo EMPTY = new BuildInfo(null, null, null);
+
   public final String buildId;
   public final BuildIdType buildIdType;
   public final FileType fileType;
