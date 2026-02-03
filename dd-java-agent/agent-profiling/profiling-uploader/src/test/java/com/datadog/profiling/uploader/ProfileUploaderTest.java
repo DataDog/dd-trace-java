@@ -828,6 +828,9 @@ public class ProfileUploaderTest {
   @ValueSource(booleans = {true, false})
   public void testRequestWithProcessTags(boolean processTagsEnabled) throws Exception {
     when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    if (processTagsEnabled) {
+      when(config.isServiceNameSetByUser()).thenReturn(true);
+    }
     ProcessTags.reset(config);
     uploader =
         new ProfileUploader(

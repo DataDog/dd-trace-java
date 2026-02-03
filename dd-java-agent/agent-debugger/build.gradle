@@ -25,7 +25,9 @@ excludedClassesCoverage += [
   // based on JDK WeakHashMap
   'com.datadog.debugger.util.WeakIdentityHashMap*',
   // tested through smoke tests
-  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger'
+  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger',
+  // dynamically compiled test classes - exclude to prevent Jacoco instrumentation interference
+  'com.datadog.debugger.symboltest.SymbolExtraction*'
 ]
 
 dependencies {

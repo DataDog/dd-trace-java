@@ -36,7 +36,8 @@ public class LegacyConstructorAdvice {
     KafkaConsumerInfo kafkaConsumerInfo;
     kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
     // new - search for the ConsumerDelegate instead of KafkaConsumer
-    if (kafkaConsumerInfo.getConsumerGroup() != null || kafkaConsumerInfo.getmetadata() != null) {
+    if (kafkaConsumerInfo.getConsumerGroup().isPresent()
+        || kafkaConsumerInfo.getmetadata().isPresent()) {
       InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
           .put(consumer, kafkaConsumerInfo);
       if (coordinator != null) {
