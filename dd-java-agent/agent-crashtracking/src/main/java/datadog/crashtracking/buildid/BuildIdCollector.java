@@ -150,8 +150,10 @@ public class BuildIdCollector {
       LOGGER.debug(
           "Skipping build id resolution for {} as it was not added to unprocessed", filename);
 
-    } else {
-      workQueue.offer(path);
+    } else if (!workQueue.offer(path)) {
+      LOGGER.warn(
+          "Could not resolve the build id for library {} because the processing queue is full",
+          path);
     }
   }
 
