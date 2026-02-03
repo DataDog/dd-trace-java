@@ -7,6 +7,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.http.client.HttpClient;
+import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpResponse;
+import datadog.http.client.HttpUrl;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -18,19 +22,16 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Protocol;
-import okhttp3.Request;
-import okhttp3.Response;
-import okio.Timeout;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -70,7 +71,7 @@ public class AppSecBenchmark {
     ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
-    sharedCommunicationObjects.agentHttpClient = new StubOkHttpClient();
+    sharedCommunicationObjects.agentHttpClient = new StubHttpClient();
     sharedCommunicationObjects.setFeaturesDiscovery(
         new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
 
@@ -123,71 +124,63 @@ public class AppSecBenchmark {
     normalRequest();
   }
 
-  static class StubOkHttpClient extends OkHttpClient {
+  static class StubHttpClient implements HttpClient {
+    private static final HttpResponse STUB_RESPONSE = new StubHttpResponse();
+
     @Override
-    public Call newCall(final Request request) {
-      final Response response =
-          new Response.Builder()
-              .request(request)
-              .protocol(Protocol.HTTP_1_0)
-              .code(200)
-              .message("OK")
-              .build();
+    public HttpResponse execute(HttpRequest request) {
+      return STUB_RESPONSE;
+    }
 
-      return new Call() {
-        @Override
-        public Request request() {
-          return request;
-        }
-
-        @Override
-        public Response execute() throws IOException {
-          return response;
-        }
-
-        @Override
-        public void enqueue(Callback responseCallback) {
-          final Call thiz = this;
-          new Thread(
-                  () -> {
-                    try {
-                      responseCallback.onResponse(thiz, response);
-                    } catch (IOException e) {
-                      throw new UndeclaredThrowableException(e);
-                    }
-                  })
-              .start();
-        }
-
-        @Override
-        public void cancel() {}
-
-        @Override
-        public boolean isExecuted() {
-          return true;
-        }
-
-        @Override
-        public boolean isCanceled() {
-          return false;
-        }
-
-        @Override
-        public Timeout timeout() {
-          return Timeout.NONE;
-        }
-
-        @Override
-        public Call clone() {
-          throw new UnsupportedOperationException();
-        }
-      };
+    @Override
+    public CompletableFuture<HttpResponse> executeAsync(HttpRequest request) {
+      return CompletableFuture.completedFuture(STUB_RESPONSE);
     }
   }
 
+  static class StubHttpResponse implements HttpResponse {
+    @Override
+    public int code() {
+      return 200;
+    }
+
+    @Override
+    public boolean isSuccessful() {
+      return true;
+    }
+
+    @Override
+    public String header(String name) {
+      return null;
+    }
+
+    @Override
+    public List<String> headers(String name) {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public Set<String> headerNames() {
+      return Collections.emptySet();
+    }
+
+    @Override
+    public InputStream body() {
+      return new ByteArrayInputStream(new byte[0]);
+    }
+
+    @Override
+    public String bodyAsString() {
+      return "";
+    }
+
+    @Override
+    public void close() {}
+  }
+
   static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
-    public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
-      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), false, false);
+    public StubDDAgentFeaturesDiscovery(HttpClient client) {
+      super(client, Monitoring.DISABLED, HttpUrl.parse("http://localhost:8080/"), false, false);
     }
 
     @Override
