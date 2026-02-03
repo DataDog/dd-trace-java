@@ -451,12 +451,10 @@ test_published_artifacts:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh --destination ./check_reports --move
     - gitlab_section_end "collect-reports"
-    - .gitlab/count_tests.sh -v "$GRADLE_TARGET" "check" "./check_reports" "./test_counts_${CI_JOB_ID}.json" || true
   artifacts:
     when: always
     paths:
       - ./check_reports
-      - './test_counts_*.json'
       - '.gradle/daemon/*/*.out.log'
   retry:
     max: 2

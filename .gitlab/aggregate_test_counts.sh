@@ -7,6 +7,12 @@ set -e
 
 # https://docs.gitlab.com/ci/variables/predefined_variables/
 
+# Source GitLab utilities for section formatting
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/gitlab-utils.sh" ]; then
+    source "$SCRIPT_DIR/gitlab-utils.sh"
+fi
+
 VERBOSE=0
 if [ "$1" = "-v" ]; then
     VERBOSE=1
@@ -188,11 +194,35 @@ echo -e "  ${FAILED_COLOR}Failed:${RESET}  $TOTAL_FAILED_ALL"
 echo -e "  ${SKIPPED_COLOR}Skipped:${RESET} $TOTAL_SKIPPED_ALL"
 echo ""
 
-# Verbose logging for each job with artifact links
-if [ $VERBOSE -eq 1 ]; then
-    echo "$AGGREGATED_DATA" | jq -r --arg base_url "$GITLAB_BASE_URL" '.test_jobs[] |
-        "  → Job: \(.ci_job_name) | Tests: \(.total_tests) (passed: \(.passed_tests), failed: \(.failed_tests), skipped: \(.skipped_tests))\n    Artifact: \($base_url)/-/jobs/\(.ci_job_id)/artifacts/file/test_counts_\(.ci_job_id).json"' >&2
+# Links to Datadog CI Visibility and Test Optimization
+if [ -n "${CI_PIPELINE_ID}" ]; then
+    echo -e "${BOLD}${YELLOW}See test results in Datadog:${RESET}"
+    echo -e "  ${CYAN}CI Visibility:${RESET} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}"
+    echo -e "  ${CYAN}Test Optimization:${RESET} https://app.datadoghq.com/ci/settings/test-optimization?search=dd-trace-java"
+    echo ""
 fi
+
+# Display alerts in log output
+if [ "$TOTAL_TESTS_ALL" -eq 0 ] || [ "$ZERO_TEST_COUNT" -gt 0 ]; then
+    echo -e "${RED}${BOLD}Alerts:${RESET}"
+
+    if [ "$TOTAL_TESTS_ALL" -eq 0 ]; then
+        echo -e "  ${RED}🚨 CRITICAL: No tests were executed in this pipeline!${RESET}"
+    fi
+
+    if [ "$ZERO_TEST_COUNT" -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠️  WARNING: $ZERO_TEST_COUNT job(s) with zero tests:${RESET}"
+        echo "$AGGREGATED_DATA" | jq -r '.zero_test_jobs[] | "    • \(.job) (\(.category), JVM \(.jvm))"'
+    fi
+
+    echo ""
+fi
+
+# Verbose logging for each job with artifact links
+gitlab_section_start "test-job-details" "Detailed Test Results by Job"
+echo "$AGGREGATED_DATA" | jq -r --arg base_url "$GITLAB_BASE_URL" '.test_jobs[] |
+    "  → Job: \(.ci_job_name) | Tests: \(.total_tests) (passed: \(.passed_tests), failed: \(.failed_tests), skipped: \(.skipped_tests))\n    Artifact: \($base_url)/-/jobs/\(.ci_job_id)/artifacts/file/test_counts_\(.ci_job_id).json"' >&2
+gitlab_section_end "test-job-details"
 
 # Write JSON summary (just extract the parts we need)
 log_verbose "Creating summary JSON file"
