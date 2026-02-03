@@ -7,10 +7,8 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  workflow_run:
-    workflows: [Create Release Branch]
-    types:
-      - completed
+  repository_dispatch:
+    types: [pin-system-tests]
 
 jobs:
   # TODO: Remove this job after confirming the workflow succeeds for release branches
@@ -24,7 +22,6 @@ jobs:
 
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,33 +33,16 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
 
-      - name: Checkout repository for tag lookup
-        if: github.event_name == 'workflow_run'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
-        with:
-          fetch-depth: 0 # fetch entire history, including tags
-
-      - name: Get release branch name from tag
-        if: github.event_name == 'workflow_run'
-        id: get-release-branch
-        run: |
-          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
-          TAG=$(git tag --points-at "$HEAD_SHA" | grep -E '^v[0-9]+\.[0-9]+\.0$' | head -n 1)
-          if [[ -z "$TAG" ]]; then
-            echo "ERROR: Could not find tag that matches pattern 'vX.Y.0' and points at commit $HEAD_SHA"
-            exit 1
-          fi
-          echo "branch=release/${TAG%.0}.x" >> $GITHUB_OUTPUT
-
       - name: Define base release branch
         id: define-base-branch
         run: |
           if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
             BASE_BRANCH=${{ github.event.inputs.release-branch-name }}
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            BASE_BRANCH="${{ steps.get-release-branch.outputs.branch }}"
           else
-            echo "ERROR: Unable to determine base branch."
+            BASE_BRANCH="${{ github.event.client_payload.release-branch-name }}"
+          fi
+          if [[ -z "$BASE_BRANCH" ]]; then
+            echo "ERROR: Could not determine release branch"
             exit 1
           fi
           echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
