@@ -1,10 +1,18 @@
 package com.datadog.aiguard
 
+import static datadog.trace.api.aiguard.AIGuard.Action.ABORT
+import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW
+import static datadog.trace.api.aiguard.AIGuard.Action.DENY
+import static org.codehaus.groovy.runtime.DefaultGroovyMethods.combinations
+import static org.mockserver.integration.ClientAndServer.startClientAndServer
+
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.api.aiguard.AIGuard
@@ -12,30 +20,17 @@ import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
-import okhttp3.Call
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import okhttp3.ResponseBody
-import okio.Okio
-import spock.lang.Shared
-
+import org.mockserver.integration.ClientAndServer
+import org.mockserver.model.HttpRequest
+import org.mockserver.model.HttpResponse
+import org.mockserver.model.JsonBody
+import org.mockserver.model.MediaType
+import org.mockserver.verify.VerificationTimes
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
-
-import static datadog.trace.api.aiguard.AIGuard.Action.ABORT
-import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW
-import static datadog.trace.api.aiguard.AIGuard.Action.DENY
-import static org.codehaus.groovy.runtime.DefaultGroovyMethods.combinations
+import spock.lang.Shared
 
 class AIGuardInternalTests extends DDSpecification {
-
-  @Shared
-  protected static final URL = HttpUrl.parse('https://app.datadoghq.com/api/v2/ai-guard/evaluate')
 
   @Shared
   protected static final HEADERS = ['DD-API-KEY': 'api',
@@ -72,10 +67,15 @@ class AIGuardInternalTests extends DDSpecification {
   @Shared
   protected static final PROMPT = TOOL_OUTPUT + [AIGuard.Message.message('assistant', '2 + 2 is 5'), AIGuard.Message.message('user', '')]
 
+  protected ClientAndServer server
+  protected HttpUrl serverUrl
   protected AgentSpan span
   protected AgentSpan localRootSpan
 
   void setup() {
+    server = startClientAndServer()
+    serverUrl = HttpUrl.parse("http://localhost:${server.port}/api/v2/ai-guard/evaluate")
+
     injectEnvConfig('SERVICE', 'ai_guard_test')
     injectEnvConfig('ENV', 'test')
 
@@ -99,6 +99,7 @@ class AIGuardInternalTests extends DDSpecification {
   void cleanup() {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
     AIGuardInternal.uninstall()
+    server?.stop()
   }
 
   void 'test missing api/app keys'() {
@@ -158,27 +159,24 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate'() {
     given:
-    Request request = null
     Throwable error = null
     AIGuard.Evaluation eval = null
     Map<String, Object> receivedMeta = null
     final throwAbortError = suite.blocking && suite.action != ALLOW
-    final call = Mock(Call) {
-      execute() >> {
-        return mockResponse(
-          request,
-          200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
-          )
-      }
-    }
-    final client = Mock(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    // Setup mock response
+    server.when(HttpRequest.request()
+      .withMethod('POST')
+      .withPath('/api/v2/ai-guard/evaluate'))
+      .respond(HttpResponse.response()
+      .withStatusCode(200)
+      .withContentType(MediaType.APPLICATION_JSON)
+      .withBody(MOSHI.adapter(Object).toJson([
+        data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]
+      ])))
+
+    final client = HttpClient.newBuilder().build()
+    final aiguard = new AIGuardInternal(serverUrl, HEADERS, client)
 
     when:
     try {
@@ -204,7 +202,7 @@ class AIGuardInternalTests extends DDSpecification {
     }
 
     assertMeta(receivedMeta, suite)
-    assertRequest(request, suite.messages)
+    assertRequest(suite.messages)
     if (throwAbortError) {
       error instanceof AIGuard.AIGuardAbortError
       error.action == suite.action
@@ -225,7 +223,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test evaluate with API errors'() {
     given:
     final errors = [[status: 400, title: 'Bad request']]
-    final aiguard = mockClient(404, [errors: errors])
+    final aiguard = mockServerClientJSon(404, [errors: errors])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -239,7 +237,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with invalid JSON'() {
     given:
-    final aiguard = mockClient(200, [bad: 'This is an invalid response'])
+    final aiguard = mockServerClientJSon(200, [bad: 'This is an invalid response'])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -252,7 +250,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with missing action'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [reason: 'I miss something']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [reason: 'I miss something']]])
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -265,7 +263,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with non JSON response'() {
     given:
-    final aiguard = mockClient(200, 'I am no JSON')
+    final aiguard = mockServerClient(200, 'I am no JSON')
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -278,7 +276,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test evaluate with empty response'() {
     given:
-    final aiguard = mockClient(200, null)
+    final aiguard = mockServerClient(200, '')
 
     when:
     aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
@@ -292,7 +290,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test message length truncation'() {
     given:
     final maxMessages = Config.get().getAiGuardMaxMessagesLength()
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
     final messages = (0..maxMessages)
       .collect { AIGuard.Message.message('user', "This is a prompt: ${it}") }
       .toList()
@@ -312,7 +310,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test message content truncation'() {
     given:
     final maxContent = Config.get().getAiGuardMaxContentSize()
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
     final message = AIGuard.Message.message("user", (0..maxContent).collect { 'A' }.join())
 
     when:
@@ -331,7 +329,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test no messages'() {
     given:
-    final aiguard = new AIGuardInternal(URL, HEADERS, Stub(OkHttpClient))
+    final aiguard = new AIGuardInternal(serverUrl, HEADERS, Stub(HttpClient))
 
     when:
     aiguard.evaluate(messages, AIGuard.Options.DEFAULT)
@@ -346,7 +344,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test missing tool name'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
 
     when:
     aiguard.evaluate([AIGuard.Message.tool('call_1', 'Content')], AIGuard.Options.DEFAULT)
@@ -366,7 +364,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test message immutability'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
     final messages = [
       new AIGuard.Message(
       "assistant",
@@ -399,20 +397,20 @@ class AIGuardInternalTests extends DDSpecification {
     metaStructMessages.first().toolCalls.size() == 1
   }
 
-  private AIGuardInternal mockClient(final int status, final Object response) {
-    def request
-    final call = Stub(Call) {
-      execute() >> {
-        return mockResponse(request, status, response)
-      }
-    }
-    final client = Stub(OkHttpClient) {
-      newCall(_ as Request) >> {
-        request = (Request) it[0]
-        return call
-      }
-    }
-    return new AIGuardInternal(URL, HEADERS, client)
+  private AIGuardInternal mockServerClientJSon(final int status, final Object json) {
+    mockServerClient(status, MOSHI.adapter(Object).toJson(json))
+  }
+
+  private AIGuardInternal mockServerClient(final int status, final String responseBody) {
+    server.when(HttpRequest.request()
+      .withMethod('POST')
+      .withPath('/api/v2/ai-guard/evaluate'))
+      .respond(HttpResponse.response()
+      .withStatusCode(status)
+      .withContentType(MediaType.APPLICATION_JSON)
+      .withBody(responseBody))
+    final client = HttpClient.newBuilder().build()
+    return new AIGuardInternal(serverUrl, HEADERS, client)
   }
 
   private static assertTelemetry(final String metric, final String...tags) {
@@ -440,39 +438,20 @@ class AIGuardInternalTests extends DDSpecification {
     return true
   }
 
-  private static assertRequest(final Request request, final List<AIGuard.Message> messages) {
-    assert request.url() == URL
-    assert request.method() == 'POST'
-    HEADERS.each { entry ->
-      assert request.header(entry.key) == entry.value
-    }
-    assert request.body().contentType().toString().contains('application/json')
-    final receivedBody = readRequestBody(request.body())
+  private void assertRequest(final List<AIGuard.Message> messages) {
     final expectedBody = snakeCaseJson([data: [attributes: [messages: messages, meta: [service: 'ai_guard_test', env: 'test']]]])
-    JSONAssert.assertEquals(expectedBody, receivedBody, JSONCompareMode.NON_EXTENSIBLE)
-    return true
+    def expectedRequest = HttpRequest.request()
+    .withMethod('POST')
+    .withPath('/api/v2/ai-guard/evaluate')
+    .withBody(JsonBody.json(expectedBody))
+    HEADERS.each { entry ->
+      expectedRequest = expectedRequest.withHeader(entry.key, entry.value)
+    }
+    server.verify(expectedRequest, VerificationTimes.once())
   }
 
   private static String snakeCaseJson(final Object value) {
     MAPPER.writeValueAsString(value)
-  }
-
-  private static String readRequestBody(final RequestBody body) {
-    final output = new ByteArrayOutputStream()
-    final buffer = Okio.buffer(Okio.sink(output))
-    body.writeTo(buffer)
-    buffer.flush()
-    return new String(output.toByteArray())
-  }
-
-  private static Response mockResponse(final Request request, final int status, final Object body) {
-    return new Response.Builder()
-    .protocol(Protocol.HTTP_1_1)
-    .message('ok')
-    .request(request)
-    .code(status)
-    .body(body == null ? null : ResponseBody.create(MediaType.parse('application/json'), MOSHI.adapter(Object).toJson(body)))
-    .build()
   }
 
   void 'test JSON serialization with text content parts'() {
