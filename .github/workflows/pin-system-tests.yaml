@@ -34,7 +34,7 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
 
-      - name: Define base branch
+      - name: Define base release branch
         id: define-base-branch
         run: |
           if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
@@ -51,21 +51,21 @@ jobs:
           fi
           echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
       
-      - name: Checkout the repository
+      - name: Checkout the dd-trace-java repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.define-base-branch.outputs.base_branch }}
       
-      - name: Get latest commit SHA of base branch
+      - name: Get latest commit SHA of base release branch
         id: get-latest-commit-sha
         run: |
           echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Define branch name
+      - name: Define pin-system-tests branch name
         id: define-branch
         run: echo "branch=ci/pin-system-tests-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
-      - name: Check if branch already exists
+      - name: Check if pin-system-tests branch already exists
         id: check-branch
         run: |
           BRANCH=${{ steps.define-branch.outputs.branch }}
