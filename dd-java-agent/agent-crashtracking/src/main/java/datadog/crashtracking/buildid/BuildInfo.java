@@ -2,8 +2,8 @@ package datadog.crashtracking.buildid;
 
 public class BuildInfo {
   public enum BuildIdType {
-    SHA1, // ELF
-    PE // WIN
+    GNU, // for ELF
+    PDB // for DLL PE
   }
 
   public enum FileType {

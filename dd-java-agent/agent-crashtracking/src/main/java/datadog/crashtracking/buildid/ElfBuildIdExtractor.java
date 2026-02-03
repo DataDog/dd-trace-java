@@ -116,7 +116,7 @@ public class ElfBuildIdExtractor implements BuildIdExtractor {
 
   @Override
   public BuildInfo.BuildIdType buildIdType() {
-    return BuildInfo.BuildIdType.SHA1;
+    return BuildInfo.BuildIdType.GNU;
   }
 
   private String parseNoteSegment(

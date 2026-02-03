@@ -109,7 +109,7 @@ public class BuildIdExtractorIntegrationTest {
     assertTrue(
         buildId.matches("^[0-9a-f]{32,40}$"), "Build ID should be 32-40 hex chars: " + buildId);
     assertEquals(BuildInfo.FileType.ELF, extractor.fileType());
-    assertEquals(BuildInfo.BuildIdType.SHA1, extractor.buildIdType());
+    assertEquals(BuildInfo.BuildIdType.GNU, extractor.buildIdType());
   }
 
   private static Stream<Arguments> peBinaries() {
@@ -138,16 +138,35 @@ public class BuildIdExtractorIntegrationTest {
 
     logger.info("Found build ID: {} for library {}", buildId, localBinary);
 
-    assertNotNull(buildId, "TimeDateStamp should be found for " + description);
-    assertEquals(8, buildId.length(), "TimeDateStamp should be exactly 8 hex chars");
-    assertTrue(buildId.matches("^[0-9a-f]{8}$"), "TimeDateStamp should be hex: " + buildId);
+    assertNotNull(buildId, "GUID+Age should be found for " + description);
 
-    long timestamp = Long.parseLong(buildId, 16);
+    // Build ID format: GUID (32 uppercase hex chars) + Age (lowercase hex, variable length)
     assertTrue(
-        timestamp > 0x386D4380L && timestamp < System.currentTimeMillis(),
-        "Timestamp should be reasonable (2000-NOW): " + buildId);
+        buildId.length() >= 33,
+        "Build ID should be at least 33 hex chars (GUID + Age): " + buildId);
+
+    // Verify format: GUID part (32 chars) should be uppercase, Age part should be lowercase
+    String guidPart = buildId.substring(0, 32);
+    String agePart = buildId.substring(32);
+
+    assertTrue(
+        guidPart.matches("^[0-9A-F]{32}$"),
+        "GUID part (first 32 chars) should be uppercase hex: " + guidPart);
+    assertTrue(
+        agePart.matches("^[0-9a-f]+$"),
+        "Age part (remaining chars) should be lowercase hex: " + agePart);
+
+    // Verify both parts parse correctly as hex
+    try {
+      new java.math.BigInteger(guidPart, 16);
+      Long.parseLong(agePart, 16);
+    } catch (NumberFormatException e) {
+      throw new AssertionError("Build ID should be valid hex: " + buildId, e);
+    }
+
+    logger.info("Build ID format verified: GUID={}, Age={}", guidPart, agePart);
 
     assertEquals(BuildInfo.FileType.PE, extractor.fileType());
-    assertEquals(BuildInfo.BuildIdType.PE, extractor.buildIdType());
+    assertEquals(BuildInfo.BuildIdType.PDB, extractor.buildIdType());
   }
 }
