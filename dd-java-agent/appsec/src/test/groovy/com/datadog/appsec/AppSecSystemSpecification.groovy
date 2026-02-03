@@ -6,6 +6,7 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
 import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
@@ -22,7 +23,6 @@ import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
-import okhttp3.OkHttpClient
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -182,7 +182,7 @@ class AppSecSystemSpecification extends DDSpecification {
           poller
         }
       }
-    sco.agentHttpClient = Stub(OkHttpClient)
+    sco.agentHttpClient = Stub(HttpClient)
     sco.monitoring = Mock(Monitoring)
     sco.featuresDiscovery = Stub(DDAgentFeaturesDiscovery)
     sco
