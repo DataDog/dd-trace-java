@@ -7,12 +7,22 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+configurations {
+  def nightly = register('nightlyTestImplementation') {
+    visible = false
+    canBeConsumed = false
+    canBeResolved = true
+    extendsFrom(testImplementation)
+  }
+}
+
 dependencies {
   // This module provides the ddprof library as an api dependency
   // so that other modules can easily depend on it.
   implementation project.hasProperty('ddprof.jar') ? files(project.findProperty('ddprof.jar')) : libs.ddprof
   api project(':internal-api')
   api project(':dd-trace-api')
+  nightlyTestImplementation group: 'com.datadoghq', name: 'ddprof', version: 'latest.integration'
 }
 
 tasks.named("shadowJar", ShadowJar) {
