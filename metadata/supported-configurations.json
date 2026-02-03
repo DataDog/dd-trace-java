@@ -1601,6 +1601,13 @@
         "aliases": []
       }
     ],
+    "DD_HTTP_CLIENT_IMPLEMENTATION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "okhttp"
+      }
+    ],
     "DD_HTTP_CLIENT_TAG_HEADERS": [
       {
         "version": "A",
