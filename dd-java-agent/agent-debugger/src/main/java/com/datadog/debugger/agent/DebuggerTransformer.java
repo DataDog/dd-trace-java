@@ -5,6 +5,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.ASMHelper;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -294,12 +295,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // bug is fixed since JDK19, no need to perform check
       return;
     }
+    boolean isRecord = ASMHelper.isRecord(classNode);
     // capping scanning of methods to 100 to avoid generated class with thousand of methods
     // assuming that in those first 100 methods there is at least one with at least one parameter
     for (int methodIdx = 0; methodIdx < classNode.methods.size() && methodIdx < 100; methodIdx++) {
       MethodNode methodNode = classNode.methods.get(methodIdx);
       int argumentCount = Type.getArgumentCount(methodNode.desc);
       if (argumentCount == 0) {
+        continue;
+      }
+      if (isRecord && methodNode.name.equals("<init>")) {
+        // skip record constructors, cannot rely on them because of the canonical one
+        // use the equals method for this
         continue;
       }
       if (methodNode.parameters != null && !methodNode.parameters.isEmpty()) {
