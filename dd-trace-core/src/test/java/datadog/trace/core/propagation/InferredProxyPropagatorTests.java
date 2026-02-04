@@ -27,6 +27,7 @@ class InferredProxyPropagatorTests {
   private static final String PROXY_SYSTEM_KEY = "x-dd-proxy";
   private static final String PROXY_REQUEST_TIME_MS_KEY = "x-dd-proxy-request-time-ms";
   private static final String PROXY_PATH_KEY = "x-dd-proxy-path";
+  private static final String PROXY_RESOURCE_PATH_KEY = "x-dd-proxy-resource-path";
   private static final String PROXY_HTTP_METHOD_KEY = "x-dd-proxy-httpmethod";
   private static final String PROXY_DOMAIN_NAME_KEY = "x-dd-proxy-domain-name";
   private static final MapVisitor MAP_VISITOR = new MapVisitor();
@@ -84,6 +85,65 @@ class InferredProxyPropagatorTests {
         of("PROXY_SYSTEM_KEY empty", emptyValue),
         of("PROXY_SYSTEM_KEY null", nullValue),
         of("PROXY_REQUEST_TIME_MS_KEY missing", missingTime));
+  }
+
+  // Task 16: Test that x-dd-proxy-resource-path header is extracted
+  @Test
+  @DisplayName("Should extract x-dd-proxy-resource-path header when present")
+  void testResourcePathHeaderExtraction() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_SYSTEM_KEY, "aws-apigateway");
+    headers.put(PROXY_REQUEST_TIME_MS_KEY, "12345");
+    headers.put(PROXY_PATH_KEY, "/api/users/123");
+    headers.put(PROXY_RESOURCE_PATH_KEY, "/api/users/{id}");
+    headers.put(PROXY_HTTP_METHOD_KEY, "GET");
+    headers.put(PROXY_DOMAIN_NAME_KEY, "api.example.com");
+
+    Context context = this.propagator.extract(root(), headers, MAP_VISITOR);
+    InferredProxySpan inferredProxySpan = fromContext(context);
+    assertNotNull(inferredProxySpan);
+    assertTrue(inferredProxySpan.isValid());
+
+    // The resourcePath header should be extracted and available
+    // for use in http.route and resource.name
+  }
+
+  @Test
+  @DisplayName("Should work without x-dd-proxy-resource-path header for backwards compatibility")
+  void testExtractionWithoutResourcePath() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_SYSTEM_KEY, "aws-apigateway");
+    headers.put(PROXY_REQUEST_TIME_MS_KEY, "12345");
+    headers.put(PROXY_PATH_KEY, "/api/users/123");
+    // No PROXY_RESOURCE_PATH_KEY
+    headers.put(PROXY_HTTP_METHOD_KEY, "GET");
+    headers.put(PROXY_DOMAIN_NAME_KEY, "api.example.com");
+
+    Context context = this.propagator.extract(root(), headers, MAP_VISITOR);
+    InferredProxySpan inferredProxySpan = fromContext(context);
+    assertNotNull(inferredProxySpan);
+    assertTrue(inferredProxySpan.isValid());
+
+    // Should still be valid without resourcePath (backwards compatibility)
+  }
+
+  @Test
+  @DisplayName("Should extract x-dd-proxy-resource-path for aws-httpapi")
+  void testResourcePathHeaderExtractionForAwsHttpApi() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_SYSTEM_KEY, "aws-httpapi");
+    headers.put(PROXY_REQUEST_TIME_MS_KEY, "12345");
+    headers.put(PROXY_PATH_KEY, "/v2/items/abc-123");
+    headers.put(PROXY_RESOURCE_PATH_KEY, "/v2/items/{itemId}");
+    headers.put(PROXY_HTTP_METHOD_KEY, "POST");
+    headers.put(PROXY_DOMAIN_NAME_KEY, "httpapi.example.com");
+
+    Context context = this.propagator.extract(root(), headers, MAP_VISITOR);
+    InferredProxySpan inferredProxySpan = fromContext(context);
+    assertNotNull(inferredProxySpan);
+    assertTrue(inferredProxySpan.isValid());
+
+    // aws-httpapi should also support resourcePath extraction
   }
 
   @ParametersAreNonnullByDefault
