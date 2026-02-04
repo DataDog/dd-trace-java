@@ -121,6 +121,39 @@ aggregate_test_data() {
 	    total_failed: (map(.failed_tests) | add),
 	    total_skipped: (map(.skipped_tests) | add)
 	  },
+	  by_jvm: (group_by(.jvm_version) | map({
+	    jvm_version: .[0].jvm_version,
+	    total_tests: (map(.total_tests) | add),
+	    total_passed: (map(.passed_tests) | add),
+	    total_failed: (map(.failed_tests) | add),
+	    total_skipped: (map(.skipped_tests) | add),
+	    job_count: length
+	  }) | sort_by(
+	    if .jvm_version == "stable" then 100
+	    elif ((.jvm_version | gsub("[^0-9]"; "")) as $nums | $nums == "") then 0
+	    else (.jvm_version | gsub("[^0-9]"; "") | tonumber)
+	    end
+	  )),
+	  by_job_kind_and_jvm: (
+	    # Extract base job name (before the matrix suffix like ": [8, 2/6]")
+	    map(. + {job_kind: (.ci_job_name | split(":")[0])}) |
+	    group_by([.job_kind, .jvm_version]) |
+	    map({
+	      job_kind: .[0].job_kind,
+	      jvm_version: .[0].jvm_version,
+	      total_tests: (map(.total_tests) | add),
+	      total_passed: (map(.passed_tests) | add),
+	      total_failed: (map(.failed_tests) | add),
+	      total_skipped: (map(.skipped_tests) | add),
+	      split_count: length
+	    }) | sort_by([
+	      .job_kind,
+	      (if .jvm_version == "stable" then 100
+	       elif ((.jvm_version | gsub("[^0-9]"; "")) as $nums | $nums == "") then 0
+	       else (.jvm_version | gsub("[^0-9]"; "") | tonumber)
+	       end)
+	    ])
+	  ),
 	  table_rows: map(
 	    [.test_category, .jvm_version, .ci_job_name, .total_tests, .passed_tests, .failed_tests, .skipped_tests] |
 	    "| \(.[0]) | \(.[1]) | \(.[2]) | \(.[3]) | \(.[4]) | \(.[5]) | \(.[6]) |"
@@ -248,6 +281,42 @@ display_summary() {
     fi
 }
 
+display_jvm_breakdown() {
+    local aggregated_data="$1"
+
+    gitlab_section_start "test-jvm-breakdown" "Test Breakdown by JVM Version"
+
+    # Header
+    printf "%-15s %12s %12s %12s %12s %10s\n" "JVM Version" "Total Tests" "Passed" "Failed" "Skipped" "Jobs" >&2
+    printf "%-15s %12s %12s %12s %12s %10s\n" "---------------" "------------" "------------" "------------" "------------" "----------" >&2
+
+    # Data rows
+    echo "$aggregated_data" | jq -r '.by_jvm[] |
+    "\(.jvm_version)|\(.total_tests)|\(.total_passed)|\(.total_failed)|\(.total_skipped)|\(.job_count)"' | while IFS='|' read -r jvm total passed failed skipped jobs; do
+        printf "%-15s %12s %12s %12s %12s %10s\n" "$jvm" "$total" "$passed" "$failed" "$skipped" "$jobs" >&2
+    done
+
+    gitlab_section_end "test-jvm-breakdown"
+}
+
+display_job_kind_breakdown() {
+    local aggregated_data="$1"
+
+    gitlab_section_start "test-job-kind-breakdown" "Test Breakdown by Job Kind and JVM (ignoring splits)"
+
+    # Header
+    printf "%-40s %-15s %12s %12s %12s %12s %8s\n" "Job Kind" "JVM" "Total Tests" "Passed" "Failed" "Skipped" "Splits" >&2
+    printf "%-40s %-15s %12s %12s %12s %12s %8s\n" "----------------------------------------" "---------------" "------------" "------------" "------------" "------------" "--------" >&2
+
+    # Data rows
+    echo "$aggregated_data" | jq -r '.by_job_kind_and_jvm[] |
+    "\(.job_kind)|\(.jvm_version)|\(.total_tests)|\(.total_passed)|\(.total_failed)|\(.total_skipped)|\(.split_count)"' | while IFS='|' read -r job_kind jvm total passed failed skipped splits; do
+        printf "%-40s %-15s %12s %12s %12s %12s %8s\n" "$job_kind" "$jvm" "$total" "$passed" "$failed" "$skipped" "$splits" >&2
+    done
+
+    gitlab_section_end "test-job-kind-breakdown"
+}
+
 display_detailed_results() {
     local aggregated_data="$1"
     local gitlab_base_url="${CI_PROJECT_URL}"
@@ -269,7 +338,9 @@ write_json_summary() {
       branch,
       timestamp,
       test_jobs,
-      summary
+      summary,
+      by_jvm,
+      by_job_kind_and_jvm
     }' > "$output_file"
     echo "Summary written to $output_file"
 }
@@ -315,7 +386,31 @@ write_markdown_report() {
 	| Failed | $total_failed |
 	| Skipped | $total_skipped |
 
-	## Breakdown by Test Category and JVM Version
+	## Breakdown by JVM Version
+
+	| JVM Version | Total Tests | Passed | Failed | Skipped | Job Count |
+	|-------------|-------------|--------|--------|---------|-----------|
+	EOF
+
+    # Write JVM breakdown rows
+    echo "$aggregated_data" | jq -r '.by_jvm[] | "| \(.jvm_version) | \(.total_tests) | \(.total_passed) | \(.total_failed) | \(.total_skipped) | \(.job_count) |"' >> "$report_file"
+
+    # Write job kind breakdown section
+    cat >> "$report_file" <<-EOF
+
+	## Breakdown by Job Kind and JVM Version
+
+	| Job Kind | JVM Version | Total Tests | Passed | Failed | Skipped | Splits |
+	|----------|-------------|-------------|--------|--------|---------|--------|
+	EOF
+
+    # Write job kind breakdown rows
+    echo "$aggregated_data" | jq -r '.by_job_kind_and_jvm[] | "| \(.job_kind) | \(.jvm_version) | \(.total_tests) | \(.total_passed) | \(.total_failed) | \(.total_skipped) | \(.split_count) |"' >> "$report_file"
+
+    # Write detailed breakdown section
+    cat >> "$report_file" <<-EOF
+
+	## Detailed Breakdown by Test Category and JVM Version
 
 	| Test Category | JVM Version | Job Name | Total | Passed | Failed | Skipped |
 	|---------------|-------------|----------|-------|--------|--------|---------|
@@ -391,6 +486,10 @@ fi
 
 # Display summary and alerts in log
 display_summary "$AGGREGATED_DATA"
+
+# Display breakdowns in collapsible sections
+display_jvm_breakdown "$AGGREGATED_DATA"
+display_job_kind_breakdown "$AGGREGATED_DATA"
 
 # Display detailed results in collapsible section
 display_detailed_results "$AGGREGATED_DATA"
