@@ -2,14 +2,14 @@ package datadog.telemetry
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
 import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.ConfigStrings
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import java.lang.instrument.Instrumentation
 
 class TelemetrySystemSpecification extends DDSpecification {
@@ -64,9 +64,9 @@ class TelemetrySystemSpecification extends DDSpecification {
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
     new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery)
       )
   }

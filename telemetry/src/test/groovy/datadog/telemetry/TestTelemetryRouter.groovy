@@ -1,6 +1,8 @@
 package datadog.telemetry
 
 import datadog.communication.ddagent.TracerVersion
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpRequestBody
 import datadog.telemetry.dependency.Dependency
 import datadog.telemetry.api.Integration
 import datadog.telemetry.api.DistributionSeries
@@ -11,8 +13,6 @@ import datadog.trace.api.ConfigSetting
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
 import groovy.json.JsonSlurper
-import okhttp3.Request
-import okio.Buffer
 
 class TestTelemetryRouter extends TelemetryRouter {
   private Queue<TelemetryClient.Result> mockResults = new LinkedList<>()
@@ -70,24 +70,15 @@ class TestTelemetryRouter extends TelemetryRouter {
   static class RequestAssertions {
     private final static JsonSlurper SLURPER = new JsonSlurper()
 
-    private Request request
+    private HttpRequest request
 
-    RequestAssertions(Request request) {
+    RequestAssertions(HttpRequest request) {
       this.request = request
     }
 
     RequestAssertions headers(RequestType requestType) {
       assert this.request.method() == 'POST'
-      assert this.request.headers().names().containsAll([
-        'Content-Type',
-        'Content-Length',
-        'DD-Client-Library-Language',
-        'DD-Client-Library-Version',
-        'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type'
-      ])
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
-      assert this.request.header('Content-Length').toInteger() > 0
       assert this.request.header('DD-Client-Library-Language') == 'jvm'
       assert this.request.header('DD-Client-Library-Version') == TracerVersion.TRACER_VERSION
       assert this.request.header('DD-Telemetry-API-Version') == 'v2'
@@ -98,10 +89,10 @@ class TestTelemetryRouter extends TelemetryRouter {
     }
 
     BodyAssertions assertBody() {
-      Buffer buf = new Buffer()
-      this.request.body().writeTo(buf)
-      byte[] bytes = new byte[buf.size()]
-      buf.read(bytes)
+      HttpRequestBody body = this.request.body()
+      ByteArrayOutputStream baos = new ByteArrayOutputStream()
+      body.writeTo(baos)
+      byte[] bytes = baos.toByteArray()
       def parsed = SLURPER.parse(bytes) as Map<String, Object>
       return new BodyAssertions(parsed, bytes)
     }

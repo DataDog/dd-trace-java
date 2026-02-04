@@ -9,8 +9,6 @@ import datadog.trace.api.ConfigSetting
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.telemetry.ProductChange
 import datadog.trace.test.util.DDSpecification
-import okhttp3.RequestBody
-import okio.Buffer
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static datadog.trace.api.telemetry.ProductChange.ProductType.APPSEC
@@ -152,12 +150,8 @@ class TelemetryRequestBodySpecification extends DDSpecification {
     true         | true           | false                        | true          | true            | true
   }
 
-  String drainToString(RequestBody body) {
-    Buffer buf = new Buffer()
-    body.writeTo(buf)
-    byte[] bytes = new byte[buf.size()]
-    buf.read(bytes)
-    return new String(bytes)
+  String drainToString(TelemetryRequestBody body) {
+    return new String(body.toByteArray())
   }
 
   def 'Should propagate process tags when enabled #processTagsEnabled'() {

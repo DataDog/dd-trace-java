@@ -5,6 +5,7 @@ import static datadog.http.client.HttpRequest.APPLICATION_JSON;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.http.client.HttpRequest;
+import datadog.http.client.HttpRequestBody;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -55,17 +56,16 @@ public class TelemetryRequest {
   }
 
   public HttpRequest.Builder httpRequest() {
-    long bodySize = requestBody.endRequest();
+    requestBody.endRequest();
 
     HttpRequest.Builder builder =
         HttpRequest.newBuilder()
             .addHeader("Content-Type", APPLICATION_JSON)
-            .addHeader("Content-Length", String.valueOf(bodySize))
             .addHeader("DD-Telemetry-API-Version", API_VERSION)
             .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
             .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
             .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(requestBody);
+            .post(HttpRequestBody.of(requestBody.toByteArray()));
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {
