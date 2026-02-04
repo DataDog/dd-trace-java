@@ -729,20 +729,75 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   /**
    * Attempts to parse a string value as a number. Returns the parsed number if successful, null
    * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
+   *
+   * <p>This method uses fast-path validation to avoid throwing NumberFormatException for invalid
+   * inputs, significantly reducing overhead when processing non-numeric attribute values (issue
+   * #10494). The method trims whitespace before validation, allowing strings like " 42 " to parse
+   * successfully.
+   *
+   * @param value the string to parse
+   * @return a Long or Double if the string is a valid number, null otherwise
    */
   private static Number convertToNumericAttribute(String value) {
     if (value == null || value.isEmpty()) {
       return null;
     }
-    try {
-      // Check if it contains a decimal point to determine if it's a double
-      if (value.contains(".")) {
-        return Double.parseDouble(value);
+
+    // Trim whitespace to handle common cases like " 42 " or "\t100\n"
+    String trimmed = value.trim();
+    if (trimmed.isEmpty()) {
+      return null;
+    }
+
+    // Fast-path validation: check if the string looks like a valid number
+    // before attempting to parse, to avoid expensive NumberFormatException throws
+    boolean hasDecimal = false;
+    int startIdx = 0;
+    int length = trimmed.length();
+
+    // Handle optional leading sign
+    char firstChar = trimmed.charAt(0);
+    if (firstChar == '+' || firstChar == '-') {
+      startIdx = 1;
+      // Sign-only strings like "+" or "-" are not valid numbers
+      if (startIdx >= length) {
+        return null;
+      }
+    }
+
+    // Validate that remaining characters are digits or a single decimal point
+    boolean hasDigits = false;
+    for (int i = startIdx; i < length; i++) {
+      char c = trimmed.charAt(i);
+      if (c == '.') {
+        if (hasDecimal) {
+          // Multiple decimal points (e.g., "3.14.15") - invalid
+          return null;
+        }
+        hasDecimal = true;
+      } else if (c >= '0' && c <= '9') {
+        hasDigits = true;
       } else {
-        // Try to parse as integer first
-        return Long.parseLong(value);
+        // Non-digit, non-decimal character (e.g., "12x34", "abc") - invalid
+        return null;
+      }
+    }
+
+    // Must have at least one digit (reject strings like "." or "+.")
+    if (!hasDigits) {
+      return null;
+    }
+
+    // Now attempt parsing - the try-catch remains as a fallback for overflow cases
+    // (e.g., Long.MAX_VALUE+1) or other edge cases that passed pre-validation
+    try {
+      if (hasDecimal) {
+        return Double.parseDouble(trimmed);
+      } else {
+        return Long.parseLong(trimmed);
       }
     } catch (NumberFormatException e) {
+      // Overflow or other parse failure despite pre-check
       return null;
     }
   }

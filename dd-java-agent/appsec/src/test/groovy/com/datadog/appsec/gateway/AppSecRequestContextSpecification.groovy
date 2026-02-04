@@ -655,6 +655,101 @@ class AppSecRequestContextSpecification extends DDSpecification {
     }
   }
 
+  def "test numeric conversion with edge cases: #description"() {
+    given:
+    def context = new AppSecRequestContext()
+    def mockTraceSegment = Mock(datadog.trace.api.internal.TraceSegment)
+    def committedTags = [:]
+
+    mockTraceSegment.setTagTop(_ as String, _ as Object) >> { String key, Object value ->
+      committedTags[key] = value
+    }
+
+    when:
+    context.reportDerivatives(['test_attr': ['value': inputValue]])
+    context.commitDerivatives(mockTraceSegment)
+
+    then:
+    // When conversion fails (expectedValue is null), the original string value should be preserved
+    // When conversion succeeds, the converted numeric value should be used
+    committedTags['test_attr'] == (expectedValue != null ? expectedValue : inputValue)
+
+    where:
+    description                          | inputValue                     | expectedValue
+    // Valid integers
+    'zero'                               | '0'                            | 0L
+    'positive integer'                   | '42'                           | 42L
+    'negative integer'                   | '-100'                         | -100L
+    'integer with plus sign'             | '+999'                         | 999L
+    'large valid long'                   | '9223372036854775807'          | 9223372036854775807L
+    'large negative long'                | '-9223372036854775808'         | -9223372036854775808L
+
+    // Valid decimals
+    'simple decimal'                     | '3.14'                         | 3.14d
+    'negative decimal'                   | '-0.5'                         | -0.5d
+    'decimal with plus sign'             | '+99.99'                       | 99.99d
+    'zero decimal'                       | '0.0'                          | 0.0d
+    'decimal with many digits'           | '123.456789'                   | 123.456789d
+
+    // Whitespace handling (should now parse after trim - issue #10494 fix)
+    'leading whitespace integer'         | ' 42'                          | 42L
+    'trailing whitespace integer'        | '42 '                          | 42L
+    'both whitespace integer'            | ' 42 '                         | 42L
+    'tab and newline whitespace'         | '\t100\n'                      | 100L
+    'multiple spaces decimal'            | '  -3.14  '                    | -3.14d
+
+    // Empty and null
+    'null value'                         | null                           | null
+    'empty string'                       | ''                             | null
+    'whitespace only'                    | '   '                          | null
+    'tab only'                           | '\t'                           | null
+
+    // Invalid formats (should return null, original string preserved)
+    'alphabetic string'                  | 'abc'                          | null
+    'alphanumeric string'                | '12x34'                        | null
+    'multiple decimals'                  | '3.14.15'                      | null
+    'multiple signs'                     | '+-5'                          | null
+    'sign in middle'                     | '12-34'                        | null
+
+    // Sign-only strings
+    'plus sign only'                     | '+'                            | null
+    'minus sign only'                    | '-'                            | null
+    'plus with whitespace'               | ' + '                          | null
+
+    // Overflow cases (should return null gracefully)
+    'long overflow positive'             | '9223372036854775808'          | null
+    'long overflow negative'             | '-9223372036854775809'         | null
+    'very large number'                  | '99999999999999999999999'      | null
+
+    // Exotic number formats (should return null - not supported)
+    'hexadecimal'                        | '0x10'                         | null
+    'scientific notation'                | '1e10'                         | null
+    'binary'                             | '0b1010'                       | null
+    'octal'                              | '0777'                         | 777L
+
+    // Edge decimal cases (note: .5 and 5. are valid Java double literals)
+    'decimal starts with dot'            | '.5'                           | 0.5d
+    'decimal ends with dot'              | '5.'                           | 5.0d
+    'dot only'                           | '.'                            | null
+    'multiple dots'                      | '...'                          | null
+
+    // Regression - ensure existing valid formats still work
+    'regression valid integer'           | '100'                          | 100L
+    'regression valid decimal'           | '99.5'                         | 99.5d
+    'regression negative'                | '-50'                          | -50L
+
+    // Special characters
+    'comma separator'                    | '1,000'                        | null
+    'underscore separator'               | '1_000'                        | null
+    'currency symbol'                    | '$100'                         | null
+    'percentage'                         | '50%'                          | null
+
+    // Edge cases with zeros
+    'zero with plus'                     | '+0'                           | 0L
+    'zero with minus'                    | '-0'                           | 0L
+    'decimal zero variations'            | '0.00'                         | 0.0d
+  }
+
   def "test getDerivativeKeys with empty derivatives"() {
     given:
     def context = new AppSecRequestContext()
