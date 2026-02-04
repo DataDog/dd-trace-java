@@ -590,6 +590,8 @@ muzzle-dep-report:
       when: on_success
   script:
     - *gitlab_base_ref_params
+    - export JOB_BASE_NAME="${CI_JOB_NAME%%:*}"
+    - export DD_TAGS="test.configuration.jvm:${testJvm},test.configuration.split:${CI_NODE_INDEX}/${CI_NODE_TOTAL},test.configuration.job_name:${JOB_BASE_NAME}"
     - >
       if [ "$PROFILE_TESTS" == "true" ] && [ "$testJvm" != "ibm8" ] && [ "$testJvm" != "oracle8" ];
       then
