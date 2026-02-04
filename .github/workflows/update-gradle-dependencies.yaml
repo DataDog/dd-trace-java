@@ -26,11 +26,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'temurin'
-          java-version: |
-            8
-            11
-            17
-            21
+          java-version: '21'
           cache: 'gradle'
 
       - name: Update Gradle dependencies
@@ -41,7 +37,7 @@ jobs:
             -not -path './dd-smoke-tests/*' \
             -not -path './dd-java-agent/instrumentation/*' \
             -delete
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
       - name: Check if changes should be committed
         id: check-changes
@@ -124,11 +120,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'temurin'
-          java-version: |
-            8
-            11
-            17
-            21
+          java-version: '21'
           cache: 'gradle'
 
       - name: Update Gradle dependencies
@@ -137,7 +129,7 @@ jobs:
         run: |
           find ./dd-smoke-tests -name 'gradle.lockfile' -delete
           find ./dd-java-agent/instrumentation -name 'gradle.lockfile' -delete
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
       - name: Check if changes should be committed
         id: check-changes
