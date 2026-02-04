@@ -8,7 +8,7 @@ public class MockFeaturesDiscovery extends DDAgentFeaturesDiscovery {
   private final boolean supportsDataStreams;
 
   public MockFeaturesDiscovery(boolean supportsDataStreams) {
-    super(null, Monitoring.DISABLED, null, true, true, true);
+    super(null, Monitoring.DISABLED, null, true, false, true);
     this.supportsDataStreams = supportsDataStreams;
   }
 
