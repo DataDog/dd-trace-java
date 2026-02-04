@@ -181,6 +181,236 @@
   },
 
   // AGENT: leave these sections empty so Claude can populate them.
-  "agent_notes": {},
-  "tasks": []
+  "agent_notes": {
+    "codebase_analysis": {
+      "summary": "Analyzed dd-trace-java codebase to understand current inferred proxy span implementation and identify required changes for RFC compliance.",
+
+      "key_files": {
+        "InferredProxySpan_java": {
+          "path": "internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java",
+          "purpose": "Main class for creating and managing inferred proxy spans",
+          "current_state": {
+            "supported_proxies": "Only 'aws-apigateway' (lines 33-36), needs 'aws-httpapi'",
+            "headers_extracted": ["x-dd-proxy", "x-dd-proxy-request-time-ms", "x-dd-proxy-path", "x-dd-proxy-httpmethod", "x-dd-proxy-domain-name", "x-dd-proxy-stage"],
+            "missing_header": "x-dd-proxy-resource-path",
+            "tags_set": {
+              "component": "Line 87 ✓",
+              "_span_type": "Line 90, already 'web' ✓",
+              "http.method": "Line 93 ✓",
+              "http.url": "Line 96, MISSING https:// scheme ✗",
+              "http.route": "Line 99, uses path instead of resourcePath ✗",
+              "stage": "Line 102 ✓",
+              "_dd.inferred_span": "Line 105 ✓"
+            },
+            "missing_tags": ["span.kind (should be 'server')", "_dd.appsec.enabled", "_dd.appsec.json"],
+            "resource_name": "Lines 109-112, uses path, needs to prefer route ✗"
+          },
+          "changes_needed": [
+            "Add aws-httpapi to SUPPORTED_PROXIES",
+            "Add PROXY_RESOURCE_PATH constant",
+            "Set span.kind=server",
+            "Fix http.url scheme",
+            "Update http.route to use resourcePath",
+            "Update resource.name to prefer route",
+            "Add AppSec tag propagation"
+          ]
+        },
+
+        "InferredProxyPropagator_java": {
+          "path": "dd-trace-core/src/main/java/datadog/trace/core/propagation/InferredProxyPropagator.java",
+          "purpose": "Extracts x-dd-proxy-* headers",
+          "changes_needed": "None - automatically extracts any x-dd-proxy-* header"
+        },
+
+        "Tags_java": {
+          "path": "internal-api/src/main/java/datadog/trace/bootstrap/instrumentation/api/Tags.java",
+          "constants": {
+            "SPAN_KIND": "Line 38",
+            "SPAN_KIND_SERVER": "Line 6, value='server'"
+          }
+        },
+
+        "GatewayBridge_java": {
+          "path": "dd-java-agent/appsec/src/main/java/com/datadog/appsec/gateway/GatewayBridge.java",
+          "appsec_logic": "Line 864 sets _dd.appsec.enabled on TraceSegment. Need to propagate from child span to proxy span."
+        }
+      }
+    },
+
+    "implementation_strategy": {
+      "phase_1_core_tags": {
+        "files": ["InferredProxySpan.java"],
+        "changes": [
+          "Add aws-httpapi support",
+          "Add span.kind=server",
+          "Fix http.url scheme",
+          "Add http.route from resourcePath",
+          "Update resource.name logic"
+        ],
+        "complexity": "LOW"
+      },
+
+      "phase_2_appsec": {
+        "investigation_needed": "How to access child service-entry span from InferredProxySpan to copy AppSec tags",
+        "options": [
+          "Option 1: In finish() hook, access child spans and copy tags",
+          "Option 2: Use InstrumentationGateway callback",
+          "Option 3: Use TraceSegmentPostProcessor"
+        ],
+        "recommended": "Option 1 if child span API available, else Option 3",
+        "complexity": "HIGH"
+      },
+
+      "phase_3_testing": {
+        "files": ["InferredProxySpanTests.java", "InferredProxyPropagatorTests.java"],
+        "test_scenarios": [
+          "V1 (aws-apigateway) and V2 (aws-httpapi) span names",
+          "span.kind=server on all proxy spans",
+          "https:// scheme in http.url",
+          "http.route from resourcePath with fallback",
+          "resource.name preferring route over path",
+          "AppSec tag propagation",
+          "Backwards compatibility"
+        ]
+      }
+    },
+
+    "backwards_compatibility": {
+      "v2_migration": "Span name changes from aws.apigateway to aws.httpapi when header changes - intentional per RFC",
+      "resource_path_header": "Optional header - fallback to path if not present",
+      "resource_name_change": "Bugfix per RFC - document in release notes",
+      "http_url_scheme": "Bugfix - should not break existing functionality"
+    },
+
+    "risks": {
+      "low": ["span.kind tag", "https:// scheme", "aws-httpapi support"],
+      "medium": ["http.route change", "resource.name change"],
+      "high": ["AppSec propagation - complex, needs careful implementation"]
+    }
+  },
+
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Add aws-httpapi proxy type support",
+      "file": "InferredProxySpan.java",
+      "change": "Add 'aws-httpapi' -> 'aws.httpapi' to SUPPORTED_PROXIES map",
+      "line": "After line 35",
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "description": "Add PROXY_RESOURCE_PATH constant",
+      "file": "InferredProxySpan.java",
+      "change": "Add: static final String PROXY_RESOURCE_PATH = \"x-dd-proxy-resource-path\";",
+      "line": "After line 29",
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "description": "Add span.kind=server tag",
+      "file": "InferredProxySpan.java",
+      "change": "Import SPAN_KIND, SPAN_KIND_SERVER and add span.setTag(SPAN_KIND, SPAN_KIND_SERVER);",
+      "line": "After line 87",
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "description": "Fix http.url to include https:// scheme",
+      "file": "InferredProxySpan.java",
+      "change": "Update line 96: prepend 'https://' when domainName is not null",
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "description": "Update http.route to use resourcePath",
+      "file": "InferredProxySpan.java",
+      "change": "Extract resourcePath header and use it for http.route, fallback to path",
+      "line": "Lines 77, 99",
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "description": "Update resource.name to prefer route",
+      "file": "InferredProxySpan.java",
+      "change": "Use resourcePath for resource name when available, else use path",
+      "line": "Lines 107-112",
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "description": "Investigate AppSec tag propagation approach",
+      "deliverable": "Document chosen mechanism for copying AppSec tags from child span",
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "description": "Implement _dd.appsec.enabled propagation",
+      "file": "InferredProxySpan.java",
+      "depends_on": 7,
+      "status": "pending"
+    },
+    {
+      "id": 9,
+      "description": "Implement _dd.appsec.json propagation",
+      "file": "InferredProxySpan.java",
+      "depends_on": 7,
+      "status": "pending"
+    },
+    {
+      "id": 10,
+      "description": "Add tests for aws-httpapi",
+      "file": "InferredProxySpanTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 11,
+      "description": "Add tests for span.kind",
+      "file": "InferredProxySpanTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 12,
+      "description": "Add tests for https:// scheme",
+      "file": "InferredProxySpanTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 13,
+      "description": "Add tests for http.route from resourcePath",
+      "file": "InferredProxySpanTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 14,
+      "description": "Add tests for resource.name with route preference",
+      "file": "InferredProxySpanTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 15,
+      "description": "Add tests for AppSec tag propagation",
+      "file": "InferredProxySpanTests.java",
+      "depends_on": [8, 9],
+      "status": "pending"
+    },
+    {
+      "id": 16,
+      "description": "Update propagator tests for resourcePath header",
+      "file": "InferredProxyPropagatorTests.java",
+      "status": "pending"
+    },
+    {
+      "id": 17,
+      "description": "End-to-end integration testing",
+      "validation": "All definition_of_done criteria met",
+      "status": "pending"
+    },
+    {
+      "id": 18,
+      "description": "Documentation and release notes",
+      "deliverable": "Document resource.name change as bugfix",
+      "status": "pending"
+    }
+  ]
 }
