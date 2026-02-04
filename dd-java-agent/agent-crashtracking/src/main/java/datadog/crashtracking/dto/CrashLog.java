@@ -10,7 +10,7 @@ import java.util.Objects;
 public final class CrashLog {
   private static final int VERSION = 0;
 
-  private static final JsonAdapter<CrashLog> ADAPTER;
+  public static final JsonAdapter<CrashLog> ADAPTER;
 
   static {
     Moshi moshi = new Moshi.Builder().add(new SemanticVersion.SemanticVersionAdapter()).build();
