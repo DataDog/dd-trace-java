@@ -497,4 +497,8 @@ display_detailed_results "$AGGREGATED_DATA"
 # Write reports
 write_json_summary "$AGGREGATED_DATA" "$OUTPUT_FILE"
 write_markdown_report "$AGGREGATED_DATA" "$REPORT_FILE"
-cat "$REPORT_FILE"
+
+# Only output markdown report in verbose mode
+if [ $VERBOSE -eq 1 ]; then
+    cat "$REPORT_FILE"
+fi
