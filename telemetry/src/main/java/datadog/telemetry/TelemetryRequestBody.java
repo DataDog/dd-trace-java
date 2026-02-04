@@ -3,7 +3,6 @@ package datadog.telemetry;
 import com.squareup.moshi.JsonWriter;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.environment.JavaVirtualMachine;
-import datadog.http.client.HttpRequestBody;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Integration;
 import datadog.telemetry.api.LogMessage;
@@ -17,13 +16,12 @@ import datadog.trace.api.ProcessTags;
 import datadog.trace.api.telemetry.Endpoint;
 import datadog.trace.api.telemetry.ProductChange.ProductType;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import okio.Buffer;
 
-public class TelemetryRequestBody implements HttpRequestBody {
+public class TelemetryRequestBody {
 
   public static class SerializationException extends RuntimeException {
     public SerializationException(String requestPartName, Throwable cause) {
@@ -126,10 +124,7 @@ public class TelemetryRequestBody implements HttpRequestBody {
     }
   }
 
-  /**
-   * @return body size in bytes
-   */
-  public long endRequest() {
+  public void endRequest() {
     try {
       switch (this.requestType) {
         case APP_STARTED:
@@ -142,7 +137,6 @@ public class TelemetryRequestBody implements HttpRequestBody {
         default:
       }
       bodyWriter.endObject(); // request
-      return body.size();
     } catch (Exception ex) {
       throw new SerializationException("end-request", ex);
     }
@@ -369,18 +363,12 @@ public class TelemetryRequestBody implements HttpRequestBody {
     bodyWriter.endObject();
   }
 
-  @Override
-  public long contentLength() {
-    return body.size();
-  }
-
-  @Override
-  public void writeTo(OutputStream out) throws IOException {
-    body.copyTo(out);
-  }
-
   public long size() {
     return body.size();
+  }
+
+  public byte[] toByteArray() {
+    return body.readByteArray();
   }
 
   private void beginMessageIfBatch(RequestType messageType) {

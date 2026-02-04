@@ -1,10 +1,10 @@
 package datadog.telemetry
 
 import datadog.communication.http.HttpRetryPolicy
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.telemetry.api.RequestType
 import datadog.trace.api.Config
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import spock.lang.Specification
 
 class TelemetryClientTest extends Specification {
@@ -35,17 +35,17 @@ class TelemetryClientTest extends Specification {
 
   def "Intake client retries telemetry request if configured to do so"() {
     setup:
-    def httpClient = Mock(OkHttpClient)
+    def httpClient = Mock(HttpClient)
     def httpRetryPolicy = new HttpRetryPolicy.Factory(2, 50, 1.5, true)
-    def httpUrl = HttpUrl.get("https://intake.example.com")
-    def intakeClient =  new TelemetryClient(httpClient, httpRetryPolicy, httpUrl, "dummy-api-key")
+    def httpUrl = HttpUrl.parse("https://intake.example.com")
+    def intakeClient = new TelemetryClient(httpClient, httpRetryPolicy, httpUrl, "dummy-api-key")
 
     when:
     intakeClient.sendHttpRequest(dummyRequest())
 
     then:
     // original request + 2 retries
-    3 * httpClient.newCall(_) >> { throw new ConnectException("exception") }
+    3 * httpClient.execute(_) >> { throw new ConnectException("exception") }
   }
 
   def dummyRequest() {
