@@ -18,18 +18,22 @@ Analyze changes on the current branch to identify and fix technical debt, code d
 
 ### Step 1: Get Branch Changes
 
-Find the upstream remote and compare against it:
+Find the merge-base (where this branch diverged from master) and compare against it:
 
 ```bash
-# Find upstream (DataDog org repo) and show changes
+# Find upstream (DataDog org repo)
 UPSTREAM=$(git remote -v | grep -E 'DataDog/[^/]+(.git)?\s' | head -1 | awk '{print $1}')
 if [ -z "$UPSTREAM" ]; then
   echo "No DataDog upstream found, using origin"
   UPSTREAM="origin"
 fi
-echo "Comparing against: $UPSTREAM/master"
-git diff ${UPSTREAM}/master --stat
-git diff ${UPSTREAM}/master --name-status
+
+# Find the merge-base (commit where this branch diverged from master)
+MERGE_BASE=$(git merge-base HEAD ${UPSTREAM}/master)
+echo "Comparing changes introduced on this branch since diverging from master using base commit: $MERGE_BASE"
+
+git diff $MERGE_BASE --stat
+git diff $MERGE_BASE --name-status
 ```
 
 If no changes exist, inform the user and stop.
