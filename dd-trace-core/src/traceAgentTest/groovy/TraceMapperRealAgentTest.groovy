@@ -30,8 +30,8 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
     monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
-    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
-    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false, true)
+    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, false, true)
     v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
     v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
   }
