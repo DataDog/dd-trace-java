@@ -721,9 +721,16 @@ class AppSecRequestContextSpecification extends DDSpecification {
     'long overflow negative'             | '-9223372036854775809'         | null
     'very large number'                  | '99999999999999999999999'      | null
 
-    // Exotic number formats (should return null - not supported)
+    // Scientific notation (now supported for backward compatibility)
+    'scientific notation lowercase'      | '1e10'                         | 1.0e10d
+    'scientific notation uppercase'      | '1E10'                         | 1.0E10d
+    'scientific with decimal'            | '1.5e10'                       | 1.5e10d
+    'scientific negative exponent'       | '3.5E-7'                       | 3.5E-7d
+    'scientific with sign'               | '-2.5e+3'                      | -2.5e+3d
+    'scientific integer base'            | '5e3'                          | 5000.0d
+
+    // Exotic number formats (not supported)
     'hexadecimal'                        | '0x10'                         | null
-    'scientific notation'                | '1e10'                         | null
     'binary'                             | '0b1010'                       | null
     'octal'                              | '0777'                         | 777L
 

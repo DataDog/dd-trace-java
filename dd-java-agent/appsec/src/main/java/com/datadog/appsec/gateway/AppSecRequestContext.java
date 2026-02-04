@@ -728,12 +728,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   /**
    * Attempts to parse a string value as a number. Returns the parsed number if successful, null
-   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
+   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point or
+   * scientific notation.
    *
    * <p>This method uses fast-path validation to avoid throwing NumberFormatException for invalid
    * inputs, significantly reducing overhead when processing non-numeric attribute values (issue
    * #10494). The method trims whitespace before validation, allowing strings like " 42 " to parse
    * successfully.
+   *
    *
    * @param value the string to parse
    * @return a Long or Double if the string is a valid number, null otherwise
@@ -751,7 +753,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
     // Fast-path validation: check if the string looks like a valid number
     // before attempting to parse, to avoid expensive NumberFormatException throws
+    // Supports: integers, decimals, and scientific notation (e.g., "1.5e10", "-3E-7")
     boolean hasDecimal = false;
+    boolean hasExponent = false;
     int startIdx = 0;
     int length = trimmed.length();
 
@@ -765,25 +769,45 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    // Validate that remaining characters are digits or a single decimal point
+    // Validate characters: digits, optional decimal point, optional exponent
     boolean hasDigits = false;
     for (int i = startIdx; i < length; i++) {
       char c = trimmed.charAt(i);
       if (c == '.') {
-        if (hasDecimal) {
-          // Multiple decimal points (e.g., "3.14.15") - invalid
+        if (hasDecimal || hasExponent) {
+          // Multiple decimal points or decimal after exponent - invalid
           return null;
         }
         hasDecimal = true;
+      } else if (c == 'e' || c == 'E') {
+        if (hasExponent || !hasDigits) {
+          // Multiple exponents or exponent without preceding digits - invalid
+          return null;
+        }
+        hasExponent = true;
+        // Next character can be optional sign (+/-) followed by digits
+        if (i + 1 < length) {
+          char next = trimmed.charAt(i + 1);
+          if (next == '+' || next == '-') {
+            i++; // Skip the sign after exponent
+            // Must have at least one digit after exponent sign
+            if (i + 1 >= length) {
+              return null;
+            }
+          }
+        } else {
+          // Exponent must be followed by digits
+          return null;
+        }
       } else if (c >= '0' && c <= '9') {
         hasDigits = true;
       } else {
-        // Non-digit, non-decimal character (e.g., "12x34", "abc") - invalid
+        // Non-digit, non-decimal, non-exponent character - invalid
         return null;
       }
     }
 
-    // Must have at least one digit (reject strings like "." or "+.")
+    // Must have at least one digit (reject strings like ".", "+.", "e10")
     if (!hasDigits) {
       return null;
     }
@@ -791,9 +815,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     // Now attempt parsing - the try-catch remains as a fallback for overflow cases
     // (e.g., Long.MAX_VALUE+1) or other edge cases that passed pre-validation
     try {
-      if (hasDecimal) {
+      if (hasDecimal || hasExponent) {
+        // Parse as Double for decimals and scientific notation
         return Double.parseDouble(trimmed);
       } else {
+        // Parse as Long for plain integers
         return Long.parseLong(trimmed);
       }
     } catch (NumberFormatException e) {
