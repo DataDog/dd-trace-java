@@ -736,7 +736,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
    * #10494). The method trims whitespace before validation, allowing strings like " 42 " to parse
    * successfully.
    *
-   *
    * @param value the string to parse
    * @return a Long or Double if the string is a valid number, null otherwise
    */
