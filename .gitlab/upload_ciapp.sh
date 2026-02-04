@@ -3,6 +3,8 @@ SERVICE_NAME="dd-trace-java"
 CACHE_TYPE=$1
 TEST_JVM=$2
 
+# CI_JOB_NAME, CI_NODE_INDEX, and CI_NODE_TOTAL are read from GitLab CI environment
+
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
 JAVA_HOME="JAVA_${TEST_JVM}_HOME"
 JAVA_BIN="${!JAVA_HOME}/bin/java"
@@ -22,20 +24,21 @@ junit_upload() {
     # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
     # Overwriting the tag with the GitHub repo URL instead of the GitLab one. Otherwise, some Test Optimization features won't work.
 
-    # Parse DD_TAGS environment variable and convert to --tags arguments
-    # Using bash array for proper argument quoting
-    local dd_tags_args=()
-    if [ -n "$DD_TAGS" ]; then
-        # Split DD_TAGS by comma and create --tags argument for each
-        IFS=',' read -ra TAG_ARRAY <<< "$DD_TAGS"
-        for tag in "${TAG_ARRAY[@]}"; do
-            dd_tags_args+=(--tags "$tag")
-        done
+    # Build custom tags array directly from arguments
+    local custom_tags_args=()
+
+    # Extract job base name from CI_JOB_NAME (strip matrix suffix)
+    local job_base_name="${CI_JOB_NAME%%:*}"
+
+    # Add custom test configuration tags
+    custom_tags_args+=(--tags "test.configuration.jvm:${TEST_JVM}")
+    if [ -n "$CI_NODE_INDEX" ] && [ -n "$CI_NODE_TOTAL" ]; then
+        custom_tags_args+=(--tags "test.configuration.split:${CI_NODE_INDEX}/${CI_NODE_TOTAL}")
+    fi
+    if [ -n "$job_base_name" ]; then
+        custom_tags_args+=(--tags "test.configuration.job_name:${job_base_name}")
     fi
 
-    # Debug logging
-    echo "DEBUG: DD_TAGS=$DD_TAGS"
-    echo "DEBUG: Executing datadog-ci with trace enabled:"
     DD_API_KEY=$1 \
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
@@ -47,7 +50,7 @@ junit_upload() {
         --tags "os.platform:$(java_prop os.name)" \
         --tags "os.version:$(java_prop os.version)" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
-        "${dd_tags_args[@]}" \
+        "${custom_tags_args[@]}" \
         ./results
 }
 
