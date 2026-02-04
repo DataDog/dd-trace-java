@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# spotless:off - This file uses heredocs with <<- which require tabs, not spaces
 
 set -e
 
@@ -128,12 +129,17 @@ aggregate_test_data() {
 	    total_failed: (map(.failed_tests) | add),
 	    total_skipped: (map(.skipped_tests) | add),
 	    job_count: length
-	  }) | sort_by(
-	    if .jvm_version == "stable" then 100
-	    elif ((.jvm_version | gsub("[^0-9]"; "")) as $nums | $nums == "") then 0
-	    else (.jvm_version | gsub("[^0-9]"; "") | tonumber)
-	    end
-	  )),
+	  }) | sort_by([
+	    # First: numeric value (8, 11, 17, 21, 25)
+	    (if .jvm_version == "stable" then 1000
+	     elif ((.jvm_version | gsub("[^0-9]"; "")) as $nums | $nums == "") then 0
+	     else (.jvm_version | gsub("[^0-9]"; "") | tonumber)
+	     end),
+	    # Second: plain numbers before prefixed versions (8 before semeru8, 17 before graalvm17)
+	    (if (.jvm_version | test("^[0-9]+$")) then 0 else 1 end),
+	    # Third: alphabetically by full name
+	    .jvm_version
+	  ])),
 	  by_job_kind_and_jvm: (
 	    # Extract base job name (before the matrix suffix like ": [8, 2/6]")
 	    map(. + {job_kind: (.ci_job_name | split(":")[0])}) |
@@ -148,10 +154,15 @@ aggregate_test_data() {
 	      split_count: length
 	    }) | sort_by([
 	      .job_kind,
-	      (if .jvm_version == "stable" then 100
+	      # First: numeric value
+	      (if .jvm_version == "stable" then 1000
 	       elif ((.jvm_version | gsub("[^0-9]"; "")) as $nums | $nums == "") then 0
 	       else (.jvm_version | gsub("[^0-9]"; "") | tonumber)
-	       end)
+	       end),
+	      # Second: plain numbers before prefixed versions
+	      (if (.jvm_version | test("^[0-9]+$")) then 0 else 1 end),
+	      # Third: alphabetically by full name
+	      .jvm_version
 	    ])
 	  ),
 	  table_rows: map(
@@ -502,3 +513,5 @@ write_markdown_report "$AGGREGATED_DATA" "$REPORT_FILE"
 if [ $VERBOSE -eq 1 ]; then
     cat "$REPORT_FILE"
 fi
+
+# spotless:on
