@@ -2973,6 +2973,33 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     }
   }
 
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void methodParametersAttributeRecord() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    TestSnapshotListener listener = installMethodProbeAtExit(RECORD_NAME, "<init>", null);
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureArgs(
+          snapshot.getCaptures().getReturn(), "firstName", String.class.getTypeName(), "john");
+    } else {
+      assertEquals(0, listener.snapshots.size());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals(
+          "Instrumentation fails for com.datadog.debugger.MyRecord1",
+          strCaptor.getAllValues().get(0));
+    }
+  }
+
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
