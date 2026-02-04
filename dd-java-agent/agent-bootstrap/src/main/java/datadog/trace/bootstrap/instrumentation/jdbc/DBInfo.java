@@ -16,7 +16,7 @@ public final class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
-  private String poolName;
+  private volatile String poolName;
 
   DBInfo(
       String type,
