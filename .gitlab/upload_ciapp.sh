@@ -36,7 +36,6 @@ junit_upload() {
     # Debug logging
     echo "DEBUG: DD_TAGS=$DD_TAGS"
     echo "DEBUG: Executing datadog-ci with trace enabled:"
-    set -x
     DD_API_KEY=$1 \
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
@@ -50,7 +49,6 @@ junit_upload() {
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
         "${dd_tags_args[@]}" \
         ./results
-    set +x
 }
 
 # Upload code coverage results to Datadog

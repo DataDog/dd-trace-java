@@ -607,6 +607,8 @@ muzzle-dep-report:
     - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
+    - export JOB_BASE_NAME="${CI_JOB_NAME%%:*}"
+    - export DD_TAGS="test.configuration.jvm:${testJvm},test.configuration.split:${CI_NODE_INDEX}/${CI_NODE_TOTAL},test.configuration.job_name:${JOB_BASE_NAME}"
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
