@@ -1,0 +1,186 @@
+// How to use this PLAN.jsonc?
+// This PLAN.jsonc document is the canonical plan for the **Proxy PR** (PR #1) implementing the RFC:
+// "[RFC] Endpoint Discovery & Correlation from Inferred Spans" (Accepted Oct 29, 2025).
+// Update it incrementally as you go. After each meaningful chunk of work, update it and commit.
+// USER sections are stable (humans edit). AGENT sections must be left empty so Claude can populate them.
+
+{
+  // USER: do not edit the following sections.
+  "goal": "PR #1 (Proxy): Update inferred proxy spans produced by SDK tracers so they carry the standardized mandatory tags needed for endpoint discovery & correlation across AWS API Gateway sources, as specified in the RFC. Focus on aligning span name (v1 vs v2), adding missing kind/type, fixing http.url scheme, adding http.route from a new header, updating resource.name logic, and propagating AppSec signals.",
+
+  "source_rfc": {
+    "title": "[RFC] Endpoint Discovery & Correlation from Inferred Spans",
+    "doc": "https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0",
+    "status": "Accepted Oct 29, 2025",
+    "most_important_section": "Appendix A tables: Inferred Proxy Spans (mandatory + optional tags) and Inferred Lambda Spans (for cross-source alignment)."
+  },
+
+  "non_goals": [
+    "PR #2 (Lambda) changes: inferred lambda spans updates are explicitly out of scope for this PR.",
+    "Service naming normalization and custom domain identification (Appendix B) are out of scope.",
+    "Resource renaming regexp from the endpoint resource renaming RFC is explicitly excluded for now (RFC note says we should have enough info without inference)."
+  ],
+
+  "definition_of_done": {
+    "mandatory_proxy_table_implemented": "All 'Mandatory change = Yes' rows from the Inferred Proxy Spans table are implemented in the tracer-produced inferred proxy spans.",
+    "validated_end_to_end": [
+      "A v1 (REST) API Gateway flow produces proxy spans with correct fields.",
+      "A v2 (HTTP) API Gateway flow produces proxy spans with correct fields once customers/constructs send x-dd-proxy=aws-httpapi.",
+      "Backend no longer mis-parses http.url; route is correct; resource.name reflects <Method> <Route> when route is present.",
+      "When AppSec is enabled, inferred proxy spans include _dd.appsec.enabled and _dd.appsec.json as specified."
+    ],
+    "backwards_compat": "Document behavior for v2 requests while customers still emit x-dd-proxy=aws-apigateway (pre-migration)."
+  },
+
+  "required_changes_from_rfc": {
+    "inferred_proxy_spans_table_mandatory": {
+      "name": {
+        "top_level_key": "span",
+        "status": "Updated",
+        "new_value": "aws.apigateway (v1) or aws.httpapi (v2)",
+        "notes": "SDK proxy spans must distinguish v1/v2 via x-dd-proxy. v2 must change to aws-httpapi so SDK sets span name aws.httpapi."
+      },
+      "kind": {
+        "top_level_key": "span",
+        "status": "New",
+        "new_value": "server"
+      },
+      "type": {
+        "top_level_key": "span",
+        "status": "New",
+        "new_value": "web",
+        "notes": "Required for endpoint sourcing consistency (lambda inferred uses web) and to allow partitioning logic to consume spans."
+      },
+      "http.url": {
+        "top_level_key": "meta",
+        "status": "Updated",
+        "new_value": "Must include https:// scheme",
+        "notes": "Missing scheme breaks backend enrichment/route inference by causing host to be parsed as path."
+      },
+      "http.route": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "From header x-dd-proxy-resource-path",
+        "header_spec": {
+          "header_name": "x-dd-proxy-resource-path",
+          "apigw_v1_rest_value": "context.resourcePath",
+          "apigw_v2_http_value": "$context.resourcePath"
+        },
+        "notes": "Must be the original resource template (e.g. /path/{parameter}), not the concrete request path."
+      },
+      "resource.name": {
+        "top_level_key": "meta",
+        "status": "Updated",
+        "new_value": "<Method> <Route> when http.route is available, <Method> <Path> otherwise",
+        "notes": "This is considered a bugfix per RFC discussion; call out in release notes."
+      },
+      "_dd.appsec.enabled": {
+        "top_level_key": "metrics",
+        "status": "New",
+        "new_value": "AppSec enabled 1.0, elided if not enabled",
+        "enablement_condition": "Emit when DD_APPSEC_ENABLED or DD_SERVERLESS_APPSEC_ENABLED is true/equivalent."
+      },
+      "_dd.appsec.json": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "Appsec Events (duplicate of service-entry span)",
+        "notes": "When appsec events exist on the underlying service-entry span, duplicate them onto the API Gateway inferred proxy span."
+      }
+    },
+
+    "inferred_proxy_spans_table_optional": {
+      "account_id": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "From header x-dd-proxy-account-id",
+        "header_values": {
+          "v1": "context.accountId",
+          "v2": "$context.accountId"
+        }
+      },
+      "apiid": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "From header x-dd-proxy-api-id",
+        "header_values": {
+          "v1": "context.apiId",
+          "v2": "$context.apiId"
+        }
+      },
+      "region": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "From header x-dd-proxy-region",
+        "header_values": {
+          "v1": "Single-quoted string, e.g. 'us-east-1'",
+          "v2": "String, e.g. us-east-1"
+        },
+        "notes": "CDK constructs must implement this; region may also be available from Aws class."
+      },
+      "dd_resource_key": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "Computed ARN",
+        "arn_format": {
+          "v1_rest": "arn:{partition}:apigateway:{region}::/restapis/{api-id}",
+          "v2_http": "arn:{partition}:apigateway:{region}::/apis/{api-id}"
+        },
+        "notes": "Partition assumed 'aws' unless other partitions required later."
+      },
+      "aws_user": {
+        "top_level_key": "meta",
+        "status": "New",
+        "new_value": "From header x-dd-proxy-user",
+        "header_values": {
+          "v1": "context.identity.userArn",
+          "v2": "$context.identity.userArn"
+        },
+        "notes": "Optional; RFC notes potential PII in assumed-role session name. Keep out unless approved/gated."
+      }
+    },
+
+    "operation_name_migration": {
+      "header_used_to_disambiguate": "x-dd-proxy",
+      "v1_value": "aws-apigateway",
+      "v2_value": "aws-httpapi",
+      "sdk_behavior": "If x-dd-proxy == aws-httpapi, span name MUST be aws.httpapi; otherwise aws.apigateway.",
+      "required_external_changes": [
+        "Documentation updates to instruct aws-httpapi for v2 instrumentation.",
+        "DD CDK constructs updates to emit aws-httpapi for v2 APIs."
+      ]
+    }
+  },
+
+  "implementation_notes": {
+    "pr_split": {
+      "pr1_proxy": "This PLAN covers PR #1: inferred proxy spans (SDK tracers) changes.",
+      "pr2_lambda": "A separate PLAN will cover PR #2: inferred lambda spans changes."
+    },
+
+    "work_items_proxy_pr": [
+      "Update proxy span naming logic: support x-dd-proxy=aws-httpapi => span.name aws.httpapi; keep v1 as aws.apigateway. (RFC lines 93-101)  [oai_citation:0‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Add span.kind=server and span.type=web to inferred proxy spans.  [oai_citation:1‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Fix http.url to always include https:// scheme.  [oai_citation:2‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Introduce http.route populated from header x-dd-proxy-resource-path (context.resourcePath / $context.resourcePath).  [oai_citation:3‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Update resource.name derivation to prefer <Method> <Route> when http.route is present.  [oai_citation:4‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Emit _dd.appsec.enabled metric when appsec enabled; elide otherwise.  [oai_citation:5‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "Copy appsec events into _dd.appsec.json on inferred proxy span when present on service-entry span.  [oai_citation:6‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)"
+    ],
+
+    "validation": {
+      "tag_contract": "Validate all mandatory rows in 'Inferred Proxy Spans' table are present and correct.  [oai_citation:7‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "v1_v2_coverage": "Test both API Gateway v1 (REST) and v2 (HTTP) flows; v2 requires aws-httpapi marker.  [oai_citation:8‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "route_semantics": "Ensure http.route uses resource template (resourcePath) not request path (path).  [oai_citation:9‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "release_note": "Call out resource.name behavior change as bugfix per RFC discussion.  [oai_citation:10‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)"
+    },
+
+    "optional_followups": {
+      "enrichment_headers": "Optional headers account_id/apiid/region and optional dd_resource_key ARN computation are NOT required for this PR unless explicitly chosen; they are listed in the RFC as optional.  [oai_citation:11‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)",
+      "aws_user_pii": "Do not implement aws_user header mapping unless there is an explicit approval/gating decision.  [oai_citation:12‡[RFC-1081] Endpoint Discovery & Correlation from Inferred Spans ](https://docs.google.com/document/d/1lH9RCZLR6SyJmPAIRYBpv4sKRy54kUAWOMPuOAOpS2Q/edit?tab=t.0)"
+    }
+  },
+
+  // AGENT: leave these sections empty so Claude can populate them.
+  "agent_notes": {},
+  "tasks": []
+}
