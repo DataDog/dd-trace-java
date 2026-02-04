@@ -37,7 +37,6 @@ import datadog.trace.common.writer.TraceGenerator
 import datadog.trace.test.util.DDSpecification
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
-import java.nio.file.Path
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
@@ -67,7 +66,6 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
         traceMapper.reset()
       }
     }
-    buffer.dump(Path.of("/Users/alexey.kuznetsov/temp/dump_v1_0.msgpack"))
     packer.flush()
 
     then:
@@ -77,22 +75,22 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
     where:
     bufferSize | traceCount | lowCardinality
-    // 20 << 10   | 0          | true
+    20 << 10   | 0          | true
     20 << 10   | 1          | true
-    // 30 << 10   | 1          | true
-    // 30 << 10   | 2          | true
-    // 20 << 10   | 0          | false
-    // 20 << 10   | 1          | false
-    // 30 << 10   | 1          | false
-    // 30 << 10   | 2          | false
-    // 100 << 10  | 0          | true
-    // 100 << 10  | 1          | true
-    // 100 << 10  | 10         | true
-    // 100 << 10  | 100        | true
-    // 100 << 10  | 0          | false
-    // 100 << 10  | 1          | false
-    // 100 << 10  | 10         | false
-    // 100 << 10  | 100        | false
+    30 << 10   | 1          | true
+    30 << 10   | 2          | true
+    20 << 10   | 0          | false
+    20 << 10   | 1          | false
+    30 << 10   | 1          | false
+    30 << 10   | 2          | false
+    100 << 10  | 0          | true
+    100 << 10  | 1          | true
+    100 << 10  | 10         | true
+    100 << 10  | 100        | true
+    100 << 10  | 0          | false
+    100 << 10  | 1          | false
+    100 << 10  | 10         | false
+    100 << 10  | 100        | false
   }
 
   def "test endpoint returns v1.0"() {

@@ -1,8 +1,6 @@
 package datadog.communication.serialization;
 
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 public final class FlushingBuffer implements StreamingBuffer {
 
@@ -111,12 +109,5 @@ public final class FlushingBuffer implements StreamingBuffer {
   // for tests only
   int getMessageCount() {
     return messageCount;
-  }
-
-  // for tests only
-  public void dump(Path path) throws Exception {
-    ByteBuffer dup = buffer.duplicate();
-    dup.flip();
-    Files.write(path, dup.array());
   }
 }
