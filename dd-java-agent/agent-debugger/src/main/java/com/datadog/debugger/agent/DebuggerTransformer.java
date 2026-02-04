@@ -24,6 +24,7 @@ import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -61,6 +62,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -90,6 +92,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanDecorationProbe.class,
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
+  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
 
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
 
@@ -258,6 +261,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return null;
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
+      checkMethodParameters(classNode);
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
@@ -274,6 +278,38 @@ public class DebuggerTransformer implements ClassFileTransformer {
       reportInstrumentationFails(definitions, fullyQualifiedClassName);
     }
     return null;
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
+   * method parameters (javac -parameters) strip this attribute once retransformed
+   * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
+   * if no attribute found.
+   * Note: Even if the attribute is preserved when transforming at load time, the fact that we have
+   * instrumented the class, we will retransform for removing the instrumentation and then the
+   * attribute is stripped. That's why we are preventing it even at load time.
+   */
+  private void checkMethodParameters(ClassNode classNode) {
+    if (JAVA_AT_LEAST_19) {
+      // bug is fixed since JDK19, no need to perform check
+      return;
+    }
+    // capping scanning of methods to 100 to avoid generated class with thousand of methods
+    // assuming that in those first 100 methods there is at least one with at least one parameter
+    for (int methodIdx = 0; methodIdx < classNode.methods.size() && methodIdx < 100; methodIdx++) {
+      MethodNode methodNode = classNode.methods.get(methodIdx);
+      int argumentCount = Type.getArgumentCount(methodNode.desc);
+      if (argumentCount == 0) {
+        continue;
+      }
+      if (methodNode.parameters != null && !methodNode.parameters.isEmpty()) {
+        throw new RuntimeException(
+            "Method Parameters attribute detected, cannot instrument class " + classNode.name);
+      } else {
+        // we found at leat a method with one parameter if name is not present we can stop there
+        break;
+      }
+    }
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
