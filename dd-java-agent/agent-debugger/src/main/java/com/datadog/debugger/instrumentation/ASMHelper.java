@@ -138,6 +138,10 @@ public class ASMHelper {
     return Modifier.isFinal(field.getModifiers());
   }
 
+  public static boolean isRecord(ClassNode classNode) {
+    return (classNode.access & Opcodes.ACC_RECORD) > 0;
+  }
+
   public static void invokeStatic(
       InsnList insnList,
       org.objectweb.asm.Type owner,

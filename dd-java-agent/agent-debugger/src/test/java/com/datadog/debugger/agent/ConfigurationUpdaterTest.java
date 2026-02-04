@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -640,8 +642,7 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
     configurationUpdater.accept(
         REMOTE_CONFIG,
-        singletonList(
-            LogProbe.builder().probeId(PROBE_ID).where("CapturedSnapshot01", "main").build()));
+        singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
     if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
       ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
       verify(inst, times(1)).retransformClasses(captor.capture());
@@ -651,6 +652,29 @@ public class ConfigurationUpdaterTest {
       verify(inst).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());
     }
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void methodParametersAttributeRecord()
+      throws IOException, URISyntaxException, UnmodifiableClassException {
+    // make sure record method are not detected as having methodParameters attribute.
+    // /!\ record canonical constructor has the MethodParameters attribute,
+    // but not returned by Class::getDeclaredMethods()
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
+    Class<?> testClass = loadClass(RECORD_NAME, buffers);
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    configurationUpdater.accept(
+        REMOTE_CONFIG,
+        singletonList(LogProbe.builder().probeId(PROBE_ID).where(RECORD_NAME, "<init>").build()));
+    verify(inst).getAllLoadedClasses();
+    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+    verify(inst, times(1)).retransformClasses(captor.capture());
+    List<Class<?>[]> allValues = captor.getAllValues();
+    assertEquals(testClass, allValues.get(0));
   }
 
   private DebuggerTransformer createTransformer(
