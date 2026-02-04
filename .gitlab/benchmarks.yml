@@ -13,8 +13,15 @@
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
       interruptible: false
-    - when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
       interruptible: true
+    - if: '$BENCHMARKS == "true"'
+      when: on_success
+      interruptible: true
+    - when: manual
+      interruptible: true
+      allow_failure: true
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
