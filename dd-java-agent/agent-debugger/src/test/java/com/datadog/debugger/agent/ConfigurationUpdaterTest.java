@@ -13,6 +13,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static utils.InstrumentationTestHelper.compile;
+import static utils.InstrumentationTestHelper.loadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
@@ -23,11 +25,14 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -39,6 +44,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import utils.SourceCompiler;
 
 @ExtendWith(MockitoExtension.class)
 public class ConfigurationUpdaterTest {
@@ -621,6 +627,30 @@ public class ConfigurationUpdaterTest {
     Exception ex = new Exception("oops");
     configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
     verify(probeStatusSink).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
+  }
+
+  @Test
+  public void methodParametersAttribute()
+      throws IOException, URISyntaxException, UnmodifiableClassException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    configurationUpdater.accept(
+        REMOTE_CONFIG,
+        singletonList(
+            LogProbe.builder().probeId(PROBE_ID).where("CapturedSnapshot01", "main").build()));
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+      verify(inst, times(1)).retransformClasses(captor.capture());
+      List<Class<?>[]> allValues = captor.getAllValues();
+      assertEquals(testClass, allValues.get(0));
+    } else {
+      verify(inst).getAllLoadedClasses();
+      verify(inst, times(0)).retransformClasses(any());
+    }
   }
 
   private DebuggerTransformer createTransformer(

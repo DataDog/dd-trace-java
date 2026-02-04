@@ -44,6 +44,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -2946,6 +2947,29 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
     CapturedContext.CapturedValue fldValue = fields.get("fld");
     assertEquals("depth", fldValue.getNotCapturedReason());
+  }
+
+  @Test
+  public void methodParametersAttribute() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    TestSnapshotListener listener =
+        installMethodProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)");
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", String.class.getTypeName(), "1");
+    } else {
+      assertEquals(0, listener.snapshots.size());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals("Instrumentation fails for CapturedSnapshot01", strCaptor.getAllValues().get(0));
+    }
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
