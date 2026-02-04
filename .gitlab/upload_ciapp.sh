@@ -21,6 +21,17 @@ java_prop() {
 junit_upload() {
     # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
     # Overwriting the tag with the GitHub repo URL instead of the GitLab one. Otherwise, some Test Optimization features won't work.
+
+    # Parse DD_TAGS environment variable and convert to --tags arguments
+    local dd_tags_args=""
+    if [ -n "$DD_TAGS" ]; then
+        # Split DD_TAGS by comma and create --tags argument for each
+        IFS=',' read -ra TAG_ARRAY <<< "$DD_TAGS"
+        for tag in "${TAG_ARRAY[@]}"; do
+            dd_tags_args="$dd_tags_args --tags \"$tag\""
+        done
+    fi
+
     DD_API_KEY=$1 \
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
@@ -32,6 +43,7 @@ junit_upload() {
         --tags "os.platform:$(java_prop os.name)" \
         --tags "os.version:$(java_prop os.version)" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
+        $dd_tags_args \
         ./results
 }
 
