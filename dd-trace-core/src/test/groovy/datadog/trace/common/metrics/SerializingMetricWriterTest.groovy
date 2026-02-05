@@ -57,7 +57,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("country:canada"),
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
-        ]
+        ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
@@ -76,8 +78,26 @@ class SerializingMetricWriterTest extends DDSpecification {
           UTF8BytesString.create("georegion:amer"),
           UTF8BytesString.create("peer.service:remote-service")
         ],
+        null,
+        null
         ),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
+        ),
+        Pair.of(
+        new MetricKey(
+        "GET /api/users/:id",
+        "web-service",
+        "http.request",
+        "web",
+        200,
+        false,
+        true,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id"
+        ),
+        new AggregateMetric().recordDurations(5, new AtomicLongArray(1L))
         )
       ],
       (0..10000).collect({ i ->
@@ -91,7 +111,9 @@ class SerializingMetricWriterTest extends DDSpecification {
           false,
           false,
           "producer",
-          [UTF8BytesString.create("messaging.destination:dest" + i)]
+          [UTF8BytesString.create("messaging.destination:dest" + i)],
+          null,
+          null
           ),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
@@ -157,7 +179,11 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int metricMapSize = unpacker.unpackMapHeader()
-        assert metricMapSize == 15
+        // Calculate expected map size based on optional fields
+        boolean hasHttpMethod = key.getHttpMethod() != null
+        boolean hasHttpEndpoint = key.getHttpEndpoint() != null
+        int expectedMapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
+        assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -191,6 +217,17 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
+        // HTTPMethod and HTTPEndpoint are optional - only present if non-null
+        if (hasHttpMethod) {
+          assert unpacker.unpackString() == "HTTPMethod"
+          assert unpacker.unpackString() == key.getHttpMethod() as String
+          ++elementCount
+        }
+        if (hasHttpEndpoint) {
+          assert unpacker.unpackString() == "HTTPEndpoint"
+          assert unpacker.unpackString() == key.getHttpEndpoint() as String
+          ++elementCount
+        }
         assert unpacker.unpackString() == "Hits"
         assert unpacker.unpackInt() == value.getHitCount()
         ++elementCount
@@ -223,5 +260,41 @@ class SerializingMetricWriterTest extends DDSpecification {
     boolean validatedInput() {
       return validated
     }
+  }
+
+  def "HTTPMethod and HTTPEndpoint fields are optional in payload"() {
+    setup:
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
+
+    // Create keys with different combinations of HTTP fields
+    def keyWithBoth = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "POST", null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], null, "/api/orders")
+    def keyWithNeither = new MetricKey("resource", "service", "operation", "type", 200, false, false, "client", [], null, null)
+
+    def content = [
+      Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithMethodOnly, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithEndpointOnly, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithNeither, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L)))
+    ]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+    // Test passes if validation in ValidatingSink succeeds
+    // ValidatingSink verifies that map size matches actual number of fields
+    // and that HTTPMethod/HTTPEndpoint are only present when non-empty
   }
 }

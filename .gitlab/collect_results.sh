@@ -26,16 +26,28 @@ function get_source_file () {
     class="${RESULT_XML_FILE%.xml}"
     class="${class##*"TEST-"}"
     class="${class##*"."}"
-    common_root=$(grep -rl "class $class" "$file_path" | head -n 1)
-    while IFS= read -r line; do
-      while [[ $line != "$common_root"* ]]; do
-        common_root=$(dirname "$common_root")
-        if [[ "$common_root" == "$common_root/.." ]]; then
-          break
-        fi
-      done
-    done < <(grep -rl "class $class" "$file_path")
-    file_path="/$common_root"
+    # Extract the inner class name if there's a "$"
+    if [[ "$class" == *"$"* ]]; then
+      class="${class##*"$"}"
+    fi
+    set +e # allow grep to fail
+    common_root=$(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null | head -n 1)
+    set -e
+
+    if [[ -n "$common_root" ]]; then
+      while IFS= read -r line; do
+        while [[ $line != "$common_root"* ]]; do
+          common_root=$(dirname "$common_root")
+          if [[ "$common_root" == "$common_root/.." ]] || [[ "$common_root" == "/" ]]; then
+            break
+          fi
+        done
+      done < <(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null)
+
+      if [[ -n "$common_root" ]] && [[ "$common_root" != "/" ]]; then
+        file_path="/$common_root"
+      fi
+    fi
   fi
 }
 

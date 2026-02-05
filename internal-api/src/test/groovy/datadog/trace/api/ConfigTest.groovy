@@ -3271,4 +3271,68 @@ class ConfigTest extends DDSpecification {
     "true"  | "false" | true    // sys prop takes precedence
     "false" | "true"  | false   // sys prop takes precedence
   }
+
+  def "trace resource renaming activation with appsec=#appsec and explicit=#explicit"() {
+    setup:
+    if (appsec != null) {
+      environmentVariables.set("DD_APPSEC_ENABLED", appsec)
+    }
+    if (explicit != null) {
+      environmentVariables.set("DD_TRACE_RESOURCE_RENAMING_ENABLED", explicit)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isTraceResourceRenamingEnabled() == expected
+
+    where:
+    // Table from requirements:
+    // DD_APPSEC_ENABLED \ DD_TRACE_RESOURCE_RENAMING_ENABLED | unset   | true    | false
+    // ---------------------------------------------------------------------------
+    // unset (inactive)                                        | disabled| enabled | disabled
+    // true                                                    | enabled | enabled | disabled
+    // false                                                   | disabled| enabled | disabled
+    appsec     | explicit | expected
+    null       | null     | false    // unset + unset = disabled
+    null       | "true"   | true     // unset + true = enabled
+    null       | "false"  | false    // unset + false = disabled
+    "inactive" | null     | false    // inactive + unset = disabled
+    "inactive" | "true"   | true     // inactive + true = enabled
+    "inactive" | "false"  | false    // inactive + false = disabled
+    "true"     | null     | true     // true + unset = enabled
+    "true"     | "true"   | true     // true + true = enabled
+    "true"     | "false"  | false    // true + false = disabled
+    "1"        | null     | true     // 1 + unset = enabled
+    "1"        | "true"   | true     // 1 + true = enabled
+    "1"        | "false"  | false    // 1 + false = disabled
+    "false"    | null     | false    // false + unset = disabled
+    "false"    | "true"   | true     // false + true = enabled
+    "false"    | "false"  | false    // false + false = disabled
+    "0"        | null     | false    // 0 + unset = disabled
+    "0"        | "true"   | true     // 0 + true = enabled
+    "0"        | "false"  | false    // 0 + false = disabled
+  }
+
+  def "trace resource renaming always simplified endpoint with value=#value"() {
+    setup:
+    if (value != null) {
+      environmentVariables.set("DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT", value)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isTraceResourceRenamingAlwaysSimplifiedEndpoint() == expected
+
+    where:
+    value   | expected
+    null    | false
+    "true"  | true
+    "false" | false
+    "1"     | true
+    "0"     | false
+  }
 }
