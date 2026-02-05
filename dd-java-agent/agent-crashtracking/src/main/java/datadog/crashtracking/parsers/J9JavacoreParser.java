@@ -265,10 +265,22 @@ public final class J9JavacoreParser {
     ErrorData error =
         new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
-    ProcInfo procInfo = pid != null ? new ProcInfo(Integer.parseInt(pid)) : null;
+    Integer parsedPid = safelyParseInt(pid);
+    ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
 
     return new CrashLog(
         uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
+  }
+
+  private static Integer safelyParseInt(String value) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   private static Section detectSection(String line) {
@@ -374,6 +386,7 @@ public final class J9JavacoreParser {
     String text = frameText.trim();
     String function = null;
     String file = null;
+    String relAddress = null;
 
     // Try to extract library from [lib+offset] pattern
     int bracketStart = text.indexOf('[');
@@ -383,6 +396,7 @@ public final class J9JavacoreParser {
       int plusIdx = libInfo.indexOf('+');
       if (plusIdx > 0) {
         file = libInfo.substring(0, plusIdx);
+        relAddress = libInfo.substring(plusIdx + 1);
       } else {
         file = libInfo;
       }
@@ -423,7 +437,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, null, function, null, null, null, null);
+    return new StackFrame(file, null, function, null, null, null, relAddress);
   }
 
   private String parseDateTime(String datePart, String timePart) {
