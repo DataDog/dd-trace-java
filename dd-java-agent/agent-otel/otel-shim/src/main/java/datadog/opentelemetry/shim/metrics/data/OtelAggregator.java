@@ -1,5 +1,6 @@
 package datadog.opentelemetry.shim.metrics.data;
 
+/** Common behaviour shared across all aggregators. */
 abstract class OtelAggregator {
   private volatile boolean empty = true;
 
