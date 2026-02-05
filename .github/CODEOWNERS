@@ -6,20 +6,21 @@
 
 
 # @DataDog/apm-idm-java
-/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/                                                                  @DataDog/apm-idm-java
-/dd-smoke-tests/armeria-grpc/                                                                    @DataDog/apm-idm-java
-/dd-smoke-tests/cli/                                                                             @DataDog/apm-idm-java
-/dd-smoke-tests/jersey-2/                                                                        @DataDog/apm-idm-java
-/dd-smoke-tests/jersey-3/                                                                        @DataDog/apm-idm-java
-/dd-smoke-tests/play-*/                                                                          @DataDog/apm-idm-java
-/dd-smoke-tests/quarkus/                                                                         @DataDog/apm-idm-java
-/dd-smoke-tests/quarkus-native/                                                                  @DataDog/apm-idm-java
-/dd-smoke-tests/ratpack-1.5/                                                                     @DataDog/apm-idm-java
-/dd-smoke-tests/resteasy/                                                                        @DataDog/apm-idm-java
-/dd-smoke-tests/spring*/                                                                         @DataDog/apm-idm-java
-/dd-smoke-tests/vertx-*/                                                                         @DataDog/apm-idm-java
-/dd-smoke-tests/wildfly/                                                                         @DataDog/apm-idm-java
+# temporarily disable for testing
+# /dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/  @DataDog/apm-idm-java
+# /dd-java-agent/instrumentation/                                                                  @DataDog/apm-idm-java
+# /dd-smoke-tests/armeria-grpc/                                                                    @DataDog/apm-idm-java
+# /dd-smoke-tests/cli/                                                                             @DataDog/apm-idm-java
+# /dd-smoke-tests/jersey-2/                                                                        @DataDog/apm-idm-java
+# /dd-smoke-tests/jersey-3/                                                                        @DataDog/apm-idm-java
+# /dd-smoke-tests/play-*/                                                                          @DataDog/apm-idm-java
+# /dd-smoke-tests/quarkus/                                                                         @DataDog/apm-idm-java
+# /dd-smoke-tests/quarkus-native/                                                                  @DataDog/apm-idm-java
+# /dd-smoke-tests/ratpack-1.5/                                                                     @DataDog/apm-idm-java
+# /dd-smoke-tests/resteasy/                                                                        @DataDog/apm-idm-java
+# /dd-smoke-tests/spring*/                                                                         @DataDog/apm-idm-java
+# /dd-smoke-tests/vertx-*/                                                                         @DataDog/apm-idm-java
+# /dd-smoke-tests/wildfly/                                                                         @DataDog/apm-idm-java
 
 # @DataDog/apm-release-platform
 /.gitlab/                              @DataDog/apm-release-platform

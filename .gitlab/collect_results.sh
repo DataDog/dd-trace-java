@@ -26,10 +26,7 @@ function get_source_file () {
     class="${RESULT_XML_FILE%.xml}"
     class="${class##*"TEST-"}"
     class="${class##*"."}"
-    # Extract the inner class name if there's a "$"
-    if [[ "$class" == *"$"* ]]; then
-      class="${class##*"$"}"
-    fi
+    class="${class##*"$"}" # remove inner class name if it exists
     set +e # allow grep to fail
     common_root=$(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null | head -n 1)
     set -e
@@ -39,14 +36,19 @@ function get_source_file () {
         while [[ $line != "$common_root"* ]]; do
           common_root=$(dirname "$common_root")
           if [[ "$common_root" == "$common_root/.." ]] || [[ "$common_root" == "/" ]]; then
+            common_root=""
             break
           fi
         done
       done < <(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null)
 
-      if [[ -n "$common_root" ]] && [[ "$common_root" != "/" ]]; then
+      if [[ -n "$common_root" && "$common_root" != "/" ]]; then
         file_path="/$common_root"
+      else
+        file_path="UNKNOWN"
       fi
+    else
+      file_path="UNKNOWN"
     fi
   fi
 }
@@ -60,12 +62,7 @@ do
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
   get_source_file
-  # If path is empty, set it to UNKNOWN
-  if [[ -n "$file_path" ]] && [[ "$file_path" != "/" ]]; then
-    sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  else
-    sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"UNKNOWN\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  fi
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
