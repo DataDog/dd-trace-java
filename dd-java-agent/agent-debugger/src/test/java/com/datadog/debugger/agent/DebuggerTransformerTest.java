@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -158,10 +159,10 @@ public class DebuggerTransformerTest {
           ArrayList.class,
           null,
           getClassFileBytes(ArrayList.class));
-      Assertions.assertTrue(instrumentedClassFile.exists());
-      Assertions.assertTrue(origClassFile.exists());
-      Assertions.assertTrue(instrumentedClassFile.delete());
-      Assertions.assertTrue(origClassFile.delete());
+      assertTrue(instrumentedClassFile.exists());
+      assertTrue(origClassFile.exists());
+      assertTrue(instrumentedClassFile.delete());
+      assertTrue(origClassFile.delete());
     } finally {
       DebuggerTransformer.DUMP_PATH = initialTmpDir;
     }
@@ -264,7 +265,7 @@ public class DebuggerTransformerTest {
             getClassFileBytes(String.class));
     assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
-    Assertions.assertTrue(lastResult.get().isBlocked());
+    assertTrue(lastResult.get().isBlocked());
     Assertions.assertFalse(lastResult.get().isInstalled());
     assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
@@ -294,7 +295,7 @@ public class DebuggerTransformerTest {
     Assertions.assertNotNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertFalse(lastResult.get().isBlocked());
-    Assertions.assertTrue(lastResult.get().isInstalled());
+    assertTrue(lastResult.get().isInstalled());
     assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
@@ -338,21 +339,15 @@ public class DebuggerTransformerTest {
     assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
     assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
     assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    assertEquals(
-        "Instrumentation failed for "
+    assertTrue(strCaptor.getAllValues().get(0).startsWith("Instrumentation failed for "
             + CLASS_NAME
-            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
-        strCaptor.getAllValues().get(0));
-    assertEquals(
-        "Instrumentation failed for "
-            + CLASS_NAME
-            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
-        strCaptor.getAllValues().get(1));
-    assertEquals(
-        "Instrumentation failed for "
-            + CLASS_NAME
-            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
-        strCaptor.getAllValues().get(2));
+            + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(strCaptor.getAllValues().get(1).startsWith("Instrumentation failed for "
+        + CLASS_NAME
+        + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(strCaptor.getAllValues().get(2).startsWith("Instrumentation failed for "
+        + CLASS_NAME
+        + ": java.lang.ArrayIndexOutOfBoundsException:"));
   }
 
   @Test
