@@ -3,6 +3,8 @@ package datadog.crashtracking.parsers;
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
 import datadog.common.version.VersionInfo;
+import datadog.crashtracking.buildid.BuildIdCollector;
+import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.ErrorData;
 import datadog.crashtracking.dto.Metadata;
@@ -11,6 +13,8 @@ import datadog.crashtracking.dto.ProcInfo;
 import datadog.crashtracking.dto.SigInfo;
 import datadog.crashtracking.dto.StackFrame;
 import datadog.crashtracking.dto.StackTrace;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -38,6 +42,12 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public final class J9JavacoreParser {
+
+  private final BuildIdCollector buildIdCollector;
+
+  public J9JavacoreParser() {
+    this.buildIdCollector = new BuildIdCollector();
+  }
 
   private static final String OOM_MARKER = "OutOfMemory";
 
@@ -204,6 +214,9 @@ public final class J9JavacoreParser {
       incomplete = true;
     }
 
+    // Wait for build ID collection to complete
+    buildIdCollector.awaitCollectionDone(5);
+
     // Build signal info from event type
     SigInfo sigInfo = buildSigInfo(eventType, eventCode);
 
@@ -224,8 +237,33 @@ public final class J9JavacoreParser {
       message = "Unknown crash event";
     }
 
+    // Enrich frames with build IDs (best effort)
+    final List<StackFrame> enrichedFrames = new ArrayList<>(frames.size());
+    for (StackFrame frame : frames) {
+      if (frame.path == null) {
+        enrichedFrames.add(frame);
+        continue;
+      }
+
+      // Try to resolve build ID for this library
+      final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.path);
+      if (buildInfo != null) {
+        enrichedFrames.add(
+            new StackFrame(
+                frame.path,
+                frame.line,
+                frame.function,
+                buildInfo.buildId,
+                buildInfo.buildIdType,
+                buildInfo.fileType,
+                frame.relativeAddress));
+      } else {
+        enrichedFrames.add(frame);
+      }
+    }
+
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(frames.toArray(new StackFrame[0])));
+        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     ProcInfo procInfo = pid != null ? new ProcInfo(Integer.parseInt(pid)) : null;
 
@@ -369,6 +407,20 @@ public final class J9JavacoreParser {
     // If we couldn't extract a function name, use the whole text
     if (function == null || function.isEmpty()) {
       function = text;
+    }
+
+    // Collect library for build ID resolution
+    if (file != null && !file.isEmpty()) {
+      buildIdCollector.addUnprocessedLibrary(file);
+
+      // If the library name looks like a path, also try to resolve its build ID directly
+      if (file.contains("/")) {
+        try {
+          buildIdCollector.resolveBuildId(Paths.get(file));
+        } catch (InvalidPathException ignored) {
+          // Not a valid path, skip
+        }
+      }
     }
 
     return new StackFrame(file, null, function, null, null, null, null);
