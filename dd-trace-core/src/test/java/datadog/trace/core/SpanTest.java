@@ -21,7 +21,7 @@ public class SpanTest {
 
   @Test
   @DisplayName("setTag: null")
-  public void setTagEntry() {
+  public void setTagEntryNull() {
     AgentSpan span = TRACER.startSpan("foo", "foo");
     int initialSize = span.getTags().size();
 
@@ -41,7 +41,7 @@ public class SpanTest {
 
   @Test
   @DisplayName("setMetric: null")
-  public void setMetricEntry() {
+  public void setMetricEntryNull() {
     AgentSpan span = TRACER.startSpan("foo", "foo");
     int initialSize = span.getTags().size();
 
