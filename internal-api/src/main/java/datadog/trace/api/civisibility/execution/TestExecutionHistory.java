@@ -48,8 +48,8 @@ public interface TestExecutionHistory {
     RetryReason retryReason();
 
     /**
-     * @return Final status of the test as seen by the testing framework. Only applicable if
-     * {@code lastExecution()} is true.
+     * @return Final status of the test as seen by the testing framework. Only applicable if {@code
+     *     lastExecution()} is true.
      */
     @Nullable
     TestStatus finalStatus();
