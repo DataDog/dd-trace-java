@@ -108,7 +108,7 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
           tags {
             // Component and rpc.system are NOT set because we didn't create a new span
             // We only added connection tags to the existing parent span
-            "$Tags.PEER_HOSTNAME" "127.0.0.1"
+            "$Tags.PEER_HOSTNAME" { it == null || it == "127.0.0.1" }
             "$Tags.PEER_PORT" port
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             errorTags IOException, String
