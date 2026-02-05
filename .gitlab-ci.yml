@@ -12,7 +12,7 @@ stages:
   - benchmarks
   - macrobenchmarks
   - tests
-  - aggregate
+  - test-summary
   - exploration-tests
   - ci-visibility-tests
   - generate-signing-key
@@ -795,7 +795,7 @@ test_smoke_semeru8_debugger:
 
 aggregate_test_counts:
   image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
-  stage: aggregate
+  stage: test-summary
   # Note: No explicit 'needs' or 'dependencies' required
   # By default, GitLab CI automatically downloads artifacts from ALL jobs in previous stages
   # This job collects test_counts_*.json files from all test/check jobs via stage ordering
