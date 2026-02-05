@@ -580,6 +580,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_RE
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID;
@@ -1001,6 +1003,9 @@ public class Config {
   private final int apiSecurityEndpointCollectionMessageLimit;
   private final int apiSecurityMaxDownstreamRequestBodyAnalysis;
   private final double apiSecurityDownstreamRequestBodyAnalysisSampleRate;
+
+  private final boolean traceResourceRenamingEnabled;
+  private final boolean traceResourceRenamingAlwaysSimplifiedEndpoint;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -2251,6 +2256,19 @@ public class Config {
             API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+
+    // Trace Resource Renaming (Endpoint Inference) configuration
+    // Default: enabled if AppSec is enabled, otherwise disabled
+    // Can be explicitly overridden by setting DD_TRACE_RESOURCE_RENAMING_ENABLED
+    Boolean traceResourceRenamingExplicit =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ENABLED);
+    this.traceResourceRenamingEnabled =
+        traceResourceRenamingExplicit != null
+            ? traceResourceRenamingExplicit
+            : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    this.traceResourceRenamingAlwaysSimplifiedEndpoint =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -3827,6 +3845,14 @@ public class Config {
 
   public boolean isApiSecurityEndpointCollectionEnabled() {
     return instrumenterConfig.isApiSecurityEndpointCollectionEnabled();
+  }
+
+  public boolean isTraceResourceRenamingEnabled() {
+    return traceResourceRenamingEnabled;
+  }
+
+  public boolean isTraceResourceRenamingAlwaysSimplifiedEndpoint() {
+    return traceResourceRenamingAlwaysSimplifiedEndpoint;
   }
 
   public ProductActivation getIastActivation() {
@@ -5703,6 +5729,11 @@ public class Config {
 
   public static Config get() {
     return INSTANCE;
+  }
+
+  public static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   /**
