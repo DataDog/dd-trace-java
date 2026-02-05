@@ -18,15 +18,15 @@ public class SpanTest {
 
     assertEquals("hello", span.getTag("message"));
   }
-  
+
   @Test
   @DisplayName("setTag: null")
   public void setTagEntry() {
     AgentSpan span = TRACER.startSpan("foo", "foo");
     int initialSize = span.getTags().size();
-    
+
     span.setTag(null);
-    
+
     assertEquals(initialSize, span.getTags().size());
   }
 
@@ -38,15 +38,15 @@ public class SpanTest {
 
     assertEquals(Long.valueOf(20L), span.getTag("metric"));
   }
-  
+
   @Test
   @DisplayName("setMetric: null")
   public void setMetricEntry() {
     AgentSpan span = TRACER.startSpan("foo", "foo");
     int initialSize = span.getTags().size();
-    
+
     span.setMetric(null);
-    
+
     assertEquals(initialSize, span.getTags().size());
   }
 }

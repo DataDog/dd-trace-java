@@ -381,7 +381,9 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     public static final Entry create(String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
 
-      return (value == null || value.length() == 0) ? null : TagMap.Entry.newObjectEntry(tag, value);
+      return (value == null || value.length() == 0)
+          ? null
+          : TagMap.Entry.newObjectEntry(tag, value);
     }
 
     public static final Entry create(String tag, boolean value) {
