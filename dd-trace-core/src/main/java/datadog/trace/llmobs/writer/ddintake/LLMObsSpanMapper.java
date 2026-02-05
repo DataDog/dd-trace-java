@@ -77,6 +77,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_CALL_ARGUMENTS =
       "arguments".getBytes(StandardCharsets.UTF_8);
 
+  private static final byte[] LLM_MESSAGE_TOOL_RESULTS =
+      "tool_results".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
+
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
 
   private final MetaWriter metaWriter = new MetaWriter();
@@ -132,7 +136,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 4
       writable.writeUTF8(NAME);
-      writable.writeString(span.getOperationName(), null);
+      writable.writeString(llmObsSpanName(span), null);
 
       // 5
       writable.writeUTF8(START_NS);
@@ -159,6 +163,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
     // Increase only after all spans have been written. This way, if it rolls back because of a
     // buffer overflow, the counter won't be skewed.
     spansWritten += llmobsSpans.size();
+  }
+
+  private CharSequence llmObsSpanName(CoreSpan<?> span) {
+    CharSequence operationName = span.getOperationName();
+    if ("openai.request".contentEquals(operationName)) {
+      return "OpenAI." + span.getResourceName();
+    }
+    return operationName;
   }
 
   private static boolean isLLMObsSpan(CoreSpan<?> span) {
@@ -296,26 +308,28 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
-          if (!spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
-            key += ".value";
-            writable.writeString(key, null);
-            writable.writeObject(val, null);
-          } else {
+          if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             if (!(val instanceof List)) {
               LOGGER.warn(
                   "unexpectedly found incorrect type for LLM span IO {}, expecting list",
                   val.getClass().getName());
               continue;
             }
+            writable.writeString(key, null);
+            writable.startMap(1);
             // llm span kind must have llm objects
             List<LLMObs.LLMMessage> messages = (List<LLMObs.LLMMessage>) val;
-            key += ".messages";
-            writable.writeString(key, null);
+            writable.writeString("messages", null);
             writable.startArray(messages.size());
             for (LLMObs.LLMMessage message : messages) {
               List<LLMObs.ToolCall> toolCalls = message.getToolCalls();
+              List<LLMObs.ToolResult> toolResults = message.getToolResults();
               boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
-              writable.startMap(hasToolCalls ? 3 : 2);
+              boolean hasToolResults = null != toolResults && !toolResults.isEmpty();
+              int mapSize = 2; // role and content
+              if (hasToolCalls) mapSize++;
+              if (hasToolResults) mapSize++;
+              writable.startMap(mapSize);
               writable.writeUTF8(LLM_MESSAGE_ROLE);
               writable.writeString(message.getRole(), null);
               writable.writeUTF8(LLM_MESSAGE_CONTENT);
@@ -343,7 +357,44 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   }
                 }
               }
+              if (hasToolResults) {
+                writable.writeUTF8(LLM_MESSAGE_TOOL_RESULTS);
+                writable.startArray(toolResults.size());
+                for (LLMObs.ToolResult toolResult : toolResults) {
+                  writable.startMap(4);
+                  writable.writeUTF8(LLM_TOOL_CALL_NAME);
+                  writable.writeString(toolResult.getName(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TYPE);
+                  writable.writeString(toolResult.getType(), null);
+                  writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
+                  writable.writeString(toolResult.getToolId(), null);
+                  writable.writeUTF8(LLM_TOOL_RESULT_RESULT);
+                  writable.writeString(toolResult.getResult(), null);
+                }
+              }
             }
+          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
+            if (!(val instanceof List)) {
+              LOGGER.warn(
+                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
+                  val.getClass().getName());
+              continue;
+            }
+            writable.writeString(key, null);
+            writable.startMap(1);
+            List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
+            writable.writeString("documents", null);
+            writable.startArray(documents.size());
+            for (LLMObs.Document document : documents) {
+              writable.startMap(1);
+              writable.writeString("text", null);
+              writable.writeString(document.getText(), null);
+            }
+          } else {
+            writable.writeString(key, null);
+            writable.startMap(1);
+            writable.writeString("value", null);
+            writable.writeObject(val, null);
           }
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;

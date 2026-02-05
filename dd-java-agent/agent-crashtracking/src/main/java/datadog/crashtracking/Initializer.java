@@ -9,6 +9,7 @@ import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
+import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,7 +84,8 @@ public final class Initializer {
 
     try {
       FlagAccess access = null;
-      if (forceJmx) {
+      // Native images don't support the native ddprof library, use JMX instead
+      if (forceJmx || Platform.isNativeImage()) {
         access =
             new JMXFlagAccess(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class));
       } else {
@@ -92,9 +94,8 @@ public final class Initializer {
         if (reasonNotLoaded != null) {
           LOG.debug(
               SEND_TELEMETRY,
-              "Failed to load JVM access library: "
-                  + jvmAccessHolder.getReasonNotLoaded().getMessage()
-                  + ". Crash tracking will need to rely on user provided JVM arguments.");
+              "Failed to load JVM access library: {}. Crash tracking will need to rely on user provided JVM arguments.",
+              jvmAccessHolder.getReasonNotLoaded().getMessage());
           return false;
         } else {
           JVMAccess.Flags flags = jvmAccessHolder.getComponent().flags();
@@ -338,7 +339,8 @@ public final class Initializer {
       if (!rslt && LOG.isDebugEnabled()) {
         LOG.debug(
             SEND_TELEMETRY,
-            "Unable to set OnError flag to " + onErrorVal + ". Crash-tracking may not work.");
+            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+            onErrorVal);
       }
 
       CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
@@ -377,9 +379,8 @@ public final class Initializer {
       if (!rslt && LOG.isDebugEnabled()) {
         LOG.debug(
             SEND_TELEMETRY,
-            "Unable to set OnOutOfMemoryError flag to "
-                + onOutOfMemoryVal
-                + ". OOME tracking may not work.");
+            "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+            onOutOfMemoryVal);
       }
 
       OOMENotifierScriptInitializer.initialize(notifierScript);
@@ -406,7 +407,8 @@ public final class Initializer {
     } else {
       LOG.warn(
           SEND_TELEMETRY,
-          msg + " [{}] (Change the logging level to debug to see the full stacktrace)",
+          "{} [{}] (Change the logging level to debug to see the full stacktrace)",
+          msg,
           t.getMessage());
     }
   }

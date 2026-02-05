@@ -27,6 +27,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
@@ -89,8 +91,12 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation(config);
-      startCodeOriginForSpans(config);
-      startSymbolDatabase(config);
+      if (!Config.isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)) {
+        startCodeOriginForSpans(config);
+      }
+      if (!Config.isExplicitlyDisabled(DebuggerConfig.SYMBOL_DATABASE_ENABLED)) {
+        startSymbolDatabase(config);
+      }
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
@@ -110,38 +116,44 @@ public class DebuggerAgent {
     TracerFlare.addReporter(DebuggerAgent::addReportToFlare);
   }
 
-  private static void commonInit(Config config) {
+  private static boolean commonInit(Config config) {
     if (!commonInitDone.compareAndSet(false, true)) {
-      return;
+      return true;
     }
-    configurationPoller = sharedCommunicationObjects.configurationPoller(config);
-    Redaction.addUserDefinedKeywords(config);
-    Redaction.addUserDefinedTypes(config);
-    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
-        sharedCommunicationObjects.featuresDiscovery(config);
-    ddAgentFeaturesDiscovery.discoverIfOutdated();
-    agentVersion = ddAgentFeaturesDiscovery.getVersion();
-    String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
-    ProbeStatusSink probeStatusSink =
-        new ProbeStatusSink(
-            config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
-    DebuggerSink debuggerSink =
-        createDebuggerSink(config, ddAgentFeaturesDiscovery, probeStatusSink);
-    debuggerSink.start();
-    configurationUpdater =
-        new ConfigurationUpdater(
-            instrumentation,
-            DebuggerAgent::createTransformer,
-            config,
-            debuggerSink,
-            classesToRetransformFinder);
-    sink = debuggerSink;
-    DebuggerContext.initProbeResolver(configurationUpdater);
-    DebuggerContext.initMetricForwarder(new StatsdMetricForwarder(config, probeStatusSink));
-    DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
-    snapshotSerializer = new JsonSnapshotSerializer();
-    DebuggerContext.initValueSerializer(snapshotSerializer);
-    DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+    try {
+      configurationPoller = sharedCommunicationObjects.configurationPoller(config);
+      Redaction.addUserDefinedKeywords(config);
+      Redaction.addUserDefinedTypes(config);
+      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
+          sharedCommunicationObjects.featuresDiscovery(config);
+      ddAgentFeaturesDiscovery.discoverIfOutdated();
+      agentVersion = ddAgentFeaturesDiscovery.getVersion();
+      String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
+      ProbeStatusSink probeStatusSink =
+          new ProbeStatusSink(
+              config, diagnosticEndpoint, ddAgentFeaturesDiscovery.supportsDebuggerDiagnostics());
+      DebuggerSink debuggerSink =
+          createDebuggerSink(config, ddAgentFeaturesDiscovery, probeStatusSink);
+      debuggerSink.start();
+      configurationUpdater =
+          new ConfigurationUpdater(
+              instrumentation,
+              DebuggerAgent::createTransformer,
+              config,
+              debuggerSink,
+              classesToRetransformFinder);
+      sink = debuggerSink;
+      DebuggerContext.initProbeResolver(configurationUpdater);
+      DebuggerContext.initMetricForwarder(new StatsdMetricForwarder(config, probeStatusSink));
+      DebuggerContext.initClassFilter(new DenyListHelper(null)); // default hard coded deny list
+      snapshotSerializer = new JsonSnapshotSerializer();
+      DebuggerContext.initValueSerializer(snapshotSerializer);
+      DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+      return true;
+    } catch (Exception ex) {
+      LOGGER.debug("Failed to init common component for debugger agent", ex);
+      return false;
+    }
   }
 
   private static void initClassNameFilter() {
@@ -155,7 +167,10 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.info("Starting Dynamic Instrumentation");
-    commonInit(config);
+    if (!commonInit(config)) {
+      dynamicInstrumentationEnabled.set(false);
+      return;
+    }
     String probeFileLocation = config.getDynamicInstrumentationProbeFile();
     if (probeFileLocation != null) {
       Path probeFilePath = Paths.get(probeFileLocation);
@@ -205,7 +220,10 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.debug("Starting Symbol Database");
-    commonInit(config);
+    if (!commonInit(config)) {
+      symDBEnabled.set(false);
+      return;
+    }
     initClassNameFilter();
     List<ScopeFilter> scopeFilters =
         Arrays.asList(new AvroFilter(), new ProtoFilter(), new WireFilter());
@@ -254,7 +272,10 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.info("Starting Exception Replay");
-    commonInit(config);
+    if (!commonInit(config)) {
+      exceptionReplayEnabled.set(false);
+      return;
+    }
     initClassNameFilter();
     if (config.isCiVisibilityEnabled()) {
       exceptionDebugger =
@@ -285,7 +306,10 @@ public class DebuggerAgent {
       return;
     }
     LOGGER.debug("Starting Code Origin for spans");
-    commonInit(config);
+    if (!commonInit(config)) {
+      codeOriginEnabled.set(false);
+      return;
+    }
     initClassNameFilter();
     DebuggerContext.initClassNameFilter(classNameFilter);
     DebuggerContext.initCodeOrigin(new DefaultCodeOriginRecorder(config, configurationUpdater));

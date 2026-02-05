@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.scalatest.Reporter;
 import org.scalatest.events.Event;
@@ -19,11 +18,6 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
 
   public ScalatestInstrumentation() {
     super("ci-visibility", "scalatest");
-  }
-
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems);
   }
 
   @Override

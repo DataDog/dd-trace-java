@@ -21,10 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.Phaser;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -126,12 +126,18 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @ValueSource(strings = {"preVisitDirectory", "visitFile", "postVisitDirectory"})
   void testConcurrentCleanup(String section) throws Exception {
-    /* This test simulates concurrent cleanup
-      It utilizes a special hook to create synchronization points in the filetree walking routine,
-      allowing to delete the files at various points of execution.
-      The test makes sure that the cleanup is not interrupted and the file and directory being deleted
-      stays deleted.
-    */
+    /*
+     * This test simulates concurrent cleanup.
+     * It utilizes a special hook to create synchronization points in the filetree walking routine,
+     * allowing to delete the files at various points of execution.
+     * The test makes sure that the cleanup is not interrupted and the file and directory being
+     * deleted stays deleted.
+     *
+     * Synchronization uses CountDownLatch for deterministic coordination:
+     * 1. Cleanup thread reaches hook point, signals via hookReached latch
+     * 2. Main thread deletes file, signals via proceedSignal latch
+     * 3. Cleanup thread continues and completes
+     */
     Path baseDir =
         Files.createTempDirectory(
             "ddprof-test-",
@@ -146,20 +152,32 @@ public class TempLocationManagerTest {
     fakeTempDir.toFile().deleteOnExit();
     fakeTempFile.toFile().deleteOnExit();
 
-    Phaser phaser = new Phaser(2);
-
-    Duration phaserTimeout =
-        Duration.ofSeconds(5); // wait at most 5 seconds for phaser coordination
+    CountDownLatch hookReached = new CountDownLatch(1);
+    CountDownLatch proceedSignal = new CountDownLatch(1);
     AtomicBoolean withTimeout = new AtomicBoolean(false);
+    AtomicReference<Throwable> cleanupError = new AtomicReference<>();
+
     TempLocationManager.CleanupHook blocker =
         new TempLocationManager.CleanupHook() {
+          private void syncPoint(boolean timeout) {
+            withTimeout.compareAndSet(false, timeout);
+            hookReached.countDown();
+            try {
+              if (!proceedSignal.await(30, TimeUnit.SECONDS)) {
+                cleanupError.set(
+                    new AssertionError("Cleanup thread: proceed signal timeout after 30s"));
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              cleanupError.set(e);
+            }
+          }
+
           @Override
           public FileVisitResult preVisitDirectory(
               Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
             if (section.equals("preVisitDirectory") && dir.equals(fakeTempDir)) {
-              withTimeout.compareAndSet(false, timeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
+              syncPoint(timeout);
             }
             return null;
           }
@@ -168,9 +186,7 @@ public class TempLocationManagerTest {
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
               throws IOException {
             if (section.equals("visitFile") && file.equals(fakeTempFile)) {
-              withTimeout.compareAndSet(false, timeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
+              syncPoint(timeout);
             }
             return null;
           }
@@ -179,9 +195,7 @@ public class TempLocationManagerTest {
           public FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
               throws IOException {
             if (section.equals("postVisitDirectory") && dir.equals(fakeTempDir)) {
-              withTimeout.compareAndSet(false, timeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
-              arriveOrAwaitAdvance(phaser, phaserTimeout);
+              syncPoint(timeout);
             }
             return null;
           }
@@ -189,15 +203,26 @@ public class TempLocationManagerTest {
 
     TempLocationManager mgr = instance(baseDir, true, blocker);
 
-    // wait for the cleanup start
-    if (arriveOrAwaitAdvance(phaser, phaserTimeout)) {
-      Files.deleteIfExists(fakeTempFile);
-      assertTrue(arriveOrAwaitAdvance(phaser, phaserTimeout));
-    }
-    assertFalse(
-        withTimeout.get()); // if the cleaner times out it does not make sense to continue here
-    mgr.waitForCleanup(30, TimeUnit.SECONDS);
+    // Wait for cleanup to reach the synchronization point
+    boolean reached = hookReached.await(30, TimeUnit.SECONDS);
+    assertTrue(reached, "Cleanup thread should reach hook within 30 seconds");
 
+    // Now we know cleanup is paused at the hook - safe to delete
+    Files.deleteIfExists(fakeTempFile);
+
+    // Signal cleanup to proceed
+    proceedSignal.countDown();
+
+    // Wait for cleanup to complete
+    assertTrue(mgr.waitForCleanup(30, TimeUnit.SECONDS), "Cleanup should complete within 30s");
+
+    // Check for errors in cleanup thread
+    Throwable error = cleanupError.get();
+    if (error != null) {
+      throw new AssertionError("Cleanup thread encountered error", error);
+    }
+
+    assertFalse(withTimeout.get(), "Cleanup should not have timed out");
     assertFalse(Files.exists(fakeTempFile));
     assertFalse(Files.exists(fakeTempDir));
   }
@@ -205,7 +230,16 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @MethodSource("timeoutTestArguments")
   void testCleanupWithTimeout(boolean shouldSucceed, String section) throws Exception {
-    long timeoutMs = 10;
+    /*
+     * Test that cleanup correctly handles timeout conditions.
+     * Uses a hook that introduces delays at specific points in the file tree walk.
+     *
+     * Timing strategy (more generous for JDK 8 compatibility):
+     * - Base delay: 100ms (was 10ms - too tight for JDK 8 timer resolution)
+     * - Success case: 500ms timeout with 100ms delays → plenty of margin
+     * - Failure case: 20ms timeout with 100ms delays → guaranteed timeout
+     */
+    long delayMs = 100;
     AtomicBoolean withTimeout = new AtomicBoolean(false);
     TempLocationManager.CleanupHook delayer =
         new TempLocationManager.CleanupHook() {
@@ -214,7 +248,7 @@ public class TempLocationManagerTest {
               Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("preVisitDirectory")) {
-              waitFor(Duration.ofMillis(timeoutMs));
+              waitFor(Duration.ofMillis(delayMs));
             }
             return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
           }
@@ -224,7 +258,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFileFailed")) {
-              waitFor(Duration.ofMillis(timeoutMs));
+              waitFor(Duration.ofMillis(delayMs));
             }
             return TempLocationManager.CleanupHook.super.visitFileFailed(file, exc, timeout);
           }
@@ -234,7 +268,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("postVisitDirectory")) {
-              waitFor(Duration.ofMillis(timeoutMs));
+              waitFor(Duration.ofMillis(delayMs));
             }
             return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
           }
@@ -244,7 +278,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFile")) {
-              waitFor(Duration.ofMillis(timeoutMs));
+              waitFor(Duration.ofMillis(delayMs));
             }
             return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
           }
@@ -259,8 +293,10 @@ public class TempLocationManagerTest {
     Files.createDirectories(otherTempdir);
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));
+    // Success: 500ms timeout (5 * 100ms) with 100ms delays → should complete
+    // Failure: 20ms timeout (0.2 * 100ms) with 100ms delays → should timeout
     boolean rslt =
-        instance.cleanup((long) (timeoutMs * (shouldSucceed ? 20 : 0.5d)), TimeUnit.MILLISECONDS);
+        instance.cleanup((long) (delayMs * (shouldSucceed ? 5 : 0.2d)), TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
     assertNotEquals(shouldSucceed, withTimeout.get()); // timeout = !shouldSucceed
   }
@@ -276,8 +312,7 @@ public class TempLocationManagerTest {
   }
 
   private TempLocationManager instance(
-      Path baseDir, boolean withStartupCleanup, TempLocationManager.CleanupHook cleanupHook)
-      throws IOException {
+      Path baseDir, boolean withStartupCleanup, TempLocationManager.CleanupHook cleanupHook) {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, baseDir.toString());
     props.put(
@@ -295,17 +330,6 @@ public class TempLocationManagerTest {
       if (toSleep > 0) {
         LockSupport.parkNanos(toSleep);
       }
-    }
-  }
-
-  private boolean arriveOrAwaitAdvance(Phaser phaser, Duration timeout) {
-    try {
-      System.err.println("===> waiting " + phaser.getPhase());
-      phaser.awaitAdvanceInterruptibly(phaser.arrive(), timeout.toMillis(), TimeUnit.MILLISECONDS);
-      System.err.println("===> done waiting " + phaser.getPhase());
-      return true;
-    } catch (InterruptedException | TimeoutException ignored) {
-      return false;
     }
   }
 }

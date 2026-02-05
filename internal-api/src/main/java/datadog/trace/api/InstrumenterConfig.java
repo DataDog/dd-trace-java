@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
@@ -25,6 +26,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
@@ -143,6 +145,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean appSecRaspEnabled;
   private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
@@ -246,6 +249,8 @@ public class InstrumenterConfig {
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
+    appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
@@ -427,6 +432,14 @@ public class InstrumenterConfig {
 
   public boolean isCiVisibilityEnabled() {
     return ciVisibilityEnabled;
+  }
+
+  public boolean isRaspEnabled() {
+    return getAppSecActivation() == ProductActivation.FULLY_ENABLED && isAppSecRaspEnabled();
+  }
+
+  public boolean isAppSecRaspEnabled() {
+    return appSecRaspEnabled;
   }
 
   public ProductActivation getAppSecActivation() {
@@ -677,8 +690,8 @@ public class InstrumenterConfig {
               : ConfigProvider.getInstance());
 
   public static boolean getDefaultCodeOriginForSpanEnabled() {
-    if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
-      // activate by default Code Origin only for JDK25+
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
+      // activate by default Code Origin only for JDK21+
       return true;
     }
     return false;

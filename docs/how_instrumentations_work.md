@@ -157,16 +157,17 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 }
 ```
 
-|                                                                                                                                                                                                                                 |                                                                                                            |
-|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| **TargetSystem**                                                                                                                                                                                                                | **Usage**                                                                                                  |
+|                                                                                                                                                                                                                                  |                                                                                                            |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| **TargetSystem**                                                                                                                                                                                                                 | **Usage**                                                                                                  |
 | `InstrumenterModule.`[`Tracing`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L184)      | An Instrumentation class should extend an appropriate provided TargetSystem class when possible.           |
 | `InstrumenterModule.`[`Profiling`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L196)    |                                                                                                            |
 | `InstrumenterModule.`[`AppSec`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L215)       |                                                                                                            |
 | `InstrumenterModule.`[`Iast`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L228)         |                                                                                                            |
 | `InstrumenterModule.`[`CiVisibility`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L285) |                                                                                                            |
 | `InstrumenterModule.`[`Usm`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java#L273)          |                                                                                                            |
-| [`InstrumenterModule`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)           | Avoid extending `InstrumenterModule` directly.  When no other TargetGroup is applicable we generally default to `InstrumenterModule.Tracing` |
+| `InstrumenterModule.`[`ContextTracking`]()                                                                                                                                                                                       | For instrumentations that only track context propagation without creating tracing spans.                   |
+| [`InstrumenterModule`](https://github.com/DataDog/dd-trace-java/blob/82a3400cd210f4051b92fe1a86cd1b64a17e005e/dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)                     | Avoid extending `InstrumenterModule` directly.  When no other TargetGroup is applicable we generally default to `InstrumenterModule.Tracing` |
 
 ### Grouping Instrumentations
 
@@ -284,6 +285,25 @@ public void adviceTransformations(AdviceTransformation transformation) {
             getClass().getName() + "$DriverAdvice");
 }
 ```
+
+### Applying Multiple Advice Classes
+
+The `applyAdvices` method supports applying multiple advice classes to the same method matcher using varargs. This is useful when you need to apply different advices for different target systems:
+
+```java
+@Override
+public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvices(
+            named("service")
+                    .and(takesArgument(0, named("org.apache.coyote.Request")))
+                    .and(takesArgument(1, named("org.apache.coyote.Response"))),
+            getClass().getName() + "$ContextTrackingAdvice",  // Applied first
+            getClass().getName() + "$ServiceAdvice"           // Applied second
+    );
+}
+```
+
+When multiple advices are specified, they are applied in the order they are listed. The agent will check each advice's target system compatibility (see [@AppliesOn annotation](#applieson-annotation)) and only apply advices that match the enabled target systems.
 
 Be precise in matching to avoid inadvertently instrumenting something unintended in a current or future version of the target class.
 Having multiple precise matchers is preferable to one more vague catch-all matcher which leaves some method characteristics undefined.
@@ -424,6 +444,70 @@ The parameter's type must equal the instrumented method's return type if it is n
 If the parameter is read-only it may be a super type of the instrumented method's return type.
 
 Advice class names should end in _Advice._
+
+### @AppliesOn Annotation
+
+The `@AppliesOn` annotation allows you to override which target systems a specific advice class applies to, independent of the InstrumenterModule's target system. This is useful when you have an instrumentation module that extends one target system (e.g., `InstrumenterModule.Tracing`), but want certain advice classes to also be applied for other target systems.
+
+#### Usage
+
+Annotate your advice class with `@AppliesOn` and specify the target systems where this advice should be applied:
+
+```java
+import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
+
+@AppliesOn(TargetSystem.CONTEXT_TRACKING)
+public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void extractParent(
+            @Advice.Argument(0) org.apache.coyote.Request req,
+            @Advice.Local("parentScope") ContextScope parentScope) {
+        // This advice only runs when CONTEXT_TRACKING is enabled
+        final Context parentContext = DECORATE.extract(req);
+        parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
+        scope.close();
+    }
+}
+```
+
+#### When to Use @AppliesOn
+
+Use `@AppliesOn` when:
+
+1. **Selective Advice Application**: You want different advice classes within the same instrumentation to apply to different target systems. For example, an instrumentation might extend `InstrumenterModule.Tracing` but have some advice that should only run for `CONTEXT_TRACKING`.
+
+2. **Multi-System Support**: Your instrumentation needs to work across multiple target systems with different behaviors for each. By applying multiple advices with different `@AppliesOn` annotations, you can customize behavior per target system.
+
+3. **Separating Concerns**: You want to cleanly separate context tracking logic from tracing logic in the same instrumentation, making the code more maintainable.
+
+#### Example: Tomcat Server Instrumentation
+
+In the Tomcat instrumentation, we apply both context tracking and tracing advices to the same method:
+
+```java
+@Override
+public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvices(
+            named("service")
+                    .and(takesArgument(0, named("org.apache.coyote.Request")))
+                    .and(takesArgument(1, named("org.apache.coyote.Response"))),
+            TomcatServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
+            TomcatServerInstrumentation.class.getName() + "$ServiceAdvice"
+    );
+}
+```
+
+The `ContextTrackingAdvice` is annotated with `@AppliesOn(TargetSystem.CONTEXT_TRACKING)`, so it only runs when context tracking is enabled. The `ServiceAdvice` (without the annotation) runs when the module's target system (`TRACING`) is enabled.
+
+#### Important Notes
+
+- If an advice class does not have the `@AppliesOn` annotation, it will be applied whenever the parent InstrumenterModule's target system is enabled.
+- When multiple advices are applied to the same method, they are applied in the order specified, and each one's target system compatibility is checked individually.
 
 ## Exceptions in Advice
 

@@ -8,7 +8,7 @@ public final class AsyncExceptionUnwrapper {
 
   // Util function to unwrap CompletionException and expose underlying exception
   public static Throwable unwrap(Throwable throwable) {
-    if (throwable.getCause() != null && throwable instanceof CompletionException) {
+    if (throwable instanceof CompletionException && throwable.getCause() != null) {
       return throwable.getCause();
     }
     return throwable;
