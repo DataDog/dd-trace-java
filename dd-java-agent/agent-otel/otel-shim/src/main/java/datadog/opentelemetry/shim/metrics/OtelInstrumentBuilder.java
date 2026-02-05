@@ -83,9 +83,8 @@ final class OtelInstrumentBuilder {
   }
 
   OtelMetricStorage build(Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    OtelInstrumentDescriptor descriptor =
-        new OtelInstrumentDescriptor(instrumentName, instrumentType, longValues, description, unit);
-
-    return meter.registerStorage(descriptor, storageFactory);
+    return meter.registerStorage(
+        new OtelInstrumentDescriptor(instrumentName, instrumentType, longValues, description, unit),
+        storageFactory);
   }
 }
