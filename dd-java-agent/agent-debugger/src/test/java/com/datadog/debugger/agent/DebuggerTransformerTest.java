@@ -338,9 +338,21 @@ public class DebuggerTransformerTest {
     assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
     assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
     assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+    assertEquals(
+        "Instrumentation failed for "
+            + CLASS_NAME
+            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
+        strCaptor.getAllValues().get(0));
+    assertEquals(
+        "Instrumentation failed for "
+            + CLASS_NAME
+            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
+        strCaptor.getAllValues().get(1));
+    assertEquals(
+        "Instrumentation failed for "
+            + CLASS_NAME
+            + ": java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 0",
+        strCaptor.getAllValues().get(2));
   }
 
   @Test

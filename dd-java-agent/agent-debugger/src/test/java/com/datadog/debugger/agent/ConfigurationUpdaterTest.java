@@ -651,6 +651,13 @@ public class ConfigurationUpdaterTest {
     } else {
       verify(inst).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals(
+          "Method Parameters detected, instrumentation not supported for CapturedSnapshot01",
+          strCaptor.getAllValues().get(0));
     }
   }
 
