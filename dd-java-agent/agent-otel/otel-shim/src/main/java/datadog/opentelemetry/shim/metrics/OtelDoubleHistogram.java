@@ -8,6 +8,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
 import datadog.trace.relocate.api.RatelimitedLogger;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
@@ -79,12 +80,13 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     }
 
     @Override
+    @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
     public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
         this.bucketBoundaries =
             validateBoundaries(unmodifiableList(new ArrayList<>(bucketBoundaries)));
-      } catch (NullPointerException | IllegalArgumentException e) {
+      } catch (IllegalArgumentException | NullPointerException e) {
         LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
       }
       return this;

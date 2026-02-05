@@ -8,6 +8,7 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.toList;
 
 import datadog.trace.relocate.api.RatelimitedLogger;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.metrics.LongHistogramBuilder;
@@ -72,6 +73,7 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
     }
 
     @Override
+    @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
     public LongHistogramBuilder setExplicitBucketBoundariesAdvice(List<Long> bucketBoundaries) {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
@@ -79,7 +81,7 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
             validateBoundaries(
                 unmodifiableList(
                     bucketBoundaries.stream().map(Long::doubleValue).collect(toList())));
-      } catch (NullPointerException | IllegalArgumentException e) {
+      } catch (IllegalArgumentException | NullPointerException e) {
         LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
       }
       return this;
