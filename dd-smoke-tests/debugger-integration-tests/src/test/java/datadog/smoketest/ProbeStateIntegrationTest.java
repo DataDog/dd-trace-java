@@ -77,6 +77,7 @@ public class ProbeStateIntegrationTest extends ServerAppDebuggerIntegrationTest 
   @Test
   @DisplayName("testAddSourceFileProbeHugeInnerClasses")
   @Flaky
+  @Disabled
   // @DisabledIf(
   //     value = "datadog.environment.JavaVirtualMachine#isJ9",
   //     disabledReason = "Flaky on J9 JVMs")
