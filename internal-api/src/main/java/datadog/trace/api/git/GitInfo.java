@@ -25,7 +25,7 @@ public final class GitInfo {
     // GitInfo is reused across many traces, so create entries once and reuse them (see addTags)
     // null & empty values result in null entries which nop when added to a span
     this.repositoryEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_REPOSITORY_URL, repositoryURL);
-    this.commitEntry = TagMap.Entry.create(DDTags.INTERNAL_GIT_COMMIT_SHA, commit.getSha());
+    this.commitEntry = commit == null ? null : TagMap.Entry.create(DDTags.INTERNAL_GIT_COMMIT_SHA, commit.getSha());
   }
 
   public String getRepositoryURL() {
