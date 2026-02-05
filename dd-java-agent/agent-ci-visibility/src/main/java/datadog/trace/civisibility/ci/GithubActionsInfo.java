@@ -21,7 +21,9 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -237,30 +239,17 @@ class GithubActionsInfo implements CIProviderInfo {
   @Nullable
   private String getNumericJobId() {
     // First, check if the numeric job ID is provided via environment variable
-    String envJobId = environment.get(GHACTIONS_JOB_CHECK_RUN_ID);
-    if (Strings.isNotBlank(envJobId)) {
-      return envJobId;
+    String jobId = environment.get(GHACTIONS_JOB_CHECK_RUN_ID);
+    if (Strings.isNotBlank(jobId)) {
+      return jobId;
     }
 
     // Fall back to parsing diagnostics files
-    return parseJobIdFromDiagnosticsFiles();
-  }
-
-  /**
-   * Parses the job ID from GitHub Actions worker diagnostics files.
-   *
-   * <p>Looks for Worker_*.log files in the diagnostics directories and extracts the check_run_id
-   * from JSON content.
-   *
-   * @return the numeric job ID, or null if not found
-   */
-  @Nullable
-  private String parseJobIdFromDiagnosticsFiles() {
-    // Try both possible diagnostics directories
-    String jobId = parseJobIdFromDirectory(diagnosticsDir);
-    if (jobId != null) {
+    jobId = parseJobIdFromDirectory(diagnosticsDir);
+    if (Strings.isNotBlank(jobId)) {
       return jobId;
     }
+
     return parseJobIdFromDirectory(diagnosticsDirCached);
   }
 
@@ -271,27 +260,24 @@ class GithubActionsInfo implements CIProviderInfo {
     }
 
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, "Worker_*.log")) {
-      Iterator<Path> iterator = stream.iterator();
-      if (!iterator.hasNext()) {
+      List<Path> workerFiles = new ArrayList<>();
+      for (Path path : stream) {
+        workerFiles.add(path);
+      }
+
+      if (workerFiles.isEmpty()) {
         return null;
       }
 
-      // Use the first worker file found
-      Path workerFile = iterator.next();
-      return parseJobIdFromFile(workerFile);
-    } catch (IOException e) {
-      LOGGER.debug("Error reading diagnostics directory: {}", directory, e);
-      return null;
-    }
-  }
+      // Sort by filename in descending order to get the most recent file first
+      workerFiles.sort(
+          Comparator.comparing(p -> p.getFileName().toString(), Comparator.reverseOrder()));
 
-  @Nullable
-  private String parseJobIdFromFile(Path file) {
-    try {
-      String content = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+      Path workerFile = workerFiles.get(0);
+      String content = new String(Files.readAllBytes(workerFile), StandardCharsets.UTF_8);
       return parseCheckRunIdFromContent(content);
     } catch (IOException e) {
-      LOGGER.debug("Error reading diagnostics file: {}", file, e);
+      LOGGER.debug("Error reading diagnostics directory: {}", directory, e);
       return null;
     }
   }
