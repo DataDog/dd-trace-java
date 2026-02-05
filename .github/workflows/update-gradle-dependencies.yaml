@@ -27,11 +27,11 @@ jobs:
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-          cache: 'gradle'
+      # - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      #   with:
+      #     distribution: 'temurin'
+      #     java-version: '21'
+      #     cache: 'gradle'
 
       - name: Configure git
         run: |
@@ -51,6 +51,12 @@ jobs:
         run: |
           find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          JAVA_HOME=$JAVA_HOME_8_X64 \
+          JAVA_8_HOME=$JAVA_HOME_8_X64 \
+          JAVA_11_HOME=$JAVA_HOME_11_X64 \
+          JAVA_17_HOME=$JAVA_HOME_17_X64 \
+          JAVA_21_HOME=$JAVA_HOME_21_X64 \
+          JAVA_25_HOME=$JAVA_HOME_25_X64 \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Save instrumentation lock files
