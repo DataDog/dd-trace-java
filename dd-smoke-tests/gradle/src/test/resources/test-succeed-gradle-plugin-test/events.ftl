@@ -259,6 +259,7 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "runtime.version" : ${content_meta_runtime_version},
       "span.kind" : "test",
+      "test.final_status" : "pass",
       "test.framework" : "junit5",
       "test.framework_version" : "5.10.2",
       "test.module" : ":test",
