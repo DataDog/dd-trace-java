@@ -20,6 +20,7 @@ class RunNTimesTest extends Specification {
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -30,6 +31,7 @@ class RunNTimesTest extends Specification {
     !outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -40,6 +42,7 @@ class RunNTimesTest extends Specification {
     !outcome3.failureSuppressed()
     !outcome3.failedAllRetries()
     !outcome3.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.fail
   }
 
   def "test failed all retries"() {
@@ -55,6 +58,7 @@ class RunNTimesTest extends Specification {
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -65,6 +69,7 @@ class RunNTimesTest extends Specification {
     !outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -75,6 +80,7 @@ class RunNTimesTest extends Specification {
     !outcome3.failureSuppressed()
     outcome3.failedAllRetries()
     !outcome3.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.fail
   }
 
   def "test succeeded all retries"() {
@@ -90,6 +96,7 @@ class RunNTimesTest extends Specification {
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -100,6 +107,7 @@ class RunNTimesTest extends Specification {
     !outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -110,6 +118,7 @@ class RunNTimesTest extends Specification {
     !outcome3.failureSuppressed()
     !outcome3.failedAllRetries()
     outcome3.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.pass
   }
 
   def "test suppress failures"() {
@@ -125,6 +134,7 @@ class RunNTimesTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -135,6 +145,7 @@ class RunNTimesTest extends Specification {
     outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -145,6 +156,7 @@ class RunNTimesTest extends Specification {
     outcome3.failureSuppressed()
     outcome3.failedAllRetries()
     !outcome3.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.pass
   }
 
   def "test adaptive retry count"() {

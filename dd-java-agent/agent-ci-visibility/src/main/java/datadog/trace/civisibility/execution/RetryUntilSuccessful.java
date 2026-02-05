@@ -39,12 +39,19 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
     boolean lastExecution = !retriesLeft();
     boolean retry = executions > 1; // first execution is not a retry
+    boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
+    TestStatus finalStatus = null;
+    if (lastExecution) {
+      finalStatus = failureSuppressed ? TestStatus.pass : status;
+    }
+
     return new ExecutionOutcomeImpl(
-        status == TestStatus.fail && (!lastExecution || suppressFailures),
+        failureSuppressed,
         lastExecution,
         lastExecution && !successfulExecutionSeen,
         false,
-        retry ? RetryReason.atr : null);
+        retry ? RetryReason.atr : null,
+        finalStatus);
   }
 
   private boolean retriesLeft() {
