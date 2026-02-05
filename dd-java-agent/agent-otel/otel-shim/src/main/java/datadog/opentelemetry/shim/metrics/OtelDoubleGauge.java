@@ -18,11 +18,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
-  private final OtelMetricStorage storage;
 
-  OtelDoubleGauge(OtelInstrumentDescriptor descriptor) {
-    super(descriptor);
-    this.storage = OtelMetricStorage.newDoubleValueStorage(descriptor);
+  OtelDoubleGauge(OtelInstrumentBuilder builder) {
+    super(builder.build(OtelMetricStorage::newDoubleValueStorage));
   }
 
   @Override
@@ -66,7 +64,7 @@ final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
 
     @Override
     public DoubleGauge build() {
-      return new OtelDoubleGauge(instrumentBuilder.toDescriptor());
+      return new OtelDoubleGauge(instrumentBuilder);
     }
 
     @Override

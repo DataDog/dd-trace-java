@@ -6,12 +6,12 @@ final class OtelLongSum extends OtelAggregator {
   private final LongAdder total = new LongAdder();
 
   @Override
-  protected void doRecordLong(long value) {
+  void doRecordLong(long value) {
     total.add(value);
   }
 
   @Override
-  protected OtelPoint doCollect(boolean reset) {
+  OtelPoint doCollect(boolean reset) {
     return new OtelLongPoint(reset ? total.sumThenReset() : total.sum());
   }
 }

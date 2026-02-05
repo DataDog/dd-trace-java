@@ -1,15 +1,13 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+
 /** Ensure all instruments implement the same equivalency. */
 abstract class OtelInstrument {
-  private final OtelInstrumentDescriptor descriptor;
+  final OtelMetricStorage storage;
 
-  OtelInstrument(OtelInstrumentDescriptor descriptor) {
-    this.descriptor = descriptor;
-  }
-
-  public final OtelInstrumentDescriptor getDescriptor() {
-    return descriptor;
+  OtelInstrument(OtelMetricStorage storage) {
+    this.storage = storage;
   }
 
   @Override
@@ -19,16 +17,16 @@ abstract class OtelInstrument {
     }
 
     OtelInstrument that = (OtelInstrument) o;
-    return descriptor.equals(that.descriptor);
+    return storage.getDescriptor().equals(that.storage.getDescriptor());
   }
 
   @Override
   public final int hashCode() {
-    return descriptor.hashCode();
+    return storage.getDescriptor().hashCode();
   }
 
   @Override
   public final String toString() {
-    return getClass().getSimpleName() + "{descriptor=" + descriptor + '}';
+    return getClass().getSimpleName() + "{descriptor=" + storage.getDescriptor() + '}';
   }
 }

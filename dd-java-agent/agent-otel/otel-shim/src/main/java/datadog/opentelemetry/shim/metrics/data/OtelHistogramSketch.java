@@ -12,7 +12,7 @@ final class OtelHistogramSketch extends OtelAggregator {
   }
 
   @Override
-  protected void doRecordDouble(double value) {
+  void doRecordDouble(double value) {
     synchronized (histogram) {
       histogram.accept(value);
       totalSum += value;
@@ -20,12 +20,12 @@ final class OtelHistogramSketch extends OtelAggregator {
   }
 
   @Override
-  protected void doRecordLong(long value) {
+  void doRecordLong(long value) {
     doRecordDouble(fixedPrecision(value));
   }
 
   @Override
-  protected OtelPoint doCollect(boolean reset) {
+  OtelPoint doCollect(boolean reset) {
     double count;
     List<Double> binBoundaries;
     List<Double> binCounts;

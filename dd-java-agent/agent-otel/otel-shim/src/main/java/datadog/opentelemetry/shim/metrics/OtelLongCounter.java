@@ -26,11 +26,8 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  private final OtelMetricStorage storage;
-
-  OtelLongCounter(OtelInstrumentDescriptor descriptor) {
-    super(descriptor);
-    this.storage = OtelMetricStorage.newLongSumStorage(descriptor);
+  OtelLongCounter(OtelInstrumentBuilder builder) {
+    super(builder.build(OtelMetricStorage::newLongSumStorage));
   }
 
   @Override
@@ -43,7 +40,7 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Counters can only increase. Instrument {} has recorded a negative value.",
-          getDescriptor().getName());
+          storage.getDescriptor().getName());
     } else {
       storage.recordLong(value, attributes);
     }
@@ -80,7 +77,7 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
 
     @Override
     public LongCounter build() {
-      return new OtelLongCounter(instrumentBuilder.toDescriptor());
+      return new OtelLongCounter(instrumentBuilder);
     }
 
     @Override

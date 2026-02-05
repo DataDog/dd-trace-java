@@ -1,6 +1,9 @@
 package datadog.opentelemetry.shim.metrics;
 
 import datadog.opentelemetry.shim.OtelInstrumentationScope;
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.opentelemetry.shim.metrics.data.OtelPoint;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
@@ -9,6 +12,10 @@ import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableMeasurement;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -26,6 +33,9 @@ final class OtelMeter implements Meter {
   static final String NOOP_INSTRUMENT_NAME = "noop";
 
   private final OtelInstrumentationScope instrumentationScope;
+
+  private final Map<OtelInstrumentDescriptor, OtelMetricStorage> storage =
+      new ConcurrentHashMap<>();
 
   OtelMeter(OtelInstrumentationScope instrumentationScope) {
     this.instrumentationScope = instrumentationScope;
@@ -75,6 +85,16 @@ final class OtelMeter implements Meter {
   @Override
   public String toString() {
     return "OtelMeter{instrumentationScope=" + instrumentationScope + "}";
+  }
+
+  OtelMetricStorage registerStorage(
+      OtelInstrumentDescriptor descriptor,
+      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+    return storage.computeIfAbsent(descriptor, storageFactory);
+  }
+
+  void collect(BiConsumer<Attributes, OtelPoint> consumer) {
+    storage.values().forEach(storage -> storage.collect(consumer));
   }
 
   private static boolean validInstrumentName(@Nullable String instrumentName) {

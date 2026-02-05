@@ -69,6 +69,10 @@ public final class OtelMetricStorage {
     return new OtelMetricStorage(descriptor, () -> new OtelHistogramSketch(bucketBoundaries));
   }
 
+  public OtelInstrumentDescriptor getDescriptor() {
+    return descriptor;
+  }
+
   public void recordLong(long value, Attributes attributes) {
     Recording recording = acquireRecordingForWrite();
     try {

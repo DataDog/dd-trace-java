@@ -25,11 +25,8 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  private final OtelMetricStorage storage;
-
-  OtelDoubleCounter(OtelInstrumentDescriptor descriptor) {
-    super(descriptor);
-    this.storage = OtelMetricStorage.newDoubleSumStorage(descriptor);
+  OtelDoubleCounter(OtelInstrumentBuilder builder) {
+    super(builder.build(OtelMetricStorage::newDoubleSumStorage));
   }
 
   @Override
@@ -42,7 +39,7 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Counters can only increase. Instrument {} has recorded a negative value.",
-          getDescriptor().getName());
+          storage.getDescriptor().getName());
     } else {
       storage.recordDouble(value, attributes);
     }
@@ -74,7 +71,7 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
 
     @Override
     public DoubleCounter build() {
-      return new OtelDoubleCounter(instrumentBuilder.toDescriptor());
+      return new OtelDoubleCounter(instrumentBuilder);
     }
 
     @Override

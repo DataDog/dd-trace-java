@@ -1,12 +1,15 @@
 package datadog.opentelemetry.shim.metrics;
 
 import datadog.opentelemetry.shim.OtelInstrumentationScope;
+import datadog.opentelemetry.shim.metrics.data.OtelPoint;
 import datadog.trace.util.Strings;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
@@ -30,6 +33,10 @@ public final class OtelMeterProvider implements MeterProvider {
   @Override
   public MeterBuilder meterBuilder(String instrumentationScopeName) {
     return new OtelMeterBuilder(this, instrumentationScopeName);
+  }
+
+  public void collect(BiConsumer<Attributes, OtelPoint> consumer) {
+    meters.values().forEach(meter -> meter.collect(consumer));
   }
 
   OtelMeter getMeterShim(

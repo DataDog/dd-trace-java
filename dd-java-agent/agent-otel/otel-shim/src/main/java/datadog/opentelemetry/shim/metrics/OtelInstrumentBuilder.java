@@ -1,5 +1,7 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 final class OtelInstrumentBuilder {
@@ -80,9 +82,10 @@ final class OtelInstrumentBuilder {
     this.unit = unit;
   }
 
-  /** Captures the instrument details built so far as a descriptor. */
-  OtelInstrumentDescriptor toDescriptor() {
-    return new OtelInstrumentDescriptor(
-        instrumentName, instrumentType, longValues, description, unit);
+  OtelMetricStorage build(Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+    OtelInstrumentDescriptor descriptor =
+        new OtelInstrumentDescriptor(instrumentName, instrumentType, longValues, description, unit);
+
+    return meter.registerStorage(descriptor, storageFactory);
   }
 }

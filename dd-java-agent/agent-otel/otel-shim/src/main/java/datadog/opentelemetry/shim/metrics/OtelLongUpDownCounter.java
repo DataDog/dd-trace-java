@@ -18,11 +18,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCounter {
-  private final OtelMetricStorage storage;
 
-  OtelLongUpDownCounter(OtelInstrumentDescriptor descriptor) {
-    super(descriptor);
-    this.storage = OtelMetricStorage.newLongSumStorage(descriptor);
+  OtelLongUpDownCounter(OtelInstrumentBuilder builder) {
+    super(builder.build(OtelMetricStorage::newLongSumStorage));
   }
 
   @Override
@@ -66,7 +64,7 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
 
     @Override
     public LongUpDownCounter build() {
-      return new OtelLongUpDownCounter(instrumentBuilder.toDescriptor());
+      return new OtelLongUpDownCounter(instrumentBuilder);
     }
 
     @Override
