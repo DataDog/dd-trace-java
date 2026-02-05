@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.metrics.data;
 
 import datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor;
+import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -11,7 +12,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -108,18 +108,23 @@ public final class OtelMetricStorage {
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
 
-  public void collect(BiConsumer<Attributes, OtelPoint> consumer) {
+  public void collect(OtelInstrumentVisitor visitor) {
     if (RESET_ON_COLLECT) {
-      doCollectAndReset(consumer);
+      doCollectAndReset(visitor);
     } else {
-      doCollect(consumer);
+      doCollect(visitor);
     }
   }
 
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
-  private void doCollect(BiConsumer<Attributes, OtelPoint> consumer) {
+  private void doCollect(OtelInstrumentVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
-    currentRecording.aggregators.forEach((k, v) -> consumer.accept(k, v.collect()));
+    currentRecording.aggregators.forEach(
+        (attributes, aggregator) -> {
+          if (!aggregator.isEmpty()) {
+            visitor.visitPoint(attributes, aggregator.collect());
+          }
+        });
   }
 
   /**
@@ -127,7 +132,7 @@ public final class OtelMetricStorage {
    *
    * <p>Each collect request toggles between two groups of aggregators: current / previous.
    */
-  private void doCollectAndReset(BiConsumer<Attributes, OtelPoint> consumer) {
+  private void doCollectAndReset(OtelInstrumentVisitor visitor) {
 
     // capture _current_ recording for collection, its aggregators will be reset at the end
     final Recording recording = currentRecording;
@@ -149,9 +154,9 @@ public final class OtelMetricStorage {
     }
 
     aggregators.forEach(
-        (k, v) -> {
-          if (!v.isEmpty()) {
-            consumer.accept(k, v.collectAndReset());
+        (attributes, aggregator) -> {
+          if (!aggregator.isEmpty()) {
+            visitor.visitPoint(attributes, aggregator.collectAndReset());
           }
         });
 

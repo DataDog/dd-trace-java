@@ -2,8 +2,7 @@ package datadog.opentelemetry.shim.metrics;
 
 import datadog.opentelemetry.shim.OtelInstrumentationScope;
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
-import datadog.opentelemetry.shim.metrics.data.OtelPoint;
-import io.opentelemetry.api.common.Attributes;
+import datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
@@ -14,7 +13,6 @@ import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableMeasurement;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -93,8 +91,8 @@ final class OtelMeter implements Meter {
     return storage.computeIfAbsent(descriptor, storageFactory);
   }
 
-  void collect(BiConsumer<Attributes, OtelPoint> consumer) {
-    storage.values().forEach(storage -> storage.collect(consumer));
+  void collect(OtelMeterVisitor visitor) {
+    storage.forEach((descriptor, storage) -> storage.collect(visitor.visitInstrument(descriptor)));
   }
 
   private static boolean validInstrumentName(@Nullable String instrumentName) {
