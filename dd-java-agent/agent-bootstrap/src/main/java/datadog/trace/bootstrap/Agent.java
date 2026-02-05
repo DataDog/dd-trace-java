@@ -1278,7 +1278,6 @@ public class Agent {
   }
 
   private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
-    // J9/OpenJ9 support is handled in Initializer.initializeJ9()
     log.debug("Initializing crashtracking");
     try {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");

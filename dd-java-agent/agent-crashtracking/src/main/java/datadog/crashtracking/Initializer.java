@@ -118,8 +118,8 @@ public final class Initializer {
    * <p>Unlike HotSpot, J9's -Xdump option cannot be modified at runtime. This method:
    *
    * <ol>
-   *   <li>Deploys the crash uploader script
    *   <li>Checks if -Xdump:tool is already configured
+   *   <li>Deploys the crash uploader script if configured
    *   <li>Logs instructions for manual configuration if not configured
    * </ol>
    *
@@ -148,8 +148,6 @@ public final class Initializer {
         LOG.info("  -Xdump:tool:events=gpf+abort,exec={}\\ %pid", scriptPath);
         LOG.info(
             "Crash tracking will not be active until this argument is added and JVM is restarted.");
-        // Still deploy the script so it's ready when user adds the argument
-        CrashUploaderScriptInitializer.initialize(scriptPath, null, javacorePath);
         return false;
       }
     } catch (Throwable t) {

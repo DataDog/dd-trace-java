@@ -62,8 +62,7 @@ public final class CrashUploaderScriptInitializer {
     }
 
     if (javacorePath != null && !javacorePath.isEmpty()) {
-      writeConfigToPath(
-          scriptPath, "agent", agentJar, "hs_err", onErrorFile, "javacore_path", javacorePath);
+      writeConfigToPath(scriptPath, "agent", agentJar, "javacore_path", javacorePath);
     } else {
       writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
     }
