@@ -53,6 +53,11 @@ public class CapturedContext implements ValueReferenceResolver {
     this.arguments = other.arguments;
     this.locals = other.getLocals();
     this.throwable = other.throwable;
+    this.staticFields = other.staticFields;
+    this.limits = other.limits;
+    this.thisClassName = other.thisClassName;
+    this.duration = other.duration;
+    this.captureExpressions = other.captureExpressions;
     this.extensions.putAll(other.extensions);
     this.extensions.putAll(extensions);
   }
@@ -175,6 +180,14 @@ public class CapturedContext implements ValueReferenceResolver {
       }
     }
     return result != null ? result : Values.UNDEFINED_OBJECT;
+  }
+
+  public CapturedContext copyWithoutCaptureExpressions() {
+    CapturedContext newContext = new CapturedContext(this, Collections.emptyMap());
+    if (newContext.captureExpressions != null) {
+      newContext.captureExpressions = null;
+    }
+    return newContext;
   }
 
   @Override
