@@ -805,7 +805,7 @@ public class DDSpanContext
   public void setTag(TagMap.EntryReader entry) {
     if (entry == null) return;
 
-    // prcheck to avoid boxing
+    // pre-check to avoid boxing
     boolean intercepted =
         precheckIntercept(entry.tag())
             && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
