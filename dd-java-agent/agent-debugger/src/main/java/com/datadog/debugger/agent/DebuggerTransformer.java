@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
-  private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
+  private static final String INSTRUMENTATION_FAILS = "Instrumentation failed for %s: %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
@@ -276,7 +276,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
     } catch (Throwable ex) {
       LOGGER.warn("Cannot transform: ", ex);
-      reportInstrumentationFails(definitions, fullyQualifiedClassName);
+      reportInstrumentationFails(definitions, fullyQualifiedClassName, ex.toString());
     }
     return null;
   }
@@ -311,7 +311,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       if (methodNode.parameters != null && !methodNode.parameters.isEmpty()) {
         throw new RuntimeException(
-            "Method Parameters attribute detected, cannot instrument class " + classNode.name);
+            "Method Parameters attribute detected, instrumentation not supported");
       } else {
         // we found at leat a method with one parameter if name is not present we can stop there
         break;
@@ -535,7 +535,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.accept(visitor);
     } catch (Throwable t) {
       LOGGER.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
-      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
+      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath), t.toString());
       return null;
     }
     byte[] data = writer.toByteArray();
@@ -659,8 +659,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     // on a separate class files because probe was set on an inner/top-level class
   }
 
-  private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
-    String msg = String.format(INSTRUMENTATION_FAILS, className);
+  private void reportInstrumentationFails(
+      List<ProbeDefinition> definitions, String className, String errorMsg) {
+    String msg = String.format(INSTRUMENTATION_FAILS, className, errorMsg);
     reportErrorForAllProbes(definitions, msg);
   }
 

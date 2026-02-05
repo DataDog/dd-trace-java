@@ -2969,7 +2969,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
-      assertEquals("Instrumentation fails for CapturedSnapshot01", strCaptor.getAllValues().get(0));
+      assertEquals(
+          "Instrumentation failed for CapturedSnapshot01: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          strCaptor.getAllValues().get(0));
     }
   }
 
