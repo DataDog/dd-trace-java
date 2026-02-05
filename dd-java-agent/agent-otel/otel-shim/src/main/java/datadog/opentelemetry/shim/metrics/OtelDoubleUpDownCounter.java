@@ -17,9 +17,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDownCounter {
-
-  OtelDoubleUpDownCounter(OtelInstrumentBuilder builder) {
-    super(builder.build(OtelMetricStorage::newDoubleSumStorage));
+  OtelDoubleUpDownCounter(OtelMetricStorage storage) {
+    super(storage);
   }
 
   @Override
@@ -38,27 +37,30 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
   }
 
   static final class Builder implements DoubleUpDownCounterBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
-    Builder(OtelInstrumentBuilder builder) {
-      this.instrumentBuilder = ofDoubles(builder, UP_DOWN_COUNTER);
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofDoubles(builder, UP_DOWN_COUNTER);
     }
 
     @Override
     public DoubleUpDownCounterBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public DoubleUpDownCounterBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public DoubleUpDownCounter build() {
-      return new OtelDoubleUpDownCounter(instrumentBuilder);
+      return new OtelDoubleUpDownCounter(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newDoubleSumStorage));
     }
 
     @Override

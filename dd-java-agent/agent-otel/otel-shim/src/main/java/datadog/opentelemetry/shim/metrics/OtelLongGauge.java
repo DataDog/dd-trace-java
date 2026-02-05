@@ -17,9 +17,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLongGauge extends OtelInstrument implements LongGauge {
-
-  OtelLongGauge(OtelInstrumentBuilder builder) {
-    super(builder.build(OtelMetricStorage::newLongValueStorage));
+  OtelLongGauge(OtelMetricStorage storage) {
+    super(storage);
   }
 
   @Override
@@ -38,27 +37,30 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
   }
 
   static final class Builder implements LongGaugeBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
-    Builder(OtelInstrumentBuilder builder) {
-      this.instrumentBuilder = ofLongs(builder, GAUGE);
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofLongs(builder, GAUGE);
     }
 
     @Override
     public LongGaugeBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public LongGaugeBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public LongGauge build() {
-      return new OtelLongGauge(instrumentBuilder);
+      return new OtelLongGauge(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongValueStorage));
     }
 
     @Override

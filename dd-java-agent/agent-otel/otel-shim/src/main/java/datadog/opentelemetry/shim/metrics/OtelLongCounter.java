@@ -26,8 +26,8 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  OtelLongCounter(OtelInstrumentBuilder builder) {
-    super(builder.build(OtelMetricStorage::newLongSumStorage));
+  OtelLongCounter(OtelMetricStorage storage) {
+    super(storage);
   }
 
   @Override
@@ -40,7 +40,7 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Counters can only increase. Instrument {} has recorded a negative value.",
-          storage.getDescriptor().getName());
+          storage.getInstrumentName());
     } else {
       storage.recordLong(value, attributes);
     }
@@ -52,32 +52,35 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
   }
 
   static final class Builder implements LongCounterBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
     Builder(OtelMeter meter, String instrumentName) {
-      this.instrumentBuilder = ofLongs(meter, instrumentName, COUNTER);
+      this.meter = meter;
+      this.builder = ofLongs(instrumentName, COUNTER);
     }
 
     @Override
     public LongCounterBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public LongCounterBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public DoubleCounterBuilder ofDoubles() {
-      return new OtelDoubleCounter.Builder(instrumentBuilder);
+      return new OtelDoubleCounter.Builder(meter, builder);
     }
 
     @Override
     public LongCounter build() {
-      return new OtelLongCounter(instrumentBuilder);
+      return new OtelLongCounter(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongSumStorage));
     }
 
     @Override

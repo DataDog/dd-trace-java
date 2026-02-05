@@ -7,6 +7,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.common.Attributes;
@@ -28,8 +29,8 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  OtelDoubleHistogram(OtelInstrumentBuilder builder, List<Double> bucketBoundaries) {
-    super(builder.build(descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+  OtelDoubleHistogram(OtelMetricStorage storage) {
+    super(storage);
   }
 
   @Override
@@ -42,7 +43,7 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Histograms can only record non-negative values. Instrument {} has recorded a negative value.",
-          storage.getDescriptor().getName());
+          storage.getInstrumentName());
     } else {
       storage.recordDouble(value, attributes);
     }
@@ -59,23 +60,25 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
             0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d,
             10_000d);
 
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
     private List<Double> bucketBoundaries;
 
     Builder(OtelMeter meter, String instrumentName) {
-      this.instrumentBuilder = ofDoubles(meter, instrumentName, HISTOGRAM);
+      this.meter = meter;
+      this.builder = ofDoubles(instrumentName, HISTOGRAM);
       this.bucketBoundaries = DEFAULT_BOUNDARIES;
     }
 
     @Override
     public DoubleHistogramBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public DoubleHistogramBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
@@ -94,12 +97,15 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
 
     @Override
     public LongHistogramBuilder ofLongs() {
-      return new OtelLongHistogram.Builder(instrumentBuilder, bucketBoundaries);
+      return new OtelLongHistogram.Builder(meter, builder, bucketBoundaries);
     }
 
     @Override
     public DoubleHistogram build() {
-      return new OtelDoubleHistogram(instrumentBuilder, bucketBoundaries);
+      return new OtelDoubleHistogram(
+          meter.registerStorage(
+              builder.descriptor(),
+              descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
     }
 
     static List<Double> validateBoundaries(List<Double> boundaries) {

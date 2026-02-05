@@ -69,6 +69,10 @@ public final class OtelMetricStorage {
     return new OtelMetricStorage(descriptor, () -> new OtelHistogramSketch(bucketBoundaries));
   }
 
+  public String getInstrumentName() {
+    return descriptor.getName();
+  }
+
   public OtelInstrumentDescriptor getDescriptor() {
     return descriptor;
   }

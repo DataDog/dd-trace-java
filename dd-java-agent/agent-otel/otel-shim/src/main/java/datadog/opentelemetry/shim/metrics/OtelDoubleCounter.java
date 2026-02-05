@@ -25,8 +25,8 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  OtelDoubleCounter(OtelInstrumentBuilder builder) {
-    super(builder.build(OtelMetricStorage::newDoubleSumStorage));
+  OtelDoubleCounter(OtelMetricStorage storage) {
+    super(storage);
   }
 
   @Override
@@ -39,7 +39,7 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Counters can only increase. Instrument {} has recorded a negative value.",
-          storage.getDescriptor().getName());
+          storage.getInstrumentName());
     } else {
       storage.recordDouble(value, attributes);
     }
@@ -51,27 +51,30 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
   }
 
   static final class Builder implements DoubleCounterBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
-    Builder(OtelInstrumentBuilder builder) {
-      this.instrumentBuilder = ofDoubles(builder, COUNTER);
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofDoubles(builder, COUNTER);
     }
 
     @Override
     public DoubleCounterBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public DoubleCounterBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public DoubleCounter build() {
-      return new OtelDoubleCounter(instrumentBuilder);
+      return new OtelDoubleCounter(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newDoubleSumStorage));
     }
 
     @Override
