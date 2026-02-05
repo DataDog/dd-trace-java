@@ -339,15 +339,30 @@ public class DebuggerTransformerTest {
     assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
     assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
     assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    assertTrue(strCaptor.getAllValues().get(0).startsWith("Instrumentation failed for "
-            + CLASS_NAME
-            + ": java.lang.ArrayIndexOutOfBoundsException:"));
-    assertTrue(strCaptor.getAllValues().get(1).startsWith("Instrumentation failed for "
-        + CLASS_NAME
-        + ": java.lang.ArrayIndexOutOfBoundsException:"));
-    assertTrue(strCaptor.getAllValues().get(2).startsWith("Instrumentation failed for "
-        + CLASS_NAME
-        + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(0)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(1)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(2)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
   }
 
   @Test
