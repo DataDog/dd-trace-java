@@ -2997,7 +2997,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
       assertEquals(
-          "Instrumentation fails for com.datadog.debugger.MyRecord1",
+          "Instrumentation failed for com.datadog.debugger.MyRecord1: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     }
   }
