@@ -461,6 +461,7 @@ include(
   ":dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-3.0",
   ":dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-4.0",
   ":dd-java-agent:instrumentation:micronaut:micronaut-http-server-netty:micronaut-http-server-netty-common",
+  ":dd-java-agent:instrumentation:micrometer-context-propagation",
   ":dd-java-agent:instrumentation:mongo:mongo-common",
   ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.1",
   ":dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.4",

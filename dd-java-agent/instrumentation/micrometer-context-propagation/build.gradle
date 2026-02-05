@@ -1,0 +1,22 @@
+muzzle {
+  pass {
+    group = 'io.micrometer'
+    module = 'context-propagation'
+    versions = '[1.0.0,)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.micrometer', name: 'context-propagation', version: '1.0.0'
+
+  testImplementation group: 'io.micrometer', name: 'context-propagation', version: '1.0.0'
+  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
+
+  latestDepTestImplementation group: 'io.micrometer', name: 'context-propagation', version: '+'
+  latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '+'
+}
+
