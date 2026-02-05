@@ -1,5 +1,7 @@
 package datadog.metrics.api;
 
+import java.util.List;
+
 public class Histograms {
   static final Factory NO_OP = new NoOpHistogramsFactory();
   static volatile Factory factory = NO_OP;
@@ -20,5 +22,7 @@ public class Histograms {
     Histogram newLogHistogram();
 
     Histogram newHistogram(double relativeAccuracy, int maxNumBins);
+
+    Histogram newHistogram(List<Double> binBoundaries);
   }
 }
