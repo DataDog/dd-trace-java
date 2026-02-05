@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
@@ -39,6 +40,12 @@ import org.slf4j.LoggerFactory;
 public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
+
+  private static final Moshi MOSHI = new Moshi.Builder().build();
+  private static final JsonAdapter<Map> MAP_ADAPTER = MOSHI.adapter(Map.class);
+  private static final JsonAdapter<Object> OBJECT_ADAPTER = MOSHI.adapter(Object.class);
+
+  private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
 
   /**
    * Process AppSec request data at the start of a Lambda invocation.
@@ -110,15 +117,11 @@ public class LambdaAppSecHandler {
     if (appSecContext instanceof TagContext) {
       TagContext extracted = (TagContext) appSecContext;
       Object appSecData = extracted.getRequestContextDataAppSec();
-      Object iastData = extracted.getRequestContextDataIast();
 
       if (extensionContext instanceof TagContext) {
         TagContext merged = (TagContext) extensionContext;
         if (appSecData != null) {
           merged.withRequestContextDataAppSec(appSecData);
-        }
-        if (iastData != null) {
-          merged.withRequestContextDataIast(iastData);
         }
         return merged;
       }
@@ -224,8 +227,18 @@ public class LambdaAppSecHandler {
 
   private static LambdaEventData extractEventData(ByteArrayInputStream inputStream)
       throws IOException {
+    inputStream.mark(0);
     try {
-      StringBuilder jsonBuilder = new StringBuilder(inputStream.available());
+      int availableBytes = inputStream.available();
+
+      if (availableBytes <= 0 || availableBytes > MAX_EVENT_SIZE) {
+        log.warn("Event size {} exceeds limit {} or is invalid, skipping AppSec processing",
+            availableBytes, MAX_EVENT_SIZE);
+        return new LambdaEventData(Collections.emptyMap(), null, null, null, null,
+            LambdaTriggerType.UNKNOWN, Collections.emptyMap(), null);
+      }
+
+      StringBuilder jsonBuilder = new StringBuilder(availableBytes);
       try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
         char[] buffer = new char[1024];
         int charsRead;
@@ -242,10 +255,7 @@ public class LambdaAppSecHandler {
   private static LambdaEventData extractEventDataFromJson(String json) {
     try {
       // Parse JSON into a Map
-      JsonAdapter<Map> adapter =
-          new Moshi.Builder().build().adapter(Map.class);
-
-      Map<String, Object> event = adapter.fromJson(json);
+      Map<String, Object> event = MAP_ADAPTER.fromJson(json);
       log.debug("Event JSON parsed successfully");
 
       if (event == null) {
@@ -278,7 +288,7 @@ public class LambdaAppSecHandler {
     }
   }
 
-  private static LambdaTriggerType detectTriggerType(Map<String, Object> event) {
+  static LambdaTriggerType detectTriggerType(Map<String, Object> event) {
     Object requestContextObj = event.get("requestContext");
 
     if (requestContextObj instanceof Map) {
@@ -603,8 +613,7 @@ public class LambdaAppSecHandler {
     }
 
     try {
-      JsonAdapter<Object> adapter = new Moshi.Builder().build().adapter(Object.class);
-      Object parsed = adapter.fromJson(body);
+      Object parsed = OBJECT_ADAPTER.fromJson(body);
       return parsed;
     } catch (Exception e) {
       return null;
@@ -659,7 +668,7 @@ public class LambdaAppSecHandler {
   /**
    * Enum representing different AWS Lambda trigger types
    */
-  private enum LambdaTriggerType {
+  enum LambdaTriggerType {
     API_GATEWAY_V1_REST,      // API Gateway REST API (v1)
     API_GATEWAY_V2_HTTP,      // API Gateway HTTP API (v2)
     API_GATEWAY_V2_WEBSOCKET, // API Gateway WebSocket
@@ -672,7 +681,7 @@ public class LambdaAppSecHandler {
   /**
    * Object for Lambda event data needed for AppSec processing
    */
-  private static class LambdaEventData {
+  static class LambdaEventData {
     final Map<String, String> headers;
     final String method;
     final String path;
