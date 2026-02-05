@@ -41,7 +41,7 @@ public class J9JavacoreParserTest {
 
     // Process info
     assertNotNull(crashLog.procInfo);
-    assertEquals("12345", crashLog.procInfo.pid);
+    assertEquals(12345, crashLog.procInfo.pid);
 
     // Error info
     assertNotNull(crashLog.error);
@@ -58,7 +58,7 @@ public class J9JavacoreParserTest {
 
     // Check second Java frame with source info
     assertEquals("com/example/CrashingApp.triggerCrash", crashLog.error.stack.frames[1].function);
-    assertEquals("CrashingApp.java", crashLog.error.stack.frames[1].file);
+    assertEquals("CrashingApp.java", crashLog.error.stack.frames[1].path);
     assertEquals(Integer.valueOf(42), crashLog.error.stack.frames[1].line);
 
     // Check native frames are present
@@ -86,7 +86,7 @@ public class J9JavacoreParserTest {
 
     // Process info
     assertNotNull(crashLog.procInfo);
-    assertEquals("54321", crashLog.procInfo.pid);
+    assertEquals(54321, crashLog.procInfo.pid);
 
     // Stack trace should show the allocation path
     assertNotNull(crashLog.error.stack);
@@ -157,7 +157,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.sigInfo);
     assertEquals("SIGABRT", crashLog.sigInfo.name);
     assertEquals(6, crashLog.sigInfo.number);
-    assertEquals("99999", crashLog.procInfo.pid);
+    assertEquals(99999, crashLog.procInfo.pid);
   }
 
   @Test

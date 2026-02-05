@@ -227,7 +227,7 @@ public final class J9JavacoreParser {
     ErrorData error =
         new ErrorData(kind, message, new StackTrace(frames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
-    ProcInfo procInfo = pid != null ? new ProcInfo(pid) : null;
+    ProcInfo procInfo = pid != null ? new ProcInfo(Integer.parseInt(pid)) : null;
 
     return new CrashLog(
         uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
@@ -280,7 +280,7 @@ public final class J9JavacoreParser {
         signalNumber = parseEventCode(eventCode);
     }
 
-    return new SigInfo(signalNumber, signalName, null);
+    return new SigInfo(signalNumber, signalName, null, null, null);
   }
 
   private int parseEventCode(String eventCode) {
@@ -325,7 +325,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function);
+    return new StackFrame(file, line, function, null, null, null, null);
   }
 
   /**
@@ -371,7 +371,7 @@ public final class J9JavacoreParser {
       function = text;
     }
 
-    return new StackFrame(file, null, function);
+    return new StackFrame(file, null, function, null, null, null, null);
   }
 
   private String parseDateTime(String datePart, String timePart) {
