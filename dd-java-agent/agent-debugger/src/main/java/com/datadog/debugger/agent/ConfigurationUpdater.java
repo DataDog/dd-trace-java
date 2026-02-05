@@ -183,7 +183,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
-    changedClasses = detectMethodParameters(changedClasses);
+    changedClasses = detectMethodParameters(changes, changedClasses);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
@@ -197,7 +197,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
    * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
    * if no attribute found.
    */
-  private List<Class<?>> detectMethodParameters(List<Class<?>> changedClasses) {
+  private List<Class<?>> detectMethodParameters(
+      ConfigurationComparer changes, List<Class<?>> changedClasses) {
     if (JAVA_AT_LEAST_19) {
       // bug is fixed since JDK19, no need to perform detection
       return changedClasses;
@@ -220,6 +221,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
               method.getName(),
               parameters[0].getName());
           // skip the class: compiled with -parameters
+          reportError(
+              changes,
+              "Method Parameters detected, instrumentation not supported for "
+                  + changedClass.getTypeName());
           addClass = false;
         }
         // we found at leat a method with one parameter if name is not present we can stop there
@@ -242,6 +247,16 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     for (ProbeDefinition def : changes.getRemovedDefinitions()) {
       sink.removeDiagnostics(def.getProbeId());
+    }
+  }
+
+  private void reportError(ConfigurationComparer changes, String errorMsg) {
+    for (ProbeDefinition def : changes.getAddedDefinitions()) {
+      if (def instanceof ExceptionProbe) {
+        // do not report received for exception probes
+        continue;
+      }
+      sink.addError(def.getProbeId(), errorMsg);
     }
   }
 
