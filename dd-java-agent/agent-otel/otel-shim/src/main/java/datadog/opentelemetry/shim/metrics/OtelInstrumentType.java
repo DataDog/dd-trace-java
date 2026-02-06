@@ -1,8 +1,12 @@
 package datadog.opentelemetry.shim.metrics;
 
-enum OtelInstrumentType {
+public enum OtelInstrumentType {
+  // same order as io.opentelemetry.sdk.metrics.InstrumentType
   COUNTER,
   UP_DOWN_COUNTER,
   HISTOGRAM,
-  GAUGE
+  OBSERVABLE_COUNTER,
+  OBSERVABLE_UP_DOWN_COUNTER,
+  OBSERVABLE_GAUGE,
+  GAUGE,
 }

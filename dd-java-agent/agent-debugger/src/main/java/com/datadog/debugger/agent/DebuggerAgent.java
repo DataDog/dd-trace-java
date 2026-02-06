@@ -27,6 +27,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.DebuggerConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.git.GitInfo;
@@ -89,8 +91,12 @@ public class DebuggerAgent {
     }
     if (config.isDynamicInstrumentationEnabled()) {
       startDynamicInstrumentation(config);
-      startCodeOriginForSpans(config);
-      startSymbolDatabase(config);
+      if (!Config.isExplicitlyDisabled(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED)) {
+        startCodeOriginForSpans(config);
+      }
+      if (!Config.isExplicitlyDisabled(DebuggerConfig.SYMBOL_DATABASE_ENABLED)) {
+        startSymbolDatabase(config);
+      }
       if (config.getDynamicInstrumentationInstrumentTheWorld() != null) {
         setupInstrumentTheWorldTransformer(config, instrumentation, sink);
       }
