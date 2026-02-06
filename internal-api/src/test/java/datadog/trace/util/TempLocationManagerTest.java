@@ -233,27 +233,34 @@ public class TempLocationManagerTest {
   void testCleanupWithTimeout(boolean shouldSucceed, String section) throws Exception {
     /*
      * Test that cleanup correctly handles timeout conditions.
-     * Uses a ControllableTimeSource to deterministically advance time in the hook,
-     * eliminating dependency on real wall-clock time and timer resolution.
+     * Uses a ControllableTimeSource for fully deterministic behavior:
+     * - Success case: time is never advanced, so timeout never occurs
+     * - Failure case: time is advanced past timeout on first matching hook call
      *
-     * Timing strategy (fully deterministic):
-     * - Simulated delay: 100ms per hook invocation
-     * - Success case: 500ms timeout with 100ms delays → plenty of margin
-     * - Failure case: 20ms timeout with 100ms delays → guaranteed timeout
+     * This approach is independent of how many times hooks are invoked.
      */
-    long delayMs = 100;
+    long timeoutMs = 100;
     ControllableTimeSource timeSource = new ControllableTimeSource();
     timeSource.set(TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()));
 
     AtomicBoolean withTimeout = new AtomicBoolean(false);
+    AtomicBoolean timeAdvanced = new AtomicBoolean(false);
     TempLocationManager.CleanupHook delayer =
         new TempLocationManager.CleanupHook() {
+          private void maybeAdvanceTime() {
+            // Only advance time once, and only for failure case
+            if (!shouldSucceed && timeAdvanced.compareAndSet(false, true)) {
+              // Advance well past the timeout
+              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(timeoutMs * 10));
+            }
+          }
+
           @Override
           public FileVisitResult preVisitDirectory(
               Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("preVisitDirectory")) {
-              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
           }
@@ -263,7 +270,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFileFailed")) {
-              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.visitFileFailed(file, exc, timeout);
           }
@@ -273,7 +280,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("postVisitDirectory")) {
-              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
           }
@@ -283,7 +290,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFile")) {
-              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
           }
@@ -298,10 +305,7 @@ public class TempLocationManagerTest {
     Files.createDirectories(otherTempdir);
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));
-    // Success: 500ms timeout (5 * 100ms) with 100ms delays → should complete
-    // Failure: 20ms timeout (0.2 * 100ms) with 100ms delays → should timeout
-    boolean rslt =
-        instance.cleanup((long) (delayMs * (shouldSucceed ? 5 : 0.2d)), TimeUnit.MILLISECONDS);
+    boolean rslt = instance.cleanup(timeoutMs, TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
     assertNotEquals(shouldSucceed, withTimeout.get()); // timeout = !shouldSucceed
   }
