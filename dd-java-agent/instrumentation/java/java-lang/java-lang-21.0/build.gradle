@@ -3,8 +3,6 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
