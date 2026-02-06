@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static scala.concurrent.impl.Promise.Transformation;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
@@ -39,7 +40,7 @@ public class PromiseObjectInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("scala.util.Try", AgentSpan.class.getName());
+    return singletonMap("scala.util.Try", Context.class.getName());
   }
 
   @Override
@@ -69,9 +70,12 @@ public class PromiseObjectInstrumentation extends InstrumenterModule.Tracing
     public static <T> void afterResolve(@Advice.Return(readOnly = false) Try<T> resolved) {
       AgentSpan span = PromiseHelper.getSpan();
       if (null != span) {
-        ContextStore<Try, AgentSpan> contextStore =
-            InstrumentationContext.get(Try.class, AgentSpan.class);
-        Try<T> next = PromiseHelper.getTry(resolved, span, contextStore.get(resolved));
+        ContextStore<Try, Context> contextStore =
+            InstrumentationContext.get(Try.class, Context.class);
+        Context existing = contextStore.get(resolved);
+        Try<T> next =
+            PromiseHelper.getTry(
+                resolved, span, existing != null ? AgentSpan.fromContext(existing) : null);
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;

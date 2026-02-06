@@ -4,10 +4,10 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -40,7 +40,7 @@ public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("scala.util.Try", AgentSpan.class.getName());
+    return singletonMap("scala.util.Try", Context.class.getName());
   }
 
   @Override
@@ -58,7 +58,7 @@ public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
             lookup.findVirtual(Future$.class, "unit", MethodType.methodType(Future.class));
         Future<?> unit = (Future<?>) mh.invoke(Future$.MODULE$);
         Try<?> result = unit.value().get();
-        InstrumentationContext.get(Try.class, AgentSpan.class).put(result, null);
+        InstrumentationContext.get(Try.class, Context.class).put(result, null);
       } catch (Throwable ignored) {
       }
     }
