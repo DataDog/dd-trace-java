@@ -5,10 +5,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static scala.concurrent.impl.Promise.Transformation;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.Future$;
@@ -36,7 +36,7 @@ public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("scala.util.Try", AgentSpan.class.getName());
+    return singletonMap("scala.util.Try", Context.class.getName());
   }
 
   @Override
@@ -48,7 +48,7 @@ public class FutureObjectInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void afterInit() {
       Try<?> result = Future$.MODULE$.unit().value().get();
-      InstrumentationContext.get(Try.class, AgentSpan.class).put(result, null);
+      InstrumentationContext.get(Try.class, Context.class).put(result, null);
     }
 
     /** Promise.Transformation was introduced in scala 2.13 */

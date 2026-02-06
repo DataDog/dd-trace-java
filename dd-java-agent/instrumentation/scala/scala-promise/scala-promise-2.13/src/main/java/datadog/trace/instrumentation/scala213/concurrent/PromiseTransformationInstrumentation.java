@@ -10,13 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
@@ -45,7 +45,7 @@ public final class PromiseTransformationInstrumentation extends InstrumenterModu
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>();
     contextStore.put("scala.concurrent.impl.Promise$Transformation", State.class.getName());
-    contextStore.put("scala.util.Try", AgentSpan.class.getName());
+    contextStore.put("scala.util.Try", Context.class.getName());
     return contextStore;
   }
 
@@ -120,7 +120,7 @@ public final class PromiseTransformationInstrumentation extends InstrumenterModu
       if (PromiseHelper.completionPriority) {
         state =
             PromiseHelper.executeCaptureSpan(
-                InstrumentationContext.get(Try.class, AgentSpan.class),
+                InstrumentationContext.get(Try.class, Context.class),
                 resolved,
                 contextStore,
                 task,
