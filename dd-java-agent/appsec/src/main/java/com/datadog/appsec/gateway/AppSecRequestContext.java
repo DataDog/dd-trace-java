@@ -13,6 +13,7 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.core.endpoint.EndpointResolver;
 import datadog.trace.util.Numbers;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -445,7 +446,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     if (!endpointComputed) {
       if (httpUrl != null && !httpUrl.isEmpty()) {
         try {
-          endpoint = datadog.trace.core.endpoint.EndpointResolver.computeEndpoint(httpUrl);
+          endpoint = EndpointResolver.computeEndpoint(httpUrl);
         } catch (Exception e) {
           endpoint = null;
         }
