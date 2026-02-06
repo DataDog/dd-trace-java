@@ -9,11 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -28,25 +26,12 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.Promise.Transformation;
 import scala.util.Try;
 
-@AutoService(InstrumenterModule.class)
-public final class PromiseTransformationInstrumentation extends InstrumenterModule.Tracing
+public final class PromiseTransformationInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
-  public PromiseTransformationInstrumentation() {
-    super("scala_concurrent");
-  }
 
   @Override
   public String instrumentedType() {
     return "scala.concurrent.impl.Promise$Transformation";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>();
-    contextStore.put("scala.concurrent.impl.Promise$Transformation", State.class.getName());
-    contextStore.put("scala.util.Try", Context.class.getName());
-    return contextStore;
   }
 
   @Override
@@ -67,11 +52,6 @@ public final class PromiseTransformationInstrumentation extends InstrumenterModu
     map.put(RUNNABLE, pt);
     map.put(EXECUTOR, pt);
     return map;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.scala.PromiseHelper"};
   }
 
   public static final class Construct {
