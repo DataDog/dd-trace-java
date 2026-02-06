@@ -272,8 +272,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     // Aggregate tests map across all pages: module -> suite -> tests
     Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
     String pageState = null;
+    int pageNumber = 0;
 
     do {
+      pageNumber += 1;
+      LOGGER.debug(
+          "Fetching known tests page #{}{}", pageNumber, pageState != null ? " with cursor" : "");
       String uuid = uuidGenerator.get();
       TracerEnvironment requestEnvironment = tracerEnvironment.withPageInfo(pageState);
       EnvelopeDto<TracerEnvironment> request =
@@ -297,7 +301,9 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
       Integer pageSize = knownTests.getPageSize();
       if (pageSize != null) {
-        LOGGER.debug("Received page of size {} for known tests.", pageSize);
+        LOGGER.debug("Received page #{} of size {} for known tests", pageNumber, pageSize);
+      } else {
+        LOGGER.debug("Received page #{} for known tests", pageNumber);
       }
 
       // Get cursor for next page (if any)
@@ -307,6 +313,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         pageState = null;
       }
     } while (pageState != null);
+
+    LOGGER.debug("Finished fetching known tests after {} page(s)", pageNumber);
 
     return parseTestIdentifiers(aggregateTests);
   }
