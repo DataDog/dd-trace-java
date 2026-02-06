@@ -18,8 +18,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -73,18 +71,15 @@ public final class TempLocationManager {
 
     private Set<String> pidSet;
 
-    private final Instant cutoff;
-    private final Instant timeoutTarget;
+    private final long cutoffMillis;
+    private final long timeoutTargetMillis;
 
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
-      Instant now = Instant.ofEpochMilli(timeSource.getCurrentTimeMillis());
-      this.cutoff = now.minus(cutoffSeconds, ChronoUnit.SECONDS);
-      this.timeoutTarget =
-          timeout > -1
-              ? now.plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
-              : null;
+      long now = timeSource.getCurrentTimeMillis();
+      this.cutoffMillis = now - TimeUnit.SECONDS.toMillis(cutoffSeconds);
+      this.timeoutTargetMillis = timeout > -1 ? now + unit.toMillis(timeout) : Long.MAX_VALUE;
     }
 
     boolean isTerminated() {
@@ -92,8 +87,7 @@ public final class TempLocationManager {
     }
 
     private boolean isTimedOut() {
-      return timeoutTarget != null
-          && Instant.ofEpochMilli(timeSource.getCurrentTimeMillis()).isAfter(timeoutTarget);
+      return timeSource.getCurrentTimeMillis() > timeoutTargetMillis;
     }
 
     @Override
@@ -137,7 +131,7 @@ public final class TempLocationManager {
       }
       cleanupTestHook.visitFile(file, attrs, false);
       try {
-        if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+        if (Files.getLastModifiedTime(file).toMillis() > cutoffMillis) {
           return FileVisitResult.SKIP_SUBTREE;
         }
         Files.delete(file);
