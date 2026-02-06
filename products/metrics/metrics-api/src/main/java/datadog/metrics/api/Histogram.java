@@ -1,6 +1,7 @@
 package datadog.metrics.api;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 public interface Histogram {
 
@@ -18,6 +19,10 @@ public interface Histogram {
 
   double getMaxValue();
 
+  List<Double> getBinBoundaries();
+
+  List<Double> getBinCounts();
+
   void clear();
 
   ByteBuffer serialize();
@@ -32,5 +37,9 @@ public interface Histogram {
 
   static Histogram newHistogram(double relativeAccuracy, int maxNumBins) {
     return Histograms.factory.newHistogram(relativeAccuracy, maxNumBins);
+  }
+
+  static Histogram newHistogram(List<Double> binBoundaries) {
+    return Histograms.factory.newHistogram(binBoundaries);
   }
 }

@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(InstrumenterModule.class)
@@ -92,8 +93,8 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpServerConnection connection) {
-      // check and remove context so it won't be finished twice
-      Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      // don't remove stored context here because the response callback may run multiple times
+      Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context) {
         return context.attach();
       }
@@ -108,14 +109,28 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
       if (null == scope) {
         return;
       }
-      AgentSpan span = spanFromContext(scope.context());
-      DECORATE.onResponse(span, connection.getHttpResponse());
+      final AgentSpan span = spanFromContext(scope.context());
+      final HttpResponse httpResponse = connection.getHttpResponse();
+      boolean isFinal = false;
+      if (httpResponse != null && httpResponse.getStatusLine() != null) {
+        isFinal = httpResponse.getStatusLine().getStatusCode() >= 200;
+      }
+
+      if (isFinal) {
+        DECORATE.onResponse(span, httpResponse);
+      }
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      DECORATE.beforeFinish(scope.context());
-      scope.close();
-      span.finish();
+
+      if ((isFinal || error != null)
+          && connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY) != null) {
+        DECORATE.beforeFinish(scope.context());
+        scope.close();
+        span.finish();
+      } else {
+        scope.close();
+      }
     }
   }
 

@@ -130,6 +130,63 @@ class HistogramsTest extends DDSpecification {
     (int)sketch.getMaxValue() == 3
   }
 
+  def "test explicit bin boundaries #iterationIndex"() {
+    setup:
+    def histogram = DDSketchHistograms.FACTORY.newHistogram(boundaries)
+    def values = [
+      Double.NEGATIVE_INFINITY,
+      -Double.MAX_VALUE,
+      -1d,
+      -Double.MIN_VALUE,
+      -0d,
+      Double.NaN,
+      0d,
+      Double.MIN_VALUE,
+      1d,
+      11d,
+      20d,
+      25d,
+      Double.MAX_VALUE,
+      Double.POSITIVE_INFINITY
+    ]
+
+    when: "add values to sketch"
+    for (long value : values) {
+      histogram.accept(value)
+    }
+
+    then: "report boundaries and counts"
+    histogram.getBinBoundaries() == countBoundaries
+    histogram.getBinCounts() == countValues
+
+    where:
+    boundaries                         | countBoundaries                                    | countValues
+    []                                 | [Double.POSITIVE_INFINITY]                         | [14d]
+    [0d]                               | [0d, Double.POSITIVE_INFINITY]                     | [8d, 6d]
+    [0d, 1d]                           | [0d, 1d, Double.POSITIVE_INFINITY]                 | [8d, 1d, 5d]
+    [0d, 25d, 50d]                     | [0d, 25d, 50d, Double.POSITIVE_INFINITY]           | [8d, 4d, 0d, 2d]
+    [0d, 5d, 10d, 25d, 50d, 75d, 100d] | [0d, 5d, 10d, 25d, 100d, Double.POSITIVE_INFINITY] | [8d, 1d, 0d, 3d, 0d, 2d]
+  }
+
+  def "test invalid bin boundaries are reported #iterationIndex"() {
+    when:
+    DDSketchHistograms.FACTORY.newHistogram(boundaries)
+
+    then:
+    def e = thrown IllegalArgumentException
+    e.message == message
+
+    where:
+    boundaries                 | message
+    [-1d]                      | "invalid bucket boundary: -1.0"
+    [null]                     | "invalid bucket boundary: null"
+    [Double.NaN]               | "invalid bucket boundary: NaN"
+    [Double.NEGATIVE_INFINITY] | "invalid bucket boundary: -Infinity"
+    [Double.POSITIVE_INFINITY] | "invalid bucket boundary: +Infinity"
+    [1d, 2d, 3d, 3d, 4d, 5d]   | "Bucket boundaries must be in increasing order: 3.0 >= 3.0"
+    [1d, 2d, 3d, 4d, 3d]       | "Bucket boundaries must be in increasing order: 4.0 >= 3.0"
+  }
+
   def validateQuantiles(def histogram, long[] data, double relativeAccuracy) {
     for (double quantile : quantiles) {
       double relativeError = relativeError(histogram.getValueAtQuantile(quantile), empiricalQuantile(data, quantile))
