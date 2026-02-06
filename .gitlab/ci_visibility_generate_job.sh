@@ -61,12 +61,24 @@ fi
 
 echo "PR #$pr_number is a CI Visibility PR - triggering test environment"
 
+# Check if matching branch exists in test-environment
+set +e
+target_branch="main"
+gh api "repos/DataDog/test-environment/branches/$CI_COMMIT_BRANCH" --silent 2>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Found matching branch '$CI_COMMIT_BRANCH' in test-environment - using it"
+  target_branch="$CI_COMMIT_BRANCH"
+else
+  echo "No matching branch in test-environment - defaulting to 'main'"
+fi
+set -e
+
 cat <<EOF >>ci-visibility-test-environment.yml
 ci-visibility-test-environment:
   stage: ci-visibility-tests
   trigger:
     project: DataDog/apm-reliability/test-environment
-    branch: main
+    branch: $target_branch
     strategy: depend
   variables:
     UPSTREAM_PACKAGE_JOB: build
