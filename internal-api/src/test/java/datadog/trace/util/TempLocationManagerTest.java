@@ -241,7 +241,6 @@ public class TempLocationManagerTest {
      */
     long timeoutMs = 100;
     ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()));
 
     AtomicBoolean withTimeout = new AtomicBoolean(false);
     AtomicBoolean timeAdvanced = new AtomicBoolean(false);
@@ -305,6 +304,8 @@ public class TempLocationManagerTest {
     Files.createDirectories(otherTempdir);
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));
+    // Set controllable time AFTER files are created so their modification times are in the past
+    timeSource.set(TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()));
     boolean rslt = instance.cleanup(timeoutMs, TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
     assertNotEquals(shouldSucceed, withTimeout.get()); // timeout = !shouldSucceed
