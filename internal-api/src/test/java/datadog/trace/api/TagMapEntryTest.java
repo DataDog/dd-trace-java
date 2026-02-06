@@ -497,7 +497,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @Display("newDoubleEntry: double")
+  @DisplayName("newDoubleEntry: double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void newDoubleEntry(double value) {
