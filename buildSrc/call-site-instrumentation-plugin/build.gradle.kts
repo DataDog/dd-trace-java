@@ -34,10 +34,10 @@ dependencies {
   implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.bundles.groovy)
-  testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation(libs.spotbugs.annotations)
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.bundles.mockito)
 }
 
 sourceSets {
