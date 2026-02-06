@@ -781,6 +781,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
     ProbeCondition probeCondition = null;
+    List<LogProbe.CaptureExpression> captureExpressions = null;
     Where where = capturedContextProbes.get(0).getWhere();
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
@@ -792,6 +793,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
+        // captureExpressions = mergeCaptureExpressions(captureExpressions,
+        // logProbe.getCaptureExpressions());
         if (probeCondition == null) {
           probeCondition = logProbe.getProbeCondition();
         }
@@ -835,6 +838,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
         Math.max(current.getMaxCollectionSize(), newCapture.getMaxCollectionSize()),
         Math.max(current.getMaxLength(), newCapture.getMaxLength()),
         Math.max(current.getMaxFieldCount(), newCapture.getMaxFieldCount()));
+  }
+
+  private static List<LogProbe.CaptureExpression> mergeCaptureExpressions(
+      List<LogProbe.CaptureExpression> captureExpressions,
+      List<LogProbe.CaptureExpression> newCaptureExpressions) {
+    if (captureExpressions == null) {
+      return newCaptureExpressions;
+    }
+    if (newCaptureExpressions == null) {
+      return captureExpressions;
+    }
+    captureExpressions.addAll(newCaptureExpressions);
+    return captureExpressions;
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
