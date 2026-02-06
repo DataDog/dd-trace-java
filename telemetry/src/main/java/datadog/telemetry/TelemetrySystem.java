@@ -13,6 +13,7 @@ import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
+import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
@@ -63,6 +64,9 @@ public class TelemetrySystem {
       }
       if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
         actions.add(new CiVisibilityMetricPeriodicAction());
+      }
+      if (Config.get().isLlmObsEnabled()) {
+        actions.add(new LLMObsMetricPeriodicAction());
       }
     }
     if (null != dependencyService) {
