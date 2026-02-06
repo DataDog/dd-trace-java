@@ -34,7 +34,7 @@ class RunNTimesTest extends Specification {
     outcome2.finalStatus() == null
 
     when:
-    def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
+    def outcome3 = executionPolicy.registerExecution(TestStatus.pass, 0)
 
     then:
     outcome3.retryReason() == RetryReason.efd
@@ -42,7 +42,7 @@ class RunNTimesTest extends Specification {
     !outcome3.failureSuppressed()
     !outcome3.failedAllRetries()
     !outcome3.succeededAllRetries()
-    outcome3.finalStatus() == TestStatus.fail
+    outcome3.finalStatus() == TestStatus.fail // final status fails because some executions failed
   }
 
   def "test failed all retries"() {

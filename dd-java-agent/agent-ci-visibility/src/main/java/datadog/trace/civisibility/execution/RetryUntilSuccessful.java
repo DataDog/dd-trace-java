@@ -42,6 +42,7 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
     boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
     TestStatus finalStatus = null;
     if (lastExecution) {
+      // final status is always the last status reported (or pass if a failure is suppressed)
       finalStatus = failureSuppressed ? TestStatus.pass : status;
     }
 
