@@ -16,7 +16,7 @@ This documentation provides information for developers to set up their environme
 
 ### Quick check
 
-To check that your development environment is properly set up to build the project, from the project root run on macOS or Linux:
+To check that your development environment is properly set up to build the project, run the following command from the project root on macOS or Linux:
 ```shell
 ./setup.sh
 ```
@@ -54,40 +54,40 @@ If there is any issue with your output, check the requirements below and use the
 
 Requirements to build the full project:
 
-* A recent version (21+) of JDK,
-* The `git` command line must be installed,
-* A container runtime environment must be available to run all tests (e.g. Docker Desktop).
+* JDK version is 21+,
+* The `git` command line is installed,
+* A container runtime environment is available to run all tests (e.g. Docker Desktop).
 
 ### Install JDK
 
 Java is required to run Gradle, the project build tool.
-Gradle will find any locally installed JDK and can download any missing JDK versions needed for the project build and testing.
+Gradle will find any locally installed JDK and download any missing JDK versions needed for the project build and testing.
 
 #### macOS
 
-Install a recent (21+) JDK using `brew`:
+Install JDK 21 using `brew`:
 ```shell
 brew install --cask zulu@21
 ```
 
 #### Linux
 
-Use your distribution package manager to install a recent (21+) JDK:
+Use your distribution package manager to install JDK 21:
 ```shell
 apt install openjdk-21-jdk
 ```
-Alternatively, manually download and install it from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
+Alternatively, manually download and install from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
 Add the `JAVA_HOME` environment variable to your shell using the `export` command.
 You can permanently set it by appending the `export` command to your shell configuration file such as `~/.zshrc`, `~/.bashrc` or similar.
 ```shell
 export JAVA_HOME=/<path to extracted archive>/jdk-21.x.x
 ```
-Restart your shell after applying the changes if you appended the commands to your shell configuration file.
+If you appended the commands to your shell configuration file, restart your shell after applying the changes.
 
 #### Windows
 
-Install a recent (21+) JDK using the Windows package manager `winget`:
+Install JDK 21 using the Windows package manager `winget`:
 ```pwsh
 winget install --id EclipseAdoptium.Temurin.21.JDK
 ```
@@ -114,7 +114,7 @@ apt install git
 
 #### Windows
 
-Download and install the installer from [the official website](https://git-scm.com/download/win) or install it using the Windows package manager `winget`:
+Download and install the installer from [the official website](https://git-scm.com/download/win), or install it using the Windows package manager `winget`:
 
 ```pwsh
 winget install --id git.git
@@ -167,7 +167,7 @@ winget install --id Docker.DockerDesktop
 
 > [!NOTE]
 > The git hooks will check that your code is properly formatted before committing.
-> This is done both to avoid future merge conflicts and ensure uniformity inside the code base.
+> This is done both to avoid future merge conflicts and ensure uniformity across the code base.
 
 * Configure git to automatically update submodules.
   ```shell
@@ -188,11 +188,11 @@ winget install --id Docker.DockerDesktop
 ### Configure Akka Token
 > [!NOTE]
 > You can skip this step if you don’t need instrumentation for the **akka-http-10.6** module.
-> For background on why Akka now requires authentication, see this [article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
+> For background on why Akka now requires authentication, see [this article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
 
 To enable access to Akka artifacts hosted on Lightbend’s private repository, you’ll need to configure an authentication token.
-1. Obtain a repository token. Visit the Akka account [page](https://account.akka.io/token) to generate a secure repository token.
-2. Set up the environment variable. Create an environment variable named:
+1. Obtain a repository token by visiting the Akka account [page](https://account.akka.io/token) to generate a secure repository token.
+2. Create an environment variable named:
 ```shell
   ORG_GRADLE_PROJECT_akkaRepositoryToken=<your_token>
 ```
