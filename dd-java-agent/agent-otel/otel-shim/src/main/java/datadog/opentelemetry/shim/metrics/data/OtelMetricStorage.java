@@ -27,7 +27,7 @@ public final class OtelMetricStorage {
   private static final OtlpConfig.Temporality TEMPORALITY_PREFERENCE =
       Config.get().getOtlpMetricsTemporalityPreference();
 
-  private static final int DEFAULT_MAX_CARDINALITY = 2_000;
+  private static final int CARDINALITY_LIMIT = Config.get().getMetricsOtelCardinalityLimit();
 
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
@@ -132,11 +132,11 @@ public final class OtelMetricStorage {
     if (null != aggregator) {
       return aggregator;
     }
-    if (aggregators.size() >= DEFAULT_MAX_CARDINALITY) {
+    if (aggregators.size() >= CARDINALITY_LIMIT) {
       RATELIMITED_LOGGER.warn(
           "Instrument {} has exceeded the maximum allowed cardinality ({}).",
           descriptor.getName(),
-          DEFAULT_MAX_CARDINALITY);
+          CARDINALITY_LIMIT);
       attributes = CARDINALITY_OVERFLOW; // write data to overflow
     }
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
@@ -183,7 +183,7 @@ public final class OtelMetricStorage {
     Map<Attributes, OtelAggregator> aggregators = recording.aggregators;
 
     // avoid churn: only remove empty aggregators if we're over cardinality
-    if (aggregators.size() >= DEFAULT_MAX_CARDINALITY) {
+    if (aggregators.size() >= CARDINALITY_LIMIT) {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
     }
 
