@@ -9,6 +9,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
@@ -105,9 +106,9 @@ public class PromiseHelper {
       State state) {
     final Context context = tryStore.get(resolved);
     if (context != null) {
-      final AgentSpan span = AgentSpan.fromContext(context);
+      final AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
       // Check if the new Span is the same as the currently stored one
-      if (null != state && state.getSpan() == span) {
+      if (null != span && null != state && state.getSpan() == span) {
         return state;
       }
       AgentScope.Continuation continuation = captureSpan(span);
