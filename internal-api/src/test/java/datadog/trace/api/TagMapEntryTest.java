@@ -104,7 +104,7 @@ public class TagMapEntryTest {
   }
 
   @Test
-  public void objectEntry() {
+  public void newObjectEntry() {
     test(
         () -> TagMap.Entry.newObjectEntry("foo", "bar"),
         TagMap.Entry.OBJECT,
@@ -119,7 +119,7 @@ public class TagMapEntryTest {
   }
 
   @Test
-  @DisplayName("anyEntry: Object")
+  @DisplayName("newAnyEntry: Object")
   public void anyEntryObject() {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", "bar"),
@@ -253,7 +253,7 @@ public class TagMapEntryTest {
   @ParameterizedTest
   @DisplayName("newIntEntry: Short")
   @ValueSource(shorts = {Short.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Short.MAX_VALUE})
-  public void intEntryBoxedShort(short value) {
+  public void newIntEntryBoxedShort(short value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Short.valueOf(value)),
         TagMap.Entry.INT,
@@ -269,7 +269,7 @@ public class TagMapEntryTest {
   @ParameterizedTest
   @DisplayName("newIntEntry: Byte")
   @ValueSource(bytes = {Byte.MIN_VALUE, -32, -1, 0, 1, 32, Byte.MAX_VALUE})
-  public void intEntryBoxedByte(byte value) {
+  public void newIntEntryBoxedByte(byte value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Byte.valueOf(value)),
         TagMap.Entry.INT,
@@ -497,25 +497,10 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
-  @DisplayName("newDoubleEntry: double")
+  @Display("newDoubleEntry: double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
-  public void doubleEntry_via_create(double value) {
-    test(
-        () -> TagMap.Entry.create("foo", value),
-        TagMap.Entry.DOUBLE,
-        (entry) ->
-            multiCheck(
-                checkKey("foo", entry),
-                checkValue(value, entry),
-                checkIsNumericPrimitive(entry),
-                checkType(TagMap.Entry.DOUBLE, entry)));
-  }
-
-  @ParameterizedTest
-  @ValueSource(
-      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
-  public void doubleEntry(double value) {
+  public void newDoubleEntry(double value) {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", value),
         TagMap.Entry.DOUBLE,
@@ -547,7 +532,7 @@ public class TagMapEntryTest {
   @DisplayName("newAnyEntry: Double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
-  public void anyEntry_double(double value) {
+  public void newAnyEntryDouble(double value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Double.valueOf(value)),
         TagMap.Entry.ANY,
