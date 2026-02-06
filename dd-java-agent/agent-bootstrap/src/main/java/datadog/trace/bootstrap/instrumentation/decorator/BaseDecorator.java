@@ -98,10 +98,8 @@ public abstract class BaseDecorator {
     final CharSequence component = component();
     span.context().setIntegrationName(component);
 
-    TagMap.Entry traceAnalyticsEntry = this.traceAnalyticsEntry;
-    if (traceAnalyticsEntry != null) {
-      span.setMetric(traceAnalyticsEntry);
-    }
+    span.setMetric(traceAnalyticsEntry);
+    
     return span;
   }
 
