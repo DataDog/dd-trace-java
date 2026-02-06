@@ -3,6 +3,8 @@ package datadog.trace.util;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
@@ -77,10 +79,11 @@ public final class TempLocationManager {
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
-      this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
+      Instant now = Instant.ofEpochMilli(timeSource.getCurrentTimeMillis());
+      this.cutoff = now.minus(cutoffSeconds, ChronoUnit.SECONDS);
       this.timeoutTarget =
           timeout > -1
-              ? Instant.now().plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
+              ? now.plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
               : null;
     }
 
@@ -89,7 +92,8 @@ public final class TempLocationManager {
     }
 
     private boolean isTimedOut() {
-      return timeoutTarget != null && Instant.now().isAfter(timeoutTarget);
+      return timeoutTarget != null
+          && Instant.ofEpochMilli(timeSource.getCurrentTimeMillis()).isAfter(timeoutTarget);
     }
 
     @Override
@@ -218,6 +222,7 @@ public final class TempLocationManager {
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
+  private final TimeSource timeSource;
 
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
@@ -248,12 +253,21 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
-    this(configProvider, true, CleanupHook.EMPTY);
+    this(configProvider, true, CleanupHook.EMPTY, SystemTimeSource.INSTANCE);
   }
 
   TempLocationManager(
       ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
+    this(configProvider, runStartupCleanup, testHook, SystemTimeSource.INSTANCE);
+  }
+
+  TempLocationManager(
+      ConfigProvider configProvider,
+      boolean runStartupCleanup,
+      CleanupHook testHook,
+      TimeSource timeSource) {
     cleanupTestHook = testHook;
+    this.timeSource = timeSource;
 
     Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
     isPosixFs = supportedViews.contains("posix");
