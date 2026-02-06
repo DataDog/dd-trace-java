@@ -269,28 +269,82 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
             .build();
 
-    String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
-    String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
-    KnownTestsDto knownTests =
-        backendApi.post(
-            KNOWN_TESTS_URI,
-            requestBody,
-            is ->
-                testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            telemetryListener,
-            false);
+    // Aggregate tests map across all pages: module -> suite -> tests
+    Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
+    String pageState = null;
 
-    return parseTestIdentifiers(knownTests);
+    do {
+      String uuid = uuidGenerator.get();
+      TracerEnvironment requestEnvironment = tracerEnvironment.withPageInfo(pageState);
+      EnvelopeDto<TracerEnvironment> request =
+          new EnvelopeDto<>(
+              new DataDto<>(uuid, "ci_app_libraries_tests_request", requestEnvironment));
+      String json = requestAdapter.toJson(request);
+      RequestBody requestBody = RequestBody.create(JSON, json);
+      KnownTestsDto knownTests =
+          backendApi.post(
+              KNOWN_TESTS_URI,
+              requestBody,
+              is ->
+                  testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is)))
+                      .data
+                      .attributes,
+              telemetryListener,
+              false);
+
+      // Merge tests from this page into aggregate
+      mergeKnownTests(aggregateTests, knownTests.tests);
+
+      Integer pageSize = knownTests.getPageSize();
+      if (pageSize != null) {
+        LOGGER.debug("Received page of size {} for known tests.", pageSize);
+      }
+
+      // Get cursor for next page (if any)
+      if (knownTests.hasNextPage()) {
+        pageState = knownTests.getNextPageCursor();
+      } else {
+        pageState = null;
+      }
+    } while (pageState != null);
+
+    return parseTestIdentifiers(aggregateTests);
   }
 
-  private Map<String, Collection<TestFQN>> parseTestIdentifiers(KnownTestsDto knownTests) {
+  private void mergeKnownTests(
+      Map<String, Map<String, List<String>>> aggregate,
+      Map<String, Map<String, List<String>>> page) {
+    if (page == null) {
+      return;
+    }
+    for (Map.Entry<String, Map<String, List<String>>> moduleEntry : page.entrySet()) {
+      String moduleName = moduleEntry.getKey();
+      Map<String, List<String>> pageSuites = moduleEntry.getValue();
+
+      Map<String, List<String>> aggregateSuites =
+          aggregate.computeIfAbsent(moduleName, k -> new HashMap<>());
+
+      for (Map.Entry<String, List<String>> suiteEntry : pageSuites.entrySet()) {
+        String suiteName = suiteEntry.getKey();
+        List<String> pageTests = suiteEntry.getValue();
+
+        aggregateSuites.merge(
+            suiteName,
+            pageTests,
+            (existingTests, newTests) -> {
+              existingTests.addAll(newTests);
+              return existingTests;
+            });
+      }
+    }
+  }
+
+  private Map<String, Collection<TestFQN>> parseTestIdentifiers(
+      Map<String, Map<String, List<String>>> testsMap) {
     int knownTestsCount = 0;
 
     Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
-    for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
+    for (Map.Entry<String, Map<String, List<String>>> e : testsMap.entrySet()) {
       String moduleName = e.getKey();
       Map<String, List<String>> testsBySuiteName = e.getValue();
 
@@ -496,8 +550,40 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private static final class KnownTestsDto {
     private final Map<String, Map<String, List<String>>> tests;
 
-    private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
+    @Json(name = "page_info")
+    private final PageInfoResponse pageInfo;
+
+    private KnownTestsDto(Map<String, Map<String, List<String>>> tests, PageInfoResponse pageInfo) {
       this.tests = tests;
+      this.pageInfo = pageInfo;
+    }
+
+    public boolean hasNextPage() {
+      return pageInfo != null && pageInfo.hasNext;
+    }
+
+    @Nullable
+    public Integer getPageSize() {
+      return pageInfo != null ? pageInfo.size : null;
+    }
+
+    @Nullable
+    public String getNextPageCursor() {
+      return pageInfo != null ? pageInfo.cursor : null;
+    }
+  }
+
+  private static final class PageInfoResponse {
+    private final String cursor;
+    private final int size;
+
+    @Json(name = "has_next")
+    private final boolean hasNext;
+
+    private PageInfoResponse(String cursor, int size, boolean hasNext) {
+      this.cursor = cursor;
+      this.size = size;
+      this.hasNext = hasNext;
     }
   }
 
