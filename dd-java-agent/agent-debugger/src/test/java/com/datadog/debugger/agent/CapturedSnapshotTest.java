@@ -1629,9 +1629,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     // Snapshot 1
     Snapshot snapshot1 = snapshots.get(1);
     assertCaptureExpressions(
-        snapshot1.getCaptures().getReturn(), "var1", Integer.class.getTypeName(), "3");
+        snapshot1.getCaptures().getReturn(), "var1", Integer.TYPE.getTypeName(), "3");
     assertCaptureExpressions(
-        snapshot1.getCaptures().getReturn(), "this_fld", Integer.class.getTypeName(), "11");
+        snapshot1.getCaptures().getReturn(), "this_fld", Integer.TYPE.getTypeName(), "11");
     assertNull(snapshot1.getCaptures().getReturn().getArguments());
     assertNull(snapshot1.getCaptures().getReturn().getLocals());
   }
@@ -2843,6 +2843,33 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         "hello");
     assertCaptureExpressions(
         snapshot.getCaptures().getReturn(), "nullTyped_fld", Object.class.getTypeName(), null);
+  }
+
+  @Test
+  public void captureExpressionsPrimitives() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "this_fld",
+                        new ValueScript(DSL.getMember(DSL.ref("this"), "fld"), "this.fld"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "var1", new ValueScript(DSL.ref("var1"), "var1"), null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertCaptureExpressions(
+        snapshot.getCaptures().getReturn(), "this_fld", Integer.TYPE.getTypeName(), "11");
+    assertCaptureExpressions(
+        snapshot.getCaptures().getReturn(), "var1", Integer.TYPE.getTypeName(), "3");
   }
 
   @Test
