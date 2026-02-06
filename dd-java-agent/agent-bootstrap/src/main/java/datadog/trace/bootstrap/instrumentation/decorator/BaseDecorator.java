@@ -98,8 +98,9 @@ public abstract class BaseDecorator {
     final CharSequence component = component();
     span.context().setIntegrationName(component);
 
+    // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
-    
+
     return span;
   }
 
