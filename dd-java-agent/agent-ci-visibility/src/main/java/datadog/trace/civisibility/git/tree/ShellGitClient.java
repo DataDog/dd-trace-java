@@ -75,11 +75,9 @@ public class ShellGitClient implements GitClient {
     this.latestCommitsSince = latestCommitsSince;
     this.latestCommitsLimit = latestCommitsLimit;
 
-    String gitRepoRoot = findGitRepositoryRoot(new File(repoRoot).getAbsoluteFile());
-    this.repoRoot = gitRepoRoot;
-    this.safeDirectoryOption = "safe.directory=" + gitRepoRoot;
-    commandExecutor = new ShellCommandExecutor(new File(gitRepoRoot), timeoutMillis);
-    LOGGER.debug("Git safe directory configured to {}", gitRepoRoot);
+    this.repoRoot = findGitRepositoryRoot(new File(repoRoot));
+    this.safeDirectoryOption = "safe.directory=" + this.repoRoot;
+    commandExecutor = new ShellCommandExecutor(new File(this.repoRoot), timeoutMillis);
   }
 
   /**
@@ -91,13 +89,17 @@ public class ShellGitClient implements GitClient {
    */
   static String findGitRepositoryRoot(File startDir) {
     File current = startDir.getAbsoluteFile();
+    LOGGER.debug("Finding git repository root for {}", current.getPath());
     while (current != null) {
       File gitDir = new File(current, ".git");
       if (gitDir.exists()) {
-        return current.getPath();
+        String repoRootFound = current.getPath();
+        LOGGER.debug("Git repository root found as {}", repoRootFound);
+        return repoRootFound;
       }
       current = current.getParentFile();
     }
+    LOGGER.debug("No .git found for repository root, defaulting to original starting directory");
     return startDir.getAbsolutePath();
   }
 
