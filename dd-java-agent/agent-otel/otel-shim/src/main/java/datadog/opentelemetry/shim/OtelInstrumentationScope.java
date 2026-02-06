@@ -17,6 +17,20 @@ public final class OtelInstrumentationScope {
     this.schemaUrl = schemaUrl;
   }
 
+  public String getName() {
+    return scopeName;
+  }
+
+  @Nullable
+  public String getVersion() {
+    return scopeVersion;
+  }
+
+  @Nullable
+  public String getSchemaUrl() {
+    return schemaUrl;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof OtelInstrumentationScope)) {
@@ -35,5 +49,16 @@ public final class OtelInstrumentationScope {
     result = 31 * result + Objects.hashCode(scopeVersion);
     result = 31 * result + Objects.hashCode(schemaUrl);
     return result;
+  }
+
+  @Override
+  public String toString() {
+    // use same property names as OTel in toString
+    return "OtelInstrumentationScope{"
+        + "name='"
+        + scopeName
+        + (scopeVersion != null ? "', version='" + scopeVersion : "")
+        + (schemaUrl != null ? "', schemaUrl='" + schemaUrl : "")
+        + "'}";
   }
 }

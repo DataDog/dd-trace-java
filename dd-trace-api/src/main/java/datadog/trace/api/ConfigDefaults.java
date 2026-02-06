@@ -105,9 +105,10 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
-  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10000; // ms
+  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10_000; // ms
   // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
-  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7500; // ms
+  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
+  static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
   static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
   static final String DEFAULT_OTLP_HTTP_PORT = "4318";

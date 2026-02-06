@@ -111,6 +111,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
@@ -445,6 +446,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -581,6 +583,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_RE
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID;
@@ -913,6 +917,7 @@ public class Config {
   private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
+  private final int metricsOtelCardinalityLimit;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -1003,6 +1008,9 @@ public class Config {
   private final int apiSecurityEndpointCollectionMessageLimit;
   private final int apiSecurityMaxDownstreamRequestBodyAnalysis;
   private final double apiSecurityDownstreamRequestBodyAnalysisSampleRate;
+
+  private final boolean traceResourceRenamingEnabled;
+  private final boolean traceResourceRenamingAlwaysSimplifiedEndpoint;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1886,6 +1894,17 @@ public class Config {
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
 
+    int cardinalityLimit =
+        configProvider.getInteger(
+            METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
+    if (cardinalityLimit < 0) {
+      log.warn(
+          "Invalid OTel metrics cardinality limit: {}. The value must be positive",
+          cardinalityLimit);
+      cardinalityLimit = DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+    }
+    metricsOtelCardinalityLimit = cardinalityLimit;
+
     int otelInterval =
         configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
     if (otelInterval < 0) {
@@ -2258,6 +2277,19 @@ public class Config {
             API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+
+    // Trace Resource Renaming (Endpoint Inference) configuration
+    // Default: enabled if AppSec is enabled, otherwise disabled
+    // Can be explicitly overridden by setting DD_TRACE_RESOURCE_RENAMING_ENABLED
+    Boolean traceResourceRenamingExplicit =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ENABLED);
+    this.traceResourceRenamingEnabled =
+        traceResourceRenamingExplicit != null
+            ? traceResourceRenamingExplicit
+            : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    this.traceResourceRenamingAlwaysSimplifiedEndpoint =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -3836,6 +3868,14 @@ public class Config {
     return instrumenterConfig.isApiSecurityEndpointCollectionEnabled();
   }
 
+  public boolean isTraceResourceRenamingEnabled() {
+    return traceResourceRenamingEnabled;
+  }
+
+  public boolean isTraceResourceRenamingAlwaysSimplifiedEndpoint() {
+    return traceResourceRenamingAlwaysSimplifiedEndpoint;
+  }
+
   public ProductActivation getIastActivation() {
     return instrumenterConfig.getIastActivation();
   }
@@ -5174,6 +5214,10 @@ public class Config {
     return metricsOtelEnabled;
   }
 
+  public int getMetricsOtelCardinalityLimit() {
+    return metricsOtelCardinalityLimit;
+  }
+
   public int getMetricsOtelInterval() {
     return metricsOtelInterval;
   }
@@ -6217,6 +6261,8 @@ public class Config {
         + metricsOtelInterval
         + ", metricsOtelTimeout="
         + metricsOtelTimeout
+        + ", metricsOtelCardinalityLimit="
+        + metricsOtelCardinalityLimit
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="

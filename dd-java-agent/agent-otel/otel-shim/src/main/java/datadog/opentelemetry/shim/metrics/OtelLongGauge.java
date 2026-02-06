@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongGauge;
 import io.opentelemetry.api.metrics.LongGaugeBuilder;
@@ -15,45 +16,51 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelLongGauge implements LongGauge {
+final class OtelLongGauge extends OtelInstrument implements LongGauge {
+  OtelLongGauge(OtelMetricStorage storage) {
+    super(storage);
+  }
 
   @Override
   public void set(long value) {
-    // FIXME: implement recording
+    set(value, Attributes.empty());
   }
 
   @Override
   public void set(long value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordLong(value, attributes);
   }
 
   @Override
-  public void set(long value, Attributes attributes, Context context) {
-    // FIXME: implement recording
+  public void set(long value, Attributes attributes, Context unused) {
+    set(value, attributes);
   }
 
   static final class Builder implements LongGaugeBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
-    Builder(OtelInstrumentBuilder builder) {
-      this.instrumentBuilder = ofLongs(builder, GAUGE);
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofLongs(builder, GAUGE);
     }
 
     @Override
     public LongGaugeBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public LongGaugeBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public LongGauge build() {
-      return new OtelLongGauge();
+      return new OtelLongGauge(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongValueStorage));
     }
 
     @Override
