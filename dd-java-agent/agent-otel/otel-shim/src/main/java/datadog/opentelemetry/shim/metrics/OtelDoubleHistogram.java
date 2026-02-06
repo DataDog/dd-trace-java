@@ -5,7 +5,6 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.opentelemetry.shim.metrics.data.OtelMetricStorage.newHistogramStorage;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.unmodifiableList;
 
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import datadog.trace.relocate.api.RatelimitedLogger;
@@ -87,8 +86,7 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
-        this.bucketBoundaries =
-            validateBoundaries(unmodifiableList(new ArrayList<>(bucketBoundaries)));
+        this.bucketBoundaries = validateBoundaries(new ArrayList<>(bucketBoundaries));
       } catch (IllegalArgumentException | NullPointerException e) {
         LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
       }

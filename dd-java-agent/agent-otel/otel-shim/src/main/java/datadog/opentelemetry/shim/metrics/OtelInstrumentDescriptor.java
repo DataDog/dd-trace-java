@@ -77,7 +77,7 @@ public final class OtelInstrumentDescriptor {
     return "OtelInstrumentDescriptor{"
         + "name='"
         + instrumentName
-        + (description != null ? ", description='" + description : "")
+        + (description != null ? "', description='" + description : "")
         + (unit != null ? "', unit='" + unit : "")
         + "', type="
         + instrumentType

@@ -4,7 +4,6 @@ import static datadog.opentelemetry.shim.metrics.OtelDoubleHistogram.Builder.val
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.opentelemetry.shim.metrics.data.OtelMetricStorage.newHistogramStorage;
-import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.toList;
 
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
@@ -81,9 +80,7 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
         this.bucketBoundaries =
-            validateBoundaries(
-                unmodifiableList(
-                    bucketBoundaries.stream().map(Long::doubleValue).collect(toList())));
+            validateBoundaries(bucketBoundaries.stream().map(Long::doubleValue).collect(toList()));
       } catch (IllegalArgumentException | NullPointerException e) {
         LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
       }
