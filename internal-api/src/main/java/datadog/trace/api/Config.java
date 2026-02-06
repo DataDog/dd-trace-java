@@ -111,6 +111,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
@@ -444,6 +445,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -913,6 +915,7 @@ public class Config {
   private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
+  private final int metricsOtelCardinalityLimit;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -1886,6 +1889,17 @@ public class Config {
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
+
+    int cardinalityLimit =
+        configProvider.getInteger(
+            METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
+    if (cardinalityLimit < 0) {
+      log.warn(
+          "Invalid OTel metrics cardinality limit: {}. The value must be positive",
+          cardinalityLimit);
+      cardinalityLimit = DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+    }
+    metricsOtelCardinalityLimit = cardinalityLimit;
 
     int otelInterval =
         configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
@@ -5189,6 +5203,10 @@ public class Config {
     return metricsOtelEnabled;
   }
 
+  public int getMetricsOtelCardinalityLimit() {
+    return metricsOtelCardinalityLimit;
+  }
+
   public int getMetricsOtelInterval() {
     return metricsOtelInterval;
   }
@@ -6232,6 +6250,8 @@ public class Config {
         + metricsOtelInterval
         + ", metricsOtelTimeout="
         + metricsOtelTimeout
+        + ", metricsOtelCardinalityLimit="
+        + metricsOtelCardinalityLimit
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="
