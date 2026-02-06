@@ -55,11 +55,11 @@ public class CorePublisherInstrumentation
       final Context context = extractContextFromSubscriberContext(subscriber);
 
       if (context != null) {
-        // we force storing the context state linked to publisher and subscriber to the one
-        // explicitly
-        // present in the reactor context so that, if PublisherInstrumentation is kicking in after
-        // this
-        // advice, it won't override that active context
+        /*
+         we force storing the context state linked to publisher and subscriber to the one
+         explicitly  present in the reactor context so that, if PublisherInstrumentation is kicking in
+         after this advice, it won't override that active context.
+        */
         InstrumentationContext.get(Publisher.class, Context.class).put(self, context);
         InstrumentationContext.get(Subscriber.class, Context.class).put(subscriber, context);
         return context.attach();

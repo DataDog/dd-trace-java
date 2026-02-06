@@ -40,7 +40,6 @@ public class CircuitBreakerOperatorInstrumentation
               result,
               CircuitBreakerDecorator.DECORATE,
               circuitBreaker,
-              // this needs to be separated from tracing
               InstrumentationContext.get(Publisher.class, Context.class)::put);
     }
   }
