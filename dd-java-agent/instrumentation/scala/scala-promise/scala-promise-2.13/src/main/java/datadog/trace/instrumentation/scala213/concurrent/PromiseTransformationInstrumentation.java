@@ -3,31 +3,23 @@ package datadog.trace.instrumentation.scala213.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.context.Context;
-import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.Promise.Transformation;
 import scala.util.Try;
 
 public final class PromiseTransformationInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   @Override
   public String instrumentedType() {
@@ -42,16 +34,6 @@ public final class PromiseTransformationInstrumentation
         isMethod().and(named("submitWithValue")), getClass().getName() + "$SubmitWithValue");
     transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
     transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // force other instrumentations (e.g. Runnable) not to deal with this type
-    Map<ExcludeFilter.ExcludeType, Collection<String>> map = new HashMap<>();
-    Collection<String> pt = Collections.singleton("scala.concurrent.impl.Promise$Transformation");
-    map.put(RUNNABLE, pt);
-    map.put(EXECUTOR, pt);
-    return map;
   }
 
   public static final class Construct {
