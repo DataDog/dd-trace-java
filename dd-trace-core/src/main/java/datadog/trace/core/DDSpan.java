@@ -392,7 +392,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public final DDSpan setTag(final String tag, final String value) {
     if (value == null || value.isEmpty()) {
       // Remove the tag
-      context.setTag(tag, null);
+      context.removeTag(tag);
     } else {
       context.setTag(tag, value);
     }
@@ -402,6 +402,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public final DDSpan setTag(TagMap.EntryReader entry) {
+    context.setTag(entry);
     return this;
   }
 
@@ -471,6 +477,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public DDSpan setMetric(final CharSequence metric, final double value) {
     context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setMetric(TagMap.EntryReader entry) {
+    context.setMetric(entry);
     return this;
   }
 
