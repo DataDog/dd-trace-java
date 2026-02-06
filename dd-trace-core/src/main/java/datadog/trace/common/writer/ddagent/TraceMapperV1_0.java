@@ -22,23 +22,19 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 /**
- * TraceMapperV1_0 implements the V1 trace payload format as specified in the V1 Efficient Trace
- * Payload Protocol RFC.
- *
- * <p>Key differences from V0.4/V0.5:
+ * TraceMapperV1_0 implements the V1 trace payload format.
  *
  * <ul>
- *   <li>Uses map with integer field IDs instead of string keys
- *   <li>String table (streaming strings) for efficient string encoding
- *   <li>Attributes encoded as arrays (key, type, value triplets)
- *   <li>Trace chunks as a separate structure with 128-bit trace ID
- *   <li>Promoted fields (env, version, component, span.kind) as separate span fields
- *   <li>Error as boolean instead of int
- *   <li>SpanKind as uint32 matching OTEL spec values
+ *   <li>Uses map with integer field IDs instead of string keys.
+ *   <li>String table (streaming strings) for efficient string encoding.
+ *   <li>Attributes encoded as arrays (key, type, value triplets).
+ *   <li>Trace chunks as a separate structure with 128-bit trace ID.
+ *   <li>Promoted fields (env, version, component, span.kind) as separate span fields.
+ *   <li>Error as boolean instead of int.
+ *   <li>SpanKind as uint32 matching OTEL spec values.
  * </ul>
  */
 public final class TraceMapperV1_0 implements TraceMapper {
-
   // Attribute value types (from V1 spec)
   static final int STRING_VALUE_TYPE = 1;
   static final int BOOL_VALUE_TYPE = 2;
@@ -229,7 +225,7 @@ public final class TraceMapperV1_0 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV1_0(stringTable);
+    return new PayloadV1_0();
   }
 
   @Override
@@ -379,55 +375,52 @@ public final class TraceMapperV1_0 implements TraceMapper {
 
       // Write baggage
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        writeAttribute(entry.getKey(), entry.getValue(), STRING_VALUE_TYPE);
+        writeString(entry.getKey(), entry.getValue());
       }
 
       // Write thread name
-      writeAttribute(DDTags.THREAD_NAME, metadata.getThreadName().toString(), STRING_VALUE_TYPE);
+      writeString(DDTags.THREAD_NAME, metadata.getThreadName().toString());
 
       // Write thread ID
-      writeAttribute(DDTags.THREAD_ID, metadata.getThreadId(), FLOAT_VALUE_TYPE);
+      writeLong(DDTags.THREAD_ID, metadata.getThreadId());
 
       // Write HTTP status code if present
       if (metadata.getHttpStatusCode() != null) {
-        writeAttribute(
-            Tags.HTTP_STATUS, metadata.getHttpStatusCode().toString(), STRING_VALUE_TYPE);
+        writeString(Tags.HTTP_STATUS, metadata.getHttpStatusCode().toString());
       }
 
       // Write origin if present
       if (metadata.getOrigin() != null) {
-        writeAttribute(DDTags.ORIGIN_KEY, metadata.getOrigin().toString(), STRING_VALUE_TYPE);
+        writeString(DDTags.ORIGIN_KEY, metadata.getOrigin().toString());
       }
 
       // Write process tags if present
       if (processTags != null) {
-        writeAttribute(DDTags.PROCESS_TAGS, processTags.toString(), STRING_VALUE_TYPE);
+        writeString(DDTags.PROCESS_TAGS, processTags.toString());
       }
 
       // Write sampling priority if needed
       if (writeSamplingPriority && metadata.hasSamplingPriority()) {
-        writeAttribute("_sampling_priority_v1", metadata.samplingPriority(), FLOAT_VALUE_TYPE);
+        writeInt("_sampling_priority_v1", metadata.samplingPriority());
       }
 
       // Write measured metric if needed
       if (metadata.measured()) {
-        writeAttribute(InstrumentationTags.DD_MEASURED.toString(), 1, FLOAT_VALUE_TYPE);
+        writeInt(InstrumentationTags.DD_MEASURED.toString(), 1);
       }
 
       // Write top level metric if needed
       if (metadata.topLevel()) {
-        writeAttribute(InstrumentationTags.DD_TOP_LEVEL.toString(), 1, FLOAT_VALUE_TYPE);
+        writeInt(InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
       }
 
       // Write long running version if needed
       if (metadata.longRunningVersion() != 0) {
         if (metadata.longRunningVersion() > 0) {
-          writeAttribute(
-              InstrumentationTags.DD_PARTIAL_VERSION.toString(),
-              metadata.longRunningVersion(),
-              FLOAT_VALUE_TYPE);
+          writeInt(
+              InstrumentationTags.DD_PARTIAL_VERSION.toString(), metadata.longRunningVersion());
         } else {
-          writeAttribute(InstrumentationTags.DD_WAS_LONG_RUNNING.toString(), 1, FLOAT_VALUE_TYPE);
+          writeInt(InstrumentationTags.DD_WAS_LONG_RUNNING.toString(), 1);
         }
       }
 
@@ -447,11 +440,11 @@ public final class TraceMapperV1_0 implements TraceMapper {
         if (value instanceof Map) {
           writeFlatMap(key, (Map<String, Object>) value);
         } else if (value instanceof Number) {
-          writeAttribute(key, ((Number) value).doubleValue(), FLOAT_VALUE_TYPE);
+          writeDouble(key, ((Number) value).doubleValue());
         } else if (value instanceof Boolean) {
-          writeAttribute(key, (Boolean) value, BOOL_VALUE_TYPE);
+          writeBoolean(key, (Boolean) value);
         } else {
-          writeAttribute(key, String.valueOf(value), STRING_VALUE_TYPE);
+          writeString(key, String.valueOf(value));
         }
       }
 
@@ -474,46 +467,33 @@ public final class TraceMapperV1_0 implements TraceMapper {
       writable.writeInt(getSpanKindValue(spanKind));
     }
 
-    private void writeAttribute(String key, String value, int valueType) {
+    private void writeString(String key, String value) {
       writeStreamingString(writable, key);
-      writable.writeInt(valueType);
+      writable.writeInt(STRING_VALUE_TYPE);
       writeStreamingString(writable, value);
     }
 
-    private void writeAttribute(String key, long value, int valueType) {
+    private void writeBoolean(String key, boolean value) {
       writeStreamingString(writable, key);
-      writable.writeInt(valueType);
-      // For FLOAT_VALUE_TYPE, write as double for consistency
-      if (valueType == FLOAT_VALUE_TYPE) {
-        writable.writeDouble((double) value);
-      } else {
-        writable.writeLong(value);
-      }
-    }
-
-    private void writeAttribute(String key, double value, int valueType) {
-      writeStreamingString(writable, key);
-      writable.writeInt(valueType);
-      writable.writeDouble(value);
-    }
-
-    private void writeAttribute(String key, boolean value, int valueType) {
-      writeStreamingString(writable, key);
-      writable.writeInt(valueType);
+      writable.writeInt(BOOL_VALUE_TYPE);
       writable.writeBoolean(value);
     }
 
-    private void writeAttribute(String key, int value, int valueType) {
-      writeStreamingString(writable, key);
-      writable.writeInt(valueType);
-      // For FLOAT_VALUE_TYPE, write as double for consistency
-      if (valueType == FLOAT_VALUE_TYPE) {
-        writable.writeDouble((double) value);
-      } else {
-        writable.writeInt(value);
-      }
+    private void writeInt(String key, int value) {
+      writeDouble(key, value);
     }
 
+    private void writeLong(String key, long value) {
+      writeDouble(key, value);
+    }
+
+    private void writeDouble(String key, double value) {
+      writeStreamingString(writable, key);
+      writable.writeInt(FLOAT_VALUE_TYPE);
+      writable.writeDouble(value);
+    }
+
+    @SuppressWarnings("unchecked")
     private int getFlatMapSize(Map<String, Object> map) {
       int size = 0;
       for (Object value : map.values()) {
@@ -526,6 +506,7 @@ public final class TraceMapperV1_0 implements TraceMapper {
       return size;
     }
 
+    @SuppressWarnings("unchecked")
     private void writeFlatMap(String key, Map<String, Object> mapValue) {
       for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
         String newKey = key + '.' + entry.getKey();
@@ -533,11 +514,11 @@ public final class TraceMapperV1_0 implements TraceMapper {
         if (newValue instanceof Map) {
           writeFlatMap(newKey, (Map<String, Object>) newValue);
         } else if (newValue instanceof Number) {
-          writeAttribute(newKey, ((Number) newValue).doubleValue(), FLOAT_VALUE_TYPE);
+          writeDouble(newKey, ((Number) newValue).doubleValue());
         } else if (newValue instanceof Boolean) {
-          writeAttribute(newKey, (Boolean) newValue, BOOL_VALUE_TYPE);
+          writeBoolean(newKey, (Boolean) newValue);
         } else {
-          writeAttribute(newKey, String.valueOf(newValue), STRING_VALUE_TYPE);
+          writeString(newKey, String.valueOf(newValue));
         }
       }
     }
@@ -545,12 +526,6 @@ public final class TraceMapperV1_0 implements TraceMapper {
 
   /** Payload implementation for V1.0 format. */
   private static class PayloadV1_0 extends Payload {
-    private final StringTable stringTable;
-
-    private PayloadV1_0(StringTable stringTable) {
-      this.stringTable = stringTable;
-    }
-
     @Override
     public int sizeInBytes() {
       // Map header + array header + body
