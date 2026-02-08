@@ -59,3 +59,11 @@ jobs:
         run: |
           git checkout -b "${{ steps.define-branch.outputs.branch }}"
           git push -u origin "${{ steps.define-branch.outputs.branch }}"
+
+      - name: Dispatch repository event to pin system tests
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: pin-system-tests
+          client-payload: '{"release-branch-name": "${{ steps.define-branch.outputs.branch }}"}'
