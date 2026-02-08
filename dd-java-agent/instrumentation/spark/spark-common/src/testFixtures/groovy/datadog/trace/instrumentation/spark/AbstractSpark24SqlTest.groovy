@@ -159,12 +159,12 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
 
         // Each metric is a dict { "metric_name": "metric_value", "type": "metric_type" }
         expectedMetric.each { key, expectedValue ->
-          assert actualMetric.containsKey(key): prefix + "metric key \"$key\" not found in $actualMetric"
+          assert actualMetric.containsKey(key): prefix + "metric key \"$key\" not found in $actualMetric. \n\tactual: $actual.metrics, \n\texpected: $expected.metrics"
 
           // Some metric values are duration that will varies between runs
           // In the case, setting the expected value to "any" skips the assertion
           def actualValue = actualMetric[key]
-          assert expectedValue == "any" || actualValue == expectedValue: prefix + "value of metric key \"$key\" does not match \"$expectedValue\", got $actualValue"
+          assert expectedValue == "any" || actualValue == expectedValue: prefix + "value of metric key \"$key\" does not match \"$expectedValue\", got $actualValue. \n\tactual: $actual.metrics, \n\texpected: $expected.metrics"
         }
       }
     }
@@ -297,7 +297,15 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                     "type": "sum"
                   },
                   {
+                    "avg hash probe (min, med, max)": "any",
+                    "type": "average"
+                  },
+                  {
                     "peak memory total (min, med, max)": "any",
+                    "type": "size"
+                  },
+                  {
+                    "spill size total (min, med, max)": "any",
                     "type": "size"
                   }
                 ],
@@ -317,7 +325,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                         },
                         "metrics": [
                           {
-                            "number of output rows": 3,
+                            "number of output rows": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
                             "type": "sum"
                           }
                         ]
@@ -367,11 +375,15 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                 "type": "average"
               },
               {
-                "number of output rows": 2,
+                "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoAIQAAAAAAAPA/",
                 "type": "sum"
               },
               {
                 "peak memory total (min, med, max)": "any",
+                "type": "size"
+              },
+              {
+                "spill size total (min, med, max)": "any",
                 "type": "size"
               }
             ],
@@ -572,6 +584,18 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                   {
                     "number of output rows": "any",
                     "type": "sum"
+                  },
+                  {
+                    "spill size total (min, med, max)": "any",
+                    "type": "size"
+                  },
+                  {
+                    "avg hash probe (min, med, max)": "any",
+                    "type": "average"
+                  },
+                  {
+                    "peak memory total (min, med, max)": "any",
+                    "type": "size"
                   }
                 ],
                 "children": [
@@ -629,6 +653,10 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     },
                                     "metrics": [
                                       {
+                                        "spill size total (min, med, max)": "any",
+                                        "type": "size"
+                                      },
+                                      {
                                         "peak memory total (min, med, max)": "any",
                                         "type": "size"
                                       },
@@ -677,8 +705,16 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
                                     },
                                     "metrics": [
                                       {
+                                        "spill size total (min, med, max)": "any",
+                                        "type": "size"
+                                      },
+                                      {
                                         "peak memory total (min, med, max)": "any",
                                         "type": "size"
+                                      },
+                                      {
+                                        "sort time total (min, med, max)": "any",
+                                        "type": "timing"
                                       }
                                     ],
                                     "children": [
@@ -731,7 +767,7 @@ abstract class AbstractSpark24SqlTest extends InstrumentationSpecification {
             },
             "metrics": [
               {
-                "number of output rows": 1,
+                "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YABoA",
                 "type": "sum"
               }
             ],
