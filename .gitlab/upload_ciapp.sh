@@ -3,6 +3,8 @@ SERVICE_NAME="dd-trace-java"
 CACHE_TYPE=$1
 TEST_JVM=$2
 
+# CI_JOB_NAME, CI_NODE_INDEX, and CI_NODE_TOTAL are read from GitLab CI environment
+
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
 JAVA_HOME="JAVA_${TEST_JVM}_HOME"
 JAVA_BIN="${!JAVA_HOME}/bin/java"
@@ -21,6 +23,22 @@ java_prop() {
 junit_upload() {
     # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
     # Overwriting the tag with the GitHub repo URL instead of the GitLab one. Otherwise, some Test Optimization features won't work.
+
+    # Build custom tags array directly from arguments
+    local custom_tags_args=()
+
+    # Extract job base name from CI_JOB_NAME (strip matrix suffix)
+    local job_base_name="${CI_JOB_NAME%%:*}"
+
+    # Add custom test configuration tags
+    custom_tags_args+=(--tags "test.configuration.jvm:${TEST_JVM}")
+    if [ -n "$CI_NODE_INDEX" ] && [ -n "$CI_NODE_TOTAL" ]; then
+        custom_tags_args+=(--tags "test.configuration.split:${CI_NODE_INDEX}/${CI_NODE_TOTAL}")
+    fi
+    if [ -n "$job_base_name" ]; then
+        custom_tags_args+=(--tags "test.configuration.job_name:${job_base_name}")
+    fi
+
     DD_API_KEY=$1 \
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
@@ -32,6 +50,7 @@ junit_upload() {
         --tags "os.platform:$(java_prop os.name)" \
         --tags "os.version:$(java_prop os.version)" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
+        "${custom_tags_args[@]}" \
         ./results
 }
 

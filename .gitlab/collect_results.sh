@@ -57,6 +57,14 @@ echo "Saving test results:"
 while IFS= read -r -d '' RESULT_XML_FILE
 do
   echo -n "- $RESULT_XML_FILE"
+  # Assuming the path looks like that: dd-java-agent/instrumentation/tomcat/tomcat-5.5/build/test-results/forkedTest/TEST-TomcatServletV1ForkedTest.xml
+  # it will extracts 3 components from the path (counting from the end), to form the new name AGGREGATED_FILE_NAME:
+  #
+  #  1. Field 1 (from end): The XML filename itself
+  #  2. Field 2 (from end): The test suite type (test, forkedTest, etc.)
+  #  3. Field 5 (from end): The module/subproject name
+  #
+  # E.g. for the example path: tomcat-5.5_forkedTest_TEST-TomcatServletV1ForkedTest.xml
   AGGREGATED_FILE_NAME=$(echo "$RESULT_XML_FILE" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   echo -n " as $AGGREGATED_FILE_NAME"
   cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
