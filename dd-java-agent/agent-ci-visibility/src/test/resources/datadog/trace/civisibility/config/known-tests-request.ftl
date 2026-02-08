@@ -23,6 +23,9 @@
             "${customTag}": "${customValue}"<#if customTag?has_next>, </#if>
           </#list>
         }
+      },
+      "page_info": {<#if pageInfo.pageState??>
+        "page_state": "${pageInfo.pageState}"</#if>
       }
     }
   }

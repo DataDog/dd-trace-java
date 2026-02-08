@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.util.Strings;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public class TracerEnvironment {
 
@@ -25,6 +26,10 @@ public class TracerEnvironment {
 
   private final Configurations configurations;
 
+  @Json(name = "page_info")
+  @Nullable
+  private final PageInfoRequest pageInfo;
+
   private TracerEnvironment(
       String service,
       String env,
@@ -32,7 +37,8 @@ public class TracerEnvironment {
       String branch,
       String sha,
       String commitMessage,
-      Configurations configurations) {
+      Configurations configurations,
+      @Nullable PageInfoRequest pageInfo) {
     this.service = service;
     this.env = env;
     this.repositoryUrl = repositoryUrl;
@@ -40,6 +46,7 @@ public class TracerEnvironment {
     this.sha = sha;
     this.commitMessage = commitMessage;
     this.configurations = configurations;
+    this.pageInfo = pageInfo;
   }
 
   public String getSha() {
@@ -72,6 +79,31 @@ public class TracerEnvironment {
 
   public Configurations getConfigurations() {
     return configurations;
+  }
+
+  @Nullable
+  public PageInfoRequest getPageInfo() {
+    return pageInfo;
+  }
+
+  /**
+   * Creates a copy of this TracerEnvironment with the specified pagination state. Used for
+   * paginated API requests where page_info needs to be included in the request attributes.
+   *
+   * @param pageState the cursor token for the next page (null for first page, which sends empty
+   *     page_info object to let backend use default page size)
+   * @return a new TracerEnvironment instance with page_info set
+   */
+  public TracerEnvironment withPageInfo(@Nullable String pageState) {
+    return new TracerEnvironment(
+        this.service,
+        this.env,
+        this.repositoryUrl,
+        this.branch,
+        this.sha,
+        this.commitMessage,
+        this.configurations,
+        new PageInfoRequest(pageState));
   }
 
   @Override
@@ -222,7 +254,27 @@ public class TracerEnvironment {
               runtimeVendor,
               runtimeArchitecture,
               testBundle,
-              customTags));
+              customTags),
+          null);
+    }
+  }
+
+  /**
+   * Request pagination information. When serialized as an empty object (no page_state), the backend
+   * uses its default page size. The page_state is only included for subsequent page requests.
+   */
+  public static final class PageInfoRequest {
+    @Json(name = "page_state")
+    @Nullable
+    private final String pageState;
+
+    public PageInfoRequest(@Nullable String pageState) {
+      this.pageState = pageState;
+    }
+
+    @Nullable
+    public String getPageState() {
+      return pageState;
     }
   }
 }
