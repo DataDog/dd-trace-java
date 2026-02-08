@@ -10,13 +10,17 @@ class RegularExecutionTest extends Specification {
     def executionPolicy = Regular.INSTANCE
 
     when:
-    def outcome = executionPolicy.registerExecution(TestStatus.pass, 0)
+    def outcome = executionPolicy.registerExecution(status, 0)
 
     then:
     outcome.retryReason() == null
-    !outcome.lastExecution()
+    outcome.lastExecution()
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == status
+
+    where:
+    status << [TestStatus.pass, TestStatus.fail, TestStatus.skip]
   }
 }

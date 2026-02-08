@@ -339,6 +339,7 @@
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.failure_suppressed" : "true",
+      "test.final_status" : "pass",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.has_failed_all_retries" : "true",
