@@ -1,6 +1,4 @@
 apply from: "$rootDir/gradle/java.gradle"
-// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 apply plugin: 'idea'
 
 testJvmConstraints {
@@ -47,6 +45,13 @@ tasks.named("previewTest", Test) {
 // Require the preview test suite to run as part of module check
 tasks.named("check") {
   dependsOn "previewTest"
+}
+
+// Use latest logback for Java 21+ tests with better virtual thread support.
+configurations.named("testRuntimeClasspath") {
+  resolutionStrategy {
+    force libs.logback.classic.latest
+  }
 }
 
 dependencies {
