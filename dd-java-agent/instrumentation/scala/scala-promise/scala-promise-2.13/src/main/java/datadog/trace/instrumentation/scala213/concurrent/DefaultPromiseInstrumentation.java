@@ -1,20 +1,17 @@
 package datadog.trace.instrumentation.scala213.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static scala.concurrent.impl.Promise.Transformation;
 
-import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.util.Try;
 
@@ -24,22 +21,12 @@ import scala.util.Try;
  * only pick up the completing span if the resolved {@code Try} doesn't have a an existing span set
  * from the {@code resolve} method.
  */
-@AutoService(InstrumenterModule.class)
-public class DefaultPromiseInstrumentation extends InstrumenterModule.Tracing
+public final class DefaultPromiseInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public DefaultPromiseInstrumentation() {
-    super("scala_promise_complete", "scala_concurrent");
-  }
 
   @Override
   public String instrumentedType() {
     return "scala.concurrent.impl.Promise$DefaultPromise";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("scala.util.Try", AgentSpan.class.getName());
   }
 
   @Override
@@ -48,19 +35,12 @@ public class DefaultPromiseInstrumentation extends InstrumenterModule.Tracing
         isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.scala.PromiseHelper"};
-  }
-
-  @Override
   public boolean isEnabled() {
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    return super.isEnabled()
-        && InstrumenterConfig.get()
-            .isIntegrationEnabled(
-                Collections.singletonList("scala_promise_completion_priority"), false);
+    return InstrumenterConfig.get()
+        .isIntegrationEnabled(
+            Collections.singletonList("scala_promise_completion_priority"), false);
   }
 
   public static final class TryComplete {
@@ -74,11 +54,11 @@ public class DefaultPromiseInstrumentation extends InstrumenterModule.Tracing
       }
       AgentSpan span = PromiseHelper.getSpan();
       if (null != span) {
-        ContextStore<Try, AgentSpan> contextStore =
-            InstrumentationContext.get(Try.class, AgentSpan.class);
-        AgentSpan existing = contextStore.get(resolved);
+        ContextStore<Try, Context> contextStore =
+            InstrumentationContext.get(Try.class, Context.class);
+        Context existing = contextStore.get(resolved);
         if (existing == null) {
-          Try<T> next = PromiseHelper.getTry(resolved, span, existing);
+          Try<T> next = PromiseHelper.getTry(resolved, span, null);
           if (next != resolved) {
             contextStore.put(next, span);
             resolved = next;
