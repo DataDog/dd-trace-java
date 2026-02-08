@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.Values;
 
@@ -12,7 +13,7 @@ public final class ObjectValue extends Literal<Object> {
   public static final ObjectValue THIS = new ObjectValue(Values.THIS_OBJECT);
 
   public ObjectValue(Object value) {
-    super(value == null ? Values.NULL_OBJECT : value);
+    super(value == null ? Values.NULL_OBJECT : value, ValueType.OBJECT);
   }
 
   @Override

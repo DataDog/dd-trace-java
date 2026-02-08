@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import datadog.trace.bootstrap.debugger.el.Values;
 
 /**
@@ -29,6 +30,11 @@ public interface CollectionValue<T> extends Value<T> {
         @Override
         public Object getValue() {
           return Values.UNDEFINED_OBJECT;
+        }
+
+        @Override
+        public ValueType getType() {
+          return ValueType.OBJECT;
         }
 
         @Override
@@ -67,6 +73,11 @@ public interface CollectionValue<T> extends Value<T> {
         @Override
         public Object getValue() {
           return Value.nullValue();
+        }
+
+        @Override
+        public ValueType getType() {
+          return ValueType.OBJECT;
         }
 
         @Override

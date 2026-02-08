@@ -3,6 +3,7 @@ package com.datadog.debugger.el.expressions;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
@@ -35,9 +36,9 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
       } else if (materialized.isUndefined()) {
         throw new RuntimeException("Cannot evaluate the expression for undefined value");
       } else if (materialized instanceof StringValue) {
-        return (NumericValue) Value.of(((StringValue) materialized).length());
+        return (NumericValue) Value.of(((StringValue) materialized).length(), ValueType.INT);
       } else if (materialized instanceof CollectionValue) {
-        return (NumericValue) Value.of(((CollectionValue) materialized).count());
+        return (NumericValue) Value.of(((CollectionValue) materialized).count(), ValueType.INT);
       }
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));

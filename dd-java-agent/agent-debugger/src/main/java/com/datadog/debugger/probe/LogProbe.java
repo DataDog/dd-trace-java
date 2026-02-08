@@ -683,7 +683,12 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (contextCapExpr != null && !contextCapExpr.isEmpty()) {
       CapturedContext newContext = new CapturedContext();
       for (CaptureExpression capExprDef : captureExpressions) {
-        newContext.addCaptureExpression(contextCapExpr.get(capExprDef.getName()));
+        CapturedContext.CapturedValue capturedValue = contextCapExpr.get(capExprDef.getName());
+        if (capturedValue != null) {
+          newContext.addCaptureExpression(capturedValue);
+        } else {
+          LOGGER.debug("{} capture expression not found in CapturedContext", capExprDef.getName());
+        }
       }
       setContext.accept(newContext);
     }
@@ -694,7 +699,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return;
     }
     for (CaptureExpression captureExpression : captureExpressions) {
-      LOGGER.debug("processing capture expressions: {}", captureExpression);
       try {
         Value<?> result = captureExpression.expr.execute(context);
         if (result.isUndefined()) {
@@ -706,19 +710,18 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
+            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
+                Value.toCapturedSnapshot(
                     captureExpression.getName(),
-                    Object.class.getTypeName(),
-                    result.getValue(),
+                    result,
                     captureExpression.capture.maxReferenceDepth,
                     captureExpression.capture.maxCollectionSize,
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
-                    captureExpression.getName(), Object.class.getTypeName(), result.getValue()));
+                Value.toCapturedSnapshot(captureExpression.getName(), result));
           }
         }
       } catch (EvaluationException ex) {

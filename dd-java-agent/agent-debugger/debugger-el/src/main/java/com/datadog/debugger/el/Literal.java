@@ -9,9 +9,11 @@ import java.util.Objects;
 public class Literal<ConstantType>
     implements Value<ConstantType>, ValueExpression<Value<ConstantType>> {
   protected final ConstantType value;
+  protected final ValueType type;
 
-  protected Literal(ConstantType value) {
+  protected Literal(ConstantType value, ValueType type) {
     this.value = value;
+    this.type = type;
   }
 
   @Override
@@ -32,6 +34,11 @@ public class Literal<ConstantType>
   @Override
   public ConstantType getValue() {
     return value;
+  }
+
+  @Override
+  public ValueType getType() {
+    return type;
   }
 
   @Override
