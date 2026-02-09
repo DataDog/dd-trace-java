@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SP
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
+import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -209,8 +210,8 @@ public interface AgentSpan
   }
 
   @Override
-  default Context storeInto(Context context) {
-    return context.with(SPAN_KEY, this);
+  default Context storeInto(@Nonnull Context context) {
+    return context == Context.root() ? this : context.with(SPAN_KEY, this);
   }
 
   @Nullable
@@ -223,5 +224,16 @@ public interface AgentSpan
   @Override
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
+  }
+
+  /**
+   * Creates a combined context based on this span with the current context and attaches it to the
+   * current execution unit. This maintains the visibility of any surrounding custom context during
+   * the span's scope.
+   *
+   * @return a scope to be closed when the combined context is invalid.
+   */
+  default ContextScope attachWithCurrent() {
+    return storeInto(Context.current()).attach();
   }
 }
