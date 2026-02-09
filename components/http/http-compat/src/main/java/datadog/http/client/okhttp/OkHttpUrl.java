@@ -73,7 +73,7 @@ public final class OkHttpUrl implements HttpUrl {
 
   @Override
   public String host() {
-    return delegate.host();
+    return delegate.uri().getHost();
   }
 
   @Override
