@@ -2,6 +2,7 @@ package datadog.http.client;
 
 import static java.util.Objects.requireNonNull;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -226,6 +227,7 @@ public final class HttpProviders {
     }
   }
 
+  @SuppressForbidden // Class#forName(String) used to dynamically load the http API implementation
   @NonNull
   private static Class<?> findClientClass(String defaultClientClass, String compatClientClass) {
     Class<?> clazz = null;
