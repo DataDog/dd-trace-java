@@ -1,6 +1,6 @@
 package datadog.trace.agent.test
 
-import static datadog.communication.http.OkHttpUtils.buildHttpClient
+import static datadog.communication.http.HttpUtils.buildHttpClient
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
