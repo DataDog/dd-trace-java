@@ -369,6 +369,43 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      */
     static final byte ANY = 0;
 
+    /** If value is non-null, returns a new TagMap.Entry If value is null, returns null */
+    public static final Entry create(String tag, Object value) {
+      // NOTE: From the static typing, it is possible that value is a primitive box, so need to call
+      // Any variant
+
+      return (value == null) ? null : TagMap.Entry.newAnyEntry(tag, value);
+    }
+
+    /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
+    public static final Entry create(String tag, CharSequence value) {
+      // NOTE: From the static typing, we know that value is not a primitive box
+
+      return (value == null || value.length() == 0)
+          ? null
+          : TagMap.Entry.newObjectEntry(tag, value);
+    }
+
+    public static final Entry create(String tag, boolean value) {
+      return TagMap.Entry.newBooleanEntry(tag, value);
+    }
+
+    public static final Entry create(String tag, int value) {
+      return TagMap.Entry.newIntEntry(tag, value);
+    }
+
+    public static final Entry create(String tag, long value) {
+      return TagMap.Entry.newLongEntry(tag, value);
+    }
+
+    public static final Entry create(String tag, float value) {
+      return TagMap.Entry.newFloatEntry(tag, value);
+    }
+
+    public static final Entry create(String tag, double value) {
+      return TagMap.Entry.newDoubleEntry(tag, value);
+    }
+
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
       return newAnyEntry(entry.getKey(), entry.getValue());
     }

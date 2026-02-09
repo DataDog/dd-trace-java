@@ -3,22 +3,17 @@ package datadog.trace.instrumentation.reactivestreams;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -26,17 +21,12 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 /**
- * This instrumentation is responsible for capturing the span when {@link
+ * This instrumentation is responsible for capturing the context when {@link
  * Publisher#subscribe(Subscriber)} is called. The state is then stored and will be used to
  * eventually propagate on the downstream signals.
  */
-@AutoService(InstrumenterModule.class)
-public class PublisherInstrumentation extends InstrumenterModule.Tracing
+public class PublisherInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public PublisherInstrumentation() {
-    super("reactive-streams", "reactive-streams-1");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -46,24 +36,6 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.reactivestreams.Publisher"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("org.reactivestreams.Subscriber", AgentSpan.class.getName());
-    ret.put("org.reactivestreams.Publisher", AgentSpan.class.getName());
-    return ret;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      this.packageName + ".ReactiveStreamsAsyncResultExtension",
-      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
-      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
-      this.packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription",
-    };
   }
 
   @Override
@@ -79,27 +51,27 @@ public class PublisherInstrumentation extends InstrumenterModule.Tracing
 
   public static class PublisherSubscribeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onSubscribe(
+    public static ContextScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
 
-      final AgentSpan span =
-          InstrumentationContext.get(Publisher.class, AgentSpan.class).remove(self);
-      final AgentSpan activeSpan = activeSpan();
-      if (s == null || (span == null && activeSpan == null)) {
+      final Context context =
+          InstrumentationContext.get(Publisher.class, Context.class).remove(self);
+      final Context activeContext = Java8BytecodeBridge.getCurrentContext();
+      if (s == null || (context == null && activeContext == null)) {
         return null;
       }
-      final AgentSpan current =
-          InstrumentationContext.get(Subscriber.class, AgentSpan.class)
-              .putIfAbsent(s, span != null ? span : activeSpan);
+      final Context current =
+          InstrumentationContext.get(Subscriber.class, Context.class)
+              .putIfAbsent(s, context != null ? context : activeContext);
       if (current != null) {
-        return activateSpan(current);
+        return current.attach();
       }
 
       return null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void afterSubscribe(@Advice.Enter final AgentScope scope) {
+    public static void afterSubscribe(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }
