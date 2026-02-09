@@ -227,9 +227,19 @@ public interface AgentSpan
   }
 
   /**
-   * Creates a combined context based on this span with the current context and attaches it to the
-   * current execution unit. This maintains the visibility of any surrounding custom context during
-   * the span's scope.
+   * Attaches a context containing just the span to the current execution unit. Use this when you
+   * want to temporarily suppress any surrounding custom context during the span's scope.
+   *
+   * @return a scope to be closed when the span context is invalid.
+   */
+  @Override
+  default ContextScope attach() {
+    return Context.super.attach();
+  }
+
+  /**
+   * Attaches a context combining the span with the current context to the current execution unit.
+   * Use this when you want to maintain any surrounding custom context during the span's scope.
    *
    * @return a scope to be closed when the combined context is invalid.
    */
