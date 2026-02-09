@@ -2265,6 +2265,14 @@
         "aliases": []
       }
     ],
+    "DD_METRICS_OTEL_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2000",
+        "aliases": []
+      }
+    ],
     "DD_OBFUSCATION_QUERY_STRING_REGEXP": [
       {
         "version": "A",
@@ -8809,6 +8817,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_RESOURCE_RENAMING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_RESOURCENAMERULE_ENABLED": [
       {
         "version": "A",
@@ -11078,6 +11102,14 @@
         "version": "B",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_JAVA_METRICS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2000",
         "aliases": []
       }
     ]
