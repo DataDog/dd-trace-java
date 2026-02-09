@@ -126,9 +126,6 @@ public final class GeneralConfig {
   public static final String APP_LOGS_COLLECTION_ENABLED = "app.logs.collection.enabled";
 
   public static final String HTTP_CLIENT_IMPLEMENTATION = "http.client.implementation";
-  public static final String HTTP_CLIENT_IMPLEMENTATION_AUTO = "auto";
-  public static final String HTTP_CLIENT_IMPLEMENTATION_JDK = "jdk";
-  public static final String HTTP_CLIENT_IMPLEMENTATION_OKHTTP = "okhttp";
 
   private GeneralConfig() {}
 }

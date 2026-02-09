@@ -378,5 +378,10 @@ public final class ConfigDefaults {
           "$.Credentials.SessionToken",
           "$.InventoryConfigurationList[*].Destination.S3BucketDestination.Encryption.SSEKMS.KeyId");
 
+  // HTTP_CLIENT_IMPLEMENTATION values
+  static final String HTTP_CLIENT_IMPLEMENTATION_AUTO = "auto";
+  static final String HTTP_CLIENT_IMPLEMENTATION_JDK = "jdk";
+  static final String HTTP_CLIENT_IMPLEMENTATION_OKHTTP = "okhttp";
+
   private ConfigDefaults() {}
 }
