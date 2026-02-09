@@ -297,7 +297,7 @@ class GithubActionsInfo implements CIProviderInfo {
     String lastMatch = null;
     while (matcher.find()) {
       String value = matcher.group(1);
-      // Strip decimal part if present (e.g., "12345.0" -> "12345")
+      // Strip decimal part if present
       int pointIdx = value.indexOf('.');
       if (pointIdx != -1) {
         lastMatch = value.substring(0, pointIdx);
