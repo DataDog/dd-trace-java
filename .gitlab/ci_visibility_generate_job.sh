@@ -61,21 +61,22 @@ fi
 
 echo "PR #$pr_number is a CI Visibility PR - triggering test environment"
 
-# Check if matching branch exists in test-environment
+# Check for test-environment branch override in PR body
 set +e
 target_branch="main"
-echo "DEBUG: Looking for branch '$CI_COMMIT_BRANCH' in test-environment"
-echo "DEBUG: Listing all branches in test-environment:"
-gh api "repos/DataDog/test-environment/branches" --jq '.[].name' 2>&1
-echo "DEBUG: Attempting to fetch branch '$CI_COMMIT_BRANCH':"
-branch_check=$(gh api "repos/DataDog/test-environment/branches/$CI_COMMIT_BRANCH" 2>&1)
-branch_check_status=$?
-echo "DEBUG: API response (status=$branch_check_status): $branch_check"
-if [ $branch_check_status -eq 0 ]; then
-  echo "Found matching branch '$CI_COMMIT_BRANCH' in test-environment - using it"
-  target_branch="$CI_COMMIT_BRANCH"
+pr_body=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json body --jq '.body' 2>&1)
+pr_body_status=$?
+if [ $pr_body_status -eq 0 ] && [ -n "$pr_body" ]; then
+  # Look for "test-environment-branch: <branch-name>" in PR body
+  override_branch=$(echo "$pr_body" | grep -oP '(?<=test-environment-branch:\s)[\S]+' | head -1)
+  if [ -n "$override_branch" ]; then
+    echo "Found test-environment branch override in PR body: '$override_branch'"
+    target_branch="$override_branch"
+  else
+    echo "No test-environment-branch override in PR body - using default 'main'"
+  fi
 else
-  echo "No matching branch in test-environment - defaulting to 'main'"
+  echo "Could not read PR body (status=$pr_body_status) - using default 'main'"
 fi
 set -e
 
