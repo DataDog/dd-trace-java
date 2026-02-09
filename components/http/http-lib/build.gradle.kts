@@ -1,6 +1,7 @@
 plugins {
   `java-library`
   idea
+  id("dd-trace-java.test-jvm-constraints")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -18,4 +19,8 @@ java {
 dependencies {
   api(project(":components:http:http-api"))
   testImplementation(testFixtures(project(":components:http:http-api")))
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
