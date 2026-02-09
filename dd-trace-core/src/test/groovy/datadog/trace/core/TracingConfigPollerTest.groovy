@@ -2,6 +2,8 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
@@ -10,8 +12,6 @@ import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.core.test.DDCoreSpecification
 import java.nio.charset.StandardCharsets
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import spock.lang.Timeout
 
 @Timeout(10)
@@ -106,9 +106,9 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     def serviceKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/service_config/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
@@ -227,9 +227,9 @@ class TracingConfigPollerTest extends DDCoreSpecification {
     def orgConfig2Key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config2")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
