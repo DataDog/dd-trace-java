@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.http.client.HttpUrl
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
@@ -13,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
 import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Timeout
@@ -330,7 +330,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
   }
 
   def createIntakeApi(String url, TrackType trackType) {
-    HttpUrl hostUrl = HttpUrl.get(url)
+    HttpUrl hostUrl = HttpUrl.parse(url)
     return DDIntakeApi.builder().hostUrl(hostUrl).trackType(trackType).apiKey(apiKey).build()
   }
 
