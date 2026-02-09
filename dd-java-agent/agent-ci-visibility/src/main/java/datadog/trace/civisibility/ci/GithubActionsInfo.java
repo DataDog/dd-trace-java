@@ -21,9 +21,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -260,21 +257,22 @@ class GithubActionsInfo implements CIProviderInfo {
     }
 
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, "Worker_*.log")) {
-      List<Path> workerFiles = new ArrayList<>();
-      for (Path path : stream) {
-        workerFiles.add(path);
+      // Find the most recent file by filename (contains timestamp like
+      // Worker_20260130-154110-utc.log)
+      Path mostRecentLog = null;
+      for (Path workerLog : stream) {
+        if (mostRecentLog == null
+            || workerLog.getFileName().toString().compareTo(mostRecentLog.getFileName().toString())
+                > 0) {
+          mostRecentLog = workerLog;
+        }
       }
 
-      if (workerFiles.isEmpty()) {
+      if (mostRecentLog == null) {
         return null;
       }
 
-      // Sort by filename in descending order to get the most recent file first
-      workerFiles.sort(
-          Comparator.comparing(p -> p.getFileName().toString(), Comparator.reverseOrder()));
-
-      Path workerFile = workerFiles.get(0);
-      String content = new String(Files.readAllBytes(workerFile), StandardCharsets.UTF_8);
+      String content = new String(Files.readAllBytes(mostRecentLog), StandardCharsets.UTF_8);
       return parseCheckRunIdFromContent(content);
     } catch (IOException e) {
       LOGGER.debug("Error reading diagnostics directory: {}", directory, e);
@@ -299,14 +297,10 @@ class GithubActionsInfo implements CIProviderInfo {
     String lastMatch = null;
     while (matcher.find()) {
       String value = matcher.group(1);
-      // Convert from double format (e.g., "12345.0") to integer string
-      if (value.contains(".")) {
-        try {
-          long longValue = (long) Double.parseDouble(value);
-          lastMatch = String.valueOf(longValue);
-        } catch (NumberFormatException e) {
-          LOGGER.debug("Error parsing check_run_id value: {}", value, e);
-        }
+      // Strip decimal part if present (e.g., "12345.0" -> "12345")
+      int pointIdx = value.indexOf('.');
+      if (pointIdx != -1) {
+        lastMatch = value.substring(0, pointIdx);
       } else {
         lastMatch = value;
       }
