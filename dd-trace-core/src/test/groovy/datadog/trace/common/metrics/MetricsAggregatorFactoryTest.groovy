@@ -1,10 +1,10 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
-import okhttp3.HttpUrl
 
 class MetricsAggregatorFactoryTest extends DDSpecification {
 

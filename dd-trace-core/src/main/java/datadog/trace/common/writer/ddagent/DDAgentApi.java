@@ -1,6 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.communication.http.HttpUtils.APPLICATION_MSGPACK;
 import static datadog.communication.http.HttpUtils.prepareRequest;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -116,6 +118,7 @@ public class DDAgentApi extends RemoteApi {
                           || !Config.get().isApmTracingEnabled()
                       ? "true"
                       : "")
+              .addHeader(CONTENT_TYPE, APPLICATION_MSGPACK)
               .put(payload.toRequest())
               .build();
       this.totalTraces += payload.traceCount();

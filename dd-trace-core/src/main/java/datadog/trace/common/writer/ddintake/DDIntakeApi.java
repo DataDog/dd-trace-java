@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddintake;
 
+import static datadog.communication.http.HttpUtils.APPLICATION_MSGPACK;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.api.intake.TrackType.NOOP;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
@@ -128,6 +130,7 @@ public class DDIntakeApi extends RemoteApi {
         HttpRequest.newBuilder()
             .url(intakeUrl)
             .addHeader(DD_API_KEY_HEADER, apiKey)
+            .addHeader(CONTENT_TYPE, APPLICATION_MSGPACK)
             .addHeader(CONTENT_ENCODING_HEADER, GZIP_CONTENT_TYPE)
             .post(payload.toRequest())
             .listener(telemetryListener)

@@ -1,33 +1,32 @@
 package datadog.trace
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import java.lang.reflect.Type
 import org.testcontainers.containers.FixedHostPortGenericContainer
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-import java.lang.reflect.Type
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
-
 class TracerConnectionReliabilityTest extends DDSpecification {
   final static FEATURES_DISCOVERY_MIN_DELAY = 10
 
   @Shared
-  OkHttpClient client
+  HttpClient client
   @Shared
   JsonAdapter<List<SentTraces>> traceJsonAdapter
 
@@ -36,7 +35,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
   CoreTracer tracer
 
   def setupSpec() {
-    client = new OkHttpClient()
+    client = HttpClient.newBuilder().build()
     // Create body parser for /test/traces route
     def moshi = new Moshi.Builder().build()
     Type type = Types.newParameterizedType(List, Types.newParameterizedType(List, SentTraces))
@@ -50,7 +49,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
     def properties = new Properties()
     properties.put("trace.agent.port", Integer.toString(agentContainerPort))
     def sharedCommunicationObjects = new SharedCommunicationObjects()
-    sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost:" + agentContainerPort)
+    sharedCommunicationObjects.agentUrl = HttpUrl.parse("http://localhost:" + agentContainerPort)
     sharedCommunicationObjects.agentHttpClient = client
     def fixedFeaturesDiscovery = new FixedTraceEndpointFeaturesDiscovery(sharedCommunicationObjects)
     sharedCommunicationObjects.setFeaturesDiscovery(fixedFeaturesDiscovery)
@@ -137,11 +136,11 @@ class TracerConnectionReliabilityTest extends DDSpecification {
   }
 
   def getTraceCount(GenericContainer agentContainer) {
-    def request = new Request.Builder()
+    def request = HttpRequest.newBuilder()
       .url("http://${agentContainer.host}:${agentContainerPort}/test/traces")
       .build()
-    def execute = client.newCall(request).execute()
-    def body = execute.body().string()
+    def execute = client.execute(request)
+    def body = execute.bodyAsString()
     return traceJsonAdapter.fromJson(body).size()
   }
 

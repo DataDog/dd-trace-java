@@ -1,5 +1,7 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
@@ -10,8 +12,8 @@ import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.http.client.HttpClient
 import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
-import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -23,17 +25,13 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
-import org.msgpack.jackson.dataformat.MessagePackFactory
-import spock.lang.Shared
-import spock.lang.Timeout
-
 import java.nio.ByteBuffer
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.lang.Shared
+import spock.lang.Timeout
 
 @Timeout(20)
 class DDAgentApiTest extends DDCoreSpecification {
@@ -351,22 +349,6 @@ class DDAgentApiTest extends DDCoreSpecification {
     "v0.5/traces" | 65538 + 1 + 1  | (1..((1 << 16) - 1)).collect { [] }
     "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
     // spotless:on
-  }
-
-  def "Embedded HTTP client rejects async requests"() {
-    setup:
-    def agent = newAgent("v0.5/traces")
-    def (discovery, client) = createAgentApi(agent.address.toString())
-    discovery.discover()
-    def httpExecutorService = client.httpClient.dispatcher().executorService()
-    when:
-    httpExecutorService.execute({})
-    then:
-    thrown RejectedExecutionException
-    and:
-    httpExecutorService.isShutdown()
-    cleanup:
-    agent.close()
   }
 
   void 'test metaStruct support on the encoded spans'() {

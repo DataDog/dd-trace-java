@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddintake;
 
+import static datadog.communication.http.HttpUtils.APPLICATION_MSGPACK;
+import static datadog.http.client.HttpRequest.CONTENT_TYPE;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_TIMEOUT;
 import static datadog.trace.common.writer.DDIntakeWriter.DEFAULT_INTAKE_VERSION;
 
@@ -133,6 +135,7 @@ public class DDEvpProxyApi extends RemoteApi {
         HttpRequest.newBuilder()
             .url(proxiedApiUrl)
             .addHeader(DD_EVP_SUBDOMAIN_HEADER, subdomain)
+            .addHeader(CONTENT_TYPE, APPLICATION_MSGPACK)
             .listener(telemetryListener);
 
     if (isCompressionEnabled()) {

@@ -1,24 +1,19 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.test.util.DDSpecification
-import okhttp3.Call
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
-
-import java.nio.ByteBuffer
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicBoolean
-
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
+
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpResponse
+import datadog.trace.test.util.DDSpecification
+import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class HttpSinkTest extends DDSpecification {
 
@@ -27,7 +22,7 @@ class HttpSinkTest extends DDSpecification {
     String agentUrl = "http://localhost:8126"
     String path = V06_METRICS_ENDPOINT
     EventListener listener = Mock(EventListener)
-    OkHttpClient client = Mock(OkHttpClient)
+    HttpClient client = Mock(HttpClient)
     HttpSink sink = new HttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
 
@@ -35,7 +30,7 @@ class HttpSinkTest extends DDSpecification {
     sink.accept(0, ByteBuffer.allocate(0))
 
     then:
-    1 * client.newCall(_) >> { Request request -> respond(request, responseCode) }
+    1 * client.execute(_) >> { HttpRequest request -> respond(responseCode) }
     1 * listener.onEvent(eventType, _)
 
     where:
@@ -61,7 +56,7 @@ class HttpSinkTest extends DDSpecification {
     String path = V06_METRICS_ENDPOINT
     CountDownLatch latch = new CountDownLatch(2)
     EventListener listener = new BlockingListener(latch)
-    OkHttpClient client = Mock(OkHttpClient)
+    HttpClient client = Mock(HttpClient)
     HttpSink sink = new HttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
     sink.register(listener)
     AtomicBoolean first = new AtomicBoolean(true)
@@ -71,13 +66,13 @@ class HttpSinkTest extends DDSpecification {
     sink.accept(1, ByteBuffer.allocate(0))
     latch.await()
     then: "the second request degrades to async mode"
-    2 * client.newCall(_) >> { Request request ->
+    2 * client.execute(_) >> { HttpRequest request ->
       if (first.compareAndSet(true, false)) {
         Thread.sleep(1001)
       } else {
         assert sink.isInDegradedMode()
       }
-      respond(request, 200)
+      respond(200)
     }
     listener.events.size() == 2
     for (EventListener.EventType eventType : listener.events) {
@@ -89,29 +84,20 @@ class HttpSinkTest extends DDSpecification {
     when: "the agent has recovered and has responded quickly once"
     sink.accept(1, ByteBuffer.allocate(0))
     then: "the request was sent synchronously"
-    1 * client.newCall(_) >> { Request request -> respond(request, 200) }
+    1 * client.execute(_) >> { HttpRequest request -> respond(200) }
     asyncRequests == sink.asyncRequestCount()
     !sink.isInDegradedMode()
   }
 
-  def respond(Request request, int code) {
+  def respond(int code) {
     if (0 == code) {
-      return error(request)
+      throw new IOException("thrown by test")
     }
-    return Mock(Call) {
-      it.execute() >> new Response.Builder()
-        .code(code)
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .message("message")
-        .body(ResponseBody.create(MediaType.get("text/plain"), "message"))
-        .build()
-    }
-  }
-
-  def error(Request request) {
-    return Mock(Call) {
-      it.execute() >> { throw new IOException("thrown by test") }
+    return Mock(HttpResponse) {
+      it.code() >> code
+      it.isSuccessful() >> { code >= 200 && code < 400 }
+      it.bodyAsString() >> "message"
+      it.close() >> {}
     }
   }
 

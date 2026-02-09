@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.http.client.HttpUrl
 import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
@@ -14,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
 import org.apache.commons.io.IOUtils
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Timeout
@@ -306,7 +306,7 @@ class DDEvpProxyApiTest extends DDCoreSpecification {
 
   def createEvpProxyApi(String agentUrl, String evpProxyEndpoint, TrackType trackType, boolean compressionEnabled) {
     return DDEvpProxyApi.builder()
-    .agentUrl(HttpUrl.get(agentUrl))
+    .agentUrl(HttpUrl.parse(agentUrl))
     .evpProxyEndpoint(evpProxyEndpoint)
     .trackType(trackType)
     .compressionEnabled(compressionEnabled)

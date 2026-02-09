@@ -4,6 +4,10 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpResponse
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.api.intake.TrackType
 import datadog.trace.common.sampling.Sampler
@@ -15,14 +19,6 @@ import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
 import java.util.stream.Collectors
-import okhttp3.Call
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody
 
 class WriterFactoryTest extends DDSpecification {
 
@@ -40,14 +36,12 @@ class WriterFactoryTest extends DDSpecification {
     def response = buildHttpResponse(hasEvpProxy, evpProxySupportsCompression, HttpUrl.parse(config.agentUrl + "/info"))
 
     // Mock HTTP client that simulates delayed response for async feature discovery
-    def mockCall = Mock(Call)
-    def mockHttpClient = Mock(OkHttpClient)
-    mockCall.execute() >> {
-      // Add a delay
-      sleep(400)
-      return response
+    def mockHttpClient = Mock(HttpClient) {
+      execute(_ as HttpRequest) >> {
+        sleep(400)
+        response
+      }
     }
-    mockHttpClient.newCall(_ as Request) >> mockCall
 
     // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
@@ -116,14 +110,12 @@ class WriterFactoryTest extends DDSpecification {
     }
 
     // Mock HTTP client that simulates delayed response for async feature discovery
-    def mockCall = Mock(Call)
-    def mockHttpClient = Mock(OkHttpClient)
-    mockCall.execute() >> {
-      // Add a delay
-      sleep(400)
-      return response
+    def mockHttpClient = Mock(HttpClient) {
+      execute(_ as HttpRequest) >> {
+        sleep(400)
+        response
+      }
     }
-    mockHttpClient.newCall(_ as Request) >> mockCall
 
     // Create SharedCommunicationObjects with mocked HTTP client
     def sharedComm = new SharedCommunicationObjects()
@@ -165,8 +157,8 @@ class WriterFactoryTest extends DDSpecification {
     "DDIntakeWriter"                           | false        | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
   }
 
-  Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
-    def endpoints = []
+  HttpResponse buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
+    def endpoints
     if (hasEvpProxy && evpProxySupportsCompression) {
       endpoints = [DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT]
     } else if (hasEvpProxy) {
@@ -180,21 +172,17 @@ class WriterFactoryTest extends DDSpecification {
       "endpoints"  : endpoints,
     ]
 
-    def builder = new Response.Builder()
-    .code(200)
-    .message("OK")
-    .protocol(Protocol.HTTP_1_1)
-    .request(new Request.Builder().url(agentUrl.resolve("/info")).build())
-    .body(ResponseBody.create(MediaType.parse("application/json"), new JsonBuilder(response).toString()))
-    return builder.build()
+    return Mock(HttpResponse) {
+      code() >> 200
+      isSuccessful() >> true
+      bodyAsString() >> new JsonBuilder(response).toString()
+    }
   }
 
-  Response buildHttpResponseNotOk(HttpUrl agentUrl) {
-    def builder = new Response.Builder()
-    .code(500)
-    .message("ERROR")
-    .protocol(Protocol.HTTP_1_1)
-    .request(new Request.Builder().url(agentUrl.resolve("/info")).build())
-    return builder.build()
+  HttpResponse buildHttpResponseNotOk(HttpUrl agentUrl) {
+    return Mock(HttpResponse) {
+      code() >> 500
+      isSuccessful() >> false
+    }
   }
 }

@@ -2,6 +2,8 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
@@ -22,8 +24,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import spock.lang.Timeout
 
 import java.nio.charset.StandardCharsets
@@ -55,8 +55,6 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     tracer.close()
   }
-
-
 
   def "verify overriding sampler"() {
     setup:
@@ -258,9 +256,9 @@ class CoreTracerTest extends DDCoreSpecification {
     def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
@@ -358,9 +356,9 @@ class CoreTracerTest extends DDCoreSpecification {
     def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
@@ -412,9 +410,9 @@ class CoreTracerTest extends DDCoreSpecification {
     def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
@@ -519,9 +517,9 @@ class CoreTracerTest extends DDCoreSpecification {
     def key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config")
     def poller = Mock(ConfigurationPoller)
     def sco = new SharedCommunicationObjects(
-      agentHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(HttpClient),
       monitoring: Mock(Monitoring),
-      agentUrl: HttpUrl.get('https://example.com'),
+      agentUrl: HttpUrl.parse('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery),
       configurationPoller: poller
       )
