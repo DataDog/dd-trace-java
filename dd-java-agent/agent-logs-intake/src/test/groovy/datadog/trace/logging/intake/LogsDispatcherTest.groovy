@@ -8,7 +8,6 @@ import datadog.http.client.HttpRequestBody
 import datadog.http.client.HttpRequestListener
 import java.util.zip.GZIPInputStream
 import javax.annotation.Nullable
-import okio.Buffer
 import spock.lang.Specification
 
 class LogsDispatcherTest extends Specification {
@@ -78,9 +77,9 @@ class LogsDispatcherTest extends Specification {
 
       requestsReceived++
 
-      def buffer = new Buffer()
-      requestBody.writeTo(buffer)
-      try (def is = new GZIPInputStream(buffer.inputStream())) {
+      def baos = new ByteArrayOutputStream()
+      requestBody.writeTo(baos)
+      try (def is = new GZIPInputStream(new ByteArrayInputStream(baos.toByteArray()))) {
         def json = IOUtils.readFully(is)
         messages.addAll(listJsonAdapter.fromJson(json))
       }
