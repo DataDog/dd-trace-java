@@ -16,6 +16,7 @@ import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import java.util.concurrent.atomic.AtomicInteger
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -188,7 +189,7 @@ class ConfigurationApiImplTest extends Specification {
   def "test known tests request with pagination"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
-    def requestCount = new java.util.concurrent.atomic.AtomicInteger(0)
+    def requestCount = new AtomicInteger(0)
 
     // Define page responses
     def page1 = '{"data":{"id":"page1","type":"ci_app_libraries_tests","attributes":{"tests":{"module-a":{"suite-a":["test-1","test-2"]}},"page_info":{"size":2,"has_next":true,"cursor":"cursor-page-2"}}}}'

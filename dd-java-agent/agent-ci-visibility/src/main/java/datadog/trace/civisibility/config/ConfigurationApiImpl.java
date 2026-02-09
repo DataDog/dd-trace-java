@@ -65,6 +65,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<KnownTestsRequestDto>> knownTestsRequestAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementDto>> testManagementRequestAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
@@ -103,6 +104,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifierJson.class);
     testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
+
+    ParameterizedType knownTestsRequestType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsRequestDto.class);
+    knownTestsRequestAdapter = moshi.adapter(knownTestsRequestType);
 
     ParameterizedType testFullNamesResponseType =
         Types.newParameterizedTypeWithOwner(
@@ -279,11 +285,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       LOGGER.debug(
           "Fetching known tests page #{}{}", pageNumber, pageState != null ? " with cursor" : "");
       String uuid = uuidGenerator.get();
-      TracerEnvironment requestEnvironment = tracerEnvironment.withPageInfo(pageState);
-      EnvelopeDto<TracerEnvironment> request =
-          new EnvelopeDto<>(
-              new DataDto<>(uuid, "ci_app_libraries_tests_request", requestEnvironment));
-      String json = requestAdapter.toJson(request);
+      KnownTestsRequestDto requestDto = new KnownTestsRequestDto(tracerEnvironment, pageState);
+      EnvelopeDto<KnownTestsRequestDto> request =
+          new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", requestDto));
+      String json = knownTestsRequestAdapter.toJson(request);
       RequestBody requestBody = RequestBody.create(JSON, json);
       KnownTestsDto knownTests =
           backendApi.post(
@@ -592,6 +597,34 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       this.cursor = cursor;
       this.size = size;
       this.hasNext = hasNext;
+    }
+  }
+
+  private static final class KnownTestsRequestDto {
+    @Json(name = "repository_url")
+    private final String repositoryUrl;
+
+    private final String service;
+    private final String env;
+
+    @Json(name = "page_info")
+    private final PageInfoRequest pageInfo;
+
+    private KnownTestsRequestDto(TracerEnvironment tracerEnvironment, @Nullable String pageState) {
+      this.repositoryUrl = tracerEnvironment.getRepositoryUrl();
+      this.service = tracerEnvironment.getService();
+      this.env = tracerEnvironment.getEnv();
+      this.pageInfo = new PageInfoRequest(pageState);
+    }
+
+    private static final class PageInfoRequest {
+      @Json(name = "page_state")
+      @Nullable
+      private final String pageState;
+
+      private PageInfoRequest(@Nullable String pageState) {
+        this.pageState = pageState;
+      }
     }
   }
 
