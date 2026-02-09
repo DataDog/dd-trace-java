@@ -19,7 +19,7 @@ jobs:
           policy: self.update-jmxfetch-submodule.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
       - name: Update Submodule
         run: |
@@ -47,7 +47,7 @@ jobs:
           git commit -m "feat(ci): Update agent-jmxfetch submodule" dd-java-agent/agent-jmxfetch/integrations-core
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       - name: Push changes
-        uses: DataDog/commit-headless@5a0f3876e0fbdd3a86b3e008acf4ec562db59eee # action/v2.0.1
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
         if: steps.check-changes.outputs.commit_changes == 'true'
         with:
           token: "${{ steps.octo-sts.outputs.token }}"

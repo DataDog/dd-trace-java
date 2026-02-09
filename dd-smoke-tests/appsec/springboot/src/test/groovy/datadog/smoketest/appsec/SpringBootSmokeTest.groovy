@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -222,7 +223,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                 inputs: [
                   [
                     address : "server.io.net.request.headers",
-                    key_path: ["Witness"]
+                    key_path: ["witness"]
                   ]
                 ],
                 list: ["pwq3ojtropiw3hjtowir"]
@@ -1024,12 +1025,32 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     variant << httpClientDownstreamAnalysisVariants()
   }
 
-  private RootSpan assertDownstreamTrace() {
-    waitForTraceCount(2) // original + echo
+  void 'API Security downstream response redirect'() {
+    when:
+    final url =HttpUrl.parse("http://localhost:${httpPort}/api_security/http_client/${variant}")
+      .newBuilder()
+      .addQueryParameter('redirect', 'true')
+      .build()
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    assertDownstreamTrace(2)
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  private RootSpan assertDownstreamTrace(int downstreamCount = 1) {
+    waitForTraceCount(downstreamCount + 1) // original one plus all downstream requests
 
     final rootSpans = this.rootSpans.toList()
     final span = rootSpans.find { it.getSpan().resource.contains('/api_security/http_client') }
-    span.metrics['_dd.appsec.downstream_request'] == 1
+    assert span.metrics['_dd.appsec.downstream_request'] == downstreamCount
 
     return span
   }

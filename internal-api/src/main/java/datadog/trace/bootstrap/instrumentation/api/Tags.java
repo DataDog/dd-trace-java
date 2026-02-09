@@ -19,6 +19,7 @@ public class Tags {
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_ENDPOINT = "http.endpoint";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
   public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";
@@ -174,4 +175,6 @@ public class Tags {
   public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
   public static final String LLMOBS_EMBEDDING_SPAN_KIND = "embedding";
   public static final String LLMOBS_RETRIEVAL_SPAN_KIND = "retrieval";
+  public static final String DSM_TRANSACTION_ID = "dsm.transaction.id";
+  public static final String DSM_TRANSACTION_CHECKPOINT = "dsm.transaction.checkpoint";
 }

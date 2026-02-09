@@ -20,8 +20,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.3"
-  id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+  id("com.gradle.develocity") version "4.3.2"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
@@ -106,6 +106,9 @@ include(
   ":components:environment",
   ":components:json",
   ":components:native-loader",
+  ":products:metrics:metrics-agent",
+  ":products:metrics:metrics-api",
+  ":products:metrics:metrics-lib",
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
@@ -143,10 +146,10 @@ include(":dd-java-agent:agent-aiguard")
 
 // Feature Flagging
 include(
-  ":products:feature-flagging:agent",
-  ":products:feature-flagging:api",
-  ":products:feature-flagging:bootstrap",
-  ":products:feature-flagging:lib"
+  ":products:feature-flagging:feature-flagging-agent",
+  ":products:feature-flagging:feature-flagging-api",
+  ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-lib"
 )
 
 // misc
@@ -156,6 +159,7 @@ include(
   ":utils:container-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
   ":utils:test-utils",
@@ -300,6 +304,7 @@ include(
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:caffeine-1.0",
   ":dd-java-agent:instrumentation:cdi-1.2",
+  ":dd-java-agent:instrumentation:cics-9.1",
   ":dd-java-agent:instrumentation:commons-codec-1.1",
   ":dd-java-agent:instrumentation:commons-fileupload-1.5",
   ":dd-java-agent:instrumentation:commons-httpclient-2.0",
@@ -477,6 +482,7 @@ include(
   ":dd-java-agent:instrumentation:ognl-appsec-3.3.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
+  ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",
@@ -499,8 +505,11 @@ include(
   ":dd-java-agent:instrumentation:play-ws:play-ws-common",
   ":dd-java-agent:instrumentation:play:play-2.3",
   ":dd-java-agent:instrumentation:play:play-2.4",
-  ":dd-java-agent:instrumentation:play:play-appsec-2.5",
   ":dd-java-agent:instrumentation:play:play-2.6",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.5",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.6",
+  ":dd-java-agent:instrumentation:play:play-appsec-2.7",
+  ":dd-java-agent:instrumentation:play:play-appsec-common",
   ":dd-java-agent:instrumentation:protobuf-3.0",
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",

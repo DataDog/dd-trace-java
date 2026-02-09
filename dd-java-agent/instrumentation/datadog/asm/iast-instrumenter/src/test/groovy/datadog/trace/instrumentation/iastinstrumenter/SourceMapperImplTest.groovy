@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.iastinstrumenter
 
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.agent.tooling.iast.stratum.Stratum
-import datadog.trace.agent.tooling.iast.stratum.StratumManager
+import datadog.trace.agent.tooling.stratum.Stratum
+import datadog.trace.agent.tooling.stratum.StratumManager
 import datadog.trace.api.Pair
 
 class SourceMapperImplTest extends InstrumentationSpecification {
@@ -41,8 +41,8 @@ class SourceMapperImplTest extends InstrumentationSpecification {
 
     then: "stratum exists and input line number is found"
     1 * stratumManager.get("foo/bar/Baz") >> stratum
-    1 * stratum.getInputLine(_) >> new Pair<>(1, 52)
-    1 * stratum.getSourceFile(1) >> "foo/bar/Baz.jsp"
+    1 * stratum.getInputLine(_) >> new Pair<>("1", 52)
+    1 * stratum.getSourceFile("1") >> "foo/bar/Baz.jsp"
     result.getLeft() == "foo/bar/Baz.jsp"
     result.getRight() == 52
   }

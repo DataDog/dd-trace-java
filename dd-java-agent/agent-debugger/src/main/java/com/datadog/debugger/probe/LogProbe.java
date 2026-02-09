@@ -23,10 +23,10 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -577,6 +577,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
       return false;
+    } catch (Exception ex) {
+      // catch all for unexpected exceptions
+      status.addError(new EvaluationError(probeCondition.getDslExpression(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
     }
     return true;
   }
@@ -628,11 +633,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
     boolean shouldCommit = false;
     if (entryStatus.shouldSend() && exitStatus.shouldSend()) {
-      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
-      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
+      snapshot.setTraceId(CorrelationIdentifier.getTraceId());
+      snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       if (isFullSnapshot()) {
-        snapshot.setEntry(entryContext);
-        snapshot.setExit(exitContext);
+        assignCaptures(snapshot, entryContext, exitContext);
       }
       snapshot.setMessage(message);
       snapshot.setDuration(exitContext.getDuration());
@@ -648,6 +652,41 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       shouldCommit = true;
     }
     return shouldCommit;
+  }
+
+  private void assignCaptures(
+      Snapshot snapshot, CapturedContext entryContext, CapturedContext exitContext) {
+    if (isCaptureSnapshot()) {
+      addContextWithoutCaptureExpressions(entryContext, snapshot::setEntry);
+      addContextWithoutCaptureExpressions(exitContext, snapshot::setExit);
+    } else if (captureExpressions != null) {
+      addFilteredCaptureExpressions(entryContext, snapshot::setEntry);
+      addFilteredCaptureExpressions(exitContext, snapshot::setExit);
+    }
+  }
+
+  private void addContextWithoutCaptureExpressions(
+      CapturedContext context, Consumer<CapturedContext> setContext) {
+    // no capture expressions, assign directly the context in the snapshot
+    if (context.getCaptureExpressions() == null || context.getCaptureExpressions().isEmpty()) {
+      setContext.accept(context);
+      return;
+    }
+    CapturedContext newContext = context.copyWithoutCaptureExpressions();
+    setContext.accept(newContext);
+  }
+
+  private void addFilteredCaptureExpressions(
+      CapturedContext capturedContext, Consumer<CapturedContext> setContext) {
+    Map<String, CapturedContext.CapturedValue> contextCapExpr =
+        capturedContext.getCaptureExpressions();
+    if (contextCapExpr != null && !contextCapExpr.isEmpty()) {
+      CapturedContext newContext = new CapturedContext();
+      for (CaptureExpression capExprDef : captureExpressions) {
+        newContext.addCaptureExpression(contextCapExpr.get(capExprDef.getName()));
+      }
+      setContext.accept(newContext);
+    }
   }
 
   private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
@@ -684,6 +723,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         }
       } catch (EvaluationException ex) {
         logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+        logStatus.setLogTemplateErrors(true);
+      } catch (Exception ex) {
+        // catch all for unexpected exceptions
+        logStatus.addError(
+            new EvaluationError(captureExpression.getExpr().getDsl(), ex.getMessage()));
         logStatus.setLogTemplateErrors(true);
       }
     }
@@ -744,8 +788,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
-      snapshot.setTraceId(CorrelationAccess.instance().getTraceId());
-      snapshot.setSpanId(CorrelationAccess.instance().getSpanId());
+      snapshot.setTraceId(CorrelationIdentifier.getTraceId());
+      snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       snapshot.setMessage(status.getMessage());
       shouldCommit = true;
     }
@@ -756,7 +800,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isCaptureSnapshot()) {
+        if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
               Duration.of(
@@ -811,9 +855,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     @Override
     public boolean shouldFreezeContext() {
-      return sampled
-          && ((CapturedContextProbe) probeImplementation).isCaptureSnapshot()
-          && shouldSend();
+      return sampled && (((LogProbe) probeImplementation).isFullSnapshot()) && shouldSend();
     }
 
     @Override

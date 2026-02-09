@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.Config.isExplicitlyDisabled;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -23,9 +24,9 @@ import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
+import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
@@ -663,6 +664,7 @@ public class Agent {
         throw new UndeclaredThrowableException(e);
       }
 
+      installDatadogMeter(initTelemetry);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -793,6 +795,29 @@ public class Agent {
         StaticEventLogger.end("BytebuddyAgent");
       }
     }
+  }
+
+  private static synchronized void installDatadogMeter(InitializationTelemetry initTelemetry) {
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+
+    StaticEventLogger.begin("AgentMeter");
+
+    try {
+      // Install AgentMeter, StatsDClient and Monitoring
+      final Class<?> tracerInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MeterInstaller");
+      final Method installMeterMethod = tracerInstallerClass.getMethod("installMeter");
+      installMeterMethod.invoke(null);
+    } catch (final FatalAgentMisconfigurationError ex) {
+      throw ex;
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Datadog meter", ex);
+      initTelemetry.onFatalError(ex);
+    }
+
+    StaticEventLogger.end("AgentMeter");
   }
 
   private static synchronized void installDatadogTracer(
@@ -982,7 +1007,7 @@ public class Agent {
 
   private static StatsDClientManager statsDClientManager() throws Exception {
     final Class<?> statsdClientManagerClass =
-        AGENT_CLASSLOADER.loadClass("datadog.communication.monitor.DDAgentStatsDClientManager");
+        AGENT_CLASSLOADER.loadClass("datadog.metrics.impl.statsd.DDAgentStatsDClientManager");
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
@@ -1433,11 +1458,6 @@ public class Agent {
     startDebuggerAgent(inst, scoClass, sco);
   }
 
-  private static boolean isExplicitlyDisabled(String booleanKey) {
-    return Config.get().configProvider().isSet(booleanKey)
-        && !Config.get().configProvider().getBoolean(booleanKey);
-  }
-
   private static synchronized void startDebuggerAgent(
       Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Debugger");
@@ -1481,9 +1501,12 @@ public class Agent {
     if (isDebugMode()) {
       logLevel = "DEBUG";
     } else {
-      logLevel = ddGetProperty("dd.log.level");
+      logLevel = ddGetProperty("dd.trace.log.level");
       if (null == logLevel) {
-        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        logLevel = ddGetProperty("dd.log.level");
+        if (null == logLevel) {
+          logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        }
       }
     }
 

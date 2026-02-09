@@ -5,27 +5,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
 public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(

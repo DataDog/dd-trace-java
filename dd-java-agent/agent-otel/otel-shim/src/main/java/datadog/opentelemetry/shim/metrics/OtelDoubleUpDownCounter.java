@@ -5,6 +5,7 @@ import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUN
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
 import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounter;
 import io.opentelemetry.api.metrics.DoubleUpDownCounterBuilder;
@@ -15,45 +16,51 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelDoubleUpDownCounter implements DoubleUpDownCounter {
+final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDownCounter {
+  OtelDoubleUpDownCounter(OtelMetricStorage storage) {
+    super(storage);
+  }
 
   @Override
   public void add(double value) {
-    // FIXME: implement recording
+    add(value, Attributes.empty());
   }
 
   @Override
   public void add(double value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordDouble(value, attributes);
   }
 
   @Override
-  public void add(double value, Attributes attributes, Context context) {
-    // FIXME: implement recording
+  public void add(double value, Attributes attributes, Context unused) {
+    add(value, attributes);
   }
 
   static final class Builder implements DoubleUpDownCounterBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
-    Builder(OtelInstrumentBuilder builder) {
-      this.instrumentBuilder = ofDoubles(builder, UP_DOWN_COUNTER);
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofDoubles(builder, UP_DOWN_COUNTER);
     }
 
     @Override
     public DoubleUpDownCounterBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public DoubleUpDownCounterBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public DoubleUpDownCounter build() {
-      return new OtelDoubleUpDownCounter();
+      return new OtelDoubleUpDownCounter(
+          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newDoubleSumStorage));
     }
 
     @Override

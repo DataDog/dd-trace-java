@@ -3,6 +3,8 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -19,6 +21,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
@@ -39,7 +42,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,8 +49,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
-import org.jctools.queues.MpscCompoundQueue;
-import org.jctools.queues.SpmcArrayQueue;
+import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,17 +91,18 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
   private final Set<String> ignoredResources;
-  private final Queue<Batch> batchPool;
+  private final MessagePassingQueue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final MpscCompoundQueue<InboxItem> inbox;
+  private final MessagePassingQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -121,7 +123,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isTraceResourceRenamingEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -131,7 +134,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
-      int queueSize) {
+      int queueSize,
+      boolean includeEndpointInMetrics) {
     this(
         wellKnownTags,
         ignoredResources,
@@ -141,7 +145,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -153,7 +158,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
         features,
@@ -163,7 +169,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -175,10 +182,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
-    this.inbox = new MpscCompoundQueue<>(queueSize);
-    this.batchPool = new SpmcArrayQueue<>(maxAggregates);
+    this.includeEndpointInMetrics = includeEndpointInMetrics;
+    this.inbox = Queues.mpscArrayQueue(queueSize);
+    this.batchPool = Queues.spmcArrayQueue(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
     this.keys = new ConcurrentHashMap<>();
     this.features = features;
@@ -307,6 +316,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
+    // Extract HTTP method and endpoint only if the feature is enabled
+    String httpMethod = null;
+    String httpEndpoint = null;
+    if (includeEndpointInMetrics) {
+      Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
+      httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
+      Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
+    }
+
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -318,7 +337,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString()),
+            httpMethod,
+            httpEndpoint);
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;

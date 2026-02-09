@@ -5,7 +5,7 @@ This documentation provides information for developers to set up their environme
 * [Development environment](#development-environment)
   * [Quick check](#quick-check)
   * [Requirements](#requirements)
-  * [Install the required JDKs](#install-the-required-jdks)
+  * [Install JDK](#install-jdk)
   * [Install git](#install-git)
   * [Install Docker Desktop](#install-docker-desktop)
   * [Configure Akka Token](#configure-akka-token)
@@ -16,7 +16,7 @@ This documentation provides information for developers to set up their environme
 
 ### Quick check
 
-To check that your development environment is properly set up to build the project, from the project root run on macOS or Linux:
+To check that your development environment is properly set up to build the project, run the following command from the project root on macOS or Linux:
 ```shell
 ./setup.sh
 ```
@@ -29,14 +29,15 @@ or on Windows:
 Your output should look something like the following:
 
 ```
-ℹ️ Checking required JVMs:
-✅ JAVA_HOME is set to /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
-✅ JAVA_8_HOME is set to /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
-✅ JAVA_11_HOME is set to /Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home.
-✅ JAVA_17_HOME is set to /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home.
-✅ JAVA_21_HOME is set to /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
-✅ JAVA_25_HOME is set to /Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home.
-✅ JAVA_GRAALVM17_HOME is set to /Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1/Contents/Home.
+ℹ️ Checking required JVM:
+✅ JAVA_HOME is set to /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
+ℹ️ Checking other JVMs available for testing:
+✅ Azul Zulu JDK 1.8.0_462-b08 from /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home.
+✅ Azul Zulu JDK 11.0.28+6-LTS from /Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home.
+✅ Azul Zulu JDK 17.0.16+8-LTS from /Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home.
+✅ Azul Zulu JDK 21.0.8+9-LTS from /Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home.
+✅ Azul Zulu JDK 25+36-LTS from /Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home.
+✅ GraalVM Community JDK 17.0.9+9-jvmci-23.0-b22 from /Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1/Contents/Home.
 ℹ️ Checking git configuration:
 ✅ The git command line is installed.
 ✅ pre-commit hook is installed in repository.
@@ -47,112 +48,56 @@ Your output should look something like the following:
 ✅ The Docker server is running.
 ```
 
-If there is any issue with your output, check the requirements above and use the following guide to install and configure the required tools.
+If there is any issue with your output, check the requirements below and use the following guide to install and configure the required tools.
 
 ### Requirements
 
 Requirements to build the full project:
 
-* The JDK versions 8, 11, 17, 21, and 25 must be installed.
-* The `JAVA_8_HOME`, `JAVA_11_HOME`, `JAVA_17_HOME`, `JAVA_21_HOME`, `JAVA_25_HOME`, and `JAVA_GRAALVM17_HOME` must point to their respective JDK location.
-* The JDK 8 `bin` directory must be the only JDK on the PATH (e.g. `$JAVA_8_HOME/bin`).
-* The `JAVA_HOME` environment variable may be unset. If set, it must point to the JDK 8 location (same as `JAVA_8_HOME`).
-* The `git` command line must be installed.
-* A container runtime environment must be available to run all tests (e.g. Docker Desktop).
+* JDK version is 21+,
+* The `git` command line is installed,
+* A container runtime environment is available to run all tests (e.g. Docker Desktop).
 
-### Install the required JDKs
+### Install JDK
 
-Download and install JDK versions 8, 11, 17, 21 and 25, and GraalVM 17 for your OS.
+Java is required to run Gradle, the project build tool.
+Gradle will find any locally installed JDK and download any missing JDK versions needed for the project build and testing.
 
 #### macOS
 
-* Install the required JDKs using `brew`:
-  ```shell
-  brew install --cask zulu@8 zulu@11 zulu@17 zulu@21 zulu graalvm/tap/graalvm-ce-java17
-  ```
-* Identify your local version of GraalVM:
-  ```
-  ls /Library/Java/JavaVirtualMachines | grep graalvm
-  ```
-  Example: `graalvm-ce-java17-22.3.1`
-* Use this version in the following command to fix the GraalVM installation by [removing the quarantine flag](https://www.graalvm.org/latest/docs/getting-started/macos/):
-  ```
-  sudo xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>
-  ```
-  Example: `/Library/Java/JavaVirtualMachines/graalvm-ce-java17-22.3.1`
-* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `.bashrc` or other.
-  ```shell
-  export JAVA_8_HOME=/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home
-  export JAVA_11_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
-  export JAVA_17_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home
-  export JAVA_21_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
-  export JAVA_25_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
-  export JAVA_GRAALVM17_HOME=/Library/Java/JavaVirtualMachines/graalvm-<current version of graalvm>/Contents/Home
-  export JAVA_HOME=$JAVA_8_HOME
-  ```
-* Restart your shell after applying the changes if you appended the commands to your shell configuration file.
-
-> [!NOTE]
-> ARM users: there is no Oracle JDK v8 for ARM.
-> It's recommended to use [Azul's Zulu](https://www.azul.com/downloads/?version=java-8-lts&architecture=arm-64-bit&package=jdk#zulu) builds of Java 8.
-> [Amazon Corretto](https://aws.amazon.com/corretto/) builds have also been proven to work.
-
-> [!NOTE]
-> macOS users: remember that `/usr/libexec/java_home` may control which JDK is in your path.
+Install JDK 21 using `brew`:
+```shell
+brew install --cask zulu@21
+```
 
 #### Linux
 
-* Download and extract JDK 8, 11, 17, 21, and 25 from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/) and GraalVM 17 from [Oracle downloads](https://www.graalvm.org/downloads/).
-* Install the GraalVM native image requirements for native builds by following [the GraalVM official documentation](https://www.graalvm.org/latest/reference-manual/native-image/#prerequisites).
-* Add the required environment variables to your shell using the `export` command. You can permanently install the environment variables by appending the `export` commands into your shell configuration file `~/.zshrc` or `~/.bashrc` or other.
-  ```shell
-  export JAVA_8_HOME=/<path to extracted archive>/jdk8u<current version of JDK 8>
-  export JAVA_11_HOME=/<path to extracted archive>/jdk-11.<current version of JDK 11>
-  export JAVA_17_HOME=/<path to extracted archive>/jdk-17.<current version of JDK 17>
-  export JAVA_21_HOME=/<path to extracted archive>/jdk-21.<current version of JDK 21>
-  export JAVA_25_HOME=/<path to extracted archive>/jdk-25.<current version of JDK 25>
-  export JAVA_GRAALVM17_HOME=/<path to extracted archive>/graalvm-jdk-17.<current version of graalvm>/Contents/Home
-  export JAVA_HOME=$JAVA_8_HOME
-  ```
-* Restart your shell after applying the changes if you appended the commands to your shell configuration file.
+Use your distribution package manager to install JDK 21:
+```shell
+apt install openjdk-21-jdk
+```
+Alternatively, manually download and install from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
+
+Add the `JAVA_HOME` environment variable to your shell using the `export` command.
+You can permanently set it by appending the `export` command to your shell configuration file such as `~/.zshrc`, `~/.bashrc` or similar.
+```shell
+export JAVA_HOME=/<path to extracted archive>/jdk-21.x.x
+```
+If you appended the commands to your shell configuration file, restart your shell after applying the changes.
 
 #### Windows
 
-* Download and install JDK 8, 11, 17, 21, and 25 [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
+Install JDK 21 using the Windows package manager `winget`:
+```pwsh
+winget install --id EclipseAdoptium.Temurin.21.JDK
+```
+Or manually download and install it from [Eclipse Temurin releases](https://adoptium.net/temurin/releases/).
 
-  <details>
-  <summary>Alternatively, install JDKs using winget or scoop. (click here to expand)</summary>
+Set the `JAVA_HOME` environment variable, replacing the path with your JDK 21 installation:
+```pwsh
+[Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.x.x-hotspot", [EnvironmentVariableTarget]::User)
+```
 
-    ```pwsh
-    winget install --id EclipseAdoptium.Temurin.8.JDK
-    winget install --id EclipseAdoptium.Temurin.11.JDK
-    winget install --id EclipseAdoptium.Temurin.17.JDK
-    winget install --id EclipseAdoptium.Temurin.21.JDK
-    winget install --id EclipseAdoptium.Temurin.25.JDK
-    ```
-
-  ```pwsh
-  scoop bucket add java
-  scoop install temurin8-jdk
-  scoop install temurin11-jdk
-  scoop install temurin17-jdk
-  scoop install temurin21-jdk
-  scoop install temurin25-jdk
-  ```
-
-  </details>
-
-* To add the required environment variables, run the following PowerShell commands for each SDK version, replacing the paths with the correct version installed:
-  ```pwsh
-  [Environment]::SetEnvironmentVariable("JAVA_8_HOME",  "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
-  [Environment]::SetEnvironmentVariable("JAVA_11_HOME", "C:\Program Files\Eclipse Adoptium\jdk-11.0.25.9-hotspot", [EnvironmentVariableTarget]::User)
-  [Environment]::SetEnvironmentVariable("JAVA_17_HOME", "C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot", [EnvironmentVariableTarget]::User)
-  [Environment]::SetEnvironmentVariable("JAVA_21_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot", [EnvironmentVariableTarget]::User)
-  [Environment]::SetEnvironmentVariable("JAVA_25_HOME", "C:\Program Files\Eclipse Adoptium\jdk-25.0.1.9-hotspot", [EnvironmentVariableTarget]::User)
-
-  # JAVA_HOME = JAVA_8_HOME
-  [Environment]::SetEnvironmentVariable("JAVA_HOME",    "C:\Program Files\Eclipse Adoptium\jdk-8.0.432.6-hotspot", [EnvironmentVariableTarget]::User)
-  ```
 
 ### Install git
 
@@ -164,25 +109,16 @@ If not installed, the terminal will prompt you to install it.
 #### Linux
 
 ```shell
-apt-get install git
+apt install git
 ```
 
 #### Windows
 
-Download and install the installer from [the official website](https://git-scm.com/download/win).
-
-<details>
-<summary>Alternatively, install git using winget or scoop. (click here to expand)</summary>
+Download and install the installer from [the official website](https://git-scm.com/download/win), or install it using the Windows package manager `winget`:
 
 ```pwsh
 winget install --id git.git
 ```
-
-```pwsh
-scoop install git
-```
-
-</details>
 
 ### Install Docker Desktop
 
@@ -230,8 +166,8 @@ winget install --id Docker.DockerDesktop
 > You can alternatively use the `core.hooksPath` configuration to point to the `.githooks` folder using `git config --local core.hooksPath .githooks` if you don't already have a hooks path defined system-wide.
 
 > [!NOTE]
-> The git hooks will check that your code is properly formatted before commiting.
-> This is done both to avoid future merge conflict and ensure uniformity inside the code base.
+> The git hooks will check that your code is properly formatted before committing.
+> This is done both to avoid future merge conflicts and ensure uniformity across the code base.
 
 * Configure git to automatically update submodules.
   ```shell
@@ -252,18 +188,18 @@ winget install --id Docker.DockerDesktop
 ### Configure Akka Token
 > [!NOTE]
 > You can skip this step if you don’t need instrumentation for the **akka-http-10.6** module.
-> For background on why Akka now requires authentication, see this [article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
+> For background on why Akka now requires authentication, see [this article](https://akka.io/blog/why-we-are-changing-the-license-for-akka).
 
 To enable access to Akka artifacts hosted on Lightbend’s private repository, you’ll need to configure an authentication token.
-1. Obtain a repository token. Visit the Akka account [page](https://account.akka.io/token) to generate a secure repository token.
-2. Set up the environment variable. Create an environment variable named:
+1. Obtain a repository token by visiting the Akka account [page](https://account.akka.io/token) to generate a secure repository token.
+2. Create an environment variable named:
 ```shell
   ORG_GRADLE_PROJECT_akkaRepositoryToken=<your_token>
 ```
 
 ## Building the project
 
-After everything is properly set up, you can move on to the next section to start a build or check [the contribution guidelines](CONTRIBUTING.md).
+After everything is properly set up, you can build the project or check [the contribution guidelines](CONTRIBUTING.md).
 
 To build the project without running tests, run:
 ```shell

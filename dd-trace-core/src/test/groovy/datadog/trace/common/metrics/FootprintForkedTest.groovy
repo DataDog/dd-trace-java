@@ -1,6 +1,8 @@
 package datadog.trace.common.metrics
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.metrics.api.Histograms
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.WellKnownTags
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.test.util.DDSpecification
@@ -22,6 +24,11 @@ class FootprintForkedTest extends DDSpecification {
   @Shared
   Random random = new Random(0)
 
+  def setupSpec() {
+    // Initialize metrics-lib histograms to register the DDSketch implementation
+    Histograms.register(DDSketchHistograms.FACTORY)
+  }
+
   def "footprint less than 10MB"() {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
@@ -39,7 +46,8 @@ class FootprintForkedTest extends DDSpecification {
       1000,
       1000,
       100,
-      SECONDS)
+      SECONDS,
+      false)
     // Removing the 'features' as it's a mock, and mocks are heavyweight, e.g. around 22MiB
     def baseline = footprint(aggregator, features)
     aggregator.start()

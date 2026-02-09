@@ -160,6 +160,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       int[] mapping = createThrowableMapping(currentEx, t);
       StackTraceElement[] innerTrace = currentEx.getStackTrace();
       int currentIdx = innerTrace.length - snapshot.getStack().size();
+      if (currentIdx < 0) {
+        // This means the innerTrace was truncated by the underlying environment.
+        // This is known to happen in AWS Lambda, but may also happen elsewhere.
+        currentIdx = i;
+      }
       if (!sanityCheckSnapshotAssignment(snapshot, innerTrace, currentIdx)) {
         continue;
       }
@@ -192,6 +197,13 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       Snapshot snapshot, StackTraceElement[] innerTrace, int currentIdx) {
     String className = snapshot.getProbe().getLocation().getType();
     String methodName = snapshot.getProbe().getLocation().getMethod();
+    if (currentIdx < 0 || currentIdx >= innerTrace.length) {
+      LOGGER.warn(
+          "currentIdx={} out of bounds of innerTrace array length={}",
+          currentIdx,
+          innerTrace.length);
+      return false;
+    }
     if (!className.equals(innerTrace[currentIdx].getClassName())
         || !methodName.equals(innerTrace[currentIdx].getMethodName())) {
       LOGGER.warn("issue when assigning snapshot to frame: {} {}", className, methodName);

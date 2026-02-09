@@ -104,9 +104,10 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
-  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10000; // ms
+  static final int DEFAULT_METRICS_OTEL_INTERVAL = 10_000; // ms
   // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
-  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7500; // ms
+  static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
+  static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
   static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
   static final String DEFAULT_OTLP_HTTP_PORT = "4318";
@@ -245,7 +246,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED = false;
   static final boolean DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED = true;
-  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = false;
+  static final boolean DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED = true;
   static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
@@ -300,7 +301,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_SPARK_APP_NAME_AS_SERVICE = false;
   static final boolean DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED = true;
   static final boolean DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED = false;
-  static final boolean DEFAULT_WEBSOCKET_MESSAGES_ENABLED = false;
+  static final boolean DEFAULT_WEBSOCKET_MESSAGES_ENABLED = true;
   static final boolean DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING = true;
   static final boolean DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES = true;
   static final boolean DEFAULT_WEBSOCKET_TAG_SESSION_ID = false;

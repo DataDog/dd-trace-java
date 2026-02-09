@@ -43,6 +43,8 @@ dependencies {
   // Note: 9.4 last to support java 8
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
   runtimeOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.56.v20240826'
+  compileOnly group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
+  runtimeOnly group: 'org.eclipse.jetty.http2', name: 'http2-server', version: '9.4.56.v20240826'
   // Since jetty-server is shadowed, it is needed to exports the servlet api as well.
   api group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
 
@@ -65,7 +67,7 @@ tasks.named("shadowJar", ShadowJar) {
   // All other dependencies remain as transitive dependencies
   dependencies {
     include(dependency {
-      it.moduleGroup == 'org.eclipse.jetty'
+      it.moduleGroup == 'org.eclipse.jetty' || it.moduleGroup == 'org.eclipse.jetty.http2'
     })
   }
 
@@ -83,11 +85,13 @@ configurations {
     outgoing.artifacts.clear()
     outgoing.artifact(tasks.named('shadowJar'))
     exclude group: 'org.eclipse.jetty'
+    exclude group: 'org.eclipse.jetty.http2'
   }
   named('runtimeElements') {
     outgoing.artifacts.clear()
     outgoing.artifact(tasks.named('shadowJar'))
     exclude group: 'org.eclipse.jetty'
+    exclude group: 'org.eclipse.jetty.http2'
   }
 }
 

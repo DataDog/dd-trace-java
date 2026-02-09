@@ -173,28 +173,64 @@ public class LLMObs {
     }
   }
 
+  public static class ToolResult {
+    private String name;
+    private String type;
+    private String toolId;
+    private String result;
+
+    public static ToolResult from(String name, String type, String toolId, String result) {
+      return new ToolResult(name, type, toolId, result);
+    }
+
+    private ToolResult(String name, String type, String toolId, String result) {
+      this.name = name;
+      this.type = type;
+      this.toolId = toolId;
+      this.result = result;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public String getToolId() {
+      return toolId;
+    }
+
+    public String getResult() {
+      return result;
+    }
+  }
+
   public static class LLMMessage {
     private String role;
     private String content;
     private List<ToolCall> toolCalls;
+    private List<ToolResult> toolResults;
 
     public static LLMMessage from(String role, String content, List<ToolCall> toolCalls) {
-      return new LLMMessage(role, content, toolCalls);
+      return new LLMMessage(role, content, toolCalls, null);
     }
 
     public static LLMMessage from(String role, String content) {
-      return new LLMMessage(role, content);
+      return new LLMMessage(role, content, null, null);
     }
 
-    private LLMMessage(String role, String content, List<ToolCall> toolCalls) {
+    public static LLMMessage fromToolResults(String role, List<ToolResult> toolResults) {
+      return new LLMMessage(role, null, null, toolResults);
+    }
+
+    private LLMMessage(
+        String role, String content, List<ToolCall> toolCalls, List<ToolResult> toolResults) {
       this.role = role;
       this.content = content;
       this.toolCalls = toolCalls;
-    }
-
-    private LLMMessage(String role, String content) {
-      this.role = role;
-      this.content = content;
+      this.toolResults = toolResults;
     }
 
     public String getRole() {
@@ -207,6 +243,26 @@ public class LLMObs {
 
     public List<ToolCall> getToolCalls() {
       return toolCalls;
+    }
+
+    public List<ToolResult> getToolResults() {
+      return toolResults;
+    }
+  }
+
+  public static class Document {
+    private String text;
+
+    public static Document from(String text) {
+      return new Document(text);
+    }
+
+    private Document(String text) {
+      this.text = text;
+    }
+
+    public String getText() {
+      return text;
     }
   }
 }

@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.concurrent.AbstractExecutorService;
@@ -23,7 +24,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(InstrumenterModule.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.Tracing
+public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
   public WrapRunnableAsNewTaskInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "new-task-for");
@@ -97,7 +98,16 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
         @Advice.Thrown Throwable error) {
       // don't cancel unless we did the wrapping
       if (wrapped && null != error && task instanceof RunnableFuture) {
-        ((RunnableFuture) task).cancel(true);
+        // Guard against recursive cancel calls which can cause StackOverflowError
+        // when executor.execute() fails during shutdown and triggers promise notifications
+        int callDepth = CallDepthThreadLocalMap.incrementCallDepth(RunnableFuture.class);
+        try {
+          if (callDepth == 0) {
+            ((RunnableFuture) task).cancel(true);
+          }
+        } finally {
+          CallDepthThreadLocalMap.decrementCallDepth(RunnableFuture.class);
+        }
       }
     }
   }

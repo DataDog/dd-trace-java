@@ -1,5 +1,7 @@
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
+import datadog.metrics.api.Histograms
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -19,6 +21,10 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class MetricsIntegrationTest extends AbstractTraceAgentTest {
 
+  def setupSpec() {
+    // Initialize metrics-lib histograms to register the DDSketch implementation
+    Histograms.register(DDSketchHistograms.FACTORY)
+  }
 
   def "send metrics to trace agent should notify with OK event"() {
     setup:
@@ -35,11 +41,11 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
     writer.add(
-      new MetricKey("resource1", "service1", "operation1", "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")]),
+      new MetricKey("resource1", "service1", "operation1", "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null),
       new AggregateMetric().recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
       )
     writer.add(
-      new MetricKey("resource2", "service2", "operation2", "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")]),
+      new MetricKey("resource2", "service2", "operation2", "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null),
       new AggregateMetric().recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
       )
     writer.finishBucket()

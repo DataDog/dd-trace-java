@@ -14,7 +14,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
@@ -112,6 +111,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
@@ -221,7 +221,6 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
@@ -357,6 +356,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_NAMED_PIPE;
@@ -402,6 +402,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESO
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
+import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
@@ -444,6 +445,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -580,6 +582,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_RE
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_TAG_SESSION_ID;
@@ -911,6 +915,7 @@ public class Config {
   private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
+  private final int metricsOtelCardinalityLimit;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -992,7 +997,6 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
-  private final boolean appSecRaspEnabled;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -1002,6 +1006,9 @@ public class Config {
   private final int apiSecurityEndpointCollectionMessageLimit;
   private final int apiSecurityMaxDownstreamRequestBodyAnalysis;
   private final double apiSecurityDownstreamRequestBodyAnalysisSampleRate;
+
+  private final boolean traceResourceRenamingEnabled;
+  private final boolean traceResourceRenamingAlwaysSimplifiedEndpoint;
 
   private final IastDetectionMode iastDetectionMode;
   private final int iastMaxConcurrentRequests;
@@ -1228,6 +1235,7 @@ public class Config {
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
+  private final String dataStreamsTransactionExtractors;
 
   private final boolean serviceDiscoveryEnabled;
 
@@ -1882,6 +1890,17 @@ public class Config {
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
 
+    int cardinalityLimit =
+        configProvider.getInteger(
+            METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
+    if (cardinalityLimit < 0) {
+      log.warn(
+          "Invalid OTel metrics cardinality limit: {}. The value must be positive",
+          cardinalityLimit);
+      cardinalityLimit = DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+    }
+    metricsOtelCardinalityLimit = cardinalityLimit;
+
     int otelInterval =
         configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
     if (otelInterval < 0) {
@@ -2215,7 +2234,6 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
-    appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -2252,6 +2270,19 @@ public class Config {
             API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
             API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+
+    // Trace Resource Renaming (Endpoint Inference) configuration
+    // Default: enabled if AppSec is enabled, otherwise disabled
+    // Can be explicitly overridden by setting DD_TRACE_RESOURCE_RENAMING_ENABLED
+    Boolean traceResourceRenamingExplicit =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ENABLED);
+    this.traceResourceRenamingEnabled =
+        traceResourceRenamingExplicit != null
+            ? traceResourceRenamingExplicit
+            : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    this.traceResourceRenamingAlwaysSimplifiedEndpoint =
+        configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
 
     iastDebugEnabled = configProvider.getBoolean(IAST_DEBUG_ENABLED, DEFAULT_IAST_DEBUG_ENABLED);
 
@@ -2716,7 +2747,7 @@ public class Config {
 
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
-    logLevel = configProvider.getString(LOG_LEVEL);
+    logLevel = configProvider.getString(TRACE_LOG_LEVEL, null, LOG_LEVEL);
     debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
     triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, instrumenterConfig.isTriageEnabled());
     triageReportTrigger = configProvider.getString(TRIAGE_REPORT_TRIGGER);
@@ -2751,6 +2782,8 @@ public class Config {
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
+    dataStreamsTransactionExtractors =
+        configProvider.getString(DATA_STREAMS_TRANSACTION_EXTRACTORS);
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
@@ -2952,8 +2985,7 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
-    this.optimizedMapEnabled =
-        configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, false);
+    this.optimizedMapEnabled = configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, true);
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
@@ -3829,6 +3861,14 @@ public class Config {
     return instrumenterConfig.isApiSecurityEndpointCollectionEnabled();
   }
 
+  public boolean isTraceResourceRenamingEnabled() {
+    return traceResourceRenamingEnabled;
+  }
+
+  public boolean isTraceResourceRenamingAlwaysSimplifiedEndpoint() {
+    return traceResourceRenamingAlwaysSimplifiedEndpoint;
+  }
+
   public ProductActivation getIastActivation() {
     return instrumenterConfig.getIastActivation();
   }
@@ -4600,6 +4640,10 @@ public class Config {
     return dataStreamsBucketDurationSeconds;
   }
 
+  public String getDataStreamsTransactionExtractors() {
+    return dataStreamsTransactionExtractors;
+  }
+
   public long getDataStreamsBucketDurationNanoseconds() {
     // Rounds to the nearest millisecond before converting to nanos
     int milliseconds = Math.round(dataStreamsBucketDurationSeconds * 1000);
@@ -5159,6 +5203,10 @@ public class Config {
     return metricsOtelEnabled;
   }
 
+  public int getMetricsOtelCardinalityLimit() {
+    return metricsOtelCardinalityLimit;
+  }
+
   public int getMetricsOtelInterval() {
     return metricsOtelInterval;
   }
@@ -5407,7 +5455,7 @@ public class Config {
   }
 
   public boolean isAppSecRaspEnabled() {
-    return appSecRaspEnabled;
+    return instrumenterConfig.isAppSecRaspEnabled();
   }
 
   public boolean isAppSecStackTraceEnabled() {
@@ -5699,6 +5747,11 @@ public class Config {
 
   public static Config get() {
     return INSTANCE;
+  }
+
+  public static boolean isExplicitlyDisabled(String booleanKey) {
+    return Config.get().configProvider().isSet(booleanKey)
+        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   /**
@@ -6164,7 +6217,7 @@ public class Config {
         + ", appSecScaEnabled="
         + appSecScaEnabled
         + ", appSecRaspEnabled="
-        + appSecRaspEnabled
+        + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
         + dataJobsOpenLineageEnabled
         + ", dataJobsOpenLineageTimeoutEnabled="
@@ -6197,6 +6250,8 @@ public class Config {
         + metricsOtelInterval
         + ", metricsOtelTimeout="
         + metricsOtelTimeout
+        + ", metricsOtelCardinalityLimit="
+        + metricsOtelCardinalityLimit
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="

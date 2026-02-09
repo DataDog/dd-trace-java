@@ -11,7 +11,7 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.1.0"
+  id("com.diffplug.spotless") version "8.2.1"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("com.github.spotbugs") version "6.4.8"
   id("de.thetaphi.forbiddenapis") version "3.10"
@@ -26,6 +26,7 @@ description = "dd-trace-java"
 val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
+apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
 spotless {
   // only resolve the spotless dependencies once in the build
@@ -37,8 +38,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   java {
     removeUnusedImports()
 
-    // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.32.0")
+    googleJavaFormat("1.33.0")
   }
   groovyGradle {
     greclipse()

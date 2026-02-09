@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.TagsHelper;
@@ -201,6 +202,10 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
         } catch (EvaluationException ex) {
           status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
           continue;
+        } catch (Exception ex) {
+          // catch all for unexpected exceptions
+          status.addError(new EvaluationError(decoration.when.getDslExpression(), ex.getMessage()));
+          continue;
         }
       }
       if (!(status instanceof SpanDecorationStatus)) {
@@ -288,6 +293,10 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   private void handleEvaluationErrors(SpanDecorationStatus status) {
     if (status.getErrors().isEmpty()) {
+      return;
+    }
+    boolean sampled = ProbeRateLimiter.tryProbe(id);
+    if (!sampled) {
       return;
     }
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);

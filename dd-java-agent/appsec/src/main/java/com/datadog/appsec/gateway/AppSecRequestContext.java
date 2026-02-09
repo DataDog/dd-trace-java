@@ -13,6 +13,7 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.util.Numbers;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
@@ -275,6 +276,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public boolean sampleHttpClientRequest(final long id) {
     httpClientRequestCount.incrementAndGet();
     synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.contains(id)) {
+        return true;
+      }
       if (sampledHttpClientRequests.size()
           < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
         sampledHttpClientRequests.add(id);
@@ -723,27 +727,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return stackTraces;
   }
 
-  /**
-   * Attempts to parse a string value as a number. Returns the parsed number if successful, null
-   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
-   */
-  private static Number convertToNumericAttribute(String value) {
-    if (value == null || value.isEmpty()) {
-      return null;
-    }
-    try {
-      // Check if it contains a decimal point to determine if it's a double
-      if (value.contains(".")) {
-        return Double.parseDouble(value);
-      } else {
-        // Try to parse as integer first
-        return Long.parseLong(value);
-      }
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
   public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
@@ -965,7 +948,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           traceSegment.setTagTop(key, (Number) value);
         } else if (value instanceof String) {
           // Try to parse as numeric, otherwise use as string
-          Number parsedNumber = convertToNumericAttribute((String) value);
+          Number parsedNumber = Numbers.parseNumber((String) value);
           if (parsedNumber != null) {
             traceSegment.setTagTop(key, parsedNumber);
           } else {
