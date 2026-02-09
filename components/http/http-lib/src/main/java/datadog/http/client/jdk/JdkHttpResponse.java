@@ -3,6 +3,7 @@ package datadog.http.client.jdk;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.http.client.HttpResponse;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -79,6 +80,7 @@ public final class JdkHttpResponse implements HttpResponse {
     }
   }
 
+  @SuppressForbidden // String#split(String,int) with single character (fast pass) and limit
   private Charset parseCharset() {
     return this.delegate
         .headers()
