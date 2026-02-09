@@ -301,7 +301,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
               telemetryListener,
               false);
 
-      // Merge tests from this page into aggregate
+      // Merge page's tests into aggregate
       mergeKnownTests(aggregateTests, knownTests.tests);
 
       Integer pageSize = knownTests.getPageSize();
