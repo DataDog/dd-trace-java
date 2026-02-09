@@ -456,7 +456,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test JSON serialization with text content parts'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final messages = [AIGuard.Message.message('user', [AIGuard.ContentPart.text('Hello world')])]
 
     when:
@@ -476,7 +476,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test JSON serialization with image_url content parts'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final messages = [
       AIGuard.Message.message('user', [AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')])
     ]
@@ -498,7 +498,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test JSON serialization with mixed content parts'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final messages = [
       AIGuard.Message.message('user', [
         AIGuard.ContentPart.text('Describe this image:'),
@@ -528,7 +528,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test content parts order is preserved'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final parts = (0..4).collect {
       it % 2 == 0 ? AIGuard.ContentPart.text("Text $it") : AIGuard.ContentPart.imageUrl("https://example.com/image${it}.jpg")
     }
@@ -558,7 +558,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test content part text truncation'() {
     given:
     final maxContent = Config.get().getAiGuardMaxContentSize()
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final longText = (0..maxContent).collect { 'A' }.join()
     final messages = [
       AIGuard.Message.message('user', [AIGuard.ContentPart.text(longText), AIGuard.ContentPart.text('Short text')])
@@ -583,7 +583,7 @@ class AIGuardInternalTests extends DDSpecification {
   void 'test content part image_url not truncated even with long data URI'() {
     given:
     final maxContent = Config.get().getAiGuardMaxContentSize()
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     // Create a very long data URI (longer than max content size)
     final longDataUri = 'data:image/png;base64,' + (0..(maxContent + 1000)).collect { 'A' }.join()
     final messages = [
@@ -611,7 +611,7 @@ class AIGuardInternalTests extends DDSpecification {
 
   void 'test backward compatibility with string content'() {
     given:
-    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
+    final aiguard = mockServerClientJSon(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])
     final messages = [AIGuard.Message.message('user', 'Hello world')]
 
     when:
