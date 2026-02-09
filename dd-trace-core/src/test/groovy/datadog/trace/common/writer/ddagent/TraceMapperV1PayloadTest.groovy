@@ -413,7 +413,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
 
         // Read field ID (should be 11 for chunks)
         int fieldId = unpacker.unpackInt()
-        assertEquals(TraceMapperV1.FIELD_CHUNKS, fieldId, "Expected chunks field ID")
+        assertEquals(11, fieldId, "Expected chunks field ID")
 
         // Read trace count
         int traceCount = unpacker.unpackArrayHeader()

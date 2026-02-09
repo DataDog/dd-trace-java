@@ -2,7 +2,11 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
+import datadog.common.container.ContainerInfo;
+import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.serialization.Writable;
+import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -21,19 +25,8 @@ import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
 
-/**
- * Payload format V1:
- *
- * <ul>
- *   <li>Uses map with integer field IDs instead of string keys.
- *   <li>String table (streaming strings) for efficient string encoding.
- *   <li>Attributes encoded as arrays (key, type, value triplets).
- *   <li>Trace chunks as a separate structure with 128-bit trace ID.
- *   <li>Promoted fields (env, version, component, span.kind) as separate span fields.
- *   <li>Error as boolean instead of int.
- *   <li>SpanKind as uint32 matching OTEL spec values.
- * </ul>
- */
+/** Efficient Trace Payload Protocol V1. */
+@SuppressWarnings("SameParameterValue")
 public final class TraceMapperV1 implements TraceMapper {
   // Attribute value types (from V1 spec)
   static final int STRING_VALUE_TYPE = 1;
@@ -52,68 +45,16 @@ public final class TraceMapperV1 implements TraceMapper {
   static final int SPAN_KIND_PRODUCER = 4;
   static final int SPAN_KIND_CONSUMER = 5;
 
-  // Tracer Payload field IDs
-  static final int FIELD_CONTAINER_ID = 2;
-  static final int FIELD_LANGUAGE_NAME = 3;
-  static final int FIELD_LANGUAGE_VERSION = 4;
-  static final int FIELD_TRACER_VERSION = 5;
-  static final int FIELD_RUNTIME_ID = 6;
-  static final int FIELD_ENV = 7;
-  static final int FIELD_HOSTNAME = 8;
-  static final int FIELD_APP_VERSION = 9;
-  static final int FIELD_PAYLOAD_ATTRIBUTES = 10;
-  static final int FIELD_CHUNKS = 11;
-
-  // TraceChunk field IDs
-  static final int CHUNK_FIELD_PRIORITY = 1;
-  static final int CHUNK_FIELD_ORIGIN = 2;
-  static final int CHUNK_FIELD_ATTRIBUTES = 3;
-  static final int CHUNK_FIELD_SPANS = 4;
-  static final int CHUNK_FIELD_DROPPED_TRACE = 5;
-  static final int CHUNK_FIELD_TRACE_ID = 6;
-  static final int CHUNK_FIELD_SAMPLING_MECHANISM = 7;
-
-  // Span field IDs
-  static final int SPAN_FIELD_SERVICE = 1;
-  static final int SPAN_FIELD_NAME = 2;
-  static final int SPAN_FIELD_RESOURCE = 3;
-  static final int SPAN_FIELD_SPAN_ID = 4;
-  static final int SPAN_FIELD_PARENT_ID = 5;
-  static final int SPAN_FIELD_START = 6;
-  static final int SPAN_FIELD_DURATION = 7;
-  static final int SPAN_FIELD_ERROR = 8;
-  static final int SPAN_FIELD_ATTRIBUTES = 9;
-  static final int SPAN_FIELD_TYPE = 10;
-  static final int SPAN_FIELD_SPAN_LINKS = 11;
-  static final int SPAN_FIELD_SPAN_EVENTS = 12;
-  static final int SPAN_FIELD_ENV = 13;
-  static final int SPAN_FIELD_VERSION = 14;
-  static final int SPAN_FIELD_COMPONENT = 15;
-  static final int SPAN_FIELD_SPAN_KIND = 16;
-
-  // SpanLink field IDs
-  static final int LINK_FIELD_TRACE_ID = 1;
-  static final int LINK_FIELD_SPAN_ID = 2;
-  static final int LINK_FIELD_ATTRIBUTES = 3;
-  static final int LINK_FIELD_TRACESTATE = 4;
-  static final int LINK_FIELD_FLAGS = 5;
-
-  // Promoted tag names that should not appear in attributes
-  private static final String TAG_ENV = Tags.ENV;
-  private static final String TAG_VERSION = Tags.DD_VERSION;
-  private static final String TAG_COMPONENT = Tags.COMPONENT;
-  private static final String TAG_SPAN_KIND = Tags.SPAN_KIND;
-
   // Decision maker tag key
   private static final String KEY_DECISION_MAKER = "_dd.p.dm";
 
-  private final int size;
+  private final int bufferSize;
   private final StringTable stringTable;
   private final MetaWriter metaWriter;
   private boolean firstSpanWritten;
 
-  public TraceMapperV1(int size) {
-    this.size = size;
+  public TraceMapperV1(int bufferSize) {
+    this.bufferSize = bufferSize;
     this.stringTable = new StringTable();
     this.metaWriter = new MetaWriter();
   }
@@ -123,69 +64,141 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   @Override
-  public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
-    // Write array header for the trace (list of spans)
-    writable.startArray(trace.size());
+  public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+    // TODO: probably this can be optimized by caching this data once.
+    Config cfg = Config.get();
 
-    for (int i = 0; i < trace.size(); i++) {
-      final CoreSpan<?> span = trace.get(i);
+    // containerID = 2, the string ID of the container where the tracer is running
+    encodeField(writable, 2, ContainerInfo.get().getContainerId());
+    // languageName = 3, the string language name of the tracer
+    encodeField(writable, 3, "java"); // TODO: check java or jvm?
+    // languageVersion = 4, the string language version of the tracer
+    encodeField(writable, 4, JavaVirtualMachine.getLangVersion());
+    // tracerVersion = 5, the string version of the tracer
+    encodeField(writable, 5, TracerVersion.TRACER_VERSION);
+    // runtimeID = 6, the V4 string UUID representation of a tracer session
+    encodeField(writable, 6, cfg.getRuntimeId());
+    // env=7, the optional `env` string tag that set with the tracer
+    encodeField(writable, 7, cfg.getEnv());
+    // hostname = 8, the optional string hostname of where the tracer is running
+    encodeField(writable, 8, cfg.getHostName());
+    // appVersion = 9, the optional string `version` tag for the application set in the tracer
+    encodeField(writable, 9, cfg.getVersion());
+    // attributes = 10, a collection of key to value pairs common in all `chunks`
+    encodeAttributes(writable, 10); // TODO implement
+    // chunks = 11, a list of trace `chunks`
+    encodeTraceChunks(writable, 11, trace);
+  }
 
-      // Count fields for span map (we always write all 16 fields)
+  private void encodeTraceChunks(
+      Writable writable, int fieldId, List<? extends CoreSpan<?>> traceChunk) {
+    if (traceChunk.isEmpty()) {
+      return;
+    }
+
+    writable.writeInt(fieldId);
+    writable.startArray(1); // In Java, we always have one chunk only
+
+    writable.startMap(7); // trace chunk has 7 attributes
+
+    // priority = 1, the sampling priority of the trace
+    encodeField(writable, 1, 1); // TODO implement
+    // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
+    encodeField(writable, 2, "origin"); // TODO implement
+    // attributes = 3, a collection of key to value pairs common in all `spans`
+    encodeAttributes(writable, 3); // TODO implement
+    // spans = 4, a list of spans in this chunk
+    encodeSpans(writable, 4, traceChunk);
+    // droppedTrace = 5, whether the trace only contains analyzed spans
+    // (not required by tracers and set by the agent)
+    encodeField(writable, 5, false); // TODO: double check
+    // traceID = 6, the ID of the trace to which all spans in this chunk belong
+    encodeField(writable, 6, "traceId"); // TODO implement
+    // samplingMechanism = 7, the optional sampling mechanism
+    // (previously span tag _dd.p.dm, but now it’s just the int)
+    encodeField(writable, 7, 0); // TODO implement
+  }
+
+  private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {
+    int spansCount = spans.size();
+
+    writable.writeInt(fieldId); // Protocol fieldId
+    writable.startArray(spansCount); // Number of spans
+
+    for (int i = 0; i < spansCount; i++) {
+      final CoreSpan<?> span = spans.get(i);
+
+      // Span has 16 fields
       writable.startMap(16);
 
-      // Field 1: service
-      writable.writeInt(SPAN_FIELD_SERVICE);
-      writeStreamingString(writable, span.getServiceName());
-
-      // Field 2: name
-      writable.writeInt(SPAN_FIELD_NAME);
-      writeStreamingString(writable, span.getOperationName());
-
-      // Field 3: resource
-      writable.writeInt(SPAN_FIELD_RESOURCE);
-      writeStreamingString(writable, span.getResourceName());
-
-      // Field 4: spanID
-      writable.writeInt(SPAN_FIELD_SPAN_ID);
-      writable.writeUnsignedLong(span.getSpanId());
-
-      // Field 5: parentID
-      writable.writeInt(SPAN_FIELD_PARENT_ID);
-      writable.writeUnsignedLong(span.getParentId());
-
-      // Field 6: start
-      writable.writeInt(SPAN_FIELD_START);
-      writable.writeLong(span.getStartTime());
-
-      // Field 7: duration
-      writable.writeInt(SPAN_FIELD_DURATION);
-      writable.writeLong(PendingTrace.getDurationNano(span));
-
-      // Field 8: error (boolean in V1)
-      writable.writeInt(SPAN_FIELD_ERROR);
-      writable.writeBoolean(span.getError() != 0);
-
-      // Field 9: attributes (combined meta + metrics)
-      // Fields 13-16: promoted fields (env, version, component, spanKind)
-      span.processTagsAndBaggage(
-          metaWriter
-              .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
-
-      // Field 10: spanType
-      writable.writeInt(SPAN_FIELD_TYPE);
-      writeStreamingString(writable, span.getType());
-
-      // Field 11: spanLinks (empty array for now - could be extended)
-      writable.writeInt(SPAN_FIELD_SPAN_LINKS);
+      // service = 1, the string name of the service that this span is associated with
+      encodeField(writable, 1, span.getServiceName());
+      // name = 2, the string operation name of this span
+      encodeField(writable, 2, span.getOperationName());
+      // resource = 3, the string resource name of this span, sometimes called endpoint for web
+      // spans
+      encodeField(writable, 3, span.getResourceName());
+      // spanID = 4, the ID of this span
+      encodeField(writable, 4, span.getSpanId());
+      // parentID = 5, the ID of this span's parent, or zero if there is no parent
+      encodeField(writable, 5, span.getParentId());
+      // start = 6, the number of nanoseconds from the Unix epoch to the start of this span
+      encodeField(writable, 6, span.getStartTime());
+      // duration = 7, the time length of this span in nanoseconds
+      encodeField(writable, 7, PendingTrace.getDurationNano(span));
+      // error = 8, if there is an error associated with this span
+      encodeField(writable, 8, span.getError() != 0);
+      // attributes = 9, a collection of string key to value pairs on the span
+      encodeAttributes(writable, 9); // TODO implement
+      // type = 10, the string type of the service with which this span is associated
+      // (example values: web, db, lambda)
+      encodeField(writable, 10, span.getType());
+      // links = 11, a collection of links to other spans
+      // (empty array for now - could be extended)
+      writable.writeInt(11);
       writable.startArray(0);
-
-      // Field 12: spanEvents (empty array for now - could be extended)
-      writable.writeInt(SPAN_FIELD_SPAN_EVENTS);
+      // events = 12, a collection of events that occurred during this span
+      // (empty array for now - could be extended)
+      writable.writeInt(12);
       writable.startArray(0);
+      // env = 13, the optional string environment of this span
+      encodeField(writable, 13, "todo"); // TODO implement
+      // version = 14, the optional string version of this span
+      encodeField(writable, 14, "todo"); // TODO implement
+      // component = 15, the string component name of this span
+      encodeField(writable, 15, "todo"); // TODO implement
+      // kind = 16, the SpanKind of this span as defined in the OTEL Specification
+      encodeField(writable, 16, "todo"); // TODO implement
 
-      firstSpanWritten = true;
+      // // Fields 13-16: promoted fields (env, version, component, spanKind)
+      // span.processTagsAndBaggage(
+      //     metaWriter
+      //         .withWritable(writable)
+      //         .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+      //
+      // firstSpanWritten = true;
     }
+  }
+
+  // TODO: For now no attributes, just write empty array so far, probably can be improved.
+  private void encodeAttributes(Writable writable, int fieldId) {
+    writable.writeInt(fieldId);
+    writable.startArray(0);
+  }
+
+  private void encodeField(Writable writable, int fieldId, boolean value) {
+    writable.writeInt(fieldId);
+    writable.writeBoolean(value);
+  }
+
+  private void encodeField(Writable writable, int fieldId, long value) {
+    writable.writeInt(fieldId);
+    writable.writeLong(value);
+  }
+
+  private void encodeField(Writable writable, int fieldId, CharSequence value) {
+    writable.writeInt(fieldId);
+    writeStreamingString(writable, value);
   }
 
   /** Writes a string using the streaming string table encoding. */
@@ -193,12 +206,11 @@ public final class TraceMapperV1 implements TraceMapper {
     String str = value == null ? "" : value.toString();
     Integer index = stringTable.add(str);
     if (index > 0) {
-      // String already in table, write index
+      // String already in table, write index.
       writable.writeInt(index);
     } else {
-      // New string, write it directly and add to table
-      writable.writeString(str, null);
-      stringTable.add(str);
+      // New string, write it directly.
+      writable.writeString(str, null); // TODO: do we need a cache here?
     }
   }
 
@@ -207,6 +219,7 @@ public final class TraceMapperV1 implements TraceMapper {
     if (spanKind == null) {
       return SPAN_KIND_INTERNAL;
     }
+
     switch (spanKind) {
       case Tags.SPAN_KIND_INTERNAL:
         return SPAN_KIND_INTERNAL;
@@ -230,7 +243,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return size;
+    return bufferSize;
   }
 
   @Override
@@ -315,13 +328,13 @@ public final class TraceMapperV1 implements TraceMapper {
         String key = entry.getKey();
         Object value = entry.getValue();
 
-        if (TAG_ENV.equals(key)) {
+        if (Tags.ENV.equals(key)) {
           env = String.valueOf(value);
-        } else if (TAG_VERSION.equals(key)) {
+        } else if (Tags.DD_VERSION.equals(key)) {
           version = String.valueOf(value);
-        } else if (TAG_COMPONENT.equals(key)) {
+        } else if (Tags.COMPONENT.equals(key)) {
           component = String.valueOf(value);
-        } else if (TAG_SPAN_KIND.equals(key)) {
+        } else if (Tags.SPAN_KIND.equals(key)) {
           spanKind = String.valueOf(value);
         } else if (!(value instanceof Map)) {
           attributeCount++;
@@ -371,8 +384,8 @@ public final class TraceMapperV1 implements TraceMapper {
         attributeCount++;
       }
 
-      // Write Field 9: attributes
-      writable.writeInt(SPAN_FIELD_ATTRIBUTES);
+      // // Write Field 9: attributes
+      // writable.writeInt(SPAN_FIELD_ATTRIBUTES);
       // Attributes are encoded as an array with triplets (key, type, value)
       writable.startArray(attributeCount * 3);
 
@@ -433,10 +446,10 @@ public final class TraceMapperV1 implements TraceMapper {
         Object value = entry.getValue();
 
         // Skip promoted fields
-        if (TAG_ENV.equals(key)
-            || TAG_VERSION.equals(key)
-            || TAG_COMPONENT.equals(key)
-            || TAG_SPAN_KIND.equals(key)) {
+        if (Tags.ENV.equals(key)
+            || Tags.DD_VERSION.equals(key)
+            || Tags.COMPONENT.equals(key)
+            || Tags.SPAN_KIND.equals(key)) {
           continue;
         }
 
@@ -453,21 +466,21 @@ public final class TraceMapperV1 implements TraceMapper {
 
       // Write promoted fields (13-16)
 
-      // Field 13: env
-      writable.writeInt(SPAN_FIELD_ENV);
-      writeStreamingString(writable, env != null ? env : "");
-
-      // Field 14: version
-      writable.writeInt(SPAN_FIELD_VERSION);
-      writeStreamingString(writable, version != null ? version : "");
-
-      // Field 15: component
-      writable.writeInt(SPAN_FIELD_COMPONENT);
-      writeStreamingString(writable, component != null ? component : "");
-
-      // Field 16: spanKind (uint32)
-      writable.writeInt(SPAN_FIELD_SPAN_KIND);
-      writable.writeInt(getSpanKindValue(spanKind));
+      // // Field 13: env
+      // writable.writeInt(SPAN_FIELD_ENV);
+      // writeStreamingString(writable, env != null ? env : "");
+      //
+      // // Field 14: version
+      // writable.writeInt(SPAN_FIELD_VERSION);
+      // writeStreamingString(writable, version != null ? version : "");
+      //
+      // // Field 15: component
+      // writable.writeInt(SPAN_FIELD_COMPONENT);
+      // writeStreamingString(writable, component != null ? component : "");
+      //
+      // // Field 16: spanKind (uint32)
+      // writable.writeInt(SPAN_FIELD_SPAN_KIND);
+      // writable.writeInt(getSpanKindValue(spanKind));
     }
 
     private void writeString(String key, String value) {
@@ -545,7 +558,7 @@ public final class TraceMapperV1 implements TraceMapper {
       }
 
       // Write field ID 11 (chunks)
-      ByteBuffer fieldId = ByteBuffer.allocate(1).put(0, (byte) FIELD_CHUNKS);
+      ByteBuffer fieldId = ByteBuffer.allocate(1).put(0, (byte) 11);
       while (fieldId.hasRemaining()) {
         channel.write(fieldId);
       }
@@ -567,7 +580,7 @@ public final class TraceMapperV1 implements TraceMapper {
       return msgpackRequestBodyOf(
           Arrays.asList(
               msgpackMapHeader(1),
-              ByteBuffer.allocate(1).put(0, (byte) FIELD_CHUNKS),
+              ByteBuffer.allocate(1).put(0, (byte) 11),
               msgpackArrayHeader(traceCount()),
               body));
     }
