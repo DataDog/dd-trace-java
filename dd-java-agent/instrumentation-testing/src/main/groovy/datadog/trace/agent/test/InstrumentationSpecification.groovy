@@ -388,7 +388,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
-      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.isTraceAgentV05Enabled(), cfg.isTraceAgentV1_0Enabled(), cfg.isTracerMetricsEnabled())
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.isTraceAgentV05Enabled(), cfg.isTraceAgentV1Enabled(), cfg.isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, cfg.isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }

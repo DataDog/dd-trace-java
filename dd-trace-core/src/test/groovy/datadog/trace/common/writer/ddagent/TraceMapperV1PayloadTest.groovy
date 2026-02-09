@@ -43,15 +43,14 @@ import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 
 /**
- * Test class for TraceMapperV1_0 payload format
+ * Test class for TraceMapperV1 payload format
  */
-@SuppressWarnings('ClassName') // suppress underscore in classname.
-class TraceMapperV1_0PayloadTest extends DDSpecification {
+class TraceMapperV1PayloadTest extends DDSpecification {
 
   def "test traces written correctly"() {
     setup:
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
 
     def buffer = new FlushingBuffer(bufferSize, verifier)
@@ -95,7 +94,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
   def "test endpoint returns v1.0"() {
     setup:
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
 
     expect:
     traceMapper.endpoint() == "v1.0"
@@ -103,18 +102,18 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
   def "test span kind value conversion"() {
     expect:
-    TraceMapperV1_0.getSpanKindValue(null) == TraceMapperV1_0.SPAN_KIND_INTERNAL
-    TraceMapperV1_0.getSpanKindValue(Tags.SPAN_KIND_INTERNAL) == TraceMapperV1_0.SPAN_KIND_INTERNAL
-    TraceMapperV1_0.getSpanKindValue(Tags.SPAN_KIND_SERVER) == TraceMapperV1_0.SPAN_KIND_SERVER
-    TraceMapperV1_0.getSpanKindValue(Tags.SPAN_KIND_CLIENT) == TraceMapperV1_0.SPAN_KIND_CLIENT
-    TraceMapperV1_0.getSpanKindValue(Tags.SPAN_KIND_PRODUCER) == TraceMapperV1_0.SPAN_KIND_PRODUCER
-    TraceMapperV1_0.getSpanKindValue(Tags.SPAN_KIND_CONSUMER) == TraceMapperV1_0.SPAN_KIND_CONSUMER
-    TraceMapperV1_0.getSpanKindValue("unknown") == TraceMapperV1_0.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(null) == TraceMapperV1.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_INTERNAL) == TraceMapperV1.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_SERVER) == TraceMapperV1.SPAN_KIND_SERVER
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CLIENT) == TraceMapperV1.SPAN_KIND_CLIENT
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_PRODUCER) == TraceMapperV1.SPAN_KIND_PRODUCER
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CONSUMER) == TraceMapperV1.SPAN_KIND_CONSUMER
+    TraceMapperV1.getSpanKindValue("unknown") == TraceMapperV1.SPAN_KIND_INTERNAL
   }
 
   def "test string table deduplication"() {
     setup:
-    TraceMapperV1_0.StringTable stringTable = new TraceMapperV1_0.StringTable()
+    TraceMapperV1.StringTable stringTable = new TraceMapperV1.StringTable()
 
     expect:
     // Empty string should be pre-populated at index 0
@@ -170,7 +169,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
       200,
       "test-origin")
     def traces = [[span]]
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
 
@@ -202,7 +201,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
       500,
       null)
     def traces = [[span]]
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
 
@@ -241,7 +240,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
       200,
       null)
     def traces = [[span]]
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
 
@@ -279,7 +278,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
       0,
       null)
     def traces = [[span]]
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
 
@@ -315,7 +314,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
     }
 
     def traces = [spans]
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
 
@@ -329,7 +328,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
   def "test mapper reset clears string table"() {
     setup:
-    TraceMapperV1_0 traceMapper = new TraceMapperV1_0()
+    TraceMapperV1 traceMapper = new TraceMapperV1()
     def span = new TraceGenerator.PojoSpan(
       "test-service",
       "test-operation",
@@ -375,13 +374,13 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
-    private final TraceMapperV1_0 mapper
+    private final TraceMapperV1 mapper
     private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
     private int position = 0
     // String table for streaming string decoding
     private List<String> stringTable = new ArrayList<>()
 
-    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV1_0 mapper) {
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV1 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
     }
@@ -414,7 +413,7 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
         // Read field ID (should be 11 for chunks)
         int fieldId = unpacker.unpackInt()
-        assertEquals(TraceMapperV1_0.FIELD_CHUNKS, fieldId, "Expected chunks field ID")
+        assertEquals(TraceMapperV1.FIELD_CHUNKS, fieldId, "Expected chunks field ID")
 
         // Read trace count
         int traceCount = unpacker.unpackArrayHeader()
@@ -438,31 +437,31 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
               int spanFieldId = unpacker.unpackInt()
 
               switch (spanFieldId) {
-                case TraceMapperV1_0.SPAN_FIELD_SERVICE:
+                case TraceMapperV1.SPAN_FIELD_SERVICE:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_NAME:
+                case TraceMapperV1.SPAN_FIELD_NAME:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_RESOURCE:
+                case TraceMapperV1.SPAN_FIELD_RESOURCE:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_SPAN_ID:
+                case TraceMapperV1.SPAN_FIELD_SPAN_ID:
                   spanFields.put(spanFieldId, unpacker.unpackValue().asNumberValue().toLong())
                   break
-                case TraceMapperV1_0.SPAN_FIELD_PARENT_ID:
+                case TraceMapperV1.SPAN_FIELD_PARENT_ID:
                   spanFields.put(spanFieldId, unpacker.unpackValue().asNumberValue().toLong())
                   break
-                case TraceMapperV1_0.SPAN_FIELD_START:
+                case TraceMapperV1.SPAN_FIELD_START:
                   spanFields.put(spanFieldId, unpacker.unpackLong())
                   break
-                case TraceMapperV1_0.SPAN_FIELD_DURATION:
+                case TraceMapperV1.SPAN_FIELD_DURATION:
                   spanFields.put(spanFieldId, unpacker.unpackLong())
                   break
-                case TraceMapperV1_0.SPAN_FIELD_ERROR:
+                case TraceMapperV1.SPAN_FIELD_ERROR:
                   spanFields.put(spanFieldId, unpacker.unpackBoolean())
                   break
-                case TraceMapperV1_0.SPAN_FIELD_ATTRIBUTES:
+                case TraceMapperV1.SPAN_FIELD_ATTRIBUTES:
                 // Attributes are encoded as array with triplets: key, type, value
                   int attrArraySize = unpacker.unpackArrayHeader()
                   int attrCount = attrArraySize / 3
@@ -474,29 +473,29 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
                   }
                   spanFields.put(spanFieldId, attributes)
                   break
-                case TraceMapperV1_0.SPAN_FIELD_TYPE:
+                case TraceMapperV1.SPAN_FIELD_TYPE:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_SPAN_LINKS:
+                case TraceMapperV1.SPAN_FIELD_SPAN_LINKS:
                   int linksCount = unpacker.unpackArrayHeader()
                 // Skip span links for now
                   spanFields.put(spanFieldId, linksCount)
                   break
-                case TraceMapperV1_0.SPAN_FIELD_SPAN_EVENTS:
+                case TraceMapperV1.SPAN_FIELD_SPAN_EVENTS:
                   int eventsCount = unpacker.unpackArrayHeader()
                 // Skip span events for now
                   spanFields.put(spanFieldId, eventsCount)
                   break
-                case TraceMapperV1_0.SPAN_FIELD_ENV:
+                case TraceMapperV1.SPAN_FIELD_ENV:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_VERSION:
+                case TraceMapperV1.SPAN_FIELD_VERSION:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_COMPONENT:
+                case TraceMapperV1.SPAN_FIELD_COMPONENT:
                   spanFields.put(spanFieldId, readStreamingString(unpacker))
                   break
-                case TraceMapperV1_0.SPAN_FIELD_SPAN_KIND:
+                case TraceMapperV1.SPAN_FIELD_SPAN_KIND:
                   spanFields.put(spanFieldId, unpacker.unpackInt())
                   break
                 default:
@@ -506,53 +505,53 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
             // Verify basic span fields
             assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(),
-              (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_SERVICE))
+              (String) spanFields.get(TraceMapperV1.SPAN_FIELD_SERVICE))
             assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(),
-              (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_NAME))
+              (String) spanFields.get(TraceMapperV1.SPAN_FIELD_NAME))
             assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(),
-              (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_RESOURCE))
+              (String) spanFields.get(TraceMapperV1.SPAN_FIELD_RESOURCE))
             assertEquals(expectedSpan.getSpanId(),
-              spanFields.get(TraceMapperV1_0.SPAN_FIELD_SPAN_ID))
+              spanFields.get(TraceMapperV1.SPAN_FIELD_SPAN_ID))
             assertEquals(expectedSpan.getParentId(),
-              spanFields.get(TraceMapperV1_0.SPAN_FIELD_PARENT_ID))
+              spanFields.get(TraceMapperV1.SPAN_FIELD_PARENT_ID))
             assertEquals(expectedSpan.getStartTime(),
-              spanFields.get(TraceMapperV1_0.SPAN_FIELD_START))
+              spanFields.get(TraceMapperV1.SPAN_FIELD_START))
             assertEquals(expectedSpan.getDurationNano(),
-              spanFields.get(TraceMapperV1_0.SPAN_FIELD_DURATION))
+              spanFields.get(TraceMapperV1.SPAN_FIELD_DURATION))
 
             // V1.0 format: error is boolean
             boolean expectedError = expectedSpan.getError() != 0
-            assertEquals(expectedError, spanFields.get(TraceMapperV1_0.SPAN_FIELD_ERROR))
+            assertEquals(expectedError, spanFields.get(TraceMapperV1.SPAN_FIELD_ERROR))
 
             assertEqualsWithNullAsEmpty(expectedSpan.getType(),
-              (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_TYPE))
+              (String) spanFields.get(TraceMapperV1.SPAN_FIELD_TYPE))
 
             // Verify promoted fields
             String expectedEnv = expectedSpan.getTag(Tags.ENV)
-            String actualEnv = (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_ENV)
+            String actualEnv = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_ENV)
             if (expectedEnv != null) {
               assertEquals(expectedEnv, actualEnv)
             }
 
             String expectedVersion = expectedSpan.getTag(Tags.DD_VERSION)
-            String actualVersion = (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_VERSION)
+            String actualVersion = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_VERSION)
             if (expectedVersion != null) {
               assertEquals(expectedVersion, actualVersion)
             }
 
             String expectedComponent = expectedSpan.getTag(Tags.COMPONENT)
-            String actualComponent = (String) spanFields.get(TraceMapperV1_0.SPAN_FIELD_COMPONENT)
+            String actualComponent = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_COMPONENT)
             if (expectedComponent != null) {
               assertEquals(expectedComponent, actualComponent)
             }
 
             // Verify span kind is OTEL uint32
-            int spanKind = (int) spanFields.get(TraceMapperV1_0.SPAN_FIELD_SPAN_KIND)
+            int spanKind = (int) spanFields.get(TraceMapperV1.SPAN_FIELD_SPAN_KIND)
             String expectedSpanKind = expectedSpan.getTag(Tags.SPAN_KIND)
-            assertEquals(TraceMapperV1_0.getSpanKindValue(expectedSpanKind), spanKind)
+            assertEquals(TraceMapperV1.getSpanKindValue(expectedSpanKind), spanKind)
 
             // Verify attributes
-            Map<String, Object> spanAttributes = (Map<String, Object>) spanFields.get(TraceMapperV1_0.SPAN_FIELD_ATTRIBUTES)
+            Map<String, Object> spanAttributes = (Map<String, Object>) spanFields.get(TraceMapperV1.SPAN_FIELD_ATTRIBUTES)
 
             // Check process tags (only on first span)
             if (spanAttributes.containsKey(DDTags.PROCESS_TAGS)) {
@@ -632,11 +631,11 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
 
     private Object readAttributeValue(MessageUnpacker unpacker, int attrType) throws IOException {
       switch (attrType) {
-        case TraceMapperV1_0.STRING_VALUE_TYPE:
+        case TraceMapperV1.STRING_VALUE_TYPE:
           return readStreamingString(unpacker)
-        case TraceMapperV1_0.BOOL_VALUE_TYPE:
+        case TraceMapperV1.BOOL_VALUE_TYPE:
           return unpacker.unpackBoolean()
-        case TraceMapperV1_0.FLOAT_VALUE_TYPE:
+        case TraceMapperV1.FLOAT_VALUE_TYPE:
         // Float values can be encoded as integer or double depending on the actual value
           MessageFormat format = unpacker.getNextFormat()
           switch (format) {
@@ -660,14 +659,14 @@ class TraceMapperV1_0PayloadTest extends DDSpecification {
               Assert.fail("Unexpected format for FLOAT_VALUE_TYPE: " + format)
               return null
           }
-        case TraceMapperV1_0.INT_VALUE_TYPE:
+        case TraceMapperV1.INT_VALUE_TYPE:
           return unpacker.unpackLong()
-        case TraceMapperV1_0.BYTES_VALUE_TYPE:
+        case TraceMapperV1.BYTES_VALUE_TYPE:
           int len = unpacker.unpackBinaryHeader()
           byte[] bytes = new byte[len]
           unpacker.readPayload(bytes)
           return bytes
-        case TraceMapperV1_0.ARRAY_VALUE_TYPE:
+        case TraceMapperV1.ARRAY_VALUE_TYPE:
           int arrayLen = unpacker.unpackArrayHeader()
           List<Object> array = new ArrayList<>()
           for (int i = 0; i < arrayLen; ++i) {

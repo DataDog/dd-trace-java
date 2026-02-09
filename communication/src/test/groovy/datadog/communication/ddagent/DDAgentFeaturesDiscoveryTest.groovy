@@ -5,7 +5,7 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V04_ENDPOIN
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V05_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V07_CONFIG_ENDPOINT
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V1_0_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V1_ENDPOINT
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
@@ -52,7 +52,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, v05Enabled, v1_0Enabled, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, v05Enabled, v1Enabled, true)
 
     when: "/info available"
     features.discover()
@@ -78,11 +78,11 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * _
 
     where:
-    v05Enabled | v1_0Enabled | expectedTraceEndpoint
+    v05Enabled | v1Enabled | expectedTraceEndpoint
     false      | false       | V04_ENDPOINT
     true       | false       | V05_ENDPOINT
-    false      | true        | V1_0_ENDPOINT
-    true       | true        | V1_0_ENDPOINT
+    false      | true        | V1_ENDPOINT
+    true       | true        | V1_ENDPOINT
   }
 
   def "Should change discovery state atomically after discovery happened"() {

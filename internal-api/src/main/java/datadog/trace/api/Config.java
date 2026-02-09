@@ -158,7 +158,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GEN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V1_0_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
@@ -177,6 +176,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_V1_PAYLOAD_FORMAT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
@@ -597,7 +597,6 @@ import static datadog.trace.api.config.TracerConfig.BAGGAGE_MAPPING;
 import static datadog.trace.api.config.TracerConfig.CLIENT_IP_ENABLED;
 import static datadog.trace.api.config.TracerConfig.CLOCK_SYNC_PERIOD;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
-import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V1_0;
 import static datadog.trace.api.config.TracerConfig.FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT;
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
@@ -673,6 +672,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SERVICE_DISCOVERY_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_V1_PAYLOAD_FORMAT_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
@@ -1205,7 +1205,7 @@ public class Config {
 
   private final boolean traceAgentV05Enabled;
 
-  private final boolean traceAgentV1_0Enabled;
+  private final boolean traceAgentV1Enabled;
 
   private final String logLevel;
   private final boolean debugEnabled;
@@ -2011,8 +2011,9 @@ public class Config {
     traceAgentV05Enabled =
         configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
 
-    traceAgentV1_0Enabled =
-        configProvider.getBoolean(ENABLE_TRACE_AGENT_V1_0, DEFAULT_TRACE_AGENT_V1_0_ENABLED);
+    traceAgentV1Enabled =
+        configProvider.getBoolean(
+            TRACE_V1_PAYLOAD_FORMAT_ENABLED, DEFAULT_TRACE_V1_PAYLOAD_FORMAT_ENABLED);
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -4599,8 +4600,8 @@ public class Config {
     return traceAgentV05Enabled;
   }
 
-  public boolean isTraceAgentV1_0Enabled() {
-    return traceAgentV1_0Enabled;
+  public boolean isTraceAgentV1Enabled() {
+    return traceAgentV1Enabled;
   }
 
   public String getLogLevel() {

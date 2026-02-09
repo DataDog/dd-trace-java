@@ -1,4 +1,4 @@
-package datadog.trace.test.agent.decoder.v1_0.raw;
+package datadog.trace.test.agent.decoder.v1.raw;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -8,12 +8,12 @@ import java.util.List;
 import org.msgpack.core.MessageUnpacker;
 
 /**
- * TraceV1_0 represents a decoded trace in V1.0 format.
+ * TraceV1 represents a decoded trace in V1.0 format.
  *
  * <p>Each trace in V1.0 is an array of spans. The string table is shared across all traces in a
  * payload for streaming string decoding.
  */
-public class TraceV1_0 implements DecodedTrace {
+public class TraceV1 implements DecodedTrace {
 
   /**
    * Unpacks an array of traces from the unpacker.
@@ -28,7 +28,7 @@ public class TraceV1_0 implements DecodedTrace {
       if (size < 0) {
         throw new IllegalArgumentException("Negative trace array size " + size);
       }
-      DecodedTrace[] traces = new TraceV1_0[size];
+      DecodedTrace[] traces = new TraceV1[size];
       for (int i = 0; i < size; i++) {
         traces[i] = unpack(unpacker, stringTable);
       }
@@ -49,13 +49,13 @@ public class TraceV1_0 implements DecodedTrace {
    * @param stringTable the shared string table for streaming string decoding
    * @return the decoded trace
    */
-  public static TraceV1_0 unpack(MessageUnpacker unpacker, List<String> stringTable) {
-    return new TraceV1_0(SpanV1_0.unpackSpans(unpacker, stringTable));
+  public static TraceV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
+    return new TraceV1(SpanV1.unpackSpans(unpacker, stringTable));
   }
 
   private final DecodedSpan[] spans;
 
-  private TraceV1_0(DecodedSpan[] spans) {
+  private TraceV1(DecodedSpan[] spans) {
     this.spans = spans;
   }
 

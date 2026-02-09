@@ -1,4 +1,4 @@
-package datadog.trace.test.agent.decoder.v1_0.raw;
+package datadog.trace.test.agent.decoder.v1.raw;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
@@ -10,7 +10,7 @@ import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ValueType;
 
 /**
- * SpanV1_0 decodes spans in V1.0 format.
+ * SpanV1 decodes spans in V1.0 format.
  *
  * <p>V1.0 format differences from V0.4:
  *
@@ -23,8 +23,8 @@ import org.msgpack.value.ValueType;
  *   <li>No traceId in span (it's at trace chunk level in full spec)
  * </ul>
  */
-public class SpanV1_0 implements DecodedSpan {
-  // Span field IDs (from TraceMapperV1_0)
+public class SpanV1 implements DecodedSpan {
+  // Span field IDs (from TraceMapperV1)
   static final int SPAN_FIELD_SERVICE = 1;
   static final int SPAN_FIELD_NAME = 2;
   static final int SPAN_FIELD_RESOURCE = 3;
@@ -85,7 +85,7 @@ public class SpanV1_0 implements DecodedSpan {
    * @param stringTable the shared string table for streaming string decoding
    * @return the decoded span
    */
-  static SpanV1_0 unpack(MessageUnpacker unpacker, List<String> stringTable) {
+  static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
     try {
       int mapSize = unpacker.unpackMapHeader();
 
@@ -185,7 +185,7 @@ public class SpanV1_0 implements DecodedSpan {
       // We use 0 as a placeholder
       long traceId = 0;
 
-      return new SpanV1_0(
+      return new SpanV1(
           service, name, resource, traceId, spanId, parentId, start, duration, error, type, metrics,
           meta, null);
     } catch (Throwable t) {
@@ -339,7 +339,7 @@ public class SpanV1_0 implements DecodedSpan {
   private final Map<String, Number> metrics;
   private final String type;
 
-  public SpanV1_0(
+  public SpanV1(
       String service,
       String name,
       String resource,
@@ -435,7 +435,7 @@ public class SpanV1_0 implements DecodedSpan {
 
   @Override
   public String toString() {
-    return "SpanV1_0{"
+    return "SpanV1{"
         + "service='"
         + service
         + '\''

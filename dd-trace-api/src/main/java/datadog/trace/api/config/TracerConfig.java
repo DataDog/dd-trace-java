@@ -107,7 +107,8 @@ public final class TracerConfig {
       "trace.inferred.proxy.services.enabled";
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
-  public static final String ENABLE_TRACE_AGENT_V1_0 = "trace.agent.v1.0.enabled";
+
+  public static final String TRACE_V1_PAYLOAD_FORMAT_ENABLED = "trace.v1.payload.format.enabled";
 
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 

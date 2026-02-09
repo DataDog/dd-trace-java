@@ -1,4 +1,4 @@
-package datadog.trace.test.agent.decoder.v1_0.raw;
+package datadog.trace.test.agent.decoder.v1.raw;
 
 import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -14,7 +14,7 @@ import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ValueType;
 
 /**
- * MessageV1_0 decodes V1.0 trace payload format.
+ * MessageV1 decodes V1.0 trace payload format.
  *
  * <p>The V1.0 raw buffer format (from FlushingBuffer.dump()) is a concatenation of traces, where
  * each trace is an array of spans:
@@ -37,19 +37,19 @@ import org.msgpack.value.ValueType;
  *   <li>Attributes as flat array of triplets (key, type, value)
  * </ul>
  */
-public class MessageV1_0 implements DecodedMessage {
+public class MessageV1 implements DecodedMessage {
   // Tracer Payload field IDs
   static final int FIELD_CHUNKS = 11;
 
-  public static MessageV1_0 unpack(ByteBuffer buffer) {
+  public static MessageV1 unpack(ByteBuffer buffer) {
     return unpack(MessagePack.DEFAULT_UNPACKER_CONFIG.newUnpacker(buffer));
   }
 
-  public static MessageV1_0 unpack(byte[] buffer) {
+  public static MessageV1 unpack(byte[] buffer) {
     return unpack(MessagePack.DEFAULT_UNPACKER_CONFIG.newUnpacker(buffer));
   }
 
-  static MessageV1_0 unpack(MessageUnpacker unpacker) {
+  static MessageV1 unpack(MessageUnpacker unpacker) {
     try {
       // Initialize string table for streaming string decoding
       // Index 0 is reserved for empty string
@@ -58,7 +58,7 @@ public class MessageV1_0 implements DecodedMessage {
 
       // Check what format we have
       if (!unpacker.hasNext()) {
-        return new MessageV1_0(new DecodedTrace[0]);
+        return new MessageV1(new DecodedTrace[0]);
       }
 
       ValueType firstType = unpacker.getNextFormat().getValueType();
@@ -72,7 +72,7 @@ public class MessageV1_0 implements DecodedMessage {
           int fieldId = unpacker.unpackInt();
           if (fieldId == FIELD_CHUNKS) {
             // This is an array of traces
-            DecodedTrace[] traceArray = TraceV1_0.unpackTraces(unpacker, stringTable);
+            DecodedTrace[] traceArray = TraceV1.unpackTraces(unpacker, stringTable);
             traces.addAll(Arrays.asList(traceArray));
           } else {
             // Skip unknown fields
@@ -91,7 +91,7 @@ public class MessageV1_0 implements DecodedMessage {
             break;
           }
 
-          DecodedTrace trace = TraceV1_0.unpack(unpacker, stringTable);
+          DecodedTrace trace = TraceV1.unpack(unpacker, stringTable);
           traces.add(trace);
         }
       } else {
@@ -99,7 +99,7 @@ public class MessageV1_0 implements DecodedMessage {
             "Expected Map or Array at start of V1.0 payload, got: " + firstType);
       }
 
-      return new MessageV1_0(traces.toArray(new DecodedTrace[0]));
+      return new MessageV1(traces.toArray(new DecodedTrace[0]));
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to decode V1.0 message", e);
     } catch (Throwable t) {
@@ -113,7 +113,7 @@ public class MessageV1_0 implements DecodedMessage {
 
   private final DecodedTrace[] traces;
 
-  private MessageV1_0(DecodedTrace[] traces) {
+  private MessageV1(DecodedTrace[] traces) {
     this.traces = traces;
   }
 

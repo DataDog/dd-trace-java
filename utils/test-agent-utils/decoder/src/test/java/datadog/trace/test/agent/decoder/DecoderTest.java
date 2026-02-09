@@ -90,8 +90,8 @@ public class DecoderTest {
   }
 
   @Test
-  public void decodeV1_0() throws Throwable {
-    byte[] buffer = readResourceFile("/sample_v1_0.msgpack");
+  public void decodeV1() throws Throwable {
+    byte[] buffer = readResourceFile("/sample_v1.msgpack");
 
     DecodedMessage message = Decoder.decodeV1(buffer);
     List<DecodedTrace> traces = message.getTraces();

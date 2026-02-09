@@ -18,7 +18,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.common.writer.ddagent.TraceMapperV1_0
+import datadog.trace.common.writer.ddagent.TraceMapperV1
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
@@ -431,7 +431,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     TraceMapper traceMapper
     switch (agentVersion) {
       case "v1/traces":
-        traceMapper = new TraceMapperV1_0()
+        traceMapper = new TraceMapperV1()
         break
 
       case "v0.5/traces":

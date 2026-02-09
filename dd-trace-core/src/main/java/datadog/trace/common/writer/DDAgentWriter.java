@@ -38,7 +38,7 @@ public class DDAgentWriter extends RemoteWriter {
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
-    boolean traceAgentV1Enabled = Config.get().isTraceAgentV1_0Enabled();
+    boolean traceAgentV1Enabled = Config.get().isTraceAgentV1Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;

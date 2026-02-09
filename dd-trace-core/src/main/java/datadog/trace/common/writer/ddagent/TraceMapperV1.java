@@ -22,7 +22,7 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 /**
- * TraceMapperV1_0 implements the V1 trace payload format.
+ * Payload format V1:
  *
  * <ul>
  *   <li>Uses map with integer field IDs instead of string keys.
@@ -34,7 +34,7 @@ import okhttp3.RequestBody;
  *   <li>SpanKind as uint32 matching OTEL spec values.
  * </ul>
  */
-public final class TraceMapperV1_0 implements TraceMapper {
+public final class TraceMapperV1 implements TraceMapper {
   // Attribute value types (from V1 spec)
   static final int STRING_VALUE_TYPE = 1;
   static final int BOOL_VALUE_TYPE = 2;
@@ -112,13 +112,13 @@ public final class TraceMapperV1_0 implements TraceMapper {
   private final MetaWriter metaWriter;
   private boolean firstSpanWritten;
 
-  public TraceMapperV1_0(int size) {
+  public TraceMapperV1(int size) {
     this.size = size;
     this.stringTable = new StringTable();
     this.metaWriter = new MetaWriter();
   }
 
-  public TraceMapperV1_0() {
+  public TraceMapperV1() {
     this(5 << 20);
   }
 
@@ -191,8 +191,8 @@ public final class TraceMapperV1_0 implements TraceMapper {
   /** Writes a string using the streaming string table encoding. */
   private void writeStreamingString(Writable writable, CharSequence value) {
     String str = value == null ? "" : value.toString();
-    Integer index = stringTable.get(str);
-    if (index != null) {
+    Integer index = stringTable.add(str);
+    if (index > 0) {
       // String already in table, write index
       writable.writeInt(index);
     } else {
@@ -225,7 +225,7 @@ public final class TraceMapperV1_0 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV1_0();
+    return new PayloadV1();
   }
 
   @Override
@@ -244,10 +244,10 @@ public final class TraceMapperV1_0 implements TraceMapper {
     return "v1.0";
   }
 
-  /** String table for streaming string encoding. */
+  /** String table for streaming string encoding. Index `0` is reserved for empty string. */
   static class StringTable {
     private final Map<String, Integer> indices = new HashMap<>();
-    private int nextIndex = 1; // Index 0 is reserved for empty string
+    private int nextIndex = 1;
 
     StringTable() {
       indices.put("", 0);
@@ -257,10 +257,13 @@ public final class TraceMapperV1_0 implements TraceMapper {
       return indices.get(str);
     }
 
-    void add(String str) {
+    Integer add(String str) {
       if (!indices.containsKey(str)) {
         indices.put(str, nextIndex++);
+        return nextIndex;
       }
+
+      return -1;
     }
 
     void clear() {
@@ -525,7 +528,7 @@ public final class TraceMapperV1_0 implements TraceMapper {
   }
 
   /** Payload implementation for V1.0 format. */
-  private static class PayloadV1_0 extends Payload {
+  private static class PayloadV1 extends Payload {
     @Override
     public int sizeInBytes() {
       // Map header + array header + body

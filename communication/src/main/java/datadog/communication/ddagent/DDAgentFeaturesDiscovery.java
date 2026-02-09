@@ -49,7 +49,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
-  public static final String V1_0_ENDPOINT = "v1/traces";
+  public static final String V1_ENDPOINT = "v1/traces";
 
   public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
   public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
@@ -108,14 +108,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
-      boolean enableV1_0Traces,
+      boolean enableV1Traces,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
-        enableV1_0Traces
-            ? new String[] {V1_0_ENDPOINT, V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+        enableV1Traces
+            ? new String[] {V1_ENDPOINT, V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
             : (enableV05Traces
                 ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
                 : new String[] {V04_ENDPOINT, V03_ENDPOINT});

@@ -90,7 +90,7 @@ public final class ConfigDefaults {
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
-  static final boolean DEFAULT_TRACE_AGENT_V1_0_ENABLED = false;
+  static final boolean DEFAULT_TRACE_V1_PAYLOAD_FORMAT_ENABLED = false;
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
