@@ -61,14 +61,20 @@ fi
 
 echo "PR #$pr_number is a CI Visibility PR - triggering test environment"
 
-# Check for test-environment branch override in PR body
+# Check for test-environment configuration in PR body
 set +e
 target_branch="main"
 pr_body=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json body --jq '.body' 2>&1)
 pr_body_status=$?
 if [ $pr_body_status -eq 0 ] && [ -n "$pr_body" ]; then
-  # Look for "test-environment-branch: <branch-name>" in PR body
-  override_branch=$(echo "$pr_body" | grep -oP '(?<=test-environment-branch:\s)[\S]+' | head -1)
+  # Check for skip directive: "test-environment-trigger: skip" (must be at start of line)
+  if echo "$pr_body" | grep -qP '^test-environment-trigger:\s*skip'; then
+    echo "Found test-environment-trigger: skip in PR body - skipping trigger"
+    add_dummy_job
+    exit 0
+  fi
+  # Look for "test-environment-branch: <branch-name>" at start of line in PR body
+  override_branch=$(echo "$pr_body" | grep -oP '^test-environment-branch:\s*\K[\S]+' | head -1)
   if [ -n "$override_branch" ]; then
     echo "Found test-environment branch override in PR body: '$override_branch'"
     target_branch="$override_branch"
