@@ -322,6 +322,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.final_status" : "fail",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.has_failed_all_retries" : "true",
