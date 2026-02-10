@@ -1137,9 +1137,9 @@ public class DDSpanContext
     try {
       return HTTP_STATUSES.get(httpStatusCode);
     } catch (NullPointerException e) {
-      // Intermittent NPE observed in JDK code on Semeru 11.0.29: java.lang.NullPointerException: null
-      // at j.l.i.ArrayVarHandle$ArrayVarHandleOperations$OpObject.computeOffset(ArrayVarHandle.java:142)
-      // at j.l.i.ArrayVarHandle$ArrayVarHandleOperations$OpObject.compareAndSet(ArrayVarHandle.java:201)
+      // Intermittent NPE observed in JDK code on Semeru 11.0.29: java.lang.NullPointerException:
+      // at j.l.i.ArrayVarHandle$...Operations$OpObject.computeOffset(ArrayVarHandle.java:142)
+      // at j.l.i.ArrayVarHandle$...Operations$OpObject.compareAndSet(ArrayVarHandle.java:201)
       // at j.u.c.atomic.AtomicReferenceArray.compareAndSet(AtomicReferenceArray.java:152)
       // at datadog.trace.api.cache.RadixTreeCache.computeIfAbsent(RadixTreeCache.java:59)
       // Location indicates JDK's VarHandle used to access the backing array has returned null
