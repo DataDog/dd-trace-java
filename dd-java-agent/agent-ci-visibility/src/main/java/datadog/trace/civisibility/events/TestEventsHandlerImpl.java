@@ -250,11 +250,11 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       return;
     }
 
+    TestStatus testStatus = test.getStatus() != null ? test.getStatus() : TestStatus.skip;
+
     if (testExecutionHistory != null) {
-      TestStatus testStatus = test.getStatus();
       TestExecutionHistory.ExecutionOutcome outcome =
-          testExecutionHistory.registerExecution(
-              testStatus != null ? testStatus : TestStatus.skip, test.getDuration(endTime));
+          testExecutionHistory.registerExecution(testStatus, test.getDuration(endTime));
 
       RetryReason retryReason = outcome.retryReason();
       if (retryReason != null) {
@@ -262,17 +262,24 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         test.setTag(Tags.TEST_RETRY_REASON, retryReason);
       }
 
-      if (outcome.failedAllRetries()) {
-        test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
-      }
-
-      if (outcome.lastExecution() && testModule.isAttemptToFix(test.getIdentifier())) {
-        test.setTag(Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, outcome.succeededAllRetries());
-      }
-
       if (outcome.failureSuppressed()) {
         test.setTag(Tags.TEST_FAILURE_SUPPRESSED, true);
       }
+
+      if (outcome.lastExecution()) {
+        test.setTag(Tags.TEST_FINAL_STATUS, outcome.finalStatus());
+
+        if (outcome.failedAllRetries()) {
+          test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
+        }
+
+        if (testModule.isAttemptToFix(test.getIdentifier())) {
+          test.setTag(
+              Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, outcome.succeededAllRetries());
+        }
+      }
+    } else {
+      test.setTag(Tags.TEST_FINAL_STATUS, testStatus);
     }
 
     test.end(endTime);

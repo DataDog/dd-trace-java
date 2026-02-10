@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.metrics.data;
 
 import datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor;
+import datadog.opentelemetry.shim.metrics.OtelInstrumentType;
 import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
@@ -23,15 +24,16 @@ public final class OtelMetricStorage {
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  private static final int DEFAULT_MAX_CARDINALITY = 2_000;
+  private static final OtlpConfig.Temporality TEMPORALITY_PREFERENCE =
+      Config.get().getOtlpMetricsTemporalityPreference();
+
+  private static final int CARDINALITY_LIMIT = Config.get().getMetricsOtelCardinalityLimit();
 
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
 
-  private static final boolean RESET_ON_COLLECT =
-      Config.get().getOtlpMetricsTemporalityPreference() == OtlpConfig.Temporality.DELTA;
-
   private final OtelInstrumentDescriptor descriptor;
+  private final boolean resetOnCollect;
   private final Function<Attributes, OtelAggregator> aggregatorSupplier;
   private volatile Recording currentRecording;
 
@@ -41,10 +43,28 @@ public final class OtelMetricStorage {
   private OtelMetricStorage(
       OtelInstrumentDescriptor descriptor, Supplier<OtelAggregator> aggregatorSupplier) {
     this.descriptor = descriptor;
+    this.resetOnCollect = shouldResetOnCollect(descriptor.getType());
     this.aggregatorSupplier = unused -> aggregatorSupplier.get();
     this.currentRecording = new Recording();
-    if (RESET_ON_COLLECT) {
+    if (resetOnCollect) {
       this.previousRecording = new Recording();
+    }
+  }
+
+  /** Should storage reset on collect? (Depends on instrument type and temporality preference.) */
+  private static boolean shouldResetOnCollect(OtelInstrumentType type) {
+    switch (TEMPORALITY_PREFERENCE) {
+      case DELTA:
+        // gauges and up/down counters stay as cumulative
+        return type == OtelInstrumentType.HISTOGRAM
+            || type == OtelInstrumentType.COUNTER
+            || type == OtelInstrumentType.OBSERVABLE_COUNTER;
+      case LOWMEMORY:
+        // observable counters, gauges, and up/down counters stay as cumulative
+        return type == OtelInstrumentType.HISTOGRAM || type == OtelInstrumentType.COUNTER;
+      case CUMULATIVE:
+      default:
+        return false;
     }
   }
 
@@ -78,20 +98,30 @@ public final class OtelMetricStorage {
   }
 
   public void recordLong(long value, Attributes attributes) {
-    Recording recording = acquireRecordingForWrite();
-    try {
-      aggregator(recording.aggregators, attributes).recordLong(value);
-    } finally {
-      releaseRecordingAfterWrite(recording);
+    if (resetOnCollect) {
+      Recording recording = acquireRecordingForWrite();
+      try {
+        aggregator(recording.aggregators, attributes).recordLong(value);
+      } finally {
+        releaseRecordingAfterWrite(recording);
+      }
+    } else {
+      // no need to hold writers back if we are not resetting metrics on collect
+      aggregator(currentRecording.aggregators, attributes).recordLong(value);
     }
   }
 
   public void recordDouble(double value, Attributes attributes) {
-    Recording recording = acquireRecordingForWrite();
-    try {
-      aggregator(recording.aggregators, attributes).recordDouble(value);
-    } finally {
-      releaseRecordingAfterWrite(recording);
+    if (resetOnCollect) {
+      Recording recording = acquireRecordingForWrite();
+      try {
+        aggregator(recording.aggregators, attributes).recordDouble(value);
+      } finally {
+        releaseRecordingAfterWrite(recording);
+      }
+    } else {
+      // no need to hold writers back if we are not resetting metrics on collect
+      aggregator(currentRecording.aggregators, attributes).recordDouble(value);
     }
   }
 
@@ -102,18 +132,18 @@ public final class OtelMetricStorage {
     if (null != aggregator) {
       return aggregator;
     }
-    if (aggregators.size() >= DEFAULT_MAX_CARDINALITY) {
+    if (aggregators.size() >= CARDINALITY_LIMIT) {
       RATELIMITED_LOGGER.warn(
           "Instrument {} has exceeded the maximum allowed cardinality ({}).",
           descriptor.getName(),
-          DEFAULT_MAX_CARDINALITY);
+          CARDINALITY_LIMIT);
       attributes = CARDINALITY_OVERFLOW; // write data to overflow
     }
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
 
   public void collect(OtelInstrumentVisitor visitor) {
-    if (RESET_ON_COLLECT) {
+    if (resetOnCollect) {
       doCollectAndReset(visitor);
     } else {
       doCollect(visitor);
@@ -153,7 +183,7 @@ public final class OtelMetricStorage {
     Map<Attributes, OtelAggregator> aggregators = recording.aggregators;
 
     // avoid churn: only remove empty aggregators if we're over cardinality
-    if (aggregators.size() >= DEFAULT_MAX_CARDINALITY) {
+    if (aggregators.size() >= CARDINALITY_LIMIT) {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
     }
 
@@ -168,27 +198,21 @@ public final class OtelMetricStorage {
   }
 
   private Recording acquireRecordingForWrite() {
-    if (RESET_ON_COLLECT) {
-      // busy loop to limit impact on caller
-      while (true) {
-        final Recording recording = currentRecording;
-        // atomically notify collector of write activity and check state
-        if ((ACTIVITY.addAndGet(recording, WRITER) & RESET_PENDING) == 0) {
-          return recording;
-        } else {
-          // reset pending: rollback and check again for a fresh recording
-          ACTIVITY.addAndGet(recording, -WRITER);
-        }
+    // busy loop to limit impact on caller
+    while (true) {
+      final Recording recording = currentRecording;
+      // atomically notify collector of write activity and check state
+      if ((ACTIVITY.addAndGet(recording, WRITER) & RESET_PENDING) == 0) {
+        return recording;
+      } else {
+        // reset pending: rollback and check again for a fresh recording
+        ACTIVITY.addAndGet(recording, -WRITER);
       }
-    } else {
-      return currentRecording;
     }
   }
 
   private void releaseRecordingAfterWrite(Recording recording) {
-    if (RESET_ON_COLLECT) {
-      ACTIVITY.addAndGet(recording, -WRITER);
-    }
+    ACTIVITY.addAndGet(recording, -WRITER);
   }
 
   static final AtomicIntegerFieldUpdater<Recording> ACTIVITY =

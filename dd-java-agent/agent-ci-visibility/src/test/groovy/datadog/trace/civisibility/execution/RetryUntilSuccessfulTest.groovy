@@ -21,6 +21,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -31,6 +32,7 @@ class RetryUntilSuccessfulTest extends Specification {
     !outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == TestStatus.pass
   }
 
   def "test fail all retries"() {
@@ -46,6 +48,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -56,6 +59,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -66,6 +70,7 @@ class RetryUntilSuccessfulTest extends Specification {
     !outcome3.failureSuppressed()
     outcome3.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.fail
   }
 
   def "test succeed on last try"() {
@@ -81,6 +86,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -91,6 +97,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -101,6 +108,7 @@ class RetryUntilSuccessfulTest extends Specification {
     !outcome3.failureSuppressed()
     !outcome3.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.pass
   }
 
   def "test succeed on first try"() {
@@ -116,6 +124,7 @@ class RetryUntilSuccessfulTest extends Specification {
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == TestStatus.pass
   }
 
   def "test suppress failures"() {
@@ -131,6 +140,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == null
 
     when:
     def outcome2 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -141,6 +151,7 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome2.failureSuppressed()
     !outcome2.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome2.finalStatus() == null
 
     when:
     def outcome3 = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -151,5 +162,6 @@ class RetryUntilSuccessfulTest extends Specification {
     outcome3.failureSuppressed()
     outcome3.failedAllRetries()
     !outcome2.succeededAllRetries()
+    outcome3.finalStatus() == TestStatus.pass
   }
 }
