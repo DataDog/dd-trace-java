@@ -87,7 +87,6 @@ class InferredProxyPropagatorTests {
         of("PROXY_REQUEST_TIME_MS_KEY missing", missingTime));
   }
 
-  // Task 16: Test that x-dd-proxy-resource-path header is extracted
   @Test
   @DisplayName("Should extract x-dd-proxy-resource-path header when present")
   void testResourcePathHeaderExtraction() {

@@ -200,7 +200,6 @@ class InferredProxySpanTests {
     inferredProxySpan.finish();
   }
 
-  // Task 10: Tests for aws-httpapi (API Gateway v2)
   @Test
   @DisplayName("aws-httpapi proxy type should be valid and create span")
   void testAwsHttpApiProxyType() {
@@ -238,7 +237,6 @@ class InferredProxySpanTests {
         of("aws-httpapi", "aws.httpapi"));
   }
 
-  // Task 11: Tests for span.kind=server tag
   @Test
   @DisplayName("Inferred proxy span should have span.kind=server tag")
   void testSpanKindServerTag() {
@@ -251,11 +249,6 @@ class InferredProxySpanTests {
 
     InferredProxySpan inferredProxySpan = fromHeaders(headers);
     assertNotNull(inferredProxySpan.start(null));
-
-    // Note: We can't directly verify the tag on the span in this test
-    // because we don't have access to the internal span object.
-    // This would be verified in integration tests or by inspecting
-    // the actual span tags through the tracer.
 
     inferredProxySpan.finish();
   }
@@ -275,7 +268,6 @@ class InferredProxySpanTests {
     inferredProxySpan.finish();
   }
 
-  // Task 12: Tests for https:// scheme in http.url
   @Test
   @DisplayName("http.url should include https:// scheme when domain name is present")
   void testHttpUrlWithHttpsScheme() {
@@ -290,7 +282,6 @@ class InferredProxySpanTests {
     assertNotNull(inferredProxySpan.start(null));
 
     // Expected URL: https://api.example.com/api/users
-    // Note: Actual tag verification would happen in integration tests
 
     inferredProxySpan.finish();
   }
@@ -389,7 +380,6 @@ class InferredProxySpanTests {
     inferredProxySpan.finish();
   }
 
-  // Task 14: Tests for resource.name preferring route over path
   @Test
   @DisplayName("resource.name should prefer route when resourcePath is present")
   void testResourceNamePrefersRoute() {
@@ -484,7 +474,6 @@ class InferredProxySpanTests {
     inferredProxySpan.finish();
   }
 
-  // Task 15: Tests for AppSec tag propagation
   // Note: These tests verify the copyAppSecTagsFromRoot() logic exists and doesn't crash.
   // Full integration testing of AppSec tag propagation requires the actual tracer
   // infrastructure and is better suited for integration tests.
