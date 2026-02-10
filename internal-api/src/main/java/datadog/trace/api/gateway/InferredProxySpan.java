@@ -144,7 +144,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Prefer x-dd-proxy-resource-path (route) over x-dd-proxy-path (path)
     // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
     String routeOrPath = resourcePath != null ? resourcePath : path;
-    String resourceName = httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
+    String resourceName =
+        httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
     if (resourceName != null) {
       span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
     }
@@ -162,9 +163,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   /**
-   * Compute ARN for the API Gateway resource.
-   * Format for v1 REST: arn:aws:apigateway:{region}::/restapis/{api-id}
-   * Format for v2 HTTP: arn:aws:apigateway:{region}::/apis/{api-id}
+   * Compute ARN for the API Gateway resource. Format for v1 REST:
+   * arn:aws:apigateway:{region}::/restapis/{api-id} Format for v2 HTTP:
+   * arn:aws:apigateway:{region}::/apis/{api-id}
    */
   private String computeArn(String proxySystem, String region, String apiId) {
     if (proxySystem == null || region == null || apiId == null) {
@@ -198,10 +199,10 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   /**
-   * Copy AppSec tags from the root span to this inferred proxy span.
-   * This is needed when distributed tracing is active, because AppSec sets tags
-   * on the absolute root span (via setTagTop), but we need them on the inferred
-   * proxy span which may be a child of the upstream root span.
+   * Copy AppSec tags from the root span to this inferred proxy span. This is needed when
+   * distributed tracing is active, because AppSec sets tags on the absolute root span (via
+   * setTagTop), but we need them on the inferred proxy span which may be a child of the upstream
+   * root span.
    */
   private void copyAppSecTagsFromRoot() {
     AgentSpan rootSpan = this.span.getLocalRootSpan();

@@ -6,7 +6,6 @@ import static datadog.trace.api.gateway.InferredProxySpan.PROXY_SYSTEM;
 import static datadog.trace.api.gateway.InferredProxySpan.fromContext;
 import static datadog.trace.api.gateway.InferredProxySpan.fromHeaders;
 import static java.util.Collections.emptyMap;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -14,8 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.of;
 
 import datadog.context.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -232,9 +229,7 @@ class InferredProxySpanTests {
   }
 
   static Stream<Arguments> supportedProxySystems() {
-    return Stream.of(
-        of("aws-apigateway", "aws.apigateway"),
-        of("aws-httpapi", "aws.httpapi"));
+    return Stream.of(of("aws-apigateway", "aws.apigateway"), of("aws-httpapi", "aws.httpapi"));
   }
 
   @Test
