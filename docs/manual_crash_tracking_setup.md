@@ -61,7 +61,8 @@ java -Xdump:tool:events=gpf+abort,exec=/path/to/dd_crash_uploader.sh\ %pid \
      -jar your-application.jar
 ```
 
-**Important:** Note the backslash (`\`) before `%pid` - this escapes the space and is required.
+> [!WARNING] 
+> Note the backslash (`\`) before `%pid` - this escapes the space and is required.
 
 ### Configuration Options
 
@@ -80,7 +81,8 @@ By default, J9 writes javacore files to the current working directory. You can c
 -Xdump:java:file=/var/log/javacores/javacore.%pid.%seq.txt
 ```
 
-**Important:** The Datadog agent automatically detects custom javacore paths from your JVM arguments. When you specify `-Xdump:java:file=`, the crash uploader script will search for javacore files in that location.
+> [!NOTE]
+> The Datadog agent automatically detects custom javacore paths from your JVM arguments. When you specify `-Xdump:java:file=`, the crash uploader script will search for javacore files in that location.
 
 **Supported path formats:**
 - **Directory path:** `/var/log/crashes/` - searches for `javacore.*<pid>*.txt` files in this directory
