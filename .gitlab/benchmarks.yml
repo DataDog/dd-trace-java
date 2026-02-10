@@ -80,3 +80,71 @@ debugger-benchmarks:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+.benchmark-compare-template:
+  stage: benchmark-comparison
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
+  script:
+    - mkdir -p "$(pwd)/reports/${BENCHMARK_TYPE}"
+    - .gitlab/scripts/get-baseline-commit-info.sh "$(pwd)/reports/baseline-info.env" "$(pwd)/reports/${BENCHMARK_TYPE}/fallback_to_master.txt"
+    - .gitlab/scripts/benchmark-compare.sh "${BENCHMARK_TYPE}"
+  artifacts:
+    name: "benchmark-compare-${BENCHMARK_TYPE}"
+    when: always
+    paths:
+      - reports/${BENCHMARK_TYPE}/
+    expire_in: 3 months
+  variables:
+    TARGET_BRANCH: "master"
+
+benchmarks-compare-startup:
+  extends: .benchmark-compare-template
+  variables:
+    BENCHMARK_TYPE: startup
+
+benchmarks-compare-load:
+  extends: .benchmark-compare-template
+  variables:
+    BENCHMARK_TYPE: load
+
+benchmarks-compare-dacapo:
+  extends: .benchmark-compare-template
+  variables:
+    BENCHMARK_TYPE: dacapo
+
+benchmarks-post-pr-comment:
+  stage: benchmark-comparison
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: ["arch:amd64"]
+  interruptible: true
+  needs:
+    - job: benchmarks-compare-startup
+      artifacts: true
+    - job: benchmarks-compare-load
+      artifacts: true
+    - job: benchmarks-compare-dacapo
+      artifacts: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  before_script:
+    - dd-octo-sts token --scope DataDog/${UPSTREAM_PROJECT_NAME} --policy "${DDOCTOSTS_POLICY}" > github-token.txt
+    - export GITHUB_TOKEN="$(cat github-token.txt)"
+  script:
+    - .gitlab/scripts/post-benchmark-pr-comment.sh
+  after_script:
+    - dd-octo-sts revoke -t "$(cat github-token.txt)" || true
+  variables:
+    DDOCTOSTS_POLICY: "self.gitlab.github-access"
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME

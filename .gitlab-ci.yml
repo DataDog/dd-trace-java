@@ -25,6 +25,7 @@ stages:
   - java-startup-microbenchmarks
   - java-load-microbenchmarks
   - java-dacapo-microbenchmarks
+  - benchmark-comparison
   - generate-slos
   - upload-to-bp-api
   - macrobenchmarks
