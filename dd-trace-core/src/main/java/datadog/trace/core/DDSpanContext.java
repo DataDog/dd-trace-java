@@ -1133,7 +1133,7 @@ public class DDSpanContext
   }
 
   @SuppressFBWarnings("DCN") // only interested in catching NullPointerException (see note below)
-  private UTF8BytesString shortStatusCodeToString(short httpStatusCode) {
+  private static UTF8BytesString shortStatusCodeToString(short httpStatusCode) {
     try {
       return HTTP_STATUSES.get(httpStatusCode);
     } catch (NullPointerException e) {
