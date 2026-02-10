@@ -67,6 +67,11 @@ target_branch="main"
 pr_body=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json body --jq '.body' 2>&1)
 pr_body_status=$?
 if [ $pr_body_status -eq 0 ] && [ -n "$pr_body" ]; then
+  echo "DEBUG: PR body content:"
+  echo "$pr_body"
+  echo "DEBUG: End of PR body"
+  echo "DEBUG: Checking for skip directive..."
+  echo "$pr_body" | grep -P 'test-environment-trigger' || echo "DEBUG: No 'test-environment-trigger' found"
   # Check for skip directive: "test-environment-trigger: skip" (must be at start of line)
   if echo "$pr_body" | grep -qP '^test-environment-trigger:\s*skip'; then
     echo "Found test-environment-trigger: skip in PR body - skipping trigger"
