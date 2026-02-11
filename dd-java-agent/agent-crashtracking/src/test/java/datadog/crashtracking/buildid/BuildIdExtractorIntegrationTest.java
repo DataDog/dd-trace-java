@@ -115,16 +115,16 @@ public class BuildIdExtractorIntegrationTest {
   private static Stream<Arguments> peBinaries() {
     return Stream.of(
         Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.23/System.Private.CoreLib.dll",
+            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Private.CoreLib.dll",
             "Core .NET Library"),
         Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.23/System.Runtime.dll",
+            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Runtime.dll",
             ".NET Runtime"),
         Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.23/System.Console.dll",
+            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Console.dll",
             "Console Library"),
         Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.23/Microsoft.CSharp.dll",
+            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/Microsoft.CSharp.dll",
             "C# Compiler Library"));
   }
 
