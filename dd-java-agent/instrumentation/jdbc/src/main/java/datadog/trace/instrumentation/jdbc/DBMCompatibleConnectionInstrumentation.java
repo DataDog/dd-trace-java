@@ -14,13 +14,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.BaseHash;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
@@ -136,18 +133,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
 
       boolean append =
           DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbInfo.getType());
-      String originalSql = sql;
       sql =
           SQLCommenter.inject(
               sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
-      if (sql != originalSql // intentional reference comparison to check if injection happened
-          && activeSpan != null
-          && Config.get().isDbmInjectSqlBaseHash()
-          && Config.get().isExperimentalPropagateProcessTagsEnabled()) {
-        // if the base hash was injected in the comment, we need to write it to the span as well,
-        // so that the query and the span can be re-matched in the backed
-        activeSpan.setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
-      }
       return inputSql;
     }
 
