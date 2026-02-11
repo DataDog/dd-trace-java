@@ -9,7 +9,7 @@
     "/v0.4/services",
     "/v0.5/traces",
     "/v0.6/stats",
-    "/v1/traces",
+    "/v1.0/traces",
     "/profiling/v1/input",
     "/v0.1/pipeline_stats",
     "/evp_proxy/v1/",

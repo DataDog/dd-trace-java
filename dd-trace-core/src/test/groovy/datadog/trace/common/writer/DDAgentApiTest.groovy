@@ -78,7 +78,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces", "v1/traces"]
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces", "v1.0/traces"]
   }
 
   def "non-200 response"() {
@@ -430,7 +430,7 @@ class DDAgentApiTest extends DDCoreSpecification {
 
     TraceMapper traceMapper
     switch (agentVersion) {
-      case "v1/traces":
+      case "v1.0/traces":
         traceMapper = new TraceMapperV1()
         break
 

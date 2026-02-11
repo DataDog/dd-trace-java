@@ -49,7 +49,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
-  public static final String V1_ENDPOINT = "v1/traces";
+  public static final String V1_ENDPOINT = "v1.0/traces";
 
   public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
   public static final String V07_CONFIG_ENDPOINT = "v0.7/config";

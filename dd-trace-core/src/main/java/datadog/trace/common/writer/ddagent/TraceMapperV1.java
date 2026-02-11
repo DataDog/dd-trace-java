@@ -180,10 +180,13 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  // TODO: For now no attributes, just write empty array so far, probably can be improved.
+  // TODO: For now just write `test` attr with value `26` so far.
   private void encodeAttributes(Writable writable, int fieldId) {
     writable.writeInt(fieldId);
-    writable.startArray(0);
+    writable.startArray(3);
+    writeStreamingString(writable, "test");
+    writable.writeInt(FLOAT_VALUE_TYPE);
+    writable.writeDouble(26);
   }
 
   private void encodeField(Writable writable, int fieldId, boolean value) {
