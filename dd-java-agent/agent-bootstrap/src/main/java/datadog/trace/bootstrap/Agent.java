@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.Config.isExplicitlyDisabled;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -1277,10 +1278,6 @@ public class Agent {
   }
 
   private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
-    if (JavaVirtualMachine.isJ9()) {
-      // TODO currently crash tracking is supported only for HotSpot based JVMs
-      return;
-    }
     log.debug("Initializing crashtracking");
     try {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
@@ -1455,11 +1452,6 @@ public class Agent {
       return;
     }
     startDebuggerAgent(inst, scoClass, sco);
-  }
-
-  private static boolean isExplicitlyDisabled(String booleanKey) {
-    return Config.get().configProvider().isSet(booleanKey)
-        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   private static synchronized void startDebuggerAgent(

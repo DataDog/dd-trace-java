@@ -10,7 +10,6 @@ import datadog.trace.instrumentation.testng.TestNGInstrumentation;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.util.Strings;
 import java.util.List;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import org.testng.IMethodInterceptor;
@@ -27,8 +26,8 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().getCiVisibilityTestOrder() != null;
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

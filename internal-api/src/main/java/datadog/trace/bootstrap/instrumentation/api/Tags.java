@@ -19,6 +19,7 @@ public class Tags {
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_ENDPOINT = "http.endpoint";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
   public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";
@@ -55,6 +56,7 @@ public class Tags {
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FINAL_STATUS = "test.final_status";
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";

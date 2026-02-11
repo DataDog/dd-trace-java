@@ -1,13 +1,17 @@
 package datadog.trace.api;
 
+import static org.junit.Assert.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.TagMap.Entry;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -16,6 +20,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -36,15 +41,66 @@ public class TagMapEntryTest {
   public void isNumericPrimitive() {
     assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.ANY));
     assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.BOOLEAN));
-    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.CHAR));
+    assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.CHAR_RESERVED));
     assertFalse(TagMap.Entry._isNumericPrimitive(TagMap.Entry.OBJECT));
 
-    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.BYTE));
-    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.SHORT));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.BYTE_RESERVED));
+    assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.SHORT_RESERVED));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.INT));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.LONG));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.FLOAT));
     assertTrue(TagMap.Entry._isNumericPrimitive(TagMap.Entry.DOUBLE));
+  }
+
+  @Test
+  @DisplayName("TagMap.Entry.create: Object")
+  public void createObject() {
+    Map<String, String> map = new HashMap<>();
+
+    test(
+        () -> TagMap.Entry.create("foo", map),
+        TagMap.Entry.ANY,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(map, entry),
+                checkTrue(entry::isObject),
+                checkFalse(entry::isNumber),
+                checkType(TagMap.Entry.OBJECT, entry)));
+  }
+
+  @Test
+  @DisplayName("TagMap.Entry.create: null Object")
+  public void createEntryNullObject() {
+    assertNull(TagMap.Entry.create("foo", null));
+  }
+
+  @Test
+  @DisplayName("TagMap.Entry.create: CharSequence")
+  public void createCharSequence() {
+    test(
+        () -> TagMap.Entry.create("foo", "bar"),
+        TagMap.Entry.OBJECT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue("bar", entry),
+                checkEquals("bar", entry::stringValue),
+                checkFalse(entry::isNumber),
+                checkTrue(entry::isObject),
+                checkType(TagMap.Entry.OBJECT, entry)));
+  }
+
+  @Test
+  @DisplayName("TagMap.Entry.create: null CharSequence")
+  public void createNullCharSequence() {
+    assertNull(TagMap.Entry.create("foo", (String) null));
+  }
+
+  @Test
+  @DisplayName("TagMap.Entry.create: empty CharSequence")
+  public void createEmptyCharSequence() {
+    assertNull(TagMap.Entry.create("foo", ""));
   }
 
   @Test
@@ -57,12 +113,14 @@ public class TagMapEntryTest {
                 checkKey("foo", entry),
                 checkValue("bar", entry),
                 checkEquals("bar", entry::stringValue),
+                checkFalse(entry::isNumber),
                 checkTrue(entry::isObject),
-                checkFalse(entry::isNumber)));
+                checkType(TagMap.Entry.OBJECT, entry)));
   }
 
   @Test
-  public void anyEntry_object() {
+  @DisplayName("anyEntry: Object")
+  public void anyEntryObject() {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", "bar"),
         TagMap.Entry.ANY,
@@ -72,13 +130,30 @@ public class TagMapEntryTest {
                 checkValue("bar", entry),
                 checkTrue(entry::isObject),
                 checkFalse(entry::isNumber),
-                checkKey("foo", entry),
-                checkValue("bar", entry)));
+                checkType(TagMap.EntryReader.OBJECT, entry)));
   }
 
   @ParameterizedTest
+  @DisplayName("TagMap.Entry.create: boolean")
   @ValueSource(booleans = {false, true})
-  public void booleanEntry(boolean value) {
+  public void createBoolean(boolean value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.BOOLEAN,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkFalse(entry::isNumericPrimitive),
+                checkFalse(entry::isNumber),
+                checkFalse(entry::isObject),
+                checkType(TagMap.Entry.BOOLEAN, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newBooleanEntry: boolean")
+  @ValueSource(booleans = {false, true})
+  public void newBooleanEntry(boolean value) {
     test(
         () -> TagMap.Entry.newBooleanEntry("foo", value),
         TagMap.Entry.BOOLEAN,
@@ -88,12 +163,14 @@ public class TagMapEntryTest {
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
                 checkFalse(entry::isNumber),
+                checkFalse(entry::isObject),
                 checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
+  @DisplayName("newBooleanEntry: Boolean")
   @ValueSource(booleans = {false, true})
-  public void booleanEntry_boxed(boolean value) {
+  public void newBooleanEntryBoxed(boolean value) {
     test(
         () -> TagMap.Entry.newBooleanEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.BOOLEAN,
@@ -103,12 +180,14 @@ public class TagMapEntryTest {
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
                 checkFalse(entry::isNumber),
+                checkFalse(entry::isObject),
                 checkType(TagMap.Entry.BOOLEAN, entry)));
   }
 
   @ParameterizedTest
+  @DisplayName("newAnyEntry: Boolean")
   @ValueSource(booleans = {false, true})
-  public void anyEntry_boolean(boolean value) {
+  public void newAnyEntryBoolean(boolean value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Boolean.valueOf(value)),
         TagMap.Entry.ANY,
@@ -118,13 +197,31 @@ public class TagMapEntryTest {
                 checkValue(value, entry),
                 checkFalse(entry::isNumericPrimitive),
                 checkFalse(entry::isNumber),
+                checkFalse(entry::isObject),
                 checkType(TagMap.Entry.BOOLEAN, entry),
                 checkValue(value, entry)));
   }
 
   @ParameterizedTest
+  @DisplayName("TagMap.Entry.create: int")
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
-  public void intEntry(int value) {
+  public void createInt(int value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newIntEntry: int")
+  @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
+  public void newIntEntry(int value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", value),
         TagMap.Entry.INT,
@@ -138,8 +235,9 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newIntEntry: Integer")
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
-  public void intEntry_boxed(int value) {
+  public void newIntEntryBoxed(int value) {
     test(
         () -> TagMap.Entry.newIntEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.INT,
@@ -153,8 +251,41 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newIntEntry: Short")
+  @ValueSource(shorts = {Short.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Short.MAX_VALUE})
+  public void intEntryBoxedShort(short value) {
+    test(
+        () -> TagMap.Entry.newIntEntry("foo", Short.valueOf(value)),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newIntEntry: Byte")
+  @ValueSource(bytes = {Byte.MIN_VALUE, -32, -1, 0, 1, 32, Byte.MAX_VALUE})
+  public void intEntryBoxedByte(byte value) {
+    test(
+        () -> TagMap.Entry.newIntEntry("foo", Byte.valueOf(value)),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkInstanceOf(Number.class, entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newAnyEntry: Integer")
   @ValueSource(ints = {Integer.MIN_VALUE, -256, -128, -1, 0, 1, 128, 256, Integer.MAX_VALUE})
-  public void anyEntry_int(int value) {
+  public void newAnyEntryInteger(int value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Integer.valueOf(value)),
         TagMap.Entry.ANY,
@@ -169,6 +300,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("TagMap.Entry.create: long")
   @ValueSource(
       longs = {
         Long.MIN_VALUE,
@@ -185,7 +317,37 @@ public class TagMapEntryTest {
         Integer.MAX_VALUE,
         Long.MAX_VALUE
       })
-  public void longEntry(long value) {
+  public void createLong(long value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.LONG,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkTrue(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.LONG, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newLongEntry: long")
+  @ValueSource(
+      longs = {
+        Long.MIN_VALUE,
+        Integer.MIN_VALUE,
+        -1_048_576L,
+        -256L,
+        -128L,
+        -1L,
+        0L,
+        1L,
+        128L,
+        256L,
+        1_048_576L,
+        Integer.MAX_VALUE,
+        Long.MAX_VALUE
+      })
+  public void newLongEntry(long value) {
     test(
         () -> TagMap.Entry.newLongEntry("foo", value),
         TagMap.Entry.LONG,
@@ -198,6 +360,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newLongEntry: Long")
   @ValueSource(
       longs = {
         Long.MIN_VALUE,
@@ -214,7 +377,7 @@ public class TagMapEntryTest {
         Integer.MAX_VALUE,
         Long.MAX_VALUE
       })
-  public void longEntry_boxed(long value) {
+  public void newLongEntryBoxed(long value) {
     test(
         () -> TagMap.Entry.newLongEntry("foo", Long.valueOf(value)),
         TagMap.Entry.LONG,
@@ -227,6 +390,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newAnyEntry: Long")
   @ValueSource(
       longs = {
         Long.MIN_VALUE,
@@ -243,7 +407,7 @@ public class TagMapEntryTest {
         Integer.MAX_VALUE,
         Long.MAX_VALUE
       })
-  public void anyEntry_long(long value) {
+  public void newAnyEntryLong(long value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Long.valueOf(value)),
         TagMap.Entry.ANY,
@@ -257,8 +421,24 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("TagMap.Entry.create: float")
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
-  public void floatEntry(float value) {
+  public void createFloat(float value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.FLOAT,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkTrue(entry::isNumericPrimitive),
+                checkType(TagMap.Entry.FLOAT, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newFloatEntry: float")
+  @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
+  public void newFloatEntry(float value) {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", value),
         TagMap.Entry.FLOAT,
@@ -271,8 +451,9 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newFloatEntry: Float")
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
-  public void floatEntry_boxed(float value) {
+  public void newFloatEntryBoxed(float value) {
     test(
         () -> TagMap.Entry.newFloatEntry("foo", Float.valueOf(value)),
         TagMap.Entry.FLOAT,
@@ -285,8 +466,9 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newAnyEntry: Float")
   @ValueSource(floats = {Float.MIN_VALUE, -1F, 0F, 1F, 2.171828F, 3.1415F, Float.MAX_VALUE})
-  public void anyEntry_float(float value) {
+  public void newAnyEntryFloat(float value) {
     test(
         () -> TagMap.Entry.newAnyEntry("foo", Float.valueOf(value)),
         TagMap.Entry.ANY,
@@ -299,6 +481,23 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("TagMap.Entry.create: double")
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  public void createDouble(double value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.DOUBLE,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkType(TagMap.Entry.DOUBLE, entry)));
+  }
+
+  @ParameterizedTest
+  @DisplayName("newDoubleEntry: double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void doubleEntry(double value) {
@@ -314,9 +513,10 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newDoubleEntry: Double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
-  public void doubleEntry_boxed(double value) {
+  public void newDoubleEntryBoxed(double value) {
     test(
         () -> TagMap.Entry.newDoubleEntry("foo", Double.valueOf(value)),
         TagMap.Entry.DOUBLE,
@@ -329,6 +529,7 @@ public class TagMapEntryTest {
   }
 
   @ParameterizedTest
+  @DisplayName("newAnyEntry: Double")
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void anyEntry_double(double value) {
@@ -364,22 +565,31 @@ public class TagMapEntryTest {
           });
 
   static final void test(
-      Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checks) {
+      Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
+
+    Function<Entry, Check> combinedCheckSupplier =
+        (entry) -> {
+          return multiCheck(
+              checkSupplier.apply(entry),
+              checkSame(entry, entry.entry()),
+              checkSame(entry, entry.mapEntry()));
+        };
+
     // repeat the test several times to exercise different orderings in this thread
     for (int i = 0; i < 10; ++i) {
-      testSingleThreaded(entrySupplier, rawType, checks);
+      testSingleThreaded(entrySupplier, rawType, combinedCheckSupplier);
     }
 
     // same for multi-threaded
     for (int i = 0; i < 5; ++i) {
-      testMultiThreaded(entrySupplier, rawType, checks);
+      testMultiThreaded(entrySupplier, rawType, combinedCheckSupplier);
     }
   }
 
   static final void testSingleThreaded(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
     Entry entry = entrySupplier.get();
-    assertEquals(rawType, entry.rawType);
+    assertEquals(rawType, entry.rawType, "rawType");
 
     Check checks = checkSupplier.apply(entry);
     checks.check();
@@ -388,7 +598,7 @@ public class TagMapEntryTest {
   static final void testMultiThreaded(
       Supplier<TagMap.Entry> entrySupplier, byte rawType, Function<Entry, Check> checkSupplier) {
     Entry sharedEntry = entrySupplier.get();
-    assertEquals(rawType, sharedEntry.rawType);
+    assertEquals(rawType, sharedEntry.rawType, "rawType");
 
     Check checks = checkSupplier.apply(sharedEntry);
 
@@ -440,17 +650,64 @@ public class TagMapEntryTest {
     return multiCheck(checkEquals(expected, entry::tag), checkEquals(expected, entry::getKey));
   }
 
+  static final <T> Supplier<T> of(Supplier<T> supplier, String identifier) {
+    return new Supplier<T>() {
+      @Override
+      public T get() {
+        return supplier.get();
+      }
+
+      @Override
+      public String toString() {
+        return identifier;
+      }
+    };
+  }
+
+  static final <I, O> Function<I, O> of(Function<I, O> func, String identifier) {
+    return new Function<I, O>() {
+      @Override
+      public O apply(I input) {
+        return func.apply(input);
+      }
+
+      @Override
+      public String toString() {
+        return identifier;
+      }
+    };
+  }
+
+  static final <I, O> Supplier<O> of(Function<I, O> output, Supplier<I> input) {
+    return of(output, input, output.toString() + "(" + input.toString() + ")");
+  }
+
+  static final <I, O> Supplier<O> of(Function<I, O> output, Supplier<I> input, String identifier) {
+    return of(() -> output.apply(input.get()), identifier);
+  }
+
   static final Check checkIsNumericPrimitive(TagMap.Entry entry) {
     return multiCheck(
-        checkTrue(entry::isNumericPrimitive),
-        checkTrue(entry::isNumber),
-        checkInstanceOf(Number.class, entry));
+        checkTrue(entry::isNumericPrimitive, "Entry::isNumericPrimitive"),
+        checkTrue(entry::isNumber, "Entry::isNumber"),
+        checkInstanceOf(Number.class, entry),
+        checkFalse(entry::isObject, "Entry::isObject"),
+        checkTrue(of(TagValueConversions::isNumber, entry::objectValue), "isNumber(Object)"),
+        checkTrue(
+            of(TagValueConversions::isNumericPrimitive, entry::objectValue),
+            "isNumericPrimitive(Object)"),
+        checkFalse(of(TagValueConversions::isObject, entry::objectValue), "isObject(Object)"));
   }
 
   static final Check checkIsBigNumber(TagMap.Entry entry) {
     return multiCheck(
-        checkFalse(entry::isNumericPrimitive),
-        checkTrue(entry::isNumber),
+        checkFalse(entry::isNumericPrimitive, "Entry::isNumericPrimitive"),
+        checkFalse(
+            of(TagValueConversions::isNumericPrimitive, entry::objectValue),
+            "isNumericPrimitive(Object)"),
+        checkTrue(entry::isNumber, "Entry::isNumber"),
+        checkTrue(entry::isObject, "Entry::isObject"),
+        checkTrue(of(TagValueConversions::isNumber, entry::objectValue), "isNumber(Object)"),
         checkInstanceOf(Number.class, entry));
   }
 
@@ -463,114 +720,243 @@ public class TagMapEntryTest {
 
   static final Check checkValue(boolean expected, TagMap.Entry entry) {
     return multiCheck(
-        checkEquals(expected, entry::booleanValue),
-        checkEquals(Boolean.valueOf(expected), entry::objectValue),
-        checkEquals(expected ? 1 : 0, entry::intValue),
-        checkEquals(expected ? 1L : 0L, entry::longValue),
-        checkEquals(expected ? 1D : 0D, entry::doubleValue),
-        checkEquals(expected ? 1F : 0F, entry::floatValue),
-        checkEquals(Boolean.toString(expected), entry::stringValue));
+        checkEquals(expected, entry::booleanValue, "Entry::booleanValue"),
+        checkEquals(Boolean.valueOf(expected), entry::objectValue, "Entry::objectValue"),
+        checkEquals(expected ? 1 : 0, entry::intValue, "Entry::intValue"),
+        checkEquals(
+            expected ? 1 : 0, of(TagValueConversions::toInt, entry::objectValue), "toInt(Object)"),
+        checkEquals(expected ? 1L : 0L, entry::longValue, "Entry::longValue"),
+        checkEquals(
+            expected ? 1L : 0L,
+            of(TagValueConversions::toLong, entry::objectValue),
+            "toLong(Object)"),
+        checkEquals(expected ? 1D : 0D, entry::doubleValue, "Entry::doubleValue"),
+        checkEquals(
+            expected ? 1D : 0D,
+            of(TagValueConversions::toDouble, entry::objectValue),
+            "toDouble(Object)"),
+        checkEquals(expected ? 1F : 0F, entry::floatValue, "Entry::floatValue"),
+        checkEquals(
+            expected ? 1F : 0F,
+            of(TagValueConversions::toFloat, entry::objectValue),
+            "toFloat(Object)"),
+        checkEquals(Boolean.toString(expected), entry::stringValue, "Entry::stringValue"),
+        checkEquals(
+            Boolean.toString(expected),
+            of(TagValueConversions::toString, entry::objectValue),
+            "toString(Object)"));
   }
 
   static final Check checkValue(int expected, TagMap.Entry entry) {
     return multiCheck(
-        checkEquals(expected, entry::intValue),
-        checkEquals((long) expected, entry::longValue),
-        checkEquals((float) expected, entry::floatValue),
-        checkEquals((double) expected, entry::doubleValue),
-        checkEquals(Integer.valueOf(expected), entry::objectValue),
-        checkEquals(expected != 0, entry::booleanValue),
-        checkEquals(Integer.toString(expected), entry::stringValue));
+        checkEquals(expected, entry::intValue, "Entry::intValue"),
+        checkEquals(Integer.valueOf(expected), entry::objectValue, "Entry::objectValue"),
+        checkEquals((long) expected, entry::longValue, "Entry::longValue"),
+        checkEquals(
+            (long) expected, of(TagValueConversions::toLong, entry::objectValue), "toLong(Object)"),
+        checkEquals((float) expected, entry::floatValue, "Entry::floatValue"),
+        checkEquals(
+            (float) expected,
+            of(TagValueConversions::toFloat, entry::objectValue),
+            "toFloat(Object)"),
+        checkEquals((double) expected, entry::doubleValue, "Entry::doubleValue"),
+        checkEquals(
+            (double) expected,
+            of(TagValueConversions::toDouble, entry::objectValue),
+            "toDouble(Object)"),
+        checkEquals(expected != 0, entry::booleanValue, "Entry::booleanValue"),
+        checkEquals(
+            expected != 0,
+            of(TagValueConversions::toBoolean, entry::objectValue),
+            "toBoolean(Object)"),
+        checkEquals(Integer.toString(expected), entry::stringValue, "Entry::stringValue"),
+        checkEquals(
+            Integer.toString(expected),
+            of(TagValueConversions::toString, entry::objectValue),
+            "toString(Object)"));
   }
 
   static final Check checkValue(long expected, TagMap.Entry entry) {
     return multiCheck(
-        checkEquals(expected, entry::longValue),
-        checkEquals((int) expected, entry::intValue),
-        checkEquals((float) expected, entry::floatValue),
-        checkEquals((double) expected, entry::doubleValue),
-        checkEquals(Long.valueOf(expected), entry::objectValue),
-        checkEquals(expected != 0L, entry::booleanValue),
-        checkEquals(Long.toString(expected), entry::stringValue));
+        checkEquals(expected, entry::longValue, "Entry::longValue"),
+        checkEquals(Long.valueOf(expected), entry::objectValue, "Entry::objectValue"),
+        checkEquals((int) expected, entry::intValue, "Entry::intValue"),
+        checkEquals(
+            (int) expected, of(TagValueConversions::toInt, entry::objectValue), "toInt(Object)"),
+        checkEquals((float) expected, entry::floatValue, "Entry::floatValue"),
+        checkEquals(
+            (float) expected,
+            of(TagValueConversions::toFloat, entry::objectValue),
+            "toFloat(Object)"),
+        checkEquals((double) expected, entry::doubleValue, "Entry::doubleValue"),
+        checkEquals(
+            (double) expected,
+            of(TagValueConversions::toDouble, entry::objectValue),
+            "toDouble(Object)"),
+        checkEquals(expected != 0L, entry::booleanValue, "Entry::booleanValue"),
+        checkEquals(
+            expected != 0L,
+            of(TagValueConversions::toBoolean, entry::objectValue),
+            "toBoolean(Object)"),
+        checkEquals(Long.toString(expected), entry::stringValue, "Entry::stringValue"),
+        checkEquals(
+            Long.toString(expected),
+            of(TagValueConversions::toString, entry::objectValue),
+            "toString(Object)"));
   }
 
   static final Check checkValue(double expected, TagMap.Entry entry) {
     return multiCheck(
-        checkEquals(expected, entry::doubleValue),
-        checkEquals((int) expected, entry::intValue),
-        checkEquals((long) expected, entry::longValue),
-        checkEquals((float) expected, entry::floatValue),
-        checkEquals(Double.valueOf(expected), entry::objectValue),
-        checkEquals(expected != 0D, entry::booleanValue),
-        checkEquals(Double.toString(expected), entry::stringValue));
+        checkEquals(expected, entry::doubleValue, "Entry::doubleValue"),
+        checkEquals(Double.valueOf(expected), entry::objectValue, "Entry::objectValue"),
+        checkEquals((int) expected, entry::intValue, "Entry::intValue"),
+        checkEquals(
+            (int) expected, of(TagValueConversions::toInt, entry::objectValue), "toInt(Object)"),
+        checkEquals((long) expected, entry::longValue, "Entry::longValue"),
+        checkEquals(
+            (long) expected, of(TagValueConversions::toLong, entry::objectValue), "toLong(Object)"),
+        checkEquals((float) expected, entry::floatValue, "Entry::floatValue"),
+        checkEquals(
+            (float) expected,
+            of(TagValueConversions::toFloat, entry::objectValue),
+            "toFloat(Object)"),
+        checkEquals(expected != 0D, entry::booleanValue, "Entry::booleanValue"),
+        checkEquals(
+            expected != 0D,
+            of(TagValueConversions::toBoolean, entry::objectValue),
+            "toBoolean(Object)"),
+        checkEquals(Double.toString(expected), entry::stringValue, "Entry::stringValue"),
+        checkEquals(
+            Double.toString(expected),
+            of(TagValueConversions::toString, entry::objectValue),
+            "toString(Object)"));
+  }
+
+  static final Check checkValue(float expected, TagMap.Entry entry) {
+    return multiCheck(
+        checkEquals(expected, entry::floatValue, "Entry::floatValue"),
+        checkEquals(Float.valueOf(expected), entry::objectValue, "Entry::objectValue"),
+        checkEquals((int) expected, entry::intValue, "Entry::intValue"),
+        checkEquals(
+            (int) expected, of(TagValueConversions::toInt, entry::objectValue), "toInt(Object)"),
+        checkEquals((long) expected, entry::longValue, "Entry::longValue"),
+        checkEquals(
+            (long) expected, of(TagValueConversions::toLong, entry::objectValue), "toLong(Object)"),
+        checkEquals((double) expected, entry::doubleValue, "Entry::doubleValue"),
+        checkEquals(
+            (double) expected,
+            of(TagValueConversions::toDouble, entry::objectValue),
+            "toDouble(Object)"),
+        checkEquals(expected != 0F, entry::booleanValue, "Entry::booleanValue"),
+        checkEquals(
+            expected != 0F,
+            of(TagValueConversions::toBoolean, entry::objectValue),
+            "toBoolean(Object)"),
+        checkEquals(Float.toString(expected), entry::stringValue, "Entry::stringValue"),
+        checkEquals(
+            Float.toString(expected),
+            of(TagValueConversions::toString, entry::objectValue),
+            "toString(Object)"));
   }
 
   public static Check checkNumber(Number number, TagMap.Entry entry) {
     return multiCheck(
         checkEquals(number, entry::objectValue),
         checkEquals(number.intValue(), entry::intValue),
+        checkEquals(number.intValue(), of(TagValueConversions::toInt, entry::objectValue)),
         checkEquals(number.longValue(), entry::longValue),
+        checkEquals(number.longValue(), of(TagValueConversions::toLong, entry::objectValue)),
         checkEquals(number.floatValue(), entry::floatValue),
+        checkEquals(number.floatValue(), of(TagValueConversions::toFloat, entry::objectValue)),
         checkEquals(number.doubleValue(), entry::doubleValue),
-        checkEquals(number.toString(), entry::stringValue));
-  }
-
-  static final Check checkValue(float expected, TagMap.Entry entry) {
-    return multiCheck(
-        checkEquals(expected, entry::floatValue),
-        checkEquals((int) expected, entry::intValue),
-        checkEquals((long) expected, entry::longValue),
-        checkEquals((double) expected, entry::doubleValue),
-        checkEquals(expected != 0F, entry::booleanValue),
-        checkEquals(Float.valueOf(expected), entry::objectValue),
-        checkEquals(Float.toString(expected), entry::stringValue));
+        checkEquals(number.doubleValue(), of(TagValueConversions::toDouble, entry::objectValue)),
+        checkEquals(number.toString(), entry::stringValue),
+        checkEquals(number.toString(), of(TagValueConversions::toString, entry::objectValue)));
   }
 
   static final Check checkInstanceOf(Class<?> klass, TagMap.Entry entry) {
-    return () ->
-        assertTrue(
-            klass.isAssignableFrom(entry.objectValue().getClass()),
-            "instanceof " + klass.getSimpleName());
+    return checkTrue(
+        () -> klass.isAssignableFrom(entry.objectValue().getClass()),
+        "instanceof " + klass.getSimpleName());
   }
 
   static final Check checkType(byte entryType, TagMap.Entry entry) {
-    return () -> assertTrue(entry.is(entryType), "type is " + entryType);
+    // TODO: TVC checks
+    return multiCheck(
+        checkTrue(() -> entry.is(entryType), "Entry::is(type) type=" + entryType),
+        checkEquals(entryType, entry::type, "Entry::type check"));
   }
 
   static final Check multiCheck(Check... checks) {
     return new MultipartCheck(checks);
   }
 
+  static final Check checkSame(Object expected, Object actual) {
+    return () -> assertSame(expected, actual);
+  }
+
   static final Check checkFalse(Supplier<Boolean> actual) {
-    return () -> assertFalse(actual.get(), actual.toString());
+    return checkFalse(actual, actual.toString());
+  }
+
+  static final Check checkFalse(Supplier<Boolean> actual, String identifier) {
+    return () -> assertFalse(actual.get(), identifier);
   }
 
   static final Check checkTrue(Supplier<Boolean> actual) {
-    return () -> assertTrue(actual.get(), actual.toString());
+    return checkTrue(actual, actual.toString());
+  }
+
+  static final Check checkTrue(Supplier<Boolean> actual, String identifier) {
+    return () -> assertTrue(actual.get(), identifier);
   }
 
   static final Check checkEquals(float expected, Supplier<Float> actual) {
-    return () -> assertEquals(expected, actual.get().floatValue(), actual.toString());
+    return checkEquals(expected, actual, actual.toString());
+  }
+
+  static final Check checkEquals(float expected, Supplier<Float> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get().floatValue(), identifier);
   }
 
   static final Check checkEquals(int expected, Supplier<Integer> actual) {
-    return () -> assertEquals(expected, actual.get().intValue(), actual.toString());
+    return checkEquals(expected, actual, actual.toString());
+  }
+
+  static final Check checkEquals(int expected, Supplier<Integer> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get().intValue(), identifier);
   }
 
   static final Check checkEquals(double expected, Supplier<Double> actual) {
-    return () -> assertEquals(expected, actual.get().doubleValue(), actual.toString());
+    return checkEquals(expected, actual, actual.toString());
+  }
+
+  static final Check checkEquals(double expected, Supplier<Double> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get().doubleValue(), identifier);
   }
 
   static final Check checkEquals(long expected, Supplier<Long> actual) {
-    return () -> assertEquals(expected, actual.get().longValue(), actual.toString());
+    return checkEquals(expected, actual, actual.toString());
+  }
+
+  static final Check checkEquals(long expected, Supplier<Long> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get().longValue(), identifier);
   }
 
   static final Check checkEquals(boolean expected, Supplier<Boolean> actual) {
-    return () -> assertEquals(expected, actual.get().booleanValue(), actual.toString());
+    return checkEquals(expected, actual, actual.toString());
   }
 
-  static final Check checkEquals(Object expected, Supplier<Object> actual) {
-    return () -> assertEquals(expected, actual.get(), actual.toString());
+  static final Check checkEquals(boolean expected, Supplier<Boolean> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get().booleanValue(), identifier);
+  }
+
+  static final <T> Check checkEquals(T expected, Supplier<? extends T> actual) {
+    return checkEquals(expected, actual, actual.toString());
+  }
+
+  static final <T> Check checkEquals(T expected, Supplier<? extends T> actual, String identifier) {
+    return () -> assertEquals(expected, actual.get(), identifier);
   }
 
   @FunctionalInterface

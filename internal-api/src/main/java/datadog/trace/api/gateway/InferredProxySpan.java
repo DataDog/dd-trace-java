@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class InferredProxySpan implements ImplicitContextKeyed {
   private static final ContextKey<InferredProxySpan> CONTEXT_KEY = named("inferred-proxy-key");
@@ -131,7 +132,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   @Override
-  public Context storeInto(Context context) {
+  public Context storeInto(@Nonnull Context context) {
     return context.with(CONTEXT_KEY, this);
   }
 }

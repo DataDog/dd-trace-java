@@ -41,6 +41,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.core.CoreTracer;
 import java.io.IOException;
@@ -78,6 +79,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void after() {
     super.after();
     Redaction.clearUserDefinedTypes();
+    ProbeRateLimiter.resetAll();
   }
 
   @Test
@@ -188,6 +190,11 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertNull(span.getTags().get("tag1"));
     assertEquals(
         "Cannot dereference field: noarg", span.getTags().get("_dd.di.tag1.evaluation_error"));
+    assertEquals(1, mockSink.getSnapshots().size());
+    Snapshot snapshot = mockSink.getSnapshots().get(0);
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot dereference field: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -586,6 +593,43 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     assertEquals(
         "Could not evaluate the expression because 'credMap[\"dave\"]' was redacted",
         snapshot.getEvaluationErrors().get(2).getMessage());
+  }
+
+  @Test
+  public void ensureCallingSamplingTagEvalError() throws IOException, URISyntaxException {
+    doSamplingTest(this::methodTagEvalError, 1, 1);
+  }
+
+  @Test
+  public void ensureCallingSamplingMethodInvalidCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::methodActiveSpanInvalidCondition, 1, 1);
+  }
+
+  @Test
+  public void ensureCallingSamplingLineInvalidCondition() throws IOException, URISyntaxException {
+    doSamplingTest(this::lineActiveSpanInvalidCondition, 1, 1);
+  }
+
+  @Test
+  public void ensureCallingSamplingKeywordRedactionConditions()
+      throws IOException, URISyntaxException {
+    doSamplingTest(this::keywordRedactionConditions, 1, 1);
+  }
+
+  private void doSamplingTest(
+      CapturingTestBase.TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)
+      throws IOException, URISyntaxException {
+    MockSampler probeSampler = new MockSampler();
+    MockSampler globalSampler = new MockSampler();
+    ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
+    ProbeRateLimiter.setGlobalSnapshotRate(1000);
+    try {
+      testRun.run();
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+    assertEquals(expectedGlobalCount, globalSampler.getCallCount());
+    assertEquals(expectedProbeCount, probeSampler.getCallCount());
   }
 
   private SpanDecorationProbe.Decoration createDecoration(String tagName, String valueDsl) {

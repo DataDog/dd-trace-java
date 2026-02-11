@@ -35,6 +35,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
 @IgnoreIf(reason = "TODO: Fix for Java 26. Maven compiler fails to compile the tests for Java 26-ea.", value = {
   JavaVirtualMachine.isJavaVersionAtLeast(26)
 })
+@IgnoreIf(reason = "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts", value = {
+  JavaVirtualMachine.isIbm8()
+})
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest)

@@ -28,7 +28,6 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
@@ -36,7 +35,6 @@ import freemarker.template.Template;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -90,10 +88,6 @@ public class DebuggerTransformerTest {
   static void setupAll() throws Exception {
     // disable tracer integration
     System.setProperty("dd." + TraceInstrumentationConfig.TRACE_ENABLED, "false");
-
-    Field fld = CorrelationAccess.class.getDeclaredField("REUSE_INSTANCE");
-    fld.setAccessible(true);
-    fld.set(null, false);
 
     // setup the tracer
     noopTracer = GlobalTracer.get();
