@@ -34,6 +34,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -751,6 +752,22 @@ public class DDSpanContext
     }
   }
 
+  public void setMetric(final TagMap.EntryReader entry) {
+    if (entry == null) {
+      return;
+    }
+
+    synchronized (unsafeTags) {
+      unsafeTags.set(entry);
+    }
+  }
+
+  public void removeTag(String tag) {
+    synchronized (unsafeTags) {
+      unsafeTags.remove(tag);
+    }
+  }
+
   /**
    * Sets a tag to the span. Tags are not propagated to the children.
    *
@@ -786,6 +803,22 @@ public class DDSpanContext
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  public void setTag(TagMap.EntryReader entry) {
+    if (entry == null) {
+      return;
+    }
+
+    // pre-check to avoid boxing
+    boolean intercepted =
+        precheckIntercept(entry.tag())
+            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
+    if (!intercepted) {
+      synchronized (unsafeTags) {
+        unsafeTags.set(entry);
       }
     }
   }
@@ -1091,11 +1124,27 @@ public class DDSpanContext
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+              httpStatusCode == 0 ? null : shortStatusCodeToString(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization()));
+    }
+  }
+
+  @SuppressFBWarnings("DCN") // only interested in catching NullPointerException (see note below)
+  private static UTF8BytesString shortStatusCodeToString(short httpStatusCode) {
+    try {
+      return HTTP_STATUSES.get(httpStatusCode);
+    } catch (NullPointerException e) {
+      // Intermittent NPE observed in JDK code on Semeru 11.0.29: java.lang.NullPointerException:
+      // at j.l.i.ArrayVarHandle$...Operations$OpObject.computeOffset(ArrayVarHandle.java:142)
+      // at j.l.i.ArrayVarHandle$...Operations$OpObject.compareAndSet(ArrayVarHandle.java:201)
+      // at j.u.c.atomic.AtomicReferenceArray.compareAndSet(AtomicReferenceArray.java:152)
+      // at datadog.trace.api.cache.RadixTreeCache.computeIfAbsent(RadixTreeCache.java:59)
+      // Location indicates JDK's VarHandle used to access the backing array has returned null
+      // To mitigate this rare JDK bug we skip the cache and fall back to manual string creation
+      return UTF8BytesString.create(Short.toString(httpStatusCode));
     }
   }
 

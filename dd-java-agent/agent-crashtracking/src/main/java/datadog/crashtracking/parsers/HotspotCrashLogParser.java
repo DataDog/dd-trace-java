@@ -126,12 +126,9 @@ public final class HotspotCrashLogParser {
               }
 
               // Extract function name if present (after the bracket)
+              // Keep the relative address offset as part of the function name
               if (libend + 3 < line.length() && !line.endsWith("]")) {
-                int plusIdx = line.lastIndexOf('+');
-                functionName =
-                    plusIdx > libend
-                        ? line.substring(libend + 3, plusIdx).trim()
-                        : line.substring(libend + 3).trim();
+                functionName = line.substring(libend + 3).trim();
               }
             }
           }
@@ -152,9 +149,8 @@ public final class HotspotCrashLogParser {
                 remaining = remaining.substring(0, lastSpace).trim();
               }
             }
-            // Check for + offset
-            int plusIdx = remaining.lastIndexOf('+');
-            functionName = plusIdx > -1 ? remaining.substring(0, plusIdx).trim() : remaining;
+            // Keep the relative address offset as part of the function name
+            functionName = remaining;
           }
           break;
         }

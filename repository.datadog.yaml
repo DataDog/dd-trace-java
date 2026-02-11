@@ -3,6 +3,7 @@ schema-version: v1
 kind: mergequeue # https://datadoghq.atlassian.net/wiki/x/XgUQug
 enable: true
 merge_method: squash
+skip_labels: true
 branches:
   master:
     allow_skip_checks: true

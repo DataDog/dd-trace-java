@@ -6,8 +6,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.TimeZone;
 
-public class PersonInfo {
-
+public final class PersonInfo {
   public static final PersonInfo NOOP = new PersonInfo();
 
   private static final String DATE_FORMAT_ISO8601 = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";

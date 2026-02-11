@@ -18,6 +18,7 @@ class RunOnceIgnoreOutcomeTest extends Specification {
     !outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == TestStatus.pass
   }
 
   def "test run once ignore outcome failed"() {
@@ -33,5 +34,6 @@ class RunOnceIgnoreOutcomeTest extends Specification {
     outcome.failureSuppressed()
     !outcome.failedAllRetries()
     !outcome.succeededAllRetries()
+    outcome.finalStatus() == TestStatus.pass
   }
 }
