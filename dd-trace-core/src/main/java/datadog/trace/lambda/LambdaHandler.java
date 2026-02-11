@@ -104,7 +104,8 @@ public class LambdaHandler {
   public static boolean notifyEndInvocation(
       AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
     if (null == span || null == span.getSamplingPriority()) {
-      log.error("could not notify the extension as the lambda span is null or no sampling priority has been found");
+      log.error(
+          "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
 
