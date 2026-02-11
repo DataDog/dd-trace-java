@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +20,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -26,11 +29,13 @@ import org.testcontainers.utility.DockerImageName;
  * build ID extraction from real ELF (Unix/Linux) and PE (Windows) binaries.
  */
 public class BuildIdExtractorIntegrationTest {
+  private static final String DOTNET_SDK_MAJOR_VERSION = "8.0";
   private static GenericContainer<?> linuxContainer;
   private static GenericContainer<?> dotnetContainer;
   @TempDir private static Path tempDir;
   private static final Logger logger =
       LoggerFactory.getLogger(BuildIdExtractorIntegrationTest.class);
+  private static String dotnetVersion;
 
   @BeforeAll
   static void startContainers() throws IOException {
@@ -40,20 +45,51 @@ public class BuildIdExtractorIntegrationTest {
         new GenericContainer<>(
                 DockerImageName.parse("ubuntu:22.04").asCompatibleSubstituteFor("ubuntu"))
             .withCommand("sleep", "infinity")
-            .withStartupTimeout(Duration.ofMinutes(2))
-            .withCreateContainerCmdModifier(cmd -> cmd.withPlatform("linux/amd64"));
+            .withStartupTimeout(Duration.ofMinutes(2));
     linuxContainer.start();
 
     // Start dotnet SDK container for PE testing
     // Use linux/amd64 platform to ensure consistent binary format
     dotnetContainer =
         new GenericContainer<>(
-                DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:8.0")
+                DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:" + DOTNET_SDK_MAJOR_VERSION)
                     .asCompatibleSubstituteFor("dotnet"))
             .withCommand("sleep", "infinity")
-            .withStartupTimeout(Duration.ofMinutes(2))
-            .withCreateContainerCmdModifier(cmd -> cmd.withPlatform("linux/amd64"));
+            .withStartupTimeout(Duration.ofMinutes(2));
     dotnetContainer.start();
+
+    dotnetVersion = discoverExactDotnetVersionFrom(dotnetContainer);
+  }
+
+  /**
+   * Discovers the .NET Core runtime version installed in the container by listing available
+   * versions.
+   *
+   * @param dotnetContainer the dotNet SDK container
+   * @return the discovered .NET version string
+   */
+  private static String discoverExactDotnetVersionFrom(GenericContainer<?> dotnetContainer)
+      throws IOException {
+    try {
+      ExecResult execResult =
+          dotnetContainer.execInContainer("ls", "/usr/share/dotnet/shared/Microsoft.NETCore.App");
+      if (execResult.getExitCode() == 0) {
+        Pattern pattern =
+            Pattern.compile(
+                "^" + Pattern.quote(DOTNET_SDK_MAJOR_VERSION) + "\\.\\d+$", Pattern.MULTILINE);
+        Matcher matcher = pattern.matcher(execResult.getStdout());
+        if (matcher.find()) {
+          return matcher.group();
+        }
+        throw new IOException(
+            "No .NET " + DOTNET_SDK_MAJOR_VERSION + " version found in container");
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while discovering .NET version", e);
+    }
+
+    throw new IOException("Failed to list .NET versions in container");
   }
 
   @AfterAll
@@ -113,19 +149,12 @@ public class BuildIdExtractorIntegrationTest {
   }
 
   private static Stream<Arguments> peBinaries() {
+    String basePath = "/usr/share/dotnet/shared/Microsoft.NETCore.App/" + dotnetVersion;
     return Stream.of(
-        Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Private.CoreLib.dll",
-            "Core .NET Library"),
-        Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Runtime.dll",
-            ".NET Runtime"),
-        Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/System.Console.dll",
-            "Console Library"),
-        Arguments.of(
-            "/usr/share/dotnet/shared/Microsoft.NETCore.App/8.0.24/Microsoft.CSharp.dll",
-            "C# Compiler Library"));
+        Arguments.of(basePath + "/System.Private.CoreLib.dll", "Core .NET Library"),
+        Arguments.of(basePath + "/System.Runtime.dll", ".NET Runtime"),
+        Arguments.of(basePath + "/System.Console.dll", "Console Library"),
+        Arguments.of(basePath + "/Microsoft.CSharp.dll", "C# Compiler Library"));
   }
 
   @ParameterizedTest(name = "PE: {1}")
