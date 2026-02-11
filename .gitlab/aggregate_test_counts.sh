@@ -12,7 +12,7 @@
 #   2. Validates JSON structure and filters out invalid files
 #   3. Aggregates data using jq (grouping by JVM version, job kind, etc.)
 #   4. Generates summaries with breakdowns by JVM version and job kind
-#   5. Creates both JSON (test_counts_summary.json) and Markdown (test_counts_report.md) reports
+#   5. Creates aggregated JSON summary file (test_counts_summary.json)
 #   6. Displays formatted output with GitLab CI collapsible sections
 #   7. Detects and alerts on jobs with zero tests
 #
@@ -26,7 +26,6 @@
 #
 # Outputs:
 #   test_counts_summary.json    - Aggregated JSON data with full breakdowns
-#   test_counts_report.md       - Human-readable Markdown report
 #   Console output              - Formatted summary with links to Datadog CI Visibility
 #
 # Environment Variables (from GitLab CI):
@@ -60,7 +59,6 @@ fi
 
 AGGREGATE_DIR="${1:-./test_counts_aggregate}"
 OUTPUT_FILE="test_counts_summary.json"
-REPORT_FILE="test_counts_report.md"
 
 
 # ============================================================================
@@ -410,7 +408,7 @@ display_detailed_results() {
 
 
 # ============================================================================
-# Report Generation
+# JSON Summary Generation
 # ============================================================================
 
 write_json_summary() {
@@ -431,125 +429,6 @@ write_json_summary() {
     echo "Summary written to $output_file"
 }
 
-write_markdown_report() {
-    local aggregated_data="$1"
-    local report_file="$2"
-
-    log_verbose "Generating markdown report"
-
-
-    # Extract summary values
-    local total_tests
-    local total_passed
-    local total_failed
-    local total_skipped
-    local zero_test_count
-
-    total_tests=$(echo "$aggregated_data" | jq -r '.summary.total_tests')
-    total_passed=$(echo "$aggregated_data" | jq -r '.summary.total_passed')
-    total_failed=$(echo "$aggregated_data" | jq -r '.summary.total_failed')
-    total_skipped=$(echo "$aggregated_data" | jq -r '.summary.total_skipped')
-    zero_test_count=$(echo "$aggregated_data" | jq -r '.zero_test_jobs | length')
-
-
-    # IMPORTANT: Heredocs in this function use <<- (with hyphen) to allow indentation in source code
-    # while producing unindented output. This requires TABS (not spaces) for leading whitespace.
-    # Using tabs is not a matter of preference or style; it's how the language is defined.
-
-
-    # Write report header and summary table
-    cat > "$report_file" <<-EOF  # <<- strips leading tabs from heredoc content
-	# Test Count Report
-
-	**Pipeline ID:** ${CI_PIPELINE_ID:-unknown}
-	**Commit:** ${CI_COMMIT_SHA:-unknown}
-	**Branch:** ${CI_COMMIT_BRANCH:-unknown}
-	**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
-	## Overall Summary
-
-	| Metric | Count |
-	|--------|-------|
-	| Total Tests | $total_tests |
-	| Passed | $total_passed |
-	| Failed | $total_failed |
-	| Skipped | $total_skipped |
-
-	## Breakdown by JVM Version
-
-	| JVM Version | Total Tests | Passed | Failed | Skipped | Job Count |
-	|-------------|-------------|--------|--------|---------|-----------|
-	EOF
-
-    # Write JVM breakdown rows
-    echo "$aggregated_data" | jq -r '.by_jvm[] | "| \(.jvm_version) | \(.total_tests) | \(.total_passed) | \(.total_failed) | \(.total_skipped) | \(.job_count) |"' >> "$report_file"
-
-
-    # Write job kind breakdown section
-    cat >> "$report_file" <<-EOF
-
-	## Breakdown by Job Kind and JVM Version
-
-	| Job Kind | JVM Version | Total Tests | Passed | Failed | Skipped | Splits |
-	|----------|-------------|-------------|--------|--------|---------|--------|
-	EOF
-
-    # Write job kind breakdown rows
-    echo "$aggregated_data" | jq -r '.by_job_kind_and_jvm[] | "| \(.job_kind) | \(.jvm_version) | \(.total_tests) | \(.total_passed) | \(.total_failed) | \(.total_skipped) | \(.split_count) |"' >> "$report_file"
-
-
-    # Write detailed breakdown section
-    cat >> "$report_file" <<-EOF
-
-	## Detailed Breakdown by Test Category and JVM Version
-
-	| Test Category | JVM Version | Job Name | Total | Passed | Failed | Skipped |
-	|---------------|-------------|----------|-------|--------|--------|---------|
-	EOF
-
-    # Write table rows
-    echo "$aggregated_data" | jq -r '.table_rows[]' >> "$report_file"
-
-
-    # Write alerts section
-    cat >> "$report_file" <<-EOF  # <<- strips leading tabs
-
-	## Alerts
-
-	EOF
-
-    local alert_count=0
-
-    # Check for critical alert (no tests in entire pipeline)
-    if [ "$total_tests" -eq 0 ]; then
-        echo "⚠️ **CRITICAL**: No tests were executed in this pipeline!" >> "$report_file"
-        log_verbose "ALERT: Zero tests in entire pipeline!"
-        alert_count=$((alert_count + 1))
-    fi
-
-    # Check for zero-test job alerts
-    if [ "$zero_test_count" -gt 0 ]; then
-        echo "$aggregated_data" | jq -r '.zero_test_jobs[].alert' >> "$report_file"
-        alert_count=$((alert_count + zero_test_count))
-
-        if [ $VERBOSE -eq 1 ]; then
-            echo "$aggregated_data" | jq -r '.zero_test_jobs[] | "ALERT: Zero tests in job '"'"'\(.job)'"'"' (\(.category), JVM \(.jvm))"' >&2
-        fi
-    fi
-
-    log_verbose "Found $alert_count alerts ($zero_test_count jobs with zero tests)"
-
-
-    # Write report footer
-    cat >> "$report_file" <<-EOF  # <<- strips leading tabs
-
-	---
-	*This report is automatically generated. See [test-coverage.md](../docs/test-coverage.md) for details.*
-	EOF
-
-    echo "Report written to $report_file"
-}
-
 
 # ============================================================================
 # Main Script Logic
@@ -568,7 +447,6 @@ done <<-EOF  # <<- strips leading tabs
 	Branch: ${CI_COMMIT_BRANCH:-unknown}
 	Aggregate directory: $AGGREGATE_DIR
 	Output file: $OUTPUT_FILE
-	Report file: $REPORT_FILE
 	EOF
 
 # Find and validate test count files
@@ -599,16 +477,9 @@ display_detailed_results "$AGGREGATED_DATA"
 
 
 # ============================================================================
-# Write Output Files
+# Write Output File
 # ============================================================================
 
-# Write reports
 write_json_summary "$AGGREGATED_DATA" "$OUTPUT_FILE"
-write_markdown_report "$AGGREGATED_DATA" "$REPORT_FILE"
-
-# Only output markdown report in verbose mode
-if [ $VERBOSE -eq 1 ]; then
-    cat "$REPORT_FILE"
-fi
 
 # spotless:on
