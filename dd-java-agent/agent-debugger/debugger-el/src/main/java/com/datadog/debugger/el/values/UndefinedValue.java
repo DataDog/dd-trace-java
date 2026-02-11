@@ -2,6 +2,7 @@ package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 
@@ -15,7 +16,7 @@ public final class UndefinedValue extends Literal<Object> {
   public static final UndefinedValue INSTANCE = new UndefinedValue();
 
   private UndefinedValue() {
-    super(Values.UNDEFINED_OBJECT);
+    super(Values.UNDEFINED_OBJECT, ValueType.OBJECT);
   }
 
   @SuppressWarnings("unchecked")

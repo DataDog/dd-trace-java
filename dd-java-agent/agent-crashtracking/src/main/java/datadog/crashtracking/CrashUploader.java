@@ -256,7 +256,8 @@ public final class CrashUploader {
       @Nonnull String fileContent, boolean sendToTelemetry, boolean sendToErrorTracking) {
     final String uuid = storedConfig.reportUUID;
     try {
-      CrashLog crashLog = CrashLogParser.fromHotspotCrashLog(uuid, fileContent);
+      // Auto-detect crash log format (HotSpot hs_err or J9 javacore)
+      CrashLog crashLog = CrashLogParser.parse(uuid, fileContent);
       if (sendToTelemetry) {
         uploadToTelemetry(crashLog);
       }
