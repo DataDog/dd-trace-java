@@ -238,19 +238,21 @@ final class TunnelingJdkSocket extends Socket {
         }
 
         Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-        while (keyIterator.hasNext()) {
-          SelectionKey key = keyIterator.next();
-          keyIterator.remove();
-          if (key.isReadable()) {
-            int r = unixSocketChannel.read(buffer);
-            if (r == -1) {
-              return -1;
+        synchronized (selectedKeys) {
+          Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+          while (keyIterator.hasNext()) {
+            SelectionKey key = keyIterator.next();
+            keyIterator.remove();
+            if (key.isReadable()) {
+              int r = unixSocketChannel.read(buffer);
+              if (r == -1) {
+                return -1;
+              }
+              buffer.flip();
+              len = Math.min(r, len);
+              buffer.get(b, off, len);
+              return len;
             }
-            buffer.flip();
-            len = Math.min(r, len);
-            buffer.get(b, off, len);
-            return len;
           }
         }
         return 0;
