@@ -1,9 +1,0 @@
-{
-  "lang": "java",
-  "expressionToValue": {},
-  "fileExpressionToValue": {
-    "dd-java-agent/instrumentation/hazelcast/hazelcast-3.6/src/main/java/datadog/trace/instrumentation/hazelcast36/DistributedObjectDecorator.java::COMPONENT_NAME.toString()": "hazelcast-sdk"
-  }
-}
-
-
