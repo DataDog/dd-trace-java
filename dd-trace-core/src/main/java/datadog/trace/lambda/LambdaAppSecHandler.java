@@ -27,6 +27,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -158,7 +159,9 @@ public class LambdaAppSecHandler {
         datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback =
             tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
-          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(eventData.path);
+          // Reconstruct full path with query string for AppSec analysis
+          String fullPath = buildFullPath(eventData.path, eventData.queryParameters);
+          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath);
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
           log.warn("requestMethodUriRaw callback is null");
@@ -236,7 +239,7 @@ public class LambdaAppSecHandler {
         log.warn("Event size {} exceeds limit {} or is invalid, skipping AppSec processing",
             availableBytes, MAX_EVENT_SIZE);
         return new LambdaEventData(Collections.emptyMap(), null, null, null, null,
-            LambdaTriggerType.UNKNOWN, Collections.emptyMap(), null);
+            LambdaTriggerType.UNKNOWN, Collections.emptyMap(), Collections.emptyMap(), null);
       }
 
       StringBuilder jsonBuilder = new StringBuilder(availableBytes);
@@ -260,7 +263,7 @@ public class LambdaAppSecHandler {
       log.debug("Event JSON parsed successfully");
 
       if (event == null) {
-        return new LambdaEventData(Collections.emptyMap(), null, null, null, null, LambdaTriggerType.UNKNOWN, Collections.emptyMap(), null);
+        return new LambdaEventData(Collections.emptyMap(), null, null, null, null, LambdaTriggerType.UNKNOWN, Collections.emptyMap(), Collections.emptyMap(), null);
       }
 
       // Detect trigger type
@@ -285,7 +288,7 @@ public class LambdaAppSecHandler {
       }
     } catch (Exception e) {
       log.error("Failed to parse event data from JSON", e);
-      return new LambdaEventData(Collections.emptyMap(), null, null, null, null, LambdaTriggerType.UNKNOWN, Collections.emptyMap(), null);
+      return new LambdaEventData(Collections.emptyMap(), null, null, null, null, LambdaTriggerType.UNKNOWN, Collections.emptyMap(), Collections.emptyMap(), null);
     }
   }
 
@@ -340,6 +343,7 @@ public class LambdaAppSecHandler {
   private static LambdaEventData extractApiGatewayV1Data(Map<String, Object> event) {
     Map<String, String> headers = extractHeaders(event.get("headers"));
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+    Map<String, List<String>> queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     Object body = extractBody(event);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
@@ -353,7 +357,7 @@ public class LambdaAppSecHandler {
       sourceIp = (String) identity.get("sourceIp");
     }
 
-    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.API_GATEWAY_V1_REST, pathParameters, body);
+    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.API_GATEWAY_V1_REST, pathParameters, queryParameters, body);
   }
 
   /**
@@ -362,6 +366,7 @@ public class LambdaAppSecHandler {
   private static LambdaEventData extractApiGatewayV2HttpData(Map<String, Object> event, LambdaTriggerType triggerType) {
     Map<String, String> headers = extractHeadersWithCookies(event);
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+    Map<String, List<String>> queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     Object body = extractBody(event);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
@@ -378,7 +383,7 @@ public class LambdaAppSecHandler {
       sourcePort = ((Number) portObj).intValue();
     }
 
-    return new LambdaEventData(headers, method, path, sourceIp, sourcePort, triggerType, pathParameters, body);
+    return new LambdaEventData(headers, method, path, sourceIp, sourcePort, triggerType, pathParameters, queryParameters, body);
   }
 
   /**
@@ -387,6 +392,7 @@ public class LambdaAppSecHandler {
   private static LambdaEventData extractApiGatewayV2WebSocketData(Map<String, Object> event) {
     Map<String, String> headers = extractHeadersWithCookies(event);
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+    Map<String, List<String>> queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     Object body = extractBody(event);
 
     Map<?, ?> requestContext = (Map<?, ?>) event.get("requestContext");
@@ -402,7 +408,7 @@ public class LambdaAppSecHandler {
       sourceIp = (String) identity.get("sourceIp");
     }
 
-    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, pathParameters, body);
+    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, pathParameters, queryParameters, body);
   }
 
   /**
@@ -438,13 +444,22 @@ public class LambdaAppSecHandler {
     }
 
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+
+    // ALB can have both queryStringParameters and multiValueQueryStringParameters
+    Map<String, List<String>> queryParameters;
+    if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
+      queryParameters = extractMultiValueQueryParameters(event.get("multiValueQueryStringParameters"));
+    } else {
+      queryParameters = extractQueryParameters(event.get("queryStringParameters"));
+    }
+
     Object body = extractBody(event);
 
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
     String sourceIp = headers.get("x-forwarded-for");
 
-    return new LambdaEventData(headers, method, path, sourceIp, null, triggerType, pathParameters, body);
+    return new LambdaEventData(headers, method, path, sourceIp, null, triggerType, pathParameters, queryParameters, body);
   }
 
   /**
@@ -453,6 +468,7 @@ public class LambdaAppSecHandler {
   private static LambdaEventData extractGenericData(Map<String, Object> event) {
     Map<String, String> headers = extractHeadersWithCookies(event);
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
+    Map<String, List<String>> queryParameters = extractQueryParameters(event.get("queryStringParameters"));
     Object body = extractBody(event);
 
     String method = null;
@@ -498,7 +514,7 @@ public class LambdaAppSecHandler {
       }
     }
 
-    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.UNKNOWN, pathParameters, body);
+    return new LambdaEventData(headers, method, path, sourceIp, null, LambdaTriggerType.UNKNOWN, pathParameters, queryParameters, body);
   }
 
   /**
@@ -539,6 +555,87 @@ public class LambdaAppSecHandler {
     Map<String, String> pathParams = extractStringMap(pathParamsObj);
     log.debug("Extracted {} path parameters", pathParams.size());
     return pathParams;
+  }
+
+  /**
+   * Helper method to extract query parameters from event.
+   * Converts Map<String, String> to Map<String, List<String>> format expected by AppSec.
+   */
+  private static Map<String, List<String>> extractQueryParameters(Object queryParamsObj) {
+    Map<String, List<String>> result = new java.util.HashMap<>();
+    if (queryParamsObj instanceof Map) {
+      Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
+      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+        if (entry.getKey() != null && entry.getValue() != null) {
+          String key = String.valueOf(entry.getKey());
+          String value = String.valueOf(entry.getValue());
+          result.put(key, java.util.Collections.singletonList(value));
+        }
+      }
+    }
+    log.debug("Extracted {} query parameters", result.size());
+    return result;
+  }
+
+  /**
+   * Helper method to extract multi-value query parameters (used by ALB).
+   * Handles Map<String, List<String>> format directly.
+   */
+  private static Map<String, List<String>> extractMultiValueQueryParameters(Object queryParamsObj) {
+    Map<String, List<String>> result = new java.util.HashMap<>();
+    if (queryParamsObj instanceof Map) {
+      Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
+      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+        if (entry.getKey() != null && entry.getValue() != null) {
+          String key = String.valueOf(entry.getKey());
+          if (entry.getValue() instanceof java.util.List) {
+            java.util.List<?> values = (java.util.List<?>) entry.getValue();
+            java.util.List<String> stringValues = new java.util.ArrayList<>();
+            for (Object value : values) {
+              if (value != null) {
+                stringValues.add(String.valueOf(value));
+              }
+            }
+            result.put(key, stringValues);
+          } else {
+            result.put(key, java.util.Collections.singletonList(String.valueOf(entry.getValue())));
+          }
+        }
+      }
+    }
+    log.debug("Extracted {} multi-value query parameters", result.size());
+    return result;
+  }
+
+  /**
+   * Helper method to build full path including query string.
+   * Lambda events provide path and query parameters separately, so we need to reconstruct
+   * the full URI for AppSec to parse.
+   */
+  private static String buildFullPath(String path, Map<String, List<String>> queryParameters) {
+    if (queryParameters == null || queryParameters.isEmpty()) {
+      return path;
+    }
+
+    StringBuilder fullPath = new StringBuilder(path);
+    fullPath.append('?');
+
+    boolean first = true;
+    for (Map.Entry<String, List<String>> entry : queryParameters.entrySet()) {
+      String key = entry.getKey();
+      for (String value : entry.getValue()) {
+        if (!first) {
+          fullPath.append('&');
+        }
+        first = false;
+        fullPath.append(key);
+        if (value != null) {
+          fullPath.append('=').append(value);
+        }
+      }
+    }
+
+    return fullPath.toString();
   }
 
   /**
@@ -700,9 +797,10 @@ public class LambdaAppSecHandler {
     final Integer sourcePort;
     final LambdaTriggerType triggerType;
     final Map<String, String> pathParameters;
+    final Map<String, List<String>> queryParameters;
     final Object body;
 
-    LambdaEventData(Map<String, String> headers, String method, String path, String sourceIp, Integer sourcePort, LambdaTriggerType triggerType, Map<String, String> pathParameters, Object body) {
+    LambdaEventData(Map<String, String> headers, String method, String path, String sourceIp, Integer sourcePort, LambdaTriggerType triggerType, Map<String, String> pathParameters, Map<String, List<String>> queryParameters, Object body) {
       this.headers = headers;
       this.method = method;
       this.path = path;
@@ -710,6 +808,7 @@ public class LambdaAppSecHandler {
       this.sourcePort = sourcePort;
       this.triggerType = triggerType;
       this.pathParameters = pathParameters;
+      this.queryParameters = queryParameters;
       this.body = body;
     }
   }
