@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.api.DDSpanTypes
 import java.nio.charset.StandardCharsets
 import com.amazonaws.services.lambda.runtime.Context
 
@@ -30,6 +31,7 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
       trace(1) {
         span {
           operationName operation()
+          spanType DDSpanTypes.SERVERLESS
           errored false
         }
       }
@@ -51,6 +53,7 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
       trace(1) {
         span {
           operationName operation()
+          spanType DDSpanTypes.SERVERLESS
           errored true
           tags {
             tag "request_id", requestId

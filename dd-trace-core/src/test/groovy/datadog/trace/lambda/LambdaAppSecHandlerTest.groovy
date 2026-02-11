@@ -2,6 +2,7 @@ package datadog.trace.lambda
 
 import datadog.trace.api.Config
 import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext

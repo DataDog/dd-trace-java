@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.config.inversion.ConfigHelper;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -96,6 +97,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       } else {
         span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
       }
+      span.setSpanType(InternalSpanTypes.SERVERLESS);
       span.setTag("request_id", lambdaRequestId);
 
       final AgentScope scope = activateSpan(span);
