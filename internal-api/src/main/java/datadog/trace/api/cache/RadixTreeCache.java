@@ -18,9 +18,6 @@ public final class RadixTreeCache<T> {
           16, 32, TO_STRING, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
 
   public static final int UNSET_PORT = 0;
-  // should cover range [0, 2^16)
-  public static final RadixTreeCache<Integer> PORTS =
-      new RadixTreeCache<>(256, 256, Integer::valueOf, 80, 443, 8080);
 
   private final int level1;
   private final int level2;

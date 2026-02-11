@@ -3,6 +3,8 @@ package datadog.trace.util;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
@@ -16,8 +18,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -71,17 +71,15 @@ public final class TempLocationManager {
 
     private Set<String> pidSet;
 
-    private final Instant cutoff;
-    private final Instant timeoutTarget;
+    private final long cutoffMillis;
+    private final long timeoutTargetMillis;
 
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
-      this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
-      this.timeoutTarget =
-          timeout > -1
-              ? Instant.now().plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
-              : null;
+      long now = timeSource.getCurrentTimeMillis();
+      this.cutoffMillis = now - TimeUnit.SECONDS.toMillis(cutoffSeconds);
+      this.timeoutTargetMillis = timeout > -1 ? now + unit.toMillis(timeout) : Long.MAX_VALUE;
     }
 
     boolean isTerminated() {
@@ -89,7 +87,7 @@ public final class TempLocationManager {
     }
 
     private boolean isTimedOut() {
-      return timeoutTarget != null && Instant.now().isAfter(timeoutTarget);
+      return timeSource.getCurrentTimeMillis() > timeoutTargetMillis;
     }
 
     @Override
@@ -133,7 +131,7 @@ public final class TempLocationManager {
       }
       cleanupTestHook.visitFile(file, attrs, false);
       try {
-        if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+        if (Files.getLastModifiedTime(file).toMillis() > cutoffMillis) {
           return FileVisitResult.SKIP_SUBTREE;
         }
         Files.delete(file);
@@ -218,6 +216,7 @@ public final class TempLocationManager {
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
+  private final TimeSource timeSource;
 
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
@@ -248,12 +247,21 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
-    this(configProvider, true, CleanupHook.EMPTY);
+    this(configProvider, true, CleanupHook.EMPTY, SystemTimeSource.INSTANCE);
   }
 
   TempLocationManager(
       ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
+    this(configProvider, runStartupCleanup, testHook, SystemTimeSource.INSTANCE);
+  }
+
+  TempLocationManager(
+      ConfigProvider configProvider,
+      boolean runStartupCleanup,
+      CleanupHook testHook,
+      TimeSource timeSource) {
     cleanupTestHook = testHook;
+    this.timeSource = timeSource;
 
     Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
     isPosixFs = supportedViews.contains("posix");

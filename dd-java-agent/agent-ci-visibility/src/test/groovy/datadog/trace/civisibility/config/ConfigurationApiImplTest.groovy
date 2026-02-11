@@ -16,6 +16,7 @@ import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import java.util.concurrent.atomic.AtomicInteger
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.apache.commons.io.IOUtils
@@ -146,11 +147,12 @@ class ConfigurationApiImplTest extends Specification {
   def "test known tests request"() {
     given:
     def tracerEnvironment = givenTracerEnvironment()
+    def pageInfo = [:]
 
     def intakeServer = givenBackendEndpoint(
     "/api/v2/ci/libraries/tests",
     "/datadog/trace/civisibility/config/known-tests-request.ftl",
-    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment],
+    [uid: REQUEST_UID, tracerEnvironment: tracerEnvironment, pageInfo: pageInfo],
     "/datadog/trace/civisibility/config/known-tests-response.ftl",
     [:]
     )
@@ -178,6 +180,61 @@ class ConfigurationApiImplTest extends Specification {
         new TestFQN("test-suite-M", "test-name-1"),
         new TestFQN("test-suite-M", "test-name-2")
       ]
+    ]
+
+    cleanup:
+    intakeServer.close()
+  }
+
+  def "test known tests request with pagination"() {
+    given:
+    def tracerEnvironment = givenTracerEnvironment()
+    def requestCount = new AtomicInteger(0)
+
+    // Define page responses
+    def page1 = '{"data":{"id":"page1","type":"ci_app_libraries_tests","attributes":{"tests":{"module-a":{"suite-a":["test-1","test-2"]}},"page_info":{"size":2,"has_next":true,"cursor":"cursor-page-2"}}}}'
+    def page2 = '{"data":{"id":"page2","type":"ci_app_libraries_tests","attributes":{"tests":{"module-b":{"suite-b":["test-3","test-4"]}},"page_info":{"size":2,"has_next":true,"cursor":"cursor-page-3"}}}}'
+    def page3 = '{"data":{"id":"page3","type":"ci_app_libraries_tests","attributes":{"tests":{"module-c":{"suite-c":["test-5","test-6"]}},"page_info":{"size":2,"has_next":false}}}}'
+    def responses = [page1, page2, page3]
+
+    def intakeServer = httpServer {
+      handlers {
+        prefix("/api/v2/ci/libraries/tests") {
+          def currentRequest = requestCount.incrementAndGet()
+          def responseBody = responses[currentRequest - 1].bytes
+
+          def response = response
+          def header = request.getHeader("Accept-Encoding")
+          def gzipSupported = header != null && header.contains("gzip")
+          if (gzipSupported) {
+            response.addHeader("Content-Encoding", "gzip")
+            responseBody = gzip(responseBody)
+          }
+
+          response.status(200).send(responseBody)
+        }
+      }
+    }
+    def configurationApi = givenConfigurationApi(intakeServer)
+
+    when:
+    def knownTests = configurationApi.getKnownTestsByModule(tracerEnvironment)
+
+    for (Map.Entry<String, Collection<TestFQN>> e : knownTests.entrySet()) {
+      def sortedTests = new ArrayList<>(e.value)
+      Collections.sort(sortedTests, Comparator.comparing(TestFQN::getSuite).thenComparing((Function)TestFQN::getName))
+      e.value = sortedTests
+    }
+
+    then:
+    // Verify 3 requests were made (3 pages)
+    requestCount.get() == 3
+
+    // Verify merged results from all 3 pages
+    knownTests == [
+      "module-a": [new TestFQN("suite-a", "test-1"), new TestFQN("suite-a", "test-2")],
+      "module-b": [new TestFQN("suite-b", "test-3"), new TestFQN("suite-b", "test-4")],
+      "module-c": [new TestFQN("suite-c", "test-5"), new TestFQN("suite-c", "test-6")]
     ]
 
     cleanup:
