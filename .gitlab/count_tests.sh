@@ -98,7 +98,23 @@ echo -e "  ${FAILED_COLOR}Failed:${RESET}  $TOTAL_FAILURES"
 echo -e "  ${ERRORS_COLOR}Errors:${RESET}  $TOTAL_ERRORS"
 echo -e "  ${SKIPPED_COLOR}Skipped:${RESET} $TOTAL_SKIPPED"
 
-# Create JSON output
+# ============================================================================
+# Detect Job Failures (using CI_JOB_STATUS)
+# ============================================================================
+
+echo ""
+if [ "${CI_JOB_STATUS:-}" = "failed" ]; then
+    JOB_FAILED="true"
+    echo -e "${RED}${BOLD}CI Job Status:${RESET} ${RED}failed${RESET}"
+else
+    JOB_FAILED="false"
+    echo -e "${GREEN}${BOLD}CI Job Status:${RESET} ${GREEN}${CI_JOB_STATUS:-unknown}${RESET}"
+fi
+
+# ============================================================================
+# Create JSON output with failure metadata
+# ============================================================================
+
 log_verbose "Writing JSON output to $OUTPUT_FILE"
 cat > "$OUTPUT_FILE" <<EOF
 {
@@ -111,6 +127,8 @@ cat > "$OUTPUT_FILE" <<EOF
   "ci_commit_branch": "${CI_COMMIT_BRANCH:-unknown}",
   "ci_node_index": "${CI_NODE_INDEX:-1}",
   "ci_node_total": "${CI_NODE_TOTAL:-1}",
+  "ci_job_status": "${CI_JOB_STATUS:-unknown}",
+  "job_failed": $JOB_FAILED,
   "total_tests": $TOTAL_TESTS,
   "passed_tests": $TOTAL_PASSED,
   "failed_tests": $TOTAL_FAILURES,

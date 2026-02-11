@@ -235,6 +235,19 @@ aggregate_test_data() {
 	      job: .ci_job_name,
 	      alert: "⚠️ **WARNING**: Zero tests in \(.test_category) on JVM \(.jvm_version) (job: \(.ci_job_name))"
 	    }
+	  ),
+
+	  # Detection of job failures without test failures (timeouts, infrastructure issues)
+	  job_failures_no_tests: map(
+	    select(.job_failed == true and .failed_tests == 0 and .error_tests == 0) |
+	    {
+	      category: .test_category,
+	      jvm: .jvm_version,
+	      job: .ci_job_name,
+	      ci_job_id: .ci_job_id,
+	      ci_job_status: .ci_job_status,
+	      alert: "🚨 **JOB FAILURE**: Job failed without test failures in \(.test_category) on JVM \(.jvm_version) (likely timeout/infrastructure)"
+	    }
 	  )
 	}
 	JQ
@@ -303,6 +316,7 @@ display_summary() {
     total_failed=$(echo "$aggregated_data" | jq -r '.summary.total_failed')
     total_skipped=$(echo "$aggregated_data" | jq -r '.summary.total_skipped')
     zero_test_count=$(echo "$aggregated_data" | jq -r '.zero_test_jobs | length')
+    job_failure_count=$(echo "$aggregated_data" | jq -r '.job_failures_no_tests | length')
 
     log_verbose "Overall totals: $total_tests tests ($total_passed passed, $total_failed failed, $total_skipped skipped)"
     log_verbose "Jobs with zero tests: $zero_test_count"
@@ -344,11 +358,18 @@ display_summary() {
 
 
     # Display alerts in log output
-    if [ "$total_tests" -eq 0 ] || [ "$zero_test_count" -gt 0 ]; then
+    if [ "$total_tests" -eq 0 ] || [ "$zero_test_count" -gt 0 ] || [ "$job_failure_count" -gt 0 ]; then
         echo -e "${red}${bold}Alerts:${reset}"
 
         if [ "$total_tests" -eq 0 ]; then
             echo -e "  ${red}🚨 CRITICAL: No tests were executed in this pipeline!${reset}"
+        fi
+
+        if [ "$job_failure_count" -gt 0 ]; then
+            echo -e "  ${red}🚨 CRITICAL: $job_failure_count job(s) failed without test failures:${reset}"
+            echo -e "  ${gray}   (These likely indicate timeouts or infrastructure issues)${reset}"
+            echo "$aggregated_data" | jq -r '.job_failures_no_tests[] | "    • \(.job) (JVM \(.jvm), status: \(.ci_job_status))"'
+            echo ""
         fi
 
         if [ "$zero_test_count" -gt 0 ]; then
