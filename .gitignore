@@ -59,7 +59,7 @@ out/
 /logs/*
 /bin
 /out
-/workspace
+/workspace/documentation
 dd-java-agent/benchmark-integration/perf-test-settings.rc
 derby.log
 .java-version

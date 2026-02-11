@@ -1,0 +1,139 @@
+# Step 3 documentation_other_sources results (count=83)
+
+## DD_AGENT_HOST C (count=7)
+
+- `content/en/profiler/enabling/dotnet.md:476`: Sets the host where profiles are sent (the host running the Agent). Can be a hostname or an IP address. Ignored if `DD_TRACE_AGENT_URL` is set. Defaults to `localhost`.
+- `content/en/security/application_security/setup/envoy.md:52`: Hostname or IP of your Datadog Agent.
+- `content/en/security/application_security/setup/gcp/service-extensions.md:498`: Hostname or IP of your Datadog Agent.
+- `content/en/security/application_security/setup/haproxy.md:126`: Host of a running Datadog Agent.
+- `content/en/security/application_security/setup/kubernetes/envoy-gateway.md:222`: Hostname or IP of your Datadog Agent.
+- `content/en/security/application_security/setup/kubernetes/gateway-api.md:92`: Hostname where your Datadog Agent is running
+- `content/en/security/application_security/setup/kubernetes/istio.md:218`: Hostname or IP of your Datadog Agent.
+
+## DD_API_KEY A (count=1)
+
+- `content/en/serverless/guide/agent_configuration.md:13`: The environment variable with your Datadog API key, in plaintext. **One** key environment variable is required.
+
+## DD_APPSEC_BODY_PARSING_SIZE_LIMIT A (count=5)
+
+- `content/en/security/application_security/setup/envoy.md:44`: Maximum size of the bodies to be processed in bytes. If set to `0`, the bodies are not processed. The recommended value is `10000000` (10MB). (To fully enable body processing, the `allow_mode_override` option should also be set in the External Processing filter configuration)
+- `content/en/security/application_security/setup/gcp/service-extensions.md:491`: Maximum size of the bodies to be processed in bytes. If set to `0`, the bodies are not processed. (Recommended value: `10000000` (10MB))
+- `content/en/security/application_security/setup/haproxy.md:119`: Maximum size of bodies to process in bytes. If `0`, bodies are not processed. Recommended: `10000000` (10MB).
+- `content/en/security/application_security/setup/kubernetes/envoy-gateway.md:214`: Maximum size of the bodies to be processed in bytes. If set to `0`, the bodies are not processed. The recommended value is `10485760` (10MB). (To fully enable body processing, the `allowModeOverride` option should also be set in the External Processing filter configuration.)
+- `content/en/security/application_security/setup/kubernetes/istio.md:209`: Maximum size of the bodies to be processed in bytes. If set to `0`, the bodies are not processed. The recommended value is `10000000` (10MB). (To fully enable body processing, the `allow_mode_override` option should also be set in the External Processing filter configuration)
+
+## DD_CUSTOM_TRACE_ID A (count=1)
+
+- `content/en/tests/containers.md:269`: Custom variable set by the Jenkins Datadog Plugin for trace IDs.
+
+## DD_ENV A (count=10)
+
+- `content/en/containers/kubernetes/apm.md:303`: Sets the global `env` for all data emitted by the Agent. If `env` is not present in your trace data, this variable is used.
+- `content/en/profiler/enabling/dotnet.md:472`: The [environment][3] name, for example, `production`. If not set, will be `unspecified-environment`
+- `content/en/profiler/enabling/go.md:105`: The [environment][13] name, for example, `production`.
+- `content/en/profiler/enabling/ruby.md:127`: The [environment][10] name, for example: `production`.
+- `content/en/serverless/guide/agent_configuration.md:18`: Sets the global tag `env` tag for all data emitted.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:39`: The [environment][5] name, for example, `production`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:36`: The [environment][5] name, for example, `production`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:34`: The [environment][4] name, for example, `production`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:69`: The [environment][4] name, for example, `production`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:39`: The [environment][4] name, for example, `production`.
+
+## DD_PROFILING_ALLOCATION_ENABLED A (count=2)
+
+- `content/en/profiler/enabling/dotnet.md:485`: If set to `true`, enables Allocation profiling (in Preview). Defaults to `false`.
+- `content/en/profiler/enabling/ruby.md:121`: Set to `true` to enable allocation profiling. It requires the profiler to be enabled already. Defaults to `false`.
+
+## DD_PROFILING_ENABLED B (count=2)
+
+- `content/en/profiler/enabling/dotnet.md:481`: If set to `true`, enables the .NET Profiler. Defaults to `false`.
+- `content/en/profiler/enabling/ruby.md:120`: If set to `true`, enables the profiler. Defaults to `false`.
+
+## DD_PROFILING_HEAP_ENABLED A (count=1)
+
+- `content/en/profiler/enabling/dotnet.md:487`: If set to `true`, enables Live Heap profiling (in Preview). Defaults to `false`.
+
+## DD_SERVICE D (count=13)
+
+- `content/en/profiler/enabling/dotnet.md:473`: The [service][3] name, for example, `web-backend`. If this is not specified, the .NET Profiler tries to determine the service name automatically from the application name (process entry assembly or process name).
+- `content/en/profiler/enabling/go.md:106`: The [service][13] name, for example, `web-backend`.
+- `content/en/profiler/enabling/ruby.md:128`: The [service][10] name, for example, `web-backend`.
+- `content/en/security/application_security/setup/envoy.md:46`: Service name shown in the Datadog UI.
+- `content/en/security/application_security/setup/gcp/service-extensions.md:492`: Service name shown in the Datadog UI.
+- `content/en/security/application_security/setup/haproxy.md:120`: Service name shown in the Datadog UI.
+- `content/en/security/application_security/setup/kubernetes/envoy-gateway.md:215`: Service name shown in the Datadog UI.
+- `content/en/security/application_security/setup/kubernetes/istio.md:211`: Service name shown in the Datadog UI.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:38`: The [service][5] name, for example, `web-backend`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:35`: The [service][5] name, for example, `web-backend`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:33`: The [service][4] name, for example, `web-backend`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:68`: The [service][4] name, for example, `web-backend`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:38`: The [service][4] name, for example, `web-backend`.
+
+## DD_SITE C (count=1)
+
+- `content/en/serverless/guide/agent_configuration.md:20`: Destination Datadog site for your metrics, traces, and logs. Defaults to `datadoghq.com`.
+
+## DD_TAGS A (count=10)
+
+- `content/en/profiler/enabling/dotnet.md:475`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/profiler/enabling/go.md:108`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/profiler/enabling/ruby.md:130`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api, team:intake`.
+- `content/en/serverless/guide/agent_configuration.md:19`: Host tags separated by spaces. For example: `simple-tag-0 tag-key-1:tag-value-1`.
+- `content/en/serverless/guide/agent_configuration.md:24`: List of tags. Attached in-app to every metric, event, log, trace, and service check emitted by this Agent.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:41`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:38`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:36`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:71`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api, team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:41`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+
+## DD_TRACE_AGENT_PORT B (count=7)
+
+- `content/en/profiler/enabling/dotnet.md:477`: Sets the port where profiles are sent (the port where the Agent is listening for connections). Ignored if `DD_TRACE_AGENT_URL` is set. Defaults to`8126`.
+- `content/en/security/application_security/setup/envoy.md:53`: Port of the Datadog Agent for trace collection.
+- `content/en/security/application_security/setup/gcp/service-extensions.md:499`: Port of the Datadog Agent for trace collection.
+- `content/en/security/application_security/setup/haproxy.md:127`: Port of a running Datadog Agent.
+- `content/en/security/application_security/setup/kubernetes/envoy-gateway.md:223`: Port of the Datadog Agent for trace collection.
+- `content/en/security/application_security/setup/kubernetes/gateway-api.md:93`: Port of the Datadog Agent for trace collection
+- `content/en/security/application_security/setup/kubernetes/istio.md:219`: Port of the Datadog Agent for trace collection.
+
+## DD_TRACE_AGENT_URL A (count=1)
+
+- `content/en/profiler/enabling/dotnet.md:478`: Sets the URL endpoint where profiles are sent. Overrides `DD_AGENT_HOST` and `DD_TRACE_AGENT_PORT` if set. Defaults to `http://<DD_AGENT_HOST>:<DD_TRACE_AGENT_PORT>`.
+
+## DD_TRACE_DEBUG B (count=1)
+
+- `content/en/profiler/enabling/dotnet.md:479`: Enables or disables debug logging (Could help in case of troubleshooting investigation). Valid values are: `true` or `false`. Defaults to `false`.
+
+## DD_TRACE_ENABLED A (count=1)
+
+- `content/en/serverless/guide/agent_configuration.md:23`: Enables trace collection. Defaults to `true`.
+
+## DD_TRACE_LOG_LEVEL A (count=2)
+
+- `content/en/containers/kubernetes/apm.md:305`: Set the logging level. <br/>**Values**: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`
+- `content/en/serverless/guide/agent_configuration.md:16`: Set the level for the [Datadog Agent log][8].
+
+## DD_TRACE_TAGS A (count=10)
+
+- `content/en/profiler/enabling/dotnet.md:475`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/profiler/enabling/go.md:108`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/profiler/enabling/ruby.md:130`: Tags to apply to an uploaded profile. Must be a list of `<key>:<value>` separated by commas such as: `layer:api, team:intake`.
+- `content/en/serverless/guide/agent_configuration.md:19`: Host tags separated by spaces. For example: `simple-tag-0 tag-key-1:tag-value-1`.
+- `content/en/serverless/guide/agent_configuration.md:24`: List of tags. Attached in-app to every metric, event, log, trace, and service check emitted by this Agent.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:41`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:38`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:36`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:71`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api, team:intake`.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:41`: Tags to apply to produced data. Must be a list of `<key>:<value>` separated by commas such as: `layer:api,team:intake`.
+
+## DD_VERSION A (count=8)
+
+- `content/en/profiler/enabling/dotnet.md:474`: The [version][3] of your service. If not set, will be `unspecified-version`
+- `content/en/profiler/enabling/go.md:107`: The [version][13] of your service.
+- `content/en/profiler/enabling/ruby.md:129`: The [version][10] of your service.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:40`: The [version][5] of your service.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:37`: The [version][5] of your service.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:35`: The [version][4] of your service.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:70`: The [version][4] of your service.
+- `content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:40`: The [version][4] of your service.
+

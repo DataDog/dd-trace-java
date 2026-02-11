@@ -1,0 +1,136 @@
+{
+  "lang": "java",
+  "rejectResults": [
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Set to `true` to enable Dynamic Instrumentation.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/tracing/trace_collection/dynamic_instrumentation/enabling/dotnet.md:37"
+      }
+    },
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Set to `true` to enable Dynamic Instrumentation.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/tracing/trace_collection/dynamic_instrumentation/enabling/nodejs.md:34"
+      }
+    },
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Set to `true` to enable Dynamic Instrumentation.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/tracing/trace_collection/dynamic_instrumentation/enabling/php.md:32"
+      }
+    },
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Set to `true` to enable Dynamic Instrumentation.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/tracing/trace_collection/dynamic_instrumentation/enabling/python.md:67"
+      }
+    },
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Set to `true` to enable Dynamic Instrumentation.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/tracing/trace_collection/dynamic_instrumentation/enabling/ruby.md:37"
+      }
+    },
+    {
+      "key": "DD_API_KEY",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "The environment variable with your Datadog API key, in plaintext. **One** key environment variable is required. See [serverless CLI environment variables][7].",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/serverless/guide/agent_configuration.md:13"
+      }
+    },
+    {
+      "key": "DD_DOGSTATSD_PORT",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "For tracing over TCP, set the DogStatsD port.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/containers/kubernetes/apm.md:302"
+      }
+    },
+    {
+      "key": "DD_JMXFETCH_STATSD_PORT",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "For tracing over TCP, set the DogStatsD port.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/containers/kubernetes/apm.md:302"
+      }
+    },
+    {
+      "key": "DD_TRACE_ENABLED",
+      "version": "A",
+      "reason": "quality",
+      "result": {
+        "description": "Enables trace collection. Defaults to `true`. For more information about trace collection environment variables, see [Library Configuration][9].",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/serverless/guide/agent_configuration.md:23"
+      }
+    }
+  ],
+  "addResults": [
+    {
+      "key": "DD_API_KEY",
+      "version": "A",
+      "result": {
+        "description": "The environment variable with your Datadog API key, in plaintext. **One** key environment variable is required.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/serverless/guide/agent_configuration.md:13"
+      }
+    },
+    {
+      "key": "DD_TRACE_ENABLED",
+      "version": "A",
+      "result": {
+        "description": "Enables trace collection. Defaults to `true`.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/serverless/guide/agent_configuration.md:23"
+      }
+    },
+    {
+      "key": "DD_SITE",
+      "version": "C",
+      "result": {
+        "description": "Destination Datadog site for your metrics, traces, and logs. Defaults to `datadoghq.com`.",
+        "shortDescription": "",
+        "source": "documentation_other_sources",
+        "sourceFile": "content/en/serverless/guide/agent_configuration.md:20"
+      }
+    }
+  ]
+}
