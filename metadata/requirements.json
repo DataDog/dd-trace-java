@@ -3,13 +3,14 @@
   "deny": [
     {
       "id": "unsupported_jvm",
-      "description": "Skip older JVMs",
+      "description": "Skip unsupported JVMs",
       "os": null,
       "cmds": [
         "**/java-1.5*/**/java",
         "**/java-1.6*/**/java",
         "**/java-6*/**/java",
-        "**/java-7/**/java"
+        "**/java-7/**/java",
+        "**/java-26*/**/java"
       ],
       "args": [],
       "envars": null
