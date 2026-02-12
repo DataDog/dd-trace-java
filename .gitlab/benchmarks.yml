@@ -120,7 +120,7 @@ benchmarks-compare-dacapo:
 
 benchmarks-post-pr-comment:
   stage: benchmark-comparison
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
   tags: ["arch:amd64"]
   interruptible: true
   needs:
@@ -134,17 +134,10 @@ benchmarks-post-pr-comment:
     - if: '$POPULATE_CACHE'
       when: never
     - when: always
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
-  before_script:
-    - dd-octo-sts token --scope DataDog/${UPSTREAM_PROJECT_NAME} --policy "${DDOCTOSTS_POLICY}" > github-token.txt
-    - export GITHUB_TOKEN="$(cat github-token.txt)"
   script:
     - .gitlab/scripts/post-benchmark-pr-comment.sh
-  after_script:
-    - dd-octo-sts revoke -t "$(cat github-token.txt)" || true
   variables:
-    DDOCTOSTS_POLICY: "self.gitlab.github-access"
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    BP_HEADER: "Benchmarks"
+    BP_ON_DUPLICATE: "replace"

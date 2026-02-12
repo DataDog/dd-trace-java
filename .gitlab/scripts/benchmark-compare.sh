@@ -8,7 +8,6 @@ if [[ $# -ne 1 ]]; then
 fi
 
 readonly BENCHMARK_TYPE="$1"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" &>/dev/null && pwd 2>/dev/null)"
 readonly REPORTS_DIR="${CI_PROJECT_DIR}/reports"
 readonly TYPE_DIR="${REPORTS_DIR}/${BENCHMARK_TYPE}"
 readonly CANDIDATE_RAW_DIR="${TYPE_DIR}/candidate-raw"
@@ -21,9 +20,6 @@ source "${REPORTS_DIR}/baseline-info.env"
 export MD_REPORT_ONLY_CHANGES=1
 export MD_REPORT_SAMPLE_METRICS=1
 export FAIL_ON_REGRESSION_THRESHOLD=20.0
-export NO_AGENT_VARIANT="no_agent"
-export BASELINE_VERSION="${BASELINE_SHA:0:10}"
-export CANDIDATE_VERSION="${CI_COMMIT_SHA:0:10}"
 
 readonly JOBS_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
@@ -334,14 +330,6 @@ build_report() {
     --metrics="${metrics}" \
     --outpath="${TYPE_DIR}/comparison-baseline-vs-candidate.md" \
     "${TYPE_DIR}"/*/*/benchmark-{baseline,candidate}.json
-
-  if [[ "${BENCHMARK_TYPE}" == "startup" ]]; then
-    "${SCRIPT_DIR}/append-startup-report" "${TYPE_DIR}" >> "${TYPE_DIR}/comparison-baseline-vs-candidate.md" || true
-  elif [[ "${BENCHMARK_TYPE}" == "load" ]]; then
-    "${SCRIPT_DIR}/append-load-report" "${TYPE_DIR}" >> "${TYPE_DIR}/comparison-baseline-vs-candidate.md" || true
-  elif [[ "${BENCHMARK_TYPE}" == "dacapo" ]]; then
-    "${SCRIPT_DIR}/append-dacapo-report" "${TYPE_DIR}" >> "${TYPE_DIR}/comparison-baseline-vs-candidate.md" || true
-  fi
 }
 
 process_pipeline "${CI_PIPELINE_ID}" "candidate" "${CANDIDATE_RAW_DIR}" "${CI_COMMIT_SHA}"
