@@ -1278,10 +1278,6 @@ public class Agent {
   }
 
   private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
-    if (JavaVirtualMachine.isJ9()) {
-      // TODO currently crash tracking is supported only for HotSpot based JVMs
-      return;
-    }
     log.debug("Initializing crashtracking");
     try {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");

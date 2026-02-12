@@ -2,6 +2,7 @@ package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Literal;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.Values;
 
@@ -10,7 +11,7 @@ public final class NullValue extends Literal<Object> {
   public static final NullValue INSTANCE = new NullValue();
 
   private NullValue() {
-    super(Values.NULL_OBJECT);
+    super(Values.NULL_OBJECT, ValueType.OBJECT);
   }
 
   @SuppressWarnings("unchecked")

@@ -210,6 +210,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
+      "test.final_status" : "pass",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.is_retry" : "true",

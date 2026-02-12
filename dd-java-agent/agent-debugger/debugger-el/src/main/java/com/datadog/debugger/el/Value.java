@@ -9,6 +9,7 @@ import com.datadog.debugger.el.values.ObjectValue;
 import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.el.values.UndefinedValue;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.List;
@@ -39,6 +40,10 @@ public interface Value<T> {
 
   T getValue();
 
+  default ValueType getType() {
+    return ValueType.OBJECT;
+  }
+
   default boolean isUndefined() {
     return false;
   }
@@ -47,7 +52,7 @@ public interface Value<T> {
     return false;
   }
 
-  static Value<?> of(Object value) {
+  static Value<?> of(Object value, ValueType type) {
     if (value == null || value == Values.NULL_OBJECT || value == nullValue()) {
       return nullValue();
     }
@@ -71,11 +76,11 @@ public interface Value<T> {
       value = longPrimitiveValueFunction.applyAsLong(value);
     }
     if (value instanceof Boolean) {
-      return new BooleanValue((Boolean) value);
+      return new BooleanValue((Boolean) value, type);
     } else if (value instanceof Character) {
       return new StringValue(value.toString());
     } else if (value instanceof Number) {
-      return new NumericValue((Number) value);
+      return new NumericValue((Number) value, type);
     } else if (value instanceof String) {
       return new StringValue((String) value);
     } else if (value instanceof List) {
@@ -91,5 +96,27 @@ public interface Value<T> {
     } else {
       return new ObjectValue(value);
     }
+  }
+
+  static CapturedContext.CapturedValue toCapturedSnapshot(String name, Value<?> value) {
+    return CapturedContext.CapturedValue.of(
+        name, ValueType.toString(value.getType()), value.getValue());
+  }
+
+  static CapturedContext.CapturedValue toCapturedSnapshot(
+      String name,
+      Value<?> value,
+      int maxReferenceDepth,
+      int maxCollectionSize,
+      int maxCount,
+      int maxFieldCount) {
+    return CapturedContext.CapturedValue.of(
+        name,
+        ValueType.toString(value.getType()),
+        value.getValue(),
+        maxReferenceDepth,
+        maxCollectionSize,
+        maxCount,
+        maxFieldCount);
   }
 }
