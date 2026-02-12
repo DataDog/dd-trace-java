@@ -87,7 +87,9 @@ public class ThirdPartyLibraries {
   }
 
   private static class InternalConfig {
+    // TODO: JEP 500 - avoid mutating final fields
     private final String version;
+    // TODO: JEP 500 - avoid mutating final fields
     private final List<String> prefixes;
 
     public InternalConfig(String version, List<String> prefixes) {
