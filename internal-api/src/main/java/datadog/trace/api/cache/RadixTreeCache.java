@@ -1,6 +1,7 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.IntFunction;
 
@@ -49,12 +50,24 @@ public final class RadixTreeCache<T> {
   }
 
   @SuppressWarnings("unchecked")
+  @SuppressFBWarnings("DCN") // only interested in catching NullPointerException (see note below)
   private T computeIfAbsent(int prefix, int primitive) {
     Object[] page = tree.get(prefix);
     if (null == page) {
-      page = new Object[level2];
-      if (!tree.compareAndSet(prefix, null, page)) {
-        page = tree.get(prefix);
+      try {
+        page = new Object[level2];
+        if (!tree.compareAndSet(prefix, null, page)) {
+          page = tree.get(prefix);
+        }
+      } catch (NullPointerException e) {
+        // Intermittent NPE observed in JDK code on Semeru 11.0.29: java.lang.NullPointerException:
+        // at j.l.i.ArrayVarHandle$...Operations$OpObject.computeOffset(ArrayVarHandle.java:142)
+        // at j.l.i.ArrayVarHandle$...Operations$OpObject.compareAndSet(ArrayVarHandle.java:201)
+        // at j.u.c.atomic.AtomicReferenceArray.compareAndSet(AtomicReferenceArray.java:152)
+        // at datadog.trace.api.cache.RadixTreeCache.computeIfAbsent(RadixTreeCache.java:59)
+        // Location indicates JDK's VarHandle used to access the backing array has returned null
+        // To mitigate this rare JDK bug we still map the primitive but skip caching the result
+        return mapper.apply(primitive);
       }
     }
     // it's safe to race here
