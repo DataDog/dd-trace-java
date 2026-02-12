@@ -2,11 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
-import datadog.common.container.ContainerInfo;
-import datadog.communication.ddagent.TracerVersion;
 import datadog.communication.serialization.Writable;
-import datadog.environment.JavaVirtualMachine;
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -65,40 +61,6 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
-    // TODO: probably this can be optimized by caching this data once.
-    Config cfg = Config.get();
-
-    // containerID = 2, the string ID of the container where the tracer is running
-    encodeField(writable, 2, ContainerInfo.get().getContainerId());
-    // languageName = 3, the string language name of the tracer
-    encodeField(writable, 3, "java"); // TODO: check java or jvm?
-    // languageVersion = 4, the string language version of the tracer
-    encodeField(writable, 4, JavaVirtualMachine.getLangVersion());
-    // tracerVersion = 5, the string version of the tracer
-    encodeField(writable, 5, TracerVersion.TRACER_VERSION);
-    // runtimeID = 6, the V4 string UUID representation of a tracer session
-    encodeField(writable, 6, cfg.getRuntimeId());
-    // env=7, the optional `env` string tag that set with the tracer
-    encodeField(writable, 7, cfg.getEnv());
-    // hostname = 8, the optional string hostname of where the tracer is running
-    encodeField(writable, 8, cfg.getHostName());
-    // appVersion = 9, the optional string `version` tag for the application set in the tracer
-    encodeField(writable, 9, cfg.getVersion());
-    // attributes = 10, a collection of key to value pairs common in all `chunks`
-    encodeAttributes(writable, 10); // TODO implement
-    // chunks = 11, a list of trace `chunks`
-    encodeTraceChunks(writable, 11, trace);
-  }
-
-  private void encodeTraceChunks(
-      Writable writable, int fieldId, List<? extends CoreSpan<?>> traceChunk) {
-    if (traceChunk.isEmpty()) {
-      return;
-    }
-
-    writable.writeInt(fieldId);
-    writable.startArray(1); // In Java, we always have one chunk only
-
     writable.startMap(7); // trace chunk has 7 attributes
 
     // priority = 1, the sampling priority of the trace
@@ -108,12 +70,12 @@ public final class TraceMapperV1 implements TraceMapper {
     // attributes = 3, a collection of key to value pairs common in all `spans`
     encodeAttributes(writable, 3); // TODO implement
     // spans = 4, a list of spans in this chunk
-    encodeSpans(writable, 4, traceChunk);
+    encodeSpans(writable, 4, trace);
     // droppedTrace = 5, whether the trace only contains analyzed spans
     // (not required by tracers and set by the agent)
     encodeField(writable, 5, false); // TODO: double check
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
-    encodeField(writable, 6, "traceId"); // TODO implement
+    encodeField(writable, 6, trace.get(0).getTraceId().to128BitBytes()); // TODO check
     // samplingMechanism = 7, the optional sampling mechanism
     // (previously span tag _dd.p.dm, but now it’s just the int)
     encodeField(writable, 7, 0); // TODO implement
@@ -135,8 +97,8 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeField(writable, 1, span.getServiceName());
       // name = 2, the string operation name of this span
       encodeField(writable, 2, span.getOperationName());
-      // resource = 3, the string resource name of this span, sometimes called endpoint for web
-      // spans
+      // resource = 3, the string resource name of this span,
+      // sometimes called endpoint for web spans
       encodeField(writable, 3, span.getResourceName());
       // spanID = 4, the ID of this span
       encodeField(writable, 4, span.getSpanId());
@@ -204,16 +166,22 @@ public final class TraceMapperV1 implements TraceMapper {
     writeStreamingString(writable, value);
   }
 
+  private void encodeField(Writable writable, int fieldId, byte[] value) {
+    writable.writeInt(fieldId);
+    writable.writeBinary(value);
+  }
+
   /** Writes a string using the streaming string table encoding. */
   private void writeStreamingString(Writable writable, CharSequence value) {
     String str = value == null ? "" : value.toString();
-    Integer index = stringTable.add(str);
-    if (index > 0) {
-      // String already in table, write index.
+    Integer index = stringTable.get(str);
+    if (index != null) {
+      // String already in table, write index
       writable.writeInt(index);
     } else {
-      // New string, write it directly.
-      writable.writeString(str, null); // TODO: do we need a cache here?
+      // New string, write it directly and add to table
+      writable.writeString(str, null);
+      stringTable.add(str);
     }
   }
 
@@ -241,6 +209,35 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
+    // log.debug(">>>>> number of spans: " + trace.size());
+    //
+    // // TODO: probably this can be optimized by caching this data once.
+    // Config cfg = Config.get();
+    //
+    // writable.startMap(10);
+    //
+    // // containerID = 2, the string ID of the container where the tracer is running
+    // encodeField(writable, 2, ContainerInfo.get().getContainerId());
+    // // languageName = 3, the string language name of the tracer
+    // encodeField(writable, 3, "java"); // TODO: check java or jvm?
+    // // languageVersion = 4, the string language version of the tracer
+    // encodeField(writable, 4, JavaVirtualMachine.getLangVersion());
+    // // tracerVersion = 5, the string version of the tracer
+    // encodeField(writable, 5, TracerVersion.TRACER_VERSION);
+    // // runtimeID = 6, the V4 string UUID representation of a tracer session
+    // encodeField(writable, 6, cfg.getRuntimeId());
+    // // env=7, the optional `env` string tag that set with the tracer
+    // encodeField(writable, 7, cfg.getEnv());
+    // // hostname = 8, the optional string hostname of where the tracer is running
+    // encodeField(writable, 8, cfg.getHostName());
+    // // appVersion = 9, the optional string `version` tag for the application set in the tracer
+    // encodeField(writable, 9, cfg.getVersion());
+    // // attributes = 10, a collection of key to value pairs common in all `chunks`
+    // encodeAttributes(writable, 10); // TODO implement
+    // // chunks = 11, a list of trace `chunks`
+    // encodeTraceChunks(writable, 11, trace);
+    //
+
     return new PayloadV1();
   }
 
@@ -273,13 +270,10 @@ public final class TraceMapperV1 implements TraceMapper {
       return indices.get(str);
     }
 
-    Integer add(String str) {
+    void add(String str) {
       if (!indices.containsKey(str)) {
         indices.put(str, nextIndex++);
-        return nextIndex;
       }
-
-      return -1;
     }
 
     void clear() {
@@ -547,32 +541,33 @@ public final class TraceMapperV1 implements TraceMapper {
   private static class PayloadV1 extends Payload {
     @Override
     public int sizeInBytes() {
-      // Map header + array header + body
+      // Map header (for TracerPayload) + array header (with number of TraceChunks) + body
       return msgpackMapHeaderSize(1) + msgpackArrayHeaderSize(traceCount()) + body.remaining();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       // Write the tracer payload map with chunks field (field 11)
-      // For simplicity, we write just the chunks array wrapped in a minimal payload structure
+      // TODO write just the chunks array wrapped in a minimal payload structure
+      // Add all other fields later.
       ByteBuffer mapHeader = msgpackMapHeader(1);
       while (mapHeader.hasRemaining()) {
         channel.write(mapHeader);
       }
 
-      // Write field ID 11 (chunks)
+      // Write field ID 11 (chunks).
       ByteBuffer fieldId = ByteBuffer.allocate(1).put(0, (byte) 11);
       while (fieldId.hasRemaining()) {
         channel.write(fieldId);
       }
 
-      // Write array header for trace count
+      // Write array header for traces count.
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
       }
 
-      // Write body
+      // Write traces.
       while (body.hasRemaining()) {
         channel.write(body);
       }
