@@ -7,6 +7,10 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,39 +42,62 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
 
   @Override
   public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
-    Path tempInput = null;
-    Path tempOutput = null;
-    try {
-      // Use the existing file path when available (eg. ddprof), otherwise materialize the stream
-      Path inputPath = data.getPath();
-      if (inputPath == null) {
-        tempInput = Files.createTempFile(tempDir, "dd-scrub-in-", ".jfr");
-        Files.copy(data.getStream(), tempInput, StandardCopyOption.REPLACE_EXISTING);
-        inputPath = tempInput;
-      }
+    AgentSpan span = AgentTracer.startSpan("profiling", "profiling.scrub");
+    span.setResourceName("JFR Scrub");
+    span.setTag(Tags.COMPONENT, "profiler");
 
-      tempOutput = Files.createTempFile(tempDir, "dd-scrub-out-", ".jfr");
-      scrubber.scrubFile(inputPath, tempOutput);
+    try (AgentScope scope = AgentTracer.activateSpan(span)) {
+      Path tempInput = null;
+      Path tempOutput = null;
+      try {
+        // Use the existing file path when available (eg. ddprof), otherwise materialize the stream
+        Path inputPath = data.getPath();
+        boolean fileBacked = inputPath != null;
+        span.setTag("profiling.scrub.file_backed", fileBacked);
 
-      if (tempInput != null) {
-        Files.deleteIfExists(tempInput);
-        tempInput = null;
-      }
+        if (inputPath == null) {
+          tempInput = Files.createTempFile(tempDir, "dd-scrub-in-", ".jfr");
+          Files.copy(data.getStream(), tempInput, StandardCopyOption.REPLACE_EXISTING);
+          inputPath = tempInput;
+        }
 
-      ScrubbedRecordingData scrubbed = new ScrubbedRecordingData(data, tempOutput);
-      tempOutput = null; // ownership transferred to ScrubbedRecordingData
-      data.release();
-      delegate.onNewData(type, scrubbed, handleSynchronously);
-    } catch (Exception e) {
-      cleanupQuietly(tempInput);
-      cleanupQuietly(tempOutput);
-      if (failOpen) {
-        log.warn(SEND_TELEMETRY, "JFR scrubbing failed, uploading unscrubbed data", e);
-        delegate.onNewData(type, data, handleSynchronously);
-      } else {
-        log.error(SEND_TELEMETRY, "JFR scrubbing failed, skipping upload", e);
+        long inputSize = Files.size(inputPath);
+        span.setTag("profiling.scrub.input_size", inputSize);
+
+        tempOutput = Files.createTempFile(tempDir, "dd-scrub-out-", ".jfr");
+        scrubber.scrubFile(inputPath, tempOutput);
+
+        long outputSize = Files.size(tempOutput);
+        span.setTag("profiling.scrub.output_size", outputSize);
+
+        if (tempInput != null) {
+          Files.deleteIfExists(tempInput);
+          tempInput = null;
+        }
+
+        ScrubbedRecordingData scrubbed = new ScrubbedRecordingData(data, tempOutput);
+        tempOutput = null; // ownership transferred to ScrubbedRecordingData
         data.release();
+        delegate.onNewData(type, scrubbed, handleSynchronously);
+      } catch (Exception e) {
+        span.setError(true);
+        span.setTag(Tags.ERROR_MSG, e.getMessage());
+        span.setTag(Tags.ERROR_TYPE, e.getClass().getName());
+
+        cleanupQuietly(tempInput);
+        cleanupQuietly(tempOutput);
+        if (failOpen) {
+          span.setTag("profiling.scrub.fail_open", true);
+          log.warn(SEND_TELEMETRY, "JFR scrubbing failed, uploading unscrubbed data", e);
+          delegate.onNewData(type, data, handleSynchronously);
+        } else {
+          span.setTag("profiling.scrub.fail_open", false);
+          log.error(SEND_TELEMETRY, "JFR scrubbing failed, skipping upload", e);
+          data.release();
+        }
       }
+    } finally {
+      span.finish();
     }
   }
 
