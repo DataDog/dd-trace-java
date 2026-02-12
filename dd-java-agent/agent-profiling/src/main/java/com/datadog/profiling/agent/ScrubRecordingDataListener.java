@@ -54,7 +54,7 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
         // Use the existing file path when available (eg. ddprof), otherwise materialize the stream
         Path inputPath = data.getPath();
         boolean fileBacked = inputPath != null;
-        span.setTag("profiling.scrub.file_backed", fileBacked);
+        span.setTag("_dd.profiling.scrub.file_backed", fileBacked);
 
         if (inputPath == null) {
           tempInput = Files.createTempFile(tempDir, "dd-scrub-in-", ".jfr");
@@ -63,13 +63,13 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
         }
 
         long inputSize = Files.size(inputPath);
-        span.setTag("profiling.scrub.input_size", inputSize);
+        span.setTag("_dd.profiling.scrub.input_size", inputSize);
 
         tempOutput = Files.createTempFile(tempDir, "dd-scrub-out-", ".jfr");
         scrubber.scrubFile(inputPath, tempOutput);
 
         long outputSize = Files.size(tempOutput);
-        span.setTag("profiling.scrub.output_size", outputSize);
+        span.setTag("_dd.profiling.scrub.output_size", outputSize);
 
         if (tempInput != null) {
           Files.deleteIfExists(tempInput);
@@ -88,11 +88,11 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
         cleanupQuietly(tempInput);
         cleanupQuietly(tempOutput);
         if (failOpen) {
-          span.setTag("profiling.scrub.fail_open", true);
+          span.setTag("_dd.profiling.scrub.fail_open", true);
           log.warn(SEND_TELEMETRY, "JFR scrubbing failed, uploading unscrubbed data", e);
           delegate.onNewData(type, data, handleSynchronously);
         } else {
-          span.setTag("profiling.scrub.fail_open", false);
+          span.setTag("_dd.profiling.scrub.fail_open", false);
           log.error(SEND_TELEMETRY, "JFR scrubbing failed, skipping upload", e);
           data.release();
         }
