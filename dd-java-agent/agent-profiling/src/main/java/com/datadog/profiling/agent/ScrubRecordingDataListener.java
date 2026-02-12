@@ -44,6 +44,7 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
   public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
     AgentSpan span = AgentTracer.startSpan("profiling", "profiling.scrub");
     span.setResourceName("JFR Scrub");
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     span.setTag(Tags.COMPONENT, "profiler");
 
     try (AgentScope scope = AgentTracer.activateSpan(span)) {
