@@ -1,0 +1,56 @@
+0SECTION       TITLE subcomponent dump routine
+NULL           ===============================
+1TICHARSET     UTF-8
+1TISIGINFO     Dump Event "gpf" (00002000) received
+1TIDATETIME    Date: 2024/08/25 at 15:55:09:123
+1TIPREPSTATE   Prep State: 0
+1TIPREPINFO    GC exclusive mode
+NULL           ------------------------------------------------------------------------
+0SECTION       GPINFO subcomponent dump routine
+NULL           ================================
+2XHOSLEVEL     OS Level         : Linux 5.15.0-generic
+2XHCPUS        Processors -
+3XHCPUARCH       Architecture   : amd64
+3XHNUMCPUS       How Many       : 4
+3XHNUMASUP     NUMA is either not supported or has been disabled by user
+NULL
+1XHERROR2      Register dump section only produced for SIGSEGV, SIGILL or SIGFPE
+NULL           VM flags:0x00050000
+NULL           ------------------------------------------------------------------------
+0SECTION       ENVINFO subcomponent dump routine
+NULL           =================================
+1CIPROCESSID   Process ID: 12345
+1CIJAVAVERSION JRE 11.0.12 Linux amd64-64
+NULL           ------------------------------------------------------------------------
+0SECTION       THREADS subcomponent dump routine
+NULL           =================================
+1XMPOOLINFO    Current total pooled threads: 8
+1XMPOOLTOTAL   Live threads: 8, Daemon threads: 6
+NULL
+1XMCURTHDINFO  Current thread: "main" (J9VMThread:0x0000000001234567)
+NULL
+3XMTHREADINFO      "main" J9VMThread:0x0000000001234567, omrthread_t:0x000000000ABCDEF0, java/lang/Thread:0x00000000FEEDFACE, state:CW, prio=5
+3XMJAVALTHREAD            (java/lang/Thread getId:0x1, isDaemon:false)
+3XMTHREADINFO1            Native Thread ID: 0x3039, Native Priority: 0x5
+3XMTHREADINFO2            (native stack address range from:0x00007F8B7318E000, to:0x00007F8B731CE000, size:0x40000)
+3XMCPUTIME               CPU usage total: 1.234567890 secs, user: 1.100000000 secs, system: 0.134567890 secs
+3XMHEAPALLOC             Heap bytes allocated since last GC cycle=123456 (0x1E240)
+3XMTHREADINFO3           Java callstack:
+4XESTACKTRACE                at com/example/NativeLibrary.crash(Native Method)
+4XESTACKTRACE                at com/example/CrashingApp.triggerCrash(CrashingApp.java:42)
+4XESTACKTRACE                at com/example/CrashingApp.main(CrashingApp.java:15)
+3XMTHREADINFO3           Native callstack:
+4XENATIVESTACK               (0x00007F8B7C0B3D7D [libcrash.so+0x1d7d])
+4XENATIVESTACK               crash_function+0x1a (0x00007F8B7C0B3D63 [libcrash.so+0x1d63])
+4XENATIVESTACK               (0x00007F8B7C0B4123 [libjvm.so+0x8fc20a])
+NULL
+3XMTHREADINFO      "JIT Compilation Thread-0" J9VMThread:0x0000000001234568, state:CW, prio=10
+3XMJAVALTHREAD            (java/lang/Thread getId:0x2, isDaemon:true)
+NULL           ------------------------------------------------------------------------
+0SECTION       MEMINFO subcomponent dump routine
+NULL           =================================
+1STHEAPTYPE    Object Memory
+1STHEAPTOTAL   Total memory: 536870912 (0x20000000)
+1STHEAPINUSE   Total memory in use: 12345678 (0xBC614E)
+1STHEAPFREE    Total memory free: 524525234 (0x1F43EB32)
+NULL           ------------------------------------------------------------------------

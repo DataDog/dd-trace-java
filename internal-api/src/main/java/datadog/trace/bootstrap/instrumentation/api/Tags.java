@@ -49,12 +49,14 @@ public class Tags {
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";
+  public static final String BASE_HASH = "_dd.propagated_hash";
 
   public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FINAL_STATUS = "test.final_status";
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";

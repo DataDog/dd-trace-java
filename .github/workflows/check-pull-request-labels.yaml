@@ -31,6 +31,7 @@ jobs:
               'inst:',
               'tag:',
               'mergequeue-status:',
+              'team:',
               'performance:',  // To refactor to 'ci: ' in the future
               'run-tests:'     // Unused since GitLab migration
             ]
@@ -55,7 +56,7 @@ jobs:
                 '**This PR is blocked until:**\n' +
                 '1. The invalid labels are deleted, and\n' +
                 '2. A maintainer deletes this comment to unblock the PR\n\n' +
-                '**Note:** Simply removing labels from the pull request is not enough - a maintainer must remove the label and delete this comment to remove the block.\n\n' +
+                '**Note:** Simply removing labels from the pull request is not enough - a maintainer must delete this comment then remove the label to remove the block.\n\n' +
                 commentMarker
 
               if (blockingComment) {
@@ -79,5 +80,9 @@ jobs:
             }
             if (blockingComment) {
               // Block the PR by failing the workflow
-              core.setFailed(`PR blocked: Invalid labels detected: (${invalidLabels.join(', ')}). A maintainer must delete the blocking comment after fixing the labels to allow merging.`)
+              if (hasInvalidLabels) {
+                core.setFailed(`PR blocked: Invalid labels detected: (${invalidLabels.join(', ')}). A maintainer must delete the blocking comment after fixing the labels to allow merging.`)
+              } else {
+                core.setFailed(`PR blocked: A previous blocking comment still exists. A maintainer must delete it to allow merging.`)
+              }
             }
