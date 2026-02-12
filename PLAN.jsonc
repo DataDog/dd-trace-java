@@ -324,7 +324,7 @@
     {
       "id": "T14",
       "description": "Run ./gradlew spotlessApply and fix any formatting issues",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Mandatory before commit. Run on all modified files. Fix any style violations.",
       "files": ["all modified files"],
       "dependencies": ["T13"]
