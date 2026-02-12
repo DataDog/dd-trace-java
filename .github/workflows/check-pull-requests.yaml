@@ -6,6 +6,7 @@ on:
     branches:
     - master
     - release/v*
+    - sarahchen6/test-gh-mq # test merge queue - should not land on master
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
