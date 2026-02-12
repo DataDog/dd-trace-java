@@ -82,8 +82,7 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
         delegate.onNewData(type, scrubbed, handleSynchronously);
       } catch (Exception e) {
         span.setError(true);
-        span.setTag(Tags.ERROR_MSG, e.getMessage());
-        span.setTag(Tags.ERROR_TYPE, e.getClass().getName());
+        span.addThrowable(e);
 
         cleanupQuietly(tempInput);
         cleanupQuietly(tempOutput);
