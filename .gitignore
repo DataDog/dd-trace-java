@@ -50,9 +50,9 @@ out/
 ##########
 .cursor
 
-# Claude Code #
-################
-.claude/settings.local.json
+# Claude Code local custom settings #
+#####################################
+.claude/*.local.*
 
 # Vim #
 #######
