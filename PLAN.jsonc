@@ -203,7 +203,7 @@
     {
       "id": "T2",
       "description": "Create InferredLambdaSpan.java class skeleton in internal-api module",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Location: internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java. Copy structure from InferredProxySpan but adapt for Lambda event instead of headers. Add: CONTEXT_KEY, SUPPORTED_PROXIES map, fromEvent() factory, isValid(), start(), finish(), storeInto().",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -213,7 +213,7 @@
     {
       "id": "T3",
       "description": "Implement event detection logic to identify API Gateway v1/v2 invocations",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Use reflection to detect event type. v1: check for 'requestContext.requestId' + 'requestContext.apiId'. v2: check for 'requestContext.http' + 'version=2.0'. Add detectApiGatewayVersion() method returning 1, 2, or 0. Handle null/missing fields gracefully.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -223,7 +223,7 @@
     {
       "id": "T4",
       "description": "Implement field extraction from API Gateway events using reflection",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Extract fields: httpMethod, path, domainName (from headers.Host), stage, requestContext.identity.userArn, requestContext.apiId, requestContext.accountId, region (parse from domainName). Create helper methods: getEventField(), getNestedField(). Add null safety.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -233,7 +233,7 @@
     {
       "id": "T5",
       "description": "Implement start() method to create and configure inferred span",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Set span.name (aws.apigateway or aws.httpapi), span.type=web, component, span_kind=server. Set tags: http.method, http.url, http.route, stage, account_id, apiid, region, _dd.inferred_span=1. Set resource name as 'METHOD PATH'. Use MANUAL_INSTRUMENTATION priority. Return span context.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -243,7 +243,7 @@
     {
       "id": "T6",
       "description": "Implement AppSec metric and tag support (_dd.appsec.enabled, _dd.appsec.json)",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Add copyAppSecTagsFromRoot() method (copy from InferredProxySpan). Call in finish(). Copy _dd.appsec.enabled metric (value 1) and _dd.appsec.json tag from root span when present. Handles distributed tracing scenario.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -253,7 +253,7 @@
     {
       "id": "T7",
       "description": "Implement ARN computation for dd_resource_key (optional)",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Add computeArn(String apiGatewayVersion, String region, String apiId) method. Format v1: 'arn:aws:apigateway:{region}::/restapis/{apiId}'. Format v2: 'arn:aws:apigateway:{region}::/apis/{apiId}'. Only set if region and apiId available. Parse region from domainName if needed.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -263,7 +263,7 @@
     {
       "id": "T8",
       "description": "Add optional aws_user tag support with privacy guard",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Extract requestContext.identity.userArn when available. Add env var check: DD_LAMBDA_INFERRED_SPAN_AWS_USER_ENABLED (default false). Only set aws_user tag if env var=true and userArn present. Document in code comments.",
       "files": [
         "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
@@ -273,7 +273,7 @@
     {
       "id": "T9",
       "description": "Create unit tests for InferredLambdaSpan class",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Location: internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java. Test cases: v1 event detection, v2 event detection, invalid/non-API-Gateway events, field extraction, span creation, tag setting, ARN computation, AppSec tag copying, aws_user privacy guard. Use mock event structures.",
       "files": [
         "internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java"
@@ -283,7 +283,7 @@
     {
       "id": "T10",
       "description": "Integrate InferredLambdaSpan into LambdaHandlerInstrumentation",
-      "status": "PENDING",
+      "status": "COMPLETED",
       "notes": "Modify ExtensionCommunicationAdvice.enter(): 1) Call InferredLambdaSpan.fromEvent(in), 2) If valid, call inferredSpan.start(lambdaContext), 3) Use returned context as parent for lambda span, 4) Store inferredSpan in Context. Modify exit(): call inferredSpan.finish(). Update helperClassNames to include InferredLambdaSpan.",
       "files": [
         "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/main/java/datadog/trace/instrumentation/aws/v1/lambda/LambdaHandlerInstrumentation.java"
