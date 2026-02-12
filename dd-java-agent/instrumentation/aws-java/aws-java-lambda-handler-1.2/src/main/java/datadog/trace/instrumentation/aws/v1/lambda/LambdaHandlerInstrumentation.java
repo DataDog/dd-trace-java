@@ -18,6 +18,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.gateway.InferredLambdaSpan;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -55,7 +56,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".LambdaHandlerDecorator",
+      packageName + ".LambdaHandlerDecorator", "datadog.trace.api.gateway.InferredLambdaSpan",
     };
   }
 
@@ -77,6 +78,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExtensionCommunicationAdvice {
+    // ThreadLocal to store InferredLambdaSpan for cleanup in exit advice
+    public static final ThreadLocal<InferredLambdaSpan> INFERRED_LAMBDA_SPAN = new ThreadLocal<>();
+
     @OnMethodEnter
     static AgentScope enter(
         @This final Object that,
@@ -88,8 +92,23 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
+
       String lambdaRequestId = awsContext.getAwsRequestId();
       AgentSpanContext lambdaContext = AgentTracer.get().notifyExtensionStart(in, lambdaRequestId);
+
+      // Try to create inferred lambda span if input is an API Gateway event
+      InferredLambdaSpan inferredSpan = InferredLambdaSpan.fromEvent(in);
+      if (inferredSpan.isValid()) {
+        // Start the inferred span and use its context as parent for lambda span
+        AgentSpanContext inferredContext = inferredSpan.start(lambdaContext);
+        if (inferredContext != null && inferredContext != lambdaContext) {
+          lambdaContext = inferredContext;
+          // Store for cleanup in exit
+          INFERRED_LAMBDA_SPAN.set(inferredSpan);
+        }
+      }
+
+      // Create lambda invocation span (may be child of inferred span)
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan(INVOCATION_SPAN_NAME);
@@ -127,6 +146,16 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
         scope.close();
+
+        // Finish inferred lambda span if it was created
+        InferredLambdaSpan inferredSpan = INFERRED_LAMBDA_SPAN.get();
+        if (inferredSpan != null) {
+          try {
+            inferredSpan.finish();
+          } finally {
+            INFERRED_LAMBDA_SPAN.remove();
+          }
+        }
       }
     }
   }
