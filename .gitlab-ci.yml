@@ -520,6 +520,7 @@ muzzle:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - .gitlab/collect_results.sh
+    - .gitlab/upload_ciapp.sh $CACHE_TYPE "n/a"
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
