@@ -47,19 +47,25 @@ echo "Counting tests in $RESULTS_DIR for $TEST_CATEGORY on JVM $JVM_VERSION"
 
 # Find all XML files and count tests
 log_verbose "Searching for XML files in $RESULTS_DIR"
-for xml_file in $(find "$RESULTS_DIR" -name "*.xml" -type f 2>/dev/null); do
+while IFS= read -r -d '' xml_file; do
     XML_FILE_COUNT=$((XML_FILE_COUNT + 1))
     log_verbose "Processing file $XML_FILE_COUNT: $xml_file"
     if [ -f "$xml_file" ]; then
         # Count actual <testcase> elements (more accurate than testsuite attributes)
         # This matches how datadog-ci counts tests
         tests=$(grep -c '<testcase' "$xml_file" 2>/dev/null || echo "0")
+        tests="${tests//[$'\n\r']/}"  # Strip any newlines/carriage returns
 
         # Count <failure>, <error>, and <skipped> tags
         # These are more reliable than trying to match testcase+failure in one grep
         failures=$(grep -c '<failure' "$xml_file" 2>/dev/null || echo "0")
+        failures="${failures//[$'\n\r']/}"  # Strip any newlines/carriage returns
+
         errors=$(grep -c '<error' "$xml_file" 2>/dev/null || echo "0")
+        errors="${errors//[$'\n\r']/}"  # Strip any newlines/carriage returns
+
         skipped=$(grep -c '<skipped' "$xml_file" 2>/dev/null || echo "0")
+        skipped="${skipped//[$'\n\r']/}"  # Strip any newlines/carriage returns
 
         log_verbose "  → tests=$tests, failures=$failures, errors=$errors, skipped=$skipped"
 
@@ -68,7 +74,7 @@ for xml_file in $(find "$RESULTS_DIR" -name "*.xml" -type f 2>/dev/null); do
         TOTAL_ERRORS=$((TOTAL_ERRORS + errors))
         TOTAL_SKIPPED=$((TOTAL_SKIPPED + skipped))
     fi
-done
+done < <(find "$RESULTS_DIR" -name "*.xml" -type f -print0 2>/dev/null)
 
 log_verbose "Processed $XML_FILE_COUNT XML files"
 
