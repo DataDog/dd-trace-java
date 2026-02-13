@@ -19,6 +19,10 @@ final class SequenceEncodingContext {
   final FseCompressionTable matchLengthTable =
       new FseCompressionTable(MATCH_LENGTH_TABLE_LOG, MAX_MATCH_LENGTH_SYMBOL);
 
+  // Size is MAX_SEQUENCES+1 (53 elements) which is sufficient because all sequence codes
+  // (literal-length, match-length, offset) are bounded by their respective MAX_*_SYMBOL constants,
+  // with MAX_MATCH_LENGTH_SYMBOL=52 being the largest. Histogram.count() uses byte codes that are
+  // guaranteed to be within this range by the generateCodes() method.
   final int[] counts = new int[MAX_SEQUENCES + 1];
   final short[] normalizedCounts = new short[MAX_SEQUENCES + 1];
 }

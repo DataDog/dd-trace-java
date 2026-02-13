@@ -30,6 +30,8 @@ final class BlockCompressionState {
       newValue = newValue & (~(newValue >> 31));
       chainTable[i] = newValue;
     }
+    // Adjust windowBaseOffset to match the slid data positions
+    windowBaseOffset = Math.max(0, windowBaseOffset - slideWindowSize);
   }
 
   void reset() {

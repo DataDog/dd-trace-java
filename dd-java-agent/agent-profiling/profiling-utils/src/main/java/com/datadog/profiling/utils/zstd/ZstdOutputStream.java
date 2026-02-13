@@ -13,7 +13,18 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-/** Streaming zstd compressor. Buffers input and compresses in blocks. */
+/**
+ * Streaming zstd compressor. Buffers input and compresses in blocks.
+ *
+ * <p><b>Important:</b> This implementation deviates from the standard {@link OutputStream} contract
+ * for {@link #flush()}. Due to zstd's sliding window compression design, flush() only writes
+ * compressed data when the buffer exceeds approximately 1.25 MB. Data below this threshold remains
+ * buffered until {@link #close()} is called. Always call {@link #close()} to ensure all data is
+ * written and the zstd frame is finalized.
+ *
+ * <p>Compression level is fixed at level 3 (DFAST strategy). Higher compression levels (6-22, LAZY
+ * and above) are not yet implemented.
+ */
 public class ZstdOutputStream extends OutputStream {
   private final OutputStream outputStream;
   private final CompressionContext context;
@@ -109,6 +120,17 @@ public class ZstdOutputStream extends OutputStream {
     }
   }
 
+  /**
+   * Flushes this output stream.
+   *
+   * <p><b>Important:</b> Unlike standard {@link OutputStream#flush()}, this method only writes
+   * compressed data if the buffer contains more than approximately 1.25 MB (windowSize + 2 *
+   * blockSize). Smaller amounts of buffered data remain unwritten. This is necessary due to zstd's
+   * sliding window design which requires maintaining a history window for backreferences.
+   *
+   * <p>Always call {@link #close()} to ensure all buffered data is written and the zstd frame is
+   * properly finalized with checksum.
+   */
   @Override
   public void flush() throws IOException {
     if (!closed && uncompressedPosition > uncompressedOffset) {
@@ -124,9 +146,12 @@ public class ZstdOutputStream extends OutputStream {
   @Override
   public void close() throws IOException {
     if (!closed) {
-      writeChunk(true);
-      closed = true;
-      outputStream.close();
+      try {
+        writeChunk(true);
+      } finally {
+        closed = true;
+        outputStream.close();
+      }
     }
   }
 

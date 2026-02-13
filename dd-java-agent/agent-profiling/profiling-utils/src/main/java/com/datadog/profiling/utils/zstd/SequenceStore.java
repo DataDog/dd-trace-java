@@ -56,7 +56,8 @@ final class SequenceStore {
     matchLengthCodes = new byte[maxSequences];
     offsetCodes = new byte[maxSequences];
 
-    literalsBuffer = new byte[blockSize];
+    // Add SIZE_OF_LONG padding to prevent out-of-bounds writes in 8-byte-aligned copy loop
+    literalsBuffer = new byte[blockSize + SIZE_OF_LONG];
 
     reset();
   }
