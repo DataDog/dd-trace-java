@@ -5,7 +5,7 @@ minimumBranchCoverage = 0.0
 
 dependencies {
   api libs.slf4j
-  api project(':internal-api')
+  implementation project(':internal-api')
 
   implementation libs.jafar.parser
 
