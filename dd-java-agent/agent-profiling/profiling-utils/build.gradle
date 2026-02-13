@@ -7,12 +7,35 @@ apply from: "$rootDir/gradle/java.gradle"
 minimumBranchCoverage = 0.78
 
 excludedClassesCoverage += [// an enum with no additional functionality
-  'com.datadog.profiling.utils.ProfilingMode',]
+  'com.datadog.profiling.utils.ProfilingMode',
+  // pre-existing: no tests in this module, covered by integration tests elsewhere
+  'com.datadog.profiling.utils.Timestamper',
+  'com.datadog.profiling.utils.Timestamper.Registration',
+  'com.datadog.profiling.utils.Timestamper.Singleton',
+  'com.datadog.profiling.utils.Timestamper.1',
+  'com.datadog.profiling.utils.ExcludedVersions',
+  // ASM codegen — generates bytecode at runtime, not instrumentable by jacoco
+  'com.datadog.profiling.utils.zstd.AsmClassLoader',
+  'com.datadog.profiling.utils.zstd.AsmEncoders',
+  'com.datadog.profiling.utils.zstd.EncoderGenerator',
+  'com.datadog.profiling.utils.zstd.DefaultFseEncoderGenerator',
+  'com.datadog.profiling.utils.zstd.MatchCopyGenerator',
+  // Data-only holders with no branches
+  'com.datadog.profiling.utils.zstd.ZstdConstants',
+  'com.datadog.profiling.utils.zstd.HuffmanCompressionTableWorkspace',
+  'com.datadog.profiling.utils.zstd.HuffmanTableWriterWorkspace',
+  'com.datadog.profiling.utils.zstd.NodeTable',
+  'com.datadog.profiling.utils.zstd.SequenceEncodingContext',
+]
 
 dependencies {
   implementation project(':components:environment')
+  implementation project(':internal-api')
   implementation libs.slf4j
+  implementation libs.asm
+  implementation libs.asm.commons
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+  testImplementation libs.aircompressor
 }

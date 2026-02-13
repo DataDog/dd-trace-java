@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.profiling.RecordingInputStream;
 import io.airlift.compress.zstd.ZstdInputStream;
-import io.airlift.compress.zstd.ZstdOutputStream;
+import com.datadog.profiling.utils.zstd.ZstdOutputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

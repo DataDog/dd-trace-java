@@ -13,6 +13,10 @@ public abstract class UnsafeUtils {
 
   private static final Unsafe UNSAFE = getUnsafe();
 
+  /** Base offset for byte[] access via Unsafe. */
+  public static final long BYTE_ARRAY_BASE_OFFSET =
+      UNSAFE != null ? (long) Unsafe.ARRAY_BYTE_BASE_OFFSET : -1;
+
   private static Unsafe getUnsafe() {
     try {
       Field f = Unsafe.class.getDeclaredField("theUnsafe");
@@ -23,6 +27,50 @@ public abstract class UnsafeUtils {
       log.debug("Unsafe is unavailable", t);
       return null;
     }
+  }
+
+  /** Returns true if Unsafe is available on this JVM. */
+  public static boolean isAvailable() {
+    return UNSAFE != null;
+  }
+
+  // ── Array access primitives for direct byte[] manipulation ──
+
+  public static long getLong(Object base, long offset) {
+    return UNSAFE.getLong(base, offset);
+  }
+
+  public static int getInt(Object base, long offset) {
+    return UNSAFE.getInt(base, offset);
+  }
+
+  public static short getShort(Object base, long offset) {
+    return UNSAFE.getShort(base, offset);
+  }
+
+  public static byte getByte(Object base, long offset) {
+    return UNSAFE.getByte(base, offset);
+  }
+
+  public static void putLong(Object base, long offset, long value) {
+    UNSAFE.putLong(base, offset, value);
+  }
+
+  public static void putInt(Object base, long offset, int value) {
+    UNSAFE.putInt(base, offset, value);
+  }
+
+  public static void putShort(Object base, long offset, short value) {
+    UNSAFE.putShort(base, offset, value);
+  }
+
+  public static void putByte(Object base, long offset, byte value) {
+    UNSAFE.putByte(base, offset, value);
+  }
+
+  public static void copyMemory(
+      Object srcBase, long srcOffset, Object destBase, long destOffset, long bytes) {
+    UNSAFE.copyMemory(srcBase, srcOffset, destBase, destOffset, bytes);
   }
 
   /**

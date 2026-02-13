@@ -31,7 +31,7 @@ dependencies {
 
   implementation libs.okhttp
   implementation libs.lz4
-  implementation libs.aircompressor
+  testImplementation libs.aircompressor
 
   testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
   testImplementation project(':utils:test-utils')
