@@ -57,7 +57,7 @@ lz4 = "1.7.1"
 # Logging
 slf4j = "1.7.30"
 logback = "1.2.13" # required by Java 8 modules.
-logback-latest = "1.5.27" # recommended for Java 11+ modules.
+logback-latest = "1.5.28" # recommended for Java 11+ modules.
 
 # JSON
 jackson = "2.20.0"
