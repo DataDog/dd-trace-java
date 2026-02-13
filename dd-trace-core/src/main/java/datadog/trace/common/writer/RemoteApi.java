@@ -82,7 +82,7 @@ public abstract class RemoteApi {
     if (response != null) {
       try {
         return response.body().string().trim();
-      } catch (NullPointerException | IOException ignored) {
+      } catch (Exception ignored) {
       }
     }
     return "";
@@ -123,6 +123,11 @@ public abstract class RemoteApi {
     /** Factory method for a request that receive an error status in response */
     public static Response failed(final int status) {
       return new Response(false, status, null, null);
+    }
+
+    /** Factory method for a request that receive an error status and a trivial response body */
+    public static Response failed(final int status, String response) {
+      return new Response(false, status, null, response);
     }
 
     /** Factory method for a failed communication attempt */
