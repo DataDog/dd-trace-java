@@ -7,10 +7,6 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,62 +38,40 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
 
   @Override
   public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
-    AgentSpan span = AgentTracer.startSpan("profiling", "profiling.scrub");
-    span.setResourceName("JFR Scrub");
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    span.setTag(Tags.COMPONENT, "profiler");
+    Path tempInput = null;
+    Path tempOutput = null;
+    try {
+      // Use the existing file path when available (eg. ddprof), otherwise materialize the stream
+      Path inputPath = data.getPath();
 
-    try (AgentScope scope = AgentTracer.activateSpan(span)) {
-      Path tempInput = null;
-      Path tempOutput = null;
-      try {
-        // Use the existing file path when available (eg. ddprof), otherwise materialize the stream
-        Path inputPath = data.getPath();
-        boolean fileBacked = inputPath != null;
-        span.setTag("_dd.profiling.scrub.file_backed", fileBacked);
-
-        if (inputPath == null) {
-          tempInput = Files.createTempFile(tempDir, "dd-scrub-in-", ".jfr");
-          Files.copy(data.getStream(), tempInput, StandardCopyOption.REPLACE_EXISTING);
-          inputPath = tempInput;
-        }
-
-        long inputSize = Files.size(inputPath);
-        span.setTag("_dd.profiling.scrub.input_size", inputSize);
-
-        tempOutput = Files.createTempFile(tempDir, "dd-scrub-out-", ".jfr");
-        scrubber.scrubFile(inputPath, tempOutput);
-
-        long outputSize = Files.size(tempOutput);
-        span.setTag("_dd.profiling.scrub.output_size", outputSize);
-
-        if (tempInput != null) {
-          Files.deleteIfExists(tempInput);
-          tempInput = null;
-        }
-
-        ScrubbedRecordingData scrubbed = new ScrubbedRecordingData(data, tempOutput);
-        tempOutput = null; // ownership transferred to ScrubbedRecordingData
-        data.release();
-        delegate.onNewData(type, scrubbed, handleSynchronously);
-      } catch (Exception e) {
-        span.setError(true);
-        span.addThrowable(e);
-
-        cleanupQuietly(tempInput);
-        cleanupQuietly(tempOutput);
-        if (failOpen) {
-          span.setTag("_dd.profiling.scrub.fail_open", true);
-          log.warn(SEND_TELEMETRY, "JFR scrubbing failed, uploading unscrubbed data", e);
-          delegate.onNewData(type, data, handleSynchronously);
-        } else {
-          span.setTag("_dd.profiling.scrub.fail_open", false);
-          log.error(SEND_TELEMETRY, "JFR scrubbing failed, skipping upload", e);
-          data.release();
-        }
+      if (inputPath == null) {
+        tempInput = Files.createTempFile(tempDir, "dd-scrub-in-", ".jfr");
+        Files.copy(data.getStream(), tempInput, StandardCopyOption.REPLACE_EXISTING);
+        inputPath = tempInput;
       }
-    } finally {
-      span.finish();
+
+      tempOutput = Files.createTempFile(tempDir, "dd-scrub-out-", ".jfr");
+      scrubber.scrubFile(inputPath, tempOutput);
+
+      if (tempInput != null) {
+        Files.deleteIfExists(tempInput);
+        tempInput = null;
+      }
+
+      ScrubbedRecordingData scrubbed = new ScrubbedRecordingData(data, tempOutput);
+      tempOutput = null; // ownership transferred to ScrubbedRecordingData
+      data.release();
+      delegate.onNewData(type, scrubbed, handleSynchronously);
+    } catch (Exception e) {
+      cleanupQuietly(tempInput);
+      cleanupQuietly(tempOutput);
+      if (failOpen) {
+        log.warn(SEND_TELEMETRY, "JFR scrubbing failed, uploading unscrubbed data", e);
+        delegate.onNewData(type, data, handleSynchronously);
+      } else {
+        log.error(SEND_TELEMETRY, "JFR scrubbing failed, skipping upload", e);
+        data.release();
+      }
     }
   }
 
