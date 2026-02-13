@@ -149,8 +149,12 @@ class SequenceEncoderTest {
 
     int size =
         SequenceEncoder.compressSequences(
-            output, BASE, output.length, sequences,
-            CompressionParameters.Strategy.DFAST, workspace);
+            output,
+            BASE,
+            output.length,
+            sequences,
+            CompressionParameters.Strategy.DFAST,
+            workspace);
     assertTrue(size > 0);
   }
 
@@ -175,8 +179,12 @@ class SequenceEncoderTest {
 
     int size =
         SequenceEncoder.compressSequences(
-            output, BASE, output.length, sequences,
-            CompressionParameters.Strategy.DFAST, workspace);
+            output,
+            BASE,
+            output.length,
+            sequences,
+            CompressionParameters.Strategy.DFAST,
+            workspace);
     assertTrue(size > 0);
   }
 
@@ -203,8 +211,12 @@ class SequenceEncoderTest {
 
     int size =
         SequenceEncoder.compressSequences(
-            output, BASE, output.length, sequences,
-            CompressionParameters.Strategy.DFAST, workspace);
+            output,
+            BASE,
+            output.length,
+            sequences,
+            CompressionParameters.Strategy.DFAST,
+            workspace);
     assertTrue(size > 0);
   }
 
@@ -229,8 +241,12 @@ class SequenceEncoderTest {
 
     int size =
         SequenceEncoder.compressSequences(
-            output, BASE, output.length, sequences,
-            CompressionParameters.Strategy.DFAST, workspace);
+            output,
+            BASE,
+            output.length,
+            sequences,
+            CompressionParameters.Strategy.DFAST,
+            workspace);
     assertTrue(size > 0);
   }
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Suppress unsigned right shift warnings in compression code where sign doesn't matter -->
+  <Match>
+    <Class name="com.datadog.profiling.utils.zstd.HuffmanCompressionTable"/>
+    <Bug pattern="ICAST_QUESTIONABLE_UNSIGNED_RIGHT_SHIFT"/>
+  </Match>
+  <Match>
+    <Class name="com.datadog.profiling.utils.zstd.ZstdFrameCompressor"/>
+    <Bug pattern="ICAST_QUESTIONABLE_UNSIGNED_RIGHT_SHIFT"/>
+  </Match>
+
+  <!-- Suppress switch statement style warnings for Duff's device pattern and explicit bit operations -->
+  <Match>
+    <Class name="com.datadog.profiling.utils.zstd.HuffmanCompressor"/>
+    <Or>
+      <Bug pattern="SF_SWITCH_FALLTHROUGH"/>
+      <Bug pattern="SF_SWITCH_NO_DEFAULT"/>
+    </Or>
+  </Match>
+
+  <!-- Suppress vacuous bit operation warning where explicit ternary improves code clarity -->
+  <Match>
+    <Class name="com.datadog.profiling.utils.zstd.ZstdFrameCompressor"/>
+    <Bug pattern="INT_VACUOUS_BIT_OPERATION"/>
+  </Match>
+</FindBugsFilter>

@@ -4,7 +4,8 @@ package com.datadog.profiling.utils.zstd;
 final class HuffmanCompressionContext {
   private static final int MAX_SYMBOL_COUNT = 256;
 
-  private final HuffmanTableWriterWorkspace tableWriterWorkspace = new HuffmanTableWriterWorkspace();
+  private final HuffmanTableWriterWorkspace tableWriterWorkspace =
+      new HuffmanTableWriterWorkspace();
   private final HuffmanCompressionTableWorkspace compressionTableWorkspace =
       new HuffmanCompressionTableWorkspace();
 

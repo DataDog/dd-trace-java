@@ -1,7 +1,6 @@
 package com.datadog.profiling.utils.zstd;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.util.UnsafeUtils;
@@ -27,8 +26,7 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderSmallInput() {
     // inputSize < 256 → contentSizeDescriptor = 0, singleSegment
     byte[] output = new byte[32];
-    int size = ZstdFrameCompressor.writeFrameHeader(
-        output, BASE, BASE + 32, 100, 1 << 20);
+    int size = ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 100, 1 << 20);
     assertTrue(size >= 2, "Header should include descriptor + content size byte");
   }
 
@@ -36,8 +34,7 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderMediumInput() {
     // 256 <= inputSize < 65792 → contentSizeDescriptor = 1
     byte[] output = new byte[32];
-    int size = ZstdFrameCompressor.writeFrameHeader(
-        output, BASE, BASE + 32, 1000, 1 << 20);
+    int size = ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 1000, 1 << 20);
     assertTrue(size >= 3, "Header should include descriptor + 2-byte content size");
   }
 
@@ -45,8 +42,7 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderLargeInput() {
     // inputSize >= 65792 → contentSizeDescriptor = 2
     byte[] output = new byte[32];
-    int size = ZstdFrameCompressor.writeFrameHeader(
-        output, BASE, BASE + 32, 100000, 1 << 20);
+    int size = ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 100000, 1 << 20);
     assertTrue(size >= 5, "Header should include descriptor + 4-byte content size");
   }
 
@@ -54,8 +50,7 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderStreamingMode() {
     // inputSize = -1 → no content size, not singleSegment, writes window descriptor
     byte[] output = new byte[32];
-    int size = ZstdFrameCompressor.writeFrameHeader(
-        output, BASE, BASE + 32, -1, 1 << 17);
+    int size = ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, -1, 1 << 17);
     assertTrue(size >= 2, "Header should include descriptor + window byte");
   }
 
@@ -63,8 +58,8 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderNonSingleSegmentWritesWindowDescriptor() {
     // inputSize > windowSize → not singleSegment
     byte[] output = new byte[32];
-    int size = ZstdFrameCompressor.writeFrameHeader(
-        output, BASE, BASE + 32, 2 * 1024 * 1024, 1 << 17);
+    int size =
+        ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 2 * 1024 * 1024, 1 << 17);
     assertTrue(size >= 2);
   }
 
@@ -72,9 +67,14 @@ class ZstdFrameCompressorTest {
   void writeChecksum() {
     byte[] output = new byte[8];
     byte[] input = "hello".getBytes();
-    int size = ZstdFrameCompressor.writeChecksum(
-        output, BASE, BASE + 8,
-        input, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET + input.length);
+    int size =
+        ZstdFrameCompressor.writeChecksum(
+            output,
+            BASE,
+            BASE + 8,
+            input,
+            UnsafeUtils.BYTE_ARRAY_BASE_OFFSET,
+            UnsafeUtils.BYTE_ARRAY_BASE_OFFSET + input.length);
     assertEquals(4, size);
   }
 
@@ -90,15 +90,15 @@ class ZstdFrameCompressorTest {
     CompressionContext context = new CompressionContext(params, BASE, Integer.MAX_VALUE);
 
     byte[] output = new byte[256];
-    int size = ZstdFrameCompressor.writeCompressedBlock(
-        input, BASE, input.length,
-        output, BASE, output.length,
-        context, true);
+    int size =
+        ZstdFrameCompressor.writeCompressedBlock(
+            input, BASE, input.length, output, BASE, output.length, context, true);
     assertTrue(size > 0, "Should produce a raw block");
     // Check block header: raw block type (bits [2:1] = 00)
     int blockHeader = (output[0] & 0xFF) | ((output[1] & 0xFF) << 8) | ((output[2] & 0xFF) << 16);
     int blockType = (blockHeader >> 1) & 0x3;
-    assertEquals(ZstdConstants.RAW_BLOCK, blockType, "Should be a raw block for small incompressible data");
+    assertEquals(
+        ZstdConstants.RAW_BLOCK, blockType, "Should be a raw block for small incompressible data");
   }
 
   @Test
@@ -113,10 +113,9 @@ class ZstdFrameCompressorTest {
     CompressionContext context = new CompressionContext(params, BASE, Integer.MAX_VALUE);
 
     byte[] output = new byte[8192];
-    int size = ZstdFrameCompressor.writeCompressedBlock(
-        input, BASE, input.length,
-        output, BASE, output.length,
-        context, true);
+    int size =
+        ZstdFrameCompressor.writeCompressedBlock(
+            input, BASE, input.length, output, BASE, output.length, context, true);
     assertTrue(size > 0);
     assertTrue(size < input.length, "Compressed block should be smaller than input");
   }
@@ -127,10 +126,9 @@ class ZstdFrameCompressorTest {
     CompressionContext context = new CompressionContext(params, BASE, Integer.MAX_VALUE);
 
     byte[] output = new byte[256];
-    int size = ZstdFrameCompressor.writeCompressedBlock(
-        new byte[0], BASE, 0,
-        output, BASE, output.length,
-        context, true);
+    int size =
+        ZstdFrameCompressor.writeCompressedBlock(
+            new byte[0], BASE, 0, output, BASE, output.length, context, true);
     // blockSize=0 → compressedSize=0 → raw block with 0 bytes
     assertEquals(3, size, "Empty block should be just the 3-byte header");
   }
@@ -325,10 +323,9 @@ class ZstdFrameCompressorTest {
     CompressionContext context = new CompressionContext(params, BASE, Integer.MAX_VALUE);
 
     byte[] output = new byte[8192];
-    int size = ZstdFrameCompressor.writeCompressedBlock(
-        input, BASE, input.length,
-        output, BASE, output.length,
-        context, false);
+    int size =
+        ZstdFrameCompressor.writeCompressedBlock(
+            input, BASE, input.length, output, BASE, output.length, context, false);
     assertTrue(size > 0);
     // Check lastBlock bit is 0
     int blockHeader = (output[0] & 0xFF) | ((output[1] & 0xFF) << 8) | ((output[2] & 0xFF) << 16);
@@ -427,8 +424,7 @@ class ZstdFrameCompressorTest {
   void writeFrameHeaderVeryLargeInput() {
     // inputSize = 2^24 → contentSizeDescriptor = 2, 4-byte content size
     byte[] output = new byte[32];
-    int size =
-        ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 1 << 24, 1 << 20);
+    int size = ZstdFrameCompressor.writeFrameHeader(output, BASE, BASE + 32, 1 << 24, 1 << 20);
     assertTrue(size >= 5);
   }
 }

@@ -20,7 +20,18 @@ class CompressionParametersTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {100, 8 * 1024, 16 * 1024, 64 * 1024, 128 * 1024, 200 * 1024, 256 * 1024, 512 * 1024, 2 * 1024 * 1024})
+  @ValueSource(
+      ints = {
+        100,
+        8 * 1024,
+        16 * 1024,
+        64 * 1024,
+        128 * 1024,
+        200 * 1024,
+        256 * 1024,
+        512 * 1024,
+        2 * 1024 * 1024
+      })
   void computeWithKnownInputSize(int inputSize) {
     CompressionParameters params = CompressionParameters.compute(3, inputSize);
     assertNotNull(params);
@@ -28,7 +39,9 @@ class CompressionParametersTest {
     assertTrue(params.getBlockSize() > 0);
     assertTrue(params.getBlockSize() <= params.getWindowSize());
     // Window should be adapted to input size
-    assertTrue(params.getWindowSize() >= inputSize || params.getWindowLog() >= ZstdConstants.MIN_WINDOW_LOG);
+    assertTrue(
+        params.getWindowSize() >= inputSize
+            || params.getWindowLog() >= ZstdConstants.MIN_WINDOW_LOG);
   }
 
   @Test

@@ -11,8 +11,7 @@ class XxHash64Test {
   // Official test vectors from https://github.com/Cyan4973/xxHash (seed=0)
   @Test
   void emptyInput() {
-    long hash =
-        XxHash64.hash(0, new byte[0], UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, 0);
+    long hash = XxHash64.hash(0, new byte[0], UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, 0);
     assertEquals(0xEF46DB3751D8E999L, hash);
   }
 
@@ -26,8 +25,7 @@ class XxHash64Test {
   @Test
   void fourteenBytes() {
     byte[] data = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
-    long hash =
-        XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
+    long hash = XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
     assertEquals(0x5CDA8B69BBFC1D45L, hash);
   }
 
@@ -38,8 +36,7 @@ class XxHash64Test {
       data[i] = (byte) i;
     }
 
-    long oneShot =
-        XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
+    long oneShot = XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
 
     // streaming: feed in chunks
     XxHash64 streaming = new XxHash64();
@@ -58,8 +55,7 @@ class XxHash64Test {
       data[i] = (byte) (i * 7);
     }
 
-    long oneShot =
-        XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
+    long oneShot = XxHash64.hash(0, data, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, data.length);
 
     // feed one byte at a time
     XxHash64 streaming = new XxHash64();

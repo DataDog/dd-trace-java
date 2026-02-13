@@ -126,6 +126,7 @@ final class CompressionParameters {
           new CompressionParameters(14, 15, 15, 10, 3, 512, Strategy.BTULTRA),
         }
       };
+
   // @formatter:on
 
   enum Strategy {

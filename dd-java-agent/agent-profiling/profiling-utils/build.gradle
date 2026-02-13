@@ -6,7 +6,8 @@ apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.78
 
-excludedClassesCoverage += [// an enum with no additional functionality
+excludedClassesCoverage += [
+  // an enum with no additional functionality
   'com.datadog.profiling.utils.ProfilingMode',
   // pre-existing: no tests in this module, covered by integration tests elsewhere
   'com.datadog.profiling.utils.Timestamper',
@@ -27,6 +28,10 @@ excludedClassesCoverage += [// an enum with no additional functionality
   'com.datadog.profiling.utils.zstd.NodeTable',
   'com.datadog.profiling.utils.zstd.SequenceEncodingContext',
 ]
+
+spotbugs {
+  excludeFilter = file('spotbugs-exclude.xml')
+}
 
 dependencies {
   implementation project(':components:environment')

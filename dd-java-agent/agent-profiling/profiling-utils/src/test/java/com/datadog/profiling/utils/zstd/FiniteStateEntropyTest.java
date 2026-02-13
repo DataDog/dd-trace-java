@@ -13,8 +13,7 @@ class FiniteStateEntropyTest {
   @Test
   void optimalTableLogSmallInput() {
     assertThrows(
-        IllegalArgumentException.class,
-        () -> FiniteStateEntropy.optimalTableLog(12, 1, 10));
+        IllegalArgumentException.class, () -> FiniteStateEntropy.optimalTableLog(12, 1, 10));
   }
 
   @Test
@@ -452,8 +451,7 @@ class FiniteStateEntropyTest {
     normalized[0] = 16;
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            FiniteStateEntropy.writeNormalizedCounts(output, BASE, 256, normalized, 0, 4));
+        () -> FiniteStateEntropy.writeNormalizedCounts(output, BASE, 256, normalized, 0, 4));
   }
 
   @Test
@@ -463,8 +461,7 @@ class FiniteStateEntropyTest {
     normalized[0] = 16;
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            FiniteStateEntropy.writeNormalizedCounts(output, BASE, 256, normalized, 0, 13));
+        () -> FiniteStateEntropy.writeNormalizedCounts(output, BASE, 256, normalized, 0, 13));
   }
 
   @Test

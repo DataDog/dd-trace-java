@@ -54,7 +54,8 @@ final class HuffmanCompressionTable {
 
     // enforce max table log
     maxNumberOfBits = setMaxHeight(nodeTable, lastNonZero, maxNumberOfBits, workspace);
-    checkArgument(maxNumberOfBits <= MAX_TABLE_LOG, "Max number of bits larger than max table size");
+    checkArgument(
+        maxNumberOfBits <= MAX_TABLE_LOG, "Max number of bits larger than max table size");
 
     // populate table
     int symbolCount = maxSymbol + 1;
@@ -75,7 +76,9 @@ final class HuffmanCompressionTable {
     for (int rank = maxNumberOfBits; rank > 0; rank--) {
       valuesPerRank[rank] = startingValue;
       startingValue += entriesPerRank[rank];
-      startingValue >>>= 1;
+      @SuppressWarnings("ShiftOutOfRange") // Unsigned right shift on short is intentional
+      short shifted = (short) (startingValue >>> 1);
+      startingValue = shifted;
     }
 
     for (int n = 0; n <= maxSymbol; n++) {
@@ -173,7 +176,11 @@ final class HuffmanCompressionTable {
     output.addBitsFast(values[symbol], numberOfBits[symbol]);
   }
 
-  int write(Object outputBase, long outputAddress, int outputSize, HuffmanTableWriterWorkspace workspace) {
+  int write(
+      Object outputBase,
+      long outputAddress,
+      int outputSize,
+      HuffmanTableWriterWorkspace workspace) {
     byte[] weights = workspace.weights;
 
     long output = outputAddress;
@@ -192,7 +199,8 @@ final class HuffmanCompressionTable {
     }
 
     // attempt weights compression by FSE
-    int size = compressWeights(outputBase, output + 1, outputSize - 1, weights, maxSymbol, workspace);
+    int size =
+        compressWeights(outputBase, output + 1, outputSize - 1, weights, maxSymbol, workspace);
 
     if (maxSymbol > 127 && size > 127) {
       throw new AssertionError();
@@ -366,9 +374,9 @@ final class HuffmanCompressionTable {
 
     short[] normalizedCounts = workspace.normalizedCounts;
 
-    int tableLog =
-        FiniteStateEntropy.optimalTableLog(MAX_FSE_TABLE_LOG, weightsLength, maxSymbol);
-    FiniteStateEntropy.normalizeCounts(normalizedCounts, tableLog, counts, weightsLength, maxSymbol);
+    int tableLog = FiniteStateEntropy.optimalTableLog(MAX_FSE_TABLE_LOG, weightsLength, maxSymbol);
+    FiniteStateEntropy.normalizeCounts(
+        normalizedCounts, tableLog, counts, weightsLength, maxSymbol);
 
     long output = outputAddress;
     long outputLimit = outputAddress + outputSize;
@@ -384,7 +392,12 @@ final class HuffmanCompressionTable {
     compressionTable.initialize(normalizedCounts, maxSymbol, tableLog);
     int compressedSize =
         FiniteStateEntropy.compress(
-            outputBase, output, (int) (outputLimit - output), weights, weightsLength, compressionTable);
+            outputBase,
+            output,
+            (int) (outputLimit - output),
+            weights,
+            weightsLength,
+            compressionTable);
     if (compressedSize == 0) {
       return 0;
     }

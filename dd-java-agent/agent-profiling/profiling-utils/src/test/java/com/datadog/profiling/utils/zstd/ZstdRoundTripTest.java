@@ -172,8 +172,7 @@ class ZstdRoundTripTest {
         testCase("english-like 1MB", englishLikeData(1024 * 1024, 123)));
   }
 
-  private static org.junit.jupiter.params.provider.Arguments testCase(
-      String name, byte[] data) {
+  private static org.junit.jupiter.params.provider.Arguments testCase(String name, byte[] data) {
     return org.junit.jupiter.params.provider.Arguments.of(name, data);
   }
 
@@ -233,8 +232,8 @@ class ZstdRoundTripTest {
   }
 
   /**
-   * Generates data where one byte value dominates at the given ratio. The remaining bytes are
-   * drawn from a small alphabet. This tests the boundary between RLE and Huffman encoding.
+   * Generates data where one byte value dominates at the given ratio. The remaining bytes are drawn
+   * from a small alphabet. This tests the boundary between RLE and Huffman encoding.
    */
   private static byte[] dominantByteData(int size, int dominant, double ratio, long seed) {
     byte[] data = new byte[size];
@@ -250,9 +249,9 @@ class ZstdRoundTripTest {
   }
 
   /**
-   * Generates mixed data: alternating segments of a repeating pattern (matchable) and
-   * biased-random content (produces varied literals). This forces the compressor to produce
-   * both matches and substantial literal runs with varied symbol codes.
+   * Generates mixed data: alternating segments of a repeating pattern (matchable) and biased-random
+   * content (produces varied literals). This forces the compressor to produce both matches and
+   * substantial literal runs with varied symbol codes.
    */
   private static byte[] mixedPatternData(int size, long seed) {
     byte[] data = new byte[size];

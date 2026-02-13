@@ -35,7 +35,7 @@ final class SequenceStore {
   };
 
   private static final byte[] MATCH_LENGTH_CODE = {
-    0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
     32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
     38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
@@ -44,6 +44,7 @@ final class SequenceStore {
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42
   };
+
   // @formatter:on
 
   SequenceStore(int blockSize, int maxSequences) {
@@ -80,8 +81,7 @@ final class SequenceStore {
     long output = UnsafeUtils.BYTE_ARRAY_BASE_OFFSET + literalsLength;
     int copied = 0;
     do {
-      UnsafeUtils.putLong(
-          literalsBuffer, output, UnsafeUtils.getLong(literalBase, input));
+      UnsafeUtils.putLong(literalsBuffer, output, UnsafeUtils.getLong(literalBase, input));
       input += SIZE_OF_LONG;
       output += SIZE_OF_LONG;
       copied += SIZE_OF_LONG;

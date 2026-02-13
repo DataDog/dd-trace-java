@@ -131,11 +131,13 @@ public class ZstdOutputStream extends OutputStream {
       int inputSize = lastChunk ? chunkSize : -1;
 
       int outputAddress = (int) baseOffset;
-      outputAddress +=
-          ZstdFrameCompressor.writeMagic(compressed, outputAddress, outputAddress + 4);
+      outputAddress += ZstdFrameCompressor.writeMagic(compressed, outputAddress, outputAddress + 4);
       outputAddress +=
           ZstdFrameCompressor.writeFrameHeader(
-              compressed, outputAddress, outputAddress + 14, inputSize,
+              compressed,
+              outputAddress,
+              outputAddress + 14,
+              inputSize,
               context.parameters.getWindowSize());
       outputStream.write(compressed, 0, (int) (outputAddress - baseOffset));
     }

@@ -88,6 +88,7 @@ final class HuffmanCompressor {
     return (int) (output - outputAddress);
   }
 
+  @SuppressWarnings("fallthrough") // Intentional fall-through for Duff's device pattern
   static int compressSingleStream(
       Object outputBase,
       long outputAddress,
@@ -108,14 +109,14 @@ final class HuffmanCompressor {
     switch (inputSize & 3) {
       case 3:
         table.encodeSymbol(bitstream, UnsafeUtils.getByte(inputBase, input + n + 2) & 0xFF);
-        // fall-through
+      // fall through
       case 2:
         table.encodeSymbol(bitstream, UnsafeUtils.getByte(inputBase, input + n + 1) & 0xFF);
-        // fall-through
+      // fall through
       case 1:
         table.encodeSymbol(bitstream, UnsafeUtils.getByte(inputBase, input + n) & 0xFF);
         bitstream.flush();
-        // fall-through
+      // fall through
       case 0:
       default:
         break;

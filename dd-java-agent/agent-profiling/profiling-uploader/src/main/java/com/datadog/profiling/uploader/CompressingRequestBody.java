@@ -1,8 +1,8 @@
 package com.datadog.profiling.uploader;
 
+import com.datadog.profiling.utils.zstd.ZstdOutputStream;
 import datadog.trace.api.Platform;
 import datadog.trace.api.profiling.RecordingInputStream;
-import com.datadog.profiling.utils.zstd.ZstdOutputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

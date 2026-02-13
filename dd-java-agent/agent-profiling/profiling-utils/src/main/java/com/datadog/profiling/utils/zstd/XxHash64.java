@@ -65,8 +65,7 @@ final class XxHash64 {
   }
 
   private long computeBody() {
-    long hash =
-        rotateLeft(v1, 1) + rotateLeft(v2, 7) + rotateLeft(v3, 12) + rotateLeft(v4, 18);
+    long hash = rotateLeft(v1, 1) + rotateLeft(v2, 7) + rotateLeft(v3, 12) + rotateLeft(v4, 18);
 
     hash = update(hash, v1);
     hash = update(hash, v2);
@@ -181,8 +180,7 @@ final class XxHash64 {
       remaining -= 32;
     }
 
-    long hash =
-        rotateLeft(sv1, 1) + rotateLeft(sv2, 7) + rotateLeft(sv3, 12) + rotateLeft(sv4, 18);
+    long hash = rotateLeft(sv1, 1) + rotateLeft(sv2, 7) + rotateLeft(sv3, 12) + rotateLeft(sv4, 18);
 
     hash = update(hash, sv1);
     hash = update(hash, sv2);

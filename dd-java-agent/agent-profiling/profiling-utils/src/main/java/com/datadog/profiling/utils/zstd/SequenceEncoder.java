@@ -81,8 +81,7 @@ final class SequenceEncoder {
     long output = outputAddress;
     long outputLimit = outputAddress + outputSize;
 
-    checkArgument(
-        outputLimit - output > 3 + 1, "Output buffer too small");
+    checkArgument(outputLimit - output > 3 + 1, "Output buffer too small");
 
     int sequenceCount = sequences.sequenceCount;
     if (sequenceCount < 0x7F) {
@@ -95,8 +94,7 @@ final class SequenceEncoder {
     } else {
       UnsafeUtils.putByte(outputBase, output, (byte) 0xFF);
       output++;
-      UnsafeUtils.putShort(
-          outputBase, output, (short) (sequenceCount - LONG_NUMBER_OF_SEQUENCES));
+      UnsafeUtils.putShort(outputBase, output, (short) (sequenceCount - LONG_NUMBER_OF_SEQUENCES));
       output += SIZE_OF_SHORT;
     }
 
@@ -283,7 +281,8 @@ final class SequenceEncoder {
       sequenceCount--;
     }
 
-    FiniteStateEntropy.normalizeCounts(normalizedCounts, tableLog, counts, sequenceCount, maxSymbol);
+    FiniteStateEntropy.normalizeCounts(
+        normalizedCounts, tableLog, counts, sequenceCount, maxSymbol);
     table.initialize(normalizedCounts, maxSymbol, tableLog);
 
     return FiniteStateEntropy.writeNormalizedCounts(
@@ -332,8 +331,7 @@ final class SequenceEncoder {
         int matchLengthBits = MATCH_LENGTH_BITS[matchLengthCode];
 
         offsetState = offsetsTable.encode(blockStream, offsetState, offsetCode);
-        matchLengthState =
-            matchLengthTable.encode(blockStream, matchLengthState, matchLengthCode);
+        matchLengthState = matchLengthTable.encode(blockStream, matchLengthState, matchLengthCode);
         literalLengthState =
             literalLengthTable.encode(blockStream, literalLengthState, literalLengthCode);
 
@@ -384,8 +382,7 @@ final class SequenceEncoder {
       if (isDefaultTableAllowed) {
         int factor = 10 - strategy.ordinal();
         int baseLog = 3;
-        long minNumberOfSequences =
-            ((1L << defaultNormalizedCountsLog) * factor) >> baseLog;
+        long minNumberOfSequences = ((1L << defaultNormalizedCountsLog) * factor) >> baseLog;
 
         if ((sequenceCount < minNumberOfSequences)
             || (largestCount < (sequenceCount >> (defaultNormalizedCountsLog - 1)))) {

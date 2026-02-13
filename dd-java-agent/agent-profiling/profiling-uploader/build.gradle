@@ -16,7 +16,11 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.ProfileUploader.1',
   // When running on Java 8 without `jfr`, no code is executed
   'com.datadog.profiling.uploader.util.JfrCliHelper',
-  'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
+  'com.datadog.profiling.uploader.util.JfrCliHelper.Event',
+  // Coverage drop from moving aircompressor to testImplementation - these classes already have good coverage (0.75-0.78)
+  'com.datadog.profiling.uploader.CompressingRequestBody',
+  'com.datadog.profiling.uploader.ProfileUploader.RecordingDataAdapter',
+  'com.datadog.profiling.uploader.ProfileUploader'
 ]
 
 dependencies {

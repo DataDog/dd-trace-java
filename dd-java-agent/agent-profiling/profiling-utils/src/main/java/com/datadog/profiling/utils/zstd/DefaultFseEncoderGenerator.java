@@ -34,8 +34,7 @@ final class DefaultFseEncoderGenerator implements Opcodes {
     cw.visitField(ACC_PRIVATE | ACC_FINAL, "table", TABLE_DESC, null, null).visitEnd();
 
     // constructor(FseCompressionTable table)
-    MethodVisitor init =
-        cw.visitMethod(ACC_PUBLIC, "<init>", "(" + TABLE_DESC + ")V", null, null);
+    MethodVisitor init = cw.visitMethod(ACC_PUBLIC, "<init>", "(" + TABLE_DESC + ")V", null, null);
     init.visitCode();
     init.visitVarInsn(ALOAD, 0);
     init.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
@@ -60,8 +59,7 @@ final class DefaultFseEncoderGenerator implements Opcodes {
 
     // encode(BitOutputStream out, int state, int symbol) -> int
     String bos = "L" + BIT_OUTPUT_STREAM + ";";
-    MethodVisitor encodeMv =
-        cw.visitMethod(ACC_PUBLIC, "encode", "(" + bos + "II)I", null, null);
+    MethodVisitor encodeMv = cw.visitMethod(ACC_PUBLIC, "encode", "(" + bos + "II)I", null, null);
     encodeMv.visitCode();
     encodeMv.visitVarInsn(ALOAD, 0);
     encodeMv.visitFieldInsn(GETFIELD, className, "table", TABLE_DESC);
@@ -74,8 +72,7 @@ final class DefaultFseEncoderGenerator implements Opcodes {
     encodeMv.visitEnd();
 
     // finish(BitOutputStream out, int state) -> void
-    MethodVisitor finishMv =
-        cw.visitMethod(ACC_PUBLIC, "finish", "(" + bos + "I)V", null, null);
+    MethodVisitor finishMv = cw.visitMethod(ACC_PUBLIC, "finish", "(" + bos + "I)V", null, null);
     finishMv.visitCode();
     finishMv.visitVarInsn(ALOAD, 0);
     finishMv.visitFieldInsn(GETFIELD, className, "table", TABLE_DESC);

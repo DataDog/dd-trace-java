@@ -125,11 +125,7 @@ final class DoubleFastBlockCompressor implements BlockCompressor {
               }
             } else {
               matchLength =
-                  count(
-                          inputBase,
-                          input + SIZE_OF_INT,
-                          inputEnd,
-                          shortMatchAddress + SIZE_OF_INT)
+                  count(inputBase, input + SIZE_OF_INT, inputEnd, shortMatchAddress + SIZE_OF_INT)
                       + SIZE_OF_INT;
               offset = (int) (input - shortMatchAddress);
               while (input > anchor
@@ -158,9 +154,11 @@ final class DoubleFastBlockCompressor implements BlockCompressor {
       anchor = input;
 
       if (input <= inputLimit) {
-        longHashTable[hash8(UnsafeUtils.getLong(inputBase, baseAddress + current + 2), longHashBits)] =
+        longHashTable[
+                hash8(UnsafeUtils.getLong(inputBase, baseAddress + current + 2), longHashBits)] =
             current + 2;
-        shortHashTable[hash(inputBase, baseAddress + current + 2, shortHashBits, matchSearchLength)] =
+        shortHashTable[
+                hash(inputBase, baseAddress + current + 2, shortHashBits, matchSearchLength)] =
             current + 2;
 
         longHashTable[hash8(UnsafeUtils.getLong(inputBase, input - 2), longHashBits)] =
@@ -228,8 +226,7 @@ final class DoubleFastBlockCompressor implements BlockCompressor {
     return count;
   }
 
-  private static int hash(
-      Object inputBase, long inputAddress, int bits, int matchSearchLength) {
+  private static int hash(Object inputBase, long inputAddress, int bits, int matchSearchLength) {
     switch (matchSearchLength) {
       case 8:
         return hash8(UnsafeUtils.getLong(inputBase, inputAddress), bits);

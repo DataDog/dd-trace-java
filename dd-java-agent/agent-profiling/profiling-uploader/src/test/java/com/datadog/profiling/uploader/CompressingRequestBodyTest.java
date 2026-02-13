@@ -5,9 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.utils.zstd.ZstdOutputStream;
 import datadog.trace.api.profiling.RecordingInputStream;
 import io.airlift.compress.zstd.ZstdInputStream;
-import com.datadog.profiling.utils.zstd.ZstdOutputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

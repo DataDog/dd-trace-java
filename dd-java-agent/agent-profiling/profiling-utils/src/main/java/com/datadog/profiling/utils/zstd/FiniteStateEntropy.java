@@ -12,7 +12,9 @@ final class FiniteStateEntropy {
   static final int MAX_TABLE_LOG = 12;
   static final int MIN_TABLE_LOG = 5;
 
-  private static final int[] REST_TO_BEAT = {0, 473195, 504333, 520860, 550000, 700000, 750000, 830000};
+  private static final int[] REST_TO_BEAT = {
+    0, 473195, 504333, 520860, 550000, 700000, 750000, 830000
+  };
   private static final short UNASSIGNED = -2;
 
   private FiniteStateEntropy() {}

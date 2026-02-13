@@ -10,8 +10,9 @@ class HuffmanCompressionTableTest {
 
   @Test
   void optimalNumberOfBitsInputSizeOne() {
-    assertThrows(IllegalArgumentException.class, () ->
-        HuffmanCompressionTable.optimalNumberOfBits(11, 1, 255));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> HuffmanCompressionTable.optimalNumberOfBits(11, 1, 255));
   }
 
   @Test
@@ -104,12 +105,13 @@ class HuffmanCompressionTableTest {
 
     HuffmanCompressionTable table = new HuffmanCompressionTable(256);
     HuffmanCompressionTableWorkspace workspace = new HuffmanCompressionTableWorkspace();
-    table.initialize(counts, 'b', HuffmanCompressionTable.optimalNumberOfBits(11, 150, 'b'), workspace);
+    table.initialize(
+        counts, 'b', HuffmanCompressionTable.optimalNumberOfBits(11, 150, 'b'), workspace);
 
     // Now check with a count that has a symbol beyond maxSymbol
     int[] newCounts = new int[256];
     newCounts['a'] = 50;
-    newCounts['z'] = 50;  // 'z' > 'b' → invalid
+    newCounts['z'] = 50; // 'z' > 'b' → invalid
     assertTrue(!table.isValid(newCounts, 'z'));
   }
 
@@ -117,16 +119,17 @@ class HuffmanCompressionTableTest {
   void isValidReturnsFalseForUncoveredSymbol() {
     int[] counts = new int[256];
     counts['a'] = 100;
-    counts['c'] = 50;  // 'b' has count 0
+    counts['c'] = 50; // 'b' has count 0
 
     HuffmanCompressionTable table = new HuffmanCompressionTable(256);
     HuffmanCompressionTableWorkspace workspace = new HuffmanCompressionTableWorkspace();
-    table.initialize(counts, 'c', HuffmanCompressionTable.optimalNumberOfBits(11, 150, 'c'), workspace);
+    table.initialize(
+        counts, 'c', HuffmanCompressionTable.optimalNumberOfBits(11, 150, 'c'), workspace);
 
     // newCounts has 'b' with non-zero count, but table has 0 bits for 'b'
     int[] newCounts = new int[256];
     newCounts['a'] = 50;
-    newCounts['b'] = 50;  // table has no code for 'b'
+    newCounts['b'] = 50; // table has no code for 'b'
     assertTrue(!table.isValid(newCounts, 'c'));
   }
 
@@ -139,11 +142,12 @@ class HuffmanCompressionTableTest {
 
     HuffmanCompressionTable table = new HuffmanCompressionTable(256);
     HuffmanCompressionTableWorkspace workspace = new HuffmanCompressionTableWorkspace();
-    table.initialize(counts, 'c', HuffmanCompressionTable.optimalNumberOfBits(11, 175, 'c'), workspace);
+    table.initialize(
+        counts, 'c', HuffmanCompressionTable.optimalNumberOfBits(11, 175, 'c'), workspace);
 
     int estimate = table.estimateCompressedSize(counts, 'c');
     assertTrue(estimate > 0);
-    assertTrue(estimate < 175);  // should be smaller than raw size
+    assertTrue(estimate < 175); // should be smaller than raw size
   }
 
   @Test
