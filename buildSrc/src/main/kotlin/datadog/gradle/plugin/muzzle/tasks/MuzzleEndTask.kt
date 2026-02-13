@@ -1,10 +1,13 @@
 package datadog.gradle.plugin.muzzle.tasks
 
 import datadog.gradle.plugin.muzzle.pathSlug
-import org.gradle.api.provider.ListProperty
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.StringWriter
@@ -14,8 +17,9 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   @get:Input
   abstract val startTimeMs: Property<Long>
 
-  @get:Input
-  abstract val muzzleTaskNames: ListProperty<String>
+  @get:InputFiles
+  @get:PathSensitive(PathSensitivity.RELATIVE)
+  abstract val muzzleResultFiles: ConfigurableFileCollection
 
   @get:OutputFile
   val resultsFile = project
@@ -39,8 +43,10 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
   private fun buildJUnitReport(): MuzzleJUnitReport {
     val endTimeMs = System.currentTimeMillis()
     val seconds = (endTimeMs - startTimeMs.get()).toDouble() / 1000.0
-    val testCases = muzzleTaskNames.get().map { taskName ->
-      val resultFile = project.layout.buildDirectory.file("reports/$taskName.txt").get().asFile
+    val testCases = muzzleResultFiles.files
+      .sortedBy { it.name }
+      .map { resultFile ->
+      val taskName = resultFile.name.removeSuffix(".txt")
       when {
         !resultFile.exists() -> {
           MuzzleJUnitCase(

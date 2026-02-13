@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import org.gradle.kotlin.dsl.register
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -37,19 +38,22 @@ class MuzzleEndTaskTest {
       .withProjectDir(childProjectDir)
       .build()
 
-    val passTask = "muzzle-pass"
-    val failTask = "muzzle-fail"
-    val passReportPath = project.layout.buildDirectory.file("reports/$passTask.txt").get().asFile.toPath()
-    passReportPath.parent.createDirectories()
-    passReportPath.writeText("PASSING")
-    val failReportPath = project.layout.buildDirectory.file("reports/$failTask.txt").get().asFile.toPath()
-    failReportPath.parent.createDirectories()
-    failReportPath.writeText("java.lang.IllegalStateException: broken helper")
+    val passReportPath = project.layout.buildDirectory.file("reports/muzzle-pass.txt").get().asFile.toPath().apply {
+      parent.createDirectories()
+      writeText("PASSING")
+    }
 
-    val task = project.tasks.register("muzzle-end", MuzzleEndTask::class.java).get()
-    task.startTimeMs.set(System.currentTimeMillis() - 1_000)
-    task.muzzleTaskNames.set(listOf(passTask, failTask))
+    val failReportPath = project.layout.buildDirectory.file("reports/muzzle-fail.txt").get().asFile.toPath().apply {
+      parent.createDirectories()
+      writeText("java.lang.IllegalStateException: something is broken")
+    }
 
+    val task = project.tasks.register<MuzzleEndTask>("muzzle-end").get().apply {
+      startTimeMs.set(System.currentTimeMillis() - 1_000)
+      muzzleResultFiles.from(passReportPath.toFile(), failReportPath.toFile())
+    }
+
+    // Pre run the task
     task.generatesResultFile()
 
     val junitReportXml = project.layout.buildDirectory

@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 SERVICE_NAME="dd-trace-java"
 CACHE_TYPE=$1
-TEST_JVM=$2
+TEST_JVM=${2:-}
 
 # CI_JOB_NAME, CI_NODE_INDEX, and CI_NODE_TOTAL are read from GitLab CI environment
 
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
-JAVA_HOME="JAVA_${TEST_JVM}_HOME"
-JAVA_BIN="${!JAVA_HOME}/bin/java"
-if [ ! -x "$JAVA_BIN" ]; then
-    JAVA_BIN=$(which java)
+JAVA_PROPS=""
+if [ -n "$TEST_JVM" ]; then
+    JAVA_BIN=""
+    if [[ "$TEST_JVM" =~ ^[A-Za-z0-9_]+$ ]]; then
+        JAVA_HOME_VAR="JAVA_${TEST_JVM}_HOME"
+        JAVA_HOME_VALUE="${!JAVA_HOME_VAR}"
+        if [ -n "$JAVA_HOME_VALUE" ] && [ -x "$JAVA_HOME_VALUE/bin/java" ]; then
+            JAVA_BIN="$JAVA_HOME_VALUE/bin/java"
+        fi
+    fi
+    if [ -z "$JAVA_BIN" ]; then
+        JAVA_BIN="$(command -v java)"
+    fi
+    JAVA_PROPS=$($JAVA_BIN -XshowSettings:properties -version 2>&1)
 fi
 
-# Extract Java properties from the JVM used to run the tests
-JAVA_PROPS=$($JAVA_BIN -XshowSettings:properties -version 2>&1)
 java_prop() {
     local PROP_NAME=$1
     echo "$JAVA_PROPS" | grep "$PROP_NAME" | head -n1 | cut -d'=' -f2 | xargs
@@ -31,7 +39,15 @@ junit_upload() {
     local job_base_name="${CI_JOB_NAME%%:*}"
 
     # Add custom test configuration tags
-    custom_tags_args+=(--tags "test.configuration.jvm:${TEST_JVM}")
+    if [ -n "$TEST_JVM" ]; then
+        custom_tags_args+=(--tags "test.configuration.jvm:${TEST_JVM}")
+        custom_tags_args+=(--tags "runtime.name:$(java_prop java.runtime.name)")
+        custom_tags_args+=(--tags "runtime.vendor:$(java_prop java.vendor)")
+        custom_tags_args+=(--tags "runtime.version:$(java_prop java.version)")
+        custom_tags_args+=(--tags "os.architecture:$(java_prop os.arch)")
+        custom_tags_args+=(--tags "os.platform:$(java_prop os.name)")
+        custom_tags_args+=(--tags "os.version:$(java_prop os.version)")
+    fi
     if [ -n "$CI_NODE_INDEX" ] && [ -n "$CI_NODE_TOTAL" ]; then
         custom_tags_args+=(--tags "test.configuration.split:${CI_NODE_INDEX}/${CI_NODE_TOTAL}")
     fi
@@ -43,12 +59,6 @@ junit_upload() {
         datadog-ci junit upload --service $SERVICE_NAME \
         --logs \
         --tags "test.traits:{\"category\":[\"$CACHE_TYPE\"]}" \
-        --tags "runtime.name:$(java_prop java.runtime.name)" \
-        --tags "runtime.vendor:$(java_prop java.vendor)" \
-        --tags "runtime.version:$(java_prop java.version)" \
-        --tags "os.architecture:$(java_prop os.arch)" \
-        --tags "os.platform:$(java_prop os.name)" \
-        --tags "os.version:$(java_prop os.version)" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
         "${custom_tags_args[@]}" \
         ./results
