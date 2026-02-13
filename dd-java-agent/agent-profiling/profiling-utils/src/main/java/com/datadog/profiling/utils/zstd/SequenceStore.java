@@ -80,12 +80,12 @@ final class SequenceStore {
     long input = literalAddress;
     long output = UnsafeUtils.BYTE_ARRAY_BASE_OFFSET + literalsLength;
     int copied = 0;
-    do {
+    while (copied < literalLength) {
       UnsafeUtils.putLong(literalsBuffer, output, UnsafeUtils.getLong(literalBase, input));
       input += SIZE_OF_LONG;
       output += SIZE_OF_LONG;
       copied += SIZE_OF_LONG;
-    } while (copied < literalLength);
+    }
 
     literalsLength += literalLength;
 

@@ -16,6 +16,7 @@ import static com.datadog.profiling.utils.zstd.ZstdConstants.SIZE_OF_SHORT;
 import static com.datadog.profiling.utils.zstd.ZstdConstants.TREELESS_LITERALS_BLOCK;
 
 import datadog.trace.util.UnsafeUtils;
+import java.util.Arrays;
 
 /** Orchestrates zstd frame compression: magic, header, block loop, checksum. */
 final class ZstdFrameCompressor {
@@ -256,7 +257,8 @@ final class ZstdFrameCompressor {
 
     checkArgument(headerSize + 1 <= outputSize, "Output buffer too small");
 
-    int[] counts = new int[MAX_SYMBOL_COUNT];
+    int[] counts = context.getCounts();
+    Arrays.fill(counts, 0);
     Histogram.count(literals, literalsSize, counts);
     int maxSymbol = Histogram.findMaxSymbol(counts, MAX_SYMBOL);
     int largestCount = Histogram.findLargestCount(counts, maxSymbol);
@@ -403,6 +405,7 @@ final class ZstdFrameCompressor {
       long inputAddress,
       int inputSize) {
     int headerSize = 1 + (inputSize > 31 ? 1 : 0) + (inputSize > 4095 ? 1 : 0);
+    checkArgument(headerSize + 1 <= outputSize, "Output buffer too small");
 
     switch (headerSize) {
       case 1:

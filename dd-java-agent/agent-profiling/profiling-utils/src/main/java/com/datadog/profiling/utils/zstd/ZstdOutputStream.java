@@ -31,11 +31,14 @@ public class ZstdOutputStream extends OutputStream {
 
   public ZstdOutputStream(OutputStream outputStream) throws IOException {
     this.outputStream = requireNonNull(outputStream, "outputStream is null");
+    CompressionParameters parameters = CompressionParameters.compute(DEFAULT_COMPRESSION_LEVEL, -1);
+    if (parameters.getStrategy().ordinal() >= CompressionParameters.Strategy.LAZY.ordinal()) {
+      throw new IllegalArgumentException(
+          "Compression strategies LAZY and above (levels 6-22) are not yet implemented. "
+              + "Use compression levels 1-5 (FAST or DFAST strategies).");
+    }
     this.context =
-        new CompressionContext(
-            CompressionParameters.compute(DEFAULT_COMPRESSION_LEVEL, -1),
-            UnsafeUtils.BYTE_ARRAY_BASE_OFFSET,
-            Integer.MAX_VALUE);
+        new CompressionContext(parameters, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, Integer.MAX_VALUE);
     this.maxBufferSize = context.parameters.getWindowSize() * 4;
 
     int bufferSize = context.parameters.getBlockSize() + SIZE_OF_BLOCK_HEADER;
@@ -63,7 +66,7 @@ public class ZstdOutputStream extends OutputStream {
     if (buffer == null) {
       throw new NullPointerException("buffer is null");
     }
-    if (offset < 0 || length < 0 || offset + length > buffer.length) {
+    if (offset < 0 || length < 0 || length > buffer.length - offset) {
       throw new IndexOutOfBoundsException(
           "offset=" + offset + ", length=" + length + ", buffer.length=" + buffer.length);
     }
@@ -109,7 +112,11 @@ public class ZstdOutputStream extends OutputStream {
   @Override
   public void flush() throws IOException {
     if (!closed && uncompressedPosition > uncompressedOffset) {
-      writeChunk(false);
+      int bufferedSize = uncompressedPosition - uncompressedOffset;
+      int minimumSize = context.parameters.getWindowSize() + 2 * context.parameters.getBlockSize();
+      if (bufferedSize > minimumSize) {
+        writeChunk(false);
+      }
     }
     outputStream.flush();
   }

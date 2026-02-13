@@ -8,6 +8,7 @@ final class HuffmanCompressionContext {
       new HuffmanTableWriterWorkspace();
   private final HuffmanCompressionTableWorkspace compressionTableWorkspace =
       new HuffmanCompressionTableWorkspace();
+  private final int[] counts = new int[MAX_SYMBOL_COUNT];
 
   private HuffmanCompressionTable previousTable = new HuffmanCompressionTable(MAX_SYMBOL_COUNT);
   private HuffmanCompressionTable temporaryTable = new HuffmanCompressionTable(MAX_SYMBOL_COUNT);
@@ -41,5 +42,9 @@ final class HuffmanCompressionContext {
 
   HuffmanTableWriterWorkspace getTableWriterWorkspace() {
     return tableWriterWorkspace;
+  }
+
+  int[] getCounts() {
+    return counts;
   }
 }
