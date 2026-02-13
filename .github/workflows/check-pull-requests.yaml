@@ -1,12 +1,10 @@
 name: Check pull requests
 on:
-  merge_group:
   pull_request:
     types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
     - master
     - release/v*
-    - sarahchen6/test-gh-mq # test merge queue - should not land on master
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,11 +16,7 @@ jobs:
       pull-requests: write # Required to create a comment on the pull request
     runs-on: ubuntu-latest
     steps:
-      - name: Mark check as passed for github merge queue
-        if: github.event_name == 'merge_group'
-        run: echo "Check pull requests workflow is ignored on the merge queue and only run on pull_request events."
       - name: Check pull requests
-        if: github.event_name == 'pull_request'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # 8.0.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
