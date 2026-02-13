@@ -519,12 +519,16 @@ muzzle:
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
+    - .gitlab/collect_results.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./reports
+      - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/TEST-muzzle-*.xml
 
 muzzle-dep-report:
   extends: .gradle_build
