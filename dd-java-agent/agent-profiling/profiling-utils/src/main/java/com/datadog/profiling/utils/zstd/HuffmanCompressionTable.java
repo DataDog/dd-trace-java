@@ -188,7 +188,7 @@ final class HuffmanCompressionTable {
     int maxNumberOfBits = this.maxNumberOfBits;
     int maxSymbol = this.maxSymbol;
 
-    // convert to weights per RFC 8478 section 4.2.1
+    // convert to weights per RFC 8878 section 4.2.1
     for (int symbol = 0; symbol < maxSymbol; symbol++) {
       int bits = numberOfBits[symbol];
       if (bits == 0) {

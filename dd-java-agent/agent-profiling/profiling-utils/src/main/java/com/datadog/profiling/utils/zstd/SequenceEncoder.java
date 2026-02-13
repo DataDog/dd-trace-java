@@ -184,7 +184,7 @@ final class SequenceEncoder {
                 workspace.offsetCodeTable,
                 outputBase,
                 output,
-                output + outputSize,
+                outputLimit,
                 sequenceCount,
                 OFFSET_TABLE_LOG,
                 sequences.offsetCodes,
@@ -390,7 +390,9 @@ final class SequenceEncoder {
         }
       }
     } else {
-      throw new UnsupportedOperationException("not yet implemented");
+      throw new UnsupportedOperationException(
+          "Compression strategies LAZY and above (levels 6-22) are not yet implemented. "
+              + "Use compression levels 1-5 (FAST or DFAST strategies).");
     }
 
     return SEQUENCE_ENCODING_COMPRESSED;

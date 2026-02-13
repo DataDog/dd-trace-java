@@ -14,8 +14,16 @@ public abstract class UnsafeUtils {
   private static final Unsafe UNSAFE = getUnsafe();
 
   /** Base offset for byte[] access via Unsafe. */
-  public static final long BYTE_ARRAY_BASE_OFFSET =
-      UNSAFE != null ? (long) Unsafe.ARRAY_BYTE_BASE_OFFSET : -1;
+  public static final long BYTE_ARRAY_BASE_OFFSET;
+
+  static {
+    if (UNSAFE == null) {
+      throw new ExceptionInInitializerError(
+          "sun.misc.Unsafe is not available on this JVM. "
+              + "The Datadog tracer requires Unsafe for performance-critical operations.");
+    }
+    BYTE_ARRAY_BASE_OFFSET = Unsafe.ARRAY_BYTE_BASE_OFFSET;
+  }
 
   private static Unsafe getUnsafe() {
     try {

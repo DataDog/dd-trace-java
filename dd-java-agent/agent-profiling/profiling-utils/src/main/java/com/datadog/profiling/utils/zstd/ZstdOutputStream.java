@@ -60,6 +60,13 @@ public class ZstdOutputStream extends OutputStream {
 
   @Override
   public void write(byte[] buffer, int offset, int length) throws IOException {
+    if (buffer == null) {
+      throw new NullPointerException("buffer is null");
+    }
+    if (offset < 0 || length < 0 || offset + length > buffer.length) {
+      throw new IndexOutOfBoundsException(
+          "offset=" + offset + ", length=" + length + ", buffer.length=" + buffer.length);
+    }
     if (closed) {
       throw new IOException("Stream is closed");
     }
@@ -97,6 +104,14 @@ public class ZstdOutputStream extends OutputStream {
             > context.parameters.getBlockSize()) {
       writeChunk(false);
     }
+  }
+
+  @Override
+  public void flush() throws IOException {
+    if (!closed && uncompressedPosition > uncompressedOffset) {
+      writeChunk(false);
+    }
+    outputStream.flush();
   }
 
   @Override
