@@ -26,6 +26,8 @@ import java.util.Arrays;
  * and above) are not yet implemented.
  */
 public class ZstdOutputStream extends OutputStream {
+  private static final int MAX_BUFFER_SIZE_LIMIT = 16 * 1024 * 1024; // 16 MB safety limit
+
   private final OutputStream outputStream;
   private final CompressionContext context;
   private final int maxBufferSize;
@@ -50,7 +52,7 @@ public class ZstdOutputStream extends OutputStream {
     }
     this.context =
         new CompressionContext(parameters, UnsafeUtils.BYTE_ARRAY_BASE_OFFSET, Integer.MAX_VALUE);
-    this.maxBufferSize = context.parameters.getWindowSize() * 4;
+    this.maxBufferSize = min(context.parameters.getWindowSize() * 4, MAX_BUFFER_SIZE_LIMIT);
 
     int bufferSize = context.parameters.getBlockSize() + SIZE_OF_BLOCK_HEADER;
     this.compressed = new byte[bufferSize + (bufferSize >>> 8) + SIZE_OF_LONG];
@@ -105,8 +107,9 @@ public class ZstdOutputStream extends OutputStream {
       return;
     }
 
-    int newSize = (uncompressed.length + length) * 2;
-    newSize = min(newSize, maxBufferSize);
+    // Use long arithmetic to prevent integer overflow for large lengths
+    long targetSize = ((long) uncompressed.length + length) * 2;
+    int newSize = (int) min(targetSize, maxBufferSize);
     newSize = max(newSize, context.parameters.getBlockSize());
     uncompressed = Arrays.copyOf(uncompressed, newSize);
   }

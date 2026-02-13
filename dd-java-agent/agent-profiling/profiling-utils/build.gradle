@@ -38,7 +38,6 @@ dependencies {
   implementation project(':internal-api')
   implementation libs.slf4j
   implementation libs.asm
-  implementation libs.asm.commons
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito

@@ -30,7 +30,7 @@ final class Histogram {
   }
 
   static int findMaxSymbol(int[] counts, int maxSymbol) {
-    while (counts[maxSymbol] == 0) {
+    while (maxSymbol > 0 && counts[maxSymbol] == 0) {
       maxSymbol--;
     }
     return maxSymbol;
