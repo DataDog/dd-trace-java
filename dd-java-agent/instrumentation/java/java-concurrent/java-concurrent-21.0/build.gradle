@@ -47,13 +47,9 @@ tasks.named("check") {
   dependsOn "previewTest"
 }
 
-// Use latest logback for Java 21+ tests with better virtual thread support.
-configurations.named("testRuntimeClasspath") {
-  resolutionStrategy {
-    force libs.logback.classic.latest
-  }
-}
-
 dependencies {
+  // Use latest logback for Java 21+ tests with better virtual thread support.
+  testImplementation(libs.logback.classic.latest)
+
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
