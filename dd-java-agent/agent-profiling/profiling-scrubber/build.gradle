@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+dependencies {
+  api libs.slf4j
+  api project(':internal-api')
+
+  implementation libs.jafar.parser
+
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation libs.bundles.jmc
+}

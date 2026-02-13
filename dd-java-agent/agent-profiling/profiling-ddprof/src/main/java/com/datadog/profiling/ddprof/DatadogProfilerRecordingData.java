@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class DatadogProfilerRecordingData extends RecordingData {
   private final Path recordingFile;
@@ -35,5 +36,11 @@ final class DatadogProfilerRecordingData extends RecordingData {
   @Override
   public String getName() {
     return "ddprof";
+  }
+
+  @Nullable
+  @Override
+  public Path getPath() {
+    return recordingFile;
   }
 }

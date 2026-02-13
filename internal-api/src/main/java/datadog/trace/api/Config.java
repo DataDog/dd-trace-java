@@ -482,6 +482,11 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -968,6 +973,9 @@ public class Config {
   private final int profilingProxyPort;
   private final String profilingProxyUsername;
   private final String profilingProxyPassword;
+  private final boolean profilingScrubEnabled;
+  private final boolean profilingScrubFailOpen;
+  private final List<String> profilingScrubExcludeEvents;
   private final int profilingExceptionSampleLimit;
   private final int profilingBackPressureSampleLimit;
   private final boolean profilingBackPressureEnabled;
@@ -2123,6 +2131,12 @@ public class Config {
         configProvider.getInteger(PROFILING_PROXY_PORT, PROFILING_PROXY_PORT_DEFAULT);
     profilingProxyUsername = configProvider.getString(PROFILING_PROXY_USERNAME);
     profilingProxyPassword = configProvider.getString(PROFILING_PROXY_PASSWORD);
+
+    profilingScrubEnabled =
+        configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT);
+    profilingScrubFailOpen =
+        configProvider.getBoolean(PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+    profilingScrubExcludeEvents = configProvider.getList(PROFILING_SCRUB_EXCLUDE_EVENTS);
 
     profilingExceptionSampleLimit =
         configProvider.getInteger(
@@ -3659,6 +3673,18 @@ public class Config {
 
   public String getProfilingProxyPassword() {
     return profilingProxyPassword;
+  }
+
+  public boolean isProfilingScrubEnabled() {
+    return profilingScrubEnabled;
+  }
+
+  public boolean isProfilingScrubFailOpen() {
+    return profilingScrubFailOpen;
+  }
+
+  public List<String> getProfilingScrubExcludeEvents() {
+    return profilingScrubExcludeEvents;
   }
 
   public int getProfilingExceptionSampleLimit() {
