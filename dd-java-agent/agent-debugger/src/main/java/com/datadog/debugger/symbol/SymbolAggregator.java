@@ -286,6 +286,8 @@ public class SymbolAggregator {
     } catch (IOException ex) {
       symDBReport.addIOException(jarPath.toString(), ex);
       LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
+    } catch (Exception ex) {
+      LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
     }
   }
 }

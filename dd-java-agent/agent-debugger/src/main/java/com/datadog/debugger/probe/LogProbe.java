@@ -636,8 +636,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       snapshot.setTraceId(CorrelationIdentifier.getTraceId());
       snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       if (isFullSnapshot()) {
-        snapshot.setEntry(entryContext);
-        snapshot.setExit(exitContext);
+        assignCaptures(snapshot, entryContext, exitContext);
       }
       snapshot.setMessage(message);
       snapshot.setDuration(exitContext.getDuration());
@@ -655,12 +654,51 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     return shouldCommit;
   }
 
+  private void assignCaptures(
+      Snapshot snapshot, CapturedContext entryContext, CapturedContext exitContext) {
+    if (isCaptureSnapshot()) {
+      addContextWithoutCaptureExpressions(entryContext, snapshot::setEntry);
+      addContextWithoutCaptureExpressions(exitContext, snapshot::setExit);
+    } else if (captureExpressions != null) {
+      addFilteredCaptureExpressions(entryContext, snapshot::setEntry);
+      addFilteredCaptureExpressions(exitContext, snapshot::setExit);
+    }
+  }
+
+  private void addContextWithoutCaptureExpressions(
+      CapturedContext context, Consumer<CapturedContext> setContext) {
+    // no capture expressions, assign directly the context in the snapshot
+    if (context.getCaptureExpressions() == null || context.getCaptureExpressions().isEmpty()) {
+      setContext.accept(context);
+      return;
+    }
+    CapturedContext newContext = context.copyWithoutCaptureExpressions();
+    setContext.accept(newContext);
+  }
+
+  private void addFilteredCaptureExpressions(
+      CapturedContext capturedContext, Consumer<CapturedContext> setContext) {
+    Map<String, CapturedContext.CapturedValue> contextCapExpr =
+        capturedContext.getCaptureExpressions();
+    if (contextCapExpr != null && !contextCapExpr.isEmpty()) {
+      CapturedContext newContext = new CapturedContext();
+      for (CaptureExpression capExprDef : captureExpressions) {
+        CapturedContext.CapturedValue capturedValue = contextCapExpr.get(capExprDef.getName());
+        if (capturedValue != null) {
+          newContext.addCaptureExpression(capturedValue);
+        } else {
+          LOGGER.debug("{} capture expression not found in CapturedContext", capExprDef.getName());
+        }
+      }
+      setContext.accept(newContext);
+    }
+  }
+
   private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
     if (captureExpressions == null) {
       return;
     }
     for (CaptureExpression captureExpression : captureExpressions) {
-      LOGGER.debug("processing capture expressions: {}", captureExpression);
       try {
         Value<?> result = captureExpression.expr.execute(context);
         if (result.isUndefined()) {
@@ -672,19 +710,18 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
+            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
+                Value.toCapturedSnapshot(
                     captureExpression.getName(),
-                    Object.class.getTypeName(),
-                    result.getValue(),
+                    result,
                     captureExpression.capture.maxReferenceDepth,
                     captureExpression.capture.maxCollectionSize,
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
-                    captureExpression.getName(), Object.class.getTypeName(), result.getValue()));
+                Value.toCapturedSnapshot(captureExpression.getName(), result));
           }
         }
       } catch (EvaluationException ex) {

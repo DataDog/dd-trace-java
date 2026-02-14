@@ -98,26 +98,26 @@
 **/*Waf*.java                                                   @DataDog/asm-java
 **/*Waf*.groovy                                                 @DataDog/asm-java
 
-# @DataDog/ci-app-libraries-java
-/dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/cucumber-5.4/        @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/selenium/            @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle-testing/      @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/maven                @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/weaver-0.9/          @DataDog/ci-app-libraries-java
-/dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries-java
-/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries-java
-/dd-smoke-tests/maven/                              @DataDog/ci-app-libraries-java
-/internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries-java
-**/civisibility/                                    @DataDog/ci-app-libraries-java
-**/CiVisibility*.java                               @DataDog/ci-app-libraries-java
-**/CiVisibility*.groovy                             @DataDog/ci-app-libraries-java
+# @DataDog/ci-app-libraries
+/dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/cucumber-5.4/        @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/selenium/            @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/gradle/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/gradle-testing/      @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/maven                @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/weaver-0.9/          @DataDog/ci-app-libraries
+/dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries
+/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries
+/dd-smoke-tests/maven/                              @DataDog/ci-app-libraries
+/internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries
+**/civisibility/                                    @DataDog/ci-app-libraries
+**/CiVisibility*.java                               @DataDog/ci-app-libraries
+**/CiVisibility*.groovy                             @DataDog/ci-app-libraries
 
 # @DataDog/debugger-java (Live Debugger)
 /dd-java-agent/agent-debugger/                                  @DataDog/debugger-java

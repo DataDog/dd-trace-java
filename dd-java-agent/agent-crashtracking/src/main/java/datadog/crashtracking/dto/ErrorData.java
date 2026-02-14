@@ -11,7 +11,7 @@ public final class ErrorData {
   public final String message;
 
   @Json(name = "source_type")
-  public final String sourceType = "crashtracking";
+  public final String sourceType = "Crashtracking";
 
   public final StackTrace stack;
 

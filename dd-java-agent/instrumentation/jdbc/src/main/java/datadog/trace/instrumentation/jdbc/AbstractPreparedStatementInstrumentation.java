@@ -103,6 +103,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
+        DECORATE.withBaseHash(span);
 
         return activateSpan(span);
       } catch (SQLException e) {

@@ -22,64 +22,151 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
           submodules: "recursive"
+
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Define branch names
+        id: define-branches
+        run: |
+          DATE=$(date +'%Y%m%d')
+          echo "core_branch=ci/update-gradle-dependencies-${DATE}" >> $GITHUB_OUTPUT
+          echo "instrumentation_branch=ci/update-gradle-dependencies-instrumentation-${DATE}" >> $GITHUB_OUTPUT
+
       - name: Update Gradle dependencies
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           find . -name 'gradle.lockfile' -delete
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          JAVA_25_HOME=$JAVA_HOME_25_X64 \
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
-      - name: Check if changes should be committed
-        id: check-changes
+
+      - name: Save instrumentation lock files
+        run: |
+          mkdir -p /tmp/instrumentation-lockfiles
+          find dd-smoke-tests dd-java-agent/instrumentation -name 'gradle.lockfile' -exec cp --parents {} /tmp/instrumentation-lockfiles/ \;
+          # Restore instrumentation dirs to original state (keep only core changes)
+          git restore -- 'dd-smoke-tests/' 'dd-java-agent/instrumentation/'
+
+      # ==================== Core modules PR ====================
+      - name: Check if core changes exist
+        id: check-core-changes
         run: |
           if [[ -z "$(git status -s)" ]]; then
-            echo "No changes to commit, exiting."
+            echo "No core changes to commit."
             echo "commit_changes=false" >> "$GITHUB_OUTPUT"
-            exit 0
           else
             echo "commit_changes=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Pick a branch name
-        if: steps.check-changes.outputs.commit_changes == 'true'
-        id: define-branch
-        run: echo "branch=ci/update-gradle-dependencies-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-      - name: Commit changes
-        if: steps.check-changes.outputs.commit_changes == 'true'
-        id: create-commit
+
+      - name: Create core commit
+        if: steps.check-core-changes.outputs.commit_changes == 'true'
+        id: create-core-commit
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           git commit -m "chore: Update Gradle dependencies"
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-      - name: Push changes
-        uses: DataDog/commit-headless@583489e08d78037e7fa256c14adf998d5463f6a0 # action/v2.0.2
-        if: steps.check-changes.outputs.commit_changes == 'true'
+
+      - name: Push core changes
+        if: steps.check-core-changes.outputs.commit_changes == 'true'
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
-          branch: "${{ steps.define-branch.outputs.branch }}"
-          # for scheduled runs, sha is the tip of the default branch
-          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          branch: "${{ steps.define-branches.outputs.core_branch }}"
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-commit.outputs.commit }}"
-      - name: Create pull request
-        if: steps.check-changes.outputs.commit_changes == 'true'
+          commits: "${{ steps.create-core-commit.outputs.commit }}"
+
+      - name: Create core pull request
+        if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
-          # use echo to set a multiline body for the PR
-          echo -e "This PR updates the Gradle dependencies. ⚠️ Don't forget to squash commits before merging. ⚠️\n\n- [ ] Update PR title if a code change is needed to support one of those new dependencies" | \
-            gh pr create --title "Update Gradle dependencies" \
+          gh pr create --title "Update Gradle dependencies" \
             --base master \
-            --head ${{ steps.define-branch.outputs.branch }} \
+            --head ${{ steps.define-branches.outputs.core_branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body-file -
+            --body "$(cat <<'EOF'
+          # What Does This Do
+
+          This PR updates the Gradle dependency locks for common and product modules.
+
+          # Motivation
+
+          Refresh Gradle dependencies to make sure to apply the latest version available when bumping dependencies.
+
+          # Contributor Checklist
+
+          - [ ] Update PR title if a code change is needed to support one of those new dependencies
+          EOF
+          )"
+
+      # ==================== Instrumentation PR ====================
+      - name: Reset and apply instrumentation changes
+        run: |
+          git reset --hard ${{ github.sha }}
+          cp -r /tmp/instrumentation-lockfiles/* .
+
+      - name: Check if instrumentation changes exist
+        id: check-instrumentation-changes
+        run: |
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No instrumentation changes to commit."
+            echo "commit_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "commit_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create instrumentation commit
+        if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
+        id: create-instrumentation-commit
+        run: |
+          git add --all
+          git commit -m "chore: Update instrumentation Gradle dependencies"
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Push instrumentation changes
+        if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-instrumentation-commit.outputs.commit }}"
+
+      - name: Create instrumentation pull request
+        if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          gh pr create --title "Update instrumentation Gradle dependencies" \
+            --base master \
+            --head ${{ steps.define-branches.outputs.instrumentation_branch }} \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "$(cat <<'EOF'
+          # What Does This Do
+
+          This PR updates the Gradle dependency locks for instrumentations and their tests.
+
+          # Motivation
+
+          Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
+
+          # Contributor Checklist
+
+          - [ ] Update PR title if a code change is needed to support one of those new dependencies
+          EOF
+          )"
