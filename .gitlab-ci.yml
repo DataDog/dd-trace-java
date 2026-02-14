@@ -4,12 +4,30 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-spring-petclinic.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-insecure-bank.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-dacapo.yml'
+    ref: 'main'
 
 stages:
   - build
   - publish
   - shared-pipeline
   - benchmarks
+  - infrastructure
+  - java-spring-petclinic-tests
+  - java-spring-petclinic-macrobenchmarks
+  - java-startup-microbenchmarks
+  - java-load-microbenchmarks
+  - java-dacapo-microbenchmarks
+  - benchmark-comparison
+  - generate-slos
+  - upload-to-bp-api
   - macrobenchmarks
   - tests
   - test-summary
