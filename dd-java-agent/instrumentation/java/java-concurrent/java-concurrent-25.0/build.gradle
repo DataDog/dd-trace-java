@@ -1,7 +1,22 @@
+plugins {
+  id 'idea'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
     coreJdk('25')
   }
+}
+
+idea {
+  module {
+    jdkName = '25'
+  }
+}
+
+dependencies {
+  // Use latest logback for Java 21+ tests with better virtual thread support.
+  testImplementation(libs.logback.classic.latest)
 }

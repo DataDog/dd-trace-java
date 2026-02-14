@@ -268,19 +268,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
-        newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
-      }
-      // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
-      // because older agents support diagnostics from DD agent 7.49
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
-      } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
-      if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
+      setDebuggerEndpoints(newState, endpoints);
 
       for (String endpoint : dataStreamsEndpoints) {
         if (containsEndpoint(endpoints, endpoint)) {
@@ -333,6 +321,26 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  private static void setDebuggerEndpoints(State newState, Set<String> endpoints) {
+    // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
+    // because older agents support diagnostics from DD agent 7.49
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerLogEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
   }
 
   private static boolean containsEndpoint(Set<String> endpoints, String endpoint) {

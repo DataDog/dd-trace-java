@@ -35,7 +35,7 @@ spotless {
 
 with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   java {
-    googleJavaFormat("1.33.0")
+    googleJavaFormat("1.34.1")
   }
   kotlin {
     ktlint("1.8.0")
@@ -116,7 +116,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.java", "app*/**/*.java")
           targetExclude(commonExcludes)
-          googleJavaFormat("1.33.0")
+          googleJavaFormat("1.34.1")
         }
       }
 
@@ -199,8 +199,8 @@ nexusPublishing {
       // For testing, use with https://hub.docker.com/r/sonatype/nexus
       // $ docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus:oss
       // $ ./gradlew publishToLocal -PforceLocal=true
-      // Doesn"t work for testing releases though... (due to staging),
-      // however, it"s possible to explore http://localhost:8081/nexus/
+      // Doesn't work for testing releases though... (due to staging),
+      // however, it's possible to explore http://localhost:8081/nexus/
       register("local") {
         nexusUrl = uri("http://localhost:8081/nexus/content/repositories/releases/")
         snapshotRepositoryUrl = uri("http://localhost:8081/nexus/content/repositories/snapshots/")

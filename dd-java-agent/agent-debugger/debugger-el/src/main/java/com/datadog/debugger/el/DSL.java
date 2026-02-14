@@ -127,11 +127,11 @@ public class DSL {
   }
 
   public static Literal<Boolean> value(boolean value) {
-    return new BooleanValue(value);
+    return new BooleanValue(value, ValueType.BOOLEAN);
   }
 
   public static Literal<Number> value(Number value) {
-    return new NumericValue(value);
+    return new NumericValue(value, ValueType.OBJECT);
   }
 
   public static Literal<String> value(String value) {

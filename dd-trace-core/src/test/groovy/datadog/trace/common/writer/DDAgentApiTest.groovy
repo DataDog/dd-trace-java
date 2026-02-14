@@ -79,6 +79,29 @@ class DDAgentApiTest extends DDCoreSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
+  def "response body propagated in case of non-200 response"() {
+    setup:
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(400).send("Test error")
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    Payload payload = prepareTraces("v0.4/traces", [])
+
+    expect:
+    def clientResponse = client.sendSerializedTraces(payload)
+    !clientResponse.success()
+    clientResponse.status().present
+    clientResponse.status().asInt == 400
+    clientResponse.response == "Test error"
+
+    cleanup:
+    agent.close()
+  }
+
   def "non-200 response"() {
     setup:
     def agent = httpServer {
