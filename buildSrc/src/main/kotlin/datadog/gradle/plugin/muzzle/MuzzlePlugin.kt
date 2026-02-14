@@ -120,17 +120,20 @@ class MuzzlePlugin : Plugin<Project> {
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
+      val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
 
       project.extensions.getByType<MuzzleExtension>().directives.forEach { directive ->
         project.logger.debug("configuring {}", directive)
 
         if (directive.isCoreJdk) {
           runAfter = addMuzzleTask(directive, null, project, runAfter, muzzleBootstrap, muzzleTooling)
+          muzzleReportTasks.add(runAfter)
         } else {
           val range = resolveVersionRange(directive, system, session)
 
           muzzleDirectiveToArtifacts(directive, range).forEach {
             runAfter = addMuzzleTask(directive, it, project, runAfter, muzzleBootstrap, muzzleTooling)
+            muzzleReportTasks.add(runAfter)
           }
 
           if (directive.assertInverse) {
@@ -139,6 +142,7 @@ class MuzzlePlugin : Plugin<Project> {
 
               muzzleDirectiveToArtifacts(inverseDirective, inverseRange).forEach {
                 runAfter = addMuzzleTask(inverseDirective, it, project, runAfter, muzzleBootstrap, muzzleTooling)
+                muzzleReportTasks.add(runAfter)
               }
             }
           }
@@ -146,8 +150,13 @@ class MuzzlePlugin : Plugin<Project> {
         project.logger.info("configured $directive")
       }
 
+      if (muzzleReportTasks.isEmpty() && !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
+        muzzleReportTasks.add(muzzleTask)
+      }
+
       val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
         startTimeMs.set(startTime)
+        muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
       }
       // last muzzle task to run
       runAfter.configure {

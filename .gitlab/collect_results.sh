@@ -67,15 +67,17 @@ do
   # E.g. for the example path: tomcat-5.5_forkedTest_TEST-TomcatServletV1ForkedTest.xml
   AGGREGATED_FILE_NAME=$(echo "$RESULT_XML_FILE" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   echo -n " as $AGGREGATED_FILE_NAME"
-  cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  TARGET_DIR="$TEST_RESULTS_DIR"
+  mkdir -p "$TARGET_DIR"
+  cp "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
   get_source_file
-  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  if cmp -s "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"; then
+  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  if cmp -s "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"; then
     echo ""
   else
     echo -n " (non-stable test names detected)"
