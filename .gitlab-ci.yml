@@ -41,6 +41,9 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+  BENCHMARKS:
+    description: "Enable benchmarks"
+    value: "false"
 
 # trigger new commit cancel
 workflow:
