@@ -152,7 +152,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
     @Override
     String getTraceEndpoint() {
-      return V4_ENDPOINT
+      return V04_ENDPOINT
     }
 
     @Override
