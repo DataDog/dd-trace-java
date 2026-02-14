@@ -90,7 +90,7 @@ class MuzzleEndTaskTest {
     assertNotNull(failedTestCase)
     val failureNode = failedTestCase.getElementsByTagName("failure").item(0) as Element
     assertEquals("Muzzle validation failed", failureNode.getAttribute("message"))
-    assertEquals("java.lang.IllegalStateException: broken helper", failureNode.textContent)
+    assertEquals("java.lang.IllegalStateException: something is broken", failureNode.textContent)
   }
 
   @Test
