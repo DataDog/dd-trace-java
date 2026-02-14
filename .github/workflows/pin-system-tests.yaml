@@ -7,11 +7,11 @@ on:
         description: 'The minor release branch name (e.g. release/v1.54.x)'
         required: true
         type: string
-  # run workflow when any branch is created
-  create:
+  repository_dispatch:
+    types: [pin-system-tests]
 
 jobs:
-  # TODO: Remove this job after confirming the github.ref when a release branch is created
+  # TODO: Remove this job after confirming the workflow succeeds for release branches
   print-github-ref:
     name: "Print full github.ref"
     runs-on: ubuntu-latest
@@ -22,7 +22,6 @@ jobs:
 
   pin-system-tests:
     name: "Pin system tests"
-    if: github.event_name != 'create' || contains(github.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,31 +33,35 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
 
-      - name: Define base branch
+      - name: Define base release branch
         id: define-base-branch
         run: |
           if [[ -n "${{ github.event.inputs.release-branch-name }}" ]]; then
             BASE_BRANCH=${{ github.event.inputs.release-branch-name }}
           else
-            BASE_BRANCH=${GITHUB_REF#refs/heads/}
+            BASE_BRANCH="${{ github.event.client_payload.release-branch-name }}"
+          fi
+          if [[ -z "$BASE_BRANCH" ]]; then
+            echo "ERROR: Could not determine release branch"
+            exit 1
           fi
           echo "base_branch=${BASE_BRANCH}" >> $GITHUB_OUTPUT
       
-      - name: Checkout the repository
+      - name: Checkout the dd-trace-java repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.define-base-branch.outputs.base_branch }}
       
-      - name: Get latest commit SHA of base branch
+      - name: Get latest commit SHA of base release branch
         id: get-latest-commit-sha
         run: |
           echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Define branch name
+      - name: Define pin-system-tests branch name
         id: define-branch
         run: echo "branch=ci/pin-system-tests-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
-      - name: Check if branch already exists
+      - name: Check if pin-system-tests branch already exists
         id: check-branch
         run: |
           BRANCH=${{ steps.define-branch.outputs.branch }}
