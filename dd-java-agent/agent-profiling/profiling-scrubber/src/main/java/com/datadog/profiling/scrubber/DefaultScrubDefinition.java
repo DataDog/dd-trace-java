@@ -1,8 +1,5 @@
 package com.datadog.profiling.scrubber;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS;
-
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,17 +33,14 @@ public final class DefaultScrubDefinition {
 
   /**
    * Creates a scrub definition function that maps event type names to their scrub field
-   * definitions. Event types listed in the {@link
-   * datadog.trace.api.config.ProfilingConfig#PROFILING_SCRUB_EXCLUDE_EVENTS} configuration are
-   * excluded from scrubbing.
+   * definitions.
    *
-   * @param configProvider the configuration provider
+   * @param excludeEventTypes list of event type names to exclude from scrubbing, or null for none
    * @return a function mapping event type names to scrub field definitions
    */
-  public static Function<String, JfrScrubber.ScrubField> create(ConfigProvider configProvider) {
-    List<String> excludeList = configProvider.getList(PROFILING_SCRUB_EXCLUDE_EVENTS);
+  public static Function<String, JfrScrubber.ScrubField> create(List<String> excludeEventTypes) {
     Set<String> excludeSet =
-        excludeList != null ? new HashSet<>(excludeList) : Collections.<String>emptySet();
+        excludeEventTypes != null ? new HashSet<>(excludeEventTypes) : Collections.<String>emptySet();
 
     return eventTypeName -> {
       if (excludeSet.contains(eventTypeName)) {

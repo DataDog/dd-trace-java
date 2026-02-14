@@ -9,7 +9,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMP_DIR;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
@@ -40,6 +39,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -155,12 +155,19 @@ public class ProfilingAgent {
               };
         }
         if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)) {
-          JfrScrubber scrubber = new JfrScrubber(DefaultScrubDefinition.create(configProvider));
+          // Read config values and pass as parameters to scrubber
+          List<String> excludeEventTypes =
+              configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
           Path tempDir =
-              Paths.get(configProvider.getString(PROFILING_TEMP_DIR, PROFILING_TEMP_DIR_DEFAULT));
+              Paths.get(
+                  configProvider.getString(
+                      PROFILING_TEMP_DIR, System.getProperty("java.io.tmpdir")));
           boolean failOpen =
               configProvider.getBoolean(
                   PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+
+          // Create scrubber with config-free scrub definition
+          JfrScrubber scrubber = new JfrScrubber(DefaultScrubDefinition.create(excludeEventTypes));
           listener = new ScrubRecordingDataListener(listener, scrubber, tempDir, failOpen);
         }
 

@@ -37,6 +37,10 @@ if (hasProperty('agentPath')) {
         buildArgs.add("-J-Dnet.bytebuddy.safe=false")
         if (withProfiler && property('profiler') == 'true') {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
+          // Disable exception profiling during native-image build to avoid class initialization cascade
+          buildArgs.add("-J-Ddd.profiling.disabled.events=datadog.ExceptionSample")
+          // Trace to see what's still triggering the cascade
+          buildArgs.add("--trace-class-initialization=datadog.trace.bootstrap.CallDepthThreadLocalMap")
         }
         jvmArgs.add("-Xmx8192M")
       }

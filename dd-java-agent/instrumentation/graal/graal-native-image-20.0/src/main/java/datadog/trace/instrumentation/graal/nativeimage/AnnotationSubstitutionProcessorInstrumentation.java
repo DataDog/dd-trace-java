@@ -36,24 +36,8 @@ public final class AnnotationSubstitutionProcessorInstrumentation
       result.add(Target_datadog_jctools_util_UnsafeRefArrayAccess.class);
 
       // Only register JMXFetch substitutions if JMXFetch is actually present on the classpath.
-      //
-      // NOTE: It's unclear why these substitutions get triggered during native-image compilation
-      // when JMXFetch classes are not available. In theory, either:
-      // 1) The substitutions should not be triggered at all (JMXFetch not in use), OR
-      // 2) JMXFetch classes should be available (if JMXFetch is in use)
-      //
-      // However, in practice, adding profiling-scrubber to the agent triggers native-image to
-      // discover these substitutions even when building applications that don't use JMXFetch,
-      // causing "Substitution target not loaded" errors.
-      //
-      // This runtime check works around the issue for GraalVM 20.0 (which lacks the `onlyWith`
-      // field in @TargetClass). For GraalVM 21+, the proper fix would be adding:
-      //   @TargetClass(className = "org.datadog.jmxfetch.App", onlyWith = JmxFetchPresent.class)
-      //
-      // IMPORTANT: We must load these classes reflectively (not using .class literals) to prevent
+      // We must load these classes reflectively (not using .class literals) to prevent
       // them from being discovered by GraalVM's annotation processor when JMXFetch is not present.
-      // Using .class literals causes eager loading, making @TargetClass annotations visible even
-      // if we don't add them to the result list.
       if (isJmxFetchPresent()) {
         try {
           ClassLoader cl = FindTargetClassesAdvice.class.getClassLoader();
