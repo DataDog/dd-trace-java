@@ -2,8 +2,13 @@ package com.datadog.profiling.agent;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMP_DIR;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
@@ -14,6 +19,8 @@ import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
+import com.datadog.profiling.scrubber.DefaultScrubDefinition;
+import com.datadog.profiling.scrubber.JfrScrubber;
 import com.datadog.profiling.uploader.ProfileUploader;
 import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
@@ -32,6 +39,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -137,6 +145,32 @@ public class ProfilingAgent {
 
         uploader = new ProfileUploader(config, configProvider);
 
+        RecordingDataListener listener = uploader::upload;
+        if (dumper != null) {
+          RecordingDataListener upload = listener;
+          listener =
+              (type, data, sync) -> {
+                dumper.onNewData(type, data, sync);
+                upload.onNewData(type, data, sync);
+              };
+        }
+        if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)) {
+          // Read config values and pass as parameters to scrubber
+          List<String> excludeEventTypes =
+              configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
+          Path tempDir =
+              Paths.get(
+                  configProvider.getString(
+                      PROFILING_TEMP_DIR, System.getProperty("java.io.tmpdir")));
+          boolean failOpen =
+              configProvider.getBoolean(
+                  PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+
+          // Create scrubber with config-free scrub definition
+          JfrScrubber scrubber = new JfrScrubber(DefaultScrubDefinition.create(excludeEventTypes));
+          listener = new ScrubRecordingDataListener(listener, scrubber, tempDir, failOpen);
+        }
+
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
 
@@ -149,12 +183,7 @@ public class ProfilingAgent {
                 configProvider,
                 controller,
                 context.snapshot(),
-                dumper == null
-                    ? uploader::upload
-                    : (type, data, sync) -> {
-                      dumper.onNewData(type, data, sync);
-                      uploader.upload(type, data, sync);
-                    },
+                listener,
                 startupDelay,
                 startupDelayRandomRange,
                 uploadPeriod,

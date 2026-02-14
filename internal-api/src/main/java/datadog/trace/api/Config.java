@@ -482,6 +482,11 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
@@ -977,6 +982,9 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingUploadSummaryOn413Enabled;
   private final boolean profilingRecordExceptionMessage;
+  private final boolean profilingScrubEnabled;
+  private final boolean profilingScrubFailOpen;
+  private final String profilingScrubExcludeEvents;
 
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
@@ -2156,6 +2164,12 @@ public class Config {
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, PROFILING_UPLOAD_SUMMARY_ON_413_DEFAULT);
+
+    profilingScrubEnabled =
+        configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT);
+    profilingScrubFailOpen =
+        configProvider.getBoolean(PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+    profilingScrubExcludeEvents = configProvider.getString(PROFILING_SCRUB_EXCLUDE_EVENTS);
 
     crashTrackingAgentless =
         configProvider.getBoolean(CRASH_TRACKING_AGENTLESS, CRASH_TRACKING_AGENTLESS_DEFAULT);
@@ -3667,6 +3681,18 @@ public class Config {
 
   public int getProfilingDirectAllocationSampleLimit() {
     return profilingDirectAllocationSampleLimit;
+  }
+
+  public boolean isProfilingScrubEnabled() {
+    return profilingScrubEnabled;
+  }
+
+  public boolean isProfilingScrubFailOpen() {
+    return profilingScrubFailOpen;
+  }
+
+  public String getProfilingScrubExcludeEvents() {
+    return profilingScrubExcludeEvents;
   }
 
   public int getProfilingBackPressureSampleLimit() {

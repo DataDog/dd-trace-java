@@ -226,8 +226,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         "JFR Repository Base",
         configProvider.getString(
             ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
-            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT),
-        ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
+            System.getProperty("java.io.tmpdir") + "/dd/jfr"),
+        System.getProperty("java.io.tmpdir") + "/dd/jfr");
     appendConfig(
         sb,
         "JFR Repository Max Size",
@@ -504,8 +504,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         sb,
         "Temp Directory",
         configProvider.getString(
-            ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT),
-        ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT);
+            ProfilingConfig.PROFILING_TEMP_DIR, System.getProperty("java.io.tmpdir")),
+        System.getProperty("java.io.tmpdir"));
     appendConfig(
         sb,
         "Debug Dump Path",

@@ -13,16 +13,19 @@ excludedClassesCoverage += [
   'com.datadog.profiling.agent.ProfilingAgent',
   'com.datadog.profiling.agent.ProfilingAgent.ShutdownHook',
   'com.datadog.profiling.agent.ProfilingAgent.DataDumper',
-  'com.datadog.profiling.agent.ProfilerFlare'
+  'com.datadog.profiling.agent.ProfilerFlare',
+  'com.datadog.profiling.agent.ScrubRecordingDataListener',
+  'com.datadog.profiling.agent.ScrubRecordingDataListener.ScrubbedRecordingData'
 ]
 
 dependencies {
   api libs.slf4j
-  api project(':internal-api')
+  implementation project(':internal-api')
 
   api project(':dd-java-agent:agent-profiling:profiling-ddprof')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation project(':dd-java-agent:agent-profiling:profiling-scrubber')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr:implementation')
   api project(':dd-java-agent:agent-profiling:profiling-controller-ddprof')

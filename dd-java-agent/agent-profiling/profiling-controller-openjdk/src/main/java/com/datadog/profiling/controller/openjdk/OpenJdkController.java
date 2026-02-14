@@ -272,11 +272,11 @@ public final class OpenJdkController implements Controller {
   }
 
   private static String getJfrRepositoryBase(ConfigProvider configProvider) {
+    String jfrRepoDefault = System.getProperty("java.io.tmpdir") + "/dd/jfr";
     String legacy =
         configProvider.getString(
-            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,
-            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT);
-    if (!legacy.equals(ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE_DEFAULT)) {
+            ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE, jfrRepoDefault);
+    if (!legacy.equals(jfrRepoDefault)) {
       log.warn(
           "The configuration key {} is deprecated. Please use {} instead.",
           ProfilingConfig.PROFILING_JFR_REPOSITORY_BASE,

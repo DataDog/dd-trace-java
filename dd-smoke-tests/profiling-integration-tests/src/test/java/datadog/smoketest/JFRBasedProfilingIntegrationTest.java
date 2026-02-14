@@ -867,7 +867,8 @@ class JFRBasedProfilingIntegrationTest {
       final String withCompression,
       final int exitDelay,
       final Path logFilePath,
-      final boolean tracingEnabled) {
+      final boolean tracingEnabled,
+      final String... extraProperties) {
     final String templateOverride =
         JFRBasedProfilingIntegrationTest.class
             .getClassLoader()
@@ -906,6 +907,9 @@ class JFRBasedProfilingIntegrationTest {
       command.add("-Ddd.profiling.context.attributes=foo,bar");
     }
     command.add("-Ddd.profiling.debug.upload.compression=" + withCompression);
+    for (String extra : extraProperties) {
+      command.add(extra);
+    }
     command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug");
     command.add("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug");
     command.add("-XX:+IgnoreUnrecognizedVMOptions");
@@ -968,5 +972,96 @@ class JFRBasedProfilingIntegrationTest {
 
   public static boolean isJavaVersionAtLeast24() {
     return JavaVirtualMachine.isJavaVersionAtLeast(24);
+  }
+
+  @Test
+  @DisplayName("Test JFR scrubbing")
+  void testJfrScrubbing(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> {
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        profilingServer.getPort(),
+                        tracingServer.getPort(),
+                        VALID_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        ENDPOINT_COLLECTION_ENABLED,
+                        true,
+                        "on",
+                        0,
+                        logFilePath,
+                        true,
+                        "-Ddd.profiling.scrub.enabled=true")
+                    .start();
+
+            Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+
+            final RecordedRequest request = retrieveRequest();
+            assertNotNull(request);
+
+            final List<FileItem> items =
+                FileUpload.parse(
+                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+
+            FileItem rawJfr = items.get(1);
+            assertEquals("main.jfr", rawJfr.getName());
+
+            assertFalse(logHasErrors(logFilePath));
+            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+            eventStream = decompressStream("on", eventStream);
+            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+            assertTrue(events.hasItems());
+
+            // Verify that system properties are scrubbed
+            IItemCollection systemPropertyEvents =
+                events.apply(ItemFilters.type(JdkTypeIDs.SYSTEM_PROPERTIES));
+            if (systemPropertyEvents.hasItems()) {
+              IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
+              for (IItemIterable event : systemPropertyEvents) {
+                IMemberAccessor<String, IItem> valueAccessor =
+                    valueAttr.getAccessor(event.getType());
+                for (IItem item : event) {
+                  String value = valueAccessor.getMember(item);
+                  if (value != null && !value.isEmpty()) {
+                    // Scrubbed values should contain only 'x' characters
+                    assertTrue(
+                        value.chars().allMatch(c -> c == 'x'),
+                        "System property value should be scrubbed: " + value);
+                  }
+                }
+              }
+            }
+
+            // Verify that JVM arguments are scrubbed
+            IItemCollection jvmInfoEvents = events.apply(ItemFilters.type("jdk.JVMInformation"));
+            if (jvmInfoEvents.hasItems()) {
+              IAttribute<String> jvmArgsAttr =
+                  attr("jvmArguments", "jvmArguments", "jvmArguments", PLAIN_TEXT);
+              for (IItemIterable event : jvmInfoEvents) {
+                IMemberAccessor<String, IItem> jvmArgsAccessor =
+                    jvmArgsAttr.getAccessor(event.getType());
+                for (IItem item : event) {
+                  String jvmArgs = jvmArgsAccessor.getMember(item);
+                  if (jvmArgs != null && !jvmArgs.isEmpty()) {
+                    // Scrubbed values should contain only 'x' characters
+                    assertTrue(
+                        jvmArgs.chars().allMatch(c -> c == 'x'),
+                        "JVM arguments should be scrubbed: " + jvmArgs);
+                  }
+                }
+              }
+            }
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+            }
+            targetProcess = null;
+          }
+        },
+        testInfo,
+        3);
   }
 }
