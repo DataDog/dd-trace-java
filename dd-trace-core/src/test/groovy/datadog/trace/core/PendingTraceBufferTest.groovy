@@ -605,7 +605,7 @@ class PendingTraceBufferTest extends DDSpecification {
     return DDSpan.create("test", 0, context, null)
   }
 
-  def buildAndExtractZip() {
+  static buildAndExtractZip() {
     TracerFlare.prepareForFlare()
     def out = new ByteArrayOutputStream()
     try (ZipOutputStream zip = new ZipOutputStream(out)) {
