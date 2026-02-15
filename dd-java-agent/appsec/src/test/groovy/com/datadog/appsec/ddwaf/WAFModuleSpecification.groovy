@@ -145,10 +145,12 @@ class WAFModuleSpecification extends DDSpecification {
     ConfigKey config = new ParsedConfigKey(configKey, 'null', 1, 'null', 'null')
     if(map == null) {
       listener.remove(config, null)
-      return
+    } else {
+      def json = ADAPTER.toJson(map)
+      listener.accept(config, json.getBytes(), null)
     }
-    def json = ADAPTER.toJson(map)
-    listener.accept(config, json.getBytes(), null)
+    // Trigger commit to execute deferred operations
+    listener.commit(null)
   }
 
 
