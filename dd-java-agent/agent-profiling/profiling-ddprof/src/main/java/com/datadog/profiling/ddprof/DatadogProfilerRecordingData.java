@@ -23,7 +23,7 @@ final class DatadogProfilerRecordingData extends RecordingData {
   }
 
   @Override
-  public void release() {
+  protected void doRelease() {
     try {
       Files.deleteIfExists(recordingFile);
     } catch (IOException e) {
@@ -35,5 +35,10 @@ final class DatadogProfilerRecordingData extends RecordingData {
   @Override
   public String getName() {
     return "ddprof";
+  }
+
+  @Override
+  public Path getFile() {
+    return recordingFile;
   }
 }
