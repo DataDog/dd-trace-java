@@ -8,29 +8,34 @@ import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDe
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 
 public class HelperMethods {
-  public static AgentScope doMethodEnter(final HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
+  public static AgentScope doMethodEnter(
+      final ContextStore<ClassicHttpRequest, Boolean> contextStore,
+      final ClassicHttpRequest request) {
+    if (Boolean.TRUE.equals(contextStore.get(request))) {
       return null;
     }
-
+    contextStore.put(request, Boolean.TRUE);
     return activateHttpSpan(request);
   }
 
-  public static AgentScope doMethodEnter(HttpHost host, HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
+  public static AgentScope doMethodEnter(
+      final ContextStore<ClassicHttpRequest, Boolean> contextStore,
+      HttpHost host,
+      ClassicHttpRequest request) {
+    if (Boolean.TRUE.equals(contextStore.get(request))) {
       return null;
     }
-
+    contextStore.put(request, Boolean.TRUE);
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
   }
 
@@ -51,7 +56,11 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-      final AgentScope scope, final Object result, final Throwable throwable) {
+      final ContextStore<ClassicHttpRequest, Boolean> contextStore,
+      final AgentScope scope,
+      final ClassicHttpRequest request,
+      final Object result,
+      final Throwable throwable) {
     if (scope == null) {
       return;
     }
@@ -66,7 +75,7 @@ public class HelperMethods {
     } finally {
       scope.close();
       span.finish();
-      CallDepthThreadLocalMap.reset(HttpClient.class);
+      contextStore.remove(request);
     }
   }
 

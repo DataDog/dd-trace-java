@@ -10,7 +10,10 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -69,6 +72,12 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.apache.hc.core5.http.ClassicHttpRequest", Boolean.class.getName());
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -117,7 +126,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
       try {
-        return HelperMethods.doMethodEnter(request);
+        return HelperMethods.doMethodEnter(
+            InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), request);
       } catch (BlockingException e) {
         HelperMethods.onBlockingRequest();
         // re-throw blocking exceptions
@@ -127,10 +137,16 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(0) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          scope,
+          request,
+          result,
+          throwable);
     }
   }
 
@@ -140,7 +156,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
       try {
-        return HelperMethods.doMethodEnter(host, request);
+        return HelperMethods.doMethodEnter(
+            InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
       } catch (BlockingException e) {
         HelperMethods.onBlockingRequest();
         // re-throw blocking exceptions
@@ -150,10 +167,16 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(1) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          scope,
+          request,
+          result,
+          throwable);
     }
   }
 
@@ -171,7 +194,9 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 readOnly = false)
             Object handler) {
       try {
-        final AgentScope scope = HelperMethods.doMethodEnter(host, request);
+        final AgentScope scope =
+            HelperMethods.doMethodEnter(
+                InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
         // Wrap the handler so we capture the status code
         if (null != scope && handler instanceof HttpClientResponseHandler) {
           handler =
@@ -188,10 +213,16 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(1) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          scope,
+          request,
+          result,
+          throwable);
     }
   }
 }

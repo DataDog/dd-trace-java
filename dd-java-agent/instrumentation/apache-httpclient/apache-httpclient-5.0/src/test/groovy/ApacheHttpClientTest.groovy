@@ -1,20 +1,19 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
+import java.util.concurrent.TimeUnit
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse
 import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager
+import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.http.HttpRequest
-import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicHeader
 import org.apache.hc.core5.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
-
-import java.util.concurrent.TimeUnit
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
@@ -86,6 +85,34 @@ class ApacheClientHostRequest extends ApacheHttpClientTest<ClassicHttpRequest> {
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  def "test nested calls in interceptors are traced"() {
+    given:
+    def uri = new URI("http://localhost:${server.address.port}/success")
+    def testClient = HttpClients.custom()
+      .setConnectionManager(new BasicHttpClientConnectionManager())
+      .setDefaultRequestConfig(RequestConfig.custom()
+      .setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .build())
+      .addRequestInterceptorLast {request, details, context ->
+        doRequest("GET", uri)
+      }.build()
+    when:
+    def response = testClient.execute(new HttpHost(uri.scheme, uri.host, uri.port), createRequest("GET", uri))
+
+    then:
+    assert response.getCode() == 200
+    assertTraces(3) {
+      trace(size(2)) {
+        clientSpan(it, null)
+        clientSpan(it, span(0))
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).first())
+    }
+    cleanup:
+    response?.close()
   }
 }
 
@@ -214,4 +241,3 @@ class ApacheClientResponseHandlerAllV0Test extends ApacheClientResponseHandlerAl
 @Timeout(5)
 class ApacheClientResponseHandlerAllV1ForkedTest extends ApacheClientResponseHandlerAll implements TestingGenericHttpNamingConventions.ClientV1 {
 }
-
