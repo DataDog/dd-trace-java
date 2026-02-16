@@ -1,5 +1,9 @@
 package datadog.opentelemetry.shim.metrics;
 
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Stream.concat;
+
 import datadog.opentelemetry.shim.OtelInstrumentationScope;
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor;
@@ -11,10 +15,13 @@ import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableMeasurement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
@@ -34,6 +41,8 @@ final class OtelMeter implements Meter {
 
   private final Map<OtelInstrumentDescriptor, OtelMetricStorage> storage =
       new ConcurrentHashMap<>();
+
+  private final List<OtelObservableCallback> observables = new ArrayList<>();
 
   OtelMeter(OtelInstrumentationScope instrumentationScope) {
     this.instrumentationScope = instrumentationScope;
@@ -76,8 +85,12 @@ final class OtelMeter implements Meter {
       Runnable callback,
       ObservableMeasurement observableMeasurement,
       ObservableMeasurement... additionalMeasurements) {
-    // FIXME: implement callback
-    return NOOP_METER.batchCallback(callback, observableMeasurement, additionalMeasurements);
+    return registerObservableCallback(
+        callback,
+        concat(Stream.of(observableMeasurement), Stream.of(additionalMeasurements))
+            .filter(OtelObservableMeasurement.class::isInstance)
+            .map(OtelObservableMeasurement.class::cast)
+            .collect(toList()));
   }
 
   @Override
@@ -86,12 +99,44 @@ final class OtelMeter implements Meter {
   }
 
   OtelMetricStorage registerStorage(
-      OtelInstrumentDescriptor descriptor,
+      OtelInstrumentBuilder builder,
       Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return storage.computeIfAbsent(descriptor, storageFactory);
+    return storage.computeIfAbsent(builder.descriptor(), storageFactory);
+  }
+
+  OtelObservableMeasurement registerObservableStorage(
+      OtelInstrumentBuilder builder,
+      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+    return new OtelObservableMeasurement(
+        storage.computeIfAbsent(builder.observableDescriptor(), storageFactory));
+  }
+
+  OtelObservableCallback registerObservableCallback(
+      Runnable callback, OtelObservableMeasurement measurement) {
+    return registerObservableCallback(callback, singletonList(measurement));
+  }
+
+  OtelObservableCallback registerObservableCallback(
+      Runnable callback, List<OtelObservableMeasurement> measurements) {
+    OtelObservableCallback observable = new OtelObservableCallback(this, callback, measurements);
+    synchronized (observables) {
+      observables.add(observable);
+    }
+    return observable;
+  }
+
+  boolean unregisterObservableCallback(OtelObservableCallback observable) {
+    synchronized (observables) {
+      return observables.remove(observable);
+    }
   }
 
   void collect(OtelMeterVisitor visitor) {
+    List<OtelObservableCallback> observablesCopy;
+    synchronized (observables) {
+      observablesCopy = new ArrayList<>(observables);
+    }
+    observablesCopy.forEach(OtelObservableCallback::observeMeasurements);
     storage.forEach((descriptor, storage) -> storage.collect(visitor.visitInstrument(descriptor)));
   }
 

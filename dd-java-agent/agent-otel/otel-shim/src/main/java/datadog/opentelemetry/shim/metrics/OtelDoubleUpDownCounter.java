@@ -2,8 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
@@ -60,23 +58,20 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
     @Override
     public DoubleUpDownCounter build() {
       return new OtelDoubleUpDownCounter(
-          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newDoubleSumStorage));
+          meter.registerStorage(builder, OtelMetricStorage::newDoubleSumStorage));
+    }
+
+    @Override
+    public ObservableDoubleMeasurement buildObserver() {
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleSumStorage);
     }
 
     @Override
     public ObservableDoubleUpDownCounter buildWithCallback(
         Consumer<ObservableDoubleMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER
-          .upDownCounterBuilder(NOOP_INSTRUMENT_NAME)
-          .ofDoubles()
-          .buildWithCallback(callback);
-    }
-
-    @Override
-    public ObservableDoubleMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME).ofDoubles().buildObserver();
+      ObservableDoubleMeasurement measurement = buildObserver();
+      Runnable runnable = () -> callback.accept(measurement);
+      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
     }
   }
 }

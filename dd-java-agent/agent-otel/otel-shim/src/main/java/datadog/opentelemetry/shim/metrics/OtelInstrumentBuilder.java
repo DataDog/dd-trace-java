@@ -75,4 +75,26 @@ final class OtelInstrumentBuilder {
     return new OtelInstrumentDescriptor(
         instrumentName, instrumentType, longValues, description, unit);
   }
+
+  OtelInstrumentDescriptor observableDescriptor() {
+    return new OtelInstrumentDescriptor(
+        instrumentName, observableType(instrumentType), longValues, description, unit);
+  }
+
+  /**
+   * Maps the given {@link OtelInstrumentType to its observable equivalent.
+   * @throws IllegalArgumentException if the type has no observable equivalent
+   */
+  private OtelInstrumentType observableType(OtelInstrumentType instrumentType) {
+    switch (instrumentType) {
+      case COUNTER:
+        return OtelInstrumentType.OBSERVABLE_COUNTER;
+      case UP_DOWN_COUNTER:
+        return OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
+      case GAUGE:
+        return OtelInstrumentType.OBSERVABLE_GAUGE;
+      default:
+        throw new IllegalArgumentException(instrumentType + " has no observable equivalent");
+    }
+  }
 }
