@@ -1,9 +1,19 @@
 package datadog.communication.ddagent
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V04_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V05_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V07_CONFIG_ENDPOINT
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
+import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
+
 import datadog.common.container.ContainerInfo
 import datadog.metrics.api.Monitoring
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.Strings
+import java.nio.file.Files
+import java.nio.file.Paths
 import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -14,15 +24,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
 import spock.lang.Shared
-
-import java.nio.file.Files
-import java.nio.file.Paths
-
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V7_CONFIG_ENDPOINT
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -50,20 +51,20 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, v05Enabled, true)
 
     when: "/info available"
     features.discover()
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == expectedTraceEndpoint
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
-    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.getConfigEndpoint() == V07_CONFIG_ENDPOINT
     features.supportsDebugger()
     features.getDebuggerSnapshotEndpoint() == "debugger/v2/input"
     features.supportsDebuggerDiagnostics()
@@ -74,6 +75,11 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsLongRunning()
     !features.supportsTelemetryProxy()
     0 * _
+
+    where:
+    v05Enabled | expectedTraceEndpoint
+    false      | V04_ENDPOINT
+    true       | V05_ENDPOINT
   }
 
   def "Should change discovery state atomically after discovery happened"() {
@@ -114,13 +120,13 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.getDataStreamsEndpoint() == V01_DATASTREAMS_ENDPOINT
     features.supportsDataStreams()
     features.state() == INFO_STATE
-    features.getConfigEndpoint() == V7_CONFIG_ENDPOINT
+    features.getConfigEndpoint() == V07_CONFIG_ENDPOINT
     features.supportsDebugger()
     features.supportsDebuggerDiagnostics()
     features.supportsEvpProxy()
@@ -140,9 +146,9 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.state() == INFO_WITH_CLIENT_DROPPING_STATE
     0 * _
   }
@@ -158,9 +164,9 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITHOUT_DATA_STREAMS_RESPONSE) }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     features.getDataStreamsEndpoint() == null
     !features.supportsDataStreams()
     features.state() == INFO_WITHOUT_DATA_STREAMS_STATE
@@ -197,7 +203,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.3/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -217,7 +223,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == null
     !features.supportsMetrics()
-    features.getTraceEndpoint() == "v0.5/traces"
+    features.getTraceEndpoint() == V05_ENDPOINT
     !features.supportsLongRunning()
     features.state() == PROBE_STATE
     0 * _
@@ -499,7 +505,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
       """
       infoResponse(request, response)
     }
-    features.getMetricsEndpoint() == V6_METRICS_ENDPOINT
+    features.getMetricsEndpoint() == V06_METRICS_ENDPOINT
     features.supportsMetrics() == expected
 
     where:
