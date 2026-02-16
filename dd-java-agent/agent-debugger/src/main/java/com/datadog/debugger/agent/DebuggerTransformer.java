@@ -370,6 +370,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             .where(methodInfo.getClassNode().name, methodInfo.getMethodNode().name)
             .captureSnapshot(false)
             .build();
+    probe.initSamplers();
     probes.add(probe);
   }
 
