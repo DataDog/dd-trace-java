@@ -71,6 +71,7 @@ class MuzzleEndTaskTest {
   fun `junit report contains expected testsuite counters`() {
     val suite = junitDoc.documentElement
     assertEquals("testsuite", suite.tagName)
+    assertEquals(":lettuce-5.0", suite.getAttribute("name"))
     assertEquals("2", suite.getAttribute("tests"))
     assertEquals("1", suite.getAttribute("failures"))
     assertEquals("0", suite.getAttribute("errors"))

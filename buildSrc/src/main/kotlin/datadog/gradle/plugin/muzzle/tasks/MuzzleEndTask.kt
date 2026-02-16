@@ -67,7 +67,7 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
       }
     }
     return MuzzleJUnitReport(
-      suiteName = "muzzle:${project.path}",
+      suiteName = project.path,
       module = project.path,
       className = "muzzle.${project.pathSlug}",
       durationSeconds = seconds,
