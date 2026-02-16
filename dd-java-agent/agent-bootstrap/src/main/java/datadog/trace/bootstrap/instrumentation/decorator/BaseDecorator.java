@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
 import datadog.context.Context;
@@ -22,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 public abstract class BaseDecorator {
+  protected static final int UNSET_PORT = 0;
 
   private static final QualifiedClassNameCache CLASS_NAMES =
       new QualifiedClassNameCache(

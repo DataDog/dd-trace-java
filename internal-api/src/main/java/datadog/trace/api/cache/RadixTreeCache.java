@@ -18,8 +18,6 @@ public final class RadixTreeCache<T> {
       new RadixTreeCache<>(
           16, 32, TO_STRING, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
 
-  public static final int UNSET_PORT = 0;
-
   private final int level1;
   private final int level2;
   private final int shift;
