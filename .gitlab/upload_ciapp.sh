@@ -35,8 +35,12 @@ junit_upload() {
     # Build custom tags array directly from arguments
     local custom_tags_args=()
 
-    # Extract job base name from CI_JOB_NAME (strip matrix suffix)
+    # Extract job base name from CI_JOB_NAME.
+    # Handles:
+    # - matrix suffix format: "job-name: [value, 1/6]" -> "job-name"
+    # - split suffix format: "job-name 1/6" -> "job-name"
     local job_base_name="${CI_JOB_NAME%%:*}"
+    job_base_name="$(echo "$job_base_name" | sed -E 's/[[:space:]]+[0-9]+\/[0-9]+$//')"
 
     # Add custom test configuration tags
     if [ -n "$TEST_JVM" ]; then
