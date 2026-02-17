@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.telemetry.LLMObsMetricCollector
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.api.llmobs.LLMObsSpan
 import datadog.trace.api.llmobs.LLMObsTags
@@ -323,6 +324,30 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+  }
+
+  def "finish records span.finished telemetry when LLMObs enabled"() {
+    setup:
+    LLMObsMetricCollector collector = LLMObsMetricCollector.get()
+    collector.drain()
+    def span = givenALLMObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span")
+
+    when:
+    span.finish()
+    def metrics = collector.drain()
+
+    then:
+    metrics.size() == 1
+
+    and:
+    def m = metrics[0]
+    m.namespace == 'mlobs'
+    m.metricName == 'span.finished'
+    m.type == 'count'
+    m.value == 1
+    m.tags.contains('integration:llmobs')
+    m.tags.contains('span_kind:workflow')
+    m.tags.contains('autoinstrumented:0')
   }
 
   private LLMObsSpan givenALLMObsSpan(String kind, name){
