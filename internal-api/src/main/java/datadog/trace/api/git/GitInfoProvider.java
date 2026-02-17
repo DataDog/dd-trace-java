@@ -47,7 +47,7 @@ public class GitInfoProvider {
   // in the same daemon is unlikely
   private final DDCache<String, GitInfo> gitInfoCache = DDCaches.newFixedSizeCache(4);
 
-  // DQH - The lambda in getGitInfo was a hot allocation point, so 
+  // DQH - The lambda in getGitInfo was a hot allocation point, so
   // pulled the lambda into a member variable to avoid constantly allocating.
   final Function<String, GitInfo> buildGitInfoFn = this::buildGitInfo;
 
