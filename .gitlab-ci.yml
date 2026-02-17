@@ -377,7 +377,7 @@ spotless:
   needs: []
   variables:
     GRADLE_WORKERS: 10
-    GRADLE_MEM_PERCENT: 80
+    GRADLE_MEM_PERCENT: 60
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -743,12 +743,12 @@ test_debugger:
 test_smoke:
   extends: .test_job
   variables:
-    GRADLE_WORKERS: 6
+    GRADLE_WORKERS: 4
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_ssi_smoke:
   extends: .test_job
