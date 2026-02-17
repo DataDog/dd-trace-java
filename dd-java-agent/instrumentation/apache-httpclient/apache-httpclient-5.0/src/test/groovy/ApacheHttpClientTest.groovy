@@ -215,3 +215,55 @@ class ApacheClientResponseHandlerAllV0Test extends ApacheClientResponseHandlerAl
 class ApacheClientResponseHandlerAllV1ForkedTest extends ApacheClientResponseHandlerAll implements TestingGenericHttpNamingConventions.ClientV1 {
 }
 
+/**
+ * Tests that HTTP calls made from within an exec interceptor (or other nested execute() context)
+ * using a different HttpClient instance are instrumented. See
+ * https://github.com/DataDog/dd-trace-java/issues/10383
+ */
+@Timeout(5)
+class ApacheClientNestedExecuteTest extends ApacheHttpClientTest<ClassicHttpRequest> {
+
+  @Override
+  ClassicHttpRequest createRequest(String method, URI uri) {
+    return new BasicClassicHttpRequest(method, uri)
+  }
+
+  @Override
+  CloseableHttpResponse executeRequest(ClassicHttpRequest request, URI uri) {
+    return client.execute(request)
+  }
+
+  def "nested execute from different client (e.g. interceptor token fetch) creates spans for both requests"() {
+    when:
+    def tokenUri = server.address.resolve("/success")
+    def mainUri = server.address.resolve("/success")
+    def innerCode = new int[1]
+    // Use a separate client for the inner request (as in issue: token client in interceptor)
+    def tokenClient = HttpClients.custom()
+      .setConnectionManager(new BasicHttpClientConnectionManager())
+      .setDefaultRequestConfig(RequestConfig.custom()
+      .setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .build()).build()
+    def response = client.execute(new BasicClassicHttpRequest("GET", mainUri), { r ->
+      innerCode[0] = tokenClient.execute(new BasicClassicHttpRequest("GET", tokenUri), { inner -> inner.code })
+      return r
+    })
+    tokenClient.close()
+
+    then:
+    response != null
+    innerCode[0] == 200
+    assertTraces(3) {
+      sortSpansByStart()
+      trace(size(2)) {
+        sortSpansByStart()
+        // Main request starts first, then token request (nested) - order by start time
+        clientSpan(it, null, "GET", false, false, mainUri)
+        clientSpan(it, span(0), "GET", false, false, tokenUri)
+      }
+      server.distributedRequestTrace(it, trace(0)[0])
+      server.distributedRequestTrace(it, trace(0)[1])
+    }
+  }
+}
+
