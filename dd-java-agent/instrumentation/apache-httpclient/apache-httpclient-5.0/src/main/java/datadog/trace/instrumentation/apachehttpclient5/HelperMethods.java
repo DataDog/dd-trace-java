@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectA
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
@@ -17,31 +18,35 @@ import org.apache.hc.core5.http.HttpResponse;
 public class HelperMethods {
 
   public static AgentScope doMethodEnter(
-      final ContextStore<HttpRequest, Integer> depthStore, final HttpRequest request) {
-    int depth = incrementDepth(depthStore, request);
-    if (depth > 1) {
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      final ClassicHttpRequest request) {
+    if (testAndSet(instrumentationMarker, request)) {
       return null;
     }
     return activateHttpSpan(request);
   }
 
   public static AgentScope doMethodEnter(
-      final ContextStore<HttpRequest, Integer> depthStore,
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
       HttpHost host,
-      final HttpRequest request) {
-    int depth = incrementDepth(depthStore, request);
-    if (depth > 1) {
+      final ClassicHttpRequest request) {
+    if (testAndSet(instrumentationMarker, request)) {
       return null;
     }
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
   }
 
-  private static int incrementDepth(
-      final ContextStore<HttpRequest, Integer> depthStore, final HttpRequest request) {
-    Integer depth = depthStore.get(request);
-    depth = depth == null ? 1 : (depth + 1);
-    depthStore.put(request, depth);
-    return depth;
+  // checks current value in context store,
+  // and ensures
+  private static boolean testAndSet(
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      final ClassicHttpRequest request) {
+    Boolean instrumented = instrumentationMarker.get(request);
+    if (instrumented == Boolean.TRUE) {
+      return true;
+    }
+    instrumentationMarker.put(request, Boolean.TRUE);
+    return false;
   }
 
   private static AgentScope activateHttpSpan(final HttpRequest request) {
@@ -61,15 +66,11 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-      final ContextStore<HttpRequest, Integer> depthStore,
-      final HttpRequest request,
-      final AgentScope scope,
-      final Object result,
-      final Throwable throwable) {
+      final AgentScope scope, final Object result, final Throwable throwable) {
+    if (scope == null) {
+      return;
+    }
     try {
-      if (scope == null) {
-        return;
-      }
       final AgentSpan span = scope.span();
       if (result instanceof HttpResponse) {
         DECORATE.onResponse(span, (HttpResponse) result);
@@ -78,24 +79,9 @@ public class HelperMethods {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
     } finally {
-      if (scope != null) {
-        AgentSpan span = scope.span();
-        scope.close();
-        span.finish();
-      }
-      Integer depth = depthStore.get(request);
-      if (depth != null && depth > 0) {
-        depthStore.put(request, depth - 1);
-      }
+      AgentSpan span = scope.span();
+      scope.close();
+      span.finish();
     }
-  }
-
-  /**
-   * Cleans up state when a BlockingException is thrown from methodEnter. Since the exception
-   * unwinds the whole stack, we this request's depth to 0.
-   */
-  public static void onBlockingRequest(
-      final ContextStore<HttpRequest, Integer> depthStore, final HttpRequest request) {
-    depthStore.put(request, 0);
   }
 }

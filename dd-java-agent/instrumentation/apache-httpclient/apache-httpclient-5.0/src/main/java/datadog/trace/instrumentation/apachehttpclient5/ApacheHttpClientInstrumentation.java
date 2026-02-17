@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,7 +19,6 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
@@ -74,7 +72,11 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.apache.hc.core5.http.HttpRequest", "java.lang.Integer");
+    // used to mark when a request has been instrumented.
+    // We don't count depth like we usually do, because sub-requests can be spawned and need to be
+    // traced
+    return Collections.singletonMap(
+        "org.apache.hc.core5.http.ClassicHttpRequest", "java.lang.Boolean");
   }
 
   @Override
@@ -125,15 +127,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(
-            InstrumentationContext.get(HttpRequest.class, Integer.class), request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest(
-            InstrumentationContext.get(HttpRequest.class, Integer.class), request);
-        // re-throw blocking exceptions
-        throw e;
-      }
+      return HelperMethods.doMethodEnter(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), request);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -142,12 +137,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(
-          InstrumentationContext.get(HttpRequest.class, Integer.class),
-          request,
-          scope,
-          result,
-          throwable);
+      HelperMethods.doMethodExit(scope, result, throwable);
     }
   }
 
@@ -156,15 +146,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(
-            InstrumentationContext.get(HttpRequest.class, Integer.class), host, request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest(
-            InstrumentationContext.get(HttpRequest.class, Integer.class), request);
-        // re-throw blocking exceptions
-        throw e;
-      }
+      return HelperMethods.doMethodEnter(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -173,12 +156,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(
-          InstrumentationContext.get(HttpRequest.class, Integer.class),
-          request,
-          scope,
-          result,
-          throwable);
+      HelperMethods.doMethodExit(scope, result, throwable);
     }
   }
 
@@ -195,23 +173,16 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      try {
-        final AgentScope scope =
-            HelperMethods.doMethodEnter(
-                InstrumentationContext.get(HttpRequest.class, Integer.class), host, request);
-        // Wrap the handler so we capture the status code
-        if (null != scope && handler instanceof HttpClientResponseHandler) {
-          handler =
-              new WrappingStatusSettingResponseHandler(
-                  scope.span(), (HttpClientResponseHandler) handler);
-        }
-        return scope;
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest(
-            InstrumentationContext.get(HttpRequest.class, Integer.class), request);
-        // re-throw blocking exceptions
-        throw e;
+      final AgentScope scope =
+          HelperMethods.doMethodEnter(
+              InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
+      // Wrap the handler so we capture the status code
+      if (null != scope && handler instanceof HttpClientResponseHandler) {
+        handler =
+            new WrappingStatusSettingResponseHandler(
+                scope.span(), (HttpClientResponseHandler) handler);
       }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -220,12 +191,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(
-          InstrumentationContext.get(HttpRequest.class, Integer.class),
-          request,
-          scope,
-          result,
-          throwable);
+      HelperMethods.doMethodExit(scope, result, throwable);
     }
   }
 }
