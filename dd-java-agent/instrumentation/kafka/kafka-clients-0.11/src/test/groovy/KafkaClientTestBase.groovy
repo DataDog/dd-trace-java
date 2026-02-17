@@ -1050,6 +1050,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   def "test producer DSM transaction tracking extracts transaction id from headers"() {
     setup:
+    if (!isDataStreamsEnabled()) {
+      return
+    }
+
+    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
+
     // Configure a DSM transaction extractor for KAFKA_PRODUCE_HEADERS
     def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
     extractorsByTypeField.setAccessible(true)
@@ -1087,12 +1093,18 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producedSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-produce-test"
 
     cleanup:
-    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
+    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
     producer?.close()
   }
 
   def "test consumer DSM transaction tracking extracts transaction id from headers"() {
     setup:
+    if (!isDataStreamsEnabled()) {
+      return
+    }
+
+    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
+
     // Configure a DSM transaction extractor for KAFKA_CONSUME_HEADERS
     def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
     extractorsByTypeField.setAccessible(true)
@@ -1151,7 +1163,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     consumerSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-consume-test"
 
     cleanup:
-    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
+    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
     consumer?.close()
     producer?.close()
   }
