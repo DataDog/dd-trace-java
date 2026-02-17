@@ -73,6 +73,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.DoubleConsumer;
 import java.util.stream.Collectors;
 import org.jetbrains.kotlin.com.intellij.util.lang.JavaVersion;
 import org.joor.Reflect;
@@ -1294,6 +1295,35 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
     assertEquals("Cannot dereference field: fld", snapshot.getMessage());
+  }
+
+  @Test
+  public void nullConditionTemplateOnly() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe logProbes =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", "int (java.lang.String)")
+            .when(
+                new ProbeCondition(
+                    DSL.when(
+                        DSL.eq(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("nullTyped"), "fld"), "fld"),
+                                "msg"),
+                            DSL.value("hello"))),
+                    "nullTyped.fld.fld.msg == 'hello'"))
+            .captureSnapshot(false)
+            .template("plain log", Collections.emptyList())
+            .build();
+    TestSnapshotListener listener = installProbes(logProbes);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    assertEquals("Cannot dereference field: fld", snapshot.getMessage());
+    List<EvaluationError> evaluationErrors = snapshot.getEvaluationErrors();
+    assertEquals(1, evaluationErrors.size());
+    assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
+    assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
   }
 
   @Test
@@ -2676,12 +2706,39 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     doSamplingTest(this::lineProbeCondition, 1, 1);
   }
 
+  @Test
+  public void ensureCallingSamplingLogTemplateOnlyConditionError()
+      throws IOException, URISyntaxException {
+    doSamplingTest(this::nullConditionTemplateOnly, ProbeRateLimiter::setGlobalLogRate, 1, 0, 1);
+  }
+
   private void doSamplingTest(TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)
       throws IOException, URISyntaxException {
+    doSamplingTest(
+        testRun,
+        ProbeRateLimiter::setGlobalSnapshotRate,
+        expectedGlobalCount,
+        expectedProbeCount,
+        0);
+  }
+
+  private void doSamplingTest(
+      TestMethod testRun,
+      DoubleConsumer globalRateSetter,
+      int expectedGlobalCount,
+      int expectedProbeCount,
+      int expectedErrorCount)
+      throws IOException, URISyntaxException {
     MockSampler probeSampler = new MockSampler();
+    MockSampler errorSampler = new MockSampler();
     MockSampler globalSampler = new MockSampler();
-    ProbeRateLimiter.setSamplerSupplier(rate -> rate < 101 ? probeSampler : globalSampler);
-    ProbeRateLimiter.setGlobalSnapshotRate(1000);
+    ProbeRateLimiter.setSamplerSupplier(
+        rate -> {
+          if (rate < 2) return errorSampler;
+          if (rate < 101) return probeSampler;
+          return globalSampler;
+        });
+    globalRateSetter.accept(1000);
     try {
       testRun.run();
     } finally {
@@ -2689,6 +2746,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     }
     assertEquals(expectedGlobalCount, globalSampler.getCallCount());
     assertEquals(expectedProbeCount, probeSampler.getCallCount());
+    assertEquals(expectedErrorCount, errorSampler.getCallCount());
   }
 
   @Test
