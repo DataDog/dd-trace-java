@@ -185,7 +185,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
       DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Exception e) {
+              return null;
+            }
+          };
 
   public AgentSpan onRequest(
       final AgentSpan span,
