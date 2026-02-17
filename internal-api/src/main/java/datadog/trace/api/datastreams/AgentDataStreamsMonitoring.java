@@ -4,10 +4,28 @@ import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import java.util.Map;
 
 public interface AgentDataStreamsMonitoring
     extends DataStreamsCheckpointer, DataStreamsTransactionTracker {
   void trackBacklog(DataStreamsTags tags, long value);
+
+  /**
+   * Reports Kafka producer or consumer configuration for Data Streams Monitoring. Each unique
+   * configuration is sent only once.
+   *
+   * @param type the client type, e.g. "kafka_producer" or "kafka_consumer"
+   * @param kafkaClusterId the Kafka cluster identifier, or empty string if not yet known
+   * @param topic the Kafka topic, or empty string if not yet known
+   * @param consumerGroup the consumer group name, or empty string for producers
+   * @param config the configuration key-value pairs
+   */
+  void reportKafkaConfig(
+      String type,
+      String kafkaClusterId,
+      String topic,
+      String consumerGroup,
+      Map<String, String> config);
 
   /**
    * Tracks Schema Registry usage for Data Streams Monitoring.

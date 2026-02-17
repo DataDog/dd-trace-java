@@ -39,7 +39,11 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaDecorator"};
+    return new String[] {
+      packageName + ".KafkaDecorator",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+    };
   }
 
   @Override

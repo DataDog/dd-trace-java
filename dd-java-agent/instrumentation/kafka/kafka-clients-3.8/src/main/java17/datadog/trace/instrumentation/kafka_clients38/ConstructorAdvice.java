@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -10,11 +11,8 @@ import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ConstructorAdvice {
-  private static final Logger log = LoggerFactory.getLogger(ConstructorAdvice.class);
 
   // new - capturing OffsetCommitCallbackInvoker instead of the old ConsumerCoordinator
   @Advice.OnMethodExit(suppress = Throwable.class)
@@ -58,29 +56,11 @@ public class ConstructorAdvice {
           .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
     }
 
-    // Log consumer configuration
-    logConsumerConfiguration(consumerConfig, normalizedConsumerGroup);
-  }
-
-  private static void logConsumerConfiguration(
-      ConsumerConfig consumerConfig, String consumerGroup) {
-    try {
-      log.info("Kafka Consumer started - Group: {}", consumerGroup);
-      log.info("Consumer Configuration (all properties):");
-      
-      // Get all configuration values
-      java.util.Map<String, ?> allConfigs = consumerConfig.values();
-      
-      // Sort by key for consistent output
-      allConfigs.entrySet().stream()
-          .sorted(java.util.Map.Entry.comparingByKey())
-          .forEach(entry -> {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
-          });
-      
-      // TODO: Add data capture logic here
-    } catch (Exception e) {
-      log.debug("Error logging consumer configuration", e);
+    if (Config.get().isDataStreamsEnabled()) {
+      KafkaConfigHelper.storePendingConsumerConfig(
+          metadata,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 

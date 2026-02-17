@@ -4,6 +4,7 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.Config
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.api.datastreams.KafkaConfigReport
 import datadog.trace.api.datastreams.SchemaRegistryUsage
 import datadog.trace.api.datastreams.StatsPoint
 import datadog.trace.api.experimental.DataStreamsContextCarrier
@@ -1017,6 +1018,520 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     // Check that different operations create different keys
     serializeKey != deserializeKey
+  }
+
+  def "Kafka producer config is reported in bucket"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then:
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+        config["acks"] == "all"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Kafka consumer config is reported in bucket"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "", "test-group", ["bootstrap.servers": "localhost:9092", "group.id": "test-group", "auto.offset.reset": "earliest"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then:
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_consumer"
+        config["bootstrap.servers"] == "localhost:9092"
+        config["group.id"] == "test-group"
+        config["auto.offset.reset"] == "earliest"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Duplicate Kafka configs are deduplicated and only sent once"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting the same config twice"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    def config1 = ["bootstrap.servers": "localhost:9092", "acks": "all"]
+    def config2 = ["bootstrap.servers": "localhost:9092", "acks": "all"]
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config1)
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config2) // duplicate, should be ignored
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "only one config is reported in the bucket"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+        config["acks"] == "all"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Duplicate Kafka configs across buckets are deduplicated"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting the same config in two different bucket windows"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    def config = ["bootstrap.servers": "localhost:9092", "acks": "all"]
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config)
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "first bucket has the config"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+    }
+
+    when: "reporting the same config again in a new bucket"
+    payloadWriter.buckets.clear()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config) // duplicate, should be ignored globally
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "second bucket has no configs because the duplicate was filtered"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+    }
+    // Either no buckets at all, or buckets with empty kafkaConfigs
+    payloadWriter.buckets.every { it.kafkaConfigs.isEmpty() }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Different Kafka configs are both reported"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting producer and consumer configs"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "", "my-group", ["bootstrap.servers": "localhost:9092", "group.id": "my-group"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "both configs are reported"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 2
+
+      def producerConfig = kafkaConfigs.find { it.type == "kafka_producer" }
+      producerConfig != null
+      producerConfig.config["bootstrap.servers"] == "localhost:9092"
+      producerConfig.config["acks"] == "all"
+
+      def consumerConfig = kafkaConfigs.find { it.type == "kafka_consumer" }
+      consumerConfig != null
+      consumerConfig.config["bootstrap.servers"] == "localhost:9092"
+      consumerConfig.config["group.id"] == "my-group"
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Kafka configs with different values for same type are not deduplicated"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting two producer configs with different settings"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9093", "acks": "1"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "both configs are reported because they have different values"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 2
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Kafka configs are reported alongside stats points"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting both stats points and kafka configs"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    def tg = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null)
+    dataStreams.add(new StatsPoint(tg, 1, 2, 3, timeSource.currentTimeNanos, 0, 0, 0, null))
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "bucket contains both stats groups and kafka configs"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      groups.size() == 1
+      kafkaConfigs.size() == 1
+
+      with(groups.iterator().next()) {
+        tags.type == "type:testType"
+        hash == 1
+        parentHash == 2
+      }
+
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "Kafka configs not reported when DSM is disabled"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> enabledAtAgent
+    }
+    def timeSource = new ControllableTimeSource()
+    def payloadWriter = new CapturingPayloadWriter()
+    def sink = Mock(Sink)
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> enabledInConfig
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then:
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+    }
+    payloadWriter.buckets.isEmpty()
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+
+    where:
+    enabledAtAgent | enabledInConfig
+    false          | true
+    true           | false
+    false          | false
+  }
+
+  def "Kafka configs flushed on close"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092"])
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100l)
+    dataStreams.close()
+
+    then: "configs in the current bucket are flushed on close"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+  }
+
+  def "clear() resets Kafka config dedup cache"() {
+    given:
+    def conditions = new PollingConditions(timeout: 1)
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+    def timeSource = new ControllableTimeSource()
+    def sink = Mock(Sink)
+    def payloadWriter = new CapturingPayloadWriter()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when: "reporting config, flushing, clearing, then reporting the same config again"
+    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.start()
+    def config = ["bootstrap.servers": "localhost:9092", "acks": "all"]
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config)
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "first config is reported"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+    }
+
+    when: "clearing the state and reporting the same config"
+    payloadWriter.buckets.clear()
+    dataStreams.clear()
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", config)
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.report()
+
+    then: "the config is reported again because the dedup cache was cleared"
+    conditions.eventually {
+      assert dataStreams.inbox.isEmpty()
+      assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
+    }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+      }
+    }
+
+    cleanup:
+    payloadWriter.close()
+    dataStreams.close()
+  }
+
+  def "KafkaConfigReport equals and hashCode work correctly"() {
+    given:
+    def config1 = new KafkaConfigReport("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"], 1000L, null)
+    def config2 = new KafkaConfigReport("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"], 2000L, null)
+    def config3 = new KafkaConfigReport("kafka_consumer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"], 1000L, null)
+    def config4 = new KafkaConfigReport("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9093"], 1000L, null)
+    def config5 = new KafkaConfigReport("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"], 1000L, "other-service")
+
+    expect:
+    // Reflexive
+    config1.equals(config1)
+    config1.hashCode() == config1.hashCode()
+
+    // Same type and config, different timestamp -- equals (timestamp is NOT part of equals)
+    config1.equals(config2)
+    config2.equals(config1)
+    config1.hashCode() == config2.hashCode()
+
+    // Same type and config, different serviceNameOverride -- equals (serviceNameOverride is NOT part of equals)
+    config1.equals(config5)
+    config5.equals(config1)
+    config1.hashCode() == config5.hashCode()
+
+    // Different type
+    !config1.equals(config3)
+    !config3.equals(config1)
+
+    // Different config values
+    !config1.equals(config4)
+    !config4.equals(config1)
+
+    // Null check
+    !config1.equals(null)
+
+    // Different class
+    !config1.equals("not a config report")
+  }
+
+  def "StatsBucket stores Kafka configs"() {
+    given:
+    def bucket = new StatsBucket(1000L, 10000L)
+    def config1 = new KafkaConfigReport("kafka_producer", "", "", "", ["acks": "all"], 1000L, null)
+    def config2 = new KafkaConfigReport("kafka_consumer", "", "", "test", ["group.id": "test"], 2000L, null)
+
+    when:
+    bucket.addKafkaConfig(config1)
+    bucket.addKafkaConfig(config2)
+
+    then:
+    bucket.getKafkaConfigs().size() == 2
+    bucket.getKafkaConfigs().get(0).type == "kafka_producer"
+    bucket.getKafkaConfigs().get(0).config["acks"] == "all"
+    bucket.getKafkaConfigs().get(1).type == "kafka_consumer"
+    bucket.getKafkaConfigs().get(1).config["group.id"] == "test"
   }
 }
 

@@ -168,6 +168,233 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     processTagsEnabled << [true, false]
   }
 
+  def "Write Kafka configs to mock server"() {
+    given:
+    def conditions = new PollingConditions(timeout: 2)
+
+    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+
+    def fakeConfig = Stub(Config) {
+      getAgentUrl() >> server.address.toString()
+      getWellKnownTags() >> wellKnownTags
+      getPrimaryTag() >> "region-1"
+    }
+
+    def sharedCommObjects = new SharedCommunicationObjects()
+    sharedCommObjects.featuresDiscovery = features
+    sharedCommObjects.agentHttpClient = testOkhttpClient
+    sharedCommObjects.createRemaining(fakeConfig)
+
+    def timeSource = new ControllableTimeSource()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
+    dataStreams.start()
+
+    // Report a producer and consumer config
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all", "linger.ms": "5"])
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "", "test-group", ["bootstrap.servers": "localhost:9092", "group.id": "test-group", "auto.offset.reset": "earliest"])
+
+    // Also add a stats point so the bucket is not empty of stats
+    dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
+
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.close()
+
+    then:
+    conditions.eventually {
+      assert requestBodies.size() == 1
+    }
+
+    validateKafkaConfigMessage(requestBodies[0])
+  }
+
+  def "Duplicate Kafka configs are not serialized twice"() {
+    given:
+    def conditions = new PollingConditions(timeout: 2)
+
+    def testOkhttpClient = OkHttpUtils.buildHttpClient(HttpUrl.get(server.address), 5000L)
+
+    def features = Stub(DDAgentFeaturesDiscovery) {
+      supportsDataStreams() >> true
+    }
+
+    def wellKnownTags = new WellKnownTags("runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java")
+
+    def fakeConfig = Stub(Config) {
+      getAgentUrl() >> server.address.toString()
+      getWellKnownTags() >> wellKnownTags
+      getPrimaryTag() >> "region-1"
+    }
+
+    def sharedCommObjects = new SharedCommunicationObjects()
+    sharedCommObjects.featuresDiscovery = features
+    sharedCommObjects.agentHttpClient = testOkhttpClient
+    sharedCommObjects.createRemaining(fakeConfig)
+
+    def timeSource = new ControllableTimeSource()
+
+    def traceConfig = Mock(TraceConfig) {
+      isDataStreamsEnabled() >> true
+    }
+
+    when:
+    def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
+    dataStreams.start()
+
+    // Report the same producer config twice
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+
+    // Also add a stats point so the bucket has content
+    dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
+
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
+    dataStreams.close()
+
+    then:
+    conditions.eventually {
+      assert requestBodies.size() == 1
+    }
+
+    validateDedupedKafkaConfigMessage(requestBodies[0])
+  }
+
+  def validateKafkaConfigMessage(byte[] message) {
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
+    BufferedSource bufferedSource = Okio.buffer(gzipSource)
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
+
+    // Outer map (same structure as other payloads)
+    def outerMapSize = unpacker.unpackMapHeader()
+    // Skip to Stats array
+    boolean foundStats = false
+    for (int i = 0; i < outerMapSize; i++) {
+      def key = unpacker.unpackString()
+      if (key == "Stats") {
+        foundStats = true
+        def numBuckets = unpacker.unpackArrayHeader()
+        assert numBuckets >= 1
+
+        // Parse first bucket
+        def bucketMapSize = unpacker.unpackMapHeader()
+        boolean foundConfigs = false
+        for (int j = 0; j < bucketMapSize; j++) {
+          def bucketKey = unpacker.unpackString()
+          if (bucketKey == "Configs") {
+            foundConfigs = true
+            def numConfigs = unpacker.unpackArrayHeader()
+            assert numConfigs == 2
+
+            // Collect configs in a map keyed by type
+            Map<String, Map<String, String>> configsByType = [:]
+            numConfigs.times {
+              assert unpacker.unpackMapHeader() == 2
+              assert unpacker.unpackString() == "Type"
+              def type = unpacker.unpackString()
+              assert unpacker.unpackString() == "Config"
+              def configSize = unpacker.unpackMapHeader()
+              Map<String, String> configEntries = [:]
+              configSize.times {
+                def ck = unpacker.unpackString()
+                def cv = unpacker.unpackString()
+                configEntries[ck] = cv
+              }
+              configsByType[type] = configEntries
+            }
+
+            // Verify producer config
+            assert configsByType.containsKey("kafka_producer")
+            assert configsByType["kafka_producer"]["bootstrap.servers"] == "localhost:9092"
+            assert configsByType["kafka_producer"]["acks"] == "all"
+            assert configsByType["kafka_producer"]["linger.ms"] == "5"
+
+            // Verify consumer config
+            assert configsByType.containsKey("kafka_consumer")
+            assert configsByType["kafka_consumer"]["bootstrap.servers"] == "localhost:9092"
+            assert configsByType["kafka_consumer"]["group.id"] == "test-group"
+            assert configsByType["kafka_consumer"]["auto.offset.reset"] == "earliest"
+          } else {
+            unpacker.skipValue()
+          }
+        }
+        assert foundConfigs : "Configs field not found in bucket"
+
+        // Skip remaining buckets
+        for (int b = 1; b < numBuckets; b++) {
+          unpacker.skipValue()
+        }
+      } else {
+        unpacker.skipValue()
+      }
+    }
+    assert foundStats : "Stats field not found in payload"
+    return true
+  }
+
+  def validateDedupedKafkaConfigMessage(byte[] message) {
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
+    BufferedSource bufferedSource = Okio.buffer(gzipSource)
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
+
+    def outerMapSize = unpacker.unpackMapHeader()
+    boolean foundStats = false
+    for (int i = 0; i < outerMapSize; i++) {
+      def key = unpacker.unpackString()
+      if (key == "Stats") {
+        foundStats = true
+        def numBuckets = unpacker.unpackArrayHeader()
+        assert numBuckets >= 1
+
+        // Parse first bucket
+        def bucketMapSize = unpacker.unpackMapHeader()
+        boolean foundConfigs = false
+        for (int j = 0; j < bucketMapSize; j++) {
+          def bucketKey = unpacker.unpackString()
+          if (bucketKey == "Configs") {
+            foundConfigs = true
+            def numConfigs = unpacker.unpackArrayHeader()
+            // Only 1 config should be present (deduplication)
+            assert numConfigs == 1
+
+            assert unpacker.unpackMapHeader() == 2
+            assert unpacker.unpackString() == "Type"
+            assert unpacker.unpackString() == "kafka_producer"
+            assert unpacker.unpackString() == "Config"
+            def configSize = unpacker.unpackMapHeader()
+            Map<String, String> configEntries = [:]
+            configSize.times {
+              configEntries[unpacker.unpackString()] = unpacker.unpackString()
+            }
+            assert configEntries["bootstrap.servers"] == "localhost:9092"
+            assert configEntries["acks"] == "all"
+          } else {
+            unpacker.skipValue()
+          }
+        }
+        assert foundConfigs : "Configs field not found in bucket"
+
+        for (int b = 1; b < numBuckets; b++) {
+          unpacker.skipValue()
+        }
+      } else {
+        unpacker.skipValue()
+      }
+    }
+    assert foundStats : "Stats field not found in payload"
+    return true
+  }
+
   def validateMessage(byte[] message, boolean processTagsEnabled) {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
 

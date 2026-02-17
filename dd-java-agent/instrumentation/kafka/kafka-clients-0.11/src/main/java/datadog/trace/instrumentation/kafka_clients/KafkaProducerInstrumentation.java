@@ -41,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -51,14 +52,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
 import org.apache.kafka.common.record.RecordBatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private static final Logger log = LoggerFactory.getLogger(KafkaProducerInstrumentation.class);
 
   public KafkaProducerInstrumentation() {
     super("kafka", "kafka-0.11");
@@ -91,6 +88,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.Utils",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
       packageName + ".AvroSchemaExtractor",
     };
   }
@@ -242,8 +241,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   public static class ProducerConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void captureConfiguration(@Advice.Argument(0) ProducerConfig producerConfig) {
-      logProducerConfiguration(producerConfig);
+    public static void captureConfiguration(
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.Argument(0) ProducerConfig producerConfig) {
+      if (Config.get().isDataStreamsEnabled()) {
+        KafkaConfigHelper.storePendingProducerConfig(
+            metadata, KafkaConfigHelper.extractProducerConfig(producerConfig));
+      }
     }
   }
 
@@ -273,27 +277,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         // then send the point
         AgentTracer.get().getDataStreamsMonitoring().add(updated);
       }
-    }
-  }
-
-  private static void logProducerConfiguration(ProducerConfig producerConfig) {
-    try {
-      log.info("Kafka Producer started");
-      log.info("Producer Configuration (all properties):");
-
-      // Get all configuration values
-      java.util.Map<String, ?> allConfigs = producerConfig.values();
-
-      // Sort by key for consistent output
-      allConfigs.entrySet().stream()
-          .sorted(java.util.Map.Entry.comparingByKey())
-          .forEach(entry -> {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
-          });
-
-      // TODO: Add data capture logic here
-    } catch (Exception e) {
-      log.debug("Error logging producer configuration", e);
     }
   }
 }
