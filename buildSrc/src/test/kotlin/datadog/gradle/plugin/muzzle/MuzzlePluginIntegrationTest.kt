@@ -3,9 +3,12 @@ package datadog.gradle.plugin.muzzle
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.nio.file.Files
+import kotlin.io.path.readText
 
 class MuzzlePluginIntegrationTest {
 
@@ -130,6 +133,60 @@ class MuzzlePluginIntegrationTest {
       "muzzleTooling"
     )
     assertTrue(toolingDependencies.output.contains("project :dd-java-agent:agent-tooling"))
+  }
+
+  @Test
+  fun `muzzle executes exactly planned core-jdk tasks and writes task results`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+      
+      muzzle {
+        pass { coreJdk() }
+        fail { coreJdk() }
+      }
+      """
+    )
+    fixture.writeScanPlugin(
+      """
+      // pass
+      """
+    )
+
+    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val muzzleTaskPath = ":dd-java-agent:instrumentation:demo:muzzle"
+    val passDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk"
+    val failDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertFail-core-jdk"
+    val endTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-end"
+
+    assertEquals(SUCCESS, result.task(muzzleTaskPath)?.outcome)
+    assertEquals(SUCCESS, result.task(passDirectiveTaskPath)?.outcome)
+    assertEquals(SUCCESS, result.task(failDirectiveTaskPath)?.outcome)
+    assertEquals(SUCCESS, result.task(endTaskPath)?.outcome)
+
+    val muzzleChainInOrder = result.tasks
+      .map { it.path }
+      .filter {
+        it == muzzleTaskPath ||
+          it == passDirectiveTaskPath ||
+          it == failDirectiveTaskPath ||
+          it == endTaskPath
+      }
+    assertEquals(
+      listOf(muzzleTaskPath, passDirectiveTaskPath, failDirectiveTaskPath, endTaskPath),
+      muzzleChainInOrder
+    )
+
+    val passDirectiveResult = fixture.resultFile("muzzle-AssertPass-core-jdk")
+    val failDirectiveResult = fixture.resultFile("muzzle-AssertFail-core-jdk")
+    assertTrue(Files.isRegularFile(passDirectiveResult))
+    assertTrue(Files.isRegularFile(failDirectiveResult))
+    assertEquals("PASSING", passDirectiveResult.readText())
+    assertEquals("PASSING", failDirectiveResult.readText())
   }
 
   private fun findTestCase(document: org.w3c.dom.Document, name: String): org.w3c.dom.Element =

@@ -2,8 +2,10 @@ package datadog.gradle.plugin.muzzle
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.UnexpectedBuildResultException
 import org.w3c.dom.Document
 import java.io.File
+import java.nio.file.Path
 import javax.xml.parsers.DocumentBuilderFactory
 
 internal class MuzzlePluginTestFixture(
@@ -65,14 +67,19 @@ internal class MuzzlePluginTestFixture(
       )
   }
 
-  fun run(vararg args: String): BuildResult =
-    GradleRunner.create()
+  fun run(vararg args: String, expectFailure: Boolean = false): BuildResult {
+    val runner = GradleRunner.create()
       .withTestKitDir(File(projectDir, ".gradle-test-kit"))
       .withDebug(true)
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withArguments(*args)
-      .build()
+    return try {
+      if (expectFailure) runner.buildAndFail() else runner.build()
+    } catch (e: UnexpectedBuildResultException) {
+      e.buildResult
+    }
+  }
 
   fun findSingleMuzzleJUnitReport(): File {
     val reports = projectDir.walkTopDown()
@@ -88,6 +95,9 @@ internal class MuzzlePluginTestFixture(
     val builder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
     return builder.parse(xmlFile)
   }
+
+  fun resultFile(taskName: String) =
+    projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
 
   private fun file(path: String): File =
     File(projectDir, path).also { file ->

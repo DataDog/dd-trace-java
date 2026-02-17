@@ -1,13 +1,11 @@
 package datadog.gradle.plugin.muzzle
 
-import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.inverseOf
-import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts
-import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
+import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -117,40 +115,19 @@ class MuzzlePlugin : Plugin<Project> {
 
     val system = MuzzleMavenRepoUtils.newRepositorySystem()
     val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
+    val taskPlanner = MuzzleTaskPlanner.from(system, session)
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
       val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
-
-      project.extensions.getByType<MuzzleExtension>().directives.forEach { directive ->
-        project.logger.debug("configuring {}", directive)
-
-        if (directive.isCoreJdk) {
-          runAfter = addMuzzleTask(directive, null, project, runAfter, muzzleBootstrap, muzzleTooling)
-          muzzleReportTasks.add(runAfter)
-        } else {
-          val range = resolveVersionRange(directive, system, session)
-
-          muzzleDirectiveToArtifacts(directive, range).forEach {
-            runAfter = addMuzzleTask(directive, it, project, runAfter, muzzleBootstrap, muzzleTooling)
-            muzzleReportTasks.add(runAfter)
-          }
-
-          if (directive.assertInverse) {
-            inverseOf(directive, system, session).forEach { inverseDirective ->
-              val inverseRange = resolveVersionRange(inverseDirective, system, session)
-
-              muzzleDirectiveToArtifacts(inverseDirective, inverseRange).forEach {
-                runAfter = addMuzzleTask(inverseDirective, it, project, runAfter, muzzleBootstrap, muzzleTooling)
-                muzzleReportTasks.add(runAfter)
-              }
-            }
-          }
-        }
-        project.logger.info("configured $directive")
+      val directives = project.extensions.getByType<MuzzleExtension>().directives
+      taskPlanner.plan(directives).forEach { plan ->
+        runAfter = registerMuzzleTask(plan.directive, plan.artifact, project, runAfter, muzzleBootstrap, muzzleTooling)
+        muzzleReportTasks.add(runAfter)
+        project.logger.info("configured ${plan.directive}")
       }
 
-      if (muzzleReportTasks.isEmpty() && !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
+      if (muzzleReportTasks.isEmpty() && !directives.any { it.assertPass }) {
         muzzleReportTasks.add(muzzleTask)
       }
 
@@ -180,7 +157,7 @@ class MuzzlePlugin : Plugin<Project> {
      * @param muzzleTooling The configuration provider for agent tooling dependencies.
      * @return The muzzle task provider.
      */
-    private fun addMuzzleTask(
+    private fun registerMuzzleTask(
       muzzleDirective: MuzzleDirective,
       versionArtifact: Artifact?,
       instrumentationProject: Project,
