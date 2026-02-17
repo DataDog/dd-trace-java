@@ -17,20 +17,32 @@ fi
 
 readonly PROJECT_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
-get_pipeline_id_for_sha() {
-  local sha="$1"
+get_pipeline_id_for_commit() {
+  local commit_sha="$1"
+  local api_url="${PROJECT_API_URL}/repository/commits/${commit_sha}"
+  local response pipeline_id
 
-  curl --silent --show-error --fail \
-    --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    "${PROJECT_API_URL}/pipelines?sha=${sha}&status=success&order_by=updated_at&sort=desc&per_page=1" \
-    | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data[0]["id"] if data else "")'
+  response="$(curl --silent --show-error --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
+  pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
+
+  if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
+    echo "${pipeline_id}"
+    return 0
+  fi
+
+  echo ""
+  return 1
 }
 
-get_latest_master_pipeline_id() {
-  curl --silent --show-error --fail \
-    --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    "${PROJECT_API_URL}/pipelines?ref=${TARGET_BRANCH}&status=success&order_by=updated_at&sort=desc&per_page=1" \
-    | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data[0]["id"] if data else "")'
+get_branch_head_sha() {
+  local branch="$1"
+  local api_url="${PROJECT_API_URL}/repository/branches/${branch}"
+  local response branch_sha
+
+  response="$(curl --silent --show-error --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
+  branch_sha="$(echo "${response}" | grep -o '"commit"[^}]*"id":"[a-f0-9]\{40\}"' | sed -E 's/.*"id":"([a-f0-9]{40})".*/\1/' | head -1 || true)"
+
+  echo "${branch_sha}"
 }
 
 resolve_merge_base_sha() {
@@ -50,18 +62,23 @@ BASELINE_SOURCE="merge_base"
 FALLBACK_TO_MASTER="false"
 
 if [[ -n "${MERGE_BASE_SHA}" ]]; then
-  BASELINE_PIPELINE_ID="$(get_pipeline_id_for_sha "${MERGE_BASE_SHA}")"
+  BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${MERGE_BASE_SHA}" || true)"
 fi
 
 if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
   FALLBACK_TO_MASTER="true"
   BASELINE_SOURCE="master"
+
   BASELINE_SHA="$(git rev-parse "origin/${TARGET_BRANCH}" 2>/dev/null || true)"
-  BASELINE_PIPELINE_ID="$(get_latest_master_pipeline_id)"
+  if [[ -z "${BASELINE_SHA}" ]]; then
+    BASELINE_SHA="$(get_branch_head_sha "${TARGET_BRANCH}")"
+  fi
+  BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${BASELINE_SHA}" || true)"
 fi
 
 if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
   echo "Failed to resolve a baseline pipeline id." >&2
+  echo "merge_base_sha=${MERGE_BASE_SHA:-<empty>}, baseline_sha=${BASELINE_SHA:-<empty>}" >&2
   exit 1
 fi
 
