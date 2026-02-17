@@ -105,7 +105,7 @@ testing {
     val test by getting(JvmTestSuite::class) {
       targets.configureEach {
         testTask.configure {
-          enabled = project.hasProperty("runBuildSrcTests")
+          enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
         }
       }
     }
