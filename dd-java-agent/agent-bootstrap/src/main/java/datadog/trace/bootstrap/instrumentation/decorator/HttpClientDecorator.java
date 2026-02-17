@@ -75,7 +75,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
           (source, headerName) -> {
             try {
               return getRequestHeader((REQUEST) source, headerName);
-            } catch (Exception e) {
+            } catch (Throwable ignored) {
               return null;
             }
           };

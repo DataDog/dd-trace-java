@@ -188,7 +188,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           (source, headerName) -> {
             try {
               return getRequestHeader((REQUEST) source, headerName);
-            } catch (Exception e) {
+            } catch (Throwable ignored) {
               return null;
             }
           };

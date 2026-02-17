@@ -14,7 +14,7 @@ public final class Utils {
           (source, headerName) -> {
             try {
               return new String(((Headers) source).lastHeader(headerName).value());
-            } catch (Exception e) {
+            } catch (Throwable ignored) {
               return null;
             }
           };
