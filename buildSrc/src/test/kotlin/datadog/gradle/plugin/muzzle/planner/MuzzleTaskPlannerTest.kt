@@ -341,7 +341,7 @@ class MuzzleTaskPlannerTest {
     assertEquals(4, fakeService.resolveCalls)
     assertEquals(2, fakeService.inverseCalls)
   }
-    
+
   private fun artifact(module: String = "demo", version: String) =
     DefaultArtifact("com.example", module, "", "jar", version)
 

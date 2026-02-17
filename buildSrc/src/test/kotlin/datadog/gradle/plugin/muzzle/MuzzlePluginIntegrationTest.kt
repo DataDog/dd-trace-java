@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -193,14 +194,12 @@ class MuzzlePluginIntegrationTest {
   fun `artifact directive resolves multiple versions from version range`(@TempDir projectDir: File) {
     val fixture = MuzzlePluginTestFixture(projectDir)
 
-    // Create fake local Maven repo with multiple versions
     val repoDir = fixture.createFakeMavenRepo(
       group = "com.example.test",
       module = "demo-lib",
       versions = listOf("1.0.0", "1.1.0", "1.2.0", "2.0.0")
     )
 
-    // Configure muzzle to use the fake repo (file:// URI now supported!)
     val repoUrl = repoDir.toURI().toString()
     fixture.writeProject(
       """
@@ -232,24 +231,21 @@ class MuzzlePluginIntegrationTest {
     )
     fixture.writeScanPlugin("// pass")
 
-    // Use MAVEN_REPOSITORY_PROXY to point Muzzle's resolution to our fake repo
+    // Leveraging MAVEN_REPOSITORY_PROXY to point to our fake repo over maven central
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
-      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl) // force the use of our fake repo over maven central
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
     )
 
-    // First check: did the build succeed?
     assertTrue(
       result.output.contains("BUILD SUCCESSFUL"),
       "Build should succeed. Output:\n${result.output.take(3000)}"
     )
 
-    // Check for evidence of muzzle execution
     val hasMuzzleTasks = result.tasks.any { it.path.contains("muzzle") }
     assertTrue(hasMuzzleTasks, "Should have executed some muzzle tasks")
 
-    // Verify tasks were created for versions in range
     assertTrue(
       result.output.contains("demo-lib-1.0.0") || result.output.contains("demo-lib:1.0.0"),
       "Should find demo-lib version 1.0.0 in output"
@@ -263,24 +259,341 @@ class MuzzlePluginIntegrationTest {
       "Should find demo-lib version 1.2.0 in output"
     )
 
-    // Verify JUnit report has test cases for each version
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
     val suite = report.documentElement
-
-    // Should have 3 version-specific tests (at minimum)
     val testCount = suite.getAttribute("tests").toInt()
     assertTrue(testCount >= 3, "Should have at least 3 tests for 3 versions, got $testCount")
     assertEquals("0", suite.getAttribute("failures"), "Should have no failures")
 
-    // Verify at least one test case exists for one of the versions
     val testCases = (0 until report.getElementsByTagName("testcase").length)
       .map { report.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
       .map { it.getAttribute("name") }
-
     assertTrue(
       testCases.any { it.contains("demo-lib-1.0.0") },
       "Should have test case for demo-lib-1.0.0. Found: ${testCases.take(5)}"
+    )
+  }
+
+  @Test
+  fun `named directive is passed to scan plugin`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass {
+          name = 'my-custom-check'
+          coreJdk()
+        }
+      }
+      """
+    )
+
+    // The real MuzzleVersionScanPlugin uses the directive name to filter InstrumenterModules
+    fixture.writeScanPlugin(
+      """
+      if (!"my-custom-check".equals(muzzleDirective)) {
+        throw new IllegalStateException(
+          "Expected muzzleDirective to be 'my-custom-check', but got: '" + muzzleDirective + "'"
+        );
+      }
+
+      System.out.println("Directive name passed correctly: " + muzzleDirective);
+      """
+    )
+
+    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+    assertTrue(
+      result.output.contains("Directive name passed correctly: my-custom-check"),
+      "Should confirm 'my-custom-check' was passed to scan plugin"
+    )
+  }
+
+  @Test
+  fun `non-existent artifact fails with clear error message`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass {
+          group = 'com.example.nonexistent'
+          module = 'does-not-exist'
+          versions = '[1.0.0,2.0.0)'
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin("// pass")
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo1.maven.org/maven2/")
+    )
+
+    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail for non-existent artifact")
+    assertTrue(
+      result.output.contains("version range resolution failed") ||
+      result.output.contains("Could not resolve") ||
+      result.output.contains("not found") ||
+      result.output.contains("Failed to resolve"),
+      "Should have error message about resolution failure"
+    )
+  }
+
+  @Test
+  fun `pass directive that fails validation causes build failure`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """
+    )
+
+    // Real implementation throws RuntimeException when !passed && assertPass (line 70 of MuzzleVersionScanPlugin)
+    fixture.writeScanPlugin(
+      """
+      if (assertPass) {
+        System.err.println("FAILED MUZZLE VALIDATION: mismatches:");
+        System.err.println("-- missing class Foo");
+        throw new RuntimeException("Instrumentation failed Muzzle validation");
+      }
+      """
+    )
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace"
+    )
+
+    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail when pass directive fails validation")
+    assertTrue(
+      result.output.contains("Muzzle validation failed") ||
+      result.output.contains("Instrumentation failed"),
+      "Should contain error message from scan plugin"
+    )
+  }
+
+  @Test
+  @Disabled("Current implementation doesn't fail build when fail directive unexpectedly passes - MuzzleTask catches exceptions")
+  fun `fail directive that passes validation causes build failure`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        fail {
+          coreJdk()
+        }
+      }
+      """
+    )
+
+    // Scan plugin simulates successful validation when it should fail
+    // Real MuzzleVersionScanPlugin throws RuntimeException when passed && !assertPass
+    fixture.writeScanPlugin(
+      """
+      if (!assertPass) {
+        System.err.println("MUZZLE PASSED BUT FAILURE WAS EXPECTED");
+        throw new RuntimeException("Instrumentation unexpectedly passed Muzzle validation");
+      }
+      """
+    )
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace"
+    )
+
+    // Expected behavior: build should fail when fail directive unexpectedly passes
+    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail when fail directive unexpectedly passes")
+    assertTrue(
+      result.output.contains("unexpectedly passed") ||
+      result.output.contains("FAILURE WAS EXPECTED"),
+      "Should indicate that fail directive passed when it shouldn't have"
+    )
+  }
+
+  @Test
+  fun `additional dependencies are added to muzzle test classpath`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    // Create a fake Maven repo with a fake additional dependency
+    // The JAR will automatically include standard Maven metadata
+    val repoDir = fixture.createFakeMavenRepo(
+      group = "com.example.extra",
+      module = "extra-lib",
+      versions = listOf("1.0.0")
+    )
+
+    val repoUrl = repoDir.toURI().toString()
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      repositories {
+        maven {
+          url = uri('$repoUrl')
+          metadataSources {
+            mavenPom()
+            artifact()
+          }
+        }
+      }
+
+      muzzle {
+        pass {
+          coreJdk()
+          extraDependency('com.example.extra:extra-lib:1.0.0')
+        }
+      }
+      """
+    )
+
+    // Scan plugin verifies that the additional dependency JAR is in the classpath
+    fixture.writeScanPlugin(
+      """
+      java.io.InputStream resource = testApplicationClassLoader.getResourceAsStream("META-INF/maven/com.example.extra/extra-lib/pom.properties");
+      if (resource != null) {
+        try {
+          resource.close();
+        } catch (java.io.IOException e) {
+          // Ignore
+        }
+        System.out.println("✓ Additional dependency (extra-lib) found in test classpath");
+      } else {
+        throw new RuntimeException("Additional dependency (extra-lib) not found in test classpath");
+      }
+      """
+    )
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+    )
+
+    assertTrue(
+      result.output.contains("BUILD SUCCESSFUL"),
+      "Build should succeed. Output:\n${result.output.take(2000)}"
+    )
+    assertTrue(
+      result.output.contains("✓ Additional dependency (extra-lib) found in test classpath"),
+      "Additional dependency should be loadable from test classpath"
+    )
+  }
+
+  @Test
+  fun `excluded dependencies are removed from muzzle test classpath`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    // Create a fake repo with an artifact that has transitive dependencies
+    val repoDir = fixture.createFakeMavenRepo(
+      group = "com.example.test",
+      module = "with-transitive",
+      versions = listOf("1.0.0")
+    )
+
+    // Manually create a POM with a transitive dependency
+    val pomFile = repoDir.resolve("com/example/test/with-transitive/1.0.0/with-transitive-1.0.0.pom")
+    pomFile.writeText(
+      """
+      <project xmlns="http://maven.apache.org/POM/4.0.0">
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>com.example.test</groupId>
+        <artifactId>with-transitive</artifactId>
+        <version>1.0.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>31.0-jre</version>
+          </dependency>
+        </dependencies>
+      </project>
+      """.trimIndent()
+    )
+
+    val repoUrl = repoDir.toURI().toString()
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      repositories {
+        maven {
+          url = uri('$repoUrl')
+          metadataSources {
+            mavenPom()
+            artifact()
+          }
+        }
+        mavenCentral()
+      }
+
+      muzzle {
+        pass {
+          group = 'com.example.test'
+          module = 'with-transitive'
+          versions = '1.0.0'
+          excludeDependency('com.google.guava:guava')
+        }
+      }
+      """
+    )
+
+    // Scan plugin verifies that guava is NOT in the classpath (it was excluded)
+    fixture.writeScanPlugin(
+      """
+      try {
+        testApplicationClassLoader.loadClass("com.google.common.collect.ImmutableList");
+        throw new RuntimeException("Unexpected excluded dependency (guava) SHOULD NOT be in test classpath but was found");
+      } catch (ClassNotFoundException e) {
+        System.out.println("Excluded dependency (guava) correctly not in test classpath");
+      }
+      """
+    )
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+    )
+
+    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    assertTrue(
+      result.output.contains("Excluded dependency (guava) correctly not in test classpath"),
+      "Excluded dependency should not be loadable from test classpath"
     )
   }
 

@@ -62,12 +62,14 @@ internal open class GradleFixture(
    * @param group Maven group ID
    * @param module Maven artifact ID
    * @param versions List of versions to create
+   * @param jarContentBuilder Optional lambda to add entries to the JAR
    * @return The repository root directory
    */
   fun createFakeMavenRepo(
     group: String,
     module: String,
     versions: List<String>,
+    jarContentBuilder: ((JarOutputStream) -> Unit)? = null
   ): File {
     require(versions.isNotEmpty()) { "versions must not be empty" }
     val repoDir = File(projectDir, "fake-maven-repo").apply { mkdirs() }
@@ -93,7 +95,7 @@ internal open class GradleFixture(
       writeChecksum(pomFile)
 
       val jarFile = File(versionDir, "$module-$version.jar")
-      createEmptyJar(jarFile.toPath())
+      createJar(jarFile.toPath(), group, module, version, jarContentBuilder)
       writeChecksum(jarFile)
     }
 
@@ -134,9 +136,46 @@ internal open class GradleFixture(
   }
 
   /**
-   * Creates an empty JAR file at the specified path.
+   * Creates a JAR file at the specified path with standard Maven metadata, optionally with custom content.
+   *
+   * @param path Path where the JAR should be created
+   * @param group Maven group ID
+   * @param module Maven artifact ID
+   * @param version Maven version
+   * @param contentBuilder Optional lambda to add additional entries to the JAR
    */
-  private fun createEmptyJar(path: Path) {
-    JarOutputStream(path.toFile().outputStream()).use { /* empty jar */ }
+  private fun createJar(
+    path: Path,
+    group: String,
+    module: String,
+    version: String,
+    contentBuilder: ((JarOutputStream) -> Unit)? = null
+  ) {
+    JarOutputStream(path.toFile().outputStream()).use { jos ->
+      // Add standard Maven metadata files
+      val metadataPath = "META-INF/maven/$group/$module"
+
+      // Add pom.properties
+      jos.putNextEntry(java.util.zip.ZipEntry("$metadataPath/pom.properties"))
+      jos.write("groupId=$group\nartifactId=$module\nversion=$version\n".toByteArray())
+      jos.closeEntry()
+
+      // Add pom.xml
+      jos.putNextEntry(java.util.zip.ZipEntry("$metadataPath/pom.xml"))
+      jos.write(
+        """
+        <project xmlns="http://maven.apache.org/POM/4.0.0">
+          <modelVersion>4.0.0</modelVersion>
+          <groupId>$group</groupId>
+          <artifactId>$module</artifactId>
+          <version>$version</version>
+        </project>
+        """.trimIndent().toByteArray()
+      )
+      jos.closeEntry()
+
+      // Add any custom content
+      contentBuilder?.invoke(jos)
+    }
   }
 }
