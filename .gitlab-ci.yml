@@ -588,8 +588,6 @@ muzzle-dep-report:
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
-    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
-      when: on_success
   script:
     - *gitlab_base_ref_params
     - >

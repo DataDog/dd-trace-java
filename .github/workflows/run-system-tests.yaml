@@ -1,7 +1,6 @@
 name: Run system tests
 
 on:
-  merge_group:
   pull_request:
   workflow_dispatch:
   schedule:
