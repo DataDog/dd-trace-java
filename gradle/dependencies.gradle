@@ -76,6 +76,7 @@ CachedData.deps.shared = [
   // Force specific version of okio required by com.squareup.moshi:moshi
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
   // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
+  // TODO: Consider migrating away from Moshi, Okio, etc. to more modern JSON libraries with better (de)serialization support
   libs.okio,
   libs.okhttp,
   libs.dogstatsd,

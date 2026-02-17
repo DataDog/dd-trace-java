@@ -16,9 +16,7 @@ idea {
   }
 }
 
-// Use latest logback for Java 21+ tests with better virtual thread support.
-configurations.named("testRuntimeClasspath") {
-  resolutionStrategy {
-    force libs.logback.classic.latest
-  }
+dependencies {
+  // Use latest logback for Java 21+ tests with better virtual thread support.
+  testImplementation(libs.logback.classic.latest)
 }
