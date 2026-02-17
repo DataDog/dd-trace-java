@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -44,9 +43,6 @@ import org.slf4j.LoggerFactory;
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private static final Logger log =
-      LoggerFactory.getLogger(KafkaConsumerInfoInstrumentation.class);
 
   public KafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-0.11");
@@ -87,6 +83,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerInfo",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
     };
   }
 
@@ -154,8 +152,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      // Log consumer configuration
-      logConsumerConfiguration(consumerConfig, normalizedConsumerGroup);
+      if (Config.get().isDataStreamsEnabled()) {
+        KafkaConfigHelper.storePendingConsumerConfig(
+            metadata,
+            normalizedConsumerGroup,
+            KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+      }
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -200,8 +202,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      // Log consumer configuration
-      logConsumerConfigurationFromMap(consumerConfig, normalizedConsumerGroup);
+      if (Config.get().isDataStreamsEnabled()) {
+        KafkaConfigHelper.storePendingConsumerConfig(
+            metadata,
+            normalizedConsumerGroup,
+            KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
+      }
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -265,47 +271,6 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
       span.finish();
       scope.close();
-    }
-  }
-
-  private static void logConsumerConfiguration(
-      ConsumerConfig consumerConfig, String consumerGroup) {
-    try {
-      log.info("Kafka Consumer started - Group: {}", consumerGroup);
-      log.info("Consumer Configuration (all properties):");
-
-      // Get all configuration values
-      java.util.Map<String, ?> allConfigs = consumerConfig.values();
-
-      // Sort by key for consistent output
-      allConfigs.entrySet().stream()
-          .sorted(java.util.Map.Entry.comparingByKey())
-          .forEach(entry -> {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
-          });
-
-      // TODO: Add data capture logic here
-    } catch (Exception e) {
-      log.debug("Error logging consumer configuration", e);
-    }
-  }
-
-  private static void logConsumerConfigurationFromMap(
-      Map<String, Object> consumerConfig, String consumerGroup) {
-    try {
-      log.info("Kafka Consumer started - Group: {}", consumerGroup);
-      log.info("Consumer Configuration (all properties):");
-
-      // Sort by key for consistent output
-      consumerConfig.entrySet().stream()
-          .sorted(java.util.Map.Entry.comparingByKey())
-          .forEach(entry -> {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
-          });
-
-      // TODO: Add data capture logic here
-    } catch (Exception e) {
-      log.debug("Error logging consumer configuration", e);
     }
   }
 }

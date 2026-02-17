@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -44,6 +46,13 @@ public class LegacyConstructorAdvice {
         InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
             .put(coordinator, kafkaConsumerInfo);
       }
+    }
+
+    if (Config.get().isDataStreamsEnabled()) {
+      KafkaConfigHelper.storePendingConsumerConfig(
+          metadata,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 
