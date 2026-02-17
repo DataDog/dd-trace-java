@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -51,7 +52,11 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaDecorator"};
+    return new String[] {
+      packageName + ".KafkaDecorator",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+    };
   }
 
   @Override
@@ -78,8 +83,9 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
       if (newCluster != null && !newCluster.isBootstrapConfigured()) {
-        InstrumentationContext.get(Metadata.class, String.class)
-            .put(metadata, newCluster.clusterResource().clusterId());
+        String clusterId = newCluster.clusterResource().clusterId();
+        InstrumentationContext.get(Metadata.class, String.class).put(metadata, clusterId);
+        KafkaConfigHelper.reportPendingConfig(metadata, clusterId);
       }
     }
 
@@ -95,8 +101,9 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(
         @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
       if (response != null) {
-        InstrumentationContext.get(Metadata.class, String.class)
-            .put(metadata, response.clusterId());
+        String clusterId = response.clusterId();
+        InstrumentationContext.get(Metadata.class, String.class).put(metadata, clusterId);
+        KafkaConfigHelper.reportPendingConfig(metadata, clusterId);
       }
     }
 

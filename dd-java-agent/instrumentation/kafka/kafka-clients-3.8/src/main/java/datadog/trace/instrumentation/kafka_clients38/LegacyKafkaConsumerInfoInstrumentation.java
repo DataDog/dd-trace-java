@@ -77,6 +77,8 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
       packageName + ".KafkaConsumerInfo",
       packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
     };
   }
 

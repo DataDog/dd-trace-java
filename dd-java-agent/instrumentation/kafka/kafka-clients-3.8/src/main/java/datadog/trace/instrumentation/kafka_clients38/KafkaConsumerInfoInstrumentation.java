@@ -77,6 +77,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       packageName + ".KafkaConsumerInfo",
       packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
     };
   }
 
