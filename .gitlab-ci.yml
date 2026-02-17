@@ -31,7 +31,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v26.01-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|stable)$/
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -62,7 +62,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -70,7 +69,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
-      # - "stable"
+      - "stable"
     CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -598,6 +597,11 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
     - ./gradlew --version
+    - |
+      if [ "$testJvm" == "stable" ]; then
+        STABLE_JAVA=$(env | sed -n 's/^JAVA_\([0-9][0-9]*\)_HOME=.*/\1/p' | sort -n | tail -1)
+        echo "STABLE_JAVA is Java ${STABLE_JAVA}"
+      fi
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
