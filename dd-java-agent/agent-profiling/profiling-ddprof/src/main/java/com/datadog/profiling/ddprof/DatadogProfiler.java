@@ -304,8 +304,14 @@ public final class DatadogProfiler {
         cmd.append('~');
       }
       cmd.append(getWallInterval(configProvider)).append('m');
+      // ddprof quirk: if filter parameter is omitted, it defaults to "0" (enabled),
+      // not empty string (disabled). When enabled without tracing, no threads are added
+      // to the filter, resulting in zero samples. We must explicitly pass filter= (empty)
+      // to disable filtering and sample all threads.
       if (getWallContextFilter(configProvider)) {
         cmd.append(",filter=0");
+      } else {
+        cmd.append(",filter=");
       }
       if (useJvmtiWallclockSampler(configProvider)) {
         cmd.append(",wallsampler=jvmti");

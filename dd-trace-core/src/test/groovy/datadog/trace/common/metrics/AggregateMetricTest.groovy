@@ -1,5 +1,9 @@
 package datadog.trace.common.metrics
 
+import datadog.metrics.agent.AgentMeter
+import datadog.metrics.impl.DDSketchHistograms
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
@@ -16,6 +20,15 @@ import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG
 
 class AggregateMetricTest extends DDSpecification {
+
+  def setupSpec() {
+    // Initialize AgentMeter with monitoring - this is the standard mechanism used in production
+    def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+    AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY)
+    // Create a timer to trigger DDSketchHistograms loading and Factory registration
+    // This simulates what happens during CoreTracer initialization (traceWriteTimer)
+    monitoring.newTimer("test.init")
+  }
 
   def "record durations sums up to total"() {
     given:
@@ -52,7 +65,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG | TOP_LEVEL_TAG))
 
-    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")]))
+    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")], null, null))
     batch.add(0L, 10)
     batch.add(0L, 10)
     batch.add(0L, 10)
@@ -127,7 +140,7 @@ class AggregateMetricTest extends DDSpecification {
   def "consistent under concurrent attempts to read and write"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")])
+    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")], null, null)
     BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
     ExecutorService reader = Executors.newSingleThreadExecutor()
     int writerCount = 10

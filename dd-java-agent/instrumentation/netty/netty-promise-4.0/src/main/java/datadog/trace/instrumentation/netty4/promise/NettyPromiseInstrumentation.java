@@ -11,7 +11,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class NettyPromiseInstrumentation extends InstrumenterModule.Tracing
+public class NettyPromiseInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public NettyPromiseInstrumentation() {

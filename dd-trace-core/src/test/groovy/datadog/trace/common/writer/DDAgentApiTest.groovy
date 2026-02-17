@@ -4,13 +4,14 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
-import datadog.communication.monitor.Monitoring
 import datadog.communication.serialization.ByteBufferConsumer
+import datadog.metrics.api.Monitoring
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
-import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -18,7 +19,6 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
@@ -77,6 +77,29 @@ class DDAgentApiTest extends DDCoreSpecification {
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+  }
+
+  def "response body propagated in case of non-200 response"() {
+    setup:
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(400).send("Test error")
+        }
+      }
+    }
+    def client = createAgentApi(agent.address.toString())[1]
+    Payload payload = prepareTraces("v0.4/traces", [])
+
+    expect:
+    def clientResponse = client.sendSerializedTraces(payload)
+    !clientResponse.success()
+    clientResponse.status().present
+    clientResponse.status().asInt == 400
+    clientResponse.response == "Test error"
+
+    cleanup:
+    agent.close()
   }
 
   def "non-200 response"() {

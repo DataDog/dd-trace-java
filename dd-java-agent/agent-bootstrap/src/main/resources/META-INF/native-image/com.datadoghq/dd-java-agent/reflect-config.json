@@ -206,5 +206,17 @@
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
     ]
+  },
+  {
+    "name": "com.datadoghq.profiler.BufferWriter8",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.datadoghq.profiler.BufferWriter9",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
   }
 ]

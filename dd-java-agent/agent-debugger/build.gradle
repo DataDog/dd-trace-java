@@ -25,7 +25,9 @@ excludedClassesCoverage += [
   // based on JDK WeakHashMap
   'com.datadog.debugger.util.WeakIdentityHashMap*',
   // tested through smoke tests
-  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger'
+  'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger',
+  // dynamically compiled test classes - exclude to prevent Jacoco instrumentation interference
+  'com.datadog.debugger.symboltest.SymbolExtraction*'
 ]
 
 dependencies {
@@ -35,6 +37,7 @@ dependencies {
   implementation libs.bundles.asm
   implementation project(':internal-api')
   implementation project(':communication')
+  implementation project(':products:metrics:metrics-lib')
   compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-java-agent:agent-builder')
   compileOnly project(':dd-trace-core')

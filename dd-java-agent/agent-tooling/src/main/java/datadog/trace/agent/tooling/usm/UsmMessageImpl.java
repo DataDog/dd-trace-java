@@ -48,9 +48,7 @@ public abstract class UsmMessageImpl {
     @Override
     public boolean validate() {
       if (offset > getMessageSize()) {
-        log.warn(
-            String.format(
-                "invalid message size, expected: %d actual: %d", getMessageSize(), offset));
+        log.warn("invalid message size, expected: {} actual: {}", getMessageSize(), offset);
         return false;
       }
       return true;
@@ -158,17 +156,9 @@ public abstract class UsmMessageImpl {
       super(MessageType.REQUEST, connection);
 
       log.debug("Request packet:");
-      log.debug(
-          "src host: "
-              + connection.getSrcIP().toString()
-              + " src port: "
-              + connection.getSrcPort());
-      log.debug(
-          "dst host: "
-              + connection.getDstIP().toString()
-              + " dst port: "
-              + connection.getDstPort());
-      log.debug("intercepted byte len: " + len);
+      log.debug("src host: {} src port: {}", connection.getSrcIP(), connection.getSrcPort());
+      log.debug("dst host: {} dst port: {}", connection.getDstIP(), connection.getDstPort());
+      log.debug("intercepted byte len: {}", len);
 
       // check the buffer is not larger than max allowed,
       if (len - bufferOffset <= MAX_HTTPS_BUFFER_SIZE) {

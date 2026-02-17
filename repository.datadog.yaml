@@ -1,4 +1,13 @@
 ---
 schema-version: v1
-kind: mergequeue
-enable: false
+kind: mergequeue # https://datadoghq.atlassian.net/wiki/x/XgUQug
+enable: true
+merge_method: squash
+skip_labels: true
+branches:
+  master:
+    allow_skip_checks: true
+    require_reason_for_skip_checks: true
+  sarahchen6/test-gh-mq: # test datadog merge queue with github merge queue
+    allow_skip_checks: true
+    require_reason_for_skip_checks: true

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.mule4;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -9,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
@@ -38,6 +40,7 @@ public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstru
         getClass().getName() + "$ProcessAdvice");
   }
 
+  @AppliesOn(CONTEXT_TRACKING)
   public static class ProcessAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.Argument(0) final CoreEvent event) {
