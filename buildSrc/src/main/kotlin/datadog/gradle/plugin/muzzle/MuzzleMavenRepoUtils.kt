@@ -12,6 +12,7 @@ import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
+import org.eclipse.aether.transport.file.FileTransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
@@ -34,13 +35,15 @@ internal object MuzzleMavenRepoUtils {
   }
 
   /**
-   * Create new RepositorySystem for muzzle's Maven/Aether resoltions.
+   * Create new RepositorySystem for muzzle's Maven/Aether resolutions.
+   * Supports both HTTP/HTTPS and file:// repositories.
    */
   @JvmStatic
   fun newRepositorySystem(): RepositorySystem {
     val locator = MavenRepositorySystemUtils.newServiceLocator().apply {
       addService(RepositoryConnectorFactory::class.java, BasicRepositoryConnectorFactory::class.java)
       addService(TransporterFactory::class.java, HttpTransporterFactory::class.java)
+      addService(TransporterFactory::class.java, FileTransporterFactory::class.java)
     }
     return locator.getService(RepositorySystem::class.java)
   }

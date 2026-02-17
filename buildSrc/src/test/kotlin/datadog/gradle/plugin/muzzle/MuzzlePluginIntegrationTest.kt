@@ -189,6 +189,101 @@ class MuzzlePluginIntegrationTest {
     assertEquals("PASSING", failDirectiveResult.readText())
   }
 
+  @Test
+  fun `artifact directive resolves multiple versions from version range`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    // Create fake local Maven repo with multiple versions
+    val repoDir = fixture.createFakeMavenRepo(
+      group = "com.example.test",
+      module = "demo-lib",
+      versions = listOf("1.0.0", "1.1.0", "1.2.0", "2.0.0")
+    )
+
+    // Configure muzzle to use the fake repo (file:// URI now supported!)
+    val repoUrl = repoDir.toURI().toString()
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      // Gradle repositories for artifact download
+      repositories {
+        maven {
+          url = uri('$repoUrl')
+          metadataSources {
+            mavenPom()
+            artifact()
+            // Disable checksum validation for fake repo
+          }
+        }
+      }
+
+      muzzle {
+        pass {
+          group = 'com.example.test'
+          module = 'demo-lib'
+          versions = '[1.0.0,2.0.0)'  // Should resolve 1.0.0, 1.1.0, 1.2.0 but NOT 2.0.0
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin("// pass")
+
+    // Use MAVEN_REPOSITORY_PROXY to point Muzzle's resolution to our fake repo
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl) // force the use of our fake repo over maven central
+    )
+
+    // First check: did the build succeed?
+    assertTrue(
+      result.output.contains("BUILD SUCCESSFUL"),
+      "Build should succeed. Output:\n${result.output.take(3000)}"
+    )
+
+    // Check for evidence of muzzle execution
+    val hasMuzzleTasks = result.tasks.any { it.path.contains("muzzle") }
+    assertTrue(hasMuzzleTasks, "Should have executed some muzzle tasks")
+
+    // Verify tasks were created for versions in range
+    assertTrue(
+      result.output.contains("demo-lib-1.0.0") || result.output.contains("demo-lib:1.0.0"),
+      "Should find demo-lib version 1.0.0 in output"
+    )
+    assertTrue(
+      result.output.contains("demo-lib-1.1.0") || result.output.contains("demo-lib:1.1.0"),
+      "Should find demo-lib version 1.1.0 in output"
+    )
+    assertTrue(
+      result.output.contains("demo-lib-1.2.0") || result.output.contains("demo-lib:1.2.0"),
+      "Should find demo-lib version 1.2.0 in output"
+    )
+
+    // Verify JUnit report has test cases for each version
+    val reportFile = fixture.findSingleMuzzleJUnitReport()
+    val report = fixture.parseXml(reportFile)
+    val suite = report.documentElement
+
+    // Should have 3 version-specific tests (at minimum)
+    val testCount = suite.getAttribute("tests").toInt()
+    assertTrue(testCount >= 3, "Should have at least 3 tests for 3 versions, got $testCount")
+    assertEquals("0", suite.getAttribute("failures"), "Should have no failures")
+
+    // Verify at least one test case exists for one of the versions
+    val testCases = (0 until report.getElementsByTagName("testcase").length)
+      .map { report.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
+      .map { it.getAttribute("name") }
+
+    assertTrue(
+      testCases.any { it.contains("demo-lib-1.0.0") },
+      "Should have test case for demo-lib-1.0.0. Found: ${testCases.take(5)}"
+    )
+  }
+
   private fun findTestCase(document: org.w3c.dom.Document, name: String): org.w3c.dom.Element =
     (0 until document.getElementsByTagName("testcase").length)
       .map { document.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
