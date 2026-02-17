@@ -84,7 +84,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
-    private static final AtomicIntegerFieldUpdater<PTags> AFU_TRACE_SOURCE =
+    private static final AtomicIntegerFieldUpdater<PTags> TRACE_SOURCE_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(PTags.class, "traceSource");
 
     private volatile int traceSource;
@@ -233,7 +233,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void addTraceSource(final int product) {
-      AFU_TRACE_SOURCE.updateAndGet(
+      TRACE_SOURCE_UPDATER.updateAndGet(
           this,
           currentValue -> {
             // If the product is already marked, return the same value (no change)
