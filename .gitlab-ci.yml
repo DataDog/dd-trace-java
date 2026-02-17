@@ -376,7 +376,7 @@ spotless:
   stage: tests
   needs: []
   variables:
-    GRADLE_WORKERS: 10
+    GRADLE_WORKERS: 8
     GRADLE_MEM_PERCENT: 60
   script:
     - ./gradlew --version
