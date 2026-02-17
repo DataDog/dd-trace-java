@@ -94,6 +94,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       1,
       DDSpanId.ZERO,
       null,
+      null,
       "fakeService",
       "fakeOperation",
       "fakeResource",

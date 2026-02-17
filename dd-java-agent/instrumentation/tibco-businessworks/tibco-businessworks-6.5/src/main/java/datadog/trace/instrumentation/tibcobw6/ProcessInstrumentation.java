@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.tibcobw6.TibcoDecorator.TIBCO_BW;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -70,9 +71,9 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
         if (appName != null) {
           AgentSpan root = span.getLocalRootSpan();
           if (root != null) {
-            root.setServiceName(appName);
+            root.setServiceName(appName, TIBCO_BW);
           }
-          span.setServiceName(appName);
+          span.setServiceName(appName, TIBCO_BW);
         }
         TibcoDecorator.DECORATE.onProcessStart(span, process.getName(pmContext));
         contextStore.put(process, span);

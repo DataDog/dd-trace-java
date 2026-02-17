@@ -1867,6 +1867,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
 
       String parentServiceName = null;
+      CharSequence parentserviceNameSource = null;
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
@@ -1884,6 +1885,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         rootSpanTags = null;
         rootSpanTagsNeedsIntercept = false;
         parentServiceName = ddsc.getServiceName();
+        parentserviceNameSource = ddsc.getServiceNameSource();
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
@@ -2033,6 +2035,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               spanId,
               parentSpanId,
               parentServiceName,
+              parentserviceNameSource,
               serviceName,
               operationName,
               resourceName,

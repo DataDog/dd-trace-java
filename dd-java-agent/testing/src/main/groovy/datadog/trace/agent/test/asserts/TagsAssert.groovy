@@ -11,17 +11,18 @@ import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
-
 import java.util.regex.Pattern
 
 class TagsAssert {
   private final long spanParentId
   private final Map<String, Object> tags
+  private final String serviceName
   private final Set<String> assertedTags = new TreeSet<>()
 
   private TagsAssert(DDSpan span) {
     this.spanParentId = span.parentId
     this.tags = span.tags
+    this.serviceName = span.getServiceName()
   }
 
   static void assertTags(DDSpan span,
@@ -49,6 +50,11 @@ class TagsAssert {
   def withCustomIntegrationName(String integrationName) {
     assertedTags.add(DDTags.DD_INTEGRATION)
     assert tags[DDTags.DD_INTEGRATION]?.toString() == integrationName
+  }
+
+  def serviceNameSource(CharSequence source) {
+    assertedTags.add(DDTags.DD_SVC_SRC)
+    assert tags[DDTags.DD_SVC_SRC]?.toString() == source?.toString()
   }
 
   def defaultTagsNoPeerService(boolean distributedRootSpan = false) {
@@ -136,6 +142,11 @@ class TagsAssert {
     } else {
       assert tags[Tags.PEER_SERVICE] == null
       assert tags[DDTags.PEER_SERVICE_SOURCE] == null
+    }
+    // Note: this is a simplification of the rule setting _dd.svc_src but it's good enough for instrumentation tests
+    if (assertedTags.add(DDTags.DD_SVC_SRC)) {
+      assert (tags[DDTags.DD_SVC_SRC] == null) == (Config.get().getServiceName() == serviceName),
+      "The tag $DDTags.DD_SVC_SRC must be set if the instrumentation sets a service name. Otherwise it must be missing"
     }
   }
 

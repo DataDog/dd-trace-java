@@ -128,7 +128,7 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
     String topic = topic2 == null ? "kafka" : topic2;
     span.setResourceName(topic);
     if (Config.get().isMessageBrokerSplitByDestination()) {
-      span.setServiceName(topic);
+      span.setServiceName(topic, component());
     }
   }
 }

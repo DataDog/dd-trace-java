@@ -174,6 +174,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
+            if (operation == "SendMessage") {
+              // this is a corner case. The issues is that the aws integration should not set the service name
+              // but it's doing it.
+              serviceNameSource "java-aws-sdk"
+            }
             defaultTags(false, checkPeerService)
           }
         }
@@ -309,6 +314,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
+            if (operation == "SendMessage") {
+              // this is a corner case. The issues is that the aws integration should not set the service name
+              // but it's doing it.
+              serviceNameSource "java-aws-sdk"
+            }
             defaultTags(false, checkPeerService)
           }
         }
@@ -468,6 +478,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           measured true
           parent()
           tags {
+            if (operation == "SendMessage") {
+              // this is a corner case. The issues is that the aws integration should not set the service name
+              // but it's doing it.
+              serviceNameSource "java-aws-sdk"
+            }
             defaultTags(false, true)
 
             // AWS specific tags

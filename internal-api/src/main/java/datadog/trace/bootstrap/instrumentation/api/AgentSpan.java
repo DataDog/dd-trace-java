@@ -246,4 +246,15 @@ public interface AgentSpan
   default ContextScope attachWithCurrent() {
     return storeInto(Context.current()).attach();
   }
+
+  /**
+   * Set the service name specifying the source (origin) of this name
+   *
+   * @param serviceName the service name
+   * @param source the source. Can be typically the name of the integration that overrides the
+   *     default name.
+   */
+  default void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+    setServiceName(serviceName);
+  }
 }
