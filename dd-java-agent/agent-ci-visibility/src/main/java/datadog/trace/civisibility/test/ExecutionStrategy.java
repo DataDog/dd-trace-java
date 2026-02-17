@@ -16,6 +16,8 @@ import datadog.trace.civisibility.execution.Regular;
 import datadog.trace.civisibility.execution.RetryUntilSuccessful;
 import datadog.trace.civisibility.execution.RunNTimes;
 import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
+import datadog.trace.civisibility.execution.exit.ExitOnFailure;
+import datadog.trace.civisibility.execution.exit.ExitOnFlake;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
@@ -129,7 +131,8 @@ public class ExecutionStrategy {
       return new RunNTimes(
           executionSettings.getTestManagementSettings().getAttemptToFixExecutions(),
           isQuarantined(test) || isDisabled(test),
-          RetryReason.attemptToFix);
+          RetryReason.attemptToFix,
+          ExitOnFailure.INSTANCE);
     }
 
     if (isEFDApplicable(test, testSource, testTags)) {
@@ -139,7 +142,8 @@ public class ExecutionStrategy {
       return new RunNTimes(
           executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
           isQuarantined(test),
-          RetryReason.efd);
+          RetryReason.efd,
+          ExitOnFlake.INSTANCE);
     }
 
     if (isAutoRetryApplicable(test)) {

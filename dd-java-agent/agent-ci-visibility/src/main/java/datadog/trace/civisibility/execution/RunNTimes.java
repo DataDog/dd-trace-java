@@ -4,9 +4,13 @@ import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.civisibility.config.ExecutionsByDuration;
+import datadog.trace.civisibility.execution.exit.EarlyExitPolicy;
 import java.util.List;
 
-/** Runs a test case N times (N depends on test duration) regardless of success or failure. */
+/**
+ * Runs a test case N times (N depends on test duration) regardless of success or failure. The
+ * execution can also be terminated early if its ExitPolicy evaluates to {@code true}.
+ */
 public class RunNTimes implements TestExecutionPolicy {
 
   private final boolean suppressFailures;
@@ -14,19 +18,23 @@ public class RunNTimes implements TestExecutionPolicy {
   private int executions;
   private int maxExecutions;
   private int successfulExecutionsSeen;
+  private int failedExecutionsSeen;
   private final RetryReason retryReason;
   private TestStatus lastStatus;
+  private final EarlyExitPolicy exitPolicy;
 
   public RunNTimes(
       List<ExecutionsByDuration> executionsByDuration,
       boolean suppressFailures,
-      RetryReason retryReason) {
+      RetryReason retryReason,
+      EarlyExitPolicy exitPolicy) {
     this.suppressFailures = suppressFailures;
     this.executionsByDuration = executionsByDuration;
     this.executions = 0;
     this.maxExecutions = getExecutions(0);
     this.successfulExecutionsSeen = 0;
     this.retryReason = retryReason;
+    this.exitPolicy = exitPolicy;
   }
 
   @Override
@@ -35,6 +43,8 @@ public class RunNTimes implements TestExecutionPolicy {
     ++executions;
     if (status != TestStatus.fail) {
       ++successfulExecutionsSeen;
+    } else {
+      ++failedExecutionsSeen;
     }
     int maxExecutionsForGivenDuration = getExecutions(durationMillis);
     maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
@@ -58,7 +68,7 @@ public class RunNTimes implements TestExecutionPolicy {
     return new ExecutionOutcomeImpl(
         failureSuppressed,
         lastExecution,
-        lastExecution && successfulExecutionsSeen == 0,
+        lastExecution && failedExecutionsSeen == executions,
         succeededAllRetries,
         retry ? retryReason : null,
         finalStatus);
@@ -66,7 +76,9 @@ public class RunNTimes implements TestExecutionPolicy {
 
   private boolean retriesLeft() {
     // skipped tests (either by the framework or DD) should not be retried
-    return lastStatus != TestStatus.skip && executions < maxExecutions;
+    return lastStatus != TestStatus.skip
+        && executions < maxExecutions
+        && !exitPolicy.evaluate(failedExecutionsSeen != 0, successfulExecutionsSeen != 0);
   }
 
   @Override
