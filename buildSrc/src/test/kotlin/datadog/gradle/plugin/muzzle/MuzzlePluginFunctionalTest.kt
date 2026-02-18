@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.GradleFixture
+import datadog.gradle.plugin.MavenRepoFixture
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -250,14 +251,13 @@ class MuzzlePluginFunctionalTest {
   @Test
   fun `artifact directive resolves multiple versions from version range`(@TempDir projectDir: File) {
     val fixture = MuzzlePluginTestFixture(projectDir)
+    val mavenRepoFixture = MavenRepoFixture(projectDir)
 
-    val repoDir = fixture.createFakeMavenRepo(
+    mavenRepoFixture.publishVersions(
       group = "com.example.test",
       module = "demo-lib",
       versions = listOf("1.0.0", "1.1.0", "1.2.0", "2.0.0")
     )
-
-    val repoUrl = repoDir.toURI().toString()
     fixture.writeProject(
       """
       plugins {
@@ -268,7 +268,7 @@ class MuzzlePluginFunctionalTest {
       // Gradle repositories for artifact download
       repositories {
         maven {
-          url = uri('$repoUrl')
+          url = uri('${mavenRepoFixture.repoUrl}')
           metadataSources {
             mavenPom()
             artifact()
@@ -292,7 +292,7 @@ class MuzzlePluginFunctionalTest {
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
-      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
     assertTrue(
@@ -491,16 +491,15 @@ class MuzzlePluginFunctionalTest {
   @Test
   fun `additional dependencies are added to muzzle test classpath`(@TempDir projectDir: File) {
     val fixture = MuzzlePluginTestFixture(projectDir)
+    val mavenRepoFixture = MavenRepoFixture(projectDir)
 
     // Create a fake Maven repo with a fake additional dependency
     // The JAR will automatically include standard Maven metadata
-    val repoDir = fixture.createFakeMavenRepo(
+    mavenRepoFixture.publishVersions(
       group = "com.example.extra",
       module = "extra-lib",
       versions = listOf("1.0.0")
     )
-
-    val repoUrl = repoDir.toURI().toString()
     fixture.writeProject(
       """
       plugins {
@@ -510,7 +509,7 @@ class MuzzlePluginFunctionalTest {
 
       repositories {
         maven {
-          url = uri('$repoUrl')
+          url = uri('${mavenRepoFixture.repoUrl}')
           metadataSources {
             mavenPom()
             artifact()
@@ -547,7 +546,7 @@ class MuzzlePluginFunctionalTest {
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
-      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
     assertTrue(
@@ -565,16 +564,17 @@ class MuzzlePluginFunctionalTest {
   @Test
   fun `excluded dependencies are removed from muzzle test classpath`(@TempDir projectDir: File) {
     val fixture = MuzzlePluginTestFixture(projectDir)
+    val mavenRepoFixture = MavenRepoFixture(projectDir)
 
     // Create a fake repo with an artifact that has transitive dependencies
-    val repoDir = fixture.createFakeMavenRepo(
+    mavenRepoFixture.publishVersions(
       group = "com.example.test",
       module = "with-transitive",
       versions = listOf("1.0.0")
     )
 
     // Manually create a POM with a transitive dependency
-    val pomFile = repoDir.resolve("com/example/test/with-transitive/1.0.0/with-transitive-1.0.0.pom")
+    val pomFile = mavenRepoFixture.repoDir.resolve("com/example/test/with-transitive/1.0.0/with-transitive-1.0.0.pom")
     pomFile.writeText(
       """
       <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -593,7 +593,6 @@ class MuzzlePluginFunctionalTest {
       """.trimIndent()
     )
 
-    val repoUrl = repoDir.toURI().toString()
     fixture.writeProject(
       """
       plugins {
@@ -603,7 +602,7 @@ class MuzzlePluginFunctionalTest {
 
       repositories {
         maven {
-          url = uri('$repoUrl')
+          url = uri('${mavenRepoFixture.repoUrl}')
           metadataSources {
             mavenPom()
             artifact()
@@ -638,7 +637,7 @@ class MuzzlePluginFunctionalTest {
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
-      env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
     assertTrue(result.output.contains("BUILD SUCCESSFUL"))

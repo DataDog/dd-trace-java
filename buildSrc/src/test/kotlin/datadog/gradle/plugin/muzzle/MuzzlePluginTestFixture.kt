@@ -8,9 +8,7 @@ import java.io.File
  * Test fixture for muzzle plugin integration tests.
  * Extends GradleFixture with muzzle-specific functionality.
  */
-internal class MuzzlePluginTestFixture(
-  projectDir: File,
-) : GradleFixture(projectDir) {
+internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(projectDir) {
 
   /**
    * Writes the basic Gradle project structure for muzzle testing.
