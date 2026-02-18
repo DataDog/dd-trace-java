@@ -3,15 +3,16 @@
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" &>/dev/null && pwd 2>/dev/null)"
-readonly OUT_ENV_FILE="${1:-${SCRIPT_DIR}/../reports/baseline-info.env}"
-readonly FALLBACK_MARKER_FILE="${2:-${SCRIPT_DIR}/../reports/fallback_to_master.txt}"
+readonly OUTPUT_DIR="${1:-${SCRIPT_DIR}/../reports}"
+readonly OUT_ENV_FILE="${OUTPUT_DIR}/baseline-info.env"
+readonly FALLBACK_MARKER_FILE="${OUTPUT_DIR}/fallback_to_master.txt"
 readonly TARGET_BRANCH="${TARGET_BRANCH:-master}"
 
-mkdir -p "$(dirname "${OUT_ENV_FILE}")"
+mkdir -p "${OUTPUT_DIR}"
 rm -f "${FALLBACK_MARKER_FILE}"
 
-if [[ -z "${CI_PROJECT_ID:-}" || -z "${CI_API_V4_URL:-}" ]]; then
-  echo "Missing CI_PROJECT_ID/CI_API_V4_URL environment variables." >&2
+if [[ -z "${CI_PROJECT_ID:-}" || -z "${CI_API_V4_URL:-}" || -z "${CI_JOB_TOKEN:-}" ]]; then
+  echo "Missing CI_PROJECT_ID/CI_API_V4_URL/CI_JOB_TOKEN environment variables." >&2
   exit 1
 fi
 
@@ -19,90 +20,41 @@ readonly PROJECT_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
 get_pipeline_id_for_commit() {
   local commit_sha="$1"
-  
-  # Get JWT token with `authanywhere`, needed for internal API authentication
-  # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3733193227/Authanywhere
-  local auth_header
-  if ! auth_header="$(authanywhere --audience sdm 2>&1)"; then
-    echo "ERROR: Failed to get authanywhere token: ${auth_header}" >&2
-    return 1
-  fi
-
-  # Get short-lived PAT from BTI CI API
-  # https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/5421924354/BTI+CI+API+-+the+swiss+army+knife+of+CI+interactions#Get-Short-lived-Project-Access-Token
-  local bti_response http_status response_body private_token
-  bti_response="$(curl -w "\nHTTP_STATUS:%{http_code}" --silent --show-error \
-    --header "${auth_header}" \
-    "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=apm-reliability/dd-trace-java" 2>&1)"
-  http_status="$(echo "${bti_response}" | grep "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
-  response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
-  if [[ "${http_status}" != "200" ]]; then
-    echo "ERROR: BTI CI API returned HTTP ${http_status} with response: ${response_body:0:200}" >&2
-    return 1
-  fi
-  private_token="$(echo "${response_body}" | grep -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
-  if [[ -z "${private_token}" ]]; then
-    echo "ERROR: Failed to retrieve private token from BTI CI API" >&2
-    return 1
-  fi
 
   # Query GitLab API to get pipeline ID that matches the commit SHA
   local api_url="${PROJECT_API_URL}/repository/commits/${commit_sha}"
   local response pipeline_id
-  response="$(curl --request GET --silent --header "PRIVATE-TOKEN: ${private_token}" --show-error "${api_url}" 2>&1)"
+  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
   if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
-    echo "Found pipeline ID: ${pipeline_id} for commit: ${commit_sha}" >&2
     echo "${pipeline_id}"
     return 0
-  else
-    echo "Could not find pipeline ID for commit ${commit_sha}" >&2
-    return 1
   fi
+
+  echo ""
+  return 1
 }
 
 get_branch_head_sha() {
   local branch="$1"
-  
-  # Get JWT token with `authanywhere`, needed for internal API authentication
-  local auth_header
-  if ! auth_header="$(authanywhere --audience sdm 2>&1)"; then
-    echo "ERROR: Failed to get authanywhere token: ${auth_header}" >&2
-    return 1
-  fi
-
-  # Get short-lived PAT from BTI CI API
-  local bti_response http_status response_body private_token
-  bti_response="$(curl -w "\nHTTP_STATUS:%{http_code}" --silent --show-error \
-    --header "${auth_header}" \
-    "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=apm-reliability/dd-trace-java" 2>&1)"
-  http_status="$(echo "${bti_response}" | grep "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
-  response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
-  
-  if [[ "${http_status}" != "200" ]]; then
-    echo "ERROR: BTI CI API returned HTTP ${http_status} with response: ${response_body:0:200}" >&2
-    return 1
-  fi
-  
-  private_token="$(echo "${response_body}" | grep -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
-  if [[ -z "${private_token}" ]]; then
-    echo "ERROR: Failed to retrieve private token from BTI CI API" >&2
-    return 1
-  fi
 
   # Query GitLab API to get branch head SHA
   local api_url="${PROJECT_API_URL}/repository/branches/${branch}"
   local response branch_sha
-  response="$(curl --request GET --silent --header "PRIVATE-TOKEN: ${private_token}" --show-error "${api_url}" 2>&1)"
+  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
   branch_sha="$(echo "${response}" | grep -o '"commit"[^}]*"id":"[a-f0-9]\{40\}"' | sed -E 's/.*"id":"([a-f0-9]{40})".*/\1/' | head -1 || true)"
 
-  if [[ -n "${branch_sha}" ]]; then
-    echo "${branch_sha}"
-    return 0
-  else
-    echo "ERROR: Could not find branch head SHA for branch ${branch}" >&2
-    return 1
-  fi
+  echo "${branch_sha}"
+}
+
+get_latest_pipeline_id_for_branch() {
+  local branch="$1"
+  local api_url="${PROJECT_API_URL}/pipelines?ref=${branch}&status=success&order_by=updated_at&sort=desc&per_page=1"
+  local response pipeline_id
+
+  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
+  pipeline_id="$(echo "${response}" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+  echo "${pipeline_id}"
 }
 
 resolve_merge_base_sha() {
@@ -131,9 +83,14 @@ if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
 
   BASELINE_SHA="$(git rev-parse "origin/${TARGET_BRANCH}" 2>/dev/null || true)"
   if [[ -z "${BASELINE_SHA}" ]]; then
-    BASELINE_SHA="$(get_branch_head_sha "${TARGET_BRANCH}")"
+    BASELINE_SHA="$(get_branch_head_sha "${TARGET_BRANCH}" || true)"
   fi
   BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${BASELINE_SHA}" || true)"
+
+  # use latest successful branch pipeline
+  if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
+    BASELINE_PIPELINE_ID="$(get_latest_pipeline_id_for_branch "${TARGET_BRANCH}" || true)"
+  fi
 fi
 
 if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then

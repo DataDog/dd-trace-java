@@ -3,6 +3,7 @@
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -47,6 +48,7 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -87,12 +89,13 @@ debugger-benchmarks:
   tags: ["arch:amd64"]
   interruptible: true
   rules:
+    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - when: on_success
   script:
     - mkdir -p "$(pwd)/reports/${BENCHMARK_TYPE}"
-    - .gitlab/scripts/get-baseline-commit-info.sh "$(pwd)/reports/baseline-info.env" "$(pwd)/reports/${BENCHMARK_TYPE}/fallback_to_master.txt"
+    - .gitlab/scripts/get-baseline-commit-info.sh "$(pwd)/reports/${BENCHMARK_TYPE}"
     - .gitlab/scripts/benchmark-compare.sh "${BENCHMARK_TYPE}"
   artifacts:
     name: "benchmark-compare-${BENCHMARK_TYPE}"
@@ -131,6 +134,7 @@ benchmarks-post-pr-comment:
     - job: benchmarks-compare-dacapo
       artifacts: true
   rules:
+    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - when: always
@@ -141,3 +145,24 @@ benchmarks-post-pr-comment:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     BP_HEADER: "Benchmarks"
     BP_ON_DUPLICATE: "replace"
+
+# DEBUG MERGE BASE LOGIC IMMEDIATELY instead of waiting on all benchmarks to complete
+benchmarks-debug-baseline:
+  stage: benchmark-comparison
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  tags: ["arch:amd64"]
+  interruptible: true
+  needs: []
+  rules:
+    - when: on_success
+  script:
+    - mkdir -p reports/debug
+    - .gitlab/scripts/get-baseline-commit-info.sh "reports/debug"
+    - echo "Resolved baseline:"
+    - cat reports/debug/baseline-info.env
+    - if [[ -f "reports/debug/fallback_to_master.txt" ]]; then cat "reports/debug/fallback_to_master.txt"; fi
+  artifacts:
+    when: always
+    paths:
+      - reports/debug/
+    expire_in: 1 week
