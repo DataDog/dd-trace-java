@@ -12,7 +12,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.readText
 
-class MuzzlePluginIntegrationTest {
+class MuzzlePluginFunctionalTest {
 
   @Test
   fun `muzzle with pass directive writes junit report`(@TempDir projectDir: File) {
