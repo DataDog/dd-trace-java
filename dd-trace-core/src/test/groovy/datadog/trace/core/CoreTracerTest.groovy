@@ -8,6 +8,7 @@ import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
@@ -569,6 +570,58 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env"  | "service_1"   | "env"
     "service" | "env"  | "service"     | "env_1"
     "service" | "env"  | "service_2"   | "env_2"
+  }
+
+  def "service name source is recorded when using two-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    def child = tracer.buildSpan("child").start()
+    child.finish()
+    span.finish()
+
+    then:
+    [span, child].each {
+      assert span.getServiceName() == "custom-service"
+      assert span.getTag(DDTags.DD_SVC_SRC) == "my-integration"
+    }
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is nullified when using one-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    span.setServiceName("another")
+    span.finish()
+
+    then:
+    span.getServiceName() == "another"
+    span.getTag(DDTags.DD_SVC_SRC) == null
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is missing when not explicitly setting the service name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.finish()
+
+    then:
+    span.getServiceName() == tracer.serviceName
+    span.getTag(DDTags.DD_SVC_SRC) == null
+    cleanup:
+    tracer?.close()
   }
 }
 
