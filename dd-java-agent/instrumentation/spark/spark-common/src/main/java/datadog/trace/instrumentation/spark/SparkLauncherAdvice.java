@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.spark;
 
+import datadog.trace.api.DDTags;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
@@ -23,14 +26,8 @@ class SparkLauncherAdvice {
 
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     AgentSpan span =
-        tracer
-            .buildSpan("spark.launcher")
-            .withSpanType("spark")
-            .withResourceName(resource)
-            .start();
-    span.setSamplingPriority(
-        datadog.trace.api.sampling.PrioritySampling.USER_KEEP,
-        datadog.trace.api.sampling.SamplingMechanism.DATA_JOBS);
+        tracer.buildSpan("spark.launcher").withSpanType("spark").withResourceName(resource).start();
+    span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     launcherSpan = span;
 
     if (!shutdownHookRegistered) {
@@ -56,7 +53,7 @@ class SparkLauncherAdvice {
     }
     if (exitCode != 0) {
       span.setError(true);
-      span.setTag("error.type", "Launcher process failed with exit code " + exitCode);
+      span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed with exit code " + exitCode);
     }
     span.finish();
     launcherSpan = null;
@@ -71,7 +68,6 @@ class SparkLauncherAdvice {
       if (throwable != null) {
         AgentSpan span = launcherSpan;
         if (span != null) {
-          span.setError(true);
           span.addThrowable(throwable);
           span.finish();
           launcherSpan = null;
@@ -97,7 +93,6 @@ class SparkLauncherAdvice {
       if (throwable != null) {
         AgentSpan span = launcherSpan;
         if (span != null) {
-          span.setError(true);
           span.addThrowable(throwable);
           span.finish();
           launcherSpan = null;
@@ -124,7 +119,7 @@ class SparkLauncherAdvice {
               || state == SparkAppHandle.State.KILLED
               || state == SparkAppHandle.State.LOST) {
             span.setError(true);
-            span.setTag("error.type", "Spark application " + state);
+            span.setTag(DDTags.ERROR_TYPE, "Spark Application " + state);
           }
         }
       }

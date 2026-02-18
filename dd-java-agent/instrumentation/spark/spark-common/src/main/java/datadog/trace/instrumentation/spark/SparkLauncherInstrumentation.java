@@ -30,8 +30,7 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SparkLauncherAdvice",
-      packageName + ".SparkLauncherAdvice$AppHandleListener",
+      packageName + ".SparkLauncherAdvice", packageName + ".SparkLauncherAdvice$AppHandleListener",
     };
   }
 

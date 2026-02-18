@@ -810,7 +810,7 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           spanType "spark"
           resourceName "SparkLauncher.startApplication"
           errored true
-          assert span.tags["error.type"] == "Launcher process failed with exit code 1"
+          assert span.tags["error.type"] == "Spark Launcher Failed with exit code 1"
         }
       }
     }
