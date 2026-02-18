@@ -41,19 +41,36 @@ Understanding the startup sequence is key to understanding the project:
 
 ### `dd-java-agent/`
 
-The main agent module. Its build produces the final shadow jar (`dd-java-agent.jar`).
+The main agent module. Its build produces the final shadow jar (`dd-java-agent.jar`) using a
+composite shadow jar strategy. Each product module (instrumentation, profiling, AppSec, IAST,
+debugger, CI Visibility, LLM Obs, etc.) builds its own shadow jar, which is then embedded as a
+nested directory inside the main jar (`inst/`, `profiling/`, `appsec/`, `iast/`, `debugger/`,
+`ci-visibility/`, `llm-obs/`, `shared/`, `trace/`, etc.). A dedicated `sharedShadowJar` bundles
+common transitive dependencies (OkHttp, JCTools, LZ4, etc.) so they are not duplicated across
+feature jars. All dependencies are relocated under `datadog.` prefixes to prevent classpath conflicts
+with application libraries. Class files inside feature jars are renamed to `.classdata` to prevent
+unintended loading. See `docs/how_to_work_with_gradle.md` for build details.
 
 - **`src/`** — Contains `AgentBootstrap` and `AgentJar`, the true entry point loaded by the JVM's
   `-javaagent` mechanism. Deliberately minimal.
 
 - **`agent-bootstrap/`** — Classes loaded on the bootstrap classloader. Contains `Agent` (the real startup
   orchestrator), decorator base classes (`HttpServerDecorator`, `DatabaseClientDecorator`, etc.),
-  and bootstrap-safe utilities. Code here must not use `java.util.logging`, `java.nio`, or `javax.management`
-  (see Bootstrap Constraints below).
+  and bootstrap-safe utilities. Because these classes are on the bootstrap classloader, they are
+  visible to all classloaders and can be injected into and used by instrumentation advice and helpers
+  at runtime.
 
-- **`agent-builder/`** — ByteBuddy integration layer. Contains custom matchers (`DDElementMatchers`,
-  `HierarchyMatchers`), the class transformer pipeline, and the `ignored_class_name.trie` that skips
-  unsafe or pointless classes.
+  See `docs/boostrap_design_guidelines.md`
+
+- **`agent-builder/`** — ByteBuddy integration layer. Contains the class transformer pipeline:
+  `DDClassFileTransformer` intercepts every class being loaded, `GlobalIgnoresMatcher` applies
+  early filtering, `CombiningMatcher` evaluates all instrumentation matchers, and
+  `SplittingTransformer` applies the matched transformations. The `ignored_class_name.trie` is
+  a compiled trie built at build time that acts as the first and most efficient filter in this
+  pipeline — it short-circuits expensive matcher evaluation for known non-transformable classes
+  (JVM internals, agent infrastructure, monitoring libraries, large framework packages).
+  When a class is unexpectedly not instrumented, the trie is the first place to check: it may
+  be matched by a system-level ignore or an optimization ignore pattern.
 
 - **`agent-tooling/`** — The instrumentation framework. Key types:
   - `InstrumenterModule` — Base class for all instrumentation modules. Each declares a target system
@@ -63,6 +80,8 @@ The main agent module. Its build produces the final shadow jar (`dd-java-agent.j
   - `muzzle/` — Build-time and runtime safety checks. Verifies that the types and methods an
     instrumentation expects actually exist in the library version present at runtime.
     If they don't, the instrumentation is silently skipped.
+
+  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
 
 - **`instrumentation/`** — All auto-instrumentations, organized as `{framework}/{framework}-{minVersion}/`.
   About 186 framework directories. Each contains an `InstrumenterModule` subclass, one or more `Instrumenter`
@@ -94,12 +113,19 @@ The main agent module. Its build produces the final shadow jar (`dd-java-agent.j
 - **`agent-crashtracking/`** — Crash Tracking. Detects JVM crashes and fatal exceptions,
   collects system metadata, and uploads crash reports to Datadog's error tracking intake.
 
-- **`agent-otel/`** — OpenTelemetry compatibility shim. Allows applications using the OTel API
-  to have their spans captured by the Datadog agent.
+- **`agent-otel/`** — OpenTelemetry compatibility shim. Provides `OtelTracerProvider`, `OtelSpan`,
+  `OtelContext`, and other wrapper classes that implement the OTel API by delegating to the Datadog
+  tracer. Works in tandem with the OpenTelemetry instrumentations in `instrumentation/opentelemetry/`,
+  which use ByteBuddy advice to intercept OTel API calls (e.g., `OpenTelemetry.getTracerProvider()`)
+  and redirect them to the shim instances. This allows applications and libraries using the OTel API
+  to have their spans captured by the Datadog agent transparently.
 
 ### `dd-trace-core/`
 
-The core tracing engine. Key types:
+Originally the core tracing engine, this module grew organically and now also hosts several
+product-specific features that depend on tight integration with span creation, interception,
+or serialization. New module code should prefer `products/` or `components/` over adding to
+this module. Core tracing types:
 
 - `CoreTracer` — The tracer implementation. Creates spans, manages sampling, drives the writer pipeline.
   Implements `AgentTracer.TracerAPI`.
@@ -114,10 +140,19 @@ The core tracing engine. Key types:
   direct API submission, and `TraceProcessingWorker` for async trace processing.
 - `common/sampling/` — Sampling logic: `RuleBasedTraceSampler`, `RateByServiceTraceSampler`,
   `SingleSpanSampler`. Supports both head-based and rule-based sampling.
-- `datastreams/` — Data Streams Monitoring. Tracks message pipeline latency across Kafka, RabbitMQ,
-  SQS, etc.
 - `tagprocessor/` — Post-processing of span tags: peer service calculation, base service naming,
   query obfuscation, endpoint resolution.
+
+Non-tracing code that also lives here due to organic growth:
+
+- `datastreams/` — Data Streams Monitoring. Tracks message pipeline latency across Kafka, RabbitMQ,
+  SQS, etc. Core infrastructure shared across many instrumentations.
+- `civisibility/` — CI Visibility trace interceptors and protocol adapters. Hooks into the trace
+  completion pipeline to filter and reformat test spans for the CI Test Cycle intake.
+- `lambda/` — AWS Lambda support. Coordinates span creation with the serverless extension,
+  handling invocation start/end and trace context propagation.
+- `llmobs/` — LLM Observability span mapper. Serializes LLM-specific spans (messages, tool calls)
+  to the dedicated LLM Obs intake format.
 
 ### `dd-trace-api/`
 
