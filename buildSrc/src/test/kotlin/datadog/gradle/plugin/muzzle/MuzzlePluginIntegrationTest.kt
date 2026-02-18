@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Disabled
@@ -488,7 +489,7 @@ class MuzzlePluginIntegrationTest {
         } catch (java.io.IOException e) {
           // Ignore
         }
-        System.out.println("✓ Additional dependency (extra-lib) found in test classpath");
+        System.out.println("Additional dependency (extra-lib) found in test classpath");
       } else {
         throw new RuntimeException("Additional dependency (extra-lib) not found in test classpath");
       }
@@ -506,7 +507,7 @@ class MuzzlePluginIntegrationTest {
       "Build should succeed. Output:\n${result.output.take(2000)}"
     )
     assertTrue(
-      result.output.contains("✓ Additional dependency (extra-lib) found in test classpath"),
+      result.output.contains("Additional dependency (extra-lib) found in test classpath"),
       "Additional dependency should be loadable from test classpath"
     )
   }
@@ -594,6 +595,167 @@ class MuzzlePluginIntegrationTest {
     assertTrue(
       result.output.contains("Excluded dependency (guava) correctly not in test classpath"),
       "Excluded dependency should not be loadable from test classpath"
+    )
+  }
+
+  @Test
+  fun `java plugin applied after muzzle plugin`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'dd-trace-java.muzzle'
+      }
+      
+      // applied after muzzle plugin
+      apply plugin: 'java'
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin("// pass")
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace"
+    )
+
+    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    val muzzleTask = result.task(":dd-java-agent:instrumentation:demo:muzzle")
+    assertNotNull(muzzleTask, "Muzzle task should have run")
+    assertEquals(SUCCESS, muzzleTask?.outcome)
+  }
+
+  @Test
+  fun `java plugin applied before muzzle plugin`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle' apply false  // Declared but not applied
+      }
+
+      // Apply muzzle plugin after java using imperative syntax
+      apply plugin: 'dd-trace-java.muzzle'
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin("// pass")
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace"
+    )
+
+    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    val muzzleTask = result.task(":dd-java-agent:instrumentation:demo:muzzle")
+    assertNotNull(muzzleTask, "Muzzle task should have run")
+    assertEquals(SUCCESS, muzzleTask?.outcome)
+  }
+
+  @Test
+  fun `plugin behavior without java plugin should no-op`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'dd-trace-java.muzzle'
+        // NO java plugin applied
+      }
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin("// pass")
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:tasks",
+      "--all"
+    )
+
+    // Should not create muzzle tasks when java plugin is not applied
+    assertFalse(
+      result.output.contains("muzzle"),
+      "Should not create muzzle tasks without java plugin"
+    )
+  }
+
+  @Test
+  fun `missing dd-java-agent projects error handling`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    // Create a minimal settings.gradle without the dd-java-agent structure
+    File(projectDir, "settings.gradle").also { it.parentFile?.mkdirs() }.writeText(
+      """
+      rootProject.name = 'muzzle-test'
+      include ':instrumentation:demo'
+      """.trimIndent()
+    )
+
+    File(projectDir, "instrumentation/demo/build.gradle").also { it.parentFile?.mkdirs() }.writeText(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """.trimIndent()
+    )
+
+    // Still need to write the scan plugin
+    File(projectDir, "instrumentation/demo/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
+      .also { it.parentFile?.mkdirs() }
+      .writeText(
+        """
+        package datadog.trace.agent.tooling.muzzle;
+
+        public final class MuzzleVersionScanPlugin {
+          private MuzzleVersionScanPlugin() {}
+
+          public static void assertInstrumentationMuzzled(
+              ClassLoader instrumentationClassLoader,
+              ClassLoader testApplicationClassLoader,
+              boolean assertPass,
+              String muzzleDirective) {
+            // pass
+          }
+        }
+        """.trimIndent()
+      )
+
+    val result = fixture.run(
+      ":instrumentation:demo:tasks",
+      "--stacktrace"
+    )
+
+    // Should fail with clear error about missing projects
+    assertTrue(
+      result.output.contains("BUILD FAILED") ||
+      result.output.contains(":dd-java-agent:agent-bootstrap project not found") ||
+      result.output.contains(":dd-java-agent:agent-tooling project not found"),
+      "Should fail with clear error about missing dd-java-agent projects"
     )
   }
 
