@@ -18,42 +18,46 @@ fi
 
 readonly PROJECT_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
+log_debug() {
+  echo "[baseline-debug] $*" >&2
+}
+
+response_snippet() {
+  local response="$1"
+  echo "${response}" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-220
+}
+
 get_pipeline_id_for_commit() {
   local commit_sha="$1"
-
-  # Query GitLab API to get pipeline ID that matches the commit SHA
   local api_url="${PROJECT_API_URL}/repository/commits/${commit_sha}"
   local response pipeline_id
+
+  log_debug "query commit endpoint: ${api_url}"
   response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
   if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
+    log_debug "found pipeline_id=${pipeline_id} for commit_sha=${commit_sha}"
     echo "${pipeline_id}"
     return 0
   fi
 
-  echo ""
+  log_debug "no last_pipeline.id for commit_sha=${commit_sha}; response='$(response_snippet "${response}")'"
   return 1
-}
-
-get_branch_head_sha() {
-  local branch="$1"
-
-  # Query GitLab API to get branch head SHA
-  local api_url="${PROJECT_API_URL}/repository/branches/${branch}"
-  local response branch_sha
-  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
-  branch_sha="$(echo "${response}" | grep -o '"commit"[^}]*"id":"[a-f0-9]\{40\}"' | sed -E 's/.*"id":"([a-f0-9]{40})".*/\1/' | head -1 || true)"
-
-  echo "${branch_sha}"
 }
 
 get_latest_pipeline_id_for_branch() {
   local branch="$1"
-  local api_url="${PROJECT_API_URL}/pipelines?ref=${branch}&status=success&order_by=updated_at&sort=desc&per_page=1"
+  local api_url="${PROJECT_API_URL}/pipelines?ref=${branch}&order_by=id&sort=desc&per_page=1"
   local response pipeline_id
 
+  log_debug "query pipelines endpoint: ${api_url}"
   response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+  if [[ -n "${pipeline_id}" ]]; then
+    log_debug "found latest pipeline_id=${pipeline_id} for branch=${branch}"
+  else
+    log_debug "no pipeline found for branch=${branch}; response='$(response_snippet "${response}")'"
+  fi
   echo "${pipeline_id}"
 }
 
@@ -73,6 +77,8 @@ BASELINE_PIPELINE_ID=""
 BASELINE_SOURCE="merge_base"
 FALLBACK_TO_MASTER="false"
 
+log_debug "resolved merge_base_sha='${MERGE_BASE_SHA:-<empty>}' target_branch='${TARGET_BRANCH}'"
+
 if [[ -n "${MERGE_BASE_SHA}" ]]; then
   BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${MERGE_BASE_SHA}" || true)"
 fi
@@ -80,14 +86,15 @@ fi
 if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
   FALLBACK_TO_MASTER="true"
   BASELINE_SOURCE="${TARGET_BRANCH}"
+  log_debug "merge-base pipeline not found; falling back to branch='${TARGET_BRANCH}'"
 
   BASELINE_SHA="$(git rev-parse "origin/${TARGET_BRANCH}" 2>/dev/null || true)"
-  if [[ -z "${BASELINE_SHA}" ]]; then
-    BASELINE_SHA="$(get_branch_head_sha "${TARGET_BRANCH}" || true)"
+  log_debug "resolved branch sha from local git: '${BASELINE_SHA:-<empty>}'"
+  if [[ -n "${BASELINE_SHA}" ]]; then
+    BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${BASELINE_SHA}" || true)"
   fi
-  BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${BASELINE_SHA}" || true)"
 
-  # use latest successful branch pipeline
+  # Final fallback: use latest branch pipeline
   if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
     BASELINE_PIPELINE_ID="$(get_latest_pipeline_id_for_branch "${TARGET_BRANCH}" || true)"
   fi

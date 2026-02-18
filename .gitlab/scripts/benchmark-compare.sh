@@ -90,12 +90,46 @@ download_job_artifacts() {
   local job_id="$1"
   local output_dir="$2"
   local archive_path="${output_dir}/artifacts.zip"
+  local artifacts_url="${JOBS_API_URL}/jobs/${job_id}/artifacts"
+  local http_code
 
   mkdir -p "${output_dir}"
-  curl --silent --show-error --fail --location \
-    --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    "${JOBS_API_URL}/jobs/${job_id}/artifacts" \
-    --output "${archive_path}"
+
+  http_code="$(
+    curl --silent --show-error --location \
+      --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+      --output "${archive_path}" \
+      --write-out "%{http_code}" \
+      "${artifacts_url}"
+  )"
+
+  if [[ "${http_code}" != "200" ]]; then
+    rm -f "${archive_path}"
+    case "${http_code}" in
+      400)
+        echo "ERROR: Bad request for job ${job_id} artifacts (HTTP 400)." >&2
+        ;;
+      401)
+        echo "ERROR: Authentication required for job ${job_id} artifacts (HTTP 401)." >&2
+        ;;
+      403)
+        echo "ERROR: Access forbidden for job ${job_id} artifacts (HTTP 403)." >&2
+        ;;
+      404)
+        echo "ERROR: Artifacts not found for job ${job_id} (HTTP 404). Job may still be running or produced no artifacts." >&2
+        ;;
+      5*)
+        echo "ERROR: Server/network issue while downloading artifacts for job ${job_id} (HTTP ${http_code})." >&2
+        ;;
+      *)
+        echo "ERROR: Failed to download artifacts for job ${job_id} (HTTP ${http_code})." >&2
+        ;;
+    esac
+    if [[ -n "${CI_PROJECT_URL:-}" ]]; then
+      echo "See job details: ${CI_PROJECT_URL}/-/jobs/${job_id}" >&2
+    fi
+    return 1
+  fi
 
   rm -rf "${output_dir}/unzipped"
   mkdir -p "${output_dir}/unzipped"
