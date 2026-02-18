@@ -106,7 +106,9 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     span.setTag(HTTP_METHOD, httpMethod);
 
     // Http.url - https:// + x-dd-proxy-domain-name + x-dd-proxy-path
-    span.setTag(HTTP_URL, domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
+    span.setTag(
+        HTTP_URL,
+        domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
 
     // Http.route - value of x-dd-proxy-resource-path (or x-dd-proxy-path as fallback)
     span.setTag(HTTP_ROUTE, resourcePath != null ? resourcePath : path);

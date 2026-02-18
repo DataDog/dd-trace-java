@@ -42,6 +42,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
@@ -686,6 +687,12 @@ public class GatewayBridge {
 
   private Flow<Void> onRequestClientSocketAddress(RequestContext ctx_, String ip, Integer port) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    log.debug(
+        ">>> onRequestClientSocketAddress called: ip={}, port={}, ctx={}, isReqDataPublished={}",
+        ip,
+        port,
+        ctx != null,
+        ctx != null ? ctx.isReqDataPublished() : "N/A");
     if (ctx == null || ctx.isReqDataPublished()) {
       return NoopFlow.INSTANCE;
     }
@@ -841,12 +848,15 @@ public class GatewayBridge {
   }
 
   private NoopFlow onRequestEnded(RequestContext ctx_, IGSpanInfo spanInfo) {
+    log.debug(">>> onRequestEnded called");
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
       return NoopFlow.INSTANCE;
     }
     ctx.setRequestEndCalled();
 
+    // Cast to AgentSpan to access full API for adding tags to service-entry span
+    AgentSpan span = (AgentSpan) spanInfo;
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
@@ -861,6 +871,10 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
+      // Add tags to both service-entry span (where detected) and root span (inferred proxy)
+      // This ensures tags are present on both spans as required by RFC-1081
+      span.setMetric("_dd.appsec.enabled", 1);
+      span.setTag("_dd.runtime_family", "jvm");
       traceSeg.setTagTop("_dd.appsec.enabled", 1);
       traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
@@ -882,17 +896,26 @@ public class GatewayBridge {
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
+
+        // Add appsec.event tag to both service-entry span and root span
+        span.setTag("appsec.event", true);
         traceSeg.setTagTop("appsec.event", true);
-        traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+
+        // Add network.client.ip to both spans
+        String peerAddress = ctx.getPeerAddress();
+        span.setTag("network.client.ip", peerAddress);
+        traceSeg.setTagTop("network.client.ip", peerAddress);
 
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
+          span.setTag("actor.ip", clientIp.toString());
           traceSeg.setTagTop("actor.ip", clientIp);
         }
 
         // Report AppSec events via "_dd.appsec.json" tag
         AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+        span.setTag("_dd.appsec.json", wrapper);
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
@@ -1166,8 +1189,18 @@ public class GatewayBridge {
 
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
+    log.debug(
+        ">>> maybePublishRequestData: savedRawURI={}, peerAddress={}, finishedHeaders={}",
+        savedRawURI,
+        ctx.getPeerAddress(),
+        ctx.isFinishedRequestHeaders());
 
     if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
+      log.debug(
+          ">>> maybePublishRequestData returning NoopFlow: savedRawURI={}, peerAddress={}, finishedHeaders={}",
+          savedRawURI == null ? "null" : "present",
+          ctx.getPeerAddress(),
+          ctx.isFinishedRequestHeaders());
       return NoopFlow.INSTANCE;
     }
 
