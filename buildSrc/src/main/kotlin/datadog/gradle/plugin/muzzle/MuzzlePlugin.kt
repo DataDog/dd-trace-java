@@ -99,14 +99,15 @@ class MuzzlePlugin : Plugin<Project> {
     project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
 
     val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
-      // removing leading ':' if present
-      val muzzleTaskName = taskName.removePrefix(":")
-      val projectPath = project.path.removePrefix(":")
-      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName ||
-          muzzleTaskName == "runMuzzle"
+      val taskProjectPath = taskName.substringBeforeLast(":", "")
+      val taskNameOnly = taskName.substringAfterLast(":")
+      val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path
+
+      isRelevantForProject && taskNameOnly.endsWith("muzzle", ignoreCase = true)
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
+      project.logger.info("No muzzle tasks invoked for ${project.path}, skipping muzzle task planification")
       return
     }
 

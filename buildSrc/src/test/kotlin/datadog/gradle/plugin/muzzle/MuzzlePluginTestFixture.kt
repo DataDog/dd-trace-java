@@ -21,33 +21,28 @@ internal class MuzzlePluginTestFixture(
       // language=Groovy
       """
       rootProject.name = 'muzzle-e2e'
-      include ':dd-java-agent:agent-bootstrap'
-      include ':dd-java-agent:agent-tooling'
-      include ':dd-java-agent:instrumentation:demo'
       """.trimIndent()
     )
 
-    file("dd-java-agent/agent-bootstrap/build.gradle").writeText(
-      // language=Groovy
+    addSubproject("dd-java-agent:agent-bootstrap",
       """
       plugins {
         id 'java'
       }
 
       tasks.register('compileMain_java11Java')
-      """.trimIndent()
+      """
     )
 
-    file("dd-java-agent/agent-tooling/build.gradle").writeText(
-      // language=Groovy
+    addSubproject("dd-java-agent:agent-tooling",
       """
       plugins {
         id 'java'
       }
-      """.trimIndent()
+      """
     )
 
-    file("dd-java-agent/instrumentation/demo/build.gradle").writeText(instrumentationBuildScript.trimIndent())
+    addSubproject("dd-java-agent:instrumentation:demo", instrumentationBuildScript)
   }
 
   /**
@@ -59,11 +54,12 @@ internal class MuzzlePluginTestFixture(
 
   /**
    * Writes a muzzle scan plugin with custom assertion logic.
+   * The plugin is written to the agent-tooling project where it belongs.
    *
    * @param assertionBody Java code to execute in the assertion method
    */
   fun writeScanPlugin(@Language("JAVA") assertionBody: String) {
-    file("dd-java-agent/instrumentation/demo/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
+    file("dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
       .writeText(
         // language=JAVA
         """

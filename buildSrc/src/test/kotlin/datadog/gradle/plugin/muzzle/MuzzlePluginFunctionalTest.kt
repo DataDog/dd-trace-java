@@ -9,11 +9,63 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNull
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest {
+  @ParameterizedTest
+  @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
+  fun `detects muzzle invocation with various task names`(
+    taskName: String,
+    @TempDir projectDir: File
+  ) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass {
+          coreJdk()
+        }
+      }
+      """
+    )
+
+    // Add runMuzzle aggregator task at root level (like in dd-trace-java.ci-jobs.gradle.kts)
+    fixture.writeRootProject(
+      """
+      tasks.register('runMuzzle') {
+        dependsOn(':dd-java-agent:instrumentation:demo:muzzle')
+      }
+      """
+    )
+
+    fixture.writeNoopScanPlugin()
+
+    val result = fixture.run(taskName, "--stacktrace")
+
+    assertTrue(
+      result.tasks.any { it.path.contains("muzzle") },
+      "Should create muzzle tasks when '$taskName' is requested"
+    )
+    assertFalse(
+      result.output.contains("No muzzle tasks invoked, skipping muzzle task planification"),
+      "Should not skip muzzle task planification when '$taskName' is requested"
+    )
+    assertTrue(
+      result.task(":dd-java-agent:instrumentation:demo:muzzle") != null ||
+          result.tasks.any { it.path.contains("muzzle-Assert") },
+      "Should execute muzzle tasks when '$taskName' is requested"
+    )
+  }
 
   @Test
   fun `muzzle with pass directive writes junit report`(@TempDir projectDir: File) {
@@ -234,7 +286,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin("// pass")
+    fixture.writeNoopScanPlugin()
 
     // Leveraging MAVEN_REPOSITORY_PROXY to point to our fake repo over maven central
     val result = fixture.run(
@@ -332,7 +384,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin("// pass")
+    fixture.writeNoopScanPlugin()
 
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
@@ -618,7 +670,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin("// pass")
+    fixture.writeNoopScanPlugin()
 
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
@@ -651,7 +703,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin("// pass")
+    fixture.writeNoopScanPlugin()
 
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:muzzle",
@@ -681,7 +733,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin("// pass")
+    fixture.writeNoopScanPlugin()
 
     val result = fixture.run(
       ":dd-java-agent:instrumentation:demo:tasks",

@@ -3,6 +3,7 @@ package datadog.gradle.plugin
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildResultException
+import org.intellij.lang.annotations.Language
 import org.w3c.dom.Document
 import java.io.File
 import java.nio.file.Path
@@ -37,6 +38,35 @@ internal open class GradleFixture(
     } catch (e: UnexpectedBuildResultException) {
       e.buildResult
     }
+  }
+
+  /**
+   * Adds a subproject to the build.
+   * Updates settings.gradle and creates the build script for the subproject.
+   *
+   * @param projectPath The project path (e.g., "dd-java-agent:instrumentation:other")
+   * @param buildScript The build script content for the subproject
+   */
+  fun addSubproject(projectPath: String, @Language("Groovy") buildScript: String) {
+    // Add to settings.gradle
+    val settingsFile = file("settings.gradle")
+    if (settingsFile.exists()) {
+      settingsFile.appendText("\ninclude ':$projectPath'")
+    } else {
+      settingsFile.writeText("include ':$projectPath'")
+    }
+
+    file("${projectPath.replace(':', '/')}/build.gradle")
+      .writeText(buildScript.trimIndent())
+  }
+
+  /**
+   * Writes the root project's build.gradle file.
+   *
+   * @param buildScript The build script content for the root project
+   */
+  fun writeRootProject(@Language("Groovy") buildScript: String) {
+    file("build.gradle").writeText(buildScript.trimIndent())
   }
 
   /**
