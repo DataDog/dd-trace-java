@@ -9,7 +9,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * In contrast to java.util.Objects.hash, datadog.util.Objects.hash has overrides for different
+ * In contrast to java.util.Objects.hash, datadog.util.HashingUtils.hash has overrides for different
  * parameter counts that allow most callers to avoid calling the var-arg version. This avoids the
  * common situation where the JIT's escape analysis is unable to elide the var-arg array allocation.
  *
@@ -95,7 +95,7 @@ public class HashingBenchmark {
 
   @Benchmark
   public int hash2() {
-    return datadog.trace.util.Objects.hash(str0, str1);
+    return datadog.trace.util.HashingUtils.hash(str0, str1);
   }
 
   @Benchmark
@@ -105,7 +105,7 @@ public class HashingBenchmark {
 
   @Benchmark
   public int hash3() {
-    return datadog.trace.util.Objects.hash(str0, str1, str2);
+    return datadog.trace.util.HashingUtils.hash(str0, str1, str2);
   }
 
   @Benchmark
@@ -115,7 +115,7 @@ public class HashingBenchmark {
 
   @Benchmark
   public int hash4() {
-    return datadog.trace.util.Objects.hash(str0, str1, str2, str3);
+    return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3);
   }
 
   @Benchmark
@@ -125,7 +125,7 @@ public class HashingBenchmark {
 
   @Benchmark
   public int hash5() {
-    return datadog.trace.util.Objects.hash(str0, str1, str2, str3, str4);
+    return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3, str4);
   }
 
   @Benchmark
