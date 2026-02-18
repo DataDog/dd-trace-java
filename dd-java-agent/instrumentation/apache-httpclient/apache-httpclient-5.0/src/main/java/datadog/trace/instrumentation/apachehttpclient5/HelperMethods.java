@@ -37,10 +37,14 @@ public class HelperMethods {
   }
 
   // checks current value in context store,
-  // and ensures
+  // and ensures it's set to true when this method exists
   private static boolean testAndSet(
       final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
       final ClassicHttpRequest request) {
+    if (request == null) {
+      // we probably don't want to instrument a call with a null request ?
+      return true;
+    }
     Boolean instrumented = instrumentationMarker.get(request);
     if (instrumented == Boolean.TRUE) {
       return true;
