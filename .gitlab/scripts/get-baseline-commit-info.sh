@@ -11,12 +11,13 @@ readonly TARGET_BRANCH="${TARGET_BRANCH:-master}"
 mkdir -p "${OUTPUT_DIR}"
 rm -f "${FALLBACK_MARKER_FILE}"
 
-if [[ -z "${CI_PROJECT_ID:-}" || -z "${CI_API_V4_URL:-}" || -z "${CI_JOB_TOKEN:-}" ]]; then
-  echo "Missing CI_PROJECT_ID/CI_API_V4_URL/CI_JOB_TOKEN environment variables." >&2
+if [[ -z "${CI_PROJECT_ID:-}" || -z "${CI_API_V4_URL:-}" ]]; then
+  echo "Missing CI_PROJECT_ID/CI_API_V4_URL environment variables." >&2
   exit 1
 fi
 
 readonly PROJECT_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
+readonly BTI_TOKEN_URL="https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=apm-reliability/dd-trace-java"
 
 log_debug() {
   echo "[baseline-debug] $*" >&2
@@ -27,13 +28,44 @@ response_snippet() {
   echo "${response}" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-220
 }
 
+get_private_token() {
+  local auth_header bti_response http_status response_body private_token
+
+  if ! auth_header="$(authanywhere --audience sdm 2>&1)"; then
+    echo "Failed to get authanywhere token: ${auth_header}" >&2
+    return 1
+  fi
+
+  bti_response="$(
+    curl -w "\nHTTP_STATUS:%{http_code}" --silent --show-error \
+      --header "${auth_header}" \
+      "${BTI_TOKEN_URL}" 2>&1
+  )"
+  http_status="$(echo "${bti_response}" | grep "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
+  response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
+
+  if [[ "${http_status}" != "200" ]]; then
+    echo "BTI token request failed: status=${http_status}, body='$(response_snippet "${response_body}")'" >&2
+    return 1
+  fi
+
+  private_token="$(echo "${response_body}" | grep -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
+  if [[ -z "${private_token}" ]]; then
+    echo "Failed to parse private token from BTI response." >&2
+    return 1
+  fi
+
+  echo "${private_token}"
+}
+
 get_pipeline_id_for_commit() {
   local commit_sha="$1"
   local api_url="${PROJECT_API_URL}/repository/commits/${commit_sha}"
-  local response pipeline_id
+  local response pipeline_id private_token
 
   log_debug "query commit endpoint: ${api_url}"
-  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
+  private_token="$(get_private_token)" || return 1
+  response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
   if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
     log_debug "found pipeline_id=${pipeline_id} for commit_sha=${commit_sha}"
@@ -48,10 +80,11 @@ get_pipeline_id_for_commit() {
 get_latest_pipeline_id_for_branch() {
   local branch="$1"
   local api_url="${PROJECT_API_URL}/pipelines?ref=${branch}&order_by=id&sort=desc&per_page=1"
-  local response pipeline_id
+  local response pipeline_id private_token
 
   log_debug "query pipelines endpoint: ${api_url}"
-  response="$(curl --request GET --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${api_url}" || true)"
+  private_token="$(get_private_token)" || return 1
+  response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
   if [[ -n "${pipeline_id}" ]]; then
     log_debug "found latest pipeline_id=${pipeline_id} for branch=${branch}"

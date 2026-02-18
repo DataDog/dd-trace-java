@@ -94,6 +94,11 @@ debugger-benchmarks:
       when: never
     - when: on_success
   script:
+    - |
+      if [ "$(uname -m)" = "x86_64" ]; then AAA="amd64"; else AAA="arm64"; fi
+      wget -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
+      chmod +x /tmp/authanywhere
+      mv /tmp/authanywhere /usr/local/bin/authanywhere
     - mkdir -p "$(pwd)/reports/${BENCHMARK_TYPE}"
     - .gitlab/scripts/get-baseline-commit-info.sh "$(pwd)/reports/${BENCHMARK_TYPE}"
     - .gitlab/scripts/benchmark-compare.sh "${BENCHMARK_TYPE}"
@@ -156,6 +161,11 @@ benchmarks-debug-baseline:
   rules:
     - when: on_success
   script:
+    - |
+      if [ "$(uname -m)" = "x86_64" ]; then AAA="amd64"; else AAA="arm64"; fi
+      wget -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
+      chmod +x /tmp/authanywhere
+      mv /tmp/authanywhere /usr/local/bin/authanywhere
     - mkdir -p reports/debug
     - .gitlab/scripts/get-baseline-commit-info.sh "reports/debug"
     - echo "Resolved baseline:"
