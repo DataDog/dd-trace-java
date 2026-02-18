@@ -52,8 +52,7 @@ to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradl
 - **`agent-bootstrap/`** — Classes on the bootstrap classloader: `Agent` (startup orchestrator),
   decorator base classes (`HttpServerDecorator`, `DatabaseClientDecorator`, etc.), and bootstrap-safe
   utilities. Visible to all classloaders, so instrumentation advice and helpers can use them directly.
-
-  See [`docs/bootstrap_design_guidelines.md`](docs/bootstrap_design_guidelines.md)
+  See [`docs/bootstrap_design_guidelines.md`](docs/bootstrap_design_guidelines.md).
 
 - **`agent-builder/`** — ByteBuddy integration layer. Class transformer pipeline:
   `DDClassFileTransformer` intercepts every class load, `GlobalIgnoresMatcher` applies early
@@ -70,8 +69,7 @@ to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradl
     `ForTypeHierarchy`, `ForBootstrap`.
   - `muzzle/` — Build-time and runtime safety checks. Verifies that expected types and methods
     exist in the library version at runtime. If not, the instrumentation is silently skipped.
-
-  See [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) and [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md).
+    See [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) and [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md).
 
 - **`instrumentation/`** — All auto-instrumentations, organized as `{framework}/{framework}-{minVersion}/`.
   Nearly 200 framework directories. Each follows the same pattern: an `InstrumenterModule` declares the
@@ -170,6 +168,7 @@ Core tracing abstractions:
   decisions (which classes to instrument, which integrations to enable, resolver behavior, field
   injection flags) must be frozen into the native image binary. Runtime-only settings (agent
   endpoints, service names, sampling rates) remain in `Config`.
+  See [`docs/add_new_configurations.md`](docs/add_new_configurations.md).
 
 Cross-product abstractions:
 
