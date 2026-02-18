@@ -17,6 +17,12 @@ import scala.Tuple2;
  * @see <a href="https://spark.apache.org/docs/latest/configuration.html">Spark Configuration</a>
  */
 class SparkConfAllowList {
+  // Using values from
+  // https://github.com/apache/spark/blob/v3.5.1/core/src/main/scala/org/apache/spark/internal/config/package.scala#L1150-L1158
+  static final String DEFAULT_REDACTION_REGEX = "(?i)secret|password|token|access.key|api.key";
+
+  private static final Pattern DEFAULT_REDACTION_PATTERN = Pattern.compile(DEFAULT_REDACTION_REGEX);
+
   /**
    * Job-specific parameters that can be used to control job execution or provide metadata about the
    * job being executed
@@ -80,11 +86,17 @@ class SparkConfAllowList {
     return allowedJobParams.contains(parameterName);
   }
 
+  /** Redact a value if the key or value matches the default redaction pattern. */
+  public static String redactValue(String key, String value) {
+    if (DEFAULT_REDACTION_PATTERN.matcher(key).find()
+        || DEFAULT_REDACTION_PATTERN.matcher(value).find()) {
+      return "[redacted]";
+    }
+    return value;
+  }
+
   public static List<Map.Entry<String, String>> getRedactedSparkConf(SparkConf conf) {
-    // Using values from
-    // https://github.com/apache/spark/blob/v3.5.1/core/src/main/scala/org/apache/spark/internal/config/package.scala#L1150-L1158
-    String redactionPattern =
-        conf.get("spark.redaction.regex", "(?i)secret|password|token|access.key|api.key");
+    String redactionPattern = conf.get("spark.redaction.regex", DEFAULT_REDACTION_REGEX);
     List<Map.Entry<String, String>> redacted = new ArrayList<>();
     Pattern pattern = Pattern.compile(redactionPattern);
 
