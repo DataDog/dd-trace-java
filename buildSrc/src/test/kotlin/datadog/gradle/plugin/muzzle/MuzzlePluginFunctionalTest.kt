@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.GradleFixture
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -687,7 +688,6 @@ class MuzzlePluginFunctionalTest {
       "--all"
     )
 
-    // Should not create muzzle tasks when java plugin is not applied
     assertFalse(
       result.output.contains("muzzle"),
       "Should not create muzzle tasks without java plugin"
@@ -696,8 +696,6 @@ class MuzzlePluginFunctionalTest {
 
   @Test
   fun `missing dd-java-agent projects error handling`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-
     // Create a minimal settings.gradle without the dd-java-agent structure
     File(projectDir, "settings.gradle").also { it.parentFile?.mkdirs() }.writeText(
       """
@@ -721,33 +719,14 @@ class MuzzlePluginFunctionalTest {
       """.trimIndent()
     )
 
-    // Still need to write the scan plugin
-    File(projectDir, "instrumentation/demo/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
-      .also { it.parentFile?.mkdirs() }
-      .writeText(
-        """
-        package datadog.trace.agent.tooling.muzzle;
+    // No need to create MuzzleVersionScanPlugin - the error happens during configuration
+    // phase before any task execution, so the scan plugin is never invoked
 
-        public final class MuzzleVersionScanPlugin {
-          private MuzzleVersionScanPlugin() {}
-
-          public static void assertInstrumentationMuzzled(
-              ClassLoader instrumentationClassLoader,
-              ClassLoader testApplicationClassLoader,
-              boolean assertPass,
-              String muzzleDirective) {
-            // pass
-          }
-        }
-        """.trimIndent()
-      )
-
-    val result = fixture.run(
+    val result = GradleFixture(projectDir).run(
       ":instrumentation:demo:tasks",
       "--stacktrace"
     )
 
-    // Should fail with clear error about missing projects
     assertTrue(
       result.output.contains("BUILD FAILED") ||
       result.output.contains(":dd-java-agent:agent-bootstrap project not found") ||
