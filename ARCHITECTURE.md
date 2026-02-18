@@ -164,7 +164,9 @@ Also houses all configuration key constants organized by domain: `TracerConfig`,
 ### `internal-api/`
 
 Internal shared API used across all agent modules but not part of the public API.
-Key abstractions that instrumentations interact with:
+Similarly to `dd-trace-core`, this module grew organically and now hosts internal interfaces
+for many products beyond tracing. New product APIs should consider `products/` or `components/`
+instead. Core tracing abstractions:
 
 - `AgentTracer` — Static facade for the tracer. Instrumentations call `AgentTracer.startSpan()`,
   `AgentTracer.activateSpan()`, etc.
@@ -172,17 +174,48 @@ Key abstractions that instrumentations interact with:
 - `AgentPropagation` — Context propagation interfaces (`Getter`, `Setter`) that instrumentations
   implement to inject/extract trace context from framework-specific carriers (HTTP headers, message
   properties, etc.).
-- `InstrumentationContext` — Provides context stores for attaching data to instrumented objects
-  (e.g., storing a span on a request object). Works by dynamically adding fields via bytecode.
-- `gateway/` — The Instrumentation Gateway: an event bus (`InstrumentationGateway`, `SubscriptionService`,
-  `Events`, `CallbackProvider`, `RequestContext`) that decouples instrumentations from product modules.
-  Instrumentations fire events (request started, response body received, etc.),
-  and products (AppSec, IAST) subscribe to react.
+- `naming/` — Service and span operation naming schemas (v0, v1) for databases, messaging,
+  cloud services, etc.
+- `Config` / `InstrumenterConfig` — Master configuration class and instrumenter-specific config,
+  centralizing settings for all products.
+  TODO: Add an explaination why we have `InstrumenterConfig` due to native-image build time
 
-TODO: Explain than similarly to dd-trace-core, it grows organically and nows contains other products and concerns than tracing
-TODO: Like for example appsec, civisibility, datastreams, iast, llmobs
-FIXME: Gateway is not strictly tracing but an abstraction for ASM/IAST products.
-FIXME: InstrumentationContext is not part of internal-api. You should re-analyze internal-api to get a better understanding.
+Cross-product abstractions:
+
+- `gateway/` — The Instrumentation Gateway: an event bus (`InstrumentationGateway`,
+  `SubscriptionService`, `Events`, `CallbackProvider`, `RequestContext`) that decouples
+  instrumentations from product modules. Despite living in `internal-api`, this is primarily
+  an abstraction for AppSec and IAST to hook into the HTTP request lifecycle without modifying
+  instrumentations directly.
+- `cache/` — Shared caching primitives (`DDCache`, `FixedSizeCache`, `RadixTreeCache`) used
+  throughout the agent.
+- `telemetry/` — Multi-product telemetry collection interfaces (`MetricCollector`,
+  `WafMetricCollector`, `LLMObsMetricCollector`, etc.).
+
+Product-specific APIs that also live here:
+
+- `iast/` — IAST vulnerability detection interfaces: taint tracking (`Taintable`, `IastContext`),
+  sink definitions for each vulnerability type (SQL injection, XSS, command injection, etc.),
+  and call site instrumentation hooks. About 60 files.
+- `civisibility/` — CI Visibility interfaces: test identification, code coverage, build/test
+  event handlers, and CI-specific telemetry metrics. About 95 files.
+- `datastreams/` — Data Streams Monitoring interfaces: pathway context, stats points,
+  and schema registry integration.
+- `appsec/` — AppSec interfaces: HTTP client request/response payloads for WAF analysis,
+  RASP call sites.
+- `profiling/` — Profiler integration: recording data, timing, and enablement interfaces.
+- `llmobs/` — LLM Observability context.
+
+### `components/`
+
+Low-level shared components: `context` (context propagation primitives), `environment` (JVM/OS detection),
+`json` (lightweight JSON handling), `native-loader` (native library loading), `yaml`.
+
+### `products/`
+
+Additional product modules: `metrics/` (StatsD client and monitoring abstraction) and
+`feature-flagging/` (server-side feature flag evaluation via remote config).
+
 
 ### `communication/`
 
@@ -203,29 +236,23 @@ Agent telemetry. `TelemetrySystem` collects and reports which features are enabl
 which integrations loaded, performance metrics, and product-specific counters.
 Each product registers periodic actions that collect domain-specific metrics.
 
-### `components/`
-
-Low-level shared components: `context` (context propagation primitives), `environment` (JVM/OS detection),
-`json` (lightweight JSON handling), `native-loader` (native library loading), `yaml`.
-
 ### `utils/`
 
+TODO: Describe what each utils module could be useful for
 Shared utilities: `config-utils`, `container-utils`, `filesystem-utils`, `flare-utils`,
 `queue-utils`, `socket-utils`, `time-utils`, `version-utils`, `test-utils`.
 
-### `products/`
-
-Additional product modules: `metrics/` (StatsD client and monitoring abstraction) and
-`feature-flagging/` (server-side feature flag evaluation via remote config).
-
 ### `dd-trace-ot/`
 
+TODO: Explain this is a legacy module. It's goal is to provide an OpenTracing implementation artefact.
+TODO: The tracer will be the datadog one but there won't be any auto instrumentation.
 OpenTracing compatibility layer. Wraps the Datadog tracer behind the OpenTracing API.
 
 ### `dd-smoke-tests/`
 
 End-to-end smoke tests. Each test boots a real application with the agent jar attached and verifies
 traces, spans, and product behavior. Covers Spring Boot, Play, Vert.x, Quarkus, WildFly, and more.
+TODO: Add details about the few core classes to write a smoke tests (test class hierarchy and reuse)
 
 ## Instrumentation Pattern
 
