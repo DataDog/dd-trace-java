@@ -72,7 +72,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
       DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {

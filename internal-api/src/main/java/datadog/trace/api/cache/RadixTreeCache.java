@@ -1,7 +1,6 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.IntFunction;
 
 /** Sparse cache of values associated with a small integer */
@@ -17,18 +16,16 @@ public final class RadixTreeCache<T> {
       new RadixTreeCache<>(
           16, 32, TO_STRING, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
 
-  public static final int UNSET_PORT = 0;
-
   private final int level1;
   private final int level2;
   private final int shift;
   private final int mask;
 
-  private final AtomicReferenceArray<Object[]> tree;
+  private final Object[][] tree;
   private final IntFunction<T> mapper;
 
   public RadixTreeCache(int level1, int level2, IntFunction<T> mapper, int... commonValues) {
-    this.tree = new AtomicReferenceArray<>(level1);
+    this.tree = new Object[level1][];
     this.mapper = mapper;
     this.level1 = level1;
     this.level2 = level2;
@@ -50,18 +47,14 @@ public final class RadixTreeCache<T> {
 
   @SuppressWarnings("unchecked")
   private T computeIfAbsent(int prefix, int primitive) {
-    Object[] page = tree.get(prefix);
-    if (null == page) {
-      page = new Object[level2];
-      if (!tree.compareAndSet(prefix, null, page)) {
-        page = tree.get(prefix);
-      }
+    Object[] page = tree[prefix];
+    if (page == null) {
+      page = tree[prefix] = new Object[level2]; // tolerate race to cache sub-array
     }
-    // it's safe to race here
     int suffix = primitive & mask;
     Object cached = page[suffix];
     if (cached == null) {
-      cached = page[suffix] = mapper.apply(primitive);
+      cached = page[suffix] = mapper.apply(primitive); // tolerate race to cache value
     }
     return (T) cached;
   }
