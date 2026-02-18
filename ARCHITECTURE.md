@@ -44,7 +44,7 @@ main jar (`inst/`, `profiling/`, `appsec/`, `iast/`, `debugger/`, `ci-visibility
 `shared/`, `trace/`, etc.). A dedicated `sharedShadowJar` bundles common transitive dependencies
 (OkHttp, JCTools, LZ4, etc.) to avoid duplication across feature jars. All dependencies are relocated
 under `datadog.` prefixes to prevent classpath conflicts. Class files inside feature jars are renamed
-to `.classdata` to prevent unintended loading. See `docs/how_to_work_with_gradle.md`.
+to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradle.md`](docs/how_to_work_with_gradle.md).
 
 - **`src/`** — `AgentBootstrap` and `AgentJar`, the entry point loaded by `-javaagent`.
   Deliberately minimal.
@@ -53,7 +53,7 @@ to `.classdata` to prevent unintended loading. See `docs/how_to_work_with_gradle
   decorator base classes (`HttpServerDecorator`, `DatabaseClientDecorator`, etc.), and bootstrap-safe
   utilities. Visible to all classloaders, so instrumentation advice and helpers can use them directly.
 
-  See `docs/boostrap_design_guidelines.md`
+  See [`docs/bootstrap_design_guidelines.md`](docs/bootstrap_design_guidelines.md)
 
 - **`agent-builder/`** — ByteBuddy integration layer. Class transformer pipeline:
   `DDClassFileTransformer` intercepts every class load, `GlobalIgnoresMatcher` applies early
@@ -71,7 +71,7 @@ to `.classdata` to prevent unintended loading. See `docs/how_to_work_with_gradle
   - `muzzle/` — Build-time and runtime safety checks. Verifies that expected types and methods
     exist in the library version at runtime. If not, the instrumentation is silently skipped.
 
-  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md`.
+  See [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) and [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md).
 
 - **`instrumentation/`** — All auto-instrumentations, organized as `{framework}/{framework}-{minVersion}/`.
   Nearly 200 framework directories. Each follows the same pattern: an `InstrumenterModule` declares the
@@ -79,7 +79,7 @@ to `.classdata` to prevent unintended loading. See `docs/how_to_work_with_gradle
   via matchers, advice classes inject bytecode via `@Advice.OnMethodEnter`/`@Advice.OnMethodExit`,
   and decorator/helper classes contain the actual product logic. Instrumentations are discovered
   via `@AutoService(InstrumenterModule.class)` (Java SPI) and validated by Muzzle at build time.
-  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
+  See [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) and [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md) for details.
 
 - **`appsec/`** — Application Security. Entry point: `AppSecSystem.start()`. Runs the Datadog WAF
   to detect and block attacks in real-time. Hooks into the gateway to intercept HTTP requests.
