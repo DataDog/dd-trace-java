@@ -222,7 +222,6 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation2"
           childOf(span(0))
           tags {
-            "$DDTags.DD_INTEGRATION" null
             serviceNameSource null // service name was manually set
             defaultTags()
           }
