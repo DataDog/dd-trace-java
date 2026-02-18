@@ -11,7 +11,13 @@ public final class Utils {
 
   public static DataStreamsTransactionTracker.TransactionSourceReader
       DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> new String(((Headers) source).lastHeader(headerName).value());
+          (source, headerName) -> {
+            try {
+              return new String(((Headers) source).lastHeader(headerName).value());
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {

@@ -211,7 +211,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           .trackTransaction(
               span,
               DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
-              record,
+              record.headers(),
               DSM_TRANSACTION_SOURCE_READER);
       return activateSpan(span);
     }
