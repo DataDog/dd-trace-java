@@ -216,20 +216,37 @@ Product-specific APIs that also live here:
 
 ### `components/`
 
-TODO: Those are low-level shared platform components. They are not tied to a product, don't bundle dependencies, and are safe to use in bootstrap.
-TODO: Add a quick description for each component and feature they provide
+Low-level shared platform components. They are not tied to any product, don't bundle external
+dependencies, and are safe to use from the bootstrap classloader:
 
-Low-level shared components: `context` (context propagation primitives), `environment` (JVM/OS detection),
-`json` (lightweight JSON handling), `native-loader` (native library loading), `yaml`.
+- `context` — Immutable context propagation framework. Provides `Context`, `ContextKey`,
+  and `Propagator` abstractions for storing  and propagating key-value pairs across threads
+  and carrier objects.
+- `environment` — JVM and OS detection utilities. `JavaVersion` for version parsing,
+  `JavaVirtualMachine` for JVM implementation detection (OpenJDK, Graal, J9),
+  `OperatingSystem` for OS/architecture detection, and `EnvironmentVariables`/`SystemProperties`
+  for safe access and mocking.
+- `json` — Lightweight, dependency-free JSON serialization. `JsonWriter` for building JSON
+  with a fluent API, `JsonReader` for streaming parsing.
+- `native-loader` — Platform-aware native library loading with pluggable strategies.
+  `NativeLoader` handles OS/architecture detection, resource extraction from JARs,
+  and temp file management.
 
 ### `products/`
 
-TODO: Give a quick explaintation of the product module design with api, lib, bootstrap, folders.
-TODO: Add a quick description for each product.
+Self-contained product modules following a layered submodule pattern:
+- `{product}-api/` — Public API interfaces, zero dependencies.
+- `{product}-bootstrap/` — Data classes safe for the bootstrap classloader.
+- `{product}-lib/` — Core implementation (shadow jar, excludes shared dependencies).
+- `{product}-agent/` — Agent integration entry point (shadow jar).
 
-Additional product modules: `metrics/` (StatsD client and monitoring abstraction) and
-`feature-flagging/` (server-side feature flag evaluation via remote config).
+Current products:
 
+- `metrics/` — StatsD client and monitoring abstraction. Provides `Monitoring` interface with
+  counters, timers, and histograms for internal agent metrics collection.
+- `feature-flagging/` — Server-side feature flag evaluation driven by remote configuration.
+  Implements the OpenFeature SDK, handles the Unified Feature Control (UFC) protocol,
+  and tracks flag exposure per user/session.
 
 ### `communication/`
 
