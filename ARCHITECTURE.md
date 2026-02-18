@@ -179,6 +179,11 @@ Key abstractions that instrumentations interact with:
   Instrumentations fire events (request started, response body received, etc.),
   and products (AppSec, IAST) subscribe to react.
 
+TODO: Explain than similarly to dd-trace-core, it grows organically and nows contains other products and concerns than tracing
+TODO: Like for example appsec, civisibility, datastreams, iast, llmobs
+FIXME: Gateway is not strictly tracing but an abstraction for ASM/IAST products.
+FIXME: InstrumentationContext is not part of internal-api. You should re-analyze internal-api to get a better understanding.
+
 ### `communication/`
 
 HTTP transport to the Datadog Agent and intake APIs. Key type: `SharedCommunicationObjects`,
