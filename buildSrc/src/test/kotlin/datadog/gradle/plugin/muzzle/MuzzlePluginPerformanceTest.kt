@@ -1,8 +1,10 @@
 package datadog.gradle.plugin.muzzle
 
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
+import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -100,5 +102,104 @@ class MuzzlePluginPerformanceTest {
       },
       "Other project should skip muzzle configuration when demo project's muzzle is requested"
     )
+  }
+
+  @Test
+  fun `muzzle tasks are up-to-date when nothing changes`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    val repoDir = fixture.createFakeMavenRepo(
+      group = "com.example.test",
+      module = "up-to-date-lib",
+      versions = listOf("1.0.0", "1.1.0")
+    )
+
+    val repoUrl = repoDir.toURI().toString()
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      repositories {
+        maven {
+          url = uri('$repoUrl')
+          metadataSources {
+            mavenPom()
+            artifact()
+          }
+        }
+      }
+
+      muzzle {
+        pass {
+          group = 'com.example.test'
+          module = 'up-to-date-lib'
+          versions = '[1.0.0,2.0.0)'
+        }
+      }
+      """
+    )
+    fixture.writeNoopScanPlugin()
+
+    // First run - should execute the tasks
+    run {
+      val firstRun = fixture.run(
+        ":dd-java-agent:instrumentation:demo:muzzle",
+        env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      )
+
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.0.0")?.outcome)
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.1.0")?.outcome)
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
+        "First run should execute muzzle-end task")
+    }
+
+    // Second run without changes - assertion tasks should be up-to-date
+    run {
+      val secondRun = fixture.run(
+        ":dd-java-agent:instrumentation:demo:muzzle",
+        env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      )
+
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.0.0")?.outcome,
+        "1.0.0 assertion task should be up-to-date")
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.1.0")?.outcome,
+        "1.1.0 assertion task should be up-to-date")
+      assertEquals(SUCCESS, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
+        "First run should execute muzzle-end task")
+    }
+
+    // Third run after adding new version - should NOT be up-to-date
+    // Add version 1.2.0 to the fake Maven repo
+    run {
+      fixture.addVersionToFakeMavenRepo(
+        repoDir = repoDir,
+        group = "com.example.test",
+        module = "up-to-date-lib",
+        version = "1.2.0"
+      )
+
+      val thirdRun = fixture.run(
+        ":dd-java-agent:instrumentation:demo:muzzle",
+        env = mapOf("MAVEN_REPOSITORY_PROXY" to repoUrl)
+      )
+
+      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.0.0")?.outcome,
+        "1.0.0 assertion task should be up-to-date")
+      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.1.0")?.outcome,
+        "1.1.0 assertion task should be up-to-date")
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-up-to-date-lib-1.2.0")?.outcome,
+        "New 1.2.0 assertion task should be created and execute")
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
+        "First run should execute muzzle-end task")
+    }
   }
 }

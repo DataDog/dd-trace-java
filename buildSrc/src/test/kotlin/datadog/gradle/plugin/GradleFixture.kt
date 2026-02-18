@@ -107,29 +107,109 @@ internal open class GradleFixture(
     val moduleDir = File(repoDir, "$groupPath/$module").apply { mkdirs() }
 
     versions.forEach { version ->
-      val versionDir = File(moduleDir, version).apply { mkdirs() }
-      val pomFile = File(versionDir, "$module-$version.pom")
-      pomFile.writeText(
-        """
-        <project xmlns="http://maven.apache.org/POM/4.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-          <modelVersion>4.0.0</modelVersion>
-          <groupId>$group</groupId>
-          <artifactId>$module</artifactId>
-          <version>$version</version>
-          <packaging>jar</packaging>
-        </project>
-        """.trimIndent()
-      )
-      writeChecksum(pomFile)
-
-      val jarFile = File(versionDir, "$module-$version.jar")
-      createJar(jarFile.toPath(), group, module, version, jarContentBuilder)
-      writeChecksum(jarFile)
+      createMavenVersion(moduleDir, group, module, version, jarContentBuilder)
     }
 
     val metadataFile = File(moduleDir, "maven-metadata.xml")
+    writeMavenMetadata(metadataFile, group, module, versions)
+
+    return repoDir
+  }
+
+  /**
+   * Adds a new version to an existing fake Maven repository.
+   * Updates the maven-metadata.xml to include the new version.
+   *
+   * @param repoDir The root directory of the fake Maven repository
+   * @param group Maven group ID
+   * @param module Maven artifact ID
+   * @param version Version to add
+   * @param jarContentBuilder Optional lambda to add entries to the JAR
+   */
+  fun addVersionToFakeMavenRepo(
+    repoDir: File,
+    group: String,
+    module: String,
+    version: String,
+    jarContentBuilder: ((JarOutputStream) -> Unit)? = null
+  ) {
+    val groupPath = group.replace('.', '/')
+    val moduleDir = File(repoDir, "$groupPath/$module")
+    require(moduleDir.exists()) { "Module directory does not exist: $moduleDir" }
+
+    // Create version artifacts (POM + JAR with checksums)
+    createMavenVersion(moduleDir, group, module, version, jarContentBuilder)
+
+    // Read existing versions from metadata
+    val metadataFile = File(moduleDir, "maven-metadata.xml")
+    val existingVersions = if (metadataFile.exists()) {
+      val content = metadataFile.readText()
+      val versionRegex = "<version>([^<]+)</version>".toRegex()
+      versionRegex.findAll(content).map { it.groupValues[1] }.toList()
+    } else {
+      emptyList()
+    }
+
+    // Add new version and update metadata
+    val allVersions = (existingVersions + version).distinct().sorted()
+    writeMavenMetadata(metadataFile, group, module, allVersions)
+  }
+
+  /**
+   * Creates a single Maven version with POM and JAR artifacts (including checksums).
+   *
+   * @param moduleDir The module directory (e.g., repo/com/example/artifact)
+   * @param group Maven group ID
+   * @param module Maven artifact ID
+   * @param version Version to create
+   * @param jarContentBuilder Optional lambda to add entries to the JAR
+   */
+  private fun createMavenVersion(
+    moduleDir: File,
+    group: String,
+    module: String,
+    version: String,
+    jarContentBuilder: ((JarOutputStream) -> Unit)? = null
+  ) {
+    val versionDir = File(moduleDir, version).apply { mkdirs() }
+
+    // Create POM file
+    val pomFile = File(versionDir, "$module-$version.pom")
+    pomFile.writeText(
+      """
+      <project xmlns="http://maven.apache.org/POM/4.0.0"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>$group</groupId>
+        <artifactId>$module</artifactId>
+        <version>$version</version>
+        <packaging>jar</packaging>
+      </project>
+      """.trimIndent()
+    )
+    writeChecksum(pomFile)
+
+    // Create JAR file
+    val jarFile = File(versionDir, "$module-$version.jar")
+    createJar(jarFile.toPath(), group, module, version, jarContentBuilder)
+    writeChecksum(jarFile)
+  }
+
+  /**
+   * Writes maven-metadata.xml for a module with the given versions.
+   *
+   * @param metadataFile The maven-metadata.xml file to write
+   * @param group Maven group ID
+   * @param module Maven artifact ID
+   * @param versions List of versions (should be sorted)
+   */
+  private fun writeMavenMetadata(
+    metadataFile: File,
+    group: String,
+    module: String,
+    versions: List<String>
+  ) {
     metadataFile.writeText(
       """
       <metadata>
@@ -141,14 +221,12 @@ internal open class GradleFixture(
           <versions>
       ${versions.joinToString("\n") { "      <version>$it</version>" }}
           </versions>
-          <lastUpdated>20260216120000</lastUpdated>
+          <lastUpdated>${System.currentTimeMillis() / 1000}</lastUpdated>
         </versioning>
       </metadata>
       """.trimIndent()
     )
     writeChecksum(metadataFile)
-
-    return repoDir
   }
 
   /**
