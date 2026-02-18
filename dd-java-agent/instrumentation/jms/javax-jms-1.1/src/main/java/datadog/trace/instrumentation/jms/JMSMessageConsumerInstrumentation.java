@@ -39,10 +39,14 @@ import javax.jms.MessageListener;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class JMSMessageConsumerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   private final String namespace;
+  private static final Logger log =
+      LoggerFactory.getLogger(JMSMessageConsumerInstrumentation.class);
 
   public JMSMessageConsumerInstrumentation(String namespace) {
     this.namespace = namespace;
@@ -164,6 +168,7 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.onError(span, throwable);
 
       activateNext(span); // scope is left open until next message or it times out
+      log.debug("Expecting the following `ITERATION` span to be finished {}", span);
 
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
