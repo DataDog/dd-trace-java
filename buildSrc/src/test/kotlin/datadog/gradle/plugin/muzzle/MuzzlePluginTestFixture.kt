@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.GradleFixture
+import org.intellij.lang.annotations.Language
 import java.io.File
 
 /**
@@ -15,8 +16,9 @@ internal class MuzzlePluginTestFixture(
    * Writes the basic Gradle project structure for muzzle testing.
    * Creates a multi-project build with agent-bootstrap, agent-tooling, and instrumentation modules.
    */
-  fun writeProject(instrumentationBuildScript: String) {
+  fun writeProject(@Language("Groovy") instrumentationBuildScript: String) {
     file("settings.gradle").writeText(
+      // language=Groovy
       """
       rootProject.name = 'muzzle-e2e'
       include ':dd-java-agent:agent-bootstrap'
@@ -26,6 +28,7 @@ internal class MuzzlePluginTestFixture(
     )
 
     file("dd-java-agent/agent-bootstrap/build.gradle").writeText(
+      // language=Groovy
       """
       plugins {
         id 'java'
@@ -36,6 +39,7 @@ internal class MuzzlePluginTestFixture(
     )
 
     file("dd-java-agent/agent-tooling/build.gradle").writeText(
+      // language=Groovy
       """
       plugins {
         id 'java'
@@ -58,9 +62,10 @@ internal class MuzzlePluginTestFixture(
    *
    * @param assertionBody Java code to execute in the assertion method
    */
-  fun writeScanPlugin(assertionBody: String) {
+  fun writeScanPlugin(@Language("JAVA") assertionBody: String) {
     file("dd-java-agent/instrumentation/demo/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
       .writeText(
+        // language=JAVA
         """
         package datadog.trace.agent.tooling.muzzle;
 
