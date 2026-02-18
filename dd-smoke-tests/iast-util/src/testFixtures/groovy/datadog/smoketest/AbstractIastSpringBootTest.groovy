@@ -1055,7 +1055,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul ->
+    hasVulnerability {
+      vul ->
       vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionClass'
       && vul.evidence.valueParts[0].value == "java.lang.String"
@@ -1071,7 +1072,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul ->
+    hasVulnerability {
+      vul ->
       vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionMethod'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
@@ -1089,7 +1091,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul ->
+    hasVulnerability {
+      vul ->
       vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionField'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
@@ -1106,7 +1109,8 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     client.newCall(request).execute()
 
     then:
-    hasVulnerability { vul ->
+    hasVulnerability {
+      vul ->
       vul.type == 'REFLECTION_INJECTION'
       && vul.location.method == 'reflectionInjectionLookup'
       && vul.evidence.valueParts[0].value == "java.lang.String#"
@@ -1247,7 +1251,7 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   void 'untrusted deserialization for snakeyaml with a string'() {
     setup:
     final String yaml = "test"
-    final url = "http://localhost:${httpPort}/untrusted_deserialization/snakeyaml?yaml=${yaml}"
+    final url = "http://localhost:${httpPort}/untrusted_deserialization/snakeyaml?yaml=${yaml}".toString()
     final request = new Request.Builder().url(url).get().build()
 
     when:
@@ -1286,6 +1290,4 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     'validateAll2'     | _
     'validate'     | _
   }
-
-
 }

@@ -1,9 +1,9 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 muzzle {
   pass {
@@ -23,11 +23,12 @@ idea {
 
 // Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility
 project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 17)
-}
-compileJava.configure {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(
+    it,
+    17,
+    JavaVersion.VERSION_1_8,
+    "Set all compile tasks to use JDK17 but let instrumentation code target 1.8 compatibility"
+    )
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -45,6 +46,6 @@ dependencies {
 
   // Include other instruments that we rely on and that must not conflict with each other
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testImplementation project(':dd-java-agent:instrumentation:reactive-streams')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
 }

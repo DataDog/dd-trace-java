@@ -3,7 +3,9 @@ package datadog.trace.llmobs.domain;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,6 +36,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
 
+  private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
+  private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
+  private static final String ENV = LLMOBS_TAG_PREFIX + "env";
+
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
@@ -49,7 +55,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       String spanName,
       @Nonnull String mlApp,
       String sessionId,
-      @Nonnull String serviceName) {
+      @Nonnull String serviceName,
+      WellKnownTags wellKnownTags) {
 
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
@@ -62,6 +69,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
             .withSpanType(DDSpanTypes.LLMOBS);
 
     this.span = spanBuilder.start();
+
+    // set UST (unified service tags, env, service, version)
+    this.span.setTag(ENV, wellKnownTags.getEnv());
+    this.span.setTag(SERVICE, wellKnownTags.getService());
+    this.span.setTag(VERSION, wellKnownTags.getVersion());
+
     this.span.setTag(SPAN_KIND, kind);
     this.spanKind = kind;
     this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
@@ -69,8 +82,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
 
-    AgentSpanContext parent = LLMObsState.getLLMObsParentContext();
-    String parentSpanID = LLMObsState.ROOT_SPAN_ID;
+    AgentSpanContext parent = LLMObsContext.current();
+    String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
       if (parent.getTraceId() != this.span.getTraceId()) {
         LOGGER.error(
@@ -84,8 +97,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
     this.span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    this.scope = LLMObsState.attach();
-    LLMObsState.setLLMObsParentContext(this.span.context());
+    this.scope = LLMObsContext.attach(this.span.context());
   }
 
   @Override

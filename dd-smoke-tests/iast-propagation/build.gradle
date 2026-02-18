@@ -1,15 +1,25 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'com.gradleup.shadow'
   id 'java'
-  id 'org.jetbrains.kotlin.jvm' version '1.9.24'
+  id 'org.jetbrains.kotlin.jvm'
   id 'scala'
   id 'groovy'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 description = 'IAST propagation Smoke Tests.'
+
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.JVM_1_8
+    apiVersion = KotlinVersion.KOTLIN_1_9
+    languageVersion = KotlinVersion.KOTLIN_1_9
+  }
+}
 
 // The standard spring-boot plugin doesn't play nice with our project
 // so we'll build a fat jar instead
@@ -26,15 +36,30 @@ tasks.named("shadowJar", ShadowJar) {
 dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.4'
-  implementation libs.scala
-  implementation libs.groovy
+  implementation libs.scala213
   implementation libs.kotlin
 
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
+
+  implementation(libs.bundles.groovy)
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
+}
+
+tasks.withType(ScalaCompile).configureEach {
+  // Despite the compatibility matrix, scala compiler doesn't properly
+  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
+  // * https://github.com/gradle/gradle/issues/19456
+  configureCompiler(it, 8)
 }

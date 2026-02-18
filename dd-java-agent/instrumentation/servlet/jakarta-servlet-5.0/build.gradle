@@ -13,7 +13,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 // jakarta.servlet-api dependencies are compiled with Java 11 and
 // the gradle muzzle tasks uses the JVM gradle is running with
@@ -30,7 +30,7 @@ configurations {
   javaxClassesToRelocate
 }
 
-task relocatedJavaxJar(type: ShadowJar) {
+tasks.register('relocatedJavaxJar', ShadowJar) {
   relocate 'javax.servlet', 'jakarta.servlet'
   relocate 'datadog.trace.instrumentation.servlet3', 'datadog.trace.instrumentation.servlet5'
   relocate 'datadog.trace.instrumentation.servlet', 'datadog.trace.instrumentation.servlet5'
@@ -55,7 +55,7 @@ dependencies {
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0'
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   javaxClassesToRelocate project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast'), {
     transitive = false
@@ -69,9 +69,12 @@ dependencies {
   }
   testFixturesCompileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
 
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
+
   // tested on tomcat-5.5:latestDepTest
 }
 
-jar {
+tasks.named("jar", Jar) {
   from zipTree(relocatedJavaxJar.outputs.files.asPath)
 }

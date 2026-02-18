@@ -5,7 +5,8 @@ minimumBranchCoverage = 0.0
 
 dependencies {
   // minimum OpenTelemetry API version this shim is compatible with
-  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.4.0'
+  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.47.0'
 
+  implementation project(':products:metrics:metrics-api')
   implementation project(':internal-api')
 }

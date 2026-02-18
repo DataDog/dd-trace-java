@@ -28,7 +28,6 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.CorrelationAccess;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
@@ -36,7 +35,6 @@ import freemarker.template.Template;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -90,10 +88,6 @@ public class DebuggerTransformerTest {
   static void setupAll() throws Exception {
     // disable tracer integration
     System.setProperty("dd." + TraceInstrumentationConfig.TRACE_ENABLED, "false");
-
-    Field fld = CorrelationAccess.class.getDeclaredField("REUSE_INSTANCE");
-    fld.setAccessible(true);
-    fld.set(null, false);
 
     // setup the tracer
     noopTracer = GlobalTracer.get();
@@ -155,7 +149,9 @@ public class DebuggerTransformerTest {
           LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
       DebuggerTransformer debuggerTransformer =
           new DebuggerTransformer(
-              config, new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
+              config,
+              new ProbeMetadata(),
+              new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
       debuggerTransformer.transform(
           ClassLoader.getSystemClassLoader(),
           "java.util.ArrayList",
@@ -201,7 +197,8 @@ public class DebuggerTransformerTest {
       logProbes.add(logProbe);
     }
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
-    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(config, configuration);
+    DebuggerTransformer debuggerTransformer =
+        new DebuggerTransformer(config, new ProbeMetadata(), configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
       byte[] newClassBuffer =
           debuggerTransformer.transform(
@@ -255,6 +252,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
@@ -283,6 +281,7 @@ public class DebuggerTransformerTest {
             config,
             configuration,
             ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     byte[] newClassBuffer =
@@ -319,7 +318,11 @@ public class DebuggerTransformerTest {
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(
-            config, configuration, ((definition, result) -> lastResult.set(result)), listener);
+            config,
+            configuration,
+            ((definition, result) -> lastResult.set(result)),
+            new ProbeMetadata(),
+            listener);
     DebuggerAgentHelper.injectSink(listener);
     byte[] newClassBuffer =
         debuggerTransformer.transform(
@@ -365,6 +368,7 @@ public class DebuggerTransformerTest {
                 invocationOrder.add(definition);
               }
             },
+            new ProbeMetadata(),
             new DebuggerSink(
                 config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
     debuggerTransformer.transform(
@@ -412,7 +416,7 @@ public class DebuggerTransformerTest {
 
     @Override
     public InstrumentationResult.Status instrument(
-        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<ProbeId> probeIds) {
+        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
       methodInfo
           .getMethodNode()
           .instructions

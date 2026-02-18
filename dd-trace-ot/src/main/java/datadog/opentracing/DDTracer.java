@@ -5,10 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
 
 import datadog.context.propagation.CarrierSetter;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.StatsDClient;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
@@ -597,8 +597,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final AgentSpanContext context = converter.toContext(referencedContext);
       if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
         log.debug(
-            "Expected to have a DDSpanContext or ExtractedContext but got "
-                + context.getClass().getName());
+            "Expected to have a DDSpanContext or ExtractedContext but got {}",
+            context.getClass().getName());
         return this;
       }
 
@@ -660,7 +660,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       return converter.toSpan(agentSpan);
     }
 
-    /** @deprecated use {@link #start()} instead. */
+    /**
+     * @deprecated use {@link #start()} instead.
+     */
     @Deprecated
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {

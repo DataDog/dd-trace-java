@@ -1,5 +1,20 @@
 package datadog.smoketest.concurrent
 
+import datadog.trace.test.util.Flaky
+
+class VirtualThreadStartTest extends AbstractConcurrentTest {
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadStart']
+  }
+
+  @Flaky("Sometimes fails on CI with: Condition not satisfied after 30.00 seconds and 31 attempts")
+  def 'test Thread.startVirtualThread() runnable'() {
+    expect:
+    receivedCorrectTrace()
+  }
+}
+
 class VirtualThreadExecuteTest extends AbstractConcurrentTest {
   @Override
   protected List<String> getTestArguments() {
@@ -42,6 +57,7 @@ class VirtualThreadSubmitRunnableTest extends AbstractConcurrentTest {
     return ['virtualThreadSubmitRunnable']
   }
 
+  @Flaky("Sometimes fails on CI with: Condition not satisfied after 30.00 seconds and 31 attempts")
   def 'test VirtualThread submit runnable'() {
     expect:
     receivedCorrectTrace()

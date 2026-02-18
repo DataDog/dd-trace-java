@@ -26,6 +26,7 @@ public class CiVisibilityMetricCollectorImpl implements CiVisibilityMetricCollec
   private final BlockingQueue<CiVisibilityMetricData> rawMetricsQueue;
   private final BlockingQueue<DistributionSeriesPoint> rawDistributionPointsQueue;
   private final AtomicLongArray counters;
+
   /**
    * Cards are used to avoid iterating over the entire {@link
    * CiVisibilityMetricCollectorImpl#counters} array every time {@link

@@ -79,7 +79,7 @@ class ApiSecuritySamplerTest extends DDSpecification {
     preSampled3
   }
 
-  void 'preSampleRequest with null route'() {
+  void 'preSampleRequest with null route and no URL'() {
     given:
     def ctx = createContext(null, 'GET', 200)
     def sampler = new ApiSecuritySamplerImpl()
@@ -89,6 +89,113 @@ class ApiSecuritySamplerTest extends DDSpecification {
 
     then:
     !preSampled
+  }
+
+  void 'preSampleRequest with null route but valid URL uses endpoint fallback'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled
+    ctx.getOrComputeEndpoint() != null
+    ctx.getApiSecurityEndpointHash() != null
+  }
+
+  void 'preSampleRequest with null route and 404 status does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 404, 'http://localhost:8080/unknown/path')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled
+  }
+
+  void 'preSampleRequest with null route and blocked request does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 403, 'http://localhost:8080/admin/users')
+    ctx.setWafBlocked()  // Request was blocked by AppSec
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled  // Blocked requests should not be sampled
+  }
+
+  void 'preSampleRequest with null route and 403 non-blocked API does sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 403, 'http://localhost:8080/api/forbidden-resource')
+    // NOT calling setWafBlocked() - this is a legitimate API that returns 403
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled  // Legitimate APIs that return 403 should be sampled
+    ctx.getOrComputeEndpoint() != null
+    ctx.getApiSecurityEndpointHash() != null
+  }
+
+  void 'preSampleRequest with null route and blocked request with different status codes does not sample'() {
+    given:
+    def ctx200 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/attack')
+    ctx200.setWafBlocked()
+    def ctx500 = createContextWithUrl(null, 'GET', 500, 'http://localhost:8080/attack')
+    ctx500.setWafBlocked()
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled200 = sampler.preSampleRequest(ctx200)
+    def preSampled500 = sampler.preSampleRequest(ctx500)
+
+    then:
+    !preSampled200  // Blocked requests should not be sampled regardless of status code
+    !preSampled500
+  }
+
+  void 'second request with same endpoint is not sampled'() {
+    given:
+    def ctx1 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def ctx2 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/456')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled1 = sampler.preSampleRequest(ctx1)
+    ctx1.setKeepOpenForApiSecurityPostProcessing(true)
+    def sampled1 = sampler.sampleRequest(ctx1)
+    sampler.releaseOne()
+
+    then:
+    preSampled1
+    sampled1
+
+    when:
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then:
+    !preSampled2 // Same endpoint pattern, so not sampled
+  }
+
+  void 'endpoint is computed only once'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+
+    when:
+    def endpoint1 = ctx.getOrComputeEndpoint()
+    def endpoint2 = ctx.getOrComputeEndpoint()
+
+    then:
+    endpoint1 != null
+    endpoint1 == endpoint2
   }
 
   void 'preSampleRequest with null method'() {
@@ -209,11 +316,324 @@ class ApiSecuritySamplerTest extends DDSpecification {
     }
   }
 
+  void 'preSampleRequest with tracing disabled updates access map immediately'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'first request is presampled with tracing disabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'request is sampled and access map is updated immediately'
+    preSampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(ctx.getApiSecurityEndpointHash())
+
+    when: 'second request for same endpoint is attempted'
+    def ctx2 = createContext('route1', 'GET', 200)
+    sampler.releaseOne()
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then: 'second request is not sampled because endpoint was already updated in first preSampleRequest'
+    !preSampled2
+  }
+
+  void 'sampleRequest with tracing disabled returns true without updating access map'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    ctx.setApiSecurityEndpointHash(42L)
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'sampleRequest is called with tracing disabled'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'request is sampled without updating access map'
+    sampled
+    sampler.accessMap.size() == 0
+  }
+
+  void 'preSampleRequest with tracing enabled does not update access map immediately'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'true')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'request is presampled with tracing enabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'request is sampled but access map is NOT updated yet'
+    preSampled
+    sampler.accessMap.size() == 0
+
+    when: 'sampleRequest is called to finalize sampling'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'access map is updated in sampleRequest'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(ctx.getApiSecurityEndpointHash())
+  }
+
+  void 'sampleRequest with tracing enabled updates access map'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'true')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    ctx.setApiSecurityEndpointHash(42L)
+    ctx.setKeepOpenForApiSecurityPostProcessing(true)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'sampleRequest is called with tracing enabled'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'request is sampled and access map is updated'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.containsKey(42L)
+
+    when: 'second request for same endpoint is made'
+    def sampled2 = sampler.sampleRequest(ctx)
+
+    then: 'second request is not sampled'
+    !sampled2
+  }
+
+  void 'concurrent requests with tracing disabled do not see expired state'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx1 = createContext('route1', 'GET', 200)
+    def ctx2 = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'first request is presampled'
+    def preSampled1 = sampler.preSampleRequest(ctx1)
+
+    then: 'first request is sampled and access map is updated immediately'
+    preSampled1
+    ctx1.getApiSecurityEndpointHash() != null
+    sampler.accessMap.size() == 1
+
+    when: 'concurrent second request tries to presample same endpoint'
+    sampler.releaseOne()
+    def preSampled2 = sampler.preSampleRequest(ctx2)
+
+    then: 'second request is not sampled because endpoint is already in access map'
+    !preSampled2
+  }
+
+  void 'full flow with tracing disabled updates map only in preSampleRequest'() {
+    given:
+    injectSysConfig('dd.apm.tracing.enabled', 'false')
+    rebuildConfig()
+    def ctx = createContext('route1', 'GET', 200)
+    final timeSource = new ControllableTimeSource()
+    timeSource.set(0)
+    final long expirationTimeInMs = 10_000
+    def sampler = new ApiSecuritySamplerImpl(10, expirationTimeInMs, timeSource)
+
+    when: 'request goes through full sampling flow with tracing disabled'
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then: 'preSampleRequest returns true and updates access map'
+    preSampled
+    sampler.accessMap.size() == 1
+    def hash = ctx.getApiSecurityEndpointHash()
+    sampler.accessMap.containsKey(hash)
+
+    when: 'sampleRequest is called'
+    def sampled = sampler.sampleRequest(ctx)
+
+    then: 'sampleRequest returns true without modifying access map'
+    sampled
+    sampler.accessMap.size() == 1
+    sampler.accessMap.get(hash) == 0L // Still has the value from preSampleRequest
+  }
+
+  // RFC-1076: Verify endpoint is computed and used for sampling but NOT set as a context field for tagging
+  void 'endpoint computed for sampling is stored internally but not exposed as tag'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled
+    // Endpoint was computed and used for the hash
+    ctx.getApiSecurityEndpointHash() != null
+
+    // Endpoint is available via getOrComputeEndpoint (cached)
+    def endpoint = ctx.getOrComputeEndpoint()
+    endpoint != null
+    endpoint == '/api/users/{param:int}'
+
+    // Verify endpoint is NOT transferred to any tag-like structure in AppSecRequestContext
+    // AppSecRequestContext doesn't have a method to expose endpoint as a tag
+    // The endpoint field is internal and only used for sampling decisions
+  }
+
+  void 'sampler uses endpoint (not route) to compute hash when route is absent'() {
+    given:
+    def ctx1 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def ctx2 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/456')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when: 'first request uses endpoint to compute hash'
+    sampler.preSampleRequest(ctx1)
+    def hash1 = ctx1.getApiSecurityEndpointHash()
+    def endpoint1 = ctx1.getOrComputeEndpoint()
+
+    and: 'second request with same endpoint pattern'
+    sampler.preSampleRequest(ctx2)
+    def hash2 = ctx2.getApiSecurityEndpointHash()
+    def endpoint2 = ctx2.getOrComputeEndpoint()
+
+    then: 'both endpoints are simplified to the same pattern'
+    endpoint1 == '/api/users/{param:int}'
+    endpoint2 == '/api/users/{param:int}'
+
+    and: 'both hashes are identical (computed from endpoint, method, status)'
+    hash1 == hash2
+  }
+
+  void 'sampler computes different hashes for different endpoints'() {
+    given:
+    def ctx1 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123')
+    def ctx2 = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/orders/456')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    sampler.preSampleRequest(ctx1)
+    sampler.preSampleRequest(ctx2)
+    def hash1 = ctx1.getApiSecurityEndpointHash()
+    def hash2 = ctx2.getApiSecurityEndpointHash()
+    def endpoint1 = ctx1.getOrComputeEndpoint()
+    def endpoint2 = ctx2.getOrComputeEndpoint()
+
+    then: 'endpoints are different'
+    endpoint1 == '/api/users/{param:int}'
+    endpoint2 == '/api/orders/{param:int}'
+
+    and: 'hashes are different'
+    hash1 != hash2
+  }
+
+  void 'RFC-1076: when route is present, sampler uses route and does not compute endpoint'() {
+    given:
+    def ctx = createContextWithUrl('/api/users/{userId}', 'GET', 200, 'http://localhost:8080/api/users/123')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    preSampled
+    ctx.getApiSecurityEndpointHash() != null
+
+    // Endpoint was NOT computed (route was used instead)
+    // We can verify this by checking that getOrComputeEndpoint returns the computed value
+    // but the sampler used the route directly
+    def endpoint = ctx.getOrComputeEndpoint()
+    endpoint == '/api/users/{param:int}' // Now it's computed because we called it
+
+    // The hash was computed using the route, not the endpoint
+    def hashFromRoute = computeApiHash('/api/users/{userId}', 'GET', 200)
+    ctx.getApiSecurityEndpointHash() == hashFromRoute
+  }
+
+  void 'RFC-1076: endpoint is computed at most once even with multiple getOrComputeEndpoint calls'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 200, 'http://localhost:8080/api/users/123/profile/settings')
+
+    when: 'endpoint is computed multiple times'
+    def endpoint1 = ctx.getOrComputeEndpoint()
+    def endpoint2 = ctx.getOrComputeEndpoint()
+    def endpoint3 = ctx.getOrComputeEndpoint()
+
+    then: 'all return the same instance (cached)'
+    endpoint1 != null
+    endpoint1 == endpoint2
+    endpoint2 == endpoint3
+    endpoint1 == '/api/users/{param:int}/profile/settings'
+  }
+
+  void 'RFC-1076: 404 with valid endpoint does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'GET', 404, 'http://localhost:8080/api/nonexistent/resource')
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled
+    // Even though endpoint can be computed, 404s are not sampled
+    def endpoint = ctx.getOrComputeEndpoint()
+    endpoint != null // Endpoint is computable
+    ctx.getApiSecurityEndpointHash() == null // But hash was never set because sampling failed
+  }
+
+  void 'RFC-1076: blocked request with valid endpoint does not sample'() {
+    given:
+    def ctx = createContextWithUrl(null, 'POST', 403, 'http://localhost:8080/api/admin/users')
+    ctx.setWafBlocked() // Request blocked by AppSec WAF
+    def sampler = new ApiSecuritySamplerImpl()
+
+    when:
+    def preSampled = sampler.preSampleRequest(ctx)
+
+    then:
+    !preSampled
+    // Blocked requests represent attacks, not legitimate API endpoints
+    ctx.getApiSecurityEndpointHash() == null
+  }
+
+  // Helper method to compute hash same way as ApiSecuritySamplerImpl
+  private static long computeApiHash(final String route, final String method, final int statusCode) {
+    long result = 17
+    result = 31 * result + route.hashCode()
+    result = 31 * result + method.hashCode()
+    result = 31 * result + statusCode
+    return result
+  }
+
   private static AppSecRequestContext createContext(final String route, final String method, int statusCode) {
     final AppSecRequestContext ctx = new AppSecRequestContext()
     ctx.setRoute(route)
     ctx.setMethod(method)
     ctx.setResponseStatus(statusCode)
+    ctx
+  }
+
+  private static AppSecRequestContext createContextWithUrl(final String route, final String method, int statusCode, String url) {
+    final AppSecRequestContext ctx = new AppSecRequestContext()
+    ctx.setRoute(route)
+    ctx.setMethod(method)
+    ctx.setResponseStatus(statusCode)
+    ctx.setHttpUrl(url)
     ctx
   }
 }

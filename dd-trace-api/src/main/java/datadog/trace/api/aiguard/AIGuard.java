@@ -2,7 +2,12 @@ package datadog.trace.api.aiguard;
 
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * SDK for calling the AIGuard REST API to evaluate AI prompts and tool calls for security threats.
@@ -63,11 +68,13 @@ public abstract class AIGuard {
   public static class AIGuardAbortError extends RuntimeException {
     private final Action action;
     private final String reason;
+    private final List<String> tags;
 
-    public AIGuardAbortError(final Action action, final String reason) {
+    public AIGuardAbortError(final Action action, final String reason, final List<String> tags) {
       super(reason);
       this.action = action;
       this.reason = reason;
+      this.tags = tags;
     }
 
     public Action getAction() {
@@ -76,6 +83,10 @@ public abstract class AIGuard {
 
     public String getReason() {
       return reason;
+    }
+
+    public List<String> getTags() {
+      return tags;
     }
   }
 
@@ -137,16 +148,19 @@ public abstract class AIGuard {
 
     final Action action;
     final String reason;
+    final List<String> tags;
 
     /**
      * Creates a new evaluation result.
      *
      * @param action the recommended action for the evaluated content
      * @param reason human-readable explanation for the decision
+     * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
      */
-    public Evaluation(final Action action, final String reason) {
+    public Evaluation(final Action action, final String reason, final List<String> tags) {
       this.action = action;
       this.reason = reason;
+      this.tags = tags;
     }
 
     /**
@@ -166,17 +180,186 @@ public abstract class AIGuard {
     public String getReason() {
       return reason;
     }
+
+    /**
+     * Returns the list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     *
+     * @return list of tags.
+     */
+    public List<String> getTags() {
+      return tags;
+    }
+  }
+
+  /**
+   * Represents an image URL in a content part. Images can be provided as URLs or data URIs.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * // Image from URL
+   * var imageUrl = new AIGuard.ImageURL("https://example.com/image.jpg");
+   *
+   * // Image from data URI
+   * var dataUri = new AIGuard.ImageURL("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...");
+   * }</pre>
+   */
+  public static class ImageURL {
+
+    private final String url;
+
+    /**
+     * Creates a new ImageURL with the specified URL.
+     *
+     * @param url the image URL or data URI
+     * @throws NullPointerException if url is null
+     */
+    public ImageURL(@Nonnull final String url) {
+      this.url = Objects.requireNonNull(url, "url cannot be null");
+    }
+
+    /**
+     * Returns the image URL.
+     *
+     * @return the image URL or data URI
+     */
+    @Nonnull
+    public String getUrl() {
+      return url;
+    }
+  }
+
+  /**
+   * Represents a content part within a message. Content parts can be text or images, enabling
+   * multimodal AI prompts.
+   *
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * // Text content
+   * var textPart = AIGuard.ContentPart.text("Describe this image:");
+   *
+   * // Image content from URL
+   * var imagePart = AIGuard.ContentPart.imageUrl("https://example.com/image.jpg");
+   *
+   * // Multimodal message with text and image
+   * var message = AIGuard.Message.message("user", List.of(textPart, imagePart));
+   * }</pre>
+   */
+  public static class ContentPart {
+
+    /** Type of content part. */
+    public enum Type {
+      /** Text content */
+      TEXT,
+      /** Image URL content */
+      IMAGE_URL;
+
+      @Override
+      public String toString() {
+        return name().toLowerCase(Locale.ROOT);
+      }
+    }
+
+    private final Type type;
+    @Nullable private final String text;
+    @Nullable private final ImageURL imageUrl;
+
+    /**
+     * Private constructor to enforce use of factory methods.
+     *
+     * @param type the content part type
+     * @param text the text content (required for TEXT type)
+     * @param imageUrl the image URL (required for IMAGE_URL type)
+     */
+    private ContentPart(
+        @Nonnull final Type type, @Nullable final String text, @Nullable final ImageURL imageUrl) {
+      this.type = type;
+      this.text = text;
+      this.imageUrl = imageUrl;
+
+      if (type == Type.TEXT && text == null) {
+        throw new IllegalArgumentException("text content part requires text field");
+      }
+      if (type == Type.IMAGE_URL && imageUrl == null) {
+        throw new IllegalArgumentException("image_url content part requires imageUrl field");
+      }
+    }
+
+    /**
+     * Returns the type of this content part.
+     *
+     * @return the content part type (TEXT or IMAGE_URL)
+     */
+    @Nonnull
+    public Type getType() {
+      return type;
+    }
+
+    /**
+     * Returns the text content of this part.
+     *
+     * @return the text content, or null if this is an IMAGE_URL part
+     */
+    @Nullable
+    public String getText() {
+      return text;
+    }
+
+    /**
+     * Returns the image URL of this part.
+     *
+     * @return the image URL, or null if this is a TEXT part
+     */
+    @Nullable
+    public ImageURL getImageUrl() {
+      return imageUrl;
+    }
+
+    /**
+     * Creates a text content part.
+     *
+     * @param text the text content
+     * @return a new ContentPart with TEXT type
+     * @throws NullPointerException if text is null
+     */
+    @Nonnull
+    public static ContentPart text(@Nonnull final String text) {
+      Objects.requireNonNull(text, "text cannot be null");
+      return new ContentPart(Type.TEXT, text, null);
+    }
+
+    /**
+     * Creates an image content part from a URL string.
+     *
+     * @param url the image URL or data URI
+     * @return a new ContentPart with IMAGE_URL type
+     * @throws NullPointerException if url is null
+     */
+    @Nonnull
+    public static ContentPart imageUrl(@Nonnull final String url) {
+      return new ContentPart(Type.IMAGE_URL, null, new ImageURL(url));
+    }
   }
 
   /**
    * Represents a message in an AI conversation. Messages can represent user prompts, assistant
    * responses, system messages, or tool outputs.
    *
+   * <p>Messages can contain either plain text content or structured content parts (text and
+   * images):
+   *
    * <p>Example usage:
    *
    * <pre>{@code
-   * // User prompt
+   * // User prompt with text
    * var userPrompt = AIGuard.Message.message("user", "What's the weather like?");
+   *
+   * // User prompt with text and image
+   * var multimodalPrompt = AIGuard.Message.message("user", List.of(
+   *     AIGuard.ContentPart.text("Describe this image:"),
+   *     AIGuard.ContentPart.imageUrl("https://example.com/image.jpg")
+   * ));
    *
    * // Assistant response with tool calls
    * var assistantWithTools = AIGuard.Message.assistant(
@@ -190,7 +373,8 @@ public abstract class AIGuard {
   public static class Message {
 
     private final String role;
-    private final String content;
+    @Nullable private final String content;
+    @Nullable private final List<ContentPart> contentParts;
     private final List<ToolCall> toolCalls;
     private final String toolCallId;
 
@@ -205,12 +389,41 @@ public abstract class AIGuard {
      *     response
      */
     public Message(
-        final String role,
-        final String content,
-        final List<ToolCall> toolCalls,
-        final String toolCallId) {
+        @Nonnull final String role,
+        @Nullable final String content,
+        @Nullable final List<ToolCall> toolCalls,
+        @Nullable final String toolCallId) {
       this.role = role;
       this.content = content;
+      this.contentParts = null;
+      this.toolCalls = toolCalls;
+      this.toolCallId = toolCallId;
+    }
+
+    /**
+     * Creates a new message with content parts (text and/or images).
+     *
+     * @param role the role of the message sender
+     * @param contentParts list of content parts
+     * @param toolCalls list of tool calls, or null
+     * @param toolCallId the tool call ID this message responds to, or null
+     * @throws IllegalArgumentException if contentParts contains null elements
+     */
+    public Message(
+        @Nonnull final String role,
+        @Nonnull final List<ContentPart> contentParts,
+        @Nullable final List<ToolCall> toolCalls,
+        @Nullable final String toolCallId) {
+      this.role = role;
+      this.content = null;
+
+      for (final ContentPart part : contentParts) {
+        if (part == null) {
+          throw new IllegalArgumentException("contentParts must not contain null elements");
+        }
+      }
+
+      this.contentParts = Collections.unmodifiableList(contentParts);
       this.toolCalls = toolCalls;
       this.toolCallId = toolCallId;
     }
@@ -227,10 +440,22 @@ public abstract class AIGuard {
     /**
      * Returns the text content of the message.
      *
-     * @return the message content, or null for assistant messages with only tool calls
+     * @return the message content, or null if using content parts or for assistant messages with
+     *     only tool calls
      */
+    @Nullable
     public String getContent() {
       return content;
+    }
+
+    /**
+     * Returns the content parts of the message.
+     *
+     * @return the content parts (text and images), or null if using plain text content
+     */
+    @Nullable
+    public List<ContentPart> getContentParts() {
+      return contentParts;
     }
 
     /**
@@ -258,8 +483,22 @@ public abstract class AIGuard {
      * @param content the text content of the message
      * @return a new Message instance
      */
-    public static Message message(final String role, final String content) {
+    @Nonnull
+    public static Message message(@Nonnull final String role, @Nonnull final String content) {
       return new Message(role, content, null, null);
+    }
+
+    /**
+     * Creates a message with specified role and content parts (text and/or images).
+     *
+     * @param role the role of the message sender (e.g., "user", "system")
+     * @param contentParts list of content parts (text and/or images)
+     * @return a new Message instance
+     */
+    @Nonnull
+    public static Message message(
+        @Nonnull final String role, @Nonnull final List<ContentPart> contentParts) {
+      return new Message(role, contentParts, null, null);
     }
 
     /**
@@ -279,8 +518,9 @@ public abstract class AIGuard {
      * @param toolCalls the tool calls the assistant wants to make
      * @return a new Message instance with role "assistant" and no text content
      */
-    public static Message assistant(final ToolCall... toolCalls) {
-      return new Message("assistant", null, Arrays.asList(toolCalls), null);
+    @Nonnull
+    public static Message assistant(@Nonnull final ToolCall... toolCalls) {
+      return new Message("assistant", (String) null, Arrays.asList(toolCalls), null);
     }
   }
 

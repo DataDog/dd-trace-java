@@ -1,0 +1,24 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply from: "${rootDir}/gradle/tries.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("compileJava", JavaCompile) {
+  dependsOn("generateClassNameTries")
+}
+
+tasks.named("sourcesJar", Jar) {
+  dependsOn("generateClassNameTries")
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:agent-tooling')
+}
+
+

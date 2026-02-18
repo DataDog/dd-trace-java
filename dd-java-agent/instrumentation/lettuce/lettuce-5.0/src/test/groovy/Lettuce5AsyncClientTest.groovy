@@ -356,7 +356,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
   def "command completes exceptionally"() {
     setup:
     // turn off auto flush to complete the command exceptionally manually
-    asyncCommands.setAutoFlushCommands(false)
+    connection.setAutoFlushCommands(false)
     def conds = new AsyncConditions()
     RedisFuture redisFuture = asyncCommands.del("key1", "key2")
     boolean completedExceptionally = ((AsyncCommand) redisFuture).completeExceptionally(new IllegalStateException("TestException"))
@@ -371,7 +371,8 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
 
     when:
     // now flush and execute the command
-    asyncCommands.flushCommands()
+    connection.flushCommands()
+    connection.setAutoFlushCommands(true)
     redisFuture.get()
 
     then:
@@ -405,7 +406,7 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
 
   def "cancel command before it finishes"() {
     setup:
-    asyncCommands.setAutoFlushCommands(false)
+    connection.setAutoFlushCommands(false)
     def conds = new AsyncConditions()
     RedisFuture redisFuture = asyncCommands.sadd("SKEY", "1", "2")
     redisFuture.whenCompleteAsync({ res, throwable ->
@@ -417,7 +418,8 @@ abstract class Lettuce5AsyncClientTest extends Lettuce5ClientTestBase {
 
     when:
     boolean cancelSuccess = redisFuture.cancel(true)
-    asyncCommands.flushCommands()
+    connection.flushCommands()
+    connection.setAutoFlushCommands(true)
 
     then:
     conds.await()

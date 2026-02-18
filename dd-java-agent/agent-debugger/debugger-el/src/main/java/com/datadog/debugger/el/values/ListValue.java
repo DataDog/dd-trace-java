@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -72,7 +73,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
         return ((Collection<?>) listHolder).size();
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unsupported Collection class: " + listHolder.getClass().getTypeName());
       }
     } else if (listHolder == Value.nullValue()) {
@@ -99,7 +100,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       throw new IllegalArgumentException("index[" + index + "] out of bounds: [0-" + len + "]");
     }
     if (listHolder instanceof List) {
-      return Value.of(((List<?>) listHolder).get(index));
+      return Value.of(((List<?>) listHolder).get(index), ValueType.OBJECT);
     } else if (listHolder instanceof Set) {
       throw new UnsupportedOperationException("Cannot access Set by index");
     } else if (listHolder instanceof Value) {
@@ -107,24 +108,24 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     } else if (arrayHolder != null) {
       if (arrayType.isPrimitive()) {
         if (arrayType == byte.class) {
-          return Value.of(Array.getByte(arrayHolder, index));
+          return Value.of(Array.getByte(arrayHolder, index), ValueType.BYTE);
         } else if (arrayType == char.class) {
-          return Value.of(Array.getChar(arrayHolder, index));
+          return Value.of(Array.getChar(arrayHolder, index), ValueType.CHAR);
         } else if (arrayType == short.class) {
-          return Value.of(Array.getShort(arrayHolder, index));
+          return Value.of(Array.getShort(arrayHolder, index), ValueType.SHORT);
         } else if (arrayType == int.class) {
-          return Value.of(Array.getInt(arrayHolder, index));
+          return Value.of(Array.getInt(arrayHolder, index), ValueType.INT);
         } else if (arrayType == long.class) {
-          return Value.of(Array.getLong(arrayHolder, index));
+          return Value.of(Array.getLong(arrayHolder, index), ValueType.LONG);
         } else if (arrayType == float.class) {
-          return Value.of(Array.getFloat(arrayHolder, index));
+          return Value.of(Array.getFloat(arrayHolder, index), ValueType.FLOAT);
         } else if (arrayType == double.class) {
-          return Value.of(Array.getDouble(arrayHolder, index));
+          return Value.of(Array.getDouble(arrayHolder, index), ValueType.DOUBLE);
         } else if (arrayType == boolean.class) {
-          return Value.of(Array.getBoolean(arrayHolder, index));
+          return Value.of(Array.getBoolean(arrayHolder, index), ValueType.BOOLEAN);
         }
       } else {
-        return Value.of(Array.get(arrayHolder, index));
+        return Value.of(Array.get(arrayHolder, index), ValueType.OBJECT);
       }
     }
     return Value.undefinedValue();
@@ -136,14 +137,14 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
         return ((Collection<?>) listHolder).contains(val.isNull() ? null : val.getValue());
       }
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Unsupported Collection class: " + listHolder.getClass().getTypeName());
     }
     if (arrayHolder != null) {
       int count = Array.getLength(arrayHolder);
       if (arrayType.isPrimitive()) {
         if (val.getValue() == null || val.isNull()) {
-          throw new RuntimeException("Cannot compare null with primitive array");
+          throw new IllegalArgumentException("Cannot compare null with primitive array");
         }
         if (arrayType == byte.class) {
           byte byteValue = (Byte) val.getValue();
@@ -224,7 +225,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
           }
         }
       }
-      throw new RuntimeException("Unsupported value class: " + objValue.getClass().getTypeName());
+      throw new UnsupportedOperationException(
+          "Unsupported value class: " + objValue.getClass().getTypeName());
     }
     return false;
   }

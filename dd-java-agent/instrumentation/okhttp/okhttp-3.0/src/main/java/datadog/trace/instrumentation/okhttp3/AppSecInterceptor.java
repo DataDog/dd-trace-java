@@ -53,16 +53,20 @@ public class AppSecInterceptor implements Interceptor {
       }
       final long requestId = span.getSpanId();
       final boolean sampled = sampleRequest(ctx, requestId);
-      final Request request = onRequest(span, sampled, chain.request());
+      final String url = span.getTag(Tags.HTTP_URL).toString();
+      final Request request = onRequest(span, sampled, url, chain.request());
       final Response response = chain.proceed(request);
       return onResponse(span, sampled, response);
+    } catch (final BlockingException e) {
+      throw e;
     } catch (final Exception e) {
       LOGGER.debug("Failed to intercept request", e);
       return chain.proceed(chain.request());
     }
   }
 
-  private Request onRequest(final AgentSpan span, final boolean sampled, final Request request) {
+  public static Request onRequest(
+      final AgentSpan span, final boolean sampled, final String url, final Request request) {
     Request result = request;
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
@@ -74,7 +78,6 @@ public class AppSecInterceptor implements Interceptor {
     final RequestBody requestBody = request.body();
     final RequestContext ctx = span.getRequestContext();
     final long requestId = span.getSpanId();
-    final String url = span.getTag(Tags.HTTP_URL).toString();
     final HttpClientRequest clientRequest =
         new HttpClientRequest(requestId, url, request.method(), mapHeaders(request.headers()));
     if (sampled && requestBody != null) {
@@ -102,7 +105,7 @@ public class AppSecInterceptor implements Interceptor {
     return result;
   }
 
-  private Response onResponse(
+  public static Response onResponse(
       final AgentSpan span, final boolean sampled, final Response response) {
     Response result = response;
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
@@ -143,7 +146,7 @@ public class AppSecInterceptor implements Interceptor {
     return result;
   }
 
-  private <P extends HttpClientPayload> void publish(
+  private static <P extends HttpClientPayload> void publish(
       final RequestContext ctx,
       final P request,
       final BiFunction<RequestContext, P, Flow<Void>> callback) {
@@ -153,17 +156,13 @@ public class AppSecInterceptor implements Interceptor {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            ctx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
       }
       throw new BlockingException("Blocked request (for http downstream request)");
     }
   }
 
-  private boolean sampleRequest(final RequestContext ctx, final long requestId) {
+  public static boolean sampleRequest(final RequestContext ctx, final long requestId) {
     //  Check if the current http request was sampled
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, Long, Flow<Boolean>> samplingCb =
@@ -179,7 +178,7 @@ public class AppSecInterceptor implements Interceptor {
    * Ensure we are only consuming payloads we can safely deserialize with a bounded size to prevent
    * from OOM
    */
-  private boolean shouldProcessBody(final long contentLength, final MediaType mediaType) {
+  private static boolean shouldProcessBody(final long contentLength, final MediaType mediaType) {
     if (contentLength <= 0) {
       return false; // prevent from copying from unbounded source (just to be safe)
     }
@@ -192,7 +191,8 @@ public class AppSecInterceptor implements Interceptor {
     return mediaType.isDeserializable();
   }
 
-  private byte[] readBody(final RequestBody body, final int contentLength) throws IOException {
+  private static byte[] readBody(final RequestBody body, final int contentLength)
+      throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
     try (final BufferedSink sink = Okio.buffer(Okio.sink(buffer))) {
       body.writeTo(sink);
@@ -200,7 +200,8 @@ public class AppSecInterceptor implements Interceptor {
     return buffer.toByteArray();
   }
 
-  private byte[] readBody(final ResponseBody body, final int contentLength) throws IOException {
+  private static byte[] readBody(final ResponseBody body, final int contentLength)
+      throws IOException {
     final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
     try (final BufferedSource source = body.source();
         final Sink sink = Okio.sink(buffer)) {
@@ -209,7 +210,7 @@ public class AppSecInterceptor implements Interceptor {
     return buffer.toByteArray();
   }
 
-  private Map<String, List<String>> mapHeaders(final Headers headers) {
+  private static Map<String, List<String>> mapHeaders(final Headers headers) {
     if (headers == null) {
       return Collections.emptyMap();
     }
@@ -220,12 +221,12 @@ public class AppSecInterceptor implements Interceptor {
     return result;
   }
 
-  private MediaType contentType(final RequestBody body) {
+  private static MediaType contentType(final RequestBody body) {
     return MediaType.parse(
         body == null || body.contentType() == null ? null : body.contentType().toString());
   }
 
-  private MediaType contentType(final ResponseBody body) {
+  private static MediaType contentType(final ResponseBody body) {
     return MediaType.parse(
         body == null || body.contentType() == null ? null : body.contentType().toString());
   }

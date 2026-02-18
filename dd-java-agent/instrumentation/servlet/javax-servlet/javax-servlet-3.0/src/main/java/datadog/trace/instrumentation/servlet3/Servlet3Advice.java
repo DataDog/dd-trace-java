@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.context.Context;
@@ -61,6 +61,8 @@ public class Servlet3Advice {
       }
     }
 
+    Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -71,20 +73,28 @@ public class Servlet3Advice {
       // the dispatch span was already activated in Jetty's HandleAdvice. We let it finish the span
       // to avoid trying to finish twice
       finishSpan = activeSpan() != dispatchSpan;
-      scope = castDispatchSpan.attach();
+      // If we have an existing context, create a new context with the dispatch span
+      // Otherwise just attach the dispatch span
+      if (contextAttr instanceof Context) {
+        Context contextWithDispatchSpan = ((Context) contextAttr).with(castDispatchSpan);
+        scope = contextWithDispatchSpan.attach();
+      } else {
+        scope = castDispatchSpan.attach();
+      }
       return false;
     }
 
     finishSpan = true;
 
-    Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
-    final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
-    if (hasServletTrace) {
-      final AgentSpan span = (AgentSpan) spanAttrValue;
-      ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
-      // Tracing might already be applied by other instrumentation,
-      // the FilterChain or a parent request (forward/include).
-      return false;
+    if (contextAttr instanceof Context) {
+      final Context existingContext = (Context) contextAttr;
+      final AgentSpan span = spanFromContext(existingContext);
+      if (span != null) {
+        ClassloaderConfigurationOverrides.maybeEnrichSpan(span);
+        // Tracing might already be applied by other instrumentation,
+        // the FilterChain or a parent request (forward/include).
+        return false;
+      }
     }
 
     final Context parentContext = DECORATE.extract(httpServletRequest);
@@ -95,7 +105,7 @@ public class Servlet3Advice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, parentContext);
 
-    httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
+    httpServletRequest.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     httpServletRequest.setAttribute(
         CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
     httpServletRequest.setAttribute(
@@ -125,13 +135,17 @@ public class Servlet3Advice {
       rumServletWrapper.commit();
     }
     // Set user.principal regardless of who created this span.
-    final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
+    final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (Config.get().isServletPrincipalEnabled()
-        && spanAttr instanceof AgentSpan
+        && contextAttr instanceof Context
         && request instanceof HttpServletRequest) {
-      final Principal principal = ((HttpServletRequest) request).getUserPrincipal();
-      if (principal != null) {
-        ((AgentSpan) spanAttr).setTag(DDTags.USER_NAME, principal.getName());
+      final Context context = (Context) contextAttr;
+      final AgentSpan span = spanFromContext(context);
+      if (span != null) {
+        final Principal principal = ((HttpServletRequest) request).getUserPrincipal();
+        if (principal != null) {
+          span.setTag(DDTags.USER_NAME, principal.getName());
+        }
       }
     }
 
@@ -147,7 +161,7 @@ public class Servlet3Advice {
       if (request.isAsyncStarted()) {
         AtomicBoolean activated = new AtomicBoolean();
         FinishAsyncDispatchListener asyncListener =
-            new FinishAsyncDispatchListener(span, activated, !isDispatch);
+            new FinishAsyncDispatchListener(scope, activated, !isDispatch);
         // Jetty doesn't always call the listener, if the request ends before
         request.setAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE, asyncListener);
         try {
@@ -161,7 +175,7 @@ public class Servlet3Advice {
             DECORATE.onResponse(span, resp);
           }
           if (finishSpan) {
-            DECORATE.beforeFinish(span);
+            DECORATE.beforeFinish(scope.context());
             span.finish(); // Finish the span manually since finishSpanOnClose was false
           }
         }
@@ -184,7 +198,7 @@ public class Servlet3Advice {
           DECORATE.onError(span, throwable);
         }
         if (finishSpan) {
-          DECORATE.beforeFinish(span);
+          DECORATE.beforeFinish(scope.context());
           span.finish(); // Finish the span manually since finishSpanOnClose was false
         }
       }

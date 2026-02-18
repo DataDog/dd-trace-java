@@ -1,14 +1,17 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_21
-  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
-  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
-  maxJavaVersionForTests = JavaVersion.VERSION_24
+plugins {
+  id 'idea'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 // Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
 apply from: "$rootDir/gradle/slf4j-simple.gradle"
-apply plugin: 'idea'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
+  // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
+  maxJavaVersion = JavaVersion.VERSION_24
+}
 
 muzzle {
   pass {
@@ -26,19 +29,22 @@ idea {
  * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag
  */
 addTestSuite('previewTest')
+
+// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+}
+
 // Configure groovy test file compilation
-compilePreviewTestGroovy.configure {
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(21)
-  }
+tasks.named("compilePreviewTestGroovy", GroovyCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure Java test files compilation
-compilePreviewTestJava.configure {
+tasks.named("compilePreviewTestJava", JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 // Configure tests execution
-previewTest.configure {
+tasks.named("previewTest", Test) {
   jvmArgs = ['--enable-preview']
 }
 // Require the preview test suite to run as part of module check
@@ -47,14 +53,5 @@ tasks.named("check") {
 }
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-}
-
-// Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
-project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 21)
-}
-compileJava.configure {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }

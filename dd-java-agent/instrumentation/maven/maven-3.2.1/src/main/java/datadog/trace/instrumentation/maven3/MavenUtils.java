@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.civisibility.domain.JavaAgent;
+import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -66,7 +66,7 @@ public abstract class MavenUtils {
    * of the request object
    */
   public static String getCommandLine(MavenSession session) {
-    String mavenCmdLineArgsEnvVar = EnvironmentVariables.get(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
+    String mavenCmdLineArgsEnvVar = ConfigHelper.env(MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR);
     if (mavenCmdLineArgsEnvVar != null) {
       return MVN_CMD_LINE_INVOCATION + mavenCmdLineArgsEnvVar;
     }

@@ -41,7 +41,7 @@ public class PlayAdvice {
       // Do not extract the context.
       parentContext = getRootContext();
       span = startSpan("play", PLAY_REQUEST);
-      scope = span.attach();
+      scope = span.attachWithCurrent();
     }
 
     span.setMeasured(true);
@@ -72,11 +72,11 @@ public class PlayAdvice {
 
     if (throwable == null) {
       responseFuture.onComplete(
-          new RequestCompleteCallback(playControllerSpan),
+          new RequestCompleteCallback(playControllerScope),
           ((Action<?>) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
-      DECORATE.beforeFinish(playControllerSpan);
+      DECORATE.beforeFinish(playControllerScope.context());
       playControllerSpan.finish();
     }
     playControllerScope.close();

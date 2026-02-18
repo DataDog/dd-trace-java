@@ -1,3 +1,5 @@
+import org.springframework.boot.gradle.tasks.bundling.BootWar
+
 plugins {
   id 'java'
   id 'war'
@@ -27,5 +29,16 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "bootWar"
-  jvmArgs "-Ddatadog.smoketest.springboot.bootWar.path=${tasks.bootWar.archiveFile.get()}"
+
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def bootWarTask = tasks.named('bootWar', BootWar).get()
+        return ["-Ddatadog.smoketest.springboot.bootWar.path=${bootWarTask.archiveFile.get()}"]
+      }
+    })
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 8)
 }

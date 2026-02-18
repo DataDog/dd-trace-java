@@ -25,7 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithTypeStructure {
 
   public KafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-3.8");
@@ -60,14 +62,21 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(declaresField(named("offsetCommitCallbackInvoker")));
+    return implementsInterface(named(hierarchyMarkerType()));
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresField(named("offsetCommitCallbackInvoker"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator", packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaDecorator",
+      packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInstrumentationHelper",
+      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
     };
   }
 

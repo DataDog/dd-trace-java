@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
@@ -35,8 +36,19 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] PARENT_HASH = "ParentHash".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_VALUE = "Value".getBytes(ISO_8859_1);
   private static final byte[] BACKLOG_TAGS = "Tags".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_REGISTRY_USAGES = "SchemaRegistryUsages".getBytes(ISO_8859_1);
+  private static final byte[] TOPIC = "Topic".getBytes(ISO_8859_1);
+  private static final byte[] KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
+  private static final byte[] SCHEMA_ID = "SchemaId".getBytes(ISO_8859_1);
+  private static final byte[] COUNT = "Count".getBytes(ISO_8859_1);
+  private static final byte[] IS_SUCCESS = "IsSuccess".getBytes(ISO_8859_1);
+  private static final byte[] IS_KEY = "IsKey".getBytes(ISO_8859_1);
+  private static final byte[] OPERATION = "Operation".getBytes(ISO_8859_1);
   private static final byte[] PRODUCTS_MASK = "ProductMask".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
+  private static final byte[] TRANSACTION_CHECKPOINT_IDS =
+      "TransactionCheckpointIds".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -93,7 +105,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     /* 2 */
     writer.writeUTF8(SERVICE);
-    if (serviceNameOverride != null) {
+    if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
       writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
     } else {
       writer.writeUTF8(wellKnownTags.getService());
@@ -121,7 +133,14 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      writer.startMap(3 + (hasBacklogs ? 1 : 0));
+      boolean hasTransactions = !bucket.getTransactions().isEmpty();
+
+      boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
+      writer.startMap(
+          3
+              + (hasBacklogs ? 1 : 0)
+              + (hasTransactions ? 2 : 0)
+              + (hasSchemaRegistryUsages ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -138,6 +157,20 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       if (hasBacklogs) {
         /* 4 */
         writeBacklogs(bucket.getBacklogs(), writer);
+      }
+
+      if (hasSchemaRegistryUsages) {
+        /* 5 */
+        writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
+      }
+
+      if (hasTransactions) {
+        /* 6 */
+        writer.writeUTF8(TRANSACTIONS);
+        writer.writeBinary(bucket.getTransactions().getData());
+        /* 7 */
+        writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
+        writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
       }
     }
 
@@ -204,6 +237,40 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(BACKLOG_VALUE);
       packer.writeLong(entry.getValue());
+    }
+  }
+
+  private void writeSchemaRegistryUsages(
+      Collection<Map.Entry<StatsBucket.SchemaKey, Long>> usages, Writable packer) {
+    packer.writeUTF8(SCHEMA_REGISTRY_USAGES);
+    packer.startArray(usages.size());
+    for (Map.Entry<StatsBucket.SchemaKey, Long> entry : usages) {
+      StatsBucket.SchemaKey key = entry.getKey();
+      long count = entry.getValue();
+
+      packer.startMap(
+          7); // 7 fields: Topic, KafkaClusterId, SchemaId, IsSuccess, IsKey, Operation, Count
+
+      packer.writeUTF8(TOPIC);
+      packer.writeString(key.getTopic() != null ? key.getTopic() : "", null);
+
+      packer.writeUTF8(KAFKA_CLUSTER_ID);
+      packer.writeString(key.getClusterId() != null ? key.getClusterId() : "", null);
+
+      packer.writeUTF8(SCHEMA_ID);
+      packer.writeInt(key.getSchemaId());
+
+      packer.writeUTF8(IS_SUCCESS);
+      packer.writeBoolean(key.isSuccess());
+
+      packer.writeUTF8(IS_KEY);
+      packer.writeBoolean(key.isKey());
+
+      packer.writeUTF8(OPERATION);
+      packer.writeString(key.getOperation() != null ? key.getOperation() : "", null);
+
+      packer.writeUTF8(COUNT);
+      packer.writeLong(count);
     }
   }
 

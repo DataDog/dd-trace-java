@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
 import java.util.List;
@@ -26,6 +27,7 @@ public interface TraceConfig {
   Double getTraceSampleRate();
 
   Map<String, String> getTracingTags();
+
   /**
    * The preferred service name to be used for tracing.
    *
@@ -46,4 +48,11 @@ public interface TraceConfig {
    * @return The tracer sampler Trace Sampling Rules, or an empty collection if no rule is defined.
    */
   List<? extends TraceSamplingRule> getTraceSamplingRules();
+
+  /**
+   * Get DSM transaction extractors.
+   *
+   * @return List of Data Streams Transactions extractors.
+   */
+  List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors();
 }

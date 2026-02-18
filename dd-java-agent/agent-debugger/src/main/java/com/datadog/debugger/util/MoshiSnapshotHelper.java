@@ -7,6 +7,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
@@ -37,7 +38,7 @@ public class MoshiSnapshotHelper {
   public static final String CAUGHT_EXCEPTIONS = "caughtExceptions";
   public static final String ARGUMENTS = "arguments";
   public static final String LOCALS = "locals";
-  public static final String WATCHES = "watches";
+  public static final String CAPTURE_EXPRESSIONS = "captureExpressions";
   public static final String THROWABLE = "throwable";
   public static final String STATIC_FIELDS = "staticFields";
   public static final String THIS = "this";
@@ -59,6 +60,8 @@ public class MoshiSnapshotHelper {
   public static final String ID = "id";
   public static final String VERSION = "version";
   public static final String LOCATION = "location";
+  public static final String MESSAGE = "message";
+  public static final String STACKTRACE = "stacktrace";
   private static final Duration TIME_OUT = Duration.ofMillis(200);
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
@@ -66,13 +69,16 @@ public class MoshiSnapshotHelper {
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
       if (Types.equals(type, Snapshot.Captures.class)) {
         return new CapturesAdapter(
-            moshi, new CapturedContextAdapter(moshi, new CapturedValueAdapter()));
+            moshi,
+            new CapturedContextAdapter(
+                moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi)));
       }
       if (Types.equals(type, CapturedContext.CapturedValue.class)) {
         return new CapturedValueAdapter();
       }
       if (Types.equals(type, CapturedContext.class)) {
-        return new CapturedContextAdapter(moshi, new CapturedValueAdapter());
+        return new CapturedContextAdapter(
+            moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi));
       }
       if (Types.equals(type, ProbeImplementation.class)) {
         return new ProbeDetailsAdapter(moshi);
@@ -128,9 +134,11 @@ public class MoshiSnapshotHelper {
     protected final JsonAdapter<CapturedContext.CapturedValue> valueAdapter;
 
     public CapturedContextAdapter(
-        Moshi moshi, JsonAdapter<CapturedContext.CapturedValue> valueAdapter) {
+        Moshi moshi,
+        JsonAdapter<CapturedContext.CapturedValue> valueAdapter,
+        CapturedThrowableAdapter throwableAdapter) {
       this.valueAdapter = valueAdapter;
-      this.throwableAdapter = moshi.adapter(CapturedContext.CapturedThrowable.class);
+      this.throwableAdapter = throwableAdapter;
     }
 
     @Override
@@ -153,17 +161,18 @@ public class MoshiSnapshotHelper {
         return;
       }
       jsonWriter.beginObject();
-      if (capturedContext.getWatches() != null) {
-        // only watches are serialized into the snapshot
-        jsonWriter.name(WATCHES);
+      if (capturedContext.getCaptureExpressions() != null) {
+        // only capture expressions are serialized into the snapshot
+        jsonWriter.name(CAPTURE_EXPRESSIONS);
         jsonWriter.beginObject();
-        SerializationResult resultWatches =
+        SerializationResult resultCaptureExpressions =
             toJsonCapturedValues(
                 jsonWriter,
-                capturedContext.getWatches(),
+                capturedContext.getCaptureExpressions(),
                 capturedContext.getLimits(),
                 timeoutChecker);
-        jsonWriter.endObject(); // / watches
+        jsonWriter.endObject(); // captureExpressions
+        handleSerializationResult(jsonWriter, resultCaptureExpressions);
         jsonWriter.endObject();
         return;
       }
@@ -235,7 +244,9 @@ public class MoshiSnapshotHelper {
       TIMEOUT
     }
 
-    /** @return true if all items where serialized or whether we reach the max field count */
+    /**
+     * @return true if all items where serialized or whether we reach the max field count
+     */
     private SerializationResult toJsonCapturedValues(
         JsonWriter jsonWriter,
         Map<String, CapturedContext.CapturedValue> map,
@@ -513,6 +524,44 @@ public class MoshiSnapshotHelper {
         jsonWriter.name(NOT_CAPTURED_REASON);
         jsonWriter.value(reason);
       }
+    }
+  }
+
+  public static class CapturedThrowableAdapter
+      extends JsonAdapter<CapturedContext.CapturedThrowable> {
+    private static final int MAX_EXCEPTION_MESSAGE_LENGTH = 2048;
+    protected final JsonAdapter<List<CapturedStackFrame>> stackTraceAdapter;
+
+    public CapturedThrowableAdapter(Moshi moshi) {
+      stackTraceAdapter =
+          moshi.adapter(Types.newParameterizedType(List.class, CapturedStackFrame.class));
+    }
+
+    @Override
+    public void toJson(JsonWriter jsonWriter, CapturedContext.CapturedThrowable value)
+        throws IOException {
+      if (value == null) {
+        jsonWriter.nullValue();
+        return;
+      }
+      jsonWriter.beginObject();
+      jsonWriter.name(TYPE);
+      jsonWriter.value(value.getType());
+      jsonWriter.name(MESSAGE);
+      String msg = value.getMessage();
+      if (msg != null && msg.length() > MAX_EXCEPTION_MESSAGE_LENGTH) {
+        msg = msg.substring(0, MAX_EXCEPTION_MESSAGE_LENGTH);
+      }
+      jsonWriter.value(msg);
+      jsonWriter.name(STACKTRACE);
+      stackTraceAdapter.toJson(jsonWriter, value.getStacktrace());
+      jsonWriter.endObject();
+    }
+
+    @Override
+    public CapturedContext.CapturedThrowable fromJson(JsonReader reader) throws IOException {
+      // Only used in test, see MoshiSnapshotTestHelper
+      throw new IllegalStateException("Should not reach this code.");
     }
   }
 

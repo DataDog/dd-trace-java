@@ -12,6 +12,15 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void trackBacklog(DataStreamsTags tags, long value) {}
 
   @Override
+  public void reportSchemaRegistryUsage(
+      String topic,
+      String clusterId,
+      int schemaId,
+      boolean isSuccess,
+      boolean isKey,
+      String operation) {}
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}
 
   @Override
@@ -45,6 +54,16 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
 
   @Override
   public void clearThreadServiceName() {}
+
+  @Override
+  public void trackTransaction(String transactionId, String checkpointName) {}
+
+  @Override
+  public void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader) {}
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}

@@ -23,33 +23,20 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
-import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
-import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.agent.ByteBuddyAgent;
-import org.jetbrains.kotlin.cli.common.ExitCode;
-import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments;
-import org.jetbrains.kotlin.cli.common.messages.MessageRenderer;
-import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector;
-import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
-import org.jetbrains.kotlin.config.Services;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,16 +52,12 @@ public class CapturingTestBase {
       MoshiHelper.createGenericAdapter();
 
   protected Config config;
-
   protected ConfigurationUpdater configurationUpdater;
-
   protected ClassFileTransformer currentTransformer;
-
   protected Instrumentation instr;
-
   protected MockInstrumentationListener instrumentationListener;
-
   protected ProbeStatusSink probeStatusSink;
+  protected ProbeMetadata probeMetadata = new ProbeMetadata();
 
   @AfterEach
   public void after() {
@@ -292,11 +275,11 @@ public class CapturingTestBase {
     assertEquals(lineNumber, throwable.getStacktrace().get(0).getLineNumber());
   }
 
-  protected void assertCaptureWatches(
+  protected void assertCaptureExpressions(
       CapturedContext context, String name, String typeName, String value) {
-    CapturedContext.CapturedValue watch = context.getWatches().get(name);
-    assertEquals(typeName, watch.getType());
-    assertEquals(value, MoshiSnapshotTestHelper.getValue(watch));
+    CapturedContext.CapturedValue expression = context.getCaptureExpressions().get(name);
+    assertEquals(typeName, expression.getType());
+    assertEquals(value, MoshiSnapshotTestHelper.getValue(expression));
   }
 
   protected TestSnapshotListener installMethodProbe(
@@ -359,11 +342,15 @@ public class CapturingTestBase {
             new DebuggerSink(config, probeStatusSink),
             new ClassesToRetransformFinder());
     currentTransformer =
-        new DebuggerTransformer(config, configuration, instrumentationListener, listener);
+        new DebuggerTransformer(
+            config,
+            configuration,
+            instrumentationListener,
+            configurationUpdater.getProbeMetadata(),
+            listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(
-        (encodedId) -> resolver(encodedId, configuration.getDefinitions()));
+    DebuggerContext.initProbeResolver(configurationUpdater::resolve);
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
@@ -387,16 +374,6 @@ public class CapturingTestBase {
     setFieldInConfig(config, "debuggerCodeOriginMaxUserFrames", 20);
     setFieldInConfig(config, "dynamicInstrumentationSnapshotUrl", "http://localhost:8080");
     return config;
-  }
-
-  public ProbeImplementation resolver(String encodedId, List<ProbeDefinition> probes) {
-    for (ProbeDefinition probe : probes) {
-      if (probe.getProbeId().getEncodedId().equals(encodedId)) {
-        return probe;
-      }
-    }
-
-    return configurationUpdater.resolve(encodedId);
   }
 
   protected TestSnapshotListener installMethodProbeAtExit(
@@ -424,51 +401,6 @@ public class CapturingTestBase {
     @Override
     public void instrumentationResult(ProbeDefinition definition, InstrumentationResult result) {
       results.put(definition.getId(), result);
-    }
-  }
-
-  static class KotlinHelper {
-    public static Class<?> compileAndLoad(
-        String className, String sourceFileName, List<File> outputFilesToDelete) {
-      K2JVMCompiler compiler = new K2JVMCompiler();
-      K2JVMCompilerArguments args = compiler.createArguments();
-      args.setFreeArgs(Collections.singletonList(sourceFileName));
-      String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
-      args.setDestination(compilerOutputDir);
-      args.setClasspath(System.getProperty("java.class.path"));
-      ExitCode exitCode =
-          compiler.exec(
-              new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
-              Services.EMPTY,
-              args);
-
-      if (exitCode.getCode() != 0) {
-        throw new RuntimeException("Kotlin compilation failed");
-      }
-      File compileOutputDirFile = new File(compilerOutputDir);
-      try {
-        URLClassLoader urlClassLoader =
-            new URLClassLoader(new URL[] {compileOutputDirFile.toURI().toURL()});
-        return urlClassLoader.loadClass(className);
-      } catch (Exception ex) {
-        throw new RuntimeException(ex);
-      } finally {
-        registerFilesToDeleteDir(compileOutputDirFile, outputFilesToDelete);
-      }
-    }
-
-    public static void registerFilesToDeleteDir(File dir, List<File> outputFilesToDelete) {
-      if (!dir.exists()) {
-        return;
-      }
-      try {
-        Files.walk(dir.toPath())
-            .sorted(Comparator.reverseOrder())
-            .map(Path::toFile)
-            .forEach(outputFilesToDelete::add);
-      } catch (IOException ex) {
-        ex.printStackTrace();
-      }
     }
   }
 }

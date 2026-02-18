@@ -49,9 +49,11 @@ dependencies {
   // First version where dsm traced operations have required StreamARN parameter for kinesis
   // and publishBatch is available for SNS
   dsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '2.18.40'
+  dsmTestImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: '2.18.40'
   dsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.18.40'
   dsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.18.40'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'apache-client', version: '+'
+  latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'netty-nio-client', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
   latestDsmTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
 

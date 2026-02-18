@@ -68,7 +68,7 @@ public final class AgentJar {
   private static void printUsage() {
     System.out.println("usage:");
     System.out.println("  sampleTrace [-c count] [-i interval]");
-    System.out.println("  uploadCrash file ...");
+    System.out.println("  uploadCrash -c configFile crashFile");
     System.out.println("  scanDependencies <path> ...");
     System.out.println("  checkProfilerEnv [temp]");
     System.out.println("  [-li | --list-integrations]");
@@ -103,18 +103,26 @@ public final class AgentJar {
   }
 
   private static void uploadCrash(final String[] args) throws Exception {
-    if (args.length < 2) {
-      throw new IllegalArgumentException("missing file");
+    if (args.length < 2 || ("-c".equals(args[1]) && args.length < 4)) {
+      throw new IllegalArgumentException(
+          "Arguments mismatch. At least one crash report should be provided");
+    }
+
+    int crashFilePos = 1;
+    String configFile = null;
+    if ("-c".equals(args[1])) {
+      configFile = args[2];
+      crashFilePos = 3;
     }
 
     installAgentCLI()
-        .getMethod("uploadCrash", String[].class)
-        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+        .getMethod("uploadCrash", String.class, String.class)
+        .invoke(null, configFile, args[crashFilePos]);
   }
 
   private static void sendOomeEvent(final String[] args) throws Exception {
-    if (args.length < 1) {
-      throw new IllegalArgumentException("unexpected arguments");
+    if (args.length < 2) {
+      throw new IllegalArgumentException("missing taglist");
     }
     installAgentCLI().getMethod("sendOomeEvent", String.class).invoke(null, args[1]);
   }

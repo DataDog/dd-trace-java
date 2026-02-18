@@ -5,14 +5,18 @@ import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 
 import com.datadog.debugger.instrumentation.ASMHelper;
+import datadog.trace.agent.tooling.stratum.SourceMap;
+import datadog.trace.agent.tooling.stratum.parser.Parser;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Label;
@@ -26,9 +30,11 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolExtractor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractor.class);
 
   public static Scope extract(byte[] classFileBuffer, String jarName) {
     ClassNode classNode = parseClassFile(classFileBuffer);
@@ -38,7 +44,16 @@ public class SymbolExtractor {
   private static Scope extractScopes(ClassNode classNode, String jarName) {
     try {
       String sourceFile = extractSourceFile(classNode);
-      List<Scope> methodScopes = extractMethods(classNode, sourceFile);
+      SourceRemapper sourceRemapper = SourceRemapper.NOOP_REMAPPER;
+      if (classNode.sourceDebug != null) {
+        List<SourceMap> sourceMaps = Parser.parse(classNode.sourceDebug);
+        if (sourceMaps.isEmpty()) {
+          throw new IllegalStateException("No source maps found for " + classNode.name);
+        }
+        SourceMap sourceMap = sourceMaps.get(0);
+        sourceRemapper = SourceRemapper.getSourceRemapper(classNode.sourceFile, sourceMap);
+      }
+      List<Scope> methodScopes = extractMethods(classNode, sourceFile, sourceRemapper);
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
@@ -65,9 +80,8 @@ public class SymbolExtractor {
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
           .build();
     } catch (Exception ex) {
-      LoggerFactory.getLogger(SymbolExtractor.class)
-          .debug(
-              "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
+      LOGGER.debug(
+          "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
   }
@@ -100,10 +114,11 @@ public class SymbolExtractor {
     return fields;
   }
 
-  private static List<Scope> extractMethods(ClassNode classNode, String sourceFile) {
+  private static List<Scope> extractMethods(
+      ClassNode classNode, String sourceFile, SourceRemapper sourceRemapper) {
     List<Scope> methodScopes = new ArrayList<>();
     for (MethodNode method : classNode.methods) {
-      MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
+      MethodLineInfo methodLineInfo = extractMethodLineInfo(method, sourceRemapper);
       List<Scope> varScopes = new ArrayList<>();
       List<Symbol> methodSymbols = new ArrayList<>();
       int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
@@ -124,6 +139,8 @@ public class SymbolExtractor {
               .name(method.name)
               .scopes(varScopes)
               .symbols(methodSymbols)
+              .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
+              .injectibleLines(methodLineInfo.ranges)
               .languageSpecifics(methodSpecifics)
               .build();
       methodScopes.add(methodScope);
@@ -178,7 +195,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid class access modifiers: {}", bit);
       }
     }
     return results;
@@ -233,8 +250,11 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException(
-              "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
+          LOGGER.debug(
+              "Invalid access modifiers method[{}::{}]: {}",
+              classNode.name,
+              methodNode.name + methodNode.desc,
+              bit);
       }
     }
     // if class is an interface && method has code && non-static this is a default method
@@ -285,7 +305,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid access modifiers: {}", bit);
       }
     }
     return results;
@@ -431,27 +451,50 @@ public class SymbolExtractor {
         : scope1;
   }
 
-  private static int getFirstLine(MethodNode methodNode) {
-    AbstractInsnNode node = methodNode.instructions.getFirst();
-    while (node != null) {
-      if (node.getType() == AbstractInsnNode.LINE) {
-        LineNumberNode lineNumberNode = (LineNumberNode) node;
-        return lineNumberNode.line;
-      }
-      node = node.getNext();
+  static List<Scope.LineRange> buildRanges(List<Integer> sortedLineNo) {
+    if (sortedLineNo.isEmpty()) {
+      return Collections.emptyList();
     }
-    return 0;
+    List<Scope.LineRange> ranges = new ArrayList<>();
+    int start = sortedLineNo.get(0);
+    int previous = start;
+    int i = 1;
+    outer:
+    while (i < sortedLineNo.size()) {
+      int currentLineNo = sortedLineNo.get(i);
+      while (currentLineNo == previous + 1) {
+        i++;
+        previous++;
+        if (i < sortedLineNo.size()) {
+          currentLineNo = sortedLineNo.get(i);
+        } else {
+          break outer;
+        }
+      }
+      ranges.add(new Scope.LineRange(start, previous));
+      start = currentLineNo;
+      previous = start;
+      i++;
+    }
+    ranges.add(new Scope.LineRange(start, previous));
+    return ranges;
   }
 
-  private static MethodLineInfo extractMethodLineInfo(MethodNode methodNode) {
+  private static MethodLineInfo extractMethodLineInfo(
+      MethodNode methodNode, SourceRemapper sourceRemapper) {
     Map<Label, Integer> map = new HashMap<>();
-    int startLine = getFirstLine(methodNode);
-    int maxLine = startLine;
+    List<Integer> lineNo = new ArrayList<>();
+    Set<Integer> dedupSet = new HashSet<>();
     AbstractInsnNode node = methodNode.instructions.getFirst();
+    int maxLine = 0;
     while (node != null) {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
-        maxLine = Math.max(lineNumberNode.line, maxLine);
+        int newLine = sourceRemapper.remapSourceLine(lineNumberNode.line);
+        if (dedupSet.add(newLine)) {
+          lineNo.add(newLine);
+        }
+        maxLine = Math.max(newLine, maxLine);
       }
       if (node.getType() == AbstractInsnNode.LABEL) {
         if (node instanceof LabelNode) {
@@ -461,7 +504,10 @@ public class SymbolExtractor {
       }
       node = node.getNext();
     }
-    return new MethodLineInfo(startLine, maxLine, map);
+    lineNo.sort(Integer::compareTo);
+    int startLine = lineNo.isEmpty() ? 0 : lineNo.get(0);
+    List<Scope.LineRange> ranges = buildRanges(lineNo);
+    return new MethodLineInfo(startLine, maxLine, map, ranges);
   }
 
   private static ClassNode parseClassFile(byte[] classfileBuffer) {
@@ -475,11 +521,15 @@ public class SymbolExtractor {
     final int start;
     final int end;
     final Map<Label, Integer> lineMap;
+    final List<Scope.LineRange> ranges;
 
-    public MethodLineInfo(int start, int end, Map<Label, Integer> lineMap) {
+    public MethodLineInfo(
+        int start, int end, Map<Label, Integer> lineMap, List<Scope.LineRange> ranges) {
       this.start = start;
       this.end = end;
       this.lineMap = lineMap;
+
+      this.ranges = ranges;
     }
   }
 }

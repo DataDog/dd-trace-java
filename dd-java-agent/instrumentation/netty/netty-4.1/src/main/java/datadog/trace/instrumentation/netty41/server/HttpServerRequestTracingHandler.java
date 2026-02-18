@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -26,11 +26,11 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
     Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
-      final AgentSpan span = channel.attr(SPAN_ATTRIBUTE_KEY).get();
-      if (span == null) {
+      final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
+      if (storedContext == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
-        try (final ContextScope scope = span.attach()) {
+        try (final ContextScope scope = storedContext.attach()) {
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }
@@ -50,7 +50,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       channel.attr(ANALYZED_RESPONSE_KEY).set(null);
       channel.attr(BLOCKED_RESPONSE_KEY).set(null);
 
-      channel.attr(SPAN_ATTRIBUTE_KEY).set(span);
+      channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
       channel.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).set(request.headers());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
@@ -72,9 +72,9 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         The handler chain failed with exception - need to finish the span here
          */
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(ignored.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(SPAN_ATTRIBUTE_KEY).remove();
+        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
         throw throwable;
       }
     }
@@ -86,7 +86,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       super.channelInactive(ctx);
     } finally {
       try {
-        final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndRemove();
+        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
+        final AgentSpan span = spanFromContext(storedContext);
         if (span != null && span.phasedFinish()) {
           // at this point we can just publish this span to avoid loosing the rest of the trace
           span.publish();

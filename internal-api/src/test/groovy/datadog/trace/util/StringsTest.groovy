@@ -61,6 +61,20 @@ class StringsTest extends DDSpecification {
     // spotless:on
   }
 
+  def "test simple name from class"() {
+    when:
+    String s = Strings.getSimpleName(className)
+    then:
+    s == expected
+    where:
+    // spotless:off
+    className       | expected
+    "foo.bar.Class" | "Class"
+    "Class"         | "Class"
+    "a.b.c.D"       | "D"
+    // spotless:on
+  }
+
   def "test envvar from property"() {
     expect:
     "FOO_BAR_QUX" == ConfigStrings.toEnvVar("foo.bar-qux")

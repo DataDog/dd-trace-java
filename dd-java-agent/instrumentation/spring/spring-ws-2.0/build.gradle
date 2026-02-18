@@ -3,7 +3,7 @@ def minVersion = '2.0.0.RELEASE'
 muzzle {
   pass {
     group = 'org.springframework.ws'
-    module = 'spring-ws'
+    module = 'spring-ws-core'
     versions = "[${minVersion},)"
   }
 }

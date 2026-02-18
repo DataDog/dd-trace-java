@@ -1,9 +1,10 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'java-test-fixtures'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
 description = 'Kafka 3.x Smoke Tests.'
 
 dependencies {
@@ -21,9 +22,10 @@ final gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
 tasks.register('bootJar', Exec) {
   workingDir appDir
-
-  final toolchain17 = getJavaLauncherFor(17).get()
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(17)
+  ]
   commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
 
   outputs.cacheIf { true }
@@ -50,4 +52,14 @@ tasks.named('compileTestGroovy') {
 
 tasks.withType(Test).configureEach {
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${appBuildDir}/libs/kafka-3-smoketest.jar"
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

@@ -1,10 +1,13 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.core.histogram.Histogram;
-import datadog.trace.core.histogram.Histograms;
+import datadog.metrics.api.Histogram;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /** Not thread-safe. Accumulates counts and durations. */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 public final class AggregateMetric {
 
   static final long ERROR_TAG = 0x8000000000000000L;
@@ -18,8 +21,8 @@ public final class AggregateMetric {
   private long duration;
 
   public AggregateMetric() {
-    okLatencies = Histograms.newHistogram();
-    errorLatencies = Histograms.newHistogram();
+    okLatencies = Histogram.newHistogram();
+    errorLatencies = Histogram.newHistogram();
   }
 
   public AggregateMetric recordDurations(int count, AtomicLongArray durations) {
@@ -67,6 +70,7 @@ public final class AggregateMetric {
     return errorLatencies;
   }
 
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void clear() {
     this.errorCount = 0;
     this.hitCount = 0;

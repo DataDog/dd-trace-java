@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -22,6 +22,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -30,7 +31,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -51,8 +51,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice,
         ExcludeFilterProvider {
-
-  private boolean appSecNotFullyDisabled;
 
   public JettyServerInstrumentation() {
     super("jetty");
@@ -82,12 +80,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    this.appSecNotFullyDisabled = enabledSystems.contains(TargetSystem.APPSEC);
-    return super.isApplicable(enabledSystems);
-  }
-
-  @Override
   public void typeAdvice(TypeTransformer transformer) {
     transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
   }
@@ -109,7 +101,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         namedOneOf("reset", "recycle").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
 
-    if (appSecNotFullyDisabled) {
+    if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
       transformer.applyAdvice(
           named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
           JettyServerInstrumentation.class.getName() + "$HandleExceptionAdvice");
@@ -165,9 +157,9 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
-        return ((AgentSpan) existingSpan).attach();
+      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingContext instanceof Context) {
+        return ((Context) existingContext).attach();
       }
 
       final Context parentContext = DECORATE.extract(req);
@@ -177,7 +169,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, parentContext);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       return scope;
@@ -197,12 +189,15 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannel<?> channel) {
       Request req = channel.getRequest();
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanObj instanceof AgentSpan) {
-        final AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onResponse(span, channel);
-        DECORATE.beforeFinish(span);
-        span.finish();
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        final Context context = (Context) contextObj;
+        final AgentSpan span = spanFromContext(context);
+        if (span != null) {
+          DECORATE.onResponse(span, channel);
+          DECORATE.beforeFinish(context);
+          span.finish();
+        }
       }
     }
 

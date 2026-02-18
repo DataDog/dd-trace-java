@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_common;
 
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
@@ -7,6 +8,16 @@ import org.apache.kafka.common.header.Headers;
 
 public final class Utils {
   private Utils() {} // prevent instantiation
+
+  public static DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> {
+            try {
+              return new String(((Headers) source).lastHeader(headerName).value());
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {

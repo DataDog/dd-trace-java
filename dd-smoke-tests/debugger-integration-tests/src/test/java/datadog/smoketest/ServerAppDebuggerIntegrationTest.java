@@ -52,12 +52,12 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
 
   @Override
   @AfterEach
-  void teardown() throws Exception {
+  void teardown(TestInfo testInfo) throws Exception {
     if (appUrl != null) {
       stopApp(appUrl);
     }
     controlServer.shutdown();
-    super.teardown();
+    super.teardown(testInfo);
   }
 
   @Override
@@ -82,7 +82,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected Snapshot waitForOneSnapshot() throws Exception {
     AtomicReference<Snapshot> snapshotReceived = new AtomicReference<>();
     registerSnapshotListener(snapshotReceived::set);
-    processRequests(() -> snapshotReceived.get() != null);
+    processRequests(
+        () -> snapshotReceived.get() != null,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
     return snapshotReceived.get();
   }
 
@@ -119,9 +121,18 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
               installed.set(true);
             }
           });
-      processRequests(() -> received.get() && installed.get());
+      processRequests(
+          () -> received.get() && installed.get(),
+          () -> String.format("timeout received=%s installed=%s", received.get(), installed.get()));
     }
     LOG.info("instrumentation done");
+  }
+
+  protected void waitForExceptionFingerprint() throws Exception {
+    String url = String.format(appUrl + "/waitForExceptionFingerprint");
+    LOG.info("waitForExceptionFingerprint with url={}", url);
+    sendRequest(url);
+    LOG.info("exceptionFingerprint added");
   }
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
@@ -130,7 +141,8 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
         probeStatus -> {
           statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
         });
-    processRequests(statusResult::get);
+    processRequests(
+        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
 
   protected void waitForReTransformation(String appUrl) throws IOException {
@@ -143,13 +155,18 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     LOG.info("re-transformation done");
   }
 
+  protected void waitForSpecificLine(String appUrl, String line) throws IOException {
+    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
+    sendRequest(url);
+  }
+
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
     controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();
-    LOG.info("AppUrl = " + appUrl);
+    LOG.info("AppUrl = {}", appUrl);
     return appUrl;
   }
 

@@ -5,30 +5,32 @@ def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfig
 // This is necessary for some projects that set a special groovy target which can't coexist with excludeJava
 boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? groovySkipJavaExclude : false
 
-spotless {
+def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
 
+spotless {
   if (rootProject.hasProperty('skipSpotless')) {
+    project.logger.quiet("Retiring 'skipSpotless' property, prefer '-x spotlessCheck' or '-x spotlessApply' to exclude spotless tasks.")
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
     // We disable it in CI, since we have a job dedicated to spotless anyway.
     enforceCheck false
   }
 
-  if (project.plugins.hasPlugin('java')) {
+  project.pluginManager.withPlugin('java') {
     java {
       toggleOffOn()
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
-      // ignore embedded test projects
-      targetExclude 'src/test/resources/**'
-      // This is the last Google Java Format version that supports Java 8
-      googleJavaFormat('1.7')
+      // ignore embedded test projects and everything in build dir, e.g. generated sources
+      targetExclude('src/test/resources/**', buildDirectoryFiles)
+      googleJavaFormat('1.34.1')
     }
   }
 
+  def isRootProject = project == project.rootProject
   groovyGradle {
     toggleOffOn()
     // same as groovy, but for .gradle (defaults to '*.gradle')
-    if (project == project.rootProject) {
+    if (isRootProject) {
       // only do this for the root project since the instrumentation project has a subproject and directory named gradle
       // that will confuse task dependencies
       target '*.gradle', 'gradle/**/*.gradle'
@@ -42,12 +44,14 @@ spotless {
     toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
-    // ktfmt('0.40').kotlinlangStyle() // needs Java 11+
-    // Newer versions do not work well with the older version of kotlin in this build
-    ktlint('0.41.0').userData(['indent_size': '2', 'continuation_indent_size': '2'])
+    ktlint('1.8.0').editorConfigOverride([
+      // Disable trailing comma rules to minimize diff.
+      'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+      'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+    ])
   }
 
-  if (project.plugins.hasPlugin('groovy')) {
+  project.pluginManager.withPlugin('groovy') {
     groovy {
       toggleOffOn()
       if (!groovySkipJavaExclude) {
@@ -55,38 +59,52 @@ spotless {
         // the Groovy Eclipse formatter extends the Java Eclipse formatter,
         // so it formats Java files by default (unless `excludeJava` is used).
       }
+      targetExclude(buildDirectoryFiles)
       greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }
 
-  if (project.plugins.hasPlugin('scala')) {
+  project.pluginManager.withPlugin('scala') {
     scala {
       toggleOffOn()
-      scalafmt('2.7.5').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
+      targetExclude(buildDirectoryFiles)
+      // TODO: For some reason Scala format is working correctly with this version only.
+      scalafmt('3.8.6').configFile(configPath + '/enforcement/spotless-scalafmt.conf')
     }
   }
 
   format 'markdown', {
     toggleOffOn()
     target '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     endWithNewline()
   }
 
   format 'misc', {
     toggleOffOn()
     target '.gitignore', '*.sh', 'tooling/*.sh', '.gitlab/*.sh'
-    indentWithSpaces()
+    leadingTabsToSpaces()
     trimTrailingWhitespace()
     endWithNewline()
   }
+
+  project.pluginManager.withPlugin('kotlin') {
+    kotlin {
+      toggleOffOn()
+      targetExclude(buildDirectoryFiles)
+      ktlint('1.8.0').editorConfigOverride([
+        // Disable trailing comma rules to minimize diff.
+        'ktlint_standard_trailing-comma-on-call-site': 'disabled',
+        'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
+      ])
+    }
+  }
 }
 
-apply from: "$configPath/spotless/spotless-kotlin.gradle"
 
 tasks.register('formatCode') {
   dependsOn 'spotlessApply'
 }
-check.configure {
+tasks.named("check") {
   dependsOn 'spotlessCheck'
 }

@@ -59,7 +59,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
   class AroundAdvice {
     @CallSite.Around('java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)')
     static String around(@CallSite.This final String self, @CallSite.Argument final String regexp, @CallSite.Argument final String replacement) {
-      return self.replaceAll(regexp, replacement);
+      return self.replaceAll(regexp, replacement)
     }
   }
 
@@ -228,7 +228,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
                                             @CallSite.Argument final MethodType concatType,
                                             @CallSite.Argument final String recipe,
                                             @CallSite.Argument final Object... constants) {
-      return null;
+      return null
     }
   }
 
@@ -270,7 +270,7 @@ final class AdviceGeneratorTest extends BaseCsiPluginTest {
     static String after(@CallSite.AllArguments final Object[] arguments,
                         @CallSite.Return final String result,
                         @CallSite.InvokeDynamicConstants final Object[] constants) {
-      return result;
+      return result
     }
   }
 

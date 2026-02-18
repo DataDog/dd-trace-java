@@ -1,5 +1,6 @@
 package datadog.trace.api.debugger
 
+import datadog.trace.api.InstrumenterConfig
 import spock.lang.Specification
 
 class DebuggerConfigBridgeTest extends Specification {
@@ -15,7 +16,7 @@ class DebuggerConfigBridgeTest extends Specification {
     then:
     !DebuggerConfigBridge.isDynamicInstrumentationEnabled()
     !DebuggerConfigBridge.isExceptionReplayEnabled()
-    !DebuggerConfigBridge.isCodeOriginEnabled()
+    DebuggerConfigBridge.isCodeOriginEnabled() == InstrumenterConfig.defaultCodeOriginForSpanEnabled
     !DebuggerConfigBridge.isDistributedDebuggerEnabled()
 
     when:

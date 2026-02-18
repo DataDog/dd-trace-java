@@ -69,7 +69,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()
@@ -129,7 +129,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
 
     def sharedCommObjects = new SharedCommunicationObjects()
     sharedCommObjects.featuresDiscovery = features
-    sharedCommObjects.okHttpClient = testOkhttpClient
+    sharedCommObjects.agentHttpClient = testOkhttpClient
     sharedCommObjects.createRemaining(fakeConfig)
 
     def timeSource = new ControllableTimeSource()
@@ -203,7 +203,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     2.times {
       int mapHeaderSize = unpacker.unpackMapHeader()
       assert availableSizes.remove(mapHeaderSize)
-      if (mapHeaderSize == 5) {  // empty topic group
+      if (mapHeaderSize == 5) {
+        // empty topic group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"
@@ -214,7 +215,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
         assert unpacker.unpackLong() == 9
         assert unpacker.unpackString() == "ParentHash"
         assert unpacker.unpackLong() == 0
-      } else { //other group
+      } else {
+        //other group
         assert unpacker.unpackString() == "PathwayLatency"
         unpacker.skipValue()
         assert unpacker.unpackString() == "EdgeLatency"

@@ -24,6 +24,9 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
 
+  // This module still needs Spock with JUnit4.
+  testImplementation(libs.spock.junit4)
+
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'

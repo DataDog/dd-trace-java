@@ -1,15 +1,12 @@
-// Set properties before any plugins get loaded
-ext {
-  // Need to force Oracle JDK 8 since it is the only JDK compatible with this implementation
-  forceJdk = ['ORACLE8']
-  // By default tests with be compiled for `minJavaVersionForTests` version,
-  // but in this case we would like to avoid this since we would like to run with ORACLE8
-  skipSettingTestJavaVersion = true
-  // need access to jdk.jfr package
-  skipSettingCompilerRelease = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11) {
+    // By default tests with be compiled for `minJavaVersion` version,
+    // but in this case we would like to avoid this since we would like to run with ZULU8
+    applyForTestSources = false
+  }
+}
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
@@ -30,8 +27,8 @@ dependencies {
 
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).configureEach {
-  onlyIf {
-    it.name.contains('ORACLE8')
+  testJvmConstraints {
+    includeJdk = ['ORACLE8']
   }
 
   jvmArgs += [

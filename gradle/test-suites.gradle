@@ -1,9 +1,9 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
-ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
+ext.addTestSuiteExtendingForDir = { String testSuiteName, String parentSuiteName, String dirName ->
   testing {
     suites {
-      create(testSuiteName, JvmTestSuite, {
+      register(testSuiteName, JvmTestSuite) {
         sources {
           java {
             srcDirs = ["src/$dirName/java"]
@@ -27,7 +27,7 @@ ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
             }
           }
         }
-      })
+      }
     }
   }
 
@@ -57,8 +57,8 @@ ext.addTestSuiteExtendingForDir = { testSuiteName, parentSuiteName, dirName ->
   }
 
   tasks.register("${testSuiteName}Jar", Jar) {
-    dependsOn(tasks.named("${testSuiteName}Classes").get())
-    from(sourceSets.named(testSuiteName).get().output)
+    dependsOn(tasks.named("${testSuiteName}Classes"))
+    from(sourceSets.named(testSuiteName).map { it.output })
     archiveClassifier = testSuiteName
   }
 

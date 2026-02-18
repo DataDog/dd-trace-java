@@ -27,12 +27,11 @@ tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
-
 dependencies {
   compileOnly group: 'org.apache.pekko', name: "pekko-actor_2.12", version: pekkoVersion
 
   testImplementation libs.scala212
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation group: 'org.apache.pekko', name: "pekko-actor_2.12", version: pekkoVersion
   testImplementation group: 'org.apache.pekko', name: "pekko-testkit_2.12", version: pekkoVersion
 

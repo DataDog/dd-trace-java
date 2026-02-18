@@ -85,7 +85,8 @@ public class LogsDispatcher {
 
   private void flush(StringBuilder batch) {
     try {
-      RequestBody requestBody = RequestBody.create(JSON, batch.toString());
+      String json = batch.toString();
+      RequestBody requestBody = RequestBody.create(JSON, json);
       RequestBody gzippedRequestBody = OkHttpUtils.gzippedRequestBodyOf(requestBody);
       backendApi.post("logs", gzippedRequestBody, IGNORE_RESPONSE, null, true);
     } catch (IOException e) {

@@ -1,22 +1,11 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: libs.versions.kotlin.get()
-  }
-}
-
 plugins {
   id 'com.gradleup.shadow'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
@@ -28,6 +17,8 @@ dependencies {
   implementation project(':communication')
   implementation project(':components:json')
   implementation project(':internal-api')
+  implementation project(':utils:queue-utils')
+
 
   testImplementation project(':dd-java-agent:testing')
 }

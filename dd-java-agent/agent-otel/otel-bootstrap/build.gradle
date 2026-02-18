@@ -8,23 +8,29 @@ def otelApiVersion = '1.38.0'
 def otelInstrumentationApiVersion = '2.4.0'
 
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'instrument'
+apply plugin: 'dd-trace-java.build-time-instrumentation'
 
 configurations {
-  embeddedClasspath {
+  def ec = register('embeddedClasspath') {
     visible = false
     canBeConsumed = false
     canBeResolved = true
   }
-  compileClasspath.extendsFrom(embeddedClasspath)
-  instrumentPluginClasspath {
-    visible = false
-    canBeConsumed = false
-    canBeResolved = true
+  named('compileClasspath') {
+    compileClasspath.extendsFrom(ec.get())
+  }
+
+  named("buildTimeInstrumentationPlugin") {
+    it.dependencies.add(project.dependencies.project(
+      path: ':dd-java-agent:agent-otel:otel-tooling',
+      configuration: 'buildTimeInstrumentationToolingPlugins'
+      ))
   }
 }
 
-instrument.plugins = ['datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin']
+buildTimeInstrumentation {
+  plugins.addAll('datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin')
+}
 
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
@@ -35,6 +41,7 @@ forbiddenApis {
 }
 
 spotbugs {
+  // To avoid massive report on `io.opentelemetry.*` and `net.bytebbuddy.*` classes.
   onlyAnalyze = ['none']
 }
 
@@ -50,18 +57,21 @@ dependencies {
   compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
-  instrumentPluginClasspath project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'instrumentPluginClasspath')
+  // buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationToolingPlugins')
 }
 
 // unpack embeddedClasspath to same path as compiled classes so it can get instrumented
 tasks.register('unpackJars', Copy) {
-  dependsOn configurations.embeddedClasspath
+  dependsOn configurations.named('embeddedClasspath')
   exclude 'META-INF/'
   exclude '**/module-info.class'
   exclude '**/package-info.class'
-  from {
-    configurations.embeddedClasspath.collect { zipTree(it) }
-  }
+
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
   into compileJava.destinationDirectory
 }
 

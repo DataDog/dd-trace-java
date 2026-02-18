@@ -2,12 +2,12 @@ plugins {
   id 'idea'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_15
-}
-
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'call-site-instrumentation'
+apply plugin: 'dd-trace-java.call-site-instrumentation'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_15
+}
 
 muzzle {
   pass {
@@ -28,16 +28,16 @@ csi {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testImplementation(libs.javaparser)
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 }
 
-project.tasks.withType(AbstractCompile).configureEach {
-  setJavaVersion(it, 17)
-  if (it.name != 'compileCsiJava') {
-    sourceCompatibility = JavaVersion.VERSION_15
-    targetCompatibility = JavaVersion.VERSION_15
-    if (it instanceof JavaCompile) {
-      it.options.release.set(15)
-    }
+tasks.withType(AbstractCompile).configureEach {
+  switch (it.name) {
+    case 'compileCsiJava':
+      configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+      break
+    default:
+      configureCompiler(it, 17, JavaVersion.VERSION_15)
   }
 }

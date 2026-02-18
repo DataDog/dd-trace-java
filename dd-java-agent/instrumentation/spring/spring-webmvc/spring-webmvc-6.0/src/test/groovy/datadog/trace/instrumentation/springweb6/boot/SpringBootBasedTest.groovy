@@ -137,7 +137,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       synchronized (WebsocketEndpoint) {
         try {
           while (endpoint?.activeSession == null) {
-            WebsocketEndpoint.wait()
+            WebsocketEndpoint.wait(1000)
           }
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt()
@@ -517,5 +517,12 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         defaultTags()
       }
     }
+  }
+}
+
+class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
+  @Override
+  boolean testRumInjection() {
+    true
   }
 }

@@ -92,7 +92,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS
@@ -163,7 +162,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     injectSysConfig(HEADER_TAGS, 'x-datadog-test-both-header:both_header_tag')
     injectSysConfig(REQUEST_HEADER_TAGS, 'x-datadog-test-request-header:request_header_tag')
     // We don't inject a matching response header tag here since it would be always on and show up in all the tests
-    injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
     // allow endpoint discover for the tests
     injectSysConfig(API_SECURITY_ENDPOINT_COLLECTION_ENABLED, "true")
     if (testRumInjection()) {
@@ -230,9 +228,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
-      ["error.message": { it == null || it == EXCEPTION.body },
-        "error.type"   : { it == null || it == Exception.name },
-        "error.stack"  : { it == null || it instanceof String }]
+      ["error.message": {
+          it == null || it == EXCEPTION.body
+        },
+        "error.type"   : {
+          it == null || it == Exception.name
+        },
+        "error.stack"  : {
+          it == null || it instanceof String
+        }]
     } else {
       Collections.emptyMap()
     }
@@ -551,12 +555,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     static {
-      assert values().length == values().collect { it.path }.toSet().size(): "paths should be unique"
+      assert values().length == values().collect {
+        it.path
+      }.toSet().size(): "paths should be unique"
     }
 
     private static final Map<String, ServerEndpoint> PATH_MAP = {
-      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it] }
-      map.putAll(values().collectEntries { [it.rawPath, it] })
+      Map<String, ServerEndpoint> map = values().collectEntries {
+        [it.path, it]
+      }
+      map.putAll(values().collectEntries {
+        [it.rawPath, it]
+      })
       map
     }.call()
 
@@ -603,9 +613,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           client.newCall(request).execute()
         }
       }
-      responses = (1..count).collect { completionService.take().get() }
+      responses = (1..count).collect {
+        completionService.take().get()
+      }
     } else {
-      responses = (1..count).collect { client.newCall(request).execute() }
+      responses = (1..count).collect {
+        client.newCall(request).execute()
+      }
     }
 
     if (isDataStreamsEnabled()) {
@@ -613,14 +627,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     expect:
-    responses.each { response ->
+    responses.each {
+      response ->
       assert response.code() == SUCCESS.status
       assert response.body().string() == SUCCESS.body
     }
 
     and:
     assertTraces(count) {
-      (1..count).eachWithIndex { val, i ->
+      (1..count).eachWithIndex {
+        val, i ->
         trace(spanCount(SUCCESS)) {
           sortSpansByStart()
           serverSpan(it)
@@ -636,7 +652,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -679,7 +697,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -724,7 +744,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -767,7 +789,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -782,8 +806,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test baggage span tags are properly added"() {
     setup:
     def recordedBaggageTags = [:]
-    TEST_WRITER.metadataConsumer = { Metadata md ->
-      md.baggage.forEach { k, v ->
+    TEST_WRITER.metadataConsumer = {
+      Metadata md ->
+      md.baggage.forEach {
+        k, v ->
         // record non-internal baggage sent to agent as trace metadata
         if (!k.startsWith("_dd.")) {
           recordedBaggageTags.put(k, v)
@@ -828,7 +854,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -876,7 +904,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -918,7 +948,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -972,7 +1004,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1019,7 +1053,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1042,12 +1078,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     then:
-    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find {
+      it.operationName == 'appsec-span'
+    }
     span.getTag(IG_PATH_PARAMS_TAG) == expectedIGPathParams()
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1090,7 +1130,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1136,7 +1178,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1176,7 +1220,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1219,7 +1265,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1260,7 +1308,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1301,7 +1351,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1341,7 +1393,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1358,8 +1412,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def traces = extraSpan ? 2 : 1
     def extraTags = [(IG_RESPONSE_STATUS): String.valueOf(endpoint.status)] as Map<String, Serializable>
     if (hasPeerInformation()) {
-      extraTags.put(IG_PEER_ADDRESS, { it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1" })
-      extraTags.put(IG_PEER_PORT, { Integer.parseInt(it as String) instanceof Integer })
+      extraTags.put(IG_PEER_ADDRESS, {
+        it == "127.0.0.1" || it == "0.0.0.0" || it == "0:0:0:0:0:0:0:1"
+      })
+      extraTags.put(IG_PEER_PORT, {
+        Integer.parseInt(it as String) instanceof Integer
+      })
     }
     extraTags.put(IG_RESPONSE_HEADER_TAG, IG_RESPONSE_HEADER_VALUE)
 
@@ -1395,7 +1453,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1441,7 +1501,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1473,7 +1535,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1505,7 +1569,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1538,7 +1604,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1570,7 +1638,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1611,14 +1681,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     !trace.isEmpty()
-    def rootSpan = trace.find { it.parentId == 0 }
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
     assert rootSpan != null
     rootSpan.tags['http.status_code'] == 418
     rootSpan.tags['appsec.blocked'] == 'true'
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1654,14 +1728,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     !trace.isEmpty()
-    def rootSpan = trace.find { it.parentId == 0 }
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
     assert rootSpan != null
     final responseBody = rootSpan.getTag('response.body') as String
     new JsonSlurper().parseText(responseBody) == body
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1699,7 +1777,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1735,7 +1815,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1756,7 +1838,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
-    assert trace.find { it.isError() } == null
+    assert trace.find {
+      it.isError()
+    } == null
   }
 
   def 'test blocking of request for path parameters'() {
@@ -1784,14 +1868,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     !trace.isEmpty()
-    def rootSpan = trace.find { it.parentId == 0 }
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
     assert rootSpan != null
     rootSpan.tags['http.status_code'] == 413
     rootSpan.tags['appsec.blocked'] == 'true'
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1832,8 +1920,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     List<DDSpan> spans = TEST_WRITER.flatten()
-    spans.find { it.tags['http.status_code'] == 413 } != null
-    spans.find { it.tags['appsec.blocked'] == 'true' } != null
+    spans.find {
+      it.tags['http.status_code'] == 413
+    } != null
+    spans.find {
+      it.tags['appsec.blocked'] == 'true'
+    } != null
     if (testBlockingErrorTypeSet()) {
       spans.find {
         it.error &&
@@ -1843,7 +1935,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+        it.parentHash == 0
+      }
       verifyAll(first) {
         tags == DSM_EDGE_TAGS
       }
@@ -1895,7 +1989,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (blockResponseFunction == null) {
           throw new UnsupportedOperationException("Do not know how to commit blocking response for this server")
         }
-        blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders)
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx.traceSegment, statusCode, type, extraHeaders, null)
       }
     }
     Blocking.blockingService = bs
@@ -1917,19 +2011,22 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     def trace = TEST_WRITER.get(0)
 
     then: 'there is an error span'
-    trace.find { span ->
+    trace.find {
+      span ->
       def errorMsg = span.getTag(DDTags.ERROR_MSG)
       if (!errorMsg) {
         return false
       }
       "Blocking user with id 'user-to-block'" in errorMsg
     } != null
-    trace.find { span ->
+    trace.find {
+      span ->
       span.getTag('appsec.blocked') == 'true'
     } != null
 
     and: 'there is a span with status code 403'
-    trace.find { span ->
+    trace.find {
+      span ->
       span.httpStatusCode == 403
     } != null
 
@@ -1961,7 +2058,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     !trace.isEmpty()
-    def rootSpan = trace.find { it.parentId == 0 }
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
     assert rootSpan != null
     rootSpan.tags['http.status_code'] == 413
     rootSpan.tags['appsec.blocked'] == 'true'
@@ -1990,12 +2089,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     !trace.isEmpty()
-    def rootSpan = trace.find { it.parentId == 0 }
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
     assert rootSpan != null
     rootSpan.tags['http.status_code'] == 301
     rootSpan.tags['appsec.blocked'] == 'true'
   }
 
+  @Flaky(value = "AppSec overwrites test context when enabled, causing test context to be lost", suites = ["Jetty10V0ForkedTest", "Jetty10V1ForkedTest"])
   def 'test session id publishes to IG'() {
     setup:
     assumeTrue(testSessionId())
@@ -2019,7 +2121,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (isDataStreamsEnabled()) {
       TEST_DATA_STREAMS_WRITER.waitForGroups(1)
     }
-    DDSpan span = TEST_WRITER.flatten().find { it.operationName == 'appsec-span' }
+    DDSpan span = TEST_WRITER.flatten().find {
+      it.operationName == 'appsec-span'
+    }
     span != null
     final sessionId = span.tags[IG_SESSION_ID_TAG]
     sessionId != null
@@ -2135,7 +2239,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static void websocketReceiveSpan(TraceAssert trace, DDSpan handshake, String messageType, int messageLength, int nbOfChunks = 1, Map extraTags = [:]) {
     websocketSpan(trace, handshake, "websocket.receive", messageType, messageLength, nbOfChunks, true,
     Config.get().isWebsocketMessagesSeparateTraces() ? null : handshake,
-    extraTags + [(InstrumentationTags.WEBSOCKET_MESSAGE_RECEIVE_TIME): { Number }])
+    extraTags + [(InstrumentationTags.WEBSOCKET_MESSAGE_RECEIVE_TIME): {
+        Number
+      }])
   }
 
   static void websocketCloseSpan(TraceAssert trace, DDSpan handshake, boolean closeStarter, int closeCode, closeReason = null,
@@ -2197,9 +2303,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         tag(InstrumentationTags.WEBSOCKET_MESSAGE_FRAMES, nbOfChunks)
         tag(Tags.PEER_HOSTNAME, handshake.getTag(Tags.PEER_HOSTNAME))
         if (Config.get().isWebsocketTagSessionId()) {
-          tag(InstrumentationTags.WEBSOCKET_SESSION_ID, { it != null }) // it can be an incremental thing
+          tag(InstrumentationTags.WEBSOCKET_SESSION_ID, {
+            it != null
+          }) // it can be an incremental thing
         }
-        extraTags.each { tag(it.key, it.value) }
+        extraTags.each {
+          tag(it.key, it.value)
+        }
         defaultTagsNoPeerService()
       }
     }
@@ -2211,16 +2321,20 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     when:
     final endpoints = EndpointCollector.get().drain().toList()
-    final discovered = endpoints.findAll { it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path }
+    final discovered = endpoints.findAll {
+      it.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
+    }
 
     then:
     !endpoints.isEmpty()
-    endpoints.eachWithIndex { Endpoint entry, int i ->
+    endpoints.eachWithIndex {
+      Endpoint entry, int i ->
       assert entry.first == (i == 0)
     }
 
     !discovered.isEmpty()
-    discovered.eachWithIndex { endpoint, index ->
+    discovered.eachWithIndex {
+      endpoint, index ->
       assert endpoint.path == ServerEndpoint.ENDPOINT_DISCOVERY.path
       assert endpoint.type == Endpoint.Type.REST
       assert endpoint.operation == Endpoint.Operation.HTTP_REQUEST
@@ -2333,11 +2447,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
             "$Tags.PEER_PORT" Integer
           }
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
-            "$Tags.HTTP_CLIENT_IP" { it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.PEER_HOST_IPV6" {
+              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
+            }
+            "$Tags.HTTP_CLIENT_IP" {
+              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
+            }
           } else {
-            "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-            "$Tags.HTTP_CLIENT_IP" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+            "$Tags.PEER_HOST_IPV4" {
+              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
+            }
+            "$Tags.HTTP_CLIENT_IP" {
+              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
+            }
           }
         } else {
           "$Tags.HTTP_CLIENT_IP" clientIp
@@ -2362,8 +2484,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" expectedQueryTag
         }
-        if ({ isDataStreamsEnabled() }) {
-          "$DDTags.PATHWAY_HASH" { String }
+        if ({
+          isDataStreamsEnabled()
+        }) {
+          "$DDTags.PATHWAY_HASH" {
+            String
+          }
         }
         if (expectedIntegrationName != null) {
           withCustomIntegrationName(expectedIntegrationName)
@@ -2431,24 +2557,29 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as Supplier<Flow<Context>>)
 
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
-    ({ RequestContext rqCtxt, IGSpanInfo info ->
-      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (context.responseBodyTag) {
-        rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
-      }
-      if (context.extraSpanName) {
-        runUnderTrace(context.extraSpanName, false) {
-          def span = activeSpan()
-          context.tags.each { key, val ->
-            span.setTag(key, val)
+    ({
+      RequestContext rqCtxt, IGSpanInfo info ->
+      Object contextObj = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj
+        if (context.responseBodyTag) {
+          rqCtxt.traceSegment.setTagTop('response.body', context.responseBody)
+        }
+        if (context.extraSpanName) {
+          runUnderTrace(context.extraSpanName, false) {
+            def span = activeSpan()
+            context.tags.each {
+              key, val ->
+              span.setTag(key, val)
+            }
           }
         }
       }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
 
-    final TriConsumer<RequestContext, String, String> requestHeaderCb =
-    { RequestContext rqCtxt, String key, String value ->
+    final TriConsumer<RequestContext, String, String> requestHeaderCb = {
+      RequestContext rqCtxt, String key, String value ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.matchingHeaderValue = stringOrEmpty(context.matchingHeaderValue) + value
@@ -2480,7 +2611,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as TriConsumer<RequestContext, String, String>
 
     final Function<RequestContext, Flow<Void>> requestHeaderDoneCb =
-    ({ RequestContext rqCtxt ->
+    ({
+      RequestContext rqCtxt ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (null != context.matchingHeaderValue) {
         context.doneHeaderValue = stringOrEmpty(context.doneHeaderValue) + context.matchingHeaderValue
@@ -2501,7 +2633,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
 
     final TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestUriRawCb =
-    ({ RequestContext rqCtxt, String method, URIDataAdapter uri ->
+    ({
+      RequestContext rqCtxt, String method, URIDataAdapter uri ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       String raw = uri.supportsRaw() ? uri.raw() : ''
       raw = uri.hasPlusEncodedSpaces() ? raw.replace('+', '%20') : raw
@@ -2516,22 +2649,24 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
 
     final TriFunction<RequestContext, String, Integer, Flow<Void>> requestClientSocketAddressCb =
-    ({ RequestContext rqCtxt, String address, Integer port ->
+    ({
+      RequestContext rqCtxt, String address, Integer port ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.tags.put(IG_PEER_ADDRESS, address)
       context.tags.put(IG_PEER_PORT, String.valueOf(port))
       Flow.ResultFlow.empty()
     } as TriFunction<RequestContext, String, Integer, Flow<Void>>)
 
-    final BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCb =
-    { RequestContext rqCtxt, StoredBodySupplier supplier ->
+    final BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCb = {
+      RequestContext rqCtxt, StoredBodySupplier supplier ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.requestBodySupplier = supplier
       null
     } as BiFunction<RequestContext, StoredBodySupplier, Void>
 
     final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
-    ({ RequestContext rqCtxt, StoredBodySupplier supplier ->
+    ({
+      RequestContext rqCtxt, StoredBodySupplier supplier ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (!context.requestBodySupplier.is(supplier)) {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
@@ -2547,7 +2682,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>)
 
     final BiFunction<RequestContext, Object, Flow<Void>> requestBodyObjectCb =
-    ({ RequestContext rqCtxt, Object obj ->
+    ({
+      RequestContext rqCtxt, Object obj ->
       if (obj instanceof Map) {
         obj = obj.collectEntries {
           [
@@ -2557,8 +2693,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       } else if (!(obj instanceof String) && !(obj instanceof List)) {
         obj = obj.properties
-        .findAll { it.key != 'class' }
-        .collectEntries { [it.key, it.value instanceof Iterable ? it.value : [it.value]] }
+        .findAll {
+          it.key != 'class'
+        }
+        .collectEntries {
+          [it.key, it.value instanceof Iterable ? it.value : [it.value]]
+        }
       }
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
@@ -2572,7 +2712,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as BiFunction<RequestContext, Object, Flow<Void>>)
 
     final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
-    ({ RequestContext rqCtxt, Object obj ->
+    ({
+      RequestContext rqCtxt, Object obj ->
       String body
       // we need to extract a JSON representation of the response object, some frameworks classes might need updating
       // as they might not work with a simple toString() call
@@ -2595,14 +2736,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as BiFunction<RequestContext, Object, Flow<Void>>)
 
     final BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
-    ({ RequestContext rqCtxt, Integer resultCode ->
+    ({
+      RequestContext rqCtxt, Integer resultCode ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.tags.put(IG_RESPONSE_STATUS, String.valueOf(resultCode))
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Integer, Flow<Void>>)
 
-    final TriConsumer<RequestContext, String, String> responseHeaderCb =
-    { RequestContext rqCtxt, String key, String value ->
+    final TriConsumer<RequestContext, String, String> responseHeaderCb = {
+      RequestContext rqCtxt, String key, String value ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.responseHeadersInTags) {
         context.tags["response.header.${key.toLowerCase()}"] = value
@@ -2613,7 +2755,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as TriConsumer<RequestContext, String, String>
 
     final Function<RequestContext, Flow<Void>> responseHeaderDoneCb =
-    ({ RequestContext rqCtxt ->
+    ({
+      RequestContext rqCtxt ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (null != context.igResponseHeaderValue) {
         context.tags.put(IG_RESPONSE_HEADER_TAG, context.igResponseHeaderValue)
@@ -2632,8 +2775,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     } as Function<RequestContext, Flow<Void>>)
 
-    final BiFunction<RequestContext, Map<String, ?>, Flow<Void>> requestParamsCb =
-    { RequestContext rqCtxt, Map<String, ?> map ->
+    final BiFunction<RequestContext, Map<String, ?>, Flow<Void>> requestParamsCb = {
+      RequestContext rqCtxt, Map<String, ?> map ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.parametersBlock) {
         return new RbaFlow(
@@ -2647,10 +2790,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, Map<String, ?>, Flow<Void>>
 
-    final BiFunction<RequestContext, String, Flow<Void>> requestSessionCb =
-    { RequestContext rqCtxt, String sessionId ->
-      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
-      if (sessionId != null) {
+    final BiFunction<RequestContext, String, Flow<Void>> requestSessionCb = {
+      RequestContext rqCtxt, String sessionId ->
+      Object contextObj = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (contextObj instanceof Context && sessionId != null) {
+        Context context = (Context) contextObj
         context.extraSpanName = 'appsec-span'
         context.tags.put(IG_SESSION_ID_TAG, sessionId)
       }
@@ -2679,7 +2823,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     } as Supplier<Flow<Context>>)
 
     final BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCb =
-    ({ RequestContext rqCtxt, IGSpanInfo info ->
+    ({
+      RequestContext rqCtxt, IGSpanInfo info ->
       Context context = rqCtxt.getData(RequestContextSlot.IAST)
       assert context != null
       Flow.ResultFlow.empty()

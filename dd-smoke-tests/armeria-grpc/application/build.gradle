@@ -7,8 +7,7 @@ buildscript {
 plugins {
   id 'application'
   id 'java'
-  id 'com.diffplug.spotless' version '6.13.0'
-  id 'com.gradleup.shadow' version '8.3.6'
+  id 'com.gradleup.shadow' version '8.3.9'
   id 'com.google.protobuf' version '0.9.3'
 }
 
@@ -17,7 +16,6 @@ def sharedConfigDirectory = "$sharedRootDir/gradle"
 rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 
 apply from: "$sharedConfigDirectory/repositories.gradle"
-apply from: "$sharedConfigDirectory/spotless.gradle"
 
 if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')

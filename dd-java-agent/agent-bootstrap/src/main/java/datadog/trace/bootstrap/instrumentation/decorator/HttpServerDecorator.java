@@ -13,6 +13,8 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -54,9 +56,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
-  private static final int UNSET_PORT = 0;
 
-  public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
+  public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RUM_INJECTED = "datadog.rum.injected";
   public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
@@ -94,6 +95,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int peerPort(CONNECTION connection);
 
   protected abstract int status(RESPONSE response);
+
+  protected String getRequestHeader(REQUEST request, String key) {
+    // This method was not marked as abstract in order to avoid changing all server instrumentation
+    // at once.
+    // Instead, only ones required (by DSM specifically) have it implemented.
+    // This can change in the future.
+    return null;
+  }
 
   protected String requestedSessionId(REQUEST request) {
     return null;
@@ -173,6 +182,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     return span.start(extracted);
   }
+
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   public AgentSpan onRequest(
       final AgentSpan span,
@@ -326,6 +345,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+            request,
+            DSM_TRANSACTION_SOURCE_READER);
     return span;
   }
 
@@ -537,12 +563,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
-    // TODO Migrate beforeFinish to Context API
-    onRequestEndForInstrumentationGateway(span);
+  public Context beforeFinish(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    if (span != null) {
+      onRequestEndForInstrumentationGateway(span);
+    }
+
     // Close Serverless Gateway Inferred Span if any
-    // finishInferredProxySpan(context);
-    return super.beforeFinish(span);
+    finishInferredProxySpan(context);
+
+    return super.beforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {

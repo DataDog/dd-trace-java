@@ -12,6 +12,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.util.Set;
@@ -39,15 +40,19 @@ public final class HasAnyExpression extends MatchingExpression {
         // always return FALSE for empty collection
         return Boolean.FALSE;
       }
-      int len = collection.count();
       try {
+        int len = collection.count();
         for (int i = 0; i < len; i++) {
-          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, collection.get(i));
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
           if (filterPredicateExpression.evaluate(valueRefResolver)) {
             return Boolean.TRUE;
           }
         }
         return Boolean.FALSE;
+
+      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+        throw new EvaluationException(ex.getMessage(), print(this));
       } finally {
         valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }
@@ -55,21 +60,25 @@ public final class HasAnyExpression extends MatchingExpression {
     if (value instanceof MapValue) {
       MapValue map = (MapValue) value;
       checkSupportedMap(map, this);
-      if (map.isEmpty()) {
-        return Boolean.FALSE;
-      }
       try {
+        if (map.isEmpty()) {
+          return Boolean.FALSE;
+        }
         for (Value<?> key : map.getKeys()) {
           Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
-          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, key);
-          valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, val);
+          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, val));
+              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(new MapValue.Entry(key, val)));
           if (filterPredicateExpression.evaluate(valueRefResolver)) {
             return Boolean.TRUE;
           }
         }
         return Boolean.FALSE;
+      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+        throw new EvaluationException(ex.getMessage(), print(this));
       } finally {
         valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
         valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
@@ -79,17 +88,20 @@ public final class HasAnyExpression extends MatchingExpression {
     if (value instanceof SetValue) {
       SetValue set = (SetValue) value;
       Set<?> setHolder = checkSupportedSet(set, this);
-      if (set.isEmpty()) {
-        return Boolean.FALSE;
-      }
       try {
+        if (set.isEmpty()) {
+          return Boolean.FALSE;
+        }
         for (Object val : setHolder) {
-          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, Value.of(val));
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
           if (filterPredicateExpression.evaluate(valueRefResolver)) {
             return Boolean.TRUE;
           }
         }
         return Boolean.FALSE;
+      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+        throw new EvaluationException(ex.getMessage(), print(this));
       } finally {
         valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
       }

@@ -42,6 +42,11 @@ public final class Strings {
     return lastDot < 0 ? "" : className.substring(0, lastDot);
   }
 
+  /** com.foo.Bar -> Bar */
+  public static String getSimpleName(final String className) {
+    return className.substring(className.lastIndexOf('.') + 1);
+  }
+
   // reimplementation of string functions without regex
   public static String replace(String str, String delimiter, String replacement) {
     StringBuilder sb = new StringBuilder(str);
@@ -162,7 +167,9 @@ public final class Strings {
     return result;
   }
 
-  /** @return first non-blank string out of the two, {@code null} if both are blank */
+  /**
+   * @return first non-blank string out of the two, {@code null} if both are blank
+   */
   @Nullable
   public static String coalesce(@Nullable final String first, @Nullable final String second) {
     if (isNotBlank(first)) {

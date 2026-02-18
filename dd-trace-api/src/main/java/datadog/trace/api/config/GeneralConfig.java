@@ -35,6 +35,7 @@ public final class GeneralConfig {
       "experimental.propagate.process.tags.enabled";
 
   public static final String LOG_LEVEL = "log.level";
+  public static final String TRACE_LOG_LEVEL = "trace.log.level";
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
   public static final String TRIAGE_REPORT_TRIGGER = "triage.report.trigger";
@@ -80,10 +81,16 @@ public final class GeneralConfig {
   public static final String DATA_JOBS_OPENLINEAGE_ENABLED = "data.jobs.openlineage.enabled";
   public static final String DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED =
       "data.jobs.openlineage.timeout.enabled";
+  public static final String DATA_JOBS_PARSE_SPARK_PLAN_ENABLED =
+      "data.jobs.parse_spark_plan.enabled";
+  public static final String DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED =
+      "data.jobs.experimental_features.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
+  public static final String DATA_STREAMS_TRANSACTION_EXTRACTORS =
+      "data.streams.transaction_extractors";
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";
@@ -110,11 +117,13 @@ public final class GeneralConfig {
   public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
   public static final String TAG_NAME_UTF8_CACHE_SIZE = "tag.name.utf8.cache.size";
   public static final String TAG_VALUE_UTF8_CACHE_SIZE = "tag.value.utf8.cache.size";
+  public static final String SPAN_BUILDER_REUSE_ENABLED = "span.builder.reuse.enabled";
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
 
   public static final String SSI_INJECTION_ENABLED = "injection.enabled";
   public static final String SSI_INJECTION_FORCE = "inject.force";
   public static final String INSTRUMENTATION_SOURCE = "instrumentation.source";
+  public static final String APP_LOGS_COLLECTION_ENABLED = "app.logs.collection.enabled";
 
   private GeneralConfig() {}
 }

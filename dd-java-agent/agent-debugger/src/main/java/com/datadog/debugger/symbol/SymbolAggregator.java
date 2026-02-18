@@ -3,9 +3,9 @@ package com.datadog.debugger.symbol;
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
 import com.datadog.debugger.sink.SymbolSink;
+import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.util.AgentTaskScheduler;
-import datadog.trace.util.ClassNameTrie;
 import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -124,6 +124,9 @@ public class SymbolAggregator {
     }
     LOGGER.debug("Extracting Symbols from: {}, located in: {}", className, jarName);
     Scope jarScope = SymbolExtractor.extract(classfileBuffer, jarName);
+    if (jarScope == null) {
+      return;
+    }
     jarScope = applyFilters(jarScope);
     addJarScope(jarScope, false);
     symDBReport.incClassCount(jarName);
@@ -155,7 +158,11 @@ public class SymbolAggregator {
     while (!jarsToScanQueue.isEmpty()) {
       String jarPath = jarsToScanQueue.poll();
       LOGGER.debug("Scanning queued jar: {}", jarPath);
-      scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      try {
+        scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      } catch (Exception ex) {
+        LOGGER.debug("Failed to scan jar {}", jarPath, ex);
+      }
     }
   }
 
@@ -278,6 +285,8 @@ public class SymbolAggregator {
       parseClass(symDBReport, jarEntry.getName(), baos.toByteArray(), jarPath.toString());
     } catch (IOException ex) {
       symDBReport.addIOException(jarPath.toString(), ex);
+      LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
+    } catch (Exception ex) {
       LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
     }
   }

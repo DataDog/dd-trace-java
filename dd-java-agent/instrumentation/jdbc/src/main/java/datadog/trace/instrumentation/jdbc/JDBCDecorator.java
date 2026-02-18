@@ -1,14 +1,17 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import datadog.trace.core.propagation.W3CTraceParent;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -28,6 +32,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +51,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-prepared_statement");
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("jdbc");
-  public static final String DBM_PROPAGATION_MODE_STATIC = "service";
-  public static final String DBM_PROPAGATION_MODE_FULL = "full";
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
+  private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
+  private static final boolean PROPAGATE_PROCESS_TAGS =
+      Config.get().isExperimentalPropagateProcessTagsEnabled();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
@@ -59,8 +65,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
+  public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
+      Config.get().isDbmAlwaysAppendSqlComment();
+  public static final boolean FETCH_DB_METADATA_ON_CONNECT =
+      Config.get().isDbMetadataFetchingOnConnectEnabled();
+  private static final boolean FETCH_DB_METADATA_ON_QUERY =
+      Config.get().isDbMetadataFetchingOnQueryEnabled();
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
+  private volatile boolean loggedInjectionError = false;
 
   public static void logMissingQueryInfo(Statement statement) throws SQLException {
     if (log.isDebugEnabled()) {
@@ -181,7 +194,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (Throwable ignore) {
         }
         if (dbInfo == null) {
-          // couldn't find DBInfo anywhere, so fall back to default
+          // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
           dbInfo = parseDBInfoFromConnection(connection);
         }
         // store the DBInfo on the outermost connection instance to avoid future searches
@@ -200,25 +213,28 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
-    if (connection == null) {
+    if (connection == null || !FETCH_DB_METADATA_ON_QUERY) {
       // we can log here, but it risks to be too verbose
       return DBInfo.DEFAULT;
     }
     DBInfo dbInfo;
     try {
       final DatabaseMetaData metaData = connection.getMetaData();
-      final String url = metaData.getURL();
-      if (url != null) {
+      final String url;
+      if (metaData != null && (url = metaData.getURL()) != null) {
+        Properties clientInfo = null;
         try {
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+          clientInfo = connection.getClientInfo();
         } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed.
-          dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          log.debug("Could not get client info from DB", ex);
         }
+        dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
     } catch (final SQLException se) {
+      log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
@@ -234,6 +250,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
   }
 
+  /**
+   * Sets the base hash tag on the span if DBM hash injection is enabled. This is necessary so that
+   * the span (tags) and the query can be matched in the backend.
+   */
+  public void withBaseHash(AgentSpan span) {
+    if (INJECT_COMMENT && DBM_INJECT_SQL_BASE_HASH && PROPAGATE_PROCESS_TAGS) {
+      span.setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
+    }
+  }
+
   private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
     if (null != info) {
       span.setResourceName(info.getSql());
@@ -243,16 +269,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
     span.context().setIntegrationName(component);
     return span.setTag(Tags.COMPONENT, component);
-  }
-
-  public String traceParent(AgentSpan span, int samplingPriority) {
-    StringBuilder sb = new StringBuilder(55);
-    sb.append("00-");
-    sb.append(span.getTraceId().toHexString());
-    sb.append('-');
-    sb.append(DDSpanId.toHexStringPadded(span.getSpanId()));
-    sb.append(samplingPriority > 0 ? "-01" : "-00");
-    return sb.toString();
   }
 
   public boolean isOracle(final DBInfo dbInfo) {
@@ -282,18 +298,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceContext = DD_INSTRUMENTATION_PREFIX + DECORATE.traceParent(span, priority);
+      final String traceContext = DD_INSTRUMENTATION_PREFIX + W3CTraceParent.from(span);
 
       connection.setClientInfo("OCSID.ACTION", traceContext);
 
       span.setTag("_dd.dbm_trace_injected", true);
     } catch (Throwable e) {
-      log.debug(
-          "Failed to set extra DBM data in application_name for trace {}. "
-              + "To disable this behavior, set trace_prepared_statements to 'false'. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. {}",
-          span.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("action", e);
       DECORATE.onError(span, e);
     }
   }
@@ -317,7 +328,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
     AgentSpan instrumentationSpan =
-        AgentTracer.get().buildSpan("set context_info").withTag("dd.instrumentation", true).start();
+        AgentTracer.get()
+            .singleSpanBuilder("set context_info")
+            .withTag("dd.instrumentation", true)
+            .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
     try (AgentScope scope = activateSpan(instrumentationSpan)) {
@@ -345,12 +359,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         throw e;
       }
     } catch (Exception e) {
-      log.debug(
-          "Failed to set extra DBM data in context info for trace {}. "
-              + "To disable this behavior, set DBM_PROPAGATION_MODE to 'service' mode. "
-              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-          instrumentationSpan.getTraceId().toHexString(),
-          e);
+      logInjectionErrorOnce("context_info", e);
       DECORATE.onError(instrumentationSpan, e);
     } finally {
       instrumentationSpan.finish();
@@ -375,19 +384,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (priority == null) {
         return;
       }
-      final String traceParent = DECORATE.traceParent(span, priority);
+      final String traceParent = W3CTraceParent.from(span);
       final String traceContext = "_DD_" + traceParent;
 
       connection.setClientInfo("ApplicationName", traceContext);
     } catch (Throwable e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Failed to set extra DBM data in application_name for trace {}. "
-                + "To disable this behavior, set trace_prepared_statements to 'false'. "
-                + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info.{}",
-            span.getTraceId().toHexString(),
-            e);
-      }
+      logInjectionErrorOnce("application_name", e);
       DECORATE.onError(span, e);
     } finally {
       span.setTag(DBM_TRACE_INJECTED, true);
@@ -419,8 +421,17 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return INJECT_TRACE_CONTEXT;
   }
 
-  public boolean shouldInjectSQLComment() {
-    return Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-        || Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_STATIC);
+  private void logInjectionErrorOnce(String vessel, Throwable t) {
+    if (!loggedInjectionError) {
+      loggedInjectionError = true;
+      log.warn(
+          LogCollector.EXCLUDE_TELEMETRY, // nothing we can do on our side about this
+          "Failed to set extra DBM data in {}. "
+              + "To disable this behavior, set trace_prepared_statements to 'false'. "
+              + "See https://docs.datadoghq.com/database_monitoring/connect_dbm_and_apm/ for more info. "
+              + "Will not log again for this kind of error.\n{}",
+          vessel,
+          t);
+    }
   }
 }

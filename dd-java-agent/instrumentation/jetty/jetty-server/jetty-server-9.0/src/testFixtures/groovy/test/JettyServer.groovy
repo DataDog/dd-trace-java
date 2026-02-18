@@ -29,13 +29,11 @@ class JettyServer implements WebsocketServer {
     try {
       def container = ("org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer" as Class)."configureContext"(handler)
       container."addEndpoint"(ServerEndpointConfig.Builder.create(endpointClass, "/websocket").build())
-
     } catch (Throwable ignored) {
       try {
         ("org.eclipse.jetty.websocket.javax.server.config.JavaxWebSocketServletContainerInitializer" as Class)."configure"(handler, { servletContext, container ->
           container.addEndpoint(ServerEndpointConfig.Builder.create(endpointClass, "/websocket").build())
         })
-
       } catch (Throwable ignored2) {
         websocketAvailable = false
       }
@@ -82,7 +80,9 @@ class JettyServer implements WebsocketServer {
       Lock.activeSession.getBasicRemote().sendBinary(ByteBuffer.wrap(binaries[0]))
     } else {
       try (def stream = Lock.activeSession.getBasicRemote().getSendStream()) {
-        binaries.each { stream.write(it) }
+        binaries.each {
+          stream.write(it)
+        }
       }
     }
   }
@@ -92,7 +92,7 @@ class JettyServer implements WebsocketServer {
     synchronized (Lock) {
       try {
         while (Lock.activeSession == null) {
-          Lock.wait()
+          Lock.wait(1000)
         }
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt()
@@ -135,7 +135,6 @@ class JettyServer implements WebsocketServer {
     @OnMessage
     void onText(String text, Session session, boolean last) {
       runUnderTrace("onRead", {})
-
     }
 
     @OnMessage
@@ -154,18 +153,18 @@ class JettyServer implements WebsocketServer {
     @Override
     void onOpen(Session session, EndpointConfig endpointConfig) {
       session.addMessageHandler(new MessageHandler.Partial<String>() {
-          @Override
-          void onMessage(String s, boolean b) {
-            runUnderTrace("onRead", {})
-          }
-        })
+        @Override
+        void onMessage(String s, boolean b) {
+          runUnderTrace("onRead", {})
+        }
+      })
       session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
 
-          @Override
-          void onMessage(ByteBuffer buffer) {
-            runUnderTrace("onRead", {})
-          }
-        })
+        @Override
+        void onMessage(ByteBuffer buffer) {
+          runUnderTrace("onRead", {})
+        }
+      })
       Lock.activeSession = session
       synchronized (Lock) {
         Lock.notifyAll()

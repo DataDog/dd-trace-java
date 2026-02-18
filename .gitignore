@@ -46,6 +46,18 @@ out/
 ######################
 .vscode
 
+# Cursor #
+##########
+.cursor
+
+# Claude Code local custom settings #
+#####################################
+.claude/*.local.*
+
+# Vim #
+#######
+*.sw[nop]
+
 # Others #
 ##########
 /logs/*
@@ -77,3 +89,6 @@ mise*.local.toml
 .config/mise*.toml
 # asdf
 .tool-versions
+
+# Exclude kotlin build files
+.kotlin

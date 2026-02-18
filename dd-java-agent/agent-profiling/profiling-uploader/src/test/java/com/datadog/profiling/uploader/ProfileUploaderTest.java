@@ -50,6 +50,7 @@ import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.relocate.api.IOLogger;
+import datadog.trace.test.util.ControllableEnvironmentVariables;
 import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
 import io.airlift.compress.zstd.ZstdInputStream;
@@ -85,7 +86,6 @@ import okhttp3.mockwebserver.SocketPolicy;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -157,19 +157,9 @@ public class ProfileUploaderTest {
 
   private ProfileUploader uploader;
 
-  @BeforeAll
-  static void setUpAll() throws Exception {
-    Map<String, String> env = System.getenv();
-
-    Field field = env.getClass().getDeclaredField("m");
-    field.setAccessible(true);
-
-    @SuppressWarnings("unchecked")
-    Map<String, String> modifiableEnv = (Map<String, String>) field.get(env);
-    // hard-coding the env variable here; we could theoretically make the field from ServerlessInfo
-    // public instead
-    modifiableEnv.put("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME);
-  }
+  @SuppressWarnings("unused")
+  private static final ControllableEnvironmentVariables ENV =
+      ControllableEnvironmentVariables.setup("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME);
 
   @BeforeEach
   public void setup() throws IOException {
@@ -838,6 +828,9 @@ public class ProfileUploaderTest {
   @ValueSource(booleans = {true, false})
   public void testRequestWithProcessTags(boolean processTagsEnabled) throws Exception {
     when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    if (processTagsEnabled) {
+      when(config.isServiceNameSetByUser()).thenReturn(true);
+    }
     ProcessTags.reset(config);
     uploader =
         new ProfileUploader(

@@ -17,13 +17,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.asm.Advice.OnMethodEnter;
+import net.bytebuddy.asm.Advice.OnMethodExit;
 
 /**
  * Instruments {@code TaskRunner}, internal runnable for {@code ThreadPerTaskExecutor} (JDK 19+ as
  * preview, 21+ as stable), the executor with default virtual thread factory.
  */
+@SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
-public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
+public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TaskRunnerInstrumentation() {
     super("java_concurrent", "task-runner");
@@ -51,19 +54,19 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static final class Construct {
-    @Advice.OnMethodExit
+    @OnMethodExit(suppress = Throwable.class)
     public static void captureScope(@Advice.This Runnable task) {
       capture(InstrumentationContext.get(Runnable.class, State.class), task);
     }
   }
 
   public static final class Run {
-    @Advice.OnMethodEnter
+    @OnMethodEnter(suppress = Throwable.class)
     public static AgentScope activate(@Advice.This Runnable task) {
       return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @OnMethodExit(suppress = Throwable.class)
     public static void close(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }

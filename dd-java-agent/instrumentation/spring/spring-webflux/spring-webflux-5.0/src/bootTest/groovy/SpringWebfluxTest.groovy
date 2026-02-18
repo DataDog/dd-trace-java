@@ -58,12 +58,6 @@ class SpringWebfluxTest extends InstrumentationSpecification {
     false
   }
 
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig("trace.websocket.messages.enabled", "true")
-  }
-
   def "Basic GET test #testName"() {
     setup:
     String url = "http://localhost:$port$urlPath"
@@ -546,7 +540,8 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "request.predicate" "(GET && /double-greet-redirect)"
-            "handler.type" { String tagVal ->
+            "handler.type" {
+              String tagVal ->
               return (tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
               || tagVal.contains("Lambda"))
             }
@@ -590,7 +585,8 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "request.predicate" "(GET && /double-greet)"
-            "handler.type" { String tagVal ->
+            "handler.type" {
+              String tagVal ->
               return tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
             }
             defaultTags()
@@ -745,17 +741,17 @@ class SpringWebfluxTest extends InstrumentationSpecification {
   }
 
   def clientSpan(
-    TraceAssert trace,
-    Object parentSpan,
-    String operation,
-    String component,
-    String method = "GET",
-    URI uri,
-    Integer status = 200,
-    boolean error = false,
-    Throwable exception = null,
-    boolean tagQueryString = false,
-    Map<String, Serializable> extraTags = null) {
+  TraceAssert trace,
+  Object parentSpan,
+  String operation,
+  String component,
+  String method = "GET",
+  URI uri,
+  Integer status = 200,
+  boolean error = false,
+  Throwable exception = null,
+  boolean tagQueryString = false,
+  Map<String, Serializable> extraTags = null) {
     def ret
 
     def expectedQuery = tagQueryString ? uri.query : null

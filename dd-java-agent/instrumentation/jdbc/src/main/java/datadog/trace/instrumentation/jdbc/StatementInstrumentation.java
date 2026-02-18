@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.core.propagation.W3CTraceParent;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -58,7 +59,12 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
+    return new String[] {
+      "datadog.trace.core.propagation.W3CTraceParent",
+      packageName + ".JDBCDecorator",
+      packageName + ".SQLCommenter",
+      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+    };
   }
 
   @Override
@@ -94,7 +100,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span = AgentTracer.get().buildSpan(DATABASE_QUERY).withSpanId(spanID).start();
+            span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
           } else if (isOracle) {
             span = startSpan(DATABASE_QUERY);
             DECORATE.setAction(span, connection);
@@ -115,7 +121,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             Integer priority = span.forceSamplingDecision();
             if (priority != null) {
               if (!isSqlServer) {
-                traceParent = DECORATE.traceParent(span, priority);
+                traceParent = W3CTraceParent.from(span);
               }
               // set the dbm trace injected tag on the span
               span.setTag(DBM_TRACE_INJECTED, true);
@@ -127,7 +133,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
 
           // prepend mode will prepend the SQL comment to the raw sql query
-          boolean appendComment = false;
+          boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
 
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the
@@ -135,6 +141,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // We only append in this case to avoid the comment from being truncated.
           // @see https://github.com/microsoft/mssql-jdbc/issues/2729
           if (isSqlServer
+              && !appendComment
               && args.length == 2
               && args[1] instanceof Integer
               && (Integer) args[1] == Statement.RETURN_GENERATED_KEYS) {
@@ -152,6 +159,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+        DECORATE.withBaseHash(span);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

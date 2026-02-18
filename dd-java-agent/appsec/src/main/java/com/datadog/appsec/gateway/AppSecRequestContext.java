@@ -13,21 +13,38 @@ import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.core.endpoint.EndpointResolver;
+import datadog.trace.util.Numbers;
 import datadog.trace.util.stacktrace.StackTraceEvent;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
+@SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
 public class AppSecRequestContext implements DataBundle, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
@@ -105,6 +122,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String method;
   private String savedRawURI;
   private String route;
+  private String httpUrl;
+  private String endpoint;
+  private boolean endpointComputed = false;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -128,7 +148,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
-  private volatile Map<String, Object> derivatives;
+  private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
   private volatile boolean throttled;
@@ -166,7 +186,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean keepOpenForApiSecurityPostProcessing;
   private volatile Long apiSecurityEndpointHash;
-  private volatile byte keepType = PrioritySampling.SAMPLER_KEEP;
 
   private final AtomicInteger httpClientRequestCount = new AtomicInteger(0);
   private final Set<Long> sampledHttpClientRequests = new HashSet<>();
@@ -175,6 +194,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "wafTimeouts");
   private static final AtomicIntegerFieldUpdater<AppSecRequestContext> RASP_TIMEOUTS_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(AppSecRequestContext.class, "raspTimeouts");
+  private boolean manuallyKept = false;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -260,6 +280,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   public boolean sampleHttpClientRequest(final long id) {
     httpClientRequestCount.incrementAndGet();
     synchronized (sampledHttpClientRequests) {
+      if (sampledHttpClientRequests.contains(id)) {
+        return true;
+      }
       if (sampledHttpClientRequests.size()
           < Config.get().getApiSecurityMaxDownstreamRequestBodyAnalysis()) {
         sampledHttpClientRequests.add(id);
@@ -405,6 +428,45 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     this.route = route;
   }
 
+  public String getHttpUrl() {
+    return httpUrl;
+  }
+
+  public void setHttpUrl(String httpUrl) {
+    this.httpUrl = httpUrl;
+  }
+
+  /**
+   * Gets or computes the http.endpoint for this request. The endpoint is computed lazily on first
+   * access and cached to avoid recomputation.
+   *
+   * @return the http.endpoint value, or null if it cannot be computed
+   */
+  public String getOrComputeEndpoint() {
+    if (!endpointComputed) {
+      if (httpUrl != null && !httpUrl.isEmpty()) {
+        try {
+          endpoint = EndpointResolver.computeEndpoint(httpUrl);
+        } catch (Exception e) {
+          endpoint = null;
+        }
+      }
+      endpointComputed = true;
+    }
+    return endpoint;
+  }
+
+  /**
+   * Sets the endpoint directly without computing it. This is useful when the endpoint has already
+   * been computed elsewhere.
+   *
+   * @param endpoint the endpoint value to set
+   */
+  public void setEndpoint(String endpoint) {
+    this.endpoint = endpoint;
+    this.endpointComputed = true;
+  }
+
   public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
     this.keepOpenForApiSecurityPostProcessing = flag;
   }
@@ -419,14 +481,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public Long getApiSecurityEndpointHash() {
     return this.apiSecurityEndpointHash;
-  }
-
-  public void setKeepType(byte keepType) {
-    this.keepType = keepType;
-  }
-
-  public byte getKeepType() {
-    return this.keepType;
   }
 
   void addRequestHeader(String name, String value) {
@@ -645,14 +699,16 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       requestHeaders.clear();
       responseHeaders.clear();
       persistentData.clear();
+      final Map<String, Object> derivatives = this.derivatives.getAndSet(null);
       if (derivatives != null) {
         derivatives.clear();
-        derivatives = null;
       }
     }
   }
 
-  /** @return the portion of the body read so far, if any */
+  /**
+   * @return the portion of the body read so far, if any
+   */
   public CharSequence getStoredRequestBody() {
     StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
     if (storedRequestBodySupplier == null) {
@@ -714,79 +770,61 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return stackTraces;
   }
 
-  /**
-   * Attempts to parse a string value as a number. Returns the parsed number if successful, null
-   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
-   */
-  private static Number convertToNumericAttribute(String value) {
-    if (value == null || value.isEmpty()) {
-      return null;
-    }
-    try {
-      // Check if it contains a decimal point to determine if it's a double
-      if (value.contains(".")) {
-        return Double.parseDouble(value);
-      } else {
-        // Try to parse as integer first
-        return Long.parseLong(value);
-      }
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
   public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
 
-    // Store raw derivatives
-    if (derivatives == null) {
-      derivatives = new HashMap<>();
-    }
+    // Initialize or update derivatives atomically
+    derivatives.updateAndGet(
+        current -> {
+          Map<String, Object> updated = current != null ? new HashMap<>(current) : new HashMap<>();
 
-    // Process each attribute according to the specification
-    for (Map.Entry<String, Object> entry : data.entrySet()) {
-      String attributeKey = entry.getKey();
-      Object attributeConfig = entry.getValue();
+          // Process each attribute according to the specification
+          for (Map.Entry<String, Object> entry : data.entrySet()) {
+            String attributeKey = entry.getKey();
+            Object attributeConfig = entry.getValue();
 
-      if (attributeConfig instanceof Map) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> config = (Map<String, Object>) attributeConfig;
+            if (attributeConfig instanceof Map) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> config = (Map<String, Object>) attributeConfig;
 
-        // Check if it's a literal value schema
-        if (config.containsKey("value")) {
-          Object literalValue = config.get("value");
-          if (literalValue != null) {
-            // Preserve the original type - don't convert to string
-            derivatives.put(attributeKey, literalValue);
-            log.debug(
-                "Added literal attribute: {} = {} (type: {})",
-                attributeKey,
-                literalValue,
-                literalValue.getClass().getSimpleName());
+              // Check if it's a literal value schema
+              if (config.containsKey("value")) {
+                Object literalValue = config.get("value");
+                if (literalValue != null) {
+                  // Preserve the original type - don't convert to string
+                  updated.put(attributeKey, literalValue);
+                  log.debug(
+                      "Added literal attribute: {} = {} (type: {})",
+                      attributeKey,
+                      literalValue,
+                      literalValue.getClass().getSimpleName());
+                }
+              }
+              // Check if it's a request data schema
+              else if (config.containsKey("address")) {
+                String address = (String) config.get("address");
+                @SuppressWarnings("unchecked")
+                List<String> keyPath = (List<String>) config.get("key_path");
+                @SuppressWarnings("unchecked")
+                List<String> transformers = (List<String>) config.get("transformers");
+
+                Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
+                if (extractedValue != null) {
+                  // For extracted values, convert to string as they come from request data
+                  updated.put(attributeKey, extractedValue.toString());
+                  log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
+                }
+              }
+            } else {
+              // Handle plain string/numeric values
+              updated.put(attributeKey, attributeConfig);
+              log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
+            }
           }
-        }
-        // Check if it's a request data schema
-        else if (config.containsKey("address")) {
-          String address = (String) config.get("address");
-          @SuppressWarnings("unchecked")
-          List<String> keyPath = (List<String>) config.get("key_path");
-          @SuppressWarnings("unchecked")
-          List<String> transformers = (List<String>) config.get("transformers");
 
-          Object extractedValue = extractValueFromRequestData(address, keyPath, transformers);
-          if (extractedValue != null) {
-            // For extracted values, convert to string as they come from request data
-            derivatives.put(attributeKey, extractedValue.toString());
-            log.debug("Added extracted attribute: {} = {}", attributeKey, extractedValue);
-          }
-        }
-      } else {
-        // Handle plain string/numeric values
-        derivatives.put(attributeKey, attributeConfig);
-        log.debug("Added direct attribute: {} = {}", attributeKey, attributeConfig);
-      }
-    }
+          return updated;
+        });
   }
 
   /**
@@ -934,14 +972,17 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   public boolean commitDerivatives(TraceSegment traceSegment) {
-    log.debug("Committing derivatives: {} for {}", derivatives, traceSegment);
     if (traceSegment == null) {
       return false;
     }
 
+    // Get and clear derivatives atomically
+    Map<String, Object> derivativesToCommit = derivatives.getAndSet(null);
+    log.debug("Committing derivatives: {} for {}", derivativesToCommit, traceSegment);
+
     // Process and commit derivatives directly
-    if (derivatives != null && !derivatives.isEmpty()) {
-      for (Map.Entry<String, Object> entry : derivatives.entrySet()) {
+    if (derivativesToCommit != null && !derivativesToCommit.isEmpty()) {
+      for (Map.Entry<String, Object> entry : derivativesToCommit.entrySet()) {
         String key = entry.getKey();
         Object value = entry.getValue();
 
@@ -950,7 +991,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           traceSegment.setTagTop(key, (Number) value);
         } else if (value instanceof String) {
           // Try to parse as numeric, otherwise use as string
-          Number parsedNumber = convertToNumericAttribute((String) value);
+          Number parsedNumber = Numbers.parseNumber((String) value);
           if (parsedNumber != null) {
             traceSegment.setTagTop(key, parsedNumber);
           } else {
@@ -965,14 +1006,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
       }
     }
 
-    // Clear all attribute maps
-    derivatives = null;
     return true;
   }
 
   // Mainly used for testing and logging
   Set<String> getDerivativeKeys() {
-    return derivatives == null ? emptySet() : new HashSet<>(derivatives.keySet());
+    Map<String, Object> current = derivatives.get();
+    return current == null ? emptySet() : new HashSet<>(current.keySet());
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {
@@ -1013,5 +1053,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRaspMatched(boolean raspMatched) {
     this.raspMatched = raspMatched;
+  }
+
+  public boolean isManuallyKept() {
+    return manuallyKept;
+  }
+
+  public void setManuallyKept(boolean manuallyKept) {
+    this.manuallyKept = manuallyKept;
   }
 }

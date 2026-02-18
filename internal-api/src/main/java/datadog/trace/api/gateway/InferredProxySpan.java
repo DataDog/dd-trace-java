@@ -2,19 +2,23 @@ package datadog.trace.api.gateway;
 
 import static datadog.context.ContextKey.named;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class InferredProxySpan implements ImplicitContextKeyed {
   private static final ContextKey<InferredProxySpan> CONTEXT_KEY = named("inferred-proxy-key");
@@ -69,14 +73,44 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
     String proxySystem = header(PROXY_SYSTEM);
     String proxy = SUPPORTED_PROXIES.get(proxySystem);
+    String httpMethod = header(PROXY_HTTP_METHOD);
+    String path = header(PROXY_PATH);
+    String domainName = header(PROXY_DOMAIN_NAME);
+
     AgentSpan span = AgentTracer.get().startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
-    span.setServiceName(header(PROXY_DOMAIN_NAME));
+
+    // Service: value of x-dd-proxy-domain-name or global config if not found
+    String serviceName =
+        domainName != null && !domainName.isEmpty() ? domainName : Config.get().getServiceName();
+    span.setServiceName(serviceName);
+
+    // Component: aws-apigateway
     span.setTag(COMPONENT, proxySystem);
+
+    // SpanType: web
     span.setTag(SPAN_TYPE, "web");
-    span.setTag(HTTP_METHOD, header(PROXY_HTTP_METHOD));
-    span.setTag(HTTP_URL, header(PROXY_DOMAIN_NAME) + header(PROXY_PATH));
+
+    // Http.method - value of x-dd-proxy-httpmethod
+    span.setTag(HTTP_METHOD, httpMethod);
+
+    // Http.url - value of x-dd-proxy-domain-name + x-dd-proxy-path
+    span.setTag(HTTP_URL, domainName != null ? domainName + path : path);
+
+    // Http.route - value of x-dd-proxy-path
+    span.setTag(HTTP_ROUTE, path);
+
+    // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
+
+    // _dd.inferred_span = 1 (indicates that this is an inferred span)
     span.setTag("_dd.inferred_span", 1);
+
+    // Resource Name: value of x-dd-proxy-httpmethod + " " + value of x-dd-proxy-path
+    // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
+    String resourceName = httpMethod != null && path != null ? httpMethod + " " + path : null;
+    if (resourceName != null) {
+      span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
+    }
 
     // Free collected headers
     this.headers.clear();
@@ -98,7 +132,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   @Override
-  public Context storeInto(Context context) {
+  public Context storeInto(@Nonnull Context context) {
     return context.with(CONTEXT_KEY, this);
   }
 }

@@ -1,0 +1,40 @@
+muzzle {
+  pass {
+    name = 'jersey_2'
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-common'
+    versions = '[2,3)'
+    assertInverse = true
+  }
+  pass {
+    name = 'jersey_server_2'
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-server'
+    versions = '[2,3)'
+    assertInverse = true
+  }
+  pass {
+    name = 'jersey_2+3'
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-common'
+    versions = '[2,)'
+    assertInverse = true
+  }
+  pass {
+    name = 'multipart'
+    group = 'org.glassfish.jersey.media'
+    module = 'jersey-media-multipart'
+    versions = '[2,3)'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '2.0'
+  compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '2.0'
+  compileOnly group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '2.0'
+}
+
+// tested in grizzly-http-2.3.20

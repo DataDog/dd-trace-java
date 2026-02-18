@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to create and push branch
+      contents: read
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
@@ -19,7 +19,7 @@ jobs:
           policy: self.update-jmxfetch-submodule.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # 5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
       - name: Update Submodule
         run: |
@@ -38,21 +38,26 @@ jobs:
         if: steps.check-changes.outputs.commit_changes == 'true'
         id: define-branch
         run: echo "branch=ci/update-jmxfetch-submodule-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-      - name: Create branch
+      - name: Commit changes
         if: steps.check-changes.outputs.commit_changes == 'true'
-        run: |
-          git checkout -b ${{ steps.define-branch.outputs.branch }}
-          git push -u origin ${{ steps.define-branch.outputs.branch }} --force
-      - name: Commit and push changes
-        if: steps.check-changes.outputs.commit_changes == 'true'
-        env:
-          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        id: create-commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dd-java-agent/agent-jmxfetch/integrations-core
-          git commit -m "Update agent-jmxfetch submodule"
-          git push origin ${{ steps.define-branch.outputs.branch }}
+          git commit -m "feat(ci): Update agent-jmxfetch submodule" dd-java-agent/agent-jmxfetch/integrations-core
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - name: Push changes
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        if: steps.check-changes.outputs.commit_changes == 'true'
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          # for scheduled runs, sha is the tip of the default branch
+          # for dispatched runs, sha is the tip of the branch it was dispatched on
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
       - name: Create pull request
         if: steps.check-changes.outputs.commit_changes == 'true'
         env:

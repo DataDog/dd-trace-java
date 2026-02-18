@@ -30,6 +30,14 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure IastServlet2Instrumentation applies (requires no javax.servlet.AsyncEvent)
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
   implementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast')

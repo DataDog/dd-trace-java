@@ -3,23 +3,25 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTEXT_KEY;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_REQUEST;
-import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_SPAN_KEY;
 import static datadog.trace.instrumentation.synapse3.TargetRequestInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
+import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpClientConnection;
 import org.apache.synapse.transport.passthru.TargetContext;
 
@@ -64,16 +66,16 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
   public static final class ClientRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginRequest(
+    public static ContextScope beginRequest(
         @Advice.Argument(0) final NHttpClientConnection connection) {
 
       // check for parent span propagated by SynapsePassthruInstrumentation
       AgentSpan parentSpan = null;
       MessageContext message = TargetContext.get(connection).getRequestMsgCtx();
       if (null != message) {
-        parentSpan = (AgentSpan) message.getPropertyNonReplicable(SYNAPSE_SPAN_KEY);
+        parentSpan = (AgentSpan) message.getPropertyNonReplicable(SYNAPSE_CONTEXT_KEY);
         if (null != parentSpan) {
-          message.removePropertyNonReplicable(SYNAPSE_SPAN_KEY);
+          message.removePropertyNonReplicable(SYNAPSE_CONTEXT_KEY);
         }
       }
 
@@ -86,34 +88,36 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
       DECORATE.afterStart(span);
 
+      Context context = getCurrentContext().with(span);
+
       // add trace id to client-side request before it gets submitted as an HttpRequest
-      defaultPropagator()
-          .inject(getCurrentContext().with(span), TargetContext.getRequest(connection), SETTER);
+      defaultPropagator().inject(context, TargetContext.getRequest(connection), SETTER);
 
-      // capture span to be finished by one of the various client response advices
-      connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
+      // capture context to be finished by one of the various client response advices
+      connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);
 
-      return activateSpan(span);
+      return context.attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void requestSubmitted(
         @Advice.Argument(0) final NHttpClientConnection connection,
-        @Advice.Enter final AgentScope scope) {
+        @Advice.Enter final ContextScope scope) {
       // populate span using details from the submitted HttpRequest (resolved URI, etc.)
-      DECORATE.onRequest(scope.span(), TargetContext.getRequest(connection).getRequest());
+      AgentSpan span = spanFromContext(scope.context());
+      DECORATE.onRequest(span, TargetContext.getRequest(connection).getRequest());
       scope.close();
     }
   }
 
   public static final class ClientResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginResponse(
+    public static ContextScope beginResponse(
         @Advice.Argument(0) final NHttpClientConnection connection) {
-      // check and remove span from context so it won't be finished twice
-      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
-      if (null != span) {
-        return activateSpan(span);
+      // don't remove stored context here because the response callback may run multiple times
+      Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
+      if (null != context) {
+        return context.attach();
       }
       return null;
     }
@@ -121,19 +125,36 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void responseReceived(
         @Advice.Argument(0) final NHttpClientConnection connection,
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
-      DECORATE.onResponse(span, connection.getHttpResponse());
+      final AgentSpan span = spanFromContext(scope.context());
+      final HttpResponse httpResponse = connection.getHttpResponse();
+      boolean isFinal = false;
+      if (httpResponse != null && httpResponse.getStatusLine() != null) {
+        int statusCode = httpResponse.getStatusLine().getStatusCode();
+        // 1xx (e.g. 100 Continue) - not final response
+        isFinal = statusCode >= 200;
+      }
+
+      if (isFinal) {
+        DECORATE.onResponse(span, httpResponse);
+      }
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+      if ((isFinal || error != null)
+          && connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY) != null) {
+        DECORATE.beforeFinish(scope.context());
+        scope.close();
+        if (span != null) {
+          span.finish();
+        }
+      } else {
+        scope.close();
+      }
     }
   }
 
@@ -142,16 +163,19 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     public static void errorResponse(
         @Advice.Argument(0) final NHttpClientConnection connection,
         @Advice.Argument(value = 1, optional = true) final Object error) {
-      // check and remove span from context so it won't be finished twice
-      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
+      // check and remove context so it won't be finished twice
+      Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      AgentSpan span = spanFromContext(context);
       if (null != span) {
         if (error instanceof Throwable) {
           DECORATE.onError(span, (Throwable) error);
         } else {
           span.setError(true);
         }
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(context);
         span.finish();
+      } else {
+        DECORATE.beforeFinish(context);
       }
     }
   }

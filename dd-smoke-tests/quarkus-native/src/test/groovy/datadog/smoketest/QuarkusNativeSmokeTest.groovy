@@ -1,6 +1,6 @@
 package datadog.smoketest
 
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import okhttp3.Request
 import spock.lang.Shared
 
@@ -21,8 +21,13 @@ abstract class QuarkusNativeSmokeTest extends AbstractServerSmokeTest {
       "-Ddd.app.customlogmanager=true",
       "-Dquarkus.http.port=${httpPort}"
     ])
+    command.addAll(additionalArguments())
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
+  }
+
+  protected List<String> additionalArguments() {
+    return Collections.emptyList()
   }
 
   @Override

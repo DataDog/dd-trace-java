@@ -26,6 +26,8 @@ public final class TracerConfig {
   public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
   public static final String AGENT_NAMED_PIPE = "trace.pipe.name";
   public static final String AGENT_TIMEOUT = "trace.agent.timeout";
+  public static final String FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT =
+      "force.clear.text.http.for.intake.client";
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String TRACE_AGENT_PATH = "trace.agent.path";
   public static final String TRACE_AGENT_ARGS = "trace.agent.args";
@@ -45,6 +47,7 @@ public final class TracerConfig {
 
   @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+
   // JSON rules
   public static final String TRACE_SAMPLING_RULES = "trace.sampling.rules";
   public static final String SPAN_SAMPLING_RULES = "span.sampling.rules";
@@ -161,6 +164,7 @@ public final class TracerConfig {
       "trace.cloud.payload.tagging.max-depth";
   public static final String TRACE_CLOUD_PAYLOAD_TAGGING_MAX_TAGS =
       "trace.cloud.payload.tagging.max-tags";
+  public static final String TRACE_SERVICE_DISCOVERY_ENABLED = "trace.service.discovery.enabled";
 
   private TracerConfig() {}
 }

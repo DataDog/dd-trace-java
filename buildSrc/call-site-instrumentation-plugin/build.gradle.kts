@@ -1,10 +1,8 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
   java
   groovy
-  id("com.diffplug.spotless") version "6.13.0"
-  id("com.gradleup.shadow") version "8.3.6"
+  id("com.diffplug.spotless") version "8.2.1"
+  id("com.gradleup.shadow") version "8.3.9"
 }
 
 java {
@@ -19,8 +17,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    // This is the last Google Java Format version that supports Java 8
-    googleJavaFormat("1.7")
+    googleJavaFormat("1.34.1")
   }
 }
 
@@ -32,16 +29,15 @@ dependencies {
   compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
 
   implementation("org.freemarker", "freemarker", "2.3.30")
-  implementation("org.ow2.asm", "asm", "9.8")
-  implementation("org.ow2.asm", "asm-tree", "9.8")
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.asm)
+  implementation(libs.asm.tree)
+  implementation(libs.javaparser.symbol.solver)
 
-  testImplementation("net.bytebuddy", "byte-buddy", "1.17.5")
-  testImplementation(libs.spock.core)
-  testImplementation("org.objenesis", "objenesis", "3.0.1")
-  testImplementation(libs.groovy)
+  testImplementation(libs.bytebuddy)
+  testImplementation(libs.bundles.groovy)
+  testImplementation(libs.bundles.spock)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation("com.github.spotbugs", "spotbugs-annotations", "4.2.0")
+  testImplementation(libs.spotbugs.annotations)
 }
 
 sourceSets {

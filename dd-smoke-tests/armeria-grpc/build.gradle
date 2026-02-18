@@ -2,11 +2,11 @@ plugins {
   id 'com.google.protobuf' version '0.9.3'
 }
 
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
 
 sourceSets {
   main {
@@ -57,8 +57,10 @@ def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the armeria project
 tasks.register('armeriaBuild', Exec) {
   workingDir "$appDir"
-  def toolchain17 = getJavaLauncherFor(17).get()
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'", "JAVA_HOME": "$toolchain17.metadata.installationPath"]
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(17)
+  ]
   commandLine "${rootDir}/${gradlewCommand}", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }

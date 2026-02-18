@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.TagMap;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
@@ -27,12 +28,22 @@ public abstract class ImmutableSpan implements AgentSpan {
   }
 
   @Override
+  public AgentSpan setTag(String key, float value) {
+    return this;
+  }
+
+  @Override
   public AgentSpan setTag(String key, double value) {
     return this;
   }
 
   @Override
   public AgentSpan setTag(String key, String value) {
+    return this;
+  }
+
+  @Override
+  public AgentSpan setTag(TagMap.EntryReader entry) {
     return this;
   }
 
@@ -68,6 +79,11 @@ public abstract class ImmutableSpan implements AgentSpan {
 
   @Override
   public AgentSpan setMetric(CharSequence key, double value) {
+    return this;
+  }
+
+  @Override
+  public AgentSpan setMetric(TagMap.EntryReader entry) {
     return this;
   }
 

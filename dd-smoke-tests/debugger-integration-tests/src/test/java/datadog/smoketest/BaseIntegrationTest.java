@@ -46,6 +46,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -94,7 +95,7 @@ public abstract class BaseIntegrationTest {
   public static final String APM_TRACING_PRODUCT = "APM_TRACING";
 
   protected MockWebServer datadogAgentServer;
-  private MockDispatcher probeMockDispatcher;
+  protected MockDispatcher probeMockDispatcher;
   private StatsDServer statsDServer;
   private HttpUrl probeUrl;
   private HttpUrl snapshotUrl;
@@ -118,6 +119,7 @@ public abstract class BaseIntegrationTest {
 
   @BeforeEach
   void setup(TestInfo testInfo) throws Exception {
+    LOG.info("===== Starting {} ====", testInfo.getDisplayName());
     datadogAgentServer = new MockWebServer();
     probeMockDispatcher = new MockDispatcher();
     probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
@@ -132,13 +134,14 @@ public abstract class BaseIntegrationTest {
   }
 
   @AfterEach
-  void teardown() throws Exception {
+  void teardown(TestInfo testInfo) throws Exception {
     if (targetProcess != null) {
       targetProcess.destroyForcibly();
     }
     datadogAgentServer.shutdown();
     statsDServer.close();
     ProbeRateLimiter.resetAll();
+    LOG.info("===== Ending {} ====", testInfo.getDisplayName());
   }
 
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
@@ -171,7 +174,7 @@ public abstract class BaseIntegrationTest {
             // flush uploads every 100ms to have quick tests
             "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
             // increase timeout for serialization
-            "-Ddd.dynamic.instrumentation.capture.timeout=200"));
+            "-Ddd.dynamic.instrumentation.capture.timeout=30000"));
   }
 
   protected enum RequestType {
@@ -347,14 +350,15 @@ public abstract class BaseIntegrationTest {
     return result;
   }
 
-  protected void processRequests(BooleanSupplier conditionOfDone) throws InterruptedException {
+  protected void processRequests(BooleanSupplier conditionOfDone, Supplier<String> timeoutMessage)
+      throws InterruptedException {
     long start = System.currentTimeMillis();
     try {
       RecordedRequest request;
       do {
         request = datadogAgentServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
         if (request == null) {
-          throw new RuntimeException("timeout!");
+          throw new RuntimeException(timeoutMessage.get());
         }
         LOG.info("processRequests path={}", request.getPath());
         for (RequestType requestType : RequestType.values()) {
@@ -364,7 +368,7 @@ public abstract class BaseIntegrationTest {
           }
         }
       } while (request != null && (System.currentTimeMillis() - start < 30_000));
-      throw new RuntimeException("timeout!");
+      throw new RuntimeException(timeoutMessage.get());
     } finally {
       probeStatusListeners.clear();
     }
@@ -406,7 +410,7 @@ public abstract class BaseIntegrationTest {
     return statsDServer.waitForMessage(str);
   }
 
-  private MockResponse datadogAgentDispatch(RecordedRequest request) {
+  protected MockResponse datadogAgentDispatch(RecordedRequest request) {
     LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
       return AGENT_INFO_RESPONSE;
@@ -587,7 +591,7 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
+  protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
     private Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override

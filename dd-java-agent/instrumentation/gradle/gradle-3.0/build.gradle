@@ -9,7 +9,3 @@ repositories {
 dependencies {
   compileOnly gradleApi()
 }
-
-forbiddenApisMain {
-  failOnMissingClasses = false
-}

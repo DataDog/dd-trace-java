@@ -3,9 +3,14 @@ package datadog.trace.civisibility.execution;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Retries a test case if it failed, up to a maximum number of times. */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification =
+        "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class RetryUntilSuccessful implements TestExecutionPolicy {
 
   private final int maxExecutions;
@@ -34,12 +39,20 @@ public class RetryUntilSuccessful implements TestExecutionPolicy {
 
     boolean lastExecution = !retriesLeft();
     boolean retry = executions > 1; // first execution is not a retry
+    boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
+    TestStatus finalStatus = null;
+    if (lastExecution) {
+      // final status is always the last status reported (or pass if a failure is suppressed)
+      finalStatus = failureSuppressed ? TestStatus.pass : status;
+    }
+
     return new ExecutionOutcomeImpl(
-        status == TestStatus.fail && (!lastExecution || suppressFailures),
+        failureSuppressed,
         lastExecution,
         lastExecution && !successfulExecutionSeen,
         false,
-        retry ? RetryReason.atr : null);
+        retry ? RetryReason.atr : null,
+        finalStatus);
   }
 
   private boolean retriesLeft() {

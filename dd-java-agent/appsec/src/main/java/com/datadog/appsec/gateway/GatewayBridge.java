@@ -8,7 +8,6 @@ import static com.datadog.appsec.gateway.AppSecRequestContext.DEFAULT_REQUEST_HE
 import static com.datadog.appsec.gateway.AppSecRequestContext.REQUEST_HEADERS_ALLOW_LIST;
 import static com.datadog.appsec.gateway.AppSecRequestContext.RESPONSE_HEADERS_ALLOW_LIST;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SAMPLING_PRIORITY;
 
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.api.security.ApiSecurityDownstreamSampler;
@@ -59,6 +58,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -359,7 +359,7 @@ public class GatewayBridge {
         new MapDataBundle.Builder(CAPACITY_3_4)
             .add(KnownAddresses.IO_NET_URL, request.getUrl())
             .add(KnownAddresses.IO_NET_REQUEST_METHOD, request.getMethod())
-            .add(KnownAddresses.IO_NET_REQUEST_HEADERS, request.getHeaders());
+            .add(KnownAddresses.IO_NET_REQUEST_HEADERS, toLowerCaseHeaders(request.getHeaders()));
 
     if (downstreamSampler().isSampled(ctx, request.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, request);
@@ -382,7 +382,7 @@ public class GatewayBridge {
       }
       try {
         final boolean raspActive = Config.get().isAppSecRaspEnabled();
-        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF : null);
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_REQUEST : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientRequestSubInfo = null;
@@ -399,7 +399,7 @@ public class GatewayBridge {
     final MapDataBundle.Builder bundleBuilder =
         new MapDataBundle.Builder(CAPACITY_3_4)
             .add(KnownAddresses.IO_NET_RESPONSE_STATUS, Integer.toString(response.getStatus()))
-            .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, response.getHeaders());
+            .add(KnownAddresses.IO_NET_RESPONSE_HEADERS, toLowerCaseHeaders(response.getHeaders()));
     // ignore the response if not sampled
     if (downstreamSampler().isSampled(ctx, response.getRequestId())) {
       final Object body = parseHttpClientBody(ctx, response);
@@ -421,12 +421,26 @@ public class GatewayBridge {
         httpClientResponseSubInfo = subInfo;
       }
       try {
-        GatewayContext gwCtx = new GatewayContext(true);
+        final boolean raspActive = Config.get().isAppSecRaspEnabled();
+        GatewayContext gwCtx = new GatewayContext(true, raspActive ? RuleType.SSRF_RESPONSE : null);
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         httpClientResponseSubInfo = null;
       }
     }
+  }
+
+  private Map<String, List<String>> toLowerCaseHeaders(final Map<String, List<String>> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return headers;
+    }
+    final Map<String, List<String>> result = new HashMap<>(headers.size());
+    for (final Map.Entry<String, List<String>> entry : headers.entrySet()) {
+      final String key = entry.getKey();
+      final List<String> value = entry.getValue();
+      result.put(key == null ? null : key.toLowerCase(Locale.ROOT), value);
+    }
+    return result;
   }
 
   private Object parseHttpClientBody(
@@ -863,10 +877,11 @@ public class GatewayBridge {
 
       // If detected any events - mark span at appsec.event
       if (!collectedEvents.isEmpty()) {
-        // Set asm keep in case that root span was not available when events are detected
-        traceSeg.setTagTop(Tags.ASM_KEEP, true);
-        traceSeg.setTagTop(SAMPLING_PRIORITY, ctx.getKeepType());
-        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        if (ctx.isManuallyKept()) {
+          // Set asm keep in case that root span was not available when events are detected
+          traceSeg.setTagTop(Tags.ASM_KEEP, true);
+          traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+        }
         traceSeg.setTagTop("appsec.event", true);
         traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
 
@@ -934,10 +949,15 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag.
+    // API Security sampling requires http.route tag or http.url for endpoint inference.
     final Object route = tags.get(Tags.HTTP_ROUTE);
     if (route != null) {
       ctx.setRoute(route.toString());
+    }
+    // Pass http.url to enable endpoint inference when route is absent
+    final Object url = tags.get(Tags.HTTP_URL);
+    if (url != null) {
+      ctx.setHttpUrl(url.toString());
     }
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);

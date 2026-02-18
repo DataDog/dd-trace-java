@@ -11,6 +11,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -68,8 +70,25 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return true;
   }
 
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
+
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+              request,
+              DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
@@ -104,10 +123,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
+      } catch (final BlockingException e) {
+        throw e;
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
+      } finally {
+        ssrfIastCheck(request);
       }
-      ssrfIastCheck(request);
     }
     return span;
   }
@@ -207,11 +229,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(
-            ctx.getTraceSegment(),
-            rba.getStatusCode(),
-            rba.getBlockingContentType(),
-            rba.getExtraHeaders());
+        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
       }
       throw new BlockingException("Blocked request (for SSRF attempt)");
     }

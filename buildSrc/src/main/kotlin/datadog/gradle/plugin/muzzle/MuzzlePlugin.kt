@@ -3,16 +3,16 @@ package datadog.gradle.plugin.muzzle
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.inverseOf
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts
 import datadog.gradle.plugin.muzzle.MuzzleMavenRepoUtils.resolveVersionRange
-import datadog.gradle.plugin.muzzle.MuzzleReportUtils.dumpVersionRanges
-import datadog.gradle.plugin.muzzle.MuzzleReportUtils.mergeReports
+import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.plugins.JavaBasePlugin
-import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.exclude
@@ -70,53 +70,42 @@ class MuzzlePlugin : Plugin<Project> {
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
-    @Suppress("UNCHECKED_CAST")
     val compileMuzzle = project.tasks.register("compileMuzzle") {
-      dependsOn(project.tasks.withType(Class.forName("InstrumentTask") as Class<Task>)) // kotlin can't see groovy code
+      inputs.files(project.providers.provider { project.allMainSourceSet })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
       dependsOn(toolingProject.tasks.named("compileJava"))
     }
 
     val muzzleTask = project.tasks.register<MuzzleTask>("muzzle") {
-      description = "Run instrumentation muzzle on compile time dependencies"
-      doLast {
-        if (!project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
-          project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
-          assertMuzzle(muzzleBootstrap, muzzleTooling, project)
+      this.muzzleBootstrap.set(muzzleBootstrap)
+      this.muzzleTooling.set(muzzleTooling)
+      dependsOn(compileMuzzle)
+    }
+
+    project.tasks.register<MuzzleGetReferencesTask>("printReferences") {
+      dependsOn(compileMuzzle)
+    }.also {
+      val printReferencesTask = project.tasks.register("actuallyPrintReferences") {
+        doLast {
+          println(it.get().outputFile.get().asFile.readText())
         }
       }
+      it.configure { finalizedBy(printReferencesTask) }
+    }
+
+    project.tasks.register<MuzzleGenerateReportTask>("generateMuzzleReport") {
       dependsOn(compileMuzzle)
     }
 
-    project.tasks.register<MuzzleTask>("printReferences") {
-      description = "Print references created by instrumentation muzzle"
-      doLast {
-        printMuzzle(project)
-      }
-      dependsOn(compileMuzzle)
-    }
-
-    project.tasks.register<MuzzleTask>("generateMuzzleReport") {
-      description = "Print instrumentation version report"
-      doLast {
-        dumpVersionRanges(project)
-      }
-      dependsOn(compileMuzzle)
-    }
-
-    project.tasks.register<MuzzleTask>("mergeMuzzleReports") {
-      description = "Merge generated version reports in one unique csv"
-      doLast {
-        mergeReports(project)
-      }
-    }
+    project.tasks.register<MuzzleMergeReportsTask>("mergeMuzzleReports")
 
     val hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present
       val muzzleTaskName = taskName.removePrefix(":")
       val projectPath = project.path.removePrefix(":")
-      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName
+      muzzleTaskName == "muzzle" || "$projectPath:muzzle" == muzzleTaskName ||
+          muzzleTaskName == "runMuzzle"
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
@@ -131,17 +120,20 @@ class MuzzlePlugin : Plugin<Project> {
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
+      val muzzleReportTasks = mutableListOf<TaskProvider<MuzzleTask>>()
 
       project.extensions.getByType<MuzzleExtension>().directives.forEach { directive ->
-        project.logger.debug("configuring $directive")
+        project.logger.debug("configuring {}", directive)
 
         if (directive.isCoreJdk) {
           runAfter = addMuzzleTask(directive, null, project, runAfter, muzzleBootstrap, muzzleTooling)
+          muzzleReportTasks.add(runAfter)
         } else {
           val range = resolveVersionRange(directive, system, session)
 
           muzzleDirectiveToArtifacts(directive, range).forEach {
             runAfter = addMuzzleTask(directive, it, project, runAfter, muzzleBootstrap, muzzleTooling)
+            muzzleReportTasks.add(runAfter)
           }
 
           if (directive.assertInverse) {
@@ -150,6 +142,7 @@ class MuzzlePlugin : Plugin<Project> {
 
               muzzleDirectiveToArtifacts(inverseDirective, inverseRange).forEach {
                 runAfter = addMuzzleTask(inverseDirective, it, project, runAfter, muzzleBootstrap, muzzleTooling)
+                muzzleReportTasks.add(runAfter)
               }
             }
           }
@@ -157,11 +150,13 @@ class MuzzlePlugin : Plugin<Project> {
         project.logger.info("configured $directive")
       }
 
-      val timingTask = project.tasks.register("muzzle-end") {
-        doLast {
-          val endTime = System.currentTimeMillis()
-          MuzzleReportUtils.generateResultsXML(project, endTime - startTime)
-        }
+      if (muzzleReportTasks.isEmpty() && !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass }) {
+        muzzleReportTasks.add(muzzleTask)
+      }
+
+      val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
+        startTimeMs.set(startTime)
+        muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
       }
       // last muzzle task to run
       runAfter.configure {
@@ -252,9 +247,9 @@ class MuzzlePlugin : Plugin<Project> {
       }
 
       val muzzleTask = instrumentationProject.tasks.register<MuzzleTask>(muzzleTaskName) {
-        doLast {
-          assertMuzzle(muzzleBootstrap, muzzleTooling, instrumentationProject, muzzleDirective)
-        }
+        this.muzzleDirective.set(muzzleDirective)
+        this.muzzleBootstrap.set(muzzleBootstrap)
+        this.muzzleTooling.set(muzzleTooling)
       }
 
       runAfterTask.configure {

@@ -1,9 +1,12 @@
-// Set properties before any plugins get loaded
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+apply from: "$rootDir/gradle/java.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
 }
 
-apply from: "$rootDir/gradle/java.gradle"
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
 
 muzzle {
   pass {
@@ -22,12 +25,6 @@ configurations {
   testArtifacts
 }
 
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(11))
-  }
-}
-
 // Create test artifacts so vertx-rx can reuse the server test instrumentation and base class
 artifacts {
   testArtifacts testJar
@@ -43,18 +40,23 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0')
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: vertxVersion
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: vertxVersion
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '+'
 }
+
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+}
+

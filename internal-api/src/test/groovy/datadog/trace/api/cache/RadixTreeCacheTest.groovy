@@ -4,7 +4,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.ThreadLocalRandom
 
-import static datadog.trace.ThreadUtils.runConcurrently
+import static datadog.trace.test.util.ThreadUtils.runConcurrently
 
 class RadixTreeCacheTest extends DDSpecification {
 
@@ -116,13 +116,6 @@ class RadixTreeCacheTest extends DDSpecification {
       int value = ThreadLocalRandom.current().nextInt(70_000)
       assert cache.get(value) == String.valueOf(value)
     })
-  }
-
-  def "cache ports"() {
-    expect:
-    Integer.valueOf(port) == RadixTreeCache.PORTS.get(port)
-    where:
-    port << [0, 80, 443, 4444, 8080, 65535]
   }
 
   def "cache HTTP statuses"() {

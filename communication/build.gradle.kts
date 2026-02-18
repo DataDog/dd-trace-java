@@ -13,13 +13,16 @@ dependencies {
   implementation(project(":remote-config:remote-config-core"))
   implementation(project(":internal-api"))
   implementation(project(":utils:container-utils"))
+  implementation(project(":utils:filesystem-utils"))
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))
 
   api(libs.okio)
   api(libs.okhttp)
   api(libs.moshi)
-  implementation(libs.dogstatsd)
+  // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
+  // TODO Could help decoupling it later to only depend on metrics-api
+  implementation(project(":products:metrics:metrics-lib"))
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
@@ -48,9 +51,6 @@ val excludedClassesCoverage by extra(
     "datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody",
     "datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator",
     "datadog.communication.http.OkHttpUtils.JsonRequestBody",
-    "datadog.communication.monitor.DDAgentStatsDConnection",
-    "datadog.communication.monitor.DDAgentStatsDConnection.*",
-    "datadog.communication.monitor.LoggingStatsDClient",
     "datadog.communication.BackendApiFactory",
     "datadog.communication.BackendApiFactory.Intake",
     "datadog.communication.EvpProxyApi",

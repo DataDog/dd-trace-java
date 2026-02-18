@@ -33,11 +33,12 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.NexusAccessor;
 import net.bytebuddy.dynamic.VisibilityBridgeStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.MethodGraph;
@@ -54,7 +55,7 @@ public class AgentInstaller {
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
 
   static {
-    addByteBuddyRawSetting();
+    enableByteBuddyRawTypes();
     disableByteBuddyNexus();
     // register weak map supplier as early as possible
     WeakMaps.registerAsSupplier();
@@ -181,7 +182,8 @@ public class AgentInstaller {
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
 
     // combine known modules indexed at build-time with extensions contributed at run-time
-    Iterable<InstrumenterModule> instrumenterModules = withExtensions(instrumenterIndex.modules());
+    Iterable<InstrumenterModule> instrumenterModules =
+        withExtensions(instrumenterIndex.modules(enabledSystems));
 
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
@@ -199,7 +201,7 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex);
+        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
@@ -294,7 +296,7 @@ public class AgentInstaller {
 
   public static Set<InstrumenterModule.TargetSystem> getEnabledSystems() {
     EnumSet<InstrumenterModule.TargetSystem> enabledSystems =
-        EnumSet.noneOf(InstrumenterModule.TargetSystem.class);
+        EnumSet.of(InstrumenterModule.TargetSystem.CONTEXT_TRACKING);
     InstrumenterConfig cfg = InstrumenterConfig.get();
     if (cfg.isTraceEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.TRACING);
@@ -308,6 +310,9 @@ public class AgentInstaller {
     if (cfg.getIastActivation() != ProductActivation.FULLY_DISABLED) {
       enabledSystems.add(InstrumenterModule.TargetSystem.IAST);
     }
+    if (cfg.isRaspEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.RASP);
+    }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.CIVISIBILITY);
     }
@@ -320,25 +325,37 @@ public class AgentInstaller {
     return enabledSystems;
   }
 
-  private static void addByteBuddyRawSetting() {
-    final String savedPropertyValue = SystemProperties.get(TypeDefinition.RAW_TYPES_PROPERTY);
-    final boolean overridden = SystemProperties.set(TypeDefinition.RAW_TYPES_PROPERTY, "true");
-    final boolean rawTypes = TypeDescription.AbstractBase.RAW_TYPES;
-    if (!rawTypes && DEBUG) {
-      log.debug("Too late to enable {}", TypeDefinition.RAW_TYPES_PROPERTY);
-    }
-    if (overridden) {
-      if (savedPropertyValue == null) {
-        SystemProperties.clear(TypeDefinition.RAW_TYPES_PROPERTY);
-      } else {
-        SystemProperties.set(TypeDefinition.RAW_TYPES_PROPERTY, savedPropertyValue);
-      }
-    }
+  private static void enableByteBuddyRawTypes() {
+    temporaryOverride("net.bytebuddy.raw", "true", AgentInstaller::rawTypesEnabled);
+  }
+
+  private static boolean rawTypesEnabled() {
+    return TypeDescription.AbstractBase.RAW_TYPES; // must avoid touching this before the override
   }
 
   private static void disableByteBuddyNexus() {
     // disable byte-buddy's Nexus mechanism (we don't need it, and it triggers use of Unsafe)
-    SystemProperties.set("net.bytebuddy.nexus.disabled", "true");
+    temporaryOverride("net.bytebuddy.nexus.disabled", "true", AgentInstaller::nexusDisabled);
+  }
+
+  private static boolean nexusDisabled() {
+    return !NexusAccessor.isAlive(); // must avoid touching this before the override
+  }
+
+  /** Temporarily overrides a system property while checking it's had the intended side effect. */
+  private static void temporaryOverride(String key, String value, BooleanSupplier sideEffect) {
+    final String savedPropertyValue = SystemProperties.get(key);
+    final boolean overridden = SystemProperties.set(key, value);
+    if (!sideEffect.getAsBoolean() && DEBUG) {
+      log.debug("Too late to apply {}={}", key, value);
+    }
+    if (overridden) {
+      if (savedPropertyValue == null) {
+        SystemProperties.clear(key);
+      } else {
+        SystemProperties.set(key, savedPropertyValue);
+      }
+    }
   }
 
   private static AgentBuilder.RedefinitionStrategy.Listener redefinitionStrategyListener(

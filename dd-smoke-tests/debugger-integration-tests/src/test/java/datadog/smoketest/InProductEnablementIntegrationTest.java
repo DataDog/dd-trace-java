@@ -1,13 +1,17 @@
 package datadog.smoketest;
 
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@NonRetryable
 public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegrationTest {
   private List<String> additionalJvmArgs = new ArrayList<>();
 
@@ -46,7 +50,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 312)
+            .where("ServerDebuggerTestApplication.java", 327)
             .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
@@ -88,6 +92,30 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForReTransformation(appUrl); // wait for retransformation of removed probes
   }
 
+  // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
+  // TODO by not providing endpoints
+
+  @Test
+  @DisplayName("testExceptionReplayEnablementFailure")
+  void testExceptionReplayEnablementFailure() throws Exception {
+    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=false"); // enabled by default
+    additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
+    additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+    this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
+    appUrl = startAppAndAndGetUrl();
+    waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
+  }
+
+  private MockResponse noEndpointDispatch(RecordedRequest request) {
+    if (request.getPath().equals("/info")) {
+      // no debugger endpoints
+      String info =
+          "{\"endpoints\": [\"" + TRACE_URL_PATH + "\", \"" + LOG_UPLOAD_URL_PATH + "\"]}";
+      return new MockResponse().setResponseCode(200).setBody(info);
+    }
+    return datadogAgentDispatch(request);
+  }
+
   private void waitForFeatureStarted(String appUrl, String feature) throws IOException {
     String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Started " + feature;
     waitForSpecificLine(appUrl, line);
@@ -98,11 +126,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     String line = "INFO com.datadog.debugger.agent.DebuggerAgent - Stopping " + feature;
     waitForSpecificLine(appUrl, line);
     LOG.info("feature {} stopped", feature);
-  }
-
-  private void waitForSpecificLine(String appUrl, String line) throws IOException {
-    String url = String.format(appUrl + "/waitForSpecificLine?line=%s", line);
-    sendRequest(url);
   }
 
   private static ConfigOverrides createConfigOverrides(

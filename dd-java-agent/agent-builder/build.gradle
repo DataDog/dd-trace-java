@@ -20,9 +20,7 @@ sourceSets {
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  setJavaVersion(it, 11)
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
 
 dependencies {
@@ -33,10 +31,6 @@ dependencies {
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
-}
-
-tasks.named("forbiddenApisMain_java11") {
-  failOnMissingClasses = false
 }
 
 idea {

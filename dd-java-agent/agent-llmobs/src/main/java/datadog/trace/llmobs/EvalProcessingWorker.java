@@ -6,6 +6,8 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
@@ -20,7 +22,6 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ public class EvalProcessingWorker implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(EvalProcessingWorker.class);
 
-  private final MpscBlockingConsumerArrayQueue<LLMObsEval> queue;
+  private final MessagePassingBlockingQueue<LLMObsEval> queue;
   private final Thread serializerThread;
 
   public EvalProcessingWorker(
@@ -43,7 +44,7 @@ public class EvalProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       Config config) {
-    this.queue = new MpscBlockingConsumerArrayQueue<>(capacity);
+    this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
 
     boolean isAgentless = config.isLlmObsAgentlessEnabled();
     if (isAgentless && (config.getApiKey() == null || config.getApiKey().isEmpty())) {
@@ -98,7 +99,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(EvalSerializingHandler.class);
     private static final int FLUSH_THRESHOLD = 50;
 
-    private final MpscBlockingConsumerArrayQueue<LLMObsEval> queue;
+    private final MessagePassingBlockingQueue<LLMObsEval> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
@@ -111,7 +112,7 @@ public class EvalProcessingWorker implements AutoCloseable {
     private final List<LLMObsEval> buffer = new ArrayList<>();
 
     public EvalSerializingHandler(
-        final MpscBlockingConsumerArrayQueue<LLMObsEval> queue,
+        final MessagePassingBlockingQueue<LLMObsEval> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,
@@ -138,14 +139,18 @@ public class EvalProcessingWorker implements AutoCloseable {
         Thread.currentThread().interrupt();
       }
       log.debug(
-          "eval processor worker exited. submitting evals stopped. unsubmitted evals left: "
-              + !queuesAreEmpty());
+          "eval processor worker exited. submitting evals stopped. unsubmitted evals left: {}",
+          !queuesAreEmpty());
     }
 
     private void runDutyCycle() throws InterruptedException {
       Thread thread = Thread.currentThread();
       while (!thread.isInterrupted()) {
-        consumeBatch();
+        LLMObsEval eval = queue.poll(100, TimeUnit.MILLISECONDS);
+        if (eval != null) {
+          buffer.add(eval);
+          consumeBatch();
+        }
         flushIfNecessary();
       }
     }

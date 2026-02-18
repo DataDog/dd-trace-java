@@ -18,14 +18,14 @@ import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 
 class OkHttpSinkTest extends DDSpecification {
 
   def "http status code #responseCode yields #eventType"() {
     setup:
     String agentUrl = "http://localhost:8126"
-    String path = V6_METRICS_ENDPOINT
+    String path = V06_METRICS_ENDPOINT
     EventListener listener = Mock(EventListener)
     OkHttpClient client = Mock(OkHttpClient)
     OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true, false, Collections.emptyMap())
@@ -58,7 +58,7 @@ class OkHttpSinkTest extends DDSpecification {
     // them if it's possible not to.
     setup:
     String agentUrl = "http://localhost:8126"
-    String path = V6_METRICS_ENDPOINT
+    String path = V06_METRICS_ENDPOINT
     CountDownLatch latch = new CountDownLatch(2)
     EventListener listener = new BlockingListener(latch)
     OkHttpClient client = Mock(OkHttpClient)
@@ -130,5 +130,4 @@ class OkHttpSinkTest extends DDSpecification {
       latch.countDown()
     }
   }
-
 }

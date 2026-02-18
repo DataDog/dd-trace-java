@@ -1,6 +1,3 @@
-ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
-}
 muzzle {
   pass {
     group = "org.eclipse.jetty"
@@ -23,14 +20,18 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('jetty11Test', 'test')
 addTestSuiteForDir('jetty10LatestDepTest', 'test')
-compileMain_java11Java.configure {
-  it.sourceCompatibility = JavaVersion.VERSION_1_8
-  it.targetCompatibility = JavaVersion.VERSION_1_8
-  setJavaVersion(it, 11)
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
 }
+
 dependencies {
   main_java11CompileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '10.0.0'
   main_java11Implementation(project(':dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-common')) {

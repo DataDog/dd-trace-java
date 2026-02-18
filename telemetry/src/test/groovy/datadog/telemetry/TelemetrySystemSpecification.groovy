@@ -2,7 +2,7 @@ package datadog.telemetry
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.telemetry.dependency.DependencyService
 import datadog.telemetry.dependency.LocationsCollectingTransformer
 import datadog.trace.api.config.GeneralConfig
@@ -64,7 +64,7 @@ class TelemetrySystemSpecification extends DDSpecification {
 
   private SharedCommunicationObjects sharedCommunicationObjects() {
     new SharedCommunicationObjects(
-      okHttpClient: Mock(OkHttpClient),
+      agentHttpClient: Mock(OkHttpClient),
       monitoring: Mock(Monitoring),
       agentUrl: HttpUrl.get('https://example.com'),
       featuresDiscovery: Mock(DDAgentFeaturesDiscovery)

@@ -278,6 +278,44 @@ public class DefaultExceptionDebuggerTest {
     verify(manager, times(0)).isAlreadyInstrumented(any());
   }
 
+  @Test
+  public void lambdaTruncatedInnerTraceFallback() {
+    RuntimeException exception =
+        new RuntimeException("lambda") {
+          // mock the stacktrace to simulate a truncated one
+          @Override
+          public StackTraceElement[] getStackTrace() {
+            return new StackTraceElement[] {
+              new StackTraceElement("Main", "handleRequest", "Main.java", 11),
+              new StackTraceElement(
+                  "jdk.internal.reflect.DirectMethodHandleAccessor",
+                  "invoke",
+                  "Unknown Source",
+                  -1),
+              new StackTraceElement("java.lang.reflect.Method", "invoke", "Unknown Source", -1)
+            };
+          }
+        };
+    String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
+    AgentSpan span = mock(AgentSpan.class);
+    doAnswer(this::recordTags).when(span).setTag(anyString(), anyString());
+    when(span.getTag(anyString())).thenAnswer(inv -> spanTags.get(inv.getArgument(0)));
+    when(span.getTags()).thenReturn(spanTags);
+    exceptionDebugger.handleException(exception, span);
+    assertWithTimeout(
+        () -> exceptionDebugger.getExceptionProbeManager().isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
+    generateSnapshots(exception);
+    ExceptionProbeManager.ThrowableState state =
+        exceptionDebugger.getExceptionProbeManager().getStateByThrowable(exception);
+    List<Snapshot> snapshots = state.getSnapshots();
+    // This should hit the `currentIdx < 0` branch and fallback to i=0
+    exceptionDebugger.handleException(exception, span);
+    String tagName = String.format(SNAPSHOT_ID_TAG_FMT, 0);
+    assertTrue(spanTags.containsKey(tagName));
+    assertEquals(snapshots.get(0).getId(), spanTags.get(tagName));
+  }
+
   private Object recordTags(InvocationOnMock invocationOnMock) {
     Object[] args = invocationOnMock.getArguments();
     String key = (String) args[0];
@@ -368,11 +406,7 @@ public class DefaultExceptionDebuggerTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addThrowable(exception);
     capturedContext.evaluate(
-        exceptionProbe.getProbeId().getEncodedId(),
-        exceptionProbe,
-        "",
-        System.currentTimeMillis(),
-        MethodLocation.EXIT);
+        exceptionProbe, "", System.currentTimeMillis(), MethodLocation.EXIT, false);
     exceptionProbe.commit(CapturedContext.EMPTY_CAPTURING_CONTEXT, capturedContext, emptyList());
   }
 

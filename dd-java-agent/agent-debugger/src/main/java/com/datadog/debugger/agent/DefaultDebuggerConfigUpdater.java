@@ -1,10 +1,13 @@
 package com.datadog.debugger.agent;
 
+import static datadog.trace.api.Config.isExplicitlyDisabled;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.debugger.DebuggerConfigUpdater;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,24 +15,34 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
 
+  private final Config config;
+
+  public DefaultDebuggerConfigUpdater(Config config) {
+    this.config = config;
+  }
+
   @Override
   public void updateConfig(DebuggerConfigUpdate update) {
     startOrStopFeature(
+        config,
         DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED,
         update.getDynamicInstrumentationEnabled(),
         DebuggerAgent::startDynamicInstrumentation,
         DebuggerAgent::stopDynamicInstrumentation);
     startOrStopFeature(
+        config,
         DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
         update.getExceptionReplayEnabled(),
         DebuggerAgent::startExceptionReplay,
         DebuggerAgent::stopExceptionReplay);
     startOrStopFeature(
+        config,
         TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,
         update.getCodeOriginEnabled(),
         DebuggerAgent::startCodeOriginForSpans,
         DebuggerAgent::stopCodeOriginForSpans);
     startOrStopFeature(
+        config,
         DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED,
         update.getDistributedDebuggerEnabled(),
         DebuggerAgent::startDistributedDebugger,
@@ -56,20 +69,19 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
     return DebuggerAgent.distributedDebuggerEnabled.get();
   }
 
-  private static boolean isExplicitlyDisabled(String booleanKey) {
-    return Config.get().configProvider().isSet(booleanKey)
-        && !Config.get().configProvider().getBoolean(booleanKey);
-  }
-
   private static void startOrStopFeature(
-      String booleanKey, Boolean currentStatus, Runnable start, Runnable stop) {
+      Config config,
+      String booleanKey,
+      Boolean currentStatus,
+      Consumer<Config> start,
+      Runnable stop) {
     if (isExplicitlyDisabled(booleanKey)) {
       LOGGER.debug("Feature {} is explicitly disabled", booleanKey);
       return;
     }
     if (currentStatus != null) {
       if (currentStatus) {
-        start.run();
+        start.accept(config);
       } else {
         stop.run();
       }

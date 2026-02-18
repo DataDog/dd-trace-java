@@ -1,5 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 import java.util.concurrent.atomic.AtomicBoolean
 
 plugins {
@@ -17,24 +16,43 @@ configurations {
   traceShadowInclude
 }
 
-// The special pre-check should be compiled with Java 6 to detect unsupported Java versions
-// and prevent issues for users that still using them.
+def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
+def includedJarFileTree = fileTree(includedAgentDir)
+
+tasks.named("processResources") {
+  dependsOn(includedJarFileTree)
+}
+
 sourceSets {
+  // The special pre-check must be compiled with Java 6 to detect unsupported
+  // Java versions and prevent issues for users that still using them.
   "main_java6" {
     java.srcDirs "${project.projectDir}/src/main/java6"
   }
+  // Additional checks that use the Java 11 API.
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+  main.resources.srcDir(includedAgentDir)
 }
 
-compileMain_java6Java.configure {
-  setJavaVersion(it, 8)
-  sourceCompatibility = JavaVersion.VERSION_1_6
-  targetCompatibility = JavaVersion.VERSION_1_6
+def java6CompileTask = tasks.named("compileMain_java6Java") {
+  configureCompiler(it, 8, JavaVersion.VERSION_1_6)
 }
 
-tasks.compileJava.dependsOn compileMain_java6Java
+def java11CompileTask = tasks.named("compileMain_java11Java") {
+  configureCompiler(it, 11)
+}
+
+tasks.named("compileJava") {
+  dependsOn(java6CompileTask)
+  dependsOn(java11CompileTask)
+}
 
 dependencies {
-  main_java6CompileOnly 'de.thetaphi:forbiddenapis:3.8'
+  implementation sourceSets.main_java11.output
+  main_java11CompileOnly libs.forbiddenapis
+  main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
 
@@ -52,9 +70,6 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 
     duplicatesStrategy = DuplicatesStrategy.FAIL
 
-    // Include AgentPreCheck compiled with Java 6.
-    from sourceSets.main_java6.output
-
     // Remove some cruft from the final jar.
     // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
     // used to report our own dependencies, but we should remove the top-level metadata
@@ -69,6 +84,10 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/liblz4-java.dylib'
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
+    exclude '**/package.html'
+
+    // Used to generate Java code during build, no need to include original file
+    exclude '**/*.trie'
 
     // Replaced by 'instrumenter.index', no need to include original service file
     exclude '**/META-INF/services/datadog.trace.agent.tooling.InstrumenterModule'
@@ -83,6 +102,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
+    // use dd-instrument-java's embedded copy of asm
+    relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
     // Minimize and relocate the airlift compressor dependency for ZSTD
     exclude '**/io/airlift/compress/bzip2/**'
@@ -93,6 +114,31 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/io/airlift/compress/lzo/**'
     exclude '**/io/airlift/compress/snappy/**'
     relocate 'io.airlift', 'datadog.io.airlift'
+
+    // Minimize JNA, removing native libraries for unsupported environments
+    exclude '**/com/sun/jna/aix-*/**'
+    exclude '**/com/sun/jna/freebsd-*/**'
+    exclude '**/com/sun/jna/linux-armel/**'
+    exclude '**/com/sun/jna/linux-mips64el/**'
+    exclude '**/com/sun/jna/linux-ppc/**'
+    exclude '**/com/sun/jna/linux-ppc64le/**'
+    exclude '**/com/sun/jna/linux-riscv64/**'
+    exclude '**/com/sun/jna/linux-s390x/**'
+    exclude '**/com/sun/jna/openbsd-*/**'
+    exclude '**/com/sun/jna/sunos-*/**'
+
+    // Minimize JFFI, removing native libraries for unsupported environments
+    exclude '**/jni/*-AIX/**'
+    exclude '**/jni/*-DragonFlyBSD/**'
+    exclude '**/jni/*-FreeBSD/**'
+    exclude '**/jni/loongarch64-Linux/**'
+    exclude '**/jni/mips64el-Linux/**'
+    exclude '**/jni/ppc64-Linux/**'
+    exclude '**/jni/ppc64le-Linux/**'
+    exclude '**/jni/s390x-Linux/**'
+    exclude '**/jni/sparcv9-Linux/**'
+    exclude '**/jni/*-OpenBSD/**'
+    exclude '**/jni/*-SunOS/**'
 
     final String projectName = "${project.name}"
 
@@ -114,10 +160,13 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
   }
 }
 
-def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String destinationDir) {
-  def opentracingFound = new AtomicBoolean()
-  project.processResources {
-    doFirst {
+def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, FileTree includedJarFileTree) {
+  def expandTask = project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Sync) {
+    it.group = LifecycleBasePlugin.BUILD_GROUP
+    it.description = "Expand the included shadow jar into the agent jar under ${agentDir}"
+
+    def opentracingFound = new AtomicBoolean()
+    it.doFirst("detect-open-tracing") {
       eachFile {
         // We seem unlikely to use this name somewhere else.
         if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
@@ -125,18 +174,18 @@ def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String desti
         }
       }
     }
-    doLast {
+    it.doLast("fail-on-detected-opentracing") {
       if (opentracingFound.get()) {
         throw new GradleException("OpenTracing direct dependency found!")
       }
     }
 
-    from(zipTree(includedShadowJarTask.map { it.archiveFile })) {
-      into destinationDir
+    it.into providers.provider { new File(includedJarFileTree.dir, agentDir) }
+    it.from(zipTree(includedShadowJarTask.map { it.archiveFile })) {
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
-      if (destinationDir == 'inst') {
+      if (agentDir == 'inst') {
         // byte-buddy now ships classes optimized for Java8+ under META-INF/versions/9
         // since we target Java8+ we can promote these classes over the pre-Java8 ones
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -147,42 +196,45 @@ def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String desti
         }
       }
     }
+
+    it.dependsOn includedShadowJarTask
   }
 
-  project.tasks.named("processResources") {
-    dependsOn includedShadowJarTask
-  }
+  includedJarFileTree.builtBy(expandTask)
 
   includedShadowJarTask.configure {
     generalShadowJarConfig(it as ShadowJar)
   }
 }
 
-def includeSubprojShadowJar(Project includedProjectJar, String destinationDir) {
+def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, FileTree includedJarFileTree) {
   evaluationDependsOn(includedProjectJar.path)
-  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), destinationDir)
+  includeShadowJar(includedProjectJar.tasks.named("shadowJar", ShadowJar), destinationDir, includedJarFileTree)
 }
 
-includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst')
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics')
-includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling')
-includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec')
-includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard')
-includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast')
-includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger')
-includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility')
-includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs')
-includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake')
-includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls')
+includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'jmxfetch', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
+// Include metrics-lib directly (metrics-agent classes stay in bootstrap via agent-bootstrap)
+includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
-  configurations = [project.configurations.sharedShadowInclude]
+  it.configurations = [project.configurations.sharedShadowInclude]
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
   it.destinationDirectory.set(project.layout.buildDirectory.dir("shared-lib"))
   // Add a classifier so we don't confuse the jar file with the normal shadow jar
-  archiveClassifier = 'shared'
+  it.archiveClassifier = 'shared'
   it.dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-java-agent:agent-logging'))
@@ -191,21 +243,30 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':components:context'))
     exclude(project(':utils:config-utils'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':products:metrics:metrics-api'))
+    exclude(project(':products:metrics:metrics-agent'))
     exclude(dependency('org.slf4j::'))
+    // use dd-instrument-java's embedded copy of asm
+    exclude(dependency('org.ow2.asm:asm:'))
   }
 }
-includeShadowJar(sharedShadowJar, 'shared')
+includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)
 
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
-  configurations = [project.configurations.traceShadowInclude]
+  it.configurations = [project.configurations.traceShadowInclude]
   it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
-  archiveClassifier = 'trace'
+  it.archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
 }
-includeShadowJar(traceShadowJar, 'trace')
+includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 
 tasks.named("shadowJar", ShadowJar) {
+  // Include AgentPreCheck compiled with Java 6.
+  from sourceSets.main_java6.output
+  // Include additional checks compiled with Java 11.
+  from sourceSets.main_java11.output
+
   generalShadowJarConfig(it)
 
   configurations = [project.configurations.shadowInclude]
@@ -223,24 +284,35 @@ tasks.named("shadowJar", ShadowJar) {
   }
 }
 
-tasks.register('generateAgentJarIndex', JavaExec) {
-  def indexName = 'dd-java-agent.index'
-  def contentDir = "${sourceSets.main.output.resourcesDir}"
-  def indexFile = "${contentDir}/${indexName}"
-
-  it.group = 'Build'
-  it.description = "Generate dd-java-agent.index"
-  it.inputs.files(fileTree(contentDir).exclude(indexName))
-  it.outputs.files(indexFile)
-  it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
-  it.classpath = project.configurations.shadowInclude
-  it.args = [contentDir]
-
-  dependsOn 'processResources'
-  dependsOn 'writeVersionNumberFile'
+// temporary config to add slf4j-simple so we get logging while indexing
+project.configurations.register('slf4j-simple') {
+  it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
 }
 
-compileJava.dependsOn 'generateAgentJarIndex'
+def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
+  def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
+
+  it.group = LifecycleBasePlugin.BUILD_GROUP
+  it.description = "Generate dd-java-agent.index"
+  it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
+
+  it.inputs.files(includedJarFileTree)
+  it.inputs.files(it.classpath)
+  it.outputs.dir(destinationDir)
+  it.classpath = objects.fileCollection().tap {
+    it.from(project.configurations.named("shadowInclude"))
+    it.from(project.configurations.named('slf4j-simple'))
+  }
+  // debuggable within gradle using:
+  // it.jvmArgs("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
+  it.argumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return [includedAgentDir.get().asFile.path, destinationDir.get().asFile.path,]
+      }
+    })
+}
+sourceSets.main.resources.srcDir(generateAgentJarIndex)
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
@@ -287,6 +359,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  shadowInclude project(path: ':products:feature-flagging:feature-flagging-bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
@@ -297,6 +370,7 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
@@ -318,6 +392,9 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':utils:socket-utils'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':utils:queue-utils'), {
     transitive = false
   }
   sharedShadowInclude project(':utils:version-utils'), {

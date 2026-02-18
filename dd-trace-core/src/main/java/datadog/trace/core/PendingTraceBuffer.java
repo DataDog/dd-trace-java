@@ -1,10 +1,13 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Comparator.comparingLong;
 
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
@@ -20,7 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.zip.ZipOutputStream;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +60,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final long SLEEP_TIME_MS = 100;
     private static final CommandElement FLUSH_ELEMENT = new CommandElement();
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
+    private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final MpscBlockingConsumerArrayQueue<Element> queue;
+    private final MessagePassingBlockingQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
 
@@ -145,6 +148,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
     private static final class DumpDrain
         implements MessagePassingQueue.Consumer<Element>, MessagePassingQueue.Supplier<Element> {
+      private static final Logger LOGGER = LoggerFactory.getLogger(DumpDrain.class);
       private static final DumpDrain DUMP_DRAIN = new DumpDrain();
       private static final int MAX_DUMPED_TRACES = 50;
 
@@ -154,7 +158,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
           element -> !(element instanceof PendingTrace);
 
       private volatile List<Element> data = new ArrayList<>();
-      private int index = 0;
+      private volatile int index = 0;
 
       @Override
       public void accept(Element pendingTrace) {
@@ -166,13 +170,21 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         if (index < data.size()) {
           return data.get(index++);
         }
-        return null; // Should never reach here or else queue may break according to
-        // MessagePassingQueue docs
+        // Should never reach here or else queue may break according to
+        // MessagePassingQueue docs if we return a null. Return a stand-in
+        // Element instead.
+        LOGGER.warn(
+            SEND_TELEMETRY,
+            "Index {} is out of bounds for data size {} in DumpDrain.get so returning filler CommandElement to prevent pending trace queue from breaking.",
+            index,
+            data.size());
+        return STAND_IN_ELEMENT;
       }
 
       public List<Element> collectTraces() {
         List<Element> traces = data;
         data = new ArrayList<>();
+        index = 0;
         traces.removeIf(NOT_PENDING_TRACE);
         // Storing oldest traces first
         traces.sort(TRACE_BY_START_TIME);
@@ -281,7 +293,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         Config config,
         SharedCommunicationObjects sharedCommunicationObjects,
         HealthMetrics healthMetrics) {
-      this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
+      this.queue = Queues.mpscBlockingConsumerArrayQueue(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();

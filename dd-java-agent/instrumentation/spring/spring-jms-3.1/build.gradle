@@ -12,14 +12,12 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-apply from: "$rootDir/gradle/configure_tests.gradle"
-
-latestDepTest {
+tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
 }
 
 dependencies {
-  implementation project(':dd-java-agent:instrumentation:jms')
+  implementation project(':dd-java-agent:instrumentation:jms:javax-jms-1.1')
 
   compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
   compileOnly group: 'org.springframework', name: 'spring-jms', version: '3.1.0.RELEASE'
@@ -31,6 +29,9 @@ dependencies {
   testImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
   testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
+
+  // For this module Groovy 3 needs `org.junit.rules.ExternalResource` from JUnit4.
+  testImplementation(libs.junit4)
 
   latestDepTestImplementation group: 'org.springframework', name: 'spring-jms', version: '5.+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'

@@ -93,7 +93,9 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   private static boolean isSupported(ComparableVersion gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (Jvm.current.isJavaVersionCompatible(25)) {
+    if (Jvm.current.isJavaVersionCompatible(26)) {
+      return gradleVersion.compareTo(new ComparableVersion("9.4")) >= 0
+    } else if (Jvm.current.isJavaVersionCompatible(25)) {
       return gradleVersion.compareTo(new ComparableVersion("9.1")) >= 0
     } else if (Jvm.current.isJavaVersionCompatible(24)) {
       return gradleVersion.compareTo(new ComparableVersion("8.14")) >= 0

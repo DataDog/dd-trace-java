@@ -3,10 +3,9 @@ package datadog.trace.instrumentation.tomcat;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
@@ -19,6 +18,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.gateway.Flow;
@@ -81,10 +81,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("service")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.coyote.Response"))),
+        TomcatServerInstrumentation.class.getName()
+            + "$ContextTrackingAdvice", // context tracking must be applied first
         TomcatServerInstrumentation.class.getName() + "$ServiceAdvice");
     transformer.applyAdvice(
         named("postParseRequest")
@@ -112,35 +114,60 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
             "org.apache.tomcat.util.net.NioBlockingSelector$BlockPoller"));
   }
 
+  @AppliesOn(TargetSystem.CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void extractParent(
+        @Advice.Argument(0) org.apache.coyote.Request req,
+        @Advice.Local("parentScope") ContextScope parentScope) {
+      Object existingCtx = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      if (existingCtx instanceof Context) {
+        // Request already gone through initial processing, so just attach the context.
+        parentScope = ((Context) existingCtx).attach();
+      } else {
+        final Context parentContext = DECORATE.extract(req);
+        req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+        parentScope = parentContext.attach();
+      }
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
+      scope.close();
+    }
+  }
+
   public static class ServiceAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onService(@Advice.Argument(0) org.apache.coyote.Request req) {
-
-      Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing, so just activate the span.
-        return activateSpan((AgentSpan) existingSpan);
+    public static void onService(
+        @Advice.Argument(0) org.apache.coyote.Request req,
+        @Advice.Local("serverScope") ContextScope serverScope) {
+      Object existingCtx = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (existingCtx instanceof Context) {
+        // Request already gone through initial processing, so just attach the context.
+        serverScope = ((Context) existingCtx).attach();
+        return;
       }
+      final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      final Context parentContext =
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
 
-      final Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
       final Context context = DECORATE.startSpan(req, parentContext);
-      final ContextScope scope = context.attach();
+      serverScope = context.attach();
 
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
 
-      req.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-      return scope;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      scope.close();
+    public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
+      serverScope.close();
     }
 
     private void muzzleCheck(CoyoteAdapter adapter, Request request, Response response)
@@ -162,19 +189,23 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         @Advice.Argument(1) Request req,
         @Advice.Argument(3) Response resp,
         @Advice.Return(readOnly = false) Boolean ret) {
-      Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanObj instanceof AgentSpan) {
-        AgentSpan span = (AgentSpan) spanObj;
-        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
-        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
-        Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-        Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
-        DECORATE.onRequest(span, req, req, parentContext);
-        Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
-        if (rba != null) {
-          TomcatBlockingHelper.commitBlockingResponse(
-              span.getRequestContext().getTraceSegment(), req, resp, rba);
-          ret = false; // skip pipeline
+      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+      if (contextObj instanceof Context) {
+        Context context = (Context) contextObj;
+        AgentSpan span = spanFromContext(context);
+        if (span != null) {
+          req.setAttribute(
+              CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
+          req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
+          Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+          Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : getRootContext();
+          DECORATE.onRequest(span, req, req, parentContext);
+          Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+          if (rba != null) {
+            TomcatBlockingHelper.commitBlockingResponse(
+                span.getRequestContext().getTraceSegment(), req, resp, rba);
+            ret = false; // skip pipeline
+          }
         }
       }
     }

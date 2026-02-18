@@ -12,8 +12,8 @@ import java.util.List;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
-  private static final byte[] SEQUENCE = "Seq".getBytes(ISO_8859_1);
-  private static final byte[] RUNTIME_ID = "RuntimeId".getBytes(ISO_8859_1);
+  private static final byte[] SEQUENCE = "Sequence".getBytes(ISO_8859_1);
+  private static final byte[] RUNTIME_ID = "RuntimeID".getBytes(ISO_8859_1);
   private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
   private static final byte[] NAME = "Name".getBytes(ISO_8859_1);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -35,6 +35,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
+  private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
@@ -61,7 +63,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   public void startBucket(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
-    writer.startMap(6 + (writeProcessTags ? 1 : 0));
+    writer.startMap(7 + (writeProcessTags ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);
     writer.writeUTF8(wellKnownTags.getRuntimeId());
@@ -71,6 +73,9 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     writer.writeUTF8(HOSTNAME);
     writer.writeUTF8(wellKnownTags.getHostname());
+
+    writer.writeUTF8(SERVICE);
+    writer.writeUTF8(wellKnownTags.getService());
 
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
@@ -101,7 +106,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-    writer.startMap(15);
+    // Calculate dynamic map size based on optional fields
+    final boolean hasHttpMethod = key.getHttpMethod() != null;
+    final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
+    final int mapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+
+    writer.startMap(mapSize);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -133,6 +143,18 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
+    }
+
+    // Only include HTTPMethod if present
+    if (hasHttpMethod) {
+      writer.writeUTF8(HTTP_METHOD);
+      writer.writeUTF8(key.getHttpMethod());
+    }
+
+    // Only include HTTPEndpoint if present
+    if (hasHttpEndpoint) {
+      writer.writeUTF8(HTTP_ENDPOINT);
+      writer.writeUTF8(key.getHttpEndpoint());
     }
 
     writer.writeUTF8(HITS);

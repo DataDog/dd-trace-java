@@ -40,7 +40,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan("play", PLAY_REQUEST);
       span.setMeasured(true);
-      scope = span.attach();
+      scope = span.attachWithCurrent();
     }
 
     DECORATE.afterStart(span);
@@ -70,14 +70,14 @@ public class PlayAdvice {
 
     if (throwable == null) {
       responseFuture.onComplete(
-          new RequestCompleteCallback(playControllerSpan),
+          new RequestCompleteCallback(playControllerScope),
           ((Action<?>) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
       if (REPORT_HTTP_STATUS) {
         playControllerSpan.setHttpStatusCode(500);
       }
-      DECORATE.beforeFinish(playControllerSpan);
+      DECORATE.beforeFinish(playControllerScope.context());
       playControllerSpan.finish();
     }
     playControllerScope.close();

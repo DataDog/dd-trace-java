@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
   id "com.gradleup.shadow"
 }
@@ -9,6 +11,7 @@ tasks.named("jar", Jar) {
     attributes('Main-Class': 'datadog.smoketest.ratpack.RatpackApp')
   }
 }
+
 dependencies {
   implementation 'io.ratpack:ratpack-core:1.5.0'
   implementation 'com.sun.activation:jakarta.activation:1.2.2'
@@ -18,7 +21,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "shadowJar"
-  jvmArgs "-Ddatadog.smoketest.ratpack.shadowJar.path=${tasks.shadowJar.archiveFile.get()}"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn shadowJarTask
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return shadowJarTask.map { ["-Ddatadog.smoketest.ratpack.shadowJar.path=${it.archiveFile.get()}"] }.get()
+      }
+    })
 }
 

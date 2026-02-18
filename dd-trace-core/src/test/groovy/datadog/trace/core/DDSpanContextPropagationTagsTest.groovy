@@ -99,11 +99,10 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     dd.createTagMap() == tagMap
 
     where:
-    priority     | header                                | newHeader                             | tagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
+    priority     | header                                | newHeader                   | tagMap
+    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
   }
 
   def "forceKeep trace PropagationTags #priority #header"() {
@@ -127,10 +126,9 @@ class DDSpanContextPropagationTagsTest extends DDCoreSpecification {
     ddRoot.createTagMap() == rootTagMap
 
     where:
-    priority     | header                                | rootHeader                            | rootTagMap
-    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123"           | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
-    // decision has already been made, propagate as-is
-    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | ["_dd.p.dm": "9bf3439f2f-1", "_dd.p.usr": "123"]
-    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.usr=123"                       | ["_dd.p.usr": "123"]
+    priority     | header                                | rootHeader                  | rootTagMap
+    UNSET        | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123" | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
+    SAMPLER_KEEP | "_dd.p.usr=123"                       | "_dd.p.dm=-4,_dd.p.usr=123" | ["_dd.p.dm": "-4", "_dd.p.usr": "123"]
   }
 }

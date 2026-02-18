@@ -7,26 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.ClientCall;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public class ArmeriaMessageDeframerInstrumentation extends InstrumenterModule.Tracing
+public class ArmeriaMessageDeframerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public ArmeriaMessageDeframerInstrumentation() {
-    super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -36,14 +28,6 @@ public class ArmeriaMessageDeframerInstrumentation extends InstrumenterModule.Tr
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return named(hierarchyMarkerType()).or(extendsClass(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("io.grpc.ClientCall", AgentSpan.class.getName());
-    contextStore.put(hierarchyMarkerType(), "io.grpc.ClientCall");
-    return contextStore;
   }
 
   @Override

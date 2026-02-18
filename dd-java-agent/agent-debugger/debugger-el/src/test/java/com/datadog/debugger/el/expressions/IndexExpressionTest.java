@@ -8,6 +8,9 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
+import com.datadog.debugger.el.values.ListValue;
+import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
@@ -46,7 +49,7 @@ class IndexExpressionTest {
   @Test
   void testArray() {
     IndexExpression expr =
-        new IndexExpression(new ValueRefExpression("strArray"), new NumericValue(1));
+        new IndexExpression(new ValueRefExpression("strArray"), new NumericValue(1, ValueType.INT));
     Value<?> val = expr.evaluate(RefResolverHelper.createResolver(this));
     assertNotNull(val);
     assertFalse(val.isUndefined());
@@ -57,7 +60,7 @@ class IndexExpressionTest {
   @Test
   void testList() {
     IndexExpression expr =
-        new IndexExpression(new ValueRefExpression("strList"), new NumericValue(1));
+        new IndexExpression(new ValueRefExpression("strList"), new NumericValue(1, ValueType.INT));
     Value<?> val = expr.evaluate(RefResolverHelper.createResolver(this));
     assertNotNull(val);
     assertFalse(val.isUndefined());
@@ -77,7 +80,7 @@ class IndexExpressionTest {
   }
 
   @Test
-  void testUnsupported() {
+  void testUnsupportedSet() {
     IndexExpression expr =
         new IndexExpression(new SetValue(new HashSet<>()), new StringValue("foo"));
     EvaluationException evaluationException =
@@ -89,8 +92,45 @@ class IndexExpressionTest {
   }
 
   @Test
+  void testUnsupportedList() {
+    IndexExpression expr =
+        new IndexExpression(
+            new ListValue(new ArrayList<String>() {}), new NumericValue(0, ValueType.INT));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Unsupported List class: com.datadog.debugger.el.expressions.IndexExpressionTest$1",
+        evaluationException.getMessage());
+  }
+
+  @Test
+  void testOutOfBoundsList() {
+    IndexExpression expr =
+        new IndexExpression(
+            new ListValue(new ArrayList<String>()), new NumericValue(42, ValueType.INT));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals("index[42] out of bounds: [0-0]", evaluationException.getMessage());
+  }
+
+  @Test
+  void testUnsupportedMap() {
+    IndexExpression expr =
+        new IndexExpression(new MapValue(new HashMap<String, String>() {}), new StringValue("foo"));
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(
+        "Unsupported Map class: com.datadog.debugger.el.expressions.IndexExpressionTest$2",
+        evaluationException.getMessage());
+  }
+
+  @Test
   void undefined() {
-    IndexExpression expr = new IndexExpression(ValueExpression.UNDEFINED, new NumericValue(1));
+    IndexExpression expr =
+        new IndexExpression(ValueExpression.UNDEFINED, new NumericValue(1, ValueType.INT));
     EvaluationException exception =
         assertThrows(
             EvaluationException.class, () -> expr.evaluate(RefResolverHelper.createResolver(this)));
@@ -129,7 +169,8 @@ class IndexExpressionTest {
     try {
       Redaction.addUserDefinedTypes(Config.get());
       IndexExpression exprArray =
-          new IndexExpression(new ValueRefExpression("secretArray"), new NumericValue(0));
+          new IndexExpression(
+              new ValueRefExpression("secretArray"), new NumericValue(0, ValueType.INT));
       RedactedException redactedException =
           assertThrows(
               RedactedException.class,
@@ -138,7 +179,8 @@ class IndexExpressionTest {
           "Could not evaluate the expression because 'secretArray[0]' was redacted",
           redactedException.getMessage());
       IndexExpression exprList =
-          new IndexExpression(new ValueRefExpression("secretList"), new NumericValue(0));
+          new IndexExpression(
+              new ValueRefExpression("secretList"), new NumericValue(0, ValueType.INT));
       redactedException =
           assertThrows(
               RedactedException.class,
@@ -163,9 +205,11 @@ class IndexExpressionTest {
   @Test
   void stringPrimitives() {
     IndexExpression expr =
-        new IndexExpression(new ValueRefExpression("uuidArray"), new NumericValue(1));
+        new IndexExpression(
+            new ValueRefExpression("uuidArray"), new NumericValue(1, ValueType.INT));
     assertEquals(UUID_2, expr.evaluate(RefResolverHelper.createResolver(this)).getValue());
-    expr = new IndexExpression(new ValueRefExpression("uuidList"), new NumericValue(1));
+    expr =
+        new IndexExpression(new ValueRefExpression("uuidList"), new NumericValue(1, ValueType.INT));
     assertEquals(UUID_2, expr.evaluate(RefResolverHelper.createResolver(this)).getValue());
     expr = new IndexExpression(new ValueRefExpression("uuidMap"), new StringValue("foo"));
     assertEquals(UUID_1, expr.evaluate(RefResolverHelper.createResolver(this)).getValue());

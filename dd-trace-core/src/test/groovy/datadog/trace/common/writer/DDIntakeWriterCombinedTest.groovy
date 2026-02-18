@@ -6,11 +6,12 @@ import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery
 import datadog.trace.core.CoreTracer
@@ -18,7 +19,6 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
@@ -766,5 +766,4 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
   def buildIntakePath(TrackType trackType, String apiVersion) {
     return String.format("/api/%s/%s", apiVersion, trackType.name().toLowerCase())
   }
-
 }

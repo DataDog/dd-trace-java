@@ -162,6 +162,27 @@ class TestController {
     }
   }
 
+  @RequestMapping(value = "/gimme-xml", produces = "text/xml")
+  @ResponseBody
+  String gimmeXml() {
+    "<test/>"
+  }
+
+  @RequestMapping(value = "/gimme-html", produces = "text/html")
+  @ResponseBody
+  String gimmeHtml() {
+    "\n" +
+      "<!doctype html>\n" +
+      "<html>\n" +
+      "  <head>\n" +
+      "    <title>This is the title of the webpage!</title>\n" +
+      "  </head>\n" +
+      "  <body>\n" +
+      "    <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>\n" +
+      "  </body>\n" +
+      "</html>"
+  }
+
   @RequestMapping(value = "/discovery",
   method = [RequestMethod.POST, RequestMethod.PATCH, RequestMethod.PUT],
   consumes = MediaType.APPLICATION_JSON_VALUE,

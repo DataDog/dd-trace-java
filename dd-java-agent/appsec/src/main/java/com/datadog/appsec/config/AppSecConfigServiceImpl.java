@@ -4,6 +4,7 @@ import static com.datadog.appsec.util.StandardizedLogging.RulesInvalidReason.INV
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_DATA_SCANNERS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_MULTICONFIG;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_DD_RULES;
@@ -13,6 +14,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COL
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_HEADER_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_IP_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_NETWORK_FINGERPRINT;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_PROCESSOR_OVERRIDES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_CMDI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_LFI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
@@ -40,9 +42,8 @@ import com.datadog.ddwaf.WafDiagnostics;
 import com.datadog.ddwaf.exception.InvalidRuleSetException;
 import com.datadog.ddwaf.exception.UnclassifiedWafException;
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationEndListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
@@ -53,8 +54,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
-import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -68,7 +69,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,28 +96,23 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       new WAFInitializationResultReporter();
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
 
-  private static final JsonAdapter<Object> ADAPTER =
+  private static final JsonAdapter<Map<String, Object>> ADAPTER =
       new Moshi.Builder()
-          .add(
-              Double.class,
-              new JsonAdapter<Number>() {
-                @Override
-                public Number fromJson(JsonReader reader) throws IOException {
-                  double value = reader.nextDouble();
-                  long longValue = (long) value;
-                  return value % 1 == 0 ? longValue : value;
-                }
-
-                @Override
-                public void toJson(JsonWriter writer, @Nullable Number value) throws IOException {
-                  throw new UnsupportedOperationException();
-                }
-              })
           .build()
-          .adapter(Object.class);
+          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean hasUserWafConfig;
+
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification =
+          "The variable is only read and written by the single configuration-poller thread.")
   private boolean defaultConfigActivated;
+
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -165,6 +160,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ENDPOINT_FINGERPRINT
             | CAPABILITY_ASM_SESSION_FINGERPRINT
             | CAPABILITY_ASM_NETWORK_FINGERPRINT
@@ -310,7 +307,6 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       }
 
       // TODO: Send diagnostics via telemetry
-      final LogCollector telemetryLogger = LogCollector.get();
 
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
@@ -489,8 +485,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      Map<String, Object> ret =
-          (Map<String, Object>) ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
@@ -507,8 +502,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      Map<String, Object> ret =
-          (Map<String, Object>) ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -546,6 +540,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             | CAPABILITY_ASM_CUSTOM_RULES
             | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
             | CAPABILITY_ASM_TRUSTED_IPS
+            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
             | CAPABILITY_ASM_RASP_SQLI
             | CAPABILITY_ASM_RASP_SSRF
             | CAPABILITY_ASM_RASP_LFI

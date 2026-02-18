@@ -1,5 +1,15 @@
 package datadog.trace.agent.test
 
+import static datadog.communication.http.OkHttpUtils.buildHttpClient
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -15,7 +25,12 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.agent.AgentMeter
+import datadog.metrics.api.Monitoring
+import datadog.metrics.impl.DDSketchHistograms
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.api.statsd.StatsDClient
+import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
@@ -27,11 +42,11 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.api.sampling.SamplingRule
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.bootstrap.ActiveSubsystems
@@ -55,6 +70,13 @@ import de.thetaphi.forbiddenapis.SuppressForbidden
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
+import java.lang.instrument.ClassFileTransformer
+import java.lang.instrument.Instrumentation
+import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
@@ -67,24 +89,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.spockframework.mock.MockUtil
 import spock.lang.Shared
-
-import java.lang.instrument.ClassFileTransformer
-import java.lang.instrument.Instrumentation
-import java.nio.ByteBuffer
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
-
-import static datadog.communication.http.OkHttpUtils.buildHttpClient
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
-import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL
-import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE
-import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
-import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
 /**
  * A specification that automatically applies instrumentation and exposes a global trace
@@ -119,7 +123,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
         ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
-          .append("=").append(entry.getValue()).append(",")
+        .append("=").append(entry.getValue()).append(",")
       }
     }
     ddEnvVars.append("DD_SERVICE=").append(Config.get().getServiceName())
@@ -249,8 +253,13 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     List<? extends SamplingRule.TraceSamplingRule> getTraceSamplingRules() {
       return null
     }
+
+    List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
+      return null
+    }
   }
 
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The variable is accessed only by the test thread in setup and cleanup.")
   boolean originalAppSecRuntimeValue
 
   @Shared
@@ -326,7 +335,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     INSTRUMENTATION.addTransformer(new DebuggerTransformer(config, configuration, {
       ProbeDefinition definition, InstrumentationResult result ->
-    }, sink))
+    }, configurationUpdater.getProbeMetadata(), sink))
     DebuggerContext.initProbeResolver(configurationUpdater)
     DebuggerContext.initClassFilter(new DenyListHelper(null))
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer())
@@ -341,6 +350,11 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressForbidden
   void setupSpec() {
+    AgentMeter.registerIfAbsent(
+    STATS_D_CLIENT,
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
+    DDSketchHistograms.FACTORY
+    )
 
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
@@ -352,10 +366,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
 
     Sink sink = new Sink() {
-        void accept(int messageCount, ByteBuffer buffer) {}
+      void accept(int messageCount, ByteBuffer buffer) {}
 
-        void register(EventListener listener) {}
-      }
+      void register(EventListener listener) {}
+    }
 
     // Fast enough so tests don't take forever
     long bucketDuration = dataStreamsBucketDuration()
@@ -371,22 +385,21 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
       HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
-      OkHttpClient client = buildHttpClient(agentUrl, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
+      OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
       DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
 
-    TEST_TRACER =
-      Spy(
-      CoreTracer.builder()
-      .writer(TEST_WRITER)
-      .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
-      .statsDClient(STATS_D_CLIENT)
-      .strictTraceWrites(useStrictTraceWrites())
-      .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
-      .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
-      .build())
+    TEST_TRACER = Spy(
+    CoreTracer.builder()
+    .writer(TEST_WRITER)
+    .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
+    .statsDClient(STATS_D_CLIENT)
+    .strictTraceWrites(useStrictTraceWrites())
+    .dataStreamsMonitoring(TEST_DATA_STREAMS_MONITORING)
+    .profilingContextIntegration(TEST_PROFILING_CONTEXT_INTEGRATION)
+    .build())
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
@@ -401,6 +414,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return trackingSpan
     }
 
+    ClassInjector.enableClassInjection(INSTRUMENTATION)
+
     // if a test enables the instrumentation it verifies,
     // the cache needs to be recomputed taking into account that instrumentation's matchers
     ClassLoaderMatchers.resetState()
@@ -409,7 +424,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
-      INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
   }
 
   protected String idGenerationStrategyName() {
@@ -512,12 +527,12 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       def sw = new StringWriter()
       PrintWriter pw = new PrintWriter(sw)
       entry.value.eachWithIndex { Exception e, int i ->
-        pw.write('\n' as char)
+        pw.write((char)'\n')
         pw.write "Location $i:\n"
         def st = e.stackTrace
         int loc = st.findIndexOf {
           it.className.startsWith(TrackingSpanDecorator.class.name) &&
-            it.methodName.startsWith('finish')
+          it.methodName.startsWith('finish')
         }
         for (int j = loc == -1 ? 0 : loc; j < st.length; j++) {
           pw.println("\tat ${st[j]}")
@@ -555,23 +570,23 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   void assertTraces(
-    final int size,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     assertTraces(size, false, spec)
   }
 
   void assertTraces(
-    final int size,
-    final boolean ignoreAdditionalTraces,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final boolean ignoreAdditionalTraces,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
   }
 
@@ -580,13 +595,13 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_NAMES = ListWriterAssert.SORT_TRACES_BY_NAMES
 
   void assertTraces(
-    final int size,
-    final Comparator<List<DDSpan>> traceSorter,
-    @ClosureParams(
-    value = SimpleType,
-    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  final int size,
+  final Comparator<List<DDSpan>> traceSorter,
+  @ClosureParams(
+  value = SimpleType,
+  options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+  @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+  final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, false, traceSorter, spec)
   }
 
@@ -631,7 +646,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
-      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+    && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

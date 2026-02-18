@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.instrumentation.undertow.UndertowDecorator.DD_UNDERTOW_CONTINUATION;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -56,11 +56,11 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      AgentScope.Continuation continuation = exchange.getAttachment(DD_UNDERTOW_CONTINUATION);
+      AgentScope.Continuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         AgentSpan undertowSpan = continuation.span();
         ServletRequest request = servletRequestContext.getServletRequest();
-        request.setAttribute(DD_SPAN_ATTRIBUTE, undertowSpan);
+        request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);
 
         undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());

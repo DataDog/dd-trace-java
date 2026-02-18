@@ -1,7 +1,3 @@
-ext {
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-}
 muzzle {
   pass {
     group = "io.undertow"
@@ -24,9 +20,10 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('latest22Test', 'test')
 addTestSuiteExtendingForDir('latest22ForkedTest', 'latest22Test', 'test')
+
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
-  implementation project(':dd-java-agent:instrumentation:undertow')
+  implementation project(':dd-java-agent:instrumentation:undertow:undertow-common')
 
   testImplementation group: 'io.undertow', name: 'undertow-servlet-jakarta', version: '2.2.14.Final'
   testImplementation group: 'io.undertow', name: 'undertow-websockets-jsr-jakarta', version: '2.2.14.Final'
@@ -48,3 +45,16 @@ dependencies {
     exclude group: 'io.undertow', module: 'undertow-websocket-jsr-jakarta'
   }
 }
+
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
+

@@ -1,10 +1,12 @@
 package datadog.trace.util;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.config.inversion.ConfigHelper;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -16,8 +18,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -40,28 +40,27 @@ public final class TempLocationManager {
     private static final TempLocationManager INSTANCE = new TempLocationManager();
   }
 
-  interface CleanupHook extends FileVisitor<Path> {
+  interface CleanupHook {
     CleanupHook EMPTY = new CleanupHook() {};
 
-    @Override
-    default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+    default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs, boolean timeout)
         throws IOException {
-      return null;
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      return null;
+    default FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-      return null;
+    default FileVisitResult visitFileFailed(Path file, IOException exc, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
-    @Override
-    default FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-      return null;
+    default FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
+        throws IOException {
+      return timeout ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
     }
 
     default void onCleanupStart(long timeout, TimeUnit unit) {}
@@ -72,17 +71,15 @@ public final class TempLocationManager {
 
     private Set<String> pidSet;
 
-    private final Instant cutoff;
-    private final Instant timeoutTarget;
+    private final long cutoffMillis;
+    private final long timeoutTargetMillis;
 
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
-      this.cutoff = Instant.now().minus(cutoffSeconds, ChronoUnit.SECONDS);
-      this.timeoutTarget =
-          timeout > -1
-              ? Instant.now().plus(TimeUnit.MILLISECONDS.convert(timeout, unit), ChronoUnit.MILLIS)
-              : null;
+      long now = timeSource.getCurrentTimeMillis();
+      this.cutoffMillis = now - TimeUnit.SECONDS.toMillis(cutoffSeconds);
+      this.timeoutTargetMillis = timeout > -1 ? now + unit.toMillis(timeout) : Long.MAX_VALUE;
     }
 
     boolean isTerminated() {
@@ -90,7 +87,7 @@ public final class TempLocationManager {
     }
 
     private boolean isTimedOut() {
-      return timeoutTarget != null && Instant.now().isAfter(timeoutTarget);
+      return timeSource.getCurrentTimeMillis() > timeoutTargetMillis;
     }
 
     @Override
@@ -99,10 +96,11 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.preVisitDirectory(dir, attrs, true);
         return FileVisitResult.TERMINATE;
       }
 
-      cleanupTestHook.preVisitDirectory(dir, attrs);
+      cleanupTestHook.preVisitDirectory(dir, attrs, false);
 
       if (dir.equals(baseTempDir)) {
         return FileVisitResult.CONTINUE;
@@ -128,11 +126,12 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.visitFile(file, attrs, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.visitFile(file, attrs);
+      cleanupTestHook.visitFile(file, attrs, false);
       try {
-        if (Files.getLastModifiedTime(file).toInstant().isAfter(cutoff)) {
+        if (Files.getLastModifiedTime(file).toMillis() > cutoffMillis) {
           return FileVisitResult.SKIP_SUBTREE;
         }
         Files.delete(file);
@@ -147,9 +146,10 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.visitFileFailed(file, exc, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.visitFileFailed(file, exc);
+      cleanupTestHook.visitFileFailed(file, exc, false);
       // do not log files/directories removed by another process running concurrently
       if (!(exc instanceof NoSuchFileException) && log.isDebugEnabled()) {
         log.debug("Failed to delete file {}", file, exc);
@@ -162,9 +162,10 @@ public final class TempLocationManager {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
+        cleanupTestHook.postVisitDirectory(dir, exc, true);
         return FileVisitResult.TERMINATE;
       }
-      cleanupTestHook.postVisitDirectory(dir, exc);
+      cleanupTestHook.postVisitDirectory(dir, exc, false);
       if (exc instanceof NoSuchFileException) {
         return FileVisitResult.CONTINUE;
       }
@@ -215,6 +216,7 @@ public final class TempLocationManager {
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
+  private final TimeSource timeSource;
 
   /**
    * Get the singleton instance of the TempLocationManager. It will run the cleanup task in the
@@ -245,12 +247,21 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(ConfigProvider configProvider) {
-    this(configProvider, true, CleanupHook.EMPTY);
+    this(configProvider, true, CleanupHook.EMPTY, SystemTimeSource.INSTANCE);
   }
 
   TempLocationManager(
       ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
+    this(configProvider, runStartupCleanup, testHook, SystemTimeSource.INSTANCE);
+  }
+
+  TempLocationManager(
+      ConfigProvider configProvider,
+      boolean runStartupCleanup,
+      CleanupHook testHook,
+      TimeSource timeSource) {
     cleanupTestHook = testHook;
+    this.timeSource = timeSource;
 
     Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
     isPosixFs = supportedViews.contains("posix");
@@ -300,7 +311,7 @@ public final class TempLocationManager {
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
-    userName = userName == null ? EnvironmentVariables.get("USER") : userName;
+    userName = userName == null ? ConfigHelper.env("USER") : userName;
     // make sure we do not have any illegal characters in the user name
     userName =
         userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;

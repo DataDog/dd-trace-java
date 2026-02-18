@@ -14,7 +14,9 @@ dependencies {
   implementation libs.slf4j
   implementation project(':communication')
   implementation project(':internal-api')
+  implementation project(':products:metrics:metrics-lib')
   implementation project(':utils:container-utils')
+  implementation project(':utils:queue-utils')
   implementation project(':utils:version-utils')
   implementation project(path: ':dd-java-agent:ddprof-lib', configuration: 'shadow')
 
@@ -24,6 +26,7 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.jackson.databind
+  testImplementation libs.testcontainers
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
 

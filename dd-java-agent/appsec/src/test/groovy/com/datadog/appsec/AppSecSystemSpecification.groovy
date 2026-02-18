@@ -6,7 +6,7 @@ import com.datadog.appsec.report.AppSecEvent
 import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationEndListener
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
@@ -182,7 +182,7 @@ class AppSecSystemSpecification extends DDSpecification {
           poller
         }
       }
-    sco.okHttpClient = Stub(OkHttpClient)
+    sco.agentHttpClient = Stub(OkHttpClient)
     sco.monitoring = Mock(Monitoring)
     sco.featuresDiscovery = Stub(DDAgentFeaturesDiscovery)
     sco

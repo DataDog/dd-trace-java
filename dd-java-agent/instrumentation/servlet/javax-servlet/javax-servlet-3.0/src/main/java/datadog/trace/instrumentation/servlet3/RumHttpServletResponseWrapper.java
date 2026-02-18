@@ -122,21 +122,35 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void setHeader(String name, String value) {
-    checkForContentSecurityPolicy(name);
+    if (shouldInject) {
+      if (isContentLengthHeader(name)) {
+        return;
+      }
+      checkForContentType(name, value);
+      checkForContentSecurityPolicy(name);
+    }
     super.setHeader(name, value);
   }
 
   @Override
   public void addHeader(String name, String value) {
-    checkForContentSecurityPolicy(name);
+    if (shouldInject) {
+      if (isContentLengthHeader(name)) {
+        return;
+      }
+      checkForContentType(name, value);
+      checkForContentSecurityPolicy(name);
+    }
     super.addHeader(name, value);
   }
 
+  private boolean isContentLengthHeader(String name) {
+    return "content-length".equalsIgnoreCase(name);
+  }
+
   private void checkForContentSecurityPolicy(String name) {
-    if (name != null) {
-      if (name.startsWith("Content-Security-Policy")) {
-        RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
-      }
+    if ("content-security-policy".equalsIgnoreCase(name)) {
+      RumInjector.getTelemetryCollector().onContentSecurityPolicyDetected(servletVersion);
     }
   }
 
@@ -193,15 +207,26 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     }
   }
 
-  @Override
-  public void setContentType(String type) {
+  private void handleContentType(String type) {
+    final boolean wasInjecting = shouldInject;
     if (shouldInject) {
       shouldInject = type != null && type.contains("text/html");
     }
-    if (!shouldInject) {
+    if (wasInjecting && !shouldInject) {
       commit();
       stopFiltering();
     }
+  }
+
+  private void checkForContentType(String name, String value) {
+    if ("content-type".equalsIgnoreCase(name)) {
+      handleContentType(value);
+    }
+  }
+
+  @Override
+  public void setContentType(String type) {
+    handleContentType(type);
     super.setContentType(type);
   }
 

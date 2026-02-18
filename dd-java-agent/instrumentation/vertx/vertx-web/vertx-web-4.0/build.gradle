@@ -1,15 +1,9 @@
-// Set properties before any plugins get loaded
-ext {
-  // vertx-web doesn't support Java 17 until v4.2
-  maxJavaVersionForTests = JavaVersion.VERSION_15
-  // unbound it for latest
-  latestDepTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepForkedTestMinJavaVersionForTests = JavaVersion.VERSION_11
-  latestDepTestMaxJavaVersionForTests = JavaVersion.VERSION_25
-  latestDepForkedTestMaxJavaVersionForTests = JavaVersion.VERSION_25
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  // vertx-web doesn't support Java 17 until v4.2
+  maxJavaVersion = JavaVersion.VERSION_15
+}
 
 muzzle {
   pass {
@@ -42,16 +36,16 @@ dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
 
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '4.0.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.0.0'
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '4.+'
@@ -60,12 +54,26 @@ dependencies {
 
 ["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    setJavaVersion(it, 11)
+    configureCompiler(it, 11)
+  }
+}
+["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
+  tasks.named(it, GroovyCompile) {
+    configureCompiler(it, 11)
   }
 }
 
-["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each { name ->
-  tasks.named(name, GroovyCompile) {
-    javaLauncher = getJavaLauncherFor(11)
+tasks.named("latestDepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_25
   }
 }
+
+tasks.named("latestDepForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_25
+  }
+}
+

@@ -31,11 +31,11 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     if (!(msg.getMessage() instanceof HttpRequest)) {
-      final AgentSpan span = channelTraceContext.getServerSpan();
-      if (span == null) {
+      final Context storedContext = channelTraceContext.getServerContext();
+      if (storedContext == null) {
         ctx.sendUpstream(msg); // superclass does not throw
       } else {
-        try (final ContextScope scope = span.attach()) {
+        try (final ContextScope scope = storedContext.attach()) {
           ctx.sendUpstream(msg); // superclass does not throw
         }
       }
@@ -55,7 +55,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, ctx.getChannel(), request, parentContext);
 
-      channelTraceContext.setServerSpan(span);
+      channelTraceContext.setServerContext(context);
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
@@ -70,7 +70,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
         ctx.sendUpstream(msg);
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
+        DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }

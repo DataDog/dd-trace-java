@@ -1,9 +1,11 @@
 package datadog.smoketest.appsec
 
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -221,7 +223,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                 inputs: [
                   [
                     address : "server.io.net.request.headers",
-                    key_path: ["Witness"]
+                    key_path: ["witness"]
                   ]
                 ],
                 list: ["pwq3ojtropiw3hjtowir"]
@@ -608,7 +610,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     response.code() == 403
-    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+    responseBodyStr.contains('"title":"You\'ve been blocked"')
+    responseBodyStr.contains('"detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."')
+    responseBodyStr.contains('"security_response_id":')
 
     when:
     waitForTraceCount(1)
@@ -650,6 +654,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     def rootSpans = this.rootSpans.toList()
     rootSpans.size() == 1
     def rootSpan = rootSpans[0]
+    assert rootSpan.meta.get('error.message').contains(BlockingException.name) // ensure the block was propagated
     assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
@@ -707,7 +712,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'paths'    | _
     'file'    | _
     'path'    | _
-
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -875,7 +879,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     waitForTraceCount(3)
     def spans = rootSpans.toList().toSorted { it.span.duration }
     spans.size() == 3
-    def sampledSpans = spans.findAll { it.meta.keySet().any { it.startsWith('_dd.appsec.s.req.') } }
+    def sampledSpans = spans.findAll {
+      it.meta.keySet().any {
+        it.startsWith('_dd.appsec.s.req.')
+      }
+    }
     sampledSpans.size() == 1
     def span = sampledSpans[0]
     span.meta.containsKey('_dd.appsec.s.req.query')
@@ -1017,12 +1025,32 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     variant << httpClientDownstreamAnalysisVariants()
   }
 
-  private RootSpan assertDownstreamTrace() {
-    waitForTraceCount(2) // original + echo
+  void 'API Security downstream response redirect'() {
+    when:
+    final url =HttpUrl.parse("http://localhost:${httpPort}/api_security/http_client/${variant}")
+      .newBuilder()
+      .addQueryParameter('redirect', 'true')
+      .build()
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    assertDownstreamTrace(2)
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  private RootSpan assertDownstreamTrace(int downstreamCount = 1) {
+    waitForTraceCount(downstreamCount + 1) // original one plus all downstream requests
 
     final rootSpans = this.rootSpans.toList()
     final span = rootSpans.find { it.getSpan().resource.contains('/api_security/http_client') }
-    span.metrics['_dd.appsec.downstream_request'] == 1
+    assert span.metrics['_dd.appsec.downstream_request'] == downstreamCount
 
     return span
   }
@@ -1035,5 +1063,4 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     final inflaterStream = new GZIPInputStream(new ByteArrayInputStream(text.decodeBase64()))
     return inflaterStream.getBytes()
   }
-
 }

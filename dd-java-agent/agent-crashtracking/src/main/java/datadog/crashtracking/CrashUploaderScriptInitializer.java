@@ -1,11 +1,11 @@
 package datadog.crashtracking;
 
+import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.RWXRWXRWX;
 import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
-import static datadog.crashtracking.Initializer.writeConfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
@@ -31,6 +31,11 @@ public final class CrashUploaderScriptInitializer {
 
   // @VisibleForTests
   static void initialize(String onErrorVal, String onErrorFile) {
+    initialize(onErrorVal, onErrorFile, null);
+  }
+
+  // @VisibleForTests
+  static void initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
@@ -56,7 +61,11 @@ public final class CrashUploaderScriptInitializer {
       return;
     }
 
-    writeConfig(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    if (javacorePath != null && !javacorePath.isEmpty()) {
+      writeConfigToPath(scriptPath, "agent", agentJar, "javacore_path", javacorePath);
+    } else {
+      writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    }
   }
 
   private static boolean copyCrashUploaderScript(

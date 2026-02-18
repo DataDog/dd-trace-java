@@ -3,8 +3,9 @@ import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.metrics.impl.MonitoringImpl
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.RemoteApi
@@ -15,7 +16,6 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.core.monitor.MonitoringImpl
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import spock.lang.Shared
@@ -83,7 +83,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
     HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
-    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(udsAgentUrl, socketPath.toString(), null, 5000)
+    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
     udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, enableV05, true)
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)

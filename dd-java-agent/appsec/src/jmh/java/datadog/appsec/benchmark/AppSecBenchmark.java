@@ -7,7 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -70,9 +70,9 @@ public class AppSecBenchmark {
     ss = gw.getSubscriptionService(RequestContextSlot.APPSEC);
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.monitoring = Monitoring.DISABLED;
-    sharedCommunicationObjects.okHttpClient = new StubOkHttpClient();
+    sharedCommunicationObjects.agentHttpClient = new StubOkHttpClient();
     sharedCommunicationObjects.setFeaturesDiscovery(
-        new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.okHttpClient));
+        new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
 
     AppSecSystem.start(ss, sharedCommunicationObjects);
     uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));

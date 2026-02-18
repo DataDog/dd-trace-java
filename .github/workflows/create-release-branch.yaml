@@ -1,0 +1,61 @@
+name: Create Release Branch
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.0' # Trigger on minor release tags (e.g. v1.54.0)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The minor release tag (e.g. v1.54.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allow pushing the release branch
+    steps:
+      - name: Determine tag
+        id: determine-tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG=${{ github.event.inputs.tag }}
+          else
+            TAG=${GITHUB_REF#refs/tags/}
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "Error: Tag $TAG is not in the expected format: vX.Y.0"
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Define branch name from tag
+        id: define-branch
+        run: |
+          TAG=${{ steps.determine-tag.outputs.tag }}
+          echo "branch=release/${TAG%.0}.x" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout dd-trace-java at tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          ref: ${{ steps.determine-tag.outputs.tag }}
+
+      - name: Check if branch already exists
+        id: check-branch
+        run: |
+          BRANCH=${{ steps.define-branch.outputs.branch }}
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "creating_new_branch=false" >> "$GITHUB_OUTPUT"
+            echo "Branch $BRANCH already exists - skipping creation"
+          else
+            echo "creating_new_branch=true" >> "$GITHUB_OUTPUT"
+            echo "Branch $BRANCH does not exist - creating it now"
+          fi
+
+      - name: Create and push release branch
+        if: steps.check-branch.outputs.creating_new_branch == 'true'
+        run: |
+          git checkout -b "${{ steps.define-branch.outputs.branch }}"
+          git push -u origin "${{ steps.define-branch.outputs.branch }}"

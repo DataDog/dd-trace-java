@@ -19,18 +19,24 @@ final class CachedData {
       exclude(project(':components:context'))
       exclude(project(':components:environment'))
       exclude(project(':components:json'))
-      exclude(project(':components:yaml'))
+      exclude(project(':products:feature-flagging:feature-flagging-bootstrap'))
+      exclude(project(':products:metrics:metrics-agent'))
+      exclude(project(':products:metrics:metrics-api'))
+      exclude(project(':products:metrics:metrics-lib'))
       exclude(project(':remote-config:remote-config-api'))
       exclude(project(':remote-config:remote-config-core'))
       exclude(project(':telemetry'))
       exclude(project(':utils:config-utils'))
       exclude(project(':utils:container-utils'))
+      exclude(project(':utils:filesystem-utils'))
+      exclude(project(':utils:queue-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
       exclude(project(':utils:version-utils'))
       exclude(project(':dd-java-agent:agent-crashtracking'))
       exclude(project(':dd-java-agent:ddprof-lib'))
       exclude(dependency('org.slf4j::'))
+      exclude(dependency(':dd-instrument-java:'))
 
       // okhttp and its transitives (both fork and non-fork)
       exclude(dependency('com.datadoghq.okhttp3:okhttp'))
@@ -44,6 +50,12 @@ final class CachedData {
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
       exclude(dependency('com.github.jnr::'))
       exclude(dependency('org.ow2.asm::'))
+
+      // sketches-java used by dd-trace-core (DataStreams) and metrics
+      exclude(dependency('com.datadoghq:sketches-java'))
+
+      // javac plugin client
+      exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
 
       // moshi and its transitives
       exclude(dependency('com.squareup.moshi::'))
@@ -64,6 +76,7 @@ CachedData.deps.shared = [
   // Force specific version of okio required by com.squareup.moshi:moshi
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
   // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
+  // TODO: Consider migrating away from Moshi, Okio, etc. to more modern JSON libraries with better (de)serialization support
   libs.okio,
   libs.okhttp,
   libs.dogstatsd,
