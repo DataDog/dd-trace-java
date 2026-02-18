@@ -378,8 +378,36 @@ class DDLLMObsSpanTest  extends DDSpecification{
     m.tags.contains('is_root_span:0')
   }
 
+  def "span has expected session tag and telemetry has #expectedHasSessionIdTag"() {
+    setup:
+    LLMObsMetricCollector collector = LLMObsMetricCollector.get()
+    collector.drain()
+
+    when:
+    llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span", sessionId).finish()
+
+    then:
+    def metrics = collector.drain()
+    metrics.size() == 1
+
+    and:
+    def m = metrics[0]
+    m.namespace == 'mlobs'
+    m.metricName == 'span.finished'
+    m.tags.contains(expectedHasSessionIdTag)
+
+    where:
+    sessionId     | expectedHasSessionIdTag
+    "session-123" | "has_session_id:1"
+    null          | "has_session_id:0"
+  }
+
   private LLMObsSpan llmObsSpan(String kind, name) {
+    llmObsSpan(kind, name, null)
+  }
+
+  private LLMObsSpan llmObsSpan(String kind, name, String sessionId) {
     def tags = new WellKnownTags("test-runtime-1", "host-1", "test-env", "test-svc", "v1", "java")
-    new DDLLMObsSpan(kind, name, "test-ml-app", null, "test-svc", tags)
+    new DDLLMObsSpan(kind, name, "test-ml-app", sessionId, "test-svc", tags)
   }
 }

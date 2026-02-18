@@ -48,6 +48,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final AgentSpan span;
   private final String spanKind;
   private final ContextScope scope;
+  private final boolean hasSessionId;
 
   private boolean finished = false;
 
@@ -79,7 +80,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    if (sessionId != null && !sessionId.isEmpty()) {
+    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    if (this.hasSessionId) {
       span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
 
@@ -312,7 +314,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
     boolean isRootSpan = span.getLocalRootSpan() == span;
     LLMObsMetricCollector.get()
         .recordSpanFinished(
-            LLM_OBS_INSTRUMENTATION_NAME, spanKind, isRootSpan, false, span.isError());
+            LLM_OBS_INSTRUMENTATION_NAME,
+            spanKind,
+            isRootSpan,
+            false,
+            span.isError(),
+            hasSessionId);
   }
 
   @Override
