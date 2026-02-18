@@ -274,6 +274,8 @@ build:
     CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
   script:
+    - echo "DDCI_PULL_REQUEST_SOURCE_SHA=${DDCI_PULL_REQUEST_SOURCE_SHA:-not set}"
+    - echo "DDCI_PULL_REQUEST_TARGET_SHA=${DDCI_PULL_REQUEST_TARGET_SHA:-not set}"
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
     - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
