@@ -272,7 +272,17 @@ bytecode advice.
 
 End-to-end smoke tests. Each test boots a real application with the agent jar attached and verifies
 traces, spans, and product behavior. Covers Spring Boot, Play, Vert.x, Quarkus, WildFly, and more.
-TODO: Add details about the few core classes to write a smoke tests (test class hierarchy and reuse)
+The core test hierarchy (Groovy/Spock) is:
+- `ProcessManager` — Base class. Manages forked JVM processes: spawns the application with the agent
+  jar via `ProcessBuilder`, captures stdout to log files, and tears down processes on cleanup.
+  Provides `assertNoErrorLogs()` to scan logs for errors.
+- `AbstractSmokeTest` extends `ProcessManager` — Adds a mock Datadog Agent (`TestHttpServer`) that
+  receives traces (v0.4/v0.5), telemetry, remote config, and EVP proxy requests. Provides polling
+  helpers (`waitForTraceCount`, `waitForSpan`, `waitForTelemetryFlat`) and decoded trace/telemetry
+  storage.
+- `AbstractServerSmokeTest` extends `AbstractSmokeTest` — For HTTP server applications. Adds HTTP
+  port management, waits for the server port to open, and verifies expected trace output from a
+  structured log file.
 
 ## Instrumentation Pattern
 
@@ -294,20 +304,6 @@ Every instrumentation follows the same pattern:
    what the instrumentation expects, preventing `NoSuchMethodError` at runtime.
 
 Instrumentations are discovered via `@AutoService(InstrumenterModule.class)` (Java SPI).
-
-## The Instrumentation Gateway
-
-The gateway (`InstrumentationGateway`) is the central integration point between instrumentations
-and product modules. It implements a publish-subscribe pattern:
-
-- **Instrumentations** (e.g., Servlet, Spring) fire events like "request started", "request header received",
-  "response body committed" through the gateway.
-- **Product modules** (AppSec, IAST) subscribe to these events via `SubscriptionService` and react
-  (e.g., run WAF checks, track tainted data).
-- `RequestContext` carries per-request state across products using `RequestContextSlot`
-  for type-safe storage.
-
-This design allows adding new products without modifying existing instrumentations.
 
 ## Writer Pipeline
 
