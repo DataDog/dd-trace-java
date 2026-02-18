@@ -50,3 +50,4 @@ Datadog will generally release a new minor version during the first full week of
 See [release.md](docs/releases.md) for more information.
 
 Additional line
+New change in base branch
