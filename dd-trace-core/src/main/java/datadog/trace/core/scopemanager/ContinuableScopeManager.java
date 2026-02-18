@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
@@ -239,25 +238,24 @@ public final class ContinuableScopeManager implements ContextManager {
 
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
-    if (top != null) {
-      if (top.source() == ITERATION) {
-        if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
-          cancelRootIterationScopeCleanup(scopeStack, top);
-        }
-        top.close();
-        scopeStack.cleanup();
-        AgentSpan span = top.span();
-        if (finishSpan && span != null) {
-          span.finishWithEndToEnd();
-        }
-      } else {
-        log.debug(
-            SEND_TELEMETRY,
-            "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
-            top,
-            ITERATION,
-            top.span());
+    if (top != null && top.source() == ITERATION) {
+      if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
+        cancelRootIterationScopeCleanup(scopeStack, top);
       }
+      top.close();
+      scopeStack.cleanup();
+      AgentSpan span = top.span();
+      if (finishSpan && span != null) {
+        span.finishWithEndToEnd();
+      }
+    } else if (top != null) {
+      // log.debug(
+      //     SEND_TELEMETRY,
+      //     "Scope found at top of stack has source {} when we expect {}. Current span at the top
+      // of the stack {}.",
+      //     top,
+      //     ITERATION,
+      //     top.span());
     }
   }
 
