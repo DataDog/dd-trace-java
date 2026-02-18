@@ -248,6 +248,18 @@ public interface AgentSpan
   }
 
   /**
+   * Sets the service name without tracking it's source.
+   *
+   * <p>Note: please use setServiceName(String, CharSequence) instead.
+   *
+   * @param serviceName the service name.
+   * @return the span itself.
+   */
+  @Override
+  @Deprecated
+  MutableSpan setServiceName(final String serviceName);
+
+  /**
    * Set the service name specifying the source (origin) of this name
    *
    * @param serviceName the service name

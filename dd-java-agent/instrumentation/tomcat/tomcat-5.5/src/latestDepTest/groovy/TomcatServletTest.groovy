@@ -106,7 +106,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     }
     map
   }
-  
+
   @Override
   boolean expectedErrored(ServerEndpoint endpoint) {
     (endpoint.errored && bubblesResponse()) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint)
