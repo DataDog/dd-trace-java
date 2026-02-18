@@ -1,4 +1,3 @@
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.ProcessTags
 import datadog.trace.instrumentation.servlet5.HtmlAsyncRumServlet
