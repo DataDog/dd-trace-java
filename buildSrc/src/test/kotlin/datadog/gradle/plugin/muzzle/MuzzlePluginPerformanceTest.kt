@@ -199,4 +199,196 @@ class MuzzlePluginPerformanceTest {
         "First run should execute muzzle-end task")
     }
   }
+
+  @Test
+  fun `muzzle tasks invalidated when instrumentation code changes`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass { coreJdk() }
+      }
+      """
+    )
+    fixture.writeNoopScanPlugin()
+
+    // First run - should execute the tasks
+    run {
+      val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "First run should execute coreJdk assertion task"
+      )
+    }
+
+    // Second run without changes - assertion tasks should be up-to-date
+    run {
+      val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Second run should be up-to-date")
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be up-to-date"
+      )
+    }
+
+    // Third run after changing instrumentation code - should be invalidated
+    run {
+      val demoSourceDir = File(projectDir, "dd-java-agent/instrumentation/demo/src/main/java/com/example")
+      demoSourceDir.mkdirs()
+      File(demoSourceDir, "Demo.java").writeText(
+        """
+        package com.example;
+
+        public class Demo {
+          public void doSomething() {}
+        }
+        """.trimIndent()
+      )
+
+      val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Third run should execute after instrumentation code change")
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be invalidated and re-execute"
+      )
+    }
+  }
+
+  @Test
+  fun `muzzle tasks invalidated when tooling classpath changes`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass { coreJdk() }
+      }
+      """
+    )
+    fixture.writeNoopScanPlugin()
+
+    // First run - should execute the tasks
+    run {
+      val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "First run should execute coreJdk assertion task"
+      )
+    }
+
+    // Second run without changes - assertion tasks should be up-to-date
+    run {
+      val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Second run should be up-to-date")
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be up-to-date"
+      )
+    }
+
+    // Third run after changing agent-tooling code - should be invalidated
+    run {
+      val toolingSourceDir = File(projectDir, "dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling")
+      toolingSourceDir.mkdirs()
+      File(toolingSourceDir, "Extra.java").writeText(
+        """
+        package datadog.trace.agent.tooling;
+
+        public class Extra {
+          public void extraMethod() {}
+        }
+        """.trimIndent()
+      )
+
+      val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Third run should execute after tooling classpath change")
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be invalidated and re-execute"
+      )
+    }
+  }
+
+  @Test
+  fun `muzzle tasks invalidated when bootstrap classpath changes`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      muzzle {
+        pass { coreJdk() }
+      }
+      """
+    )
+    fixture.writeNoopScanPlugin()
+
+    // First run - should execute the tasks
+    run {
+      val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "First run should execute muzzle task")
+      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "First run should execute coreJdk assertion task"
+      )
+    }
+
+    // Second run without changes - assertion tasks should be up-to-date
+    run {
+      val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Second run should be up-to-date")
+      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be up-to-date"
+      )
+    }
+
+    // Third run after changing agent-bootstrap code - should be invalidated
+    run {
+      val bootstrapSourceDir = File(projectDir, "dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap")
+      bootstrapSourceDir.mkdirs()
+      File(bootstrapSourceDir, "Helper.java").writeText(
+        """
+        package datadog.trace.bootstrap;
+
+        public class Helper {
+          public void help() {}
+        }
+        """.trimIndent()
+      )
+
+      val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
+
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
+        "Third run should execute after bootstrap classpath change")
+      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
+        "coreJdk assertion task should be invalidated and re-execute"
+      )
+    }
+  }
 }
