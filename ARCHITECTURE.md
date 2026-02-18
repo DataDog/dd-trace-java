@@ -177,8 +177,12 @@ instead. Core tracing abstractions:
 - `naming/` — Service and span operation naming schemas (v0, v1) for databases, messaging,
   cloud services, etc.
 - `Config` / `InstrumenterConfig` — Master configuration class and instrumenter-specific config,
-  centralizing settings for all products.
-  TODO: Add an explaination why we have `InstrumenterConfig` due to native-image build time
+  centralizing settings for all products. `InstrumenterConfig` is separated from `Config` due to
+  GraalVM native-image constraints: in native-image builds, all bytecode instrumentation must be
+  applied at build time (ahead-of-time compilation), so configuration that controls instrumentation
+  decisions (which classes to instrument, which integrations to enable, resolver behavior, field
+  injection flags) must be frozen into the native image binary. Runtime-only settings (agent
+  endpoints, service names, sampling rates) remain in `Config`.
 
 Cross-product abstractions:
 
@@ -238,15 +242,31 @@ Each product registers periodic actions that collect domain-specific metrics.
 
 ### `utils/`
 
-TODO: Describe what each utils module could be useful for
-Shared utilities: `config-utils`, `container-utils`, `filesystem-utils`, `flare-utils`,
-`queue-utils`, `socket-utils`, `time-utils`, `version-utils`, `test-utils`.
+Shared utilities, each in its own submodule:
+
+- `config-utils` — `ConfigProvider` for reading and merging configuration from environment variables,
+  system properties, properties files, and CI environment.
+- `container-utils` — Parses container runtime information (Docker, Kubernetes, ECS).
+- `filesystem-utils` — Permission-safe file existence checks that handle `SecurityException`.
+- `flare-utils` — Tracer flare collection (`TracerFlareService`) that gathers diagnostics
+  (logs, spans, system info) and sends them to Datadog for troubleshooting.
+- `queue-utils` — High-performance lock-free queues (`MpscArrayQueue`, `SpscArrayQueue`) for
+  inter-thread communication and span buffering.
+- `socket-utils` — Socket factories (`UnixDomainSocketFactory`, `NamedPipeSocket`) for connecting
+  to the local Datadog Agent via Unix sockets or named pipes.
+- `time-utils` — Time source abstractions (`TimeSource`, `ControllableTimeSource`) for testable
+  time handling and delay parsing.
+- `version-utils` — Agent version string (`VersionInfo.VERSION`) read from packaged resources.
+- `test-utils` — Testing utilities: `@Flaky` annotation, log capture, GC control,
+  forked test configuration.
+- `test-agent-utils` — Message decoders for parsing v04/v05 binary protocol frames in tests.
 
 ### `dd-trace-ot/`
 
-TODO: Explain this is a legacy module. It's goal is to provide an OpenTracing implementation artefact.
-TODO: The tracer will be the datadog one but there won't be any auto instrumentation.
-OpenTracing compatibility layer. Wraps the Datadog tracer behind the OpenTracing API.
+Legacy OpenTracing compatibility library. Publishes a standalone JAR artifact (`dd-trace-ot.jar`)
+that implements the `io.opentracing.Tracer` interface by wrapping the Datadog `CoreTracer`.
+This is a pure library for manual instrumentation only — there is no auto-instrumentation or
+bytecode advice.
 
 ### `dd-smoke-tests/`
 
