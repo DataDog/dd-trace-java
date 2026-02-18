@@ -21,6 +21,14 @@ class SparkExitAdvice {
                 .getMethod(
                     "finishApplication", long.class, Throwable.class, int.class, String.class);
         method.invoke(datadogListener, System.currentTimeMillis(), null, exitCode, null);
+      } else {
+        // No Spark listener means we may be in a launcher-only process (e.g. SparkLauncher on EMR)
+        Class<?> adviceClass =
+            Thread.currentThread()
+                .getContextClassLoader()
+                .loadClass("datadog.trace.instrumentation.spark.SparkLauncherAdvice");
+        Method finishMethod = adviceClass.getDeclaredMethod("finishLauncherSpan", int.class);
+        finishMethod.invoke(null, exitCode);
       }
     } catch (Exception ignored) {
     }
