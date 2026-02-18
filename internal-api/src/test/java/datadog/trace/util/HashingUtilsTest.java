@@ -11,22 +11,22 @@ import org.junit.jupiter.params.provider.ValueSource;
 public class HashingUtilsTest {
   @Test
   public void hashCode_() {
-    assertEquals("bar".hashCode(), Objects.hashCode("bar"));
+    assertEquals("bar".hashCode(), HashingUtils.hashCode("bar"));
   }
 
   @Test
   public void hashCodeNull() {
-    assertEquals(0, Objects.hash((Object) null));
+    assertEquals(0, HashingUtils.hash((Object) null));
   }
 
   @Test
   public void hash1() {
-    assertEquals("foo".hashCode(), Objects.hashCode("foo"));
+    assertEquals("foo".hashCode(), HashingUtils.hashCode("foo"));
   }
 
   @Test
   public void hash1Null() {
-    assertEquals(0, Objects.hashCode(null));
+    assertEquals(0, HashingUtils.hashCode(null));
   }
 
   @Test
@@ -34,17 +34,17 @@ public class HashingUtilsTest {
     String str0 = "foo";
     String str1 = "bar";
 
-    assertNotEquals(0, Objects.hash(str0, str1));
+    assertNotEquals(0, HashingUtils.hash(str0, str1));
 
     String clone0 = clone(str0);
     String clone1 = clone(str1);
 
-    assertEquals(Objects.hash(str0, str1), Objects.hash(clone0, clone1));
+    assertEquals(HashingUtils.hash(str0, str1), HashingUtils.hash(clone0, clone1));
   }
 
   @Test
   public void hash2Null() {
-    assertEquals(0, Objects.hash(null, null));
+    assertEquals(0, HashingUtils.hash(null, null));
   }
 
   @Test
@@ -53,18 +53,18 @@ public class HashingUtilsTest {
     String str2 = "quux";
     String str1 = "bar";
 
-    assertNotEquals(0, Objects.hash(str0, str1, str2));
+    assertNotEquals(0, HashingUtils.hash(str0, str1, str2));
 
     String clone0 = clone(str0);
     String clone1 = clone(str1);
     String clone2 = clone(str2);
 
-    assertEquals(Objects.hash(str0, str1, str2), Objects.hash(clone0, clone1, clone2));
+    assertEquals(HashingUtils.hash(str0, str1, str2), HashingUtils.hash(clone0, clone1, clone2));
   }
 
   @Test
   public void hash3Null() {
-    assertEquals(0, Objects.hash(null, null, null));
+    assertEquals(0, HashingUtils.hash(null, null, null));
   }
 
   @Test
@@ -74,7 +74,7 @@ public class HashingUtilsTest {
     String str2 = "quux";
     String str3 = "foobar";
 
-    assertNotEquals(0, Objects.hash(str0, str1, str2, str3));
+    assertNotEquals(0, HashingUtils.hash(str0, str1, str2, str3));
 
     String clone0 = clone(str0);
     String clone1 = clone(str1);
@@ -82,12 +82,13 @@ public class HashingUtilsTest {
     String clone3 = clone(str3);
 
     assertEquals(
-        Objects.hash(str0, str1, str2, str3), Objects.hash(clone0, clone1, clone2, clone3));
+        HashingUtils.hash(str0, str1, str2, str3),
+        HashingUtils.hash(clone0, clone1, clone2, clone3));
   }
 
   @Test
   public void hash4Null() {
-    assertEquals(0, Objects.hash(null, null, null, null));
+    assertEquals(0, HashingUtils.hash(null, null, null, null));
   }
 
   @Test
@@ -98,7 +99,7 @@ public class HashingUtilsTest {
     String str3 = "foobar";
     String str4 = "hello";
 
-    assertNotEquals(0, Objects.hash(str0, str1, str2, str3));
+    assertNotEquals(0, HashingUtils.hash(str0, str1, str2, str3));
 
     String clone0 = clone(str0);
     String clone1 = clone(str1);
@@ -107,13 +108,13 @@ public class HashingUtilsTest {
     String clone4 = clone(str4);
 
     assertEquals(
-        Objects.hash(str0, str1, str2, str3, str4),
-        Objects.hash(clone0, clone1, clone2, clone3, clone4));
+        HashingUtils.hash(str0, str1, str2, str3, str4),
+        HashingUtils.hash(clone0, clone1, clone2, clone3, clone4));
   }
 
   @Test
   public void hash5Null() {
-    assertEquals(0, Objects.hash(null, null, null, null, null));
+    assertEquals(0, HashingUtils.hash(null, null, null, null, null));
   }
 
   @Test
@@ -128,10 +129,10 @@ public class HashingUtilsTest {
 
     Object[] array = new Object[] {str0, str1, str2, str3, str4, str5, str6};
 
-    int hashArray = Objects.hash(array);
+    int hashArray = HashingUtils.hash(array);
     assertNotEquals(0, hashArray);
 
-    int hashIterable = Objects.hash(Arrays.asList(array));
+    int hashIterable = HashingUtils.hash(Arrays.asList(array));
     assertNotEquals(0, hashIterable);
 
     assertEquals(hashArray, hashIterable);
@@ -140,30 +141,30 @@ public class HashingUtilsTest {
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   public void booleans(boolean value) {
-    assertEquals(Boolean.hashCode(value), Objects.hash(value));
-    assertEquals(Boolean.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Boolean.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Boolean.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
   @ValueSource(chars = {Character.MIN_VALUE, 'a', 'A', '\0', 'z', 'Z', Character.MAX_VALUE})
   public void chars(char value) {
-    assertEquals(Character.hashCode(value), Objects.hash(value));
-    assertEquals(Character.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Character.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Character.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
   @ValueSource(bytes = {Byte.MIN_VALUE, -1, 0, 1, Byte.MAX_VALUE})
   public void bytes(byte value) {
-    assertEquals(Byte.hashCode(value), Objects.hash(value));
-    assertEquals(Byte.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Byte.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Byte.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
   @ValueSource(
       shorts = {Short.MIN_VALUE, Byte.MIN_VALUE, -1, 0, 1, Byte.MAX_VALUE, Short.MAX_VALUE})
   public void shorts(short value) {
-    assertEquals(Short.hashCode(value), Objects.hash(value));
-    assertEquals(Short.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Short.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Short.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
@@ -180,8 +181,8 @@ public class HashingUtilsTest {
         Integer.MAX_VALUE
       })
   public void ints(int value) {
-    assertEquals(Integer.hashCode(value), Objects.hash(value));
-    assertEquals(Integer.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Integer.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Integer.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
@@ -200,15 +201,15 @@ public class HashingUtilsTest {
         Long.MAX_VALUE
       })
   public void longs(long value) {
-    assertEquals(Long.hashCode(value), Objects.hash(value));
-    assertEquals(Long.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Long.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Long.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
   @ValueSource(floats = {Float.MIN_VALUE, -1, 0, 1, 2.71828f, 3.1415f, Float.MAX_VALUE})
   public void floats(float value) {
-    assertEquals(Float.hashCode(value), Objects.hash(value));
-    assertEquals(Float.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Float.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Float.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   @ParameterizedTest
@@ -225,8 +226,8 @@ public class HashingUtilsTest {
         Double.MAX_VALUE
       })
   public void floats(double value) {
-    assertEquals(Double.hashCode(value), Objects.hash(value));
-    assertEquals(Double.hashCode(value), Objects.addToHash(0, value));
+    assertEquals(Double.hashCode(value), HashingUtils.hash(value));
+    assertEquals(Double.hashCode(value), HashingUtils.addToHash(0, value));
   }
 
   static final String clone(String str) {
