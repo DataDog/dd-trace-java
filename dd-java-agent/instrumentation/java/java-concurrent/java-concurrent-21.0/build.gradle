@@ -1,5 +1,10 @@
+plugins {
+  id 'idea'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
+// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
@@ -48,8 +53,5 @@ tasks.named("check") {
 }
 
 dependencies {
-  // Use latest logback for Java 21+ tests with better virtual thread support.
-  testImplementation(libs.logback.classic.latest)
-
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
