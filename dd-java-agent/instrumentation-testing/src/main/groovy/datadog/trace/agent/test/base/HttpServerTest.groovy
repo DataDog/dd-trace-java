@@ -225,6 +225,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     Collections.emptyMap()
   }
 
+  Map<String, Serializable> expectedExtraControllerTags(ServerEndpoint endpoint) {
+    Collections.emptyMap()
+  }
+
+
   // Only used if hasExtraErrorInformation is true
   Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
     if (endpoint.errored) {
@@ -2377,6 +2382,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? expectedCustomExceptionType() : expectedExceptionType()
     def errorMessage = endpoint?.body
+    def extraTags = expectedExtraControllerTags(endpoint)
+
     trace.span {
       operationName "controller"
       resourceName "controller"
@@ -2386,6 +2393,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (errorMessage) {
           errorTags(exception, errorMessage)
         }
+        addTags(extraTags)
         defaultTags()
       }
     }
@@ -2498,11 +2506,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         //        if (endpoint.fragment) {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
         //        }
-        defaultTags(true)
         addTags(expectedExtraServerTags)
         if (extraTags) {
           it.addTags(extraTags)
         }
+        defaultTags(true)
       }
     }
   }

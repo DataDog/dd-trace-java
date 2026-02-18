@@ -242,9 +242,6 @@ class TagsAssert {
   }
 
   def tag(String name, expected) {
-    if (expected == null) {
-      return
-    }
     assertedTags.add(name)
     def value = tag(name)
     if (expected instanceof Pattern) {

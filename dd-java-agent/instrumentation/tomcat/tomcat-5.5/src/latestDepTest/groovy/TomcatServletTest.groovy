@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.ProcessTags
 import datadog.trace.instrumentation.servlet5.HtmlAsyncRumServlet
@@ -105,7 +106,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     }
     map
   }
-
+  
   @Override
   boolean expectedErrored(ServerEndpoint endpoint) {
     (endpoint.errored && bubblesResponse()) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint)
@@ -279,7 +280,12 @@ class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    super.expectedExtraServerTags(endpoint) + ["custom-tag": "custom-value"] as Map<String, Serializable>
+    super.expectedExtraServerTags(endpoint) + ["custom-tag": "custom-value", "_dd.svc_src": null] as Map<String, Serializable>
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraControllerTags(ServerEndpoint endpoint) {
+    super.expectedExtraControllerTags(endpoint) + ["_dd.svc_src": null] as Map<String, Serializable>
   }
 
   @Override
