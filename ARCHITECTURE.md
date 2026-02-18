@@ -84,8 +84,12 @@ unintended loading. See `docs/how_to_work_with_gradle.md` for build details.
   See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
 
 - **`instrumentation/`** — All auto-instrumentations, organized as `{framework}/{framework}-{minVersion}/`.
-  About 186 framework directories. Each contains an `InstrumenterModule` subclass, one or more `Instrumenter`
-  implementations, advice classes, decorators, and helpers. See `docs/how_instrumentations_work.md` for details.
+  Nearly 200 framework directories. Each follows the same pattern: an `InstrumenterModule` declares the
+  target system and integration name, one or more `Instrumenter` implementations select target types
+  via matchers, advice classes inject bytecode via `@Advice.OnMethodEnter`/`@Advice.OnMethodExit`,
+  and decorator/helper classes contain the actual product logic. Instrumentations are discovered
+  via `@AutoService(InstrumenterModule.class)` (Java SPI) and validated by Muzzle at build time.
+  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
 
 - **`appsec/`** — Application Security. Entry point: `AppSecSystem.start()`. Integrates the Datadog WAF
   (Web Application Firewall) to detect and block attacks in real-time.
@@ -174,8 +178,6 @@ instead. Core tracing abstractions:
 - `AgentPropagation` — Context propagation interfaces (`Getter`, `Setter`) that instrumentations
   implement to inject/extract trace context from framework-specific carriers (HTTP headers, message
   properties, etc.).
-- `naming/` — Service and span operation naming schemas (v0, v1) for databases, messaging,
-  cloud services, etc.
 - `Config` / `InstrumenterConfig` — Master configuration class and instrumenter-specific config,
   centralizing settings for all products. `InstrumenterConfig` is separated from `Config` due to
   GraalVM native-image constraints: in native-image builds, all bytecode instrumentation must be
@@ -193,6 +195,8 @@ Cross-product abstractions:
   instrumentations directly.
 - `cache/` — Shared caching primitives (`DDCache`, `FixedSizeCache`, `RadixTreeCache`) used
   throughout the agent.
+- `naming/` — Service and span operation naming schemas (v0, v1) for databases, messaging,
+  cloud services, etc.
 - `telemetry/` — Multi-product telemetry collection interfaces (`MetricCollector`,
   `WafMetricCollector`, `LLMObsMetricCollector`, etc.).
 
@@ -212,10 +216,16 @@ Product-specific APIs that also live here:
 
 ### `components/`
 
+TODO: Those are low-level shared platform components. They are not tied to a product, don't bundle dependencies, and are safe to use in bootstrap.
+TODO: Add a quick description for each component and feature they provide
+
 Low-level shared components: `context` (context propagation primitives), `environment` (JVM/OS detection),
 `json` (lightweight JSON handling), `native-loader` (native library loading), `yaml`.
 
 ### `products/`
+
+TODO: Give a quick explaintation of the product module design with api, lib, bootstrap, folders.
+TODO: Add a quick description for each product.
 
 Additional product modules: `metrics/` (StatsD client and monitoring abstraction) and
 `feature-flagging/` (server-side feature flag evaluation via remote config).
@@ -283,30 +293,6 @@ The core test hierarchy (Groovy/Spock) is:
 - `AbstractServerSmokeTest` extends `AbstractSmokeTest` — For HTTP server applications. Adds HTTP
   port management, waits for the server port to open, and verifies expected trace output from a
   structured log file.
-
-## Instrumentation Pattern
-
-TODO: This whole block should go under dd-java-agent/instrumentation.
-TODO: Make it way smaller to keep few keywords and redirect to the two markdown document about how to write instrumentations
-
-Every instrumentation follows the same pattern:
-
-1. An **`InstrumenterModule`** subclass declares which product it serves (Tracing, AppSec, etc.),
-   its integration name, helper classes, and context stores.
-
-2. One or more **`Instrumenter`** implementations select target types via matchers
-   (`ForSingleType`, `ForKnownTypes`, `ForTypeHierarchy`) and register method advice.
-
-3. **Advice classes** use ByteBuddy's `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` to inject
-   bytecode before/after matched methods. Advice code runs in the application's classloader context.
-
-4. **Decorator/helper classes** contain the actual tracing logic (start span, set tags, finish span).
-   These are injected into the application classloader at runtime.
-
-5. **Muzzle** validates at build time (and runtime) that the instrumented library's API matches
-   what the instrumentation expects, preventing `NoSuchMethodError` at runtime.
-
-Instrumentations are discovered via `@AutoService(InstrumenterModule.class)` (Java SPI).
 
 ## Writer Pipeline
 
