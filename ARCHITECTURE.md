@@ -286,6 +286,9 @@ The core test hierarchy (Groovy/Spock) is:
 
 ## Instrumentation Pattern
 
+TODO: This whole block should go under dd-java-agent/instrumentation.
+TODO: Make it way smaller to keep few keywords and redirect to the two markdown document about how to write instrumentations
+
 Every instrumentation follows the same pattern:
 
 1. An **`InstrumenterModule`** subclass declares which product it serves (Tracing, AppSec, etc.),
