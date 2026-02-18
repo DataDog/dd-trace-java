@@ -1,87 +1,77 @@
 # Architecture of dd-trace-java
 
-This document describes the high-level architecture of the Datadog Java APM agent.
-If you want to familiarize yourself with the codebase, this is a good place to start.
+High-level architecture of the Datadog Java APM agent.
+Start here to orient yourself in the codebase.
 
 ## Bird's Eye View
 
 dd-trace-java is a Java agent that auto-instruments JVM applications at runtime via bytecode manipulation.
 It attaches to a running JVM using the `-javaagent` flag, intercepts class loading, and rewrites method bytecode
-to inject tracing, security, profiling, and observability logic - all without requiring application code changes.
+to inject tracing, security, profiling, and observability logic. No application code changes required.
 
-The agent ships roughly 120 integrations (about 200 instrumentations) covering popular frameworks
-(Spring, Servlet, gRPC, JDBC, Kafka, etc.) and supports multiple Datadog products through a single agent jar:
+Ships ~120 integrations (~200 instrumentations) covering major frameworks
+(Spring, Servlet, gRPC, JDBC, Kafka, etc.) and supports multiple Datadog products through a single jar:
 **Tracing**, **Profiling**, **Application Security (AppSec)**, **IAST**, **CI Visibility**,
 **Dynamic Instrumentation**, **LLM Observability**, **Crash Tracking**, **Data Streams**,
 **Feature Flagging**, and **USM**.
 
-The agent communicates with a local Datadog Agent process (or directly with the Datadog intake APIs)
+Communicates with a local Datadog Agent process (or directly with the Datadog intake APIs)
 to send collected telemetry.
 
 ## Startup Sequence
 
-Understanding the startup sequence is key to understanding the project:
+1. **`AgentBootstrap.premain()`** — JVM entry point. Runs on the application classloader
+   with minimal logic: locates the agent jar, creates an isolated classloader, jumps to `Agent.start()`.
+   Must remain tiny and side-effect-free.
 
-1. **`AgentBootstrap.premain()`** — The JVM calls this entry point. It runs on the application classloader
-   with minimal logic: it locates the agent jar, creates an isolated classloader, and jumps to `Agent.start()`.
-   This class must remain tiny and side-effect-free.
-
-2. **`Agent.start()`** — Running on the bootstrap classloader, this method orchestrates everything:
-   creates the agent classloader, reads configuration, determines which products are enabled
-   (tracing, AppSec, IAST, profiling, etc.), and starts each subsystem on dedicated threads.
+2. **`Agent.start()`** — Runs on the bootstrap classloader. Creates the agent classloader,
+   reads configuration, determines which products are enabled, starts each subsystem on dedicated threads.
 
 3. **`AgentInstaller`** — Installs the ByteBuddy `ClassFileTransformer` that intercepts all class loading.
-   It discovers all `InstrumenterModule` implementations via service loading and registers their
-   type matchers and advice classes with ByteBuddy.
+   Discovers all `InstrumenterModule` implementations via service loading, registers their
+   type matchers and advice classes.
 
-4. **Product subsystems start** — Each enabled product (AppSec, IAST, CI Visibility, Profiling, Debugger, etc.)
-   is started via its own `*System.start()` method, receiving shared communication objects.
+4. **Product subsystems start** — Each enabled product is started via its own `*System.start()` method,
+   receiving shared communication objects.
 
 ## Codemap
 
 ### `dd-java-agent/`
 
-The main agent module. Its build produces the final shadow jar (`dd-java-agent.jar`) using a
-composite shadow jar strategy. Each product module (instrumentation, profiling, AppSec, IAST,
-debugger, CI Visibility, LLM Obs, etc.) builds its own shadow jar, which is then embedded as a
-nested directory inside the main jar (`inst/`, `profiling/`, `appsec/`, `iast/`, `debugger/`,
-`ci-visibility/`, `llm-obs/`, `shared/`, `trace/`, etc.). A dedicated `sharedShadowJar` bundles
-common transitive dependencies (OkHttp, JCTools, LZ4, etc.) so they are not duplicated across
-feature jars. All dependencies are relocated under `datadog.` prefixes to prevent classpath conflicts
-with application libraries. Class files inside feature jars are renamed to `.classdata` to prevent
-unintended loading. See `docs/how_to_work_with_gradle.md` for build details.
+Main agent module. Produces the final shadow jar (`dd-java-agent.jar`) using a composite shadow jar
+strategy. Each product module builds its own shadow jar, embedded as a nested directory inside the
+main jar (`inst/`, `profiling/`, `appsec/`, `iast/`, `debugger/`, `ci-visibility/`, `llm-obs/`,
+`shared/`, `trace/`, etc.). A dedicated `sharedShadowJar` bundles common transitive dependencies
+(OkHttp, JCTools, LZ4, etc.) to avoid duplication across feature jars. All dependencies are relocated
+under `datadog.` prefixes to prevent classpath conflicts. Class files inside feature jars are renamed
+to `.classdata` to prevent unintended loading. See `docs/how_to_work_with_gradle.md`.
 
-- **`src/`** — Contains `AgentBootstrap` and `AgentJar`, the true entry point loaded by the JVM's
-  `-javaagent` mechanism. Deliberately minimal.
+- **`src/`** — `AgentBootstrap` and `AgentJar`, the entry point loaded by `-javaagent`.
+  Deliberately minimal.
 
-- **`agent-bootstrap/`** — Classes loaded on the bootstrap classloader. Contains `Agent` (the real startup
-  orchestrator), decorator base classes (`HttpServerDecorator`, `DatabaseClientDecorator`, etc.),
-  and bootstrap-safe utilities. Because these classes are on the bootstrap classloader, they are
-  visible to all classloaders and can be injected into and used by instrumentation advice and helpers
-  at runtime.
+- **`agent-bootstrap/`** — Classes on the bootstrap classloader: `Agent` (startup orchestrator),
+  decorator base classes (`HttpServerDecorator`, `DatabaseClientDecorator`, etc.), and bootstrap-safe
+  utilities. Visible to all classloaders, so instrumentation advice and helpers can use them directly.
 
   See `docs/boostrap_design_guidelines.md`
 
-- **`agent-builder/`** — ByteBuddy integration layer. Contains the class transformer pipeline:
-  `DDClassFileTransformer` intercepts every class being loaded, `GlobalIgnoresMatcher` applies
-  early filtering, `CombiningMatcher` evaluates all instrumentation matchers, and
-  `SplittingTransformer` applies the matched transformations. The `ignored_class_name.trie` is
-  a compiled trie built at build time that acts as the first and most efficient filter in this
-  pipeline — it short-circuits expensive matcher evaluation for known non-transformable classes
-  (JVM internals, agent infrastructure, monitoring libraries, large framework packages).
-  When a class is unexpectedly not instrumented, the trie is the first place to check: it may
-  be matched by a system-level ignore or an optimization ignore pattern.
+- **`agent-builder/`** — ByteBuddy integration layer. Class transformer pipeline:
+  `DDClassFileTransformer` intercepts every class load, `GlobalIgnoresMatcher` applies early
+  filtering, `CombiningMatcher` evaluates instrumentation matchers, `SplittingTransformer`
+  applies matched transformations. The `ignored_class_name.trie` is a compiled trie built at
+  build time that short-circuits matcher evaluation for known non-transformable classes (JVM
+  internals, agent infrastructure, monitoring libraries, large framework packages). When a class
+  is unexpectedly not instrumented, check the trie first.
 
-- **`agent-tooling/`** — The instrumentation framework. Key types:
-  - `InstrumenterModule` — Base class for all instrumentation modules. Each declares a target system
+- **`agent-tooling/`** — Instrumentation framework. Key types:
+  - `InstrumenterModule` — Base class for all instrumentation modules. Declares a target system
     (Tracing, AppSec, IAST, Profiling, CiVisibility, USM, etc.) and one or more instrumentations.
-  - `Instrumenter` — Interface with variants for type matching: `ForSingleType`, `ForKnownTypes`,
+  - `Instrumenter` — Type matching interface: `ForSingleType`, `ForKnownTypes`,
     `ForTypeHierarchy`, `ForBootstrap`.
-  - `muzzle/` — Build-time and runtime safety checks. Verifies that the types and methods an
-    instrumentation expects actually exist in the library version present at runtime.
-    If they don't, the instrumentation is silently skipped.
+  - `muzzle/` — Build-time and runtime safety checks. Verifies that expected types and methods
+    exist in the library version at runtime. If not, the instrumentation is silently skipped.
 
-  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
+  See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md`.
 
 - **`instrumentation/`** — All auto-instrumentations, organized as `{framework}/{framework}-{minVersion}/`.
   Nearly 200 framework directories. Each follows the same pattern: an `InstrumenterModule` declares the
@@ -91,9 +81,8 @@ unintended loading. See `docs/how_to_work_with_gradle.md` for build details.
   via `@AutoService(InstrumenterModule.class)` (Java SPI) and validated by Muzzle at build time.
   See `docs/how_instrumentations_work.md` and `docs/add_new_instrumentation.md` for details.
 
-- **`appsec/`** — Application Security. Entry point: `AppSecSystem.start()`. Integrates the Datadog WAF
-  (Web Application Firewall) to detect and block attacks in real-time.
-  Hooks into the gateway event system to intercept HTTP requests.
+- **`appsec/`** — Application Security. Entry point: `AppSecSystem.start()`. Runs the Datadog WAF
+  to detect and block attacks in real-time. Hooks into the gateway to intercept HTTP requests.
 
 - **`agent-iast/`** — Interactive Application Security Testing. Entry point: `IastSystem.start()`.
   Performs taint tracking: marks user input as tainted, propagates taint through string operations,
@@ -108,40 +97,36 @@ unintended loading. See `docs/how_to_work_with_gradle.md` for build details.
   Uploads profiles to the Datadog backend.
 
 - **`agent-debugger/`** — Dynamic Instrumentation. Entry point: `DebuggerAgent`.
-  Enables live debugging (set breakpoints, capture snapshots), exception replay, code origin mapping,
-  and distributed debugging — all without restarting the JVM. Driven by remote configuration.
+  Live breakpoints, snapshot capture, exception replay, code origin mapping.
+  Driven by remote configuration.
 
 - **`agent-llmobs/`** — LLM Observability. Entry point: `LLMObsSystem.start()`.
-  Monitors LLM API calls (OpenAI, LangChain, etc.), tracking token usage, model inference, and evaluations.
+  Monitors LLM API calls (OpenAI, LangChain, etc.): token usage, model inference, evaluations.
 
 - **`agent-crashtracking/`** — Crash Tracking. Detects JVM crashes and fatal exceptions,
   collects system metadata, and uploads crash reports to Datadog's error tracking intake.
 
-- **`agent-otel/`** — OpenTelemetry compatibility shim. Provides `OtelTracerProvider`, `OtelSpan`,
-  `OtelContext`, and other wrapper classes that implement the OTel API by delegating to the Datadog
-  tracer. Works in tandem with the OpenTelemetry instrumentations in `instrumentation/opentelemetry/`,
-  which use ByteBuddy advice to intercept OTel API calls (e.g., `OpenTelemetry.getTracerProvider()`)
-  and redirect them to the shim instances. This allows applications and libraries using the OTel API
-  to have their spans captured by the Datadog agent transparently.
+- **`agent-otel/`** — OpenTelemetry compatibility shim. `OtelTracerProvider`, `OtelSpan`,
+  `OtelContext` and other wrappers implement the OTel API by delegating to the Datadog tracer.
+  Paired with instrumentations in `instrumentation/opentelemetry/` that intercept OTel API calls
+  and redirect them to shim instances.
 
 ### `dd-trace-core/`
 
-Originally the core tracing engine, this module grew organically and now also hosts several
-product-specific features that depend on tight integration with span creation, interception,
-or serialization. New module code should prefer `products/` or `components/` over adding to
-this module. Core tracing types:
+Core tracing engine. Grew organically and now also hosts product-specific features that depend on
+tight integration with span creation, interception, or serialization. New code should go in
+`products/` or `components/` instead. Core tracing types:
 
-- `CoreTracer` — The tracer implementation. Creates spans, manages sampling, drives the writer pipeline.
+- `CoreTracer` — Tracer implementation. Creates spans, manages sampling, drives the writer pipeline.
   Implements `AgentTracer.TracerAPI`.
 - `DDSpan` / `DDSpanContext` — Concrete span and context implementations with Datadog-specific metadata.
-- `PendingTrace` — Tracks all spans belonging to a single trace. When all spans finish, flushes the trace
-  to the writer.
-- `scopemanager/` — `ContinuableScopeManager`, `ContinuableScope`, `ScopeContinuation`. Manages the
-  active span on each thread and supports async context propagation via continuations.
+- `PendingTrace` — Collects all spans in a trace. Flushes to the writer when the root span finishes.
+- `scopemanager/` — `ContinuableScopeManager`, `ContinuableScope`, `ScopeContinuation`. Active span
+  per thread, async context propagation via continuations.
 - `propagation/` — Trace context propagation codecs: Datadog, W3C TraceContext, B3, Haystack, X-Ray.
-- `common/writer/` — The writer pipeline. `DDAgentWriter` buffers traces and dispatches them via
-  `PayloadDispatcherImpl` to the Datadog Agent's `/v0.4/traces` endpoint. Also: `DDIntakeWriter` for
-  direct API submission, and `TraceProcessingWorker` for async trace processing.
+- `common/writer/` — Writer pipeline. `DDAgentWriter` buffers traces and dispatches via
+  `PayloadDispatcherImpl` to the Datadog Agent's `/v0.4/traces` endpoint. `DDIntakeWriter` for
+  direct API submission. `TraceProcessingWorker` for async processing.
 - `common/sampling/` — Sampling logic: `RuleBasedTraceSampler`, `RateByServiceTraceSampler`,
   `SingleSpanSampler`. Supports both head-based and rule-based sampling.
 - `tagprocessor/` — Post-processing of span tags: peer service calculation, base service naming,
@@ -149,8 +134,7 @@ this module. Core tracing types:
 
 Non-tracing code that also lives here due to organic growth:
 
-- `datastreams/` — Data Streams Monitoring. Tracks message pipeline latency across Kafka, RabbitMQ,
-  SQS, etc. Core infrastructure shared across many instrumentations.
+- `datastreams/` — Data Streams Monitoring. Tracks message pipeline latency across Kafka, RabbitMQ, SQS, etc.
 - `civisibility/` — CI Visibility trace interceptors and protocol adapters. Hooks into the trace
   completion pipeline to filter and reformat test spans for the CI Test Cycle intake.
 - `lambda/` — AWS Lambda support. Coordinates span creation with the serverless extension,
@@ -160,19 +144,20 @@ Non-tracing code that also lives here due to organic growth:
 
 ### `dd-trace-api/`
 
-The public API. Contains types that application developers may interact with directly:
-`Tracer`, `GlobalTracer`, `DDTags`, `DDSpanTypes`, `Trace` (annotation), `ConfigDefaults`.
-Also houses all configuration key constants organized by domain: `TracerConfig`, `GeneralConfig`,
-`AppSecConfig`, `ProfilingConfig`, `CiVisibilityConfig`, `IastConfig`, `DebuggerConfig`, etc.
+Public API. Types application developers may use directly: `Tracer`, `GlobalTracer`, `DDTags`,
+`DDSpanTypes`, `Trace` (annotation), `ConfigDefaults`. Also houses all configuration key constants
+by domain: `TracerConfig`, `GeneralConfig`, `AppSecConfig`, `ProfilingConfig`, `CiVisibilityConfig`,
+`IastConfig`, `DebuggerConfig`, etc.
 
 ### `internal-api/`
 
-Internal shared API used across all agent modules but not part of the public API.
-Similarly to `dd-trace-core`, this module grew organically and now hosts internal interfaces
-for many products beyond tracing. New product APIs should consider `products/` or `components/`
-instead. Core tracing abstractions:
+Internal shared API across all agent modules (not public). Like `dd-trace-core`, grew organically
+and now hosts interfaces for many products beyond tracing. New product APIs should go in
+`products/` or `components/`. 
 
-- `AgentTracer` — Static facade for the tracer. Instrumentations call `AgentTracer.startSpan()`,
+Core tracing abstractions:
+
+- `AgentTracer` — Static tracer facade. Instrumentations call `AgentTracer.startSpan()`,
   `AgentTracer.activateSpan()`, etc.
 - `AgentSpan` / `AgentScope` / `AgentSpanContext` — Internal span/scope/context interfaces.
 - `AgentPropagation` — Context propagation interfaces (`Getter`, `Setter`) that instrumentations
@@ -188,11 +173,10 @@ instead. Core tracing abstractions:
 
 Cross-product abstractions:
 
-- `gateway/` — The Instrumentation Gateway: an event bus (`InstrumentationGateway`,
-  `SubscriptionService`, `Events`, `CallbackProvider`, `RequestContext`) that decouples
-  instrumentations from product modules. Despite living in `internal-api`, this is primarily
-  an abstraction for AppSec and IAST to hook into the HTTP request lifecycle without modifying
-  instrumentations directly.
+- `gateway/` — Instrumentation Gateway: event bus (`InstrumentationGateway`,
+  `SubscriptionService`, `Events`, `CallbackProvider`, `RequestContext`) decoupling
+  instrumentations from product modules. Primarily used by AppSec and IAST to hook into
+  the HTTP request lifecycle without modifying instrumentations.
 - `cache/` — Shared caching primitives (`DDCache`, `FixedSizeCache`, `RadixTreeCache`) used
   throughout the agent.
 - `naming/` — Service and span operation naming schemas (v0, v1) for databases, messaging,
@@ -216,8 +200,8 @@ Product-specific APIs that also live here:
 
 ### `components/`
 
-Low-level shared platform components. They are not tied to any product, don't bundle external
-dependencies, and are safe to use from the bootstrap classloader:
+Low-level shared platform components. Not tied to any product, no external dependencies,
+bootstrap-safe:
 
 - `context` — Immutable context propagation framework. Provides `Context`, `ContextKey`,
   and `Propagator` abstractions for storing  and propagating key-value pairs across threads
@@ -235,6 +219,7 @@ dependencies, and are safe to use from the bootstrap classloader:
 ### `products/`
 
 Self-contained product modules following a layered submodule pattern:
+
 - `{product}-api/` — Public API interfaces, zero dependencies.
 - `{product}-bootstrap/` — Data classes safe for the bootstrap classloader.
 - `{product}-lib/` — Core implementation (shadow jar, excludes shared dependencies).
@@ -250,10 +235,9 @@ Current products:
 
 ### `communication/`
 
-HTTP transport to the Datadog Agent and intake APIs. Key type: `SharedCommunicationObjects`,
-which holds shared `OkHttpClient` instances (with Unix domain socket and named pipe support),
-agent URL, feature discovery, and the configuration poller. All product modules receive this
-at startup.
+HTTP transport to the Datadog Agent and intake APIs. `SharedCommunicationObjects` holds shared
+`OkHttpClient` instances (Unix domain socket and named pipe support), agent URL, feature discovery,
+and the configuration poller. All product modules receive this at startup.
 
 ### `remote-config/`
 
@@ -297,16 +281,13 @@ bytecode advice.
 
 ### `dd-smoke-tests/`
 
-End-to-end smoke tests. Each test boots a real application with the agent jar attached and verifies
-traces, spans, and product behavior. Covers Spring Boot, Play, Vert.x, Quarkus, WildFly, and more.
-The core test hierarchy (Groovy/Spock) is:
-- `ProcessManager` — Base class. Manages forked JVM processes: spawns the application with the agent
-  jar via `ProcessBuilder`, captures stdout to log files, and tears down processes on cleanup.
-  Provides `assertNoErrorLogs()` to scan logs for errors.
-- `AbstractSmokeTest` extends `ProcessManager` — Adds a mock Datadog Agent (`TestHttpServer`) that
-  receives traces (v0.4/v0.5), telemetry, remote config, and EVP proxy requests. Provides polling
-  helpers (`waitForTraceCount`, `waitForSpan`, `waitForTelemetryFlat`) and decoded trace/telemetry
-  storage.
-- `AbstractServerSmokeTest` extends `AbstractSmokeTest` — For HTTP server applications. Adds HTTP
-  port management, waits for the server port to open, and verifies expected trace output from a
-  structured log file.
+End-to-end smoke tests. Each boots a real application with the agent jar and verifies traces, spans,
+and product behavior. Covers Spring Boot, Play, Vert.x, Quarkus, WildFly, and more.
+Core test hierarchy (Groovy/Spock):
+- `ProcessManager` — Base. Spawns forked JVM processes with the agent via `ProcessBuilder`,
+  captures stdout to log files, tears down on cleanup. `assertNoErrorLogs()` scans logs for errors.
+- `AbstractSmokeTest` extends `ProcessManager` — Adds a mock Datadog Agent (`TestHttpServer`)
+  receiving traces (v0.4/v0.5), telemetry, remote config, and EVP proxy requests. Polling helpers:
+  `waitForTraceCount`, `waitForSpan`, `waitForTelemetryFlat`.
+- `AbstractServerSmokeTest` extends `AbstractSmokeTest` — For HTTP server apps. Adds port
+  management, waits for server port to open, verifies expected trace output.
