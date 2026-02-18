@@ -687,12 +687,6 @@ public class GatewayBridge {
 
   private Flow<Void> onRequestClientSocketAddress(RequestContext ctx_, String ip, Integer port) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    log.debug(
-        ">>> onRequestClientSocketAddress called: ip={}, port={}, ctx={}, isReqDataPublished={}",
-        ip,
-        port,
-        ctx != null,
-        ctx != null ? ctx.isReqDataPublished() : "N/A");
     if (ctx == null || ctx.isReqDataPublished()) {
       return NoopFlow.INSTANCE;
     }
@@ -848,7 +842,6 @@ public class GatewayBridge {
   }
 
   private NoopFlow onRequestEnded(RequestContext ctx_, IGSpanInfo spanInfo) {
-    log.debug(">>> onRequestEnded called");
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
       return NoopFlow.INSTANCE;
@@ -1189,18 +1182,7 @@ public class GatewayBridge {
 
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
-    log.debug(
-        ">>> maybePublishRequestData: savedRawURI={}, peerAddress={}, finishedHeaders={}",
-        savedRawURI,
-        ctx.getPeerAddress(),
-        ctx.isFinishedRequestHeaders());
-
     if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
-      log.debug(
-          ">>> maybePublishRequestData returning NoopFlow: savedRawURI={}, peerAddress={}, finishedHeaders={}",
-          savedRawURI == null ? "null" : "present",
-          ctx.getPeerAddress(),
-          ctx.isFinishedRequestHeaders());
       return NoopFlow.INSTANCE;
     }
 

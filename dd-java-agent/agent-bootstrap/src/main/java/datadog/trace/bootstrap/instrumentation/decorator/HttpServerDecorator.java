@@ -560,10 +560,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   @Override
   public Context beforeFinish(Context context) {
     AgentSpan span = AgentSpan.fromContext(context);
-    log.debug(
-        ">>> HttpServerDecorator.beforeFinish called: span={}, localRoot={}",
-        span != null,
-        span != null ? (span.getLocalRootSpan() == span) : "N/A");
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
     }
@@ -583,11 +579,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
     AgentSpan localRoot = span.getLocalRootSpan();
-    log.debug(
-        ">>> onRequestEndForInstrumentationGateway: span={}, localRoot={}, isRoot={}",
-        span,
-        localRoot,
-        localRoot == span);
 
     // Check if the local root is an inferred proxy span
     boolean hasInferredProxyParent =
@@ -595,15 +586,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     // Only proceed if this is the root span OR if we have an inferred proxy parent
     if (localRoot != span && !hasInferredProxyParent) {
-      log.debug(
-          ">>> onRequestEndForInstrumentationGateway: SKIPPING because span is not local root and no inferred proxy parent");
       return;
     }
-
-    log.debug(
-        ">>> onRequestEndForInstrumentationGateway: PROCEEDING (isRoot={}, hasInferredProxyParent={})",
-        localRoot == span,
-        hasInferredProxyParent);
 
     CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
