@@ -51,4 +51,3 @@ See [release.md](docs/releases.md) for more information.
 
 Additional line
 Another line
-Yet another line
