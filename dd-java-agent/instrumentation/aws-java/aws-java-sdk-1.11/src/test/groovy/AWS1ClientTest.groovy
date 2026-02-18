@@ -467,10 +467,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "peer.service" "${server.address.host}:${server.address.port}"
             "_dd.peer.service.source" "peer.service"
 
-            System.err.println("BORDEL $operation")
-
             if (operation == "SendMessage") {
-              System.err.println("BORDEL")
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"

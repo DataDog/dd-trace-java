@@ -1983,6 +1983,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
       if (serviceName == null) {
         serviceName = traceConfig.getPreferredServiceName();
+        if (serviceName != null) {
+          parentserviceNameSource = "preferred";
+        }
       }
       Map<String, Object> contextualTags = null;
       if (parentServiceName == null) {
@@ -1994,6 +1997,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           // We can try to see if we can find one from the thread context classloader
           if (serviceName == null) {
             serviceName = contextualInfo.getServiceName();
+            if (serviceName != null) {
+              parentserviceNameSource = contextualInfo.getServiceNameSource();
+            }
           }
           contextualTags = contextualInfo.getTags();
         }

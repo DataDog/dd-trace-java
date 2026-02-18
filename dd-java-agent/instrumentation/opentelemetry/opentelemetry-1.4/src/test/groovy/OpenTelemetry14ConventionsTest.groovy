@@ -129,6 +129,7 @@ class OpenTelemetry14ConventionsTest extends InstrumentationSpecification {
           serviceName "my-service"
           spanType "http"
           tags {
+            serviceNameSource null //service name was manually set
             defaultTags()
             "$SPAN_KIND" "$SPAN_KIND_INTERNAL"
           }

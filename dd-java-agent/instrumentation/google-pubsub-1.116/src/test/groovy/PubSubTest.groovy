@@ -81,6 +81,10 @@ abstract class PubSubTest extends VersionedNamingTestBase {
 
   abstract String operationForProducer()
 
+  protected boolean expectsServiceNameSource() {
+    false
+  }
+
   Object createMessageReceiver(final CountDownLatch latch) {
     return new MessageReceiver() {
         @Override
@@ -174,6 +178,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         o1[0].localRootSpan.getTag(Tags.SPAN_KIND) <=> o2[0].localRootSpan.getTag(Tags.SPAN_KIND)
       },
     ] as Comparator) {
+      final boolean expectsServiceNameSource = expectsServiceNameSource()
       trace(shadowGrpcSpans() ? 2 : 3) {
         sortSpansByStart()
         basicSpan(it, "parent")
@@ -190,6 +195,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
+            }
+            if (expectsServiceNameSource) {
+              serviceNameSource "java-google-pubsub"
             }
             defaultTagsNoPeerService()
           }
@@ -222,6 +230,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
+            }
+            if (expectsServiceNameSource) {
+              serviceNameSource "java-google-pubsub"
             }
             defaultTags(true)
           }
@@ -313,6 +324,11 @@ class PubSubNamingV0NoLegacyTracingForkedTest extends PubSubNamingV0Test {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.google-pubsub.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  protected boolean expectsServiceNameSource() {
+    true
   }
 
   @Override
