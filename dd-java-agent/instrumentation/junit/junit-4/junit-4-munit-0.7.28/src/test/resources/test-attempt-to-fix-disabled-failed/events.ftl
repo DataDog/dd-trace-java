@@ -124,7 +124,6 @@
       "test.final_status" : "pass",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "junit-4-munit-0.7.28",
       "test.name" : "Calculator.add",
       "test.source.file" : "dummy_source_path",

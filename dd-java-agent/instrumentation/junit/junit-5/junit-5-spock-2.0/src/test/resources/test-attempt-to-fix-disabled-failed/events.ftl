@@ -124,7 +124,6 @@
       "test.final_status" : "pass",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "junit-5-spock-2.0",
       "test.name" : "test failed",
       "test.source.file" : "dummy_source_path",

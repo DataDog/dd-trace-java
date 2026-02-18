@@ -55,7 +55,6 @@
       "test.final_status" : "fail",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "scalatest-3.0.8",
       "test.name" : "Example.add adds two numbers",
       "test.source.file" : "dummy_source_path",

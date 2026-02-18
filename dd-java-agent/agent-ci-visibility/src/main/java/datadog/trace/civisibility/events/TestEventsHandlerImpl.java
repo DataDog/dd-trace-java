@@ -269,7 +269,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       if (outcome.lastExecution()) {
         test.setTag(Tags.TEST_FINAL_STATUS, outcome.finalStatus());
 
-        if (outcome.failedAllRetries()) {
+        if (retryReason != null && outcome.failedAllRetries()) {
           test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
         }
 

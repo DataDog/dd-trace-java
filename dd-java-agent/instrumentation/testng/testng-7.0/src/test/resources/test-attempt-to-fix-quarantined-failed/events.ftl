@@ -56,7 +56,6 @@
       "test.final_status" : "pass",
       "test.framework" : "testng",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "testng-7.0",
       "test.name" : "test_failed",
       "test.source.file" : "dummy_source_path",

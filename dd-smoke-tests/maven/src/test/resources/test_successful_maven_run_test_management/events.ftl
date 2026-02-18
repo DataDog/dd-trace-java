@@ -305,7 +305,6 @@
       "test.final_status" : "pass",
       "test.framework" : "junit4",
       "test.framework_version" : "4.13.2",
-      "test.has_failed_all_retries" : "true",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",
       "test.name" : "test_another_failed",
       "test.source.file" : "src/test/java/datadog/smoke/TestFailed.java",

@@ -51,7 +51,6 @@
       "test.final_status" : "pass",
       "test.framework" : "cucumber",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "junit-4-cucumber-5.4",
       "test.name" : "Addition",
       "test.status" : "fail",

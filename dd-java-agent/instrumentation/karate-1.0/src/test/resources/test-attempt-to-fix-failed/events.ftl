@@ -144,7 +144,6 @@
       "test.final_status" : "fail",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
       "test.module" : "karate-1.0",
       "test.name" : "second scenario",
       "test.status" : "fail",

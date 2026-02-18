@@ -52,13 +52,12 @@ public class RunNTimes implements TestExecutionPolicy {
     boolean lastExecution = !retriesLeft();
     boolean retry = executions > 1; // first execution is not a retry
     boolean failureSuppressed = status == TestStatus.fail && suppressFailures();
-    boolean succeededAllRetries = lastExecution && successfulExecutionsSeen == executions;
-
+    boolean succeededAllExecutions = successfulExecutionsSeen == executions;
     TestStatus finalStatus = null;
     if (lastExecution) {
       // final status will only be "pass" if all retries pass (or the failures were suppressed)
       // also, the `suppressFailures()` call works because its value cannot change between retries
-      if (succeededAllRetries || suppressFailures()) {
+      if (succeededAllExecutions || suppressFailures()) {
         finalStatus = TestStatus.pass;
       } else {
         finalStatus = TestStatus.fail;
@@ -69,7 +68,7 @@ public class RunNTimes implements TestExecutionPolicy {
         failureSuppressed,
         lastExecution,
         lastExecution && failedExecutionsSeen == executions,
-        succeededAllRetries,
+        lastExecution && succeededAllExecutions,
         retry ? retryReason : null,
         finalStatus);
   }
