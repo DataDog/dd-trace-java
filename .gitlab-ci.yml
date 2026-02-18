@@ -376,8 +376,6 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
-  variables:
-    GRADLE_PARALLEL: false
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
