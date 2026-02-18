@@ -70,7 +70,7 @@ list_matching_jobs() {
   curl --silent --show-error --fail \
     --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
     "${JOBS_API_URL}/pipelines/${pipeline_id}/jobs?scope[]=success&per_page=100" \
-    | python3 - "${pattern}" <<'PY'
+    | python3 -c '
 import json
 import re
 import sys
@@ -82,8 +82,8 @@ for job in jobs:
         continue
     if not job.get("artifacts_file") or not job["artifacts_file"].get("filename"):
         continue
-    print(f'{job["id"]}|{job["name"]}')
-PY
+    print("{}|{}".format(job["id"], job["name"]))
+' "${pattern}"
 }
 
 download_job_artifacts() {
@@ -249,6 +249,11 @@ convert_dacapo_job() {
   local source_dir="$1"
   local side="$2"
   local variant="$3"
+  local dacapo_root="${source_dir}/dacapo"
+
+  if [[ ! -d "${dacapo_root}" ]]; then
+    return
+  fi
 
   while IFS= read -r benchmark_dir; do
     local benchmark_name
@@ -264,7 +269,7 @@ convert_dacapo_job() {
       "${benchmark_dir}"
 
     post_process_dacapo "${out_file}" "${benchmark_name}" "${variant}" "${side}"
-  done < <(find "${source_dir}" -type d -path '*/dacapo/*/*')
+  done < <(find "${dacapo_root}" -mindepth 2 -maxdepth 2 -type d)
 }
 
 convert_load_job() {
@@ -287,7 +292,7 @@ convert_load_job() {
   mkdir -p "${target_dir}"
 
   benchmark_analyzer merge \
-    --mergeby="['scenario', 'application', 'variant', 'baseline_or_candidate', 'git_branch', 'git_commit_sha', 'git_commit_date', 'cpu_model', 'kernel_version', 'ci_job_date', 'ci_job_id', 'ci_pipeline_id']" \
+    --mergeby="['scenario', 'application', 'variant', 'baseline_or_candidate', 'git_branch', 'git_commit_sha', 'git_commit_date', 'cpu_model', 'kernel_version']" \
     --outpath="${out_file}" \
     "${k6_files[@]}"
 

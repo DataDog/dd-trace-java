@@ -19,15 +19,6 @@ fi
 readonly PROJECT_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 readonly BTI_TOKEN_URL="https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=apm-reliability/dd-trace-java"
 
-log_debug() {
-  echo "[baseline-debug] $*" >&2
-}
-
-response_snippet() {
-  local response="$1"
-  echo "${response}" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-220
-}
-
 get_private_token() {
   local auth_header bti_response http_status response_body private_token
 
@@ -45,7 +36,7 @@ get_private_token() {
   response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
 
   if [[ "${http_status}" != "200" ]]; then
-    echo "BTI token request failed: status=${http_status}, body='$(response_snippet "${response_body}")'" >&2
+    echo "BTI token request failed with status ${http_status}." >&2
     return 1
   fi
 
@@ -63,17 +54,14 @@ get_pipeline_id_for_commit() {
   local api_url="${PROJECT_API_URL}/repository/commits/${commit_sha}"
   local response pipeline_id private_token
 
-  log_debug "query commit endpoint: ${api_url}"
   private_token="$(get_private_token)" || return 1
   response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
   if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
-    log_debug "found pipeline_id=${pipeline_id} for commit_sha=${commit_sha}"
-    echo "${pipeline_id}"
+    echo "Pipeline ID for commit ${commit_sha}: ${pipeline_id}"
     return 0
   fi
 
-  log_debug "no last_pipeline.id for commit_sha=${commit_sha}; response='$(response_snippet "${response}")'"
   return 1
 }
 
@@ -82,16 +70,10 @@ get_latest_pipeline_id_for_branch() {
   local api_url="${PROJECT_API_URL}/pipelines?ref=${branch}&order_by=id&sort=desc&per_page=1"
   local response pipeline_id private_token
 
-  log_debug "query pipelines endpoint: ${api_url}"
   private_token="$(get_private_token)" || return 1
   response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
-  if [[ -n "${pipeline_id}" ]]; then
-    log_debug "found latest pipeline_id=${pipeline_id} for branch=${branch}"
-  else
-    log_debug "no pipeline found for branch=${branch}; response='$(response_snippet "${response}")'"
-  fi
-  echo "${pipeline_id}"
+  echo "Pipeline ID for branch ${branch}: ${pipeline_id}"
 }
 
 resolve_merge_base_sha() {
@@ -110,8 +92,6 @@ BASELINE_PIPELINE_ID=""
 BASELINE_SOURCE="merge_base"
 FALLBACK_TO_MASTER="false"
 
-log_debug "resolved merge_base_sha='${MERGE_BASE_SHA:-<empty>}' target_branch='${TARGET_BRANCH}'"
-
 if [[ -n "${MERGE_BASE_SHA}" ]]; then
   BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${MERGE_BASE_SHA}" || true)"
 fi
@@ -119,10 +99,8 @@ fi
 if [[ -z "${BASELINE_PIPELINE_ID}" ]]; then
   FALLBACK_TO_MASTER="true"
   BASELINE_SOURCE="${TARGET_BRANCH}"
-  log_debug "merge-base pipeline not found; falling back to branch='${TARGET_BRANCH}'"
 
   BASELINE_SHA="$(git rev-parse "origin/${TARGET_BRANCH}" 2>/dev/null || true)"
-  log_debug "resolved branch sha from local git: '${BASELINE_SHA:-<empty>}'"
   if [[ -n "${BASELINE_SHA}" ]]; then
     BASELINE_PIPELINE_ID="$(get_pipeline_id_for_commit "${BASELINE_SHA}" || true)"
   fi

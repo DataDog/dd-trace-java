@@ -3,7 +3,6 @@
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
-    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -48,7 +47,6 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
-    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -89,7 +87,6 @@ debugger-benchmarks:
   tags: ["arch:amd64"]
   interruptible: true
   rules:
-    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - when: on_success
@@ -139,7 +136,6 @@ benchmarks-post-pr-comment:
     - job: benchmarks-compare-dacapo
       artifacts: true
   rules:
-    - when: never # disable while testing merge base logic
     - if: '$POPULATE_CACHE'
       when: never
     - when: always
@@ -150,29 +146,3 @@ benchmarks-post-pr-comment:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     BP_HEADER: "Benchmarks"
     BP_ON_DUPLICATE: "replace"
-
-# DEBUG MERGE BASE LOGIC IMMEDIATELY instead of waiting on all benchmarks to complete
-benchmarks-debug-baseline:
-  stage: benchmark-comparison
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
-  tags: ["arch:amd64"]
-  interruptible: true
-  needs: []
-  rules:
-    - when: on_success
-  script:
-    - |
-      if [ "$(uname -m)" = "x86_64" ]; then AAA="amd64"; else AAA="arm64"; fi
-      wget -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
-      chmod +x /tmp/authanywhere
-      mv /tmp/authanywhere /usr/local/bin/authanywhere
-    - mkdir -p reports/debug
-    - .gitlab/scripts/get-baseline-commit-info.sh "reports/debug"
-    - echo "Resolved baseline:"
-    - cat reports/debug/baseline-info.env
-    - if [[ -f "reports/debug/fallback_to_master.txt" ]]; then cat "reports/debug/fallback_to_master.txt"; fi
-  artifacts:
-    when: always
-    paths:
-      - reports/debug/
-    expire_in: 1 week

@@ -7,18 +7,12 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic.yml'
     ref: 'main'
-    rules:
-      - when: never # disable while testing merge base logic
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-insecure-bank.yml'
     ref: 'main'
-    rules:
-      - when: never # disable while testing merge base logic
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo.yml'
     ref: 'main'
-    rules:
-      - when: never # disable while testing merge base logic
 
 stages:
   - build
