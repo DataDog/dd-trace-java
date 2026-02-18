@@ -3,10 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Writable;
-import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
@@ -16,6 +13,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,13 +44,13 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private final int bufferSize;
   private final StringTable stringTable;
-  private final MetaWriter metaWriter;
+  private final SpanMetadata spanMetadata;
   private boolean firstSpanWritten;
 
   public TraceMapperV1(int bufferSize) {
     this.bufferSize = bufferSize;
     this.stringTable = new StringTable();
-    this.metaWriter = new MetaWriter();
+    this.spanMetadata = new SpanMetadata();
   }
 
   public TraceMapperV1() {
@@ -61,24 +59,31 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
-    writable.startMap(7); // trace chunk has 7 attributes
+    writable.startMap(5); // trace chunk has 7 attributes
+
+    CoreSpan<?> firstSpan = trace.get(0);
+    firstSpan.processTagsAndBaggage(spanMetadata);
+    Metadata meta = spanMetadata.metadata;
 
     // priority = 1, the sampling priority of the trace
-    encodeField(writable, 1, 1); // TODO implement
+    encodeField(writable, 1, meta.samplingPriority()); // TODO check
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
-    encodeField(writable, 2, "origin"); // TODO implement
+    encodeField(writable, 2, firstSpan.getOrigin()); // TODO implement
     // attributes = 3, a collection of key to value pairs common in all `spans`
-    encodeAttributes(writable, 3); // TODO implement
+    encodeAttributes(writable, 3, Collections.emptyMap()); // TODO implement
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace);
-    // droppedTrace = 5, whether the trace only contains analyzed spans
-    // (not required by tracers and set by the agent)
-    encodeField(writable, 5, false); // TODO: double check
+
+    // // droppedTrace = 5, whether the trace only contains analyzed spans
+    // // (not required by tracers and set by the agent)
+    // encodeField(writable, 5, false); // TODO: double check
+
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
-    encodeField(writable, 6, trace.get(0).getTraceId().to128BitBytes()); // TODO check
-    // samplingMechanism = 7, the optional sampling mechanism
-    // (previously span tag _dd.p.dm, but now it’s just the int)
-    encodeField(writable, 7, 0); // TODO implement
+    encodeField(writable, 6, firstSpan.getTraceId().to128BitBytes()); // TODO check
+
+    // // samplingMechanism = 7, the optional sampling mechanism
+    // // (previously span tag _dd.p.dm, but now it’s just the int)
+    // encodeField(writable, 7, 0); // TODO implement
   }
 
   private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {
@@ -89,6 +94,9 @@ public final class TraceMapperV1 implements TraceMapper {
 
     for (int i = 0; i < spansCount; i++) {
       final CoreSpan<?> span = spans.get(i);
+
+      span.processTagsAndBaggage(spanMetadata);
+      Metadata meta = spanMetadata.metadata;
 
       // Span has 16 fields
       writable.startMap(16);
@@ -111,7 +119,7 @@ public final class TraceMapperV1 implements TraceMapper {
       // error = 8, if there is an error associated with this span
       encodeField(writable, 8, span.getError() != 0);
       // attributes = 9, a collection of string key to value pairs on the span
-      encodeAttributes(writable, 9); // TODO implement
+      encodeAttributes(writable, 9, meta.getTags()); // TODO check and implement
       // type = 10, the string type of the service with which this span is associated
       // (example values: web, db, lambda)
       encodeField(writable, 10, span.getType());
@@ -130,7 +138,7 @@ public final class TraceMapperV1 implements TraceMapper {
       // component = 15, the string component name of this span
       encodeField(writable, 15, "todo"); // TODO implement
       // kind = 16, the SpanKind of this span as defined in the OTEL Specification
-      encodeField(writable, 16, "todo"); // TODO implement
+      encodeField(writable, 16, getSpanKindValue(span.getType())); // TODO implement
 
       // // Fields 13-16: promoted fields (env, version, component, spanKind)
       // span.processTagsAndBaggage(
@@ -143,12 +151,31 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   // TODO: For now just write `test` attr with value `26` so far.
-  private void encodeAttributes(Writable writable, int fieldId) {
+  private void encodeAttributes(Writable writable, int fieldId, Map<String, Object> attrs) {
     writable.writeInt(fieldId);
-    writable.startArray(3);
-    writeStreamingString(writable, "test");
-    writable.writeInt(FLOAT_VALUE_TYPE);
-    writable.writeDouble(26);
+    writable.startArray(attrs.size() * 3);
+
+    for (Map.Entry<String, Object> attr : attrs.entrySet()) {
+      String key = attr.getKey();
+      writeStreamingString(writable, key);
+
+      Object val = attr.getValue();
+
+      if (val instanceof Number) {
+        writable.writeInt(FLOAT_VALUE_TYPE);
+        writable.writeDouble(((Number) val).doubleValue());
+      } else if (val instanceof Boolean) {
+        writable.writeInt(BOOL_VALUE_TYPE);
+        writable.writeBoolean((Boolean) val);
+      } else {
+        if (!(val instanceof String)) {
+          System.err.println("Not a string value: " + key + ", " + val);
+        }
+        writable.writeInt(STRING_VALUE_TYPE);
+        writeStreamingString(
+            writable, val == null ? "" : val.toString()); // TODO check and implement
+      }
+    }
   }
 
   private void encodeField(Writable writable, int fieldId, boolean value) {
@@ -186,12 +213,12 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   /** Converts a span kind string to its OTEL uint32 value. */
-  static int getSpanKindValue(String spanKind) {
+  static int getSpanKindValue(CharSequence spanKind) {
     if (spanKind == null) {
       return SPAN_KIND_INTERNAL;
     }
 
-    switch (spanKind) {
+    switch (spanKind.toString()) {
       case Tags.SPAN_KIND_INTERNAL:
         return SPAN_KIND_INTERNAL;
       case Tags.SPAN_KIND_SERVER:
@@ -209,8 +236,8 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    // log.debug(">>>>> number of spans: " + trace.size());
-    //
+
+    // TODO
     // // TODO: probably this can be optimized by caching this data once.
     // Config cfg = Config.get();
     //
@@ -287,253 +314,12 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  /** MetaWriter for V1.0 format that writes attributes and promoted fields. */
-  private final class MetaWriter implements MetadataConsumer {
-    private Writable writable;
-    private boolean firstSpanInTrace;
-    private boolean lastSpanInTrace;
-    private boolean firstSpanInPayload;
-
-    MetaWriter withWritable(Writable writable) {
-      this.writable = writable;
-      return this;
-    }
-
-    MetaWriter forSpan(boolean firstInTrace, boolean lastInTrace, boolean firstInPayload) {
-      this.firstSpanInTrace = firstInTrace;
-      this.lastSpanInTrace = lastInTrace;
-      this.firstSpanInPayload = firstInPayload;
-      return this;
-    }
+  private static class SpanMetadata implements MetadataConsumer {
+    private Metadata metadata;
 
     @Override
     public void accept(Metadata metadata) {
-      // Extract promoted fields
-      String env = null;
-      String version = null;
-      String component = null;
-      String spanKind = null;
-
-      // Count attributes (excluding promoted fields)
-      int attributeCount = 0;
-
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
-      final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-
-      // Count non-promoted attributes
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
-
-        if (Tags.ENV.equals(key)) {
-          env = String.valueOf(value);
-        } else if (Tags.DD_VERSION.equals(key)) {
-          version = String.valueOf(value);
-        } else if (Tags.COMPONENT.equals(key)) {
-          component = String.valueOf(value);
-        } else if (Tags.SPAN_KIND.equals(key)) {
-          spanKind = String.valueOf(value);
-        } else if (!(value instanceof Map)) {
-          attributeCount++;
-        } else {
-          attributeCount += getFlatMapSize((Map<String, Object>) value);
-        }
-      }
-
-      // Add baggage items
-      attributeCount += metadata.getBaggage().size();
-
-      // Add thread name and ID
-      attributeCount += 2;
-
-      // Add HTTP status code if present
-      if (metadata.getHttpStatusCode() != null) {
-        attributeCount++;
-      }
-
-      // Add origin if present
-      if (metadata.getOrigin() != null) {
-        attributeCount++;
-      }
-
-      // Add process tags if present
-      if (processTags != null) {
-        attributeCount++;
-      }
-
-      // Add sampling priority if needed
-      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
-        attributeCount++;
-      }
-
-      // Add measured metric if needed
-      if (metadata.measured()) {
-        attributeCount++;
-      }
-
-      // Add top level metric if needed
-      if (metadata.topLevel()) {
-        attributeCount++;
-      }
-
-      // Add long running version if needed
-      if (metadata.longRunningVersion() != 0) {
-        attributeCount++;
-      }
-
-      // // Write Field 9: attributes
-      // writable.writeInt(SPAN_FIELD_ATTRIBUTES);
-      // Attributes are encoded as an array with triplets (key, type, value)
-      writable.startArray(attributeCount * 3);
-
-      // Write baggage
-      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        writeString(entry.getKey(), entry.getValue());
-      }
-
-      // Write thread name
-      writeString(DDTags.THREAD_NAME, metadata.getThreadName().toString());
-
-      // Write thread ID
-      writeLong(DDTags.THREAD_ID, metadata.getThreadId());
-
-      // Write HTTP status code if present
-      if (metadata.getHttpStatusCode() != null) {
-        writeString(Tags.HTTP_STATUS, metadata.getHttpStatusCode().toString());
-      }
-
-      // Write origin if present
-      if (metadata.getOrigin() != null) {
-        writeString(DDTags.ORIGIN_KEY, metadata.getOrigin().toString());
-      }
-
-      // Write process tags if present
-      if (processTags != null) {
-        writeString(DDTags.PROCESS_TAGS, processTags.toString());
-      }
-
-      // Write sampling priority if needed
-      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
-        writeInt("_sampling_priority_v1", metadata.samplingPriority());
-      }
-
-      // Write measured metric if needed
-      if (metadata.measured()) {
-        writeInt(InstrumentationTags.DD_MEASURED.toString(), 1);
-      }
-
-      // Write top level metric if needed
-      if (metadata.topLevel()) {
-        writeInt(InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
-      }
-
-      // Write long running version if needed
-      if (metadata.longRunningVersion() != 0) {
-        if (metadata.longRunningVersion() > 0) {
-          writeInt(
-              InstrumentationTags.DD_PARTIAL_VERSION.toString(), metadata.longRunningVersion());
-        } else {
-          writeInt(InstrumentationTags.DD_WAS_LONG_RUNNING.toString(), 1);
-        }
-      }
-
-      // Write non-promoted tags
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
-
-        // Skip promoted fields
-        if (Tags.ENV.equals(key)
-            || Tags.DD_VERSION.equals(key)
-            || Tags.COMPONENT.equals(key)
-            || Tags.SPAN_KIND.equals(key)) {
-          continue;
-        }
-
-        if (value instanceof Map) {
-          writeFlatMap(key, (Map<String, Object>) value);
-        } else if (value instanceof Number) {
-          writeDouble(key, ((Number) value).doubleValue());
-        } else if (value instanceof Boolean) {
-          writeBoolean(key, (Boolean) value);
-        } else {
-          writeString(key, String.valueOf(value));
-        }
-      }
-
-      // Write promoted fields (13-16)
-
-      // // Field 13: env
-      // writable.writeInt(SPAN_FIELD_ENV);
-      // writeStreamingString(writable, env != null ? env : "");
-      //
-      // // Field 14: version
-      // writable.writeInt(SPAN_FIELD_VERSION);
-      // writeStreamingString(writable, version != null ? version : "");
-      //
-      // // Field 15: component
-      // writable.writeInt(SPAN_FIELD_COMPONENT);
-      // writeStreamingString(writable, component != null ? component : "");
-      //
-      // // Field 16: spanKind (uint32)
-      // writable.writeInt(SPAN_FIELD_SPAN_KIND);
-      // writable.writeInt(getSpanKindValue(spanKind));
-    }
-
-    private void writeString(String key, String value) {
-      writeStreamingString(writable, key);
-      writable.writeInt(STRING_VALUE_TYPE);
-      writeStreamingString(writable, value);
-    }
-
-    private void writeBoolean(String key, boolean value) {
-      writeStreamingString(writable, key);
-      writable.writeInt(BOOL_VALUE_TYPE);
-      writable.writeBoolean(value);
-    }
-
-    private void writeInt(String key, int value) {
-      writeDouble(key, value);
-    }
-
-    private void writeLong(String key, long value) {
-      writeDouble(key, value);
-    }
-
-    private void writeDouble(String key, double value) {
-      writeStreamingString(writable, key);
-      writable.writeInt(FLOAT_VALUE_TYPE);
-      writable.writeDouble(value);
-    }
-
-    @SuppressWarnings("unchecked")
-    private int getFlatMapSize(Map<String, Object> map) {
-      int size = 0;
-      for (Object value : map.values()) {
-        if (value instanceof Map) {
-          size += getFlatMapSize((Map<String, Object>) value);
-        } else {
-          size++;
-        }
-      }
-      return size;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void writeFlatMap(String key, Map<String, Object> mapValue) {
-      for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
-        String newKey = key + '.' + entry.getKey();
-        Object newValue = entry.getValue();
-        if (newValue instanceof Map) {
-          writeFlatMap(newKey, (Map<String, Object>) newValue);
-        } else if (newValue instanceof Number) {
-          writeDouble(newKey, ((Number) newValue).doubleValue());
-        } else if (newValue instanceof Boolean) {
-          writeBoolean(newKey, (Boolean) newValue);
-        } else {
-          writeString(newKey, String.valueOf(newValue));
-        }
-      }
+      this.metadata = metadata;
     }
   }
 
