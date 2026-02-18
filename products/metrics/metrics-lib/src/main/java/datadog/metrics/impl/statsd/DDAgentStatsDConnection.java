@@ -174,7 +174,21 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             log.debug("Max retries have been reached. Will not attempt again.");
           }
         } catch (Throwable t) {
-          log.error("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
+          if (log.isDebugEnabled()) {
+            // Display full stack traces on debug logs
+            log.warn("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
+          } else {
+            // Only report the top and root cause message
+            Throwable rootCause = t;
+            while (rootCause.getCause() != null) {
+              rootCause = rootCause.getCause();
+            }
+            log.warn(
+                "Unable to create StatsD client - {} - Will not retry: {}, {}",
+                statsDAddress(),
+                t.getMessage(),
+                rootCause.getMessage());
+          }
         }
       }
     }
