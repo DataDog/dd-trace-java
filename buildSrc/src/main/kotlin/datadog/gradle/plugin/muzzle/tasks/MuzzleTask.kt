@@ -66,10 +66,8 @@ abstract class MuzzleTask @Inject constructor(
   @get:Optional
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
-  // This output is only used to make the task cacheable, this is not exposed
   @get:OutputFile
-  @get:Optional
-  protected val result: RegularFileProperty = objects.fileProperty().convention(
+  val result: RegularFileProperty = objects.fileProperty().convention(
     project.layout.buildDirectory.file("reports/$name.txt")
   )
 
