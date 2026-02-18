@@ -2,11 +2,11 @@ package datadog.gradle.plugin.muzzle
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertNull
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.nio.file.Files
@@ -41,6 +41,9 @@ class MuzzlePluginFunctionalTest {
     )
 
     val buildResult = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
@@ -52,7 +55,6 @@ class MuzzlePluginFunctionalTest {
 
     val passCase = findTestCase(report, "muzzle-AssertPass-core-jdk")
     assertEquals(0, passCase.getElementsByTagName("failure").length)
-    assertTrue(buildResult.output.contains(":dd-java-agent:instrumentation:demo:muzzle-end"))
   }
 
   @Test
@@ -74,7 +76,8 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
@@ -244,21 +247,13 @@ class MuzzlePluginFunctionalTest {
       "Build should succeed. Output:\n${result.output.take(3000)}"
     )
 
-    val hasMuzzleTasks = result.tasks.any { it.path.contains("muzzle") }
-    assertTrue(hasMuzzleTasks, "Should have executed some muzzle tasks")
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
 
-    assertTrue(
-      result.output.contains("demo-lib-1.0.0") || result.output.contains("demo-lib:1.0.0"),
-      "Should find demo-lib version 1.0.0 in output"
-    )
-    assertTrue(
-      result.output.contains("demo-lib-1.1.0") || result.output.contains("demo-lib:1.1.0"),
-      "Should find demo-lib version 1.1.0 in output"
-    )
-    assertTrue(
-      result.output.contains("demo-lib-1.2.0") || result.output.contains("demo-lib:1.2.0"),
-      "Should find demo-lib version 1.2.0 in output"
-    )
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.0.0")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.1.0")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.2.0")?.outcome)
+    assertNull(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-2.0.0")?.outcome, "Should not check against test-demo-lib:2.0.0")
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
@@ -506,6 +501,8 @@ class MuzzlePluginFunctionalTest {
       result.output.contains("BUILD SUCCESSFUL"),
       "Build should succeed. Output:\n${result.output.take(2000)}"
     )
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
     assertTrue(
       result.output.contains("Additional dependency (extra-lib) found in test classpath"),
       "Additional dependency should be loadable from test classpath"
@@ -592,6 +589,8 @@ class MuzzlePluginFunctionalTest {
     )
 
     assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-with-transitive-1.0.0")?.outcome)
     assertTrue(
       result.output.contains("Excluded dependency (guava) correctly not in test classpath"),
       "Excluded dependency should not be loadable from test classpath"
@@ -626,9 +625,8 @@ class MuzzlePluginFunctionalTest {
     )
 
     assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-    val muzzleTask = result.task(":dd-java-agent:instrumentation:demo:muzzle")
-    assertNotNull(muzzleTask, "Muzzle task should have run")
-    assertEquals(SUCCESS, muzzleTask?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
   }
 
   @Test
@@ -660,9 +658,8 @@ class MuzzlePluginFunctionalTest {
     )
 
     assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-    val muzzleTask = result.task(":dd-java-agent:instrumentation:demo:muzzle")
-    assertNotNull(muzzleTask, "Muzzle task should have run")
-    assertEquals(SUCCESS, muzzleTask?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
   }
 
   @Test
