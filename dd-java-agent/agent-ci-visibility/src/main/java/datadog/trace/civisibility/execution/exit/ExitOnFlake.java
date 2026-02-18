@@ -5,7 +5,6 @@ package datadog.trace.civisibility.execution.exit;
  * for Early Flake Detection.
  */
 public class ExitOnFlake implements EarlyExitPolicy {
-
   public static final EarlyExitPolicy INSTANCE = new ExitOnFlake();
 
   private ExitOnFlake() {}
