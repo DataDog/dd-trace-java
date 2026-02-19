@@ -59,8 +59,8 @@ class IastExtensionTest extends BaseCsiPluginTest {
       delimiter = '|',
       nullValues = "null",
       value = {
-        "datadog.trace.agent.tooling.csi.CallSites      | false",
-        "datadog.trace.agent.tooling.iast.IastCallSites | true"
+        "datadog.trace.agent.tooling.csi.CallSites | false",
+        "datadog.trace.api.iast.IastCallSites      | true"
       })
   void testThatExtensionOnlyAppliesToIastAdvices(String typeName, boolean expected) {
     Type type = classNameToType(typeName);
