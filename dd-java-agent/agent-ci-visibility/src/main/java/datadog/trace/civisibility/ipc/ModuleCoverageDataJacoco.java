@@ -4,8 +4,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Objects;
 import javax.annotation.Nonnull;
+import datadog.trace.util.HashingUtils;
 
 public class ModuleCoverageDataJacoco extends ModuleSignal {
 
@@ -39,7 +39,7 @@ public class ModuleCoverageDataJacoco extends ModuleSignal {
 
   @Override
   public int hashCode() {
-    return Objects.hash(sessionId, moduleId, Arrays.hashCode(coverageData));
+    return HashingUtils.hash(sessionId, moduleId, Arrays.hashCode(coverageData));
   }
 
   @Override

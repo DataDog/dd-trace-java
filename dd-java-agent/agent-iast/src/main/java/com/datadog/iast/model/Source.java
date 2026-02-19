@@ -1,7 +1,6 @@
 package com.datadog.iast.model;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.iast.model.json.SourceTypeString;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
@@ -12,6 +11,8 @@ import java.util.StringJoiner;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 public final class Source implements Taintable.Source {
 
@@ -113,7 +114,7 @@ public final class Source implements Taintable.Source {
 
   @Override
   public int hashCode() {
-    return Objects.hash(origin, getName(), getValue());
+    return HashingUtils.hash(origin, getName(), getValue());
   }
 
   public Source attachValue(final Object newValue) {

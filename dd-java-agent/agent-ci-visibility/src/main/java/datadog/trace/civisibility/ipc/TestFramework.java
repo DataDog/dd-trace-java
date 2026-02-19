@@ -3,6 +3,7 @@ package datadog.trace.civisibility.ipc;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class TestFramework implements Comparable<TestFramework> {
   private final String name;
@@ -35,7 +36,7 @@ public final class TestFramework implements Comparable<TestFramework> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, version);
+    return HashingUtils.hash(name, version);
   }
 
   @Override

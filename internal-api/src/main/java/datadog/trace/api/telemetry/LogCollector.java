@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
+import datadog.trace.util.HashingUtils;
 
 public class LogCollector {
   public static final Marker SEND_TELEMETRY = MarkerFactory.getMarker("SEND_TELEMETRY");
@@ -121,7 +122,7 @@ public class LogCollector {
 
     @Override
     public int hashCode() {
-      return Objects.hash(logLevel, message, throwable == null ? null : throwable.getClass());
+      return HashingUtils.hash(logLevel, message, throwable == null ? null : throwable.getClass());
     }
   }
 }

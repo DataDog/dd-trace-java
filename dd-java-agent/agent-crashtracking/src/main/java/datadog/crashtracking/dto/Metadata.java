@@ -3,6 +3,7 @@ package datadog.crashtracking.dto;
 import com.squareup.moshi.Json;
 import java.util.Arrays;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class Metadata {
   @Json(name = "library_name")
@@ -38,6 +39,6 @@ public final class Metadata {
 
   @Override
   public int hashCode() {
-    return Objects.hash(libraryName, libraryVersion, family, Arrays.hashCode(tags));
+    return HashingUtils.hash(libraryName, libraryVersion, family, Arrays.hashCode(tags));
   }
 }

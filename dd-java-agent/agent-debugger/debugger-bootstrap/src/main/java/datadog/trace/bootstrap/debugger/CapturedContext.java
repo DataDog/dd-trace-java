@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.debugger;
 
-import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
-
+import datadog.trace.util.HashingUtils;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -18,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
@@ -373,7 +374,7 @@ public class CapturedContext implements ValueReferenceResolver {
 
   @Override
   public int hashCode() {
-    return Objects.hash(arguments, locals, throwable, staticFields);
+    return HashingUtils.hash(arguments, locals, throwable, staticFields);
   }
 
   @Override
@@ -628,7 +629,7 @@ public class CapturedContext implements ValueReferenceResolver {
 
     @Override
     public int hashCode() {
-      return Objects.hash(name, declaredType, value, fields, notCapturedReason);
+      return HashingUtils.hash(name, declaredType, value, fields, notCapturedReason);
     }
 
     @Override
@@ -723,7 +724,7 @@ public class CapturedContext implements ValueReferenceResolver {
 
     @Override
     public int hashCode() {
-      return Objects.hash(type, message, stacktrace);
+      return HashingUtils.hash(type, message, stacktrace);
     }
 
     @Override

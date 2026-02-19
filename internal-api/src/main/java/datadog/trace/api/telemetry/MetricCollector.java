@@ -1,14 +1,15 @@
 package datadog.trace.api.telemetry;
 
-import static datadog.trace.api.telemetry.MetricCollector.Metric;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-
+import datadog.trace.util.HashingUtils;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+
+import static datadog.trace.api.telemetry.MetricCollector.Metric;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 public interface MetricCollector<M extends Metric> {
 
@@ -89,7 +90,7 @@ public interface MetricCollector<M extends Metric> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(metricName, common, namespace, tags);
+      return HashingUtils.hash(metricName, common, namespace, tags);
     }
 
     @Override
@@ -145,7 +146,7 @@ public interface MetricCollector<M extends Metric> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(metricName, common, namespace, tags);
+      return HashingUtils.hash(metricName, common, namespace, tags);
     }
 
     @Override

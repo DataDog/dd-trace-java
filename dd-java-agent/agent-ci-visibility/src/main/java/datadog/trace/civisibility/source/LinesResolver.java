@@ -1,8 +1,8 @@
 package datadog.trace.civisibility.source;
 
 import java.lang.reflect.Method;
-import java.util.Objects;
 import javax.annotation.Nonnull;
+import datadog.trace.util.HashingUtils;
 
 public interface LinesResolver {
 
@@ -49,7 +49,7 @@ public interface LinesResolver {
 
     @Override
     public int hashCode() {
-      return Objects.hash(startLineNumber, endLineNumber);
+      return HashingUtils.hash(startLineNumber, endLineNumber);
     }
   }
 }

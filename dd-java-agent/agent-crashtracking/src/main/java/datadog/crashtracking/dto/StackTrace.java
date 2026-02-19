@@ -6,6 +6,7 @@ import com.squareup.moshi.Moshi;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class StackTrace {
   private static final JsonAdapter<StackTrace> ADAPTER =
@@ -33,7 +34,7 @@ public final class StackTrace {
 
   @Override
   public int hashCode() {
-    return Objects.hash(format, Arrays.hashCode(frames));
+    return HashingUtils.hash(format, Arrays.hashCode(frames));
   }
 
   public void writeAsJson(final JsonWriter writer) throws IOException {

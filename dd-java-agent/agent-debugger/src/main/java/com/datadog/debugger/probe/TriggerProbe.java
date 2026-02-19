@@ -1,7 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static java.lang.String.format;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ProbeCondition;
@@ -22,6 +21,8 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.lang.String.format;
 
 public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedContextProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(TriggerProbe.class);
@@ -165,7 +166,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, version, where, evaluateAt);
+    int result = HashingUtils.hash(language, id, version, where, evaluateAt);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

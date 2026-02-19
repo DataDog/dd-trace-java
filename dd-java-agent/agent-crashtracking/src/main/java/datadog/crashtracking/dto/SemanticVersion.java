@@ -5,10 +5,10 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.ToJson;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import datadog.trace.util.HashingUtils;
 
 public final class SemanticVersion {
   private static final Pattern NUMERIC_SPLITTER = Pattern.compile("[^0-9]+");
@@ -91,7 +91,7 @@ public final class SemanticVersion {
 
   @Override
   public int hashCode() {
-    return Objects.hash(major, minor, patch);
+    return HashingUtils.hash(major, minor, patch);
   }
 
   @Override

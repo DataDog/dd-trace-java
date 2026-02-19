@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
-import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
@@ -12,6 +11,8 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
+
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
 
 /** An expression taking a reference path and resolving to {@linkplain Value} */
 public final class ValueRefExpression implements ValueExpression<Value<?>> {
@@ -51,7 +52,7 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(symbolName);
+    return HashingUtils.hash(symbolName);
   }
 
   @Generated

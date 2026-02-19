@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.config;
 
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /**
  * Fully Qualified Name: uniquely identifies a test case within a module by name. Multiple
@@ -37,7 +38,7 @@ public class TestFQN {
 
   @Override
   public int hashCode() {
-    return Objects.hash(suite, name);
+    return HashingUtils.hash(suite, name);
   }
 
   @Override

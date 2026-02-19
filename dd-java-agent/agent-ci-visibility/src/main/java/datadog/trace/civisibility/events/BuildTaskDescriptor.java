@@ -1,6 +1,6 @@
 package datadog.trace.civisibility.events;
 
-import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class BuildTaskDescriptor<T> {
 
@@ -26,6 +26,6 @@ public class BuildTaskDescriptor<T> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(sessionKey, taskName);
+    return HashingUtils.hash(sessionKey, taskName);
   }
 }

@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import datadog.trace.util.HashingUtils;
 
 public class CiVisibilitySettings {
 
@@ -137,7 +138,7 @@ public class CiVisibilitySettings {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         itrEnabled,
         codeCoverage,
         testsSkipping,

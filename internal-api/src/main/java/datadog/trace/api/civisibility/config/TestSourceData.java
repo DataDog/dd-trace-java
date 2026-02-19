@@ -3,6 +3,7 @@ package datadog.trace.api.civisibility.config;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import datadog.trace.util.HashingUtils;
 
 /** Data needed to identify test definition source. */
 public class TestSourceData {
@@ -67,7 +68,7 @@ public class TestSourceData {
 
   @Override
   public int hashCode() {
-    return Objects.hash(testClass, testMethod, testMethodName);
+    return HashingUtils.hash(testClass, testMethod, testMethodName);
   }
 
   @Override
