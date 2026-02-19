@@ -18,17 +18,10 @@ import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROC
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class SerializingMetricWriterTest extends DDSpecification {
-
-  static Histograms.Factory originalHistogramFactory
-
+class SerializingMetricWriterForkedTest extends DDSpecification {
+  
   def setupSpec() {
-    originalHistogramFactory = Histograms.factory
     Histograms.register(DDSketchHistograms.FACTORY)
-  }
-
-  def cleanupSpec() {
-    Histograms.register(originalHistogramFactory)
   }
 
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {

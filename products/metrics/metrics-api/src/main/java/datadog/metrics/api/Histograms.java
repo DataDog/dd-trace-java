@@ -16,10 +16,6 @@ public class Histograms {
     }
   }
 
-  static Histograms.Factory getFactory() {
-    return Histograms.factory;
-  }
-
   public interface Factory {
     Histogram newHistogram();
 
