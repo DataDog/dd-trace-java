@@ -191,8 +191,6 @@ class DumpHangedTestPlugin : Plugin<Project> {
       .filter { it.contains("Gradle Test Executor") }
       .map { it.substringBefore(' ') }
 
-  private val ibmMarkers: List<String> = listOf("ibm", "openj9", "semeru")
-
   private fun extractPidsIbm8(file: File): List<String> =
     file.readLines()
       .filter { it.contains("Gradle Test Executor") }
