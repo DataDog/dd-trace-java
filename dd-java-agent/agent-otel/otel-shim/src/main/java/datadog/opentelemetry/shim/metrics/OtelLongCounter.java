@@ -88,9 +88,7 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
 
     @Override
     public ObservableLongCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
-      ObservableLongMeasurement measurement = buildObserver();
-      Runnable runnable = () -> callback.accept(measurement);
-      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

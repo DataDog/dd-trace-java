@@ -68,9 +68,7 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
 
     @Override
     public ObservableLongGauge buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
-      ObservableLongMeasurement measurement = buildObserver();
-      Runnable runnable = () -> callback.accept(measurement);
-      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

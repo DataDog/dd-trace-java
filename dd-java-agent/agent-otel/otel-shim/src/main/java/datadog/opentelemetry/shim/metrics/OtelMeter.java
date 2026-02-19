@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -111,9 +112,9 @@ final class OtelMeter implements Meter {
         storage.computeIfAbsent(builder.observableDescriptor(), storageFactory));
   }
 
-  OtelObservableCallback registerObservableCallback(
-      Runnable callback, OtelObservableMeasurement measurement) {
-    return registerObservableCallback(callback, singletonList(measurement));
+  <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
+    return registerObservableCallback(
+        () -> callback.accept(measurement), singletonList((OtelObservableMeasurement) measurement));
   }
 
   OtelObservableCallback registerObservableCallback(

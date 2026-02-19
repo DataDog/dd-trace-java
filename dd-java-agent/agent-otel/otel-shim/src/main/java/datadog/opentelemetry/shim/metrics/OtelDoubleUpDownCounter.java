@@ -69,9 +69,7 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
     @Override
     public ObservableDoubleUpDownCounter buildWithCallback(
         Consumer<ObservableDoubleMeasurement> callback) {
-      ObservableDoubleMeasurement measurement = buildObserver();
-      Runnable runnable = () -> callback.accept(measurement);
-      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

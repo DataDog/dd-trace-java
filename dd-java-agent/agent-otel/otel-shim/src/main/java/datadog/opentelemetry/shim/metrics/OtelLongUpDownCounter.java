@@ -75,9 +75,7 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
     @Override
     public ObservableLongUpDownCounter buildWithCallback(
         Consumer<ObservableLongMeasurement> callback) {
-      ObservableLongMeasurement measurement = buildObserver();
-      Runnable runnable = () -> callback.accept(measurement);
-      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

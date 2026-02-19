@@ -74,9 +74,7 @@ final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
 
     @Override
     public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
-      ObservableDoubleMeasurement measurement = buildObserver();
-      Runnable runnable = () -> callback.accept(measurement);
-      return meter.registerObservableCallback(runnable, (OtelObservableMeasurement) measurement);
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }
