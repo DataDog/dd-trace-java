@@ -797,27 +797,47 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
-    when: "publish span with a service name source"
+    when: "publish spans with different service name source"
     CountDownLatch latch = new CountDownLatch(1)
     long duration = 100
     aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, duration, 200, false, 0, "source")
+      .setTag(SPAN_KIND, "server"),
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, duration, 200, false, 0, null)
+      .setTag(SPAN_KIND, "server"),
       new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, duration, 200, false, 0, "source")
       .setTag(SPAN_KIND, "server")
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
 
-    then: "should create the same metric keys for spans with and without s"
+    then: "should create the different metric keys for spans with and without sources"
     latchTriggered
-    1 * writer.startBucket(1, _, _)
+    1 * writer.startBucket(2, _, _)
     1 * writer.add(new MetricKey(
       "resource",
       "service",
       "operation",
       "source",
+      "type",
+      200,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null
+      ), { AggregateMetric value ->
+        value.getHitCount() == 2 && value.getDuration() == 2 * duration
+      })
+    1 * writer.add(new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
       "type",
       200,
       false,

@@ -37,7 +37,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
-  private static final byte[] SERVICE_SOURCE = "ServiceSource".getBytes(ISO_8859_1);
+  private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;

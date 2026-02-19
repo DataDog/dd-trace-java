@@ -230,7 +230,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         ++elementCount
         // Service source is only present when the service name has been overridden by the tracer
         if (hasServiceSource) {
-          assert unpacker.unpackString() == "ServiceSource"
+          assert unpacker.unpackString() == "srv_src"
           assert unpacker.unpackString() == key.getServiceSource().toString()
           ++elementCount
         }
