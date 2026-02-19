@@ -3,6 +3,7 @@
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # testing startup benchmarks only for now
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -47,6 +48,7 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # testing startup benchmarks only for now
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -110,16 +112,33 @@ debugger-benchmarks:
 
 benchmarks-compare-startup:
   extends: .benchmark-compare-template
+  needs:
+    - job: linux-java-spring-petclinic-microbenchmark-startup-tracing
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-profiling
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-appsec
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-iast
+      artifacts: false
+    - job: linux-java-insecure-bank-microbenchmark-startup-tracing
+      artifacts: false
+    - job: linux-java-insecure-bank-microbenchmark-startup-iast
+      artifacts: false
   variables:
     BENCHMARK_TYPE: startup
 
 benchmarks-compare-load:
   extends: .benchmark-compare-template
+  rules:
+    - when: never # testing startup benchmarks only for now
   variables:
     BENCHMARK_TYPE: load
 
 benchmarks-compare-dacapo:
   extends: .benchmark-compare-template
+  rules:
+    - when: never # TEMP: testing startup benchmarks only for now
   variables:
     BENCHMARK_TYPE: dacapo
 
@@ -136,6 +155,7 @@ benchmarks-post-pr-comment:
     - job: benchmarks-compare-dacapo
       artifacts: true
   rules:
+    - when: never # testing startup benchmarks only for now
     - if: '$POPULATE_CACHE'
       when: never
     - when: always
