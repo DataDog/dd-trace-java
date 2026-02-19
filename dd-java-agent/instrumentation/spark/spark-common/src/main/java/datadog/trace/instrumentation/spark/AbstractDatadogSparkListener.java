@@ -128,13 +128,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
-  // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
-  // an active SQL query) so capping the size of the collection storing them
-  // TODO (CY): Is this potentially the reason why some Spark Plans aren't showing up consistently?
-  // If we know we don't need the accumulator values, can we drop all associated data and just map
-  // stage ID -> accumulator ID? Put this behind some FF
-  private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
-      new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
+  private final Map<Long, Integer> acc2stage = new HashMap<>();
 
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
@@ -648,7 +642,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     for (AccumulableInfo info :
         JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
-      accumulators.put(info.id(), new SparkSQLUtils.AccumulatorWithStage(stageId, info));
+      acc2stage.put(info.id(), stageId);
     }
 
     Properties prop = stageProperties.remove(stageSpanKey);
@@ -680,7 +674,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageMetric, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, acc2stage, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);

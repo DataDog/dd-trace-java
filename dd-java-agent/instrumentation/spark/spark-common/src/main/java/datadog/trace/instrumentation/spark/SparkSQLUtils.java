@@ -23,7 +23,7 @@ public class SparkSQLUtils {
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulators,
       SparkAggregatedTaskMetrics stageMetric,
       int stageId) {
     Set<Integer> parentStageIds = new HashSet<>();
@@ -40,7 +40,7 @@ public class SparkSQLUtils {
 
   public static SparkPlanInfoForStage computeStageInfoForStage(
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulators,
       int stageId,
       Set<Integer> parentStageIds,
       boolean foundStage) {
@@ -88,18 +88,17 @@ public class SparkSQLUtils {
     return null;
   }
 
-  private static Set<Integer> stageIdsForPlan(
-      SparkPlanInfo info, Map<Long, AccumulatorWithStage> accumulators) {
+  private static Set<Integer> stageIdsForPlan(SparkPlanInfo info, Map<Long, Integer> accumulators) {
     Set<Integer> stageIds = new HashSet<>();
 
     Collection<SQLMetricInfo> metrics =
         AbstractDatadogSparkListener.listener.getPlanInfoMetrics(info);
     for (SQLMetricInfo metric : metrics) {
       // Using the accumulators to associate a plan with its stage
-      AccumulatorWithStage acc = accumulators.get(metric.accumulatorId());
+      Integer stageId = accumulators.get(metric.accumulatorId());
 
-      if (acc != null) {
-        stageIds.add(acc.stageId);
+      if (stageId != null) {
+        stageIds.add(stageId);
       }
     }
 
