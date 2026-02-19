@@ -58,10 +58,12 @@ get_pipeline_id_for_commit() {
   response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"last_pipeline"[^}]*"id":[0-9]*' | grep -o '[0-9]*$' | head -1 || true)"
   if [[ -n "${pipeline_id}" && "${pipeline_id}" != "null" ]]; then
-    echo "Pipeline ID for commit ${commit_sha}: ${pipeline_id}"
+    echo "Pipeline ID for commit ${commit_sha}: ${pipeline_id}" >&2
+    echo "${pipeline_id}"
     return 0
   fi
 
+  echo "No pipeline ID found for commit ${commit_sha}" >&2
   return 1
 }
 
@@ -73,7 +75,8 @@ get_latest_pipeline_id_for_branch() {
   private_token="$(get_private_token)" || return 1
   response="$(curl --request GET --silent --show-error --header "PRIVATE-TOKEN: ${private_token}" "${api_url}" || true)"
   pipeline_id="$(echo "${response}" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
-  echo "Pipeline ID for branch ${branch}: ${pipeline_id}"
+  echo "Pipeline ID for branch ${branch}: ${pipeline_id}" >&2
+  echo "${pipeline_id}"
 }
 
 resolve_merge_base_sha() {
