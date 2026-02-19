@@ -34,6 +34,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -249,8 +250,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void updatePreferredServiceName(String serviceName) {
-    dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+  public void updatePreferredServiceName(String serviceName, CharSequence source) {
+    dynamicConfig.current().setPreferredServiceNameAndSource(serviceName, source).apply();
     ServiceNameCollector.get().addService(serviceName);
   }
 
@@ -1982,9 +1983,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = traceConfig.getPreferredServiceName();
-        if (serviceName != null) {
-          parentserviceNameSource = "preferred";
+        final Pair<String, CharSequence> serviceNameAndSource =
+            traceConfig.getPreferredServiceNameAndSource();
+        ;
+        if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
+          serviceName = serviceNameAndSource.getLeft();
+          parentserviceNameSource = serviceNameAndSource.getRight();
         }
       }
       Map<String, Object> contextualTags = null;
