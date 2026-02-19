@@ -99,7 +99,7 @@ class AppSecSystemSpecification extends DDSpecification {
     1 * appSecReqCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * appSecReqCtx.getRequestHeaders() >> ['foo-bar': ['1.1.1.1']]
     1 * appSecReqCtx.getResponseHeaders() >> [:]
-    1 * traceSegment.setTagTop('actor.ip', '1.1.1.1')
+    1 * span.setTag('actor.ip', '1.1.1.1')
   }
 
   void 'throws if the config file is not parseable'() {
