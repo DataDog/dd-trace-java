@@ -111,7 +111,8 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasHttpMethod = key.getHttpMethod() != null;
     final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
     final boolean hasServiceSource = key.getServiceSource() != null;
-    final int mapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+    final int mapSize =
+        15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
 
     writer.startMap(mapSize);
 

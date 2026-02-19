@@ -467,7 +467,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "resource2",
       "service2",
       "operation2",
-        null,
+      null,
       "type",
       HTTP_OK,
       false,
@@ -789,6 +789,52 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "gather the service name source when the span is published"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
+    aggregator.start()
+
+    when: "publish span with a service name source"
+    CountDownLatch latch = new CountDownLatch(1)
+    long duration = 100
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, true, false, 0, duration, 200, false, 0, "source")
+      .setTag(SPAN_KIND, "server")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then: "should create the same metric keys for spans with and without s"
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      "source",
+      "type",
+      200,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null
+      ), { AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def "test least recently written to aggregate flushed when size limit exceeded"() {
     setup:
     int maxAggregates = 10
@@ -821,7 +867,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "resource",
         "service" + i,
         "operation",
-          null,
+        null,
         "type",
         HTTP_OK,
         false,
@@ -838,7 +884,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "resource",
       "service0",
       "operation",
-        null,
+      null,
       "type",
       HTTP_OK,
       false,
@@ -886,7 +932,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "resource",
         "service" + i,
         "operation",
-          null,
+        null,
         "type",
         HTTP_OK,
         false,
@@ -920,7 +966,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "resource",
         "service" + i,
         "operation",
-          null,
+        null,
         "type",
         HTTP_OK,
         false,
@@ -937,7 +983,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "resource",
       "service0",
       "operation",
-        null,
+      null,
       "type",
       HTTP_OK,
       false,
@@ -985,7 +1031,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "resource",
         "service" + i,
         "operation",
-          null,
+        null,
         "type",
         HTTP_OK,
         false,
@@ -1043,7 +1089,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "resource",
         "service" + i,
         "operation",
-          null,
+        null,
         "type",
         HTTP_OK,
         false,
