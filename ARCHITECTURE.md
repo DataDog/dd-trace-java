@@ -95,7 +95,7 @@ to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradl
   Uploads profiles to the Datadog backend.
 
 - **`agent-debugger/`** — Dynamic Instrumentation. Entry point: `DebuggerAgent`.
-  Live breakpoints, snapshot capture, exception replay, code origin mapping.
+  Probes, snapshot capture, exception replay, code origin mapping.
   Driven by remote configuration.
 
 - **`agent-llmobs/`** — LLM Observability. Entry point: `LLMObsSystem.start()`.
