@@ -202,8 +202,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.start()
 
     // Report a producer and consumer config
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all", "linger.ms": "5"])
-    dataStreams.reportKafkaConfig("kafka_consumer", "", "", "test-group", ["bootstrap.servers": "localhost:9092", "group.id": "test-group", "auto.offset.reset": "earliest"])
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all", "linger.ms": "5"])
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", ["bootstrap.servers": "localhost:9092", "group.id": "test-group", "auto.offset.reset": "earliest"])
 
     // Also add a stats point so the bucket is not empty of stats
     dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -253,8 +253,8 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     dataStreams.start()
 
     // Report the same producer config twice
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
 
     // Also add a stats point so the bucket has content
     dataStreams.add(new StatsPoint(DataStreamsTags.create(null, null), 9, 0, 10, timeSource.currentTimeNanos, 0, 0, 0, null))
@@ -299,9 +299,13 @@ class DataStreamsWritingTest extends DDCoreSpecification {
             // Collect configs in a map keyed by type
             Map<String, Map<String, String>> configsByType = [:]
             numConfigs.times {
-              assert unpacker.unpackMapHeader() == 2
+              assert unpacker.unpackMapHeader() == 4
               assert unpacker.unpackString() == "Type"
               def type = unpacker.unpackString()
+              assert unpacker.unpackString() == "KafkaClusterId"
+              unpacker.unpackString() // skip cluster id value
+              assert unpacker.unpackString() == "ConsumerGroup"
+              unpacker.unpackString() // skip consumer group value
               assert unpacker.unpackString() == "Config"
               def configSize = unpacker.unpackMapHeader()
               Map<String, String> configEntries = [:]
@@ -367,9 +371,13 @@ class DataStreamsWritingTest extends DDCoreSpecification {
             // Only 1 config should be present (deduplication)
             assert numConfigs == 1
 
-            assert unpacker.unpackMapHeader() == 2
+            assert unpacker.unpackMapHeader() == 4
             assert unpacker.unpackString() == "Type"
             assert unpacker.unpackString() == "kafka_producer"
+            assert unpacker.unpackString() == "KafkaClusterId"
+            unpacker.unpackString() // skip cluster id value
+            assert unpacker.unpackString() == "ConsumerGroup"
+            unpacker.unpackString() // skip consumer group value
             assert unpacker.unpackString() == "Config"
             def configSize = unpacker.unpackMapHeader()
             Map<String, String> configEntries = [:]
