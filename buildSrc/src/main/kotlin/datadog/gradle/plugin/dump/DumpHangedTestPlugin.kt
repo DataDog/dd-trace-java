@@ -194,12 +194,10 @@ class DumpHangedTestPlugin : Plugin<Project> {
   private val ibmMarkers: List<String> = listOf("ibm", "openj9", "semeru")
 
   private fun extractPidsIbm8(file: File): List<String> =
-    file.useLines { lines ->
-      lines.filter { it.contains("Gradle Test Executor") }
-        .filter { line -> ibmMarkers.any { marker -> line.contains(marker, ignoreCase = true) } }
-        .mapNotNull(::extractPid)
-        .toList()
-    }
+    file.readLines()
+      .filter { it.contains("Gradle Test Executor") }
+      .filter { it.contains("ibm", ignoreCase = true) }
+      .mapNotNull(::extractPid)
 
   private val whitespaceRegex = Regex("\\s+")
 
