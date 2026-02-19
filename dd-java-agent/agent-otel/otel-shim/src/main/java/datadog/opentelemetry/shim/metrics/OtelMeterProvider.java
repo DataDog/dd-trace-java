@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.metrics;
 
 import datadog.opentelemetry.shim.OtelInstrumentationScope;
+import datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
@@ -30,6 +31,10 @@ public final class OtelMeterProvider implements MeterProvider {
   @Override
   public MeterBuilder meterBuilder(String instrumentationScopeName) {
     return new OtelMeterBuilder(this, instrumentationScopeName);
+  }
+
+  public void collectMetrics(OtelMetricsVisitor visitor) {
+    meters.forEach((scope, meter) -> meter.collect(visitor.visitMeter(scope)));
   }
 
   OtelMeter getMeterShim(

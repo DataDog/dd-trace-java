@@ -10,7 +10,6 @@ import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
-import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import datadog.trace.api.Config;
@@ -136,8 +135,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
           new ConfigurationComparer(
               originalConfiguration, newConfiguration, instrumentationResults);
       if (changes.hasRateLimitRelatedChanged()) {
-        // apply rate limit config first to avoid racing with execution/instrumentation of log
-        // probes
+        // apply rate limit config first to avoid racing with execution/instrumentation
+        // of probes requiring samplers
         applyRateLimiter(changes, newConfiguration.getSampling());
       }
       currentConfiguration = newConfiguration;
@@ -282,30 +281,13 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     for (ProbeDefinition added : changes.getAddedDefinitions()) {
       if (added instanceof Sampled) {
         Sampled probe = (Sampled) added;
-        Sampling sampling = probe.getSampling();
-        double rate = getDefaultRateLimitPerProbe(probe);
-        if (sampling != null && sampling.getEventsPerSecond() != 0) {
-          rate = sampling.getEventsPerSecond();
-        }
-        ProbeRateLimiter.setRate(probe.getId(), rate, probe.isCaptureSnapshot());
-      }
-    }
-    // remove rate for all removed probes
-    for (ProbeDefinition removedDefinition : changes.getRemovedDefinitions()) {
-      if (removedDefinition instanceof LogProbe) {
-        ProbeRateLimiter.resetRate(removedDefinition.getId());
+        probe.initSamplers();
       }
     }
     // set global sampling
     if (globalSampling != null) {
       ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());
     }
-  }
-
-  private static double getDefaultRateLimitPerProbe(Sampled probe) {
-    return probe.isCaptureSnapshot()
-        ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
-        : ProbeRateLimiter.DEFAULT_LOG_RATE;
   }
 
   private void removeCurrentTransformer() {

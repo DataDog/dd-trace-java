@@ -46,12 +46,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
-  public static final String V3_ENDPOINT = "v0.3/traces";
-  public static final String V4_ENDPOINT = "v0.4/traces";
-  public static final String V5_ENDPOINT = "v0.5/traces";
+  public static final String V03_ENDPOINT = "v0.3/traces";
+  public static final String V04_ENDPOINT = "v0.4/traces";
+  public static final String V05_ENDPOINT = "v0.5/traces";
 
-  public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
-  public static final String V7_CONFIG_ENDPOINT = "v0.7/config";
+  public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
+  public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
@@ -72,8 +72,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
-  private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
+  private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
+  private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
@@ -113,8 +113,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
         enableV05Traces
-            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
-            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+            ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+            : new String[] {V04_ENDPOINT, V03_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -217,7 +217,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint(candidate, e);
       }
     }
-    return V3_ENDPOINT;
+    return V03_ENDPOINT;
   }
 
   private void processInfoResponseHeaders(Response response) {
@@ -268,19 +268,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
-        newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
-      }
-      // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
-      // because older agents support diagnostics from DD agent 7.49
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
-      } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
-      if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
+      setDebuggerEndpoints(newState, endpoints);
 
       for (String endpoint : dataStreamsEndpoints) {
         if (containsEndpoint(endpoints, endpoint)) {
@@ -333,6 +321,26 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  private static void setDebuggerEndpoints(State newState, Set<String> endpoints) {
+    // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
+    // because older agents support diagnostics from DD agent 7.49
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerLogEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
   }
 
   private static boolean containsEndpoint(Set<String> endpoints, String endpoint) {

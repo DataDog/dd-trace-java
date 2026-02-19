@@ -2,9 +2,8 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
 
+import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
@@ -16,62 +15,66 @@ import java.util.function.Consumer;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-final class OtelDoubleGauge implements DoubleGauge {
+final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
+  OtelDoubleGauge(OtelMetricStorage storage) {
+    super(storage);
+  }
 
   @Override
   public void set(double value) {
-    // FIXME: implement recording
+    set(value, Attributes.empty());
   }
 
   @Override
   public void set(double value, Attributes attributes) {
-    // FIXME: implement recording
+    storage.recordDouble(value, attributes);
   }
 
   @Override
-  public void set(double value, Attributes attributes, Context context) {
-    // FIXME: implement recording
+  public void set(double value, Attributes attributes, Context unused) {
+    set(value, attributes);
   }
 
   static final class Builder implements DoubleGaugeBuilder {
-    private final OtelInstrumentBuilder instrumentBuilder;
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
 
     Builder(OtelMeter meter, String instrumentName) {
-      this.instrumentBuilder = ofDoubles(meter, instrumentName, GAUGE);
+      this.meter = meter;
+      this.builder = ofDoubles(instrumentName, GAUGE);
     }
 
     @Override
     public DoubleGaugeBuilder setDescription(String description) {
-      instrumentBuilder.setDescription(description);
+      builder.setDescription(description);
       return this;
     }
 
     @Override
     public DoubleGaugeBuilder setUnit(String unit) {
-      instrumentBuilder.setUnit(unit);
+      builder.setUnit(unit);
       return this;
     }
 
     @Override
     public LongGaugeBuilder ofLongs() {
-      return new OtelLongGauge.Builder(instrumentBuilder);
+      return new OtelLongGauge.Builder(meter, builder);
     }
 
     @Override
     public DoubleGauge build() {
-      return new OtelDoubleGauge();
-    }
-
-    @Override
-    public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
+      return new OtelDoubleGauge(
+          meter.registerStorage(builder, OtelMetricStorage::newDoubleValueStorage));
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleValueStorage);
+    }
+
+    @Override
+    public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

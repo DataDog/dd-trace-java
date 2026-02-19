@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -323,6 +324,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private transient Consumer<Snapshot> snapshotProcessor;
   protected transient Map<DDTraceId, AtomicInteger> budget =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
+  protected transient Sampler sampler;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -408,6 +410,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         builder.sampling,
         builder.captureExpressions);
     this.snapshotProcessor = builder.snapshotProcessor;
+    initSamplers();
   }
 
   public LogProbe copy() {
@@ -450,6 +453,16 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     return sampling;
   }
 
+  public void initSamplers() {
+    double rate =
+        sampling != null
+            ? sampling.getEventsPerSecond()
+            : (isCaptureSnapshot()
+                ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
+                : ProbeRateLimiter.DEFAULT_LOG_RATE);
+    sampler = ProbeRateLimiter.createSampler(rate);
+  }
+
   public List<CaptureExpression> getCaptureExpressions() {
     return captureExpressions;
   }
@@ -487,7 +500,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(id);
+      return ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
     }
     return true;
   }
@@ -553,7 +566,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return;
     }
     boolean sampled =
-        !logStatus.getDebugSessionStatus().isDisabled() && ProbeRateLimiter.tryProbe(id);
+        !logStatus.getDebugSessionStatus().isDisabled()
+            && ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()
@@ -636,8 +650,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       snapshot.setTraceId(CorrelationIdentifier.getTraceId());
       snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       if (isFullSnapshot()) {
-        snapshot.setEntry(entryContext);
-        snapshot.setExit(exitContext);
+        assignCaptures(snapshot, entryContext, exitContext);
       }
       snapshot.setMessage(message);
       snapshot.setDuration(exitContext.getDuration());
@@ -655,12 +668,51 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     return shouldCommit;
   }
 
+  private void assignCaptures(
+      Snapshot snapshot, CapturedContext entryContext, CapturedContext exitContext) {
+    if (isCaptureSnapshot()) {
+      addContextWithoutCaptureExpressions(entryContext, snapshot::setEntry);
+      addContextWithoutCaptureExpressions(exitContext, snapshot::setExit);
+    } else if (captureExpressions != null) {
+      addFilteredCaptureExpressions(entryContext, snapshot::setEntry);
+      addFilteredCaptureExpressions(exitContext, snapshot::setExit);
+    }
+  }
+
+  private void addContextWithoutCaptureExpressions(
+      CapturedContext context, Consumer<CapturedContext> setContext) {
+    // no capture expressions, assign directly the context in the snapshot
+    if (context.getCaptureExpressions() == null || context.getCaptureExpressions().isEmpty()) {
+      setContext.accept(context);
+      return;
+    }
+    CapturedContext newContext = context.copyWithoutCaptureExpressions();
+    setContext.accept(newContext);
+  }
+
+  private void addFilteredCaptureExpressions(
+      CapturedContext capturedContext, Consumer<CapturedContext> setContext) {
+    Map<String, CapturedContext.CapturedValue> contextCapExpr =
+        capturedContext.getCaptureExpressions();
+    if (contextCapExpr != null && !contextCapExpr.isEmpty()) {
+      CapturedContext newContext = new CapturedContext();
+      for (CaptureExpression capExprDef : captureExpressions) {
+        CapturedContext.CapturedValue capturedValue = contextCapExpr.get(capExprDef.getName());
+        if (capturedValue != null) {
+          newContext.addCaptureExpression(capturedValue);
+        } else {
+          LOGGER.debug("{} capture expression not found in CapturedContext", capExprDef.getName());
+        }
+      }
+      setContext.accept(newContext);
+    }
+  }
+
   private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
     if (captureExpressions == null) {
       return;
     }
     for (CaptureExpression captureExpression : captureExpressions) {
-      LOGGER.debug("processing capture expressions: {}", captureExpression);
       try {
         Value<?> result = captureExpression.expr.execute(context);
         if (result.isUndefined()) {
@@ -672,19 +724,18 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
+            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
+                Value.toCapturedSnapshot(
                     captureExpression.getName(),
-                    Object.class.getTypeName(),
-                    result.getValue(),
+                    result,
                     captureExpression.capture.maxReferenceDepth,
                     captureExpression.capture.maxCollectionSize,
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
             context.addCaptureExpression(
-                CapturedContext.CapturedValue.of(
-                    captureExpression.getName(), Object.class.getTypeName(), result.getValue()));
+                Value.toCapturedSnapshot(captureExpression.getName(), result));
           }
         }
       } catch (EvaluationException ex) {
