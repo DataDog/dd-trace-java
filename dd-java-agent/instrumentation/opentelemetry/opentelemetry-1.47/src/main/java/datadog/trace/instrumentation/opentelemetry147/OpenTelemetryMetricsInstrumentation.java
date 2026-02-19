@@ -83,7 +83,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.metrics.data.OtelMetricStorage$Recording",
       "datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor",
       "datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor",
-      "datadog.opentelemetry.shim.metrics.export.OtelMetricVisitor",
+      "datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
       "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
@@ -100,6 +100,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.metrics.OtelLongHistogram$Builder",
       "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
       "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$Builder",
+      "datadog.opentelemetry.shim.metrics.OtelObservableCallback",
+      "datadog.opentelemetry.shim.metrics.OtelObservableMeasurement",
     };
   }
 

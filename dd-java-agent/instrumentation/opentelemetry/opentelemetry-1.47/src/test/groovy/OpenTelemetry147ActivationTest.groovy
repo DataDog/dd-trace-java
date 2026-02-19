@@ -10,9 +10,9 @@ abstract class OpenTelemetry147ActivationTest extends InstrumentationSpecificati
 
     expect:
     if (shouldBeInjected()) {
-      meter.class.name.endsWith(".OtelMeter")
+      assert meter.class.name.endsWith(".OtelMeter")
     } else {
-      meter.class.name.endsWith(".DefaultTracer")
+      assert meter.class.name.endsWith(".DefaultMeter")
     }
   }
 }
@@ -25,7 +25,7 @@ class OpenTelemetry147ActivationByInstrumentationNameForkedTest extends OpenTele
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("integration.opentelemetry.metrics.enabled", "true")
+    injectSysConfig("integration.opentelemetry-metrics.enabled", "true")
   }
 
   @Override
