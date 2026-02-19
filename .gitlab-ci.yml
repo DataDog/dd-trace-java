@@ -31,7 +31,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v26.01-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|stable)$/ # the latest "stable" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -62,7 +62,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -70,7 +69,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
-      # - "stable"
+      - "stable"
     CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -597,6 +596,8 @@ muzzle-dep-report:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
       when: on_success
   script:
     - *gitlab_base_ref_params
