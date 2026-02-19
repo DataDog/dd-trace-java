@@ -82,7 +82,8 @@ final class OtelInstrumentBuilder {
   }
 
   /**
-   * Maps the given {@link OtelInstrumentType to its observable equivalent.
+   * Maps the given {@link OtelInstrumentType} to its observable equivalent.
+   *
    * @throws IllegalArgumentException if the type has no observable equivalent
    */
   private OtelInstrumentType observableType(OtelInstrumentType instrumentType) {
