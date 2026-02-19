@@ -102,12 +102,10 @@ public class SubSequenceTest {
 
     StringBuilder builder0 = new StringBuilder();
     builder0.append(subSeq);
-
     assertEquals(expectedStr, builder0.toString());
 
     StringBuilder builder1 = new StringBuilder();
     subSeq.appendTo(builder1);
-
     assertEquals(expectedStr, builder1.toString());
   }
 }
