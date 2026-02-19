@@ -26,7 +26,7 @@ public class SparkLauncherAdvice {
 
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     AgentSpan span =
-        tracer.buildSpan("spark.launcher").withSpanType("spark").withResourceName(resource).start();
+        tracer.buildSpan("spark.launcher.launch").withSpanType("spark").withResourceName(resource).start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     launcherSpan = span;
 
@@ -54,6 +54,18 @@ public class SparkLauncherAdvice {
     if (exitCode != 0) {
       span.setError(true);
       span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed with exit code " + exitCode);
+    }
+    span.finish();
+    launcherSpan = null;
+  }
+
+  public static synchronized void finishLauncherSpan(Throwable throwable) {
+    AgentSpan span = launcherSpan;
+    if (span == null) {
+      return;
+    }
+    if (throwable != null) {
+      span.addThrowable(throwable);
     }
     span.finish();
     launcherSpan = null;
