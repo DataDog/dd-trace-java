@@ -9,6 +9,7 @@ import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -29,6 +30,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
   private ProbeCondition probeCondition;
   private Sampling sampling;
   private String sessionId;
+  private transient Sampler sampler;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -69,6 +71,12 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
   }
 
   @Override
+  public void initSamplers() {
+    double rate = sampling != null ? sampling.getEventsPerSecond() : 1.0;
+    sampler = ProbeRateLimiter.createSampler(rate);
+  }
+
+  @Override
   public boolean isCaptureSnapshot() {
     return false;
   }
@@ -104,7 +112,8 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     if (sampling == null || !sampling.inCoolDown()) {
       boolean sample = true;
       if (!hasCondition()) {
-        sample = MethodLocation.isSame(location, evaluateAt) && ProbeRateLimiter.tryProbe(id);
+        sample =
+            MethodLocation.isSame(location, evaluateAt) && ProbeRateLimiter.tryProbe(sampler, true);
       }
       boolean value = evaluateCondition(context);
 
