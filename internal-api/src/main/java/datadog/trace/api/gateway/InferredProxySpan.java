@@ -211,46 +211,23 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   /**
-   * Copies AppSec tags from the service-entry span to this inferred proxy span. This fulfils the
-   * RFC-1081 requirement that the inferred span contains the same AppSec tags as the service-entry
-   * span, enabling security activity to be correctly associated with the API Gateway endpoint.
+   * Copies AppSec tags from the service-entry span to this inferred proxy span as required by
+   * RFC-1081: the inferred span must carry {@code _dd.appsec.enabled} and {@code _dd.appsec.json}
+   * so that security activity can be correlated with the API Gateway endpoint.
    */
   private void copyAppSecTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
     if (serviceEntrySpan == null || serviceEntrySpan == this.span) {
       return;
     }
 
-    // Copy _dd.appsec.enabled (RFC-1081: required on inferred span)
     Object appsecEnabled = serviceEntrySpan.getTag("_dd.appsec.enabled");
     if (appsecEnabled != null) {
       this.span.setMetric("_dd.appsec.enabled", 1);
     }
 
-    Object runtimeFamily = serviceEntrySpan.getTag("_dd.runtime_family");
-    if (runtimeFamily != null) {
-      this.span.setTag("_dd.runtime_family", runtimeFamily.toString());
-    }
-
-    // Copy event-related tags only when AppSec events were detected
-    Object appsecEvent = serviceEntrySpan.getTag("appsec.event");
-    if (appsecEvent != null) {
-      this.span.setTag("appsec.event", appsecEvent);
-
-      Object networkClientIp = serviceEntrySpan.getTag("network.client.ip");
-      if (networkClientIp != null) {
-        this.span.setTag("network.client.ip", networkClientIp.toString());
-      }
-
-      Object actorIp = serviceEntrySpan.getTag("actor.ip");
-      if (actorIp != null) {
-        this.span.setTag("actor.ip", actorIp.toString());
-      }
-
-      // Copy _dd.appsec.json (RFC-1081: inferred span must contain same events as service-entry)
-      Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
-      if (appsecJson != null) {
-        this.span.setTag("_dd.appsec.json", appsecJson.toString());
-      }
+    Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
+    if (appsecJson != null) {
+      this.span.setTag("_dd.appsec.json", appsecJson.toString());
     }
   }
 
