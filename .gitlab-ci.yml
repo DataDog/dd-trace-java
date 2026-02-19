@@ -146,11 +146,12 @@ default:
   stage: build
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 2
-    GRADLE_MEM: 3G
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 10Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    GRADLE_WORKERS: 8
+    GRADLE_MEMORY_MIN: "1g"
+    GRADLE_MEMORY_MAX: "6g"
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -197,11 +198,11 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
-    # for weird reasons, gradle will always "chmod 700" the .gradle folder
-    # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
+    # for weird reasons, Gradle will always "chmod 700" the .gradle folder
+    # with Gitlab caching, .gradle is always owned by root and thus Gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
     - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
     - cp -r .gradle .gradle-copy
@@ -295,10 +296,6 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: 4G
-    GRADLE_WORKERS: 3
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
   parallel:
     matrix:
       - GRADLE_TARGET: ":baseTest"
@@ -378,12 +375,6 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
-  variables:
-    # TODO: Latest version of spotless is failing with OOM on CI only.
-    # Setting 8G memory solving this issue, but we need to solve it eventually.
-    GRADLE_MEM: 8G
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
@@ -577,11 +568,6 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
-    KUBERNETES_CPU_REQUEST: 10
-    GRADLE_WORKERS: 4
-    GRADLE_MEM: 3G
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -607,7 +593,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
@@ -698,7 +684,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
