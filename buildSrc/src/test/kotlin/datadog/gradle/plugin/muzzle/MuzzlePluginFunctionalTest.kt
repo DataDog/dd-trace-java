@@ -786,6 +786,95 @@ class MuzzlePluginFunctionalTest {
     )
   }
 
+  @Test
+  fun `assertInverse creates pass and fail tasks for in-range and out-of-range versions`(@TempDir projectDir: File) {
+    val fixture = MuzzlePluginTestFixture(projectDir)
+    val mavenRepoFixture = MavenRepoFixture(projectDir)
+
+    mavenRepoFixture.publishVersions(
+      group = "com.example.test",
+      module = "inverse-lib",
+      versions = listOf("1.0.0", "2.0.0", "3.0.0", "4.0.0")
+    )
+    fixture.writeProject(
+      """
+      plugins {
+        id 'java'
+        id 'dd-trace-java.muzzle'
+      }
+
+      // Gradle repositories for artifact download
+      repositories {
+        maven {
+          url = uri('${mavenRepoFixture.repoUrl}')
+          metadataSources {
+            mavenPom()
+            artifact()
+          }
+        }
+      }
+
+      muzzle {
+        pass {
+          group = 'com.example.test'
+          module = 'inverse-lib'
+          versions = '[2.0.0,3.0.0]'
+          assertInverse = true
+        }
+      }
+      """
+    )
+    fixture.writeScanPlugin(
+      """
+      System.out.println("MUZZLE_CHECK assertPass=" + assertPass);
+      """
+    )
+
+    val result = fixture.run(
+      ":dd-java-agent:instrumentation:demo:muzzle",
+      "--stacktrace",
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
+    )
+
+    assertTrue(
+      result.output.contains("BUILD SUCCESSFUL"),
+      "Build should succeed. Output:\n${result.output.take(3000)}"
+    )
+
+    val modulePrefix = ":dd-java-agent:instrumentation:demo"
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle")?.outcome)
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-end")?.outcome)
+
+    // In-range versions — assertPass=true
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-2.0.0")?.outcome)
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-3.0.0")?.outcome)
+
+    // Out-of-range versions (inverse) — assertPass=false
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-1.0.0")?.outcome)
+    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-4.0.0")?.outcome)
+
+    assertTrue(
+      result.output.contains("MUZZLE_CHECK assertPass=true"),
+      "Should log assertPass=true for in-range versions"
+    )
+    assertTrue(
+      result.output.contains("MUZZLE_CHECK assertPass=false"),
+      "Should log assertPass=false for out-of-range (inverse) versions"
+    )
+
+    // Verify JUnit report contains all 4 test cases with no failures
+    val reportFile = fixture.findSingleMuzzleJUnitReport()
+    val report = fixture.parseXml(reportFile)
+    val suite = report.documentElement
+    assertEquals("4", suite.getAttribute("tests"), "Should have 4 test cases (2 pass + 2 inverse fail)")
+    assertEquals("0", suite.getAttribute("failures"), "Should have no failures")
+
+    findTestCase(report, "muzzle-AssertPass-com.example.test-inverse-lib-2.0.0")
+    findTestCase(report, "muzzle-AssertPass-com.example.test-inverse-lib-3.0.0")
+    findTestCase(report, "muzzle-AssertFail-com.example.test-inverse-lib-1.0.0")
+    findTestCase(report, "muzzle-AssertFail-com.example.test-inverse-lib-4.0.0")
+  }
+
   private fun findTestCase(document: org.w3c.dom.Document, name: String): org.w3c.dom.Element =
     (0 until document.getElementsByTagName("testcase").length)
       .map { document.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
