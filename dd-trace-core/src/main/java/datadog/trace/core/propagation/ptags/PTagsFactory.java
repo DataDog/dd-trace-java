@@ -18,7 +18,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.Nonnull;
 
 public class PTagsFactory implements PropagationTags.Factory {
@@ -84,7 +84,10 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
-    private final AtomicInteger traceSource;
+    private static final AtomicIntegerFieldUpdater<PTags> TRACE_SOURCE_UPDATER =
+        AtomicIntegerFieldUpdater.newUpdater(PTags.class, "traceSource");
+
+    private volatile int traceSource;
     private volatile String debugPropagation;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
@@ -152,7 +155,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.decisionMakerTagValue = decisionMakerTagValue;
-      this.traceSource = new AtomicInteger(traceSource);
+      this.traceSource = traceSource;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
@@ -230,7 +233,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void addTraceSource(final int product) {
-      traceSource.updateAndGet(
+      TRACE_SOURCE_UPDATER.updateAndGet(
+          this,
           currentValue -> {
             // If the product is already marked, return the same value (no change)
             if (ProductTraceSource.isProductMarked(currentValue, product)) {
@@ -248,7 +252,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public int getTraceSource() {
-      return traceSource.get();
+      return traceSource;
     }
 
     @Override
@@ -386,7 +390,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        int currentProductTraceSource = traceSource.get();
+        int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
               PTagsCodec.calcXDatadogTagsSize(
