@@ -1,5 +1,7 @@
 package datadog.trace.common.metrics
 
+import datadog.metrics.api.Histograms
+import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.WellKnownTags
@@ -17,6 +19,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterTest extends DDSpecification {
+
+  def setupSpec() {
+    Histograms.register(DDSketchHistograms.FACTORY)
+  }
+
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
     if (withProcessTags) {
