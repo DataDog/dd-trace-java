@@ -5,14 +5,12 @@ import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleVersionUtilsTest {
 
@@ -48,11 +46,9 @@ class MuzzleVersionUtilsTest {
     val filtered =
       MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), includeSnapshots = false)
 
-    assertFalse(filtered.any { it.toString() == preRelease }) {
-      "Expected '$preRelease' to be filtered out"
-    }
-    assertTrue(filtered.any { it.toString() == "1.0.0" })
-    assertTrue(filtered.any { it.toString() == "3.0.0" })
+    val filteredStrings = filtered.map { it.toString() }
+    assertThat(filteredStrings).withFailMessage("Expected '$preRelease' to be filtered out").doesNotContain(preRelease)
+    assertThat(filteredStrings).contains("1.0.0", "3.0.0")
   }
 
   @ParameterizedTest(name = "[{index}] includeSnapshots=true keeps ''{0}'', skipVersions={1}")
@@ -67,13 +63,14 @@ class MuzzleVersionUtilsTest {
     val filtered =
       MuzzleVersionUtils.filterAndLimitVersions(result, skipVersions, includeSnapshots = true)
 
-    assertTrue(filtered.any { it.toString() == preRelease }) {
-      "Expected '$preRelease' to be kept when includeSnapshots=true"
-    }
+    val filteredStrings = filtered.map { it.toString() }
+    assertThat(filteredStrings)
+      .withFailMessage("Expected '$preRelease' to be kept when includeSnapshots=true")
+      .contains(preRelease)
     skipVersions.forEach { skipped ->
-      assertFalse(filtered.any { it.toString() == skipped }) {
-        "Expected '$skipped' to be absent due to skipVersions"
-      }
+      assertThat(filteredStrings)
+        .withFailMessage("Expected '$skipped' to be absent due to skipVersions")
+        .doesNotContain(skipped)
     }
   }
 
@@ -86,7 +83,7 @@ class MuzzleVersionUtilsTest {
       MuzzleVersionUtils.filterAndLimitVersions(
         result, setOf(versionToSkip), includeSnapshots = false)
 
-    assertFalse(filtered.any { it.toString() == versionToSkip })
+    assertThat(filtered.map { it.toString() }).doesNotContain(versionToSkip)
   }
 
   @Test
@@ -97,9 +94,9 @@ class MuzzleVersionUtilsTest {
       MuzzleVersionUtils.filterAndLimitVersions(
         result, setOf("2.0.0-Custom"), includeSnapshots = false)
 
-    assertTrue(filtered.any { it.toString() == "2.0.0-custom" }) {
-      "Expected '2.0.0-custom' to be kept because skipVersions entry 'Custom' does not match lowercased 'custom'"
-    }
+    assertThat(filtered.map { it.toString() })
+      .withFailMessage("Expected '2.0.0-custom' to be kept because skipVersions entry 'Custom' does not match lowercased 'custom'")
+      .contains("2.0.0-custom")
   }
 
   @Test
@@ -111,18 +108,16 @@ class MuzzleVersionUtilsTest {
     val filtered =
       MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), includeSnapshots = false)
 
-    assertTrue(filtered.size < RANGE_COUNT_LIMIT) { "Expected fewer than 25 versions after trimming, got ${filtered.size}" }
-    assertTrue(filtered.isNotEmpty())
-    assertTrue(filtered.any { it == result.lowestVersion }) {
-      "lowestVersion (${result.lowestVersion}) must be preserved"
-    }
-    assertTrue(filtered.any { it == result.highestVersion }) {
-      "highestVersion (${result.highestVersion}) must be preserved"
-    }
-    val originalSet = versions.toSet()
-    assertTrue(filtered.all { it.toString() in originalSet }) {
-      "All filtered versions must come from the original set"
-    }
+    assertThat(filtered).withFailMessage("Expected fewer than 25 versions after trimming, got ${filtered.size}")
+        .hasSizeLessThan(RANGE_COUNT_LIMIT)
+    assertThat(filtered).isNotEmpty()
+    val filteredStrings = filtered.map { it.toString() }
+    assertThat(filteredStrings).withFailMessage("lowestVersion (${result.lowestVersion}) must be preserved")
+        .contains(result.lowestVersion.toString())
+    assertThat(filteredStrings).withFailMessage("highestVersion (${result.highestVersion}) must be preserved")
+        .contains(result.highestVersion.toString())
+    assertThat(filteredStrings).withFailMessage("All filtered versions must come from the original set")
+        .isSubsetOf(*versions)
   }
 
   @ParameterizedTest(name = "[{index}] {0} version(s) pass through unchanged")
@@ -134,8 +129,7 @@ class MuzzleVersionUtilsTest {
     val filtered =
       MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), includeSnapshots = false)
 
-    assertEquals(count, filtered.size)
-    versionStrings.forEach { v -> assertTrue(filtered.any { it.toString() == v }) }
+    assertThat(filtered.map { it.toString() }).containsExactlyInAnyOrder(*versionStrings)
   }
 
   companion object {

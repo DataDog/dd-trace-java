@@ -7,15 +7,13 @@ import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.GradleException
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 
 class MuzzleMavenRepoUtilsTest {
 
@@ -38,7 +36,7 @@ class MuzzleMavenRepoUtilsTest {
     val result = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, newSession(), listOf(repo))
 
     val resolvedVersions = result.versions.map { it.toString() }
-    assertEquals(listOf("1.0.0", "2.0.0", "3.0.0"), resolvedVersions)
+    assertThat(resolvedVersions).containsExactly("1.0.0", "2.0.0", "3.0.0")
   }
 
   @Test
@@ -53,7 +51,7 @@ class MuzzleMavenRepoUtilsTest {
     val result = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, newSession(), listOf(repo))
 
     val resolvedVersions = result.versions.map { it.toString() }
-    assertEquals(listOf("2.0.0", "3.0.0"), resolvedVersions)
+    assertThat(resolvedVersions).containsExactly("2.0.0", "3.0.0")
   }
 
   @Test
@@ -65,9 +63,9 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
 
-    assertThrows<IllegalStateException> {
+    assertThatThrownBy {
       MuzzleMavenRepoUtils.resolveVersionRange(directive, system, newSession(), listOf(emptyRepo))
-    }
+    }.isInstanceOf(IllegalStateException::class.java)
   }
 
   @Test
@@ -85,9 +83,9 @@ class MuzzleMavenRepoUtilsTest {
     val result = MuzzleMavenRepoUtils.resolveVersionRange(directive, system, newSession(), listOf(repoA))
 
     val resolvedVersions = result.versions.map { it.toString() }
-    assertTrue(resolvedVersions.containsAll(listOf("1.0.0", "2.0.0", "3.0.0"))) {
-      "Expected all 3 versions from both repos, got: $resolvedVersions"
-    }
+    assertThat(resolvedVersions)
+      .withFailMessage("Expected all 3 versions from both repos, got: $resolvedVersions")
+      .containsAll(listOf("1.0.0", "2.0.0", "3.0.0"))
   }
 
   @Test
@@ -107,22 +105,19 @@ class MuzzleMavenRepoUtilsTest {
 
     val resultVersions = result.map { it.versions }.toSet()
     // Versions inside [2.0, 4.0) are 2.0.0 and 3.0.0 — they should NOT appear
-    assertFalse(resultVersions.contains("2.0.0")) { "2.0.0 is inside range and must not appear in inverse" }
-    assertFalse(resultVersions.contains("3.0.0")) { "3.0.0 is inside range and must not appear in inverse" }
+    assertThat(resultVersions).doesNotContain("2.0.0", "3.0.0")
     // Versions outside range: 1.0.0, 4.0.0, 5.0.0
-    assertTrue(resultVersions.containsAll(listOf("1.0.0", "4.0.0", "5.0.0"))) {
-      "Expected versions outside [2.0,4.0), got: $resultVersions"
+    assertThat(resultVersions).contains("1.0.0", "4.0.0", "5.0.0")
+
+    // assertPass must be inverted, and directive properties must be preserved
+    assertThat(result).allSatisfy { directive ->
+      assertThat(directive.assertPass).isFalse()
+      assertThat(directive.name).isEqualTo("mytest")
+      assertThat(directive.group).isEqualTo("com.example")
+      assertThat(directive.module).isEqualTo("mylib")
+      assertThat(directive.excludedDependencies).containsExactly("com.other:dep")
+      assertThat(directive.includeSnapshots).isFalse()
     }
-
-    // assertPass must be inverted
-    assertTrue(result.all { !it.assertPass }) { "All inverse directives must have assertPass=false" }
-
-    // Directive properties must be preserved
-    assertTrue(result.all { it.name == "mytest" }) { "name must be preserved" }
-    assertTrue(result.all { it.group == "com.example" }) { "group must be preserved" }
-    assertTrue(result.all { it.module == "mylib" }) { "module must be preserved" }
-    assertTrue(result.all { it.excludedDependencies == listOf("com.other:dep") }) { "excludedDependencies must be preserved" }
-    assertTrue(result.all { !it.includeSnapshots }) { "includeSnapshots must be preserved" }
   }
 
   @ParameterizedTest(name = "[{index}] highest({0}, {1}) == {2}")
@@ -135,7 +130,7 @@ class MuzzleMavenRepoUtilsTest {
       ])
   fun `highest returns the greater version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.highest(version(a), version(b))
-    assertEquals(version(expected), result)
+    assertThat(result).isEqualTo(version(expected))
   }
 
   @ParameterizedTest(name = "[{index}] lowest({0}, {1}) == {2}")
@@ -148,7 +143,7 @@ class MuzzleMavenRepoUtilsTest {
       ])
   fun `lowest returns the lesser version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.lowest(version(a), version(b))
-    assertEquals(version(expected), result)
+    assertThat(result).isEqualTo(version(expected))
   }
 
   @Test
@@ -162,9 +157,9 @@ class MuzzleMavenRepoUtilsTest {
     // All versions are pre-release; none survive filterAndLimitVersions
     val rangeResult = createVersionRangeResult("1.0.0-SNAPSHOT", "2.0.0-RC1")
 
-    assertThrows<GradleException> {
+    assertThatThrownBy {
       MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, rangeResult)
-    }
+    }.isInstanceOf(GradleException::class.java)
   }
 
   @Test
@@ -181,12 +176,14 @@ class MuzzleMavenRepoUtilsTest {
 
     val artifacts = MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, rangeResult)
 
-    assertEquals(3, artifacts.size)
-    assertTrue(artifacts.all { it.groupId == "com.example" }) { "All artifacts must have groupId 'com.example'" }
-    assertTrue(artifacts.all { it.artifactId == "mylib" }) { "All artifacts must have artifactId 'mylib'" }
-    assertTrue(artifacts.all { it.extension == "jar" }) { "All artifacts must have extension 'jar'" }
-    assertTrue(artifacts.all { it.classifier == "" }) { "All artifacts must have empty classifier" }
-    assertEquals(setOf("1.0.0", "2.0.0", "3.0.0"), artifacts.map { it.version }.toSet())
+    assertThat(artifacts).hasSize(3)
+    assertThat(artifacts).allSatisfy { artifact ->
+      assertThat(artifact.groupId).isEqualTo("com.example")
+      assertThat(artifact.artifactId).isEqualTo("mylib")
+      assertThat(artifact.extension).isEqualTo("jar")
+      assertThat(artifact.classifier).isEmpty()
+    }
+    assertThat(artifacts.map { it.version }).containsOnly("1.0.0", "2.0.0", "3.0.0")
   }
 
   @Test
@@ -202,7 +199,7 @@ class MuzzleMavenRepoUtilsTest {
 
     val artifacts = MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, rangeResult)
 
-    assertTrue(artifacts.all { it.classifier == "tests" })
+    assertThat(artifacts).allSatisfy { assertThat(it.classifier).isEqualTo("tests") }
   }
 
   private fun newSession() = MuzzleMavenRepoUtils.newRepositorySystemSession(system)

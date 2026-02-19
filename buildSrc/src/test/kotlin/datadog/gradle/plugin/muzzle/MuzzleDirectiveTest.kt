@@ -1,12 +1,10 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.repository.RemoteRepository
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleDirectiveTest {
 
@@ -20,25 +18,25 @@ class MuzzleDirectiveTest {
       ])
   fun `nameSlug replaces non-alphanumeric characters with dashes`(input: String, expected: String) {
     val directive = MuzzleDirective().apply { name = input }
-    assertEquals(expected.trim(), directive.nameSlug)
+    assertThat(directive.nameSlug).isEqualTo(expected.trim())
   }
 
   @Test
   fun `nameSlug returns empty string for empty name`() {
     val directive = MuzzleDirective().apply { name = "" }
-    assertEquals("", directive.nameSlug)
+    assertThat(directive.nameSlug).isEmpty()
   }
 
   @Test
   fun `nameSlug trims leading and trailing whitespace before replacing`() {
     val directive = MuzzleDirective().apply { name = "  spaces  " }
-    assertEquals("spaces", directive.nameSlug)
+    assertThat(directive.nameSlug).isEqualTo("spaces")
   }
 
   @Test
   fun `nameSlug returns empty string when name is null`() {
     val directive = MuzzleDirective() // name defaults to null
-    assertEquals("", directive.nameSlug)
+    assertThat(directive.nameSlug).isEmpty()
   }
 
   @Test
@@ -49,7 +47,7 @@ class MuzzleDirectiveTest {
     val repos = directive.getRepositories(defaults)
 
     // Same reference — no copy is made when additionalRepositories is empty
-    assertTrue(repos === defaults)
+    assertThat(repos).isSameAs(defaults)
   }
 
   @Test
@@ -65,10 +63,7 @@ class MuzzleDirectiveTest {
 
     val repos = directive.getRepositories(defaults)
 
-    assertEquals(3, repos.size)
-    assertEquals("central", repos[0].id)
-    assertEquals("myrepo", repos[1].id)
-    assertEquals("otherrepo", repos[2].id)
+    assertThat(repos.map { it.id }).containsExactly("central", "myrepo", "otherrepo")
   }
 
   @Test
@@ -76,8 +71,8 @@ class MuzzleDirectiveTest {
     val directive = MuzzleDirective()
     directive.coreJdk()
 
-    assertTrue(directive.isCoreJdk)
-    assertNull(directive.javaVersion)
+    assertThat(directive.isCoreJdk).isTrue()
+    assertThat(directive.javaVersion).isNull()
   }
 
   @Test
@@ -85,8 +80,8 @@ class MuzzleDirectiveTest {
     val directive = MuzzleDirective()
     directive.coreJdk("17")
 
-    assertTrue(directive.isCoreJdk)
-    assertEquals("17", directive.javaVersion)
+    assertThat(directive.isCoreJdk).isTrue()
+    assertThat(directive.javaVersion).isEqualTo("17")
   }
 
   @ParameterizedTest(name = "[{index}] coreJdk={0}, assertPass={1} → {2}")
@@ -102,7 +97,7 @@ class MuzzleDirectiveTest {
         if (isCoreJdk) coreJdk()
         this.assertPass = assertPass
       }
-    assertEquals(expected, directive.toString())
+    assertThat(directive.toString()).isEqualTo(expected)
   }
 
   @ParameterizedTest(name = "[{index}] assertPass={0} → prefix ''{1}''")
@@ -124,7 +119,7 @@ class MuzzleDirectiveTest {
         this.assertPass = assertPass
       }
 
-    assertEquals("$prefix com.example:mylib:[1.0,2.0)", directive.toString())
+    assertThat(directive.toString()).isEqualTo("$prefix com.example:mylib:[1.0,2.0)")
   }
 
   @Test
@@ -134,9 +129,11 @@ class MuzzleDirectiveTest {
     directive.extraDependency("com.example:dep2:2.0")
     directive.extraDependency("com.example:dep3:3.0")
 
-    assertEquals(
-      listOf("com.example:dep1:1.0", "com.example:dep2:2.0", "com.example:dep3:3.0"),
-      directive.additionalDependencies)
+    assertThat(directive.additionalDependencies).containsExactly(
+      "com.example:dep1:1.0",
+      "com.example:dep2:2.0",
+      "com.example:dep3:3.0"
+    )
   }
 
   @Test
@@ -145,8 +142,10 @@ class MuzzleDirectiveTest {
     directive.excludeDependency("com.example:excluded1")
     directive.excludeDependency("com.example:excluded2")
 
-    assertEquals(
-      listOf("com.example:excluded1", "com.example:excluded2"), directive.excludedDependencies)
+    assertThat(directive.excludedDependencies).containsExactly(
+      "com.example:excluded1",
+      "com.example:excluded2"
+    )
   }
 
   @Test
@@ -155,8 +154,9 @@ class MuzzleDirectiveTest {
     directive.extraRepository("repo1", "https://repo1.example.com")
     directive.extraRepository("repo2", "https://repo2.example.com", "p2")
 
-    assertEquals(2, directive.additionalRepositories.size)
-    assertEquals(Triple("repo1", "default", "https://repo1.example.com"), directive.additionalRepositories[0])
-    assertEquals(Triple("repo2", "p2", "https://repo2.example.com"), directive.additionalRepositories[1])
+    assertThat(directive.additionalRepositories).containsExactly(
+      Triple("repo1", "default", "https://repo1.example.com"),
+      Triple("repo2", "p2", "https://repo2.example.com"),
+    )
   }
 }

@@ -104,6 +104,9 @@ testing {
   @Suppress("UnstableApiUsage")
   suites {
     val test by getting(JvmTestSuite::class) {
+      dependencies {
+        implementation(libs.assertj.core)
+      }
       targets.configureEach {
         testTask.configure {
           enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent

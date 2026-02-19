@@ -2,18 +2,14 @@ package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.GradleFixture
 import datadog.gradle.plugin.MavenRepoFixture
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertNull
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
-import java.nio.file.Files
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest {
@@ -53,19 +49,14 @@ class MuzzlePluginFunctionalTest {
 
     val result = fixture.run(taskName, "--stacktrace")
 
-    assertTrue(
-      result.tasks.any { it.path.contains("muzzle") },
-      "Should create muzzle tasks when '$taskName' is requested"
-    )
-    assertFalse(
-      result.output.contains("No muzzle tasks invoked, skipping muzzle task planification"),
-      "Should not skip muzzle task planification when '$taskName' is requested"
-    )
-    assertTrue(
-      result.task(":dd-java-agent:instrumentation:demo:muzzle") != null ||
-          result.tasks.any { it.path.contains("muzzle-Assert") },
-      "Should execute muzzle tasks when '$taskName' is requested"
-    )
+    assertThat(result.tasks)
+      .withFailMessage("Should create muzzle tasks when '$taskName' is requested")
+      .anyMatch { it.path.contains("muzzle") }
+    assertThat(result.output)
+      .withFailMessage("Should not skip muzzle task planification when '$taskName' is requested")
+      .doesNotContain("No muzzle tasks invoked, skipping muzzle task planification")
+    assertThat(result.tasks).withFailMessage("Should execute muzzle tasks when '$taskName' is requested")
+      .anyMatch { it.path == ":dd-java-agent:instrumentation:demo:muzzle" || it.path.contains("muzzle-Assert") }
   }
 
   @Test
@@ -95,20 +86,21 @@ class MuzzlePluginFunctionalTest {
     )
 
     val buildResult = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
-    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
-    assertEquals(SUCCESS, buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+    assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome).isEqualTo(SUCCESS)
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
     val suite = report.documentElement
-    assertEquals("testsuite", suite.tagName)
-    assertEquals(":dd-java-agent:instrumentation:demo", suite.getAttribute("name"))
-    assertEquals("1", suite.getAttribute("tests"))
-    assertEquals("0", suite.getAttribute("failures"))
+    assertThat(suite.tagName).isEqualTo("testsuite")
+    assertThat(suite.getAttribute("name")).isEqualTo(":dd-java-agent:instrumentation:demo")
+    assertThat(suite.getAttribute("tests")).isEqualTo("1")
+    assertThat(suite.getAttribute("failures")).isEqualTo("0")
 
     val passCase = findTestCase(report, "muzzle-AssertPass-core-jdk")
-    assertEquals(0, passCase.getElementsByTagName("failure").length)
+    assertThat(passCase.getElementsByTagName("failure").length).isEqualTo(0)
   }
 
   @Test
@@ -131,17 +123,17 @@ class MuzzlePluginFunctionalTest {
     )
 
     val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
     val suite = report.documentElement
-    assertEquals(":dd-java-agent:instrumentation:demo", suite.getAttribute("name"))
-    assertEquals("1", suite.getAttribute("tests"))
-    assertEquals("0", suite.getAttribute("failures"))
+    assertThat(suite.getAttribute("name")).isEqualTo(":dd-java-agent:instrumentation:demo")
+    assertThat(suite.getAttribute("tests")).isEqualTo("1")
+    assertThat(suite.getAttribute("failures")).isEqualTo("0")
 
     val defaultCase = findTestCase(report, "muzzle")
-    assertEquals(0, defaultCase.getElementsByTagName("failure").length)
+    assertThat(defaultCase.getElementsByTagName("failure").length).isEqualTo(0)
   }
 
   @Test
@@ -164,7 +156,7 @@ class MuzzlePluginFunctionalTest {
 
     val buildResult = fixture.run(":dd-java-agent:instrumentation:demo:tasks", "--all")
 
-    assertFalse(buildResult.output.contains("muzzle-end"))
+    assertThat(buildResult.output).doesNotContain("muzzle-end")
   }
 
   @Test
@@ -184,14 +176,14 @@ class MuzzlePluginFunctionalTest {
       "--configuration",
       "muzzleBootstrap"
     )
-    assertTrue(bootstrapDependencies.output.contains("project :dd-java-agent:agent-bootstrap"))
+    assertThat(bootstrapDependencies.output).contains("project :dd-java-agent:agent-bootstrap")
 
     val toolingDependencies = fixture.run(
       ":dd-java-agent:instrumentation:demo:dependencies",
       "--configuration",
       "muzzleTooling"
     )
-    assertTrue(toolingDependencies.output.contains("project :dd-java-agent:agent-tooling"))
+    assertThat(toolingDependencies.output).contains("project :dd-java-agent:agent-tooling")
   }
 
   @Test
@@ -222,10 +214,10 @@ class MuzzlePluginFunctionalTest {
     val failDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertFail-core-jdk"
     val endTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-end"
 
-    assertEquals(SUCCESS, result.task(muzzleTaskPath)?.outcome)
-    assertEquals(SUCCESS, result.task(passDirectiveTaskPath)?.outcome)
-    assertEquals(SUCCESS, result.task(failDirectiveTaskPath)?.outcome)
-    assertEquals(SUCCESS, result.task(endTaskPath)?.outcome)
+    assertThat(result.task(muzzleTaskPath)?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(passDirectiveTaskPath)?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(failDirectiveTaskPath)?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(endTaskPath)?.outcome).isEqualTo(SUCCESS)
 
     val muzzleChainInOrder = result.tasks
       .map { it.path }
@@ -235,17 +227,15 @@ class MuzzlePluginFunctionalTest {
           it == failDirectiveTaskPath ||
           it == endTaskPath
       }
-    assertEquals(
-      listOf(muzzleTaskPath, passDirectiveTaskPath, failDirectiveTaskPath, endTaskPath),
-      muzzleChainInOrder
-    )
+    assertThat(muzzleChainInOrder)
+      .containsExactly(muzzleTaskPath, passDirectiveTaskPath, failDirectiveTaskPath, endTaskPath)
 
     val passDirectiveResult = fixture.resultFile("muzzle-AssertPass-core-jdk")
     val failDirectiveResult = fixture.resultFile("muzzle-AssertFail-core-jdk")
-    assertTrue(Files.isRegularFile(passDirectiveResult))
-    assertTrue(Files.isRegularFile(failDirectiveResult))
-    assertEquals("PASSING", passDirectiveResult.readText())
-    assertEquals("PASSING", failDirectiveResult.readText())
+    assertThat(passDirectiveResult).isRegularFile()
+    assertThat(failDirectiveResult).isRegularFile()
+    assertThat(passDirectiveResult.readText()).isEqualTo("PASSING")
+    assertThat(failDirectiveResult.readText()).isEqualTo("PASSING")
   }
 
   @Test
@@ -295,33 +285,37 @@ class MuzzlePluginFunctionalTest {
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
-    assertTrue(
-      result.output.contains("BUILD SUCCESSFUL"),
-      "Build should succeed. Output:\n${result.output.take(3000)}"
-    )
+    assertThat(result.output)
+      .withFailMessage("Build should succeed. Output:\n${result.output.take(3000)}")
+      .contains("BUILD SUCCESSFUL")
 
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome).isEqualTo(SUCCESS)
 
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.0.0")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.1.0")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.2.0")?.outcome)
-    assertNull(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-2.0.0")?.outcome, "Should not check against test-demo-lib:2.0.0")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.1.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-1.2.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-demo-lib-2.0.0")?.outcome)
+      .withFailMessage("Should not check against test-demo-lib:2.0.0")
+      .isNull()
 
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
     val suite = report.documentElement
     val testCount = suite.getAttribute("tests").toInt()
-    assertTrue(testCount >= 3, "Should have at least 3 tests for 3 versions, got $testCount")
-    assertEquals("0", suite.getAttribute("failures"), "Should have no failures")
+    assertThat(testCount)
+      .withFailMessage("Should have at least 3 tests for 3 versions, got $testCount")
+      .isGreaterThanOrEqualTo(3)
+    assertThat(suite.getAttribute("failures")).withFailMessage("Should have no failures").isEqualTo("0")
 
     val testCases = (0 until report.getElementsByTagName("testcase").length)
       .map { report.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
       .map { it.getAttribute("name") }
-    assertTrue(
-      testCases.any { it.contains("demo-lib-1.0.0") },
-      "Should have test case for demo-lib-1.0.0. Found: ${testCases.take(5)}"
-    )
+    assertThat(testCases).withFailMessage("Should have test case for demo-lib-1.0.0. Found: ${testCases.take(5)}")
+      .anySatisfy { assertThat(it).contains("demo-lib-1.0.0") }
   }
 
   @Test
@@ -358,11 +352,10 @@ class MuzzlePluginFunctionalTest {
 
     val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
 
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
-    assertTrue(
-      result.output.contains("Directive name passed correctly: my-custom-check"),
-      "Should confirm 'my-custom-check' was passed to scan plugin"
-    )
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.output).withFailMessage("Should confirm 'my-custom-check' was passed to scan plugin")
+      .contains("Directive name passed correctly: my-custom-check")
   }
 
   @Test
@@ -392,14 +385,14 @@ class MuzzlePluginFunctionalTest {
       env = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo1.maven.org/maven2/")
     )
 
-    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail for non-existent artifact")
-    assertTrue(
-      result.output.contains("version range resolution failed") ||
-      result.output.contains("Could not resolve") ||
-      result.output.contains("not found") ||
-      result.output.contains("Failed to resolve"),
-      "Should have error message about resolution failure"
-    )
+    assertThat(result.output).withFailMessage("Build should fail for non-existent artifact").contains("BUILD FAILED")
+    assertThat(result.output).withFailMessage("Should have error message about resolution failure")
+      .containsAnyOf(
+        "version range resolution failed",
+        "Could not resolve",
+        "not found",
+        "Failed to resolve"
+      )
   }
 
   @Test
@@ -436,12 +429,10 @@ class MuzzlePluginFunctionalTest {
       "--stacktrace"
     )
 
-    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail when pass directive fails validation")
-    assertTrue(
-      result.output.contains("Muzzle validation failed") ||
-      result.output.contains("Instrumentation failed"),
-      "Should contain error message from scan plugin"
-    )
+    assertThat(result.output).withFailMessage("Build should fail when pass directive fails validation")
+      .contains("BUILD FAILED")
+    assertThat(result.output).withFailMessage("Should contain error message from scan plugin")
+      .containsAnyOf("Muzzle validation failed", "Instrumentation failed")
   }
 
   @Test
@@ -480,12 +471,11 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Expected behavior: build should fail when fail directive unexpectedly passes
-    assertTrue(result.output.contains("BUILD FAILED"), "Build should fail when fail directive unexpectedly passes")
-    assertTrue(
-      result.output.contains("unexpectedly passed") ||
-      result.output.contains("FAILURE WAS EXPECTED"),
-      "Should indicate that fail directive passed when it shouldn't have"
-    )
+    assertThat(result.output)
+      .withFailMessage("Build should fail when fail directive unexpectedly passes")
+      .contains("BUILD FAILED")
+    assertThat(result.output).withFailMessage("Should indicate that fail directive passed when it shouldn't have")
+      .containsAnyOf("unexpectedly passed", "FAILURE WAS EXPECTED")
   }
 
   @Test
@@ -549,16 +539,14 @@ class MuzzlePluginFunctionalTest {
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
-    assertTrue(
-      result.output.contains("BUILD SUCCESSFUL"),
-      "Build should succeed. Output:\n${result.output.take(2000)}"
-    )
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
-    assertTrue(
-      result.output.contains("Additional dependency (extra-lib) found in test classpath"),
-      "Additional dependency should be loadable from test classpath"
-    )
+    assertThat(result.output)
+      .withFailMessage("Build should succeed. Output:\n${result.output.take(2000)}")
+      .contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.output).withFailMessage("Additional dependency should be loadable from test classpath")
+      .contains("Additional dependency (extra-lib) found in test classpath")
   }
 
   @Test
@@ -640,13 +628,12 @@ class MuzzlePluginFunctionalTest {
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
-    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-with-transitive-1.0.0")?.outcome)
-    assertTrue(
-      result.output.contains("Excluded dependency (guava) correctly not in test classpath"),
-      "Excluded dependency should not be loadable from test classpath"
-    )
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-with-transitive-1.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.output).withFailMessage("Excluded dependency should not be loadable from test classpath")
+      .contains("Excluded dependency (guava) correctly not in test classpath")
   }
 
   @Test
@@ -676,9 +663,9 @@ class MuzzlePluginFunctionalTest {
       "--stacktrace"
     )
 
-    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome).isEqualTo(SUCCESS)
   }
 
   @Test
@@ -709,9 +696,9 @@ class MuzzlePluginFunctionalTest {
       "--stacktrace"
     )
 
-    assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+    assertThat(result.output).contains("BUILD SUCCESSFUL")
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome).isEqualTo(SUCCESS)
   }
 
   @Test
@@ -739,10 +726,9 @@ class MuzzlePluginFunctionalTest {
       "--all"
     )
 
-    assertFalse(
-      result.output.contains("muzzle"),
-      "Should not create muzzle tasks without java plugin"
-    )
+    assertThat(result.output)
+      .withFailMessage("Should not create muzzle tasks without java plugin")
+      .doesNotContain("muzzle")
   }
 
   @Test
@@ -778,12 +764,12 @@ class MuzzlePluginFunctionalTest {
       "--stacktrace"
     )
 
-    assertTrue(
-      result.output.contains("BUILD FAILED") ||
-      result.output.contains(":dd-java-agent:agent-bootstrap project not found") ||
-      result.output.contains(":dd-java-agent:agent-tooling project not found"),
-      "Should fail with clear error about missing dd-java-agent projects"
-    )
+    assertThat(result.output).withFailMessage("Should fail with clear error about missing dd-java-agent projects")
+      .containsAnyOf(
+        "BUILD FAILED",
+        ":dd-java-agent:agent-bootstrap project not found",
+        ":dd-java-agent:agent-tooling project not found"
+      )
   }
 
   @Test
@@ -836,38 +822,41 @@ class MuzzlePluginFunctionalTest {
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
     )
 
-    assertTrue(
-      result.output.contains("BUILD SUCCESSFUL"),
-      "Build should succeed. Output:\n${result.output.take(3000)}"
-    )
+    assertThat(result.output)
+      .withFailMessage("Build should succeed. Output:\n${result.output.take(3000)}")
+      .contains("BUILD SUCCESSFUL")
 
     val modulePrefix = ":dd-java-agent:instrumentation:demo"
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle")?.outcome)
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-end")?.outcome)
+    assertThat(result.task("$modulePrefix:muzzle")?.outcome).isEqualTo(SUCCESS)
+    assertThat(result.task("$modulePrefix:muzzle-end")?.outcome).isEqualTo(SUCCESS)
 
     // In-range versions — assertPass=true
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-2.0.0")?.outcome)
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-3.0.0")?.outcome)
+    assertThat(result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-2.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.task("$modulePrefix:muzzle-AssertPass-com.example.test-inverse-lib-3.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
 
     // Out-of-range versions (inverse) — assertPass=false
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-1.0.0")?.outcome)
-    assertEquals(SUCCESS, result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-4.0.0")?.outcome)
+    assertThat(result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-1.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
+    assertThat(result.task("$modulePrefix:muzzle-AssertFail-com.example.test-inverse-lib-4.0.0")?.outcome)
+      .isEqualTo(SUCCESS)
 
-    assertTrue(
-      result.output.contains("MUZZLE_CHECK assertPass=true"),
-      "Should log assertPass=true for in-range versions"
-    )
-    assertTrue(
-      result.output.contains("MUZZLE_CHECK assertPass=false"),
-      "Should log assertPass=false for out-of-range (inverse) versions"
-    )
+    assertThat(result.output)
+      .withFailMessage("Should log assertPass=true for in-range versions")
+      .contains("MUZZLE_CHECK assertPass=true")
+    assertThat(result.output)
+      .withFailMessage("Should log assertPass=false for out-of-range (inverse) versions")
+      .contains("MUZZLE_CHECK assertPass=false")
 
     // Verify JUnit report contains all 4 test cases with no failures
     val reportFile = fixture.findSingleMuzzleJUnitReport()
     val report = fixture.parseXml(reportFile)
     val suite = report.documentElement
-    assertEquals("4", suite.getAttribute("tests"), "Should have 4 test cases (2 pass + 2 inverse fail)")
-    assertEquals("0", suite.getAttribute("failures"), "Should have no failures")
+    assertThat(suite.getAttribute("tests"))
+      .withFailMessage("Should have 4 test cases (2 pass + 2 inverse fail)")
+      .isEqualTo("4")
+    assertThat(suite.getAttribute("failures")).withFailMessage("Should have no failures").isEqualTo("0")
 
     findTestCase(report, "muzzle-AssertPass-com.example.test-inverse-lib-2.0.0")
     findTestCase(report, "muzzle-AssertPass-com.example.test-inverse-lib-3.0.0")

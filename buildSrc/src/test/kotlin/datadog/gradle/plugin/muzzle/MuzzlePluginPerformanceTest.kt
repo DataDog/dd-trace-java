@@ -3,12 +3,10 @@ package datadog.gradle.plugin.muzzle
 import datadog.gradle.plugin.MavenRepoFixture
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import org.assertj.core.api.Assertions.assertThat
 
 class MuzzlePluginPerformanceTest {
 
@@ -40,16 +38,14 @@ class MuzzlePluginPerformanceTest {
       "--info"
     )
 
-    assertEquals(SUCCESS, result.task(":dd-java-agent:instrumentation:demo:tasks")?.outcome)
+    assertThat(result.task(":dd-java-agent:instrumentation:demo:tasks")?.outcome).isEqualTo(SUCCESS)
 
-    assertFalse(
-      result.tasks.any() { it.path.contains("muzzle") },
-      "Should not create or execute any muzzle tasks when not requested"
-    )
-    assertTrue(
-      result.output.contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:demo, skipping muzzle task planification"),
-      "Should log early return when muzzle not requested"
-    )
+    assertThat(result.tasks)
+      .withFailMessage("Should not create or execute any muzzle tasks when not requested")
+      .noneMatch { it.path.contains("muzzle") }
+    assertThat(result.output)
+      .withFailMessage("Should log early return when muzzle not requested")
+      .contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:demo, skipping muzzle task planification")
   }
 
   @Test
@@ -86,20 +82,15 @@ class MuzzlePluginPerformanceTest {
       "--info"
     )
 
-    assertTrue(
-      result.tasks.any { it.path.contains("demo") && it.path.contains("muzzle") },
-      "Should execute muzzle tasks for demo project"
-    )
-    assertTrue(
-      result.tasks.none() { it.path.contains("other") && it.path.contains("muzzle") },
-      "Should NOT create or register execute muzzle tasks for other project"
-    )
-    assertTrue(
-      result.output.lines().any { line ->
-        line.contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:other, skipping muzzle task planification")
-      },
-      "Other project should skip muzzle configuration when demo project's muzzle is requested"
-    )
+    assertThat(result.tasks)
+      .withFailMessage("Should execute muzzle tasks for demo project")
+      .anyMatch { it.path.contains("demo") && it.path.contains("muzzle") }
+    assertThat(result.tasks)
+      .withFailMessage("Should NOT create or register execute muzzle tasks for other project")
+      .noneMatch { it.path.contains("other") && it.path.contains("muzzle") }
+    assertThat(result.output.lines())
+      .withFailMessage("Other project should skip muzzle configuration when demo project's muzzle is requested")
+      .anyMatch { it.contains("No muzzle tasks invoked for :dd-java-agent:instrumentation:other, skipping muzzle task planification") }
   }
 
   @Test
@@ -148,12 +139,16 @@ class MuzzlePluginPerformanceTest {
         env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
       )
 
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome)
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome)
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
-        "First run should execute muzzle-end task")
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome)
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome)
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+        .withFailMessage("First run should execute muzzle-end task")
+        .isEqualTo(SUCCESS)
     }
 
     // Second run without changes - assertion tasks should be up-to-date
@@ -163,14 +158,18 @@ class MuzzlePluginPerformanceTest {
         env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
       )
 
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome,
-        "1.0.0 assertion task should be up-to-date")
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome,
-        "1.1.0 assertion task should be up-to-date")
-      assertEquals(SUCCESS, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
-        "First run should execute muzzle-end task")
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome)
+        .withFailMessage("1.0.0 assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome)
+        .withFailMessage("1.1.0 assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+        .withFailMessage("First run should execute muzzle-end task")
+        .isEqualTo(SUCCESS)
     }
 
     // Third run after adding new version - should NOT be up-to-date
@@ -187,16 +186,21 @@ class MuzzlePluginPerformanceTest {
         env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
       )
 
-      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome,
-        "1.0.0 assertion task should be up-to-date")
-      assertEquals(UP_TO_DATE, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome,
-        "1.1.0 assertion task should be up-to-date")
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.2.0")?.outcome,
-        "New 1.2.0 assertion task should be created and execute")
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome,
-        "First run should execute muzzle-end task")
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.0.0")?.outcome)
+        .withFailMessage("1.0.0 assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.1.0")?.outcome)
+        .withFailMessage("1.1.0 assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-com.example.test-example-lib-1.2.0")?.outcome)
+        .withFailMessage("New 1.2.0 assertion task should be created and execute")
+        .isEqualTo(SUCCESS)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome)
+        .withFailMessage("First run should execute muzzle-end task")
+        .isEqualTo(SUCCESS)
     }
   }
 
@@ -222,22 +226,24 @@ class MuzzlePluginPerformanceTest {
     run {
       val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "First run should execute coreJdk assertion task"
-      )
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("First run should execute coreJdk assertion task")
+        .isEqualTo(SUCCESS)
     }
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
       val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Second run should be up-to-date")
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be up-to-date"
-      )
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Second run should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
     }
 
     // Third run after changing instrumentation code - should be invalidated
@@ -256,11 +262,12 @@ class MuzzlePluginPerformanceTest {
 
       val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Third run should execute after instrumentation code change")
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be invalidated and re-execute"
-      )
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Third run should execute after instrumentation code change")
+        .isEqualTo(SUCCESS)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be invalidated and re-execute")
+        .isEqualTo(SUCCESS)
     }
   }
 
@@ -286,22 +293,24 @@ class MuzzlePluginPerformanceTest {
     run {
       val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "First run should execute coreJdk assertion task"
-      )
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("First run should execute coreJdk assertion task")
+        .isEqualTo(SUCCESS)
     }
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
       val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Second run should be up-to-date")
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be up-to-date"
-      )
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Second run should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
     }
 
     // Third run after changing agent-tooling code - should be invalidated
@@ -320,11 +329,12 @@ class MuzzlePluginPerformanceTest {
 
       val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Third run should execute after tooling classpath change")
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be invalidated and re-execute"
-      )
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Third run should execute after tooling classpath change")
+        .isEqualTo(SUCCESS)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be invalidated and re-execute")
+        .isEqualTo(SUCCESS)
     }
   }
 
@@ -350,22 +360,24 @@ class MuzzlePluginPerformanceTest {
     run {
       val firstRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "First run should execute muzzle task")
-      assertEquals(SUCCESS, firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "First run should execute coreJdk assertion task"
-      )
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("First run should execute muzzle task")
+        .isEqualTo(SUCCESS)
+      assertThat(firstRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("First run should execute coreJdk assertion task")
+        .isEqualTo(SUCCESS)
     }
 
     // Second run without changes - assertion tasks should be up-to-date
     run {
       val secondRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Second run should be up-to-date")
-      assertEquals(UP_TO_DATE, secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be up-to-date"
-      )
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Second run should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
+      assertThat(secondRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be up-to-date")
+        .isEqualTo(UP_TO_DATE)
     }
 
     // Third run after changing agent-bootstrap code - should be invalidated
@@ -384,11 +396,12 @@ class MuzzlePluginPerformanceTest {
 
       val thirdRun = fixture.run(":dd-java-agent:instrumentation:demo:muzzle")
 
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome,
-        "Third run should execute after bootstrap classpath change")
-      assertEquals(SUCCESS, thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome,
-        "coreJdk assertion task should be invalidated and re-execute"
-      )
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome)
+        .withFailMessage("Third run should execute after bootstrap classpath change")
+        .isEqualTo(SUCCESS)
+      assertThat(thirdRun.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
+        .withFailMessage("coreJdk assertion task should be invalidated and re-execute")
+        .isEqualTo(SUCCESS)
     }
   }
 }

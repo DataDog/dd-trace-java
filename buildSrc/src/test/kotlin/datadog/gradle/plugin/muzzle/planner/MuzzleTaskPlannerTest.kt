@@ -1,9 +1,9 @@
 package datadog.gradle.plugin.muzzle.planner
 
 import datadog.gradle.plugin.muzzle.MuzzleDirective
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class MuzzleTaskPlannerTest {
@@ -14,9 +14,9 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(emptyList())
 
-    assertEquals(emptyList<MuzzleTaskPlan>(), plans)
-    assertEquals(0, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(plans).isEmpty()
+    assertThat(fakeService.resolveCalls).isEqualTo(0)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
   @Test
@@ -33,9 +33,9 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive))
 
-    assertEquals(emptyList<MuzzleTaskPlan>(), plans)
-    assertEquals(1, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(plans).isEmpty()
+    assertThat(fakeService.resolveCalls).isEqualTo(1)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
   @Test
@@ -48,9 +48,9 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive))
 
-    assertEquals(listOf(MuzzleTaskPlan(directive, null)), plans)
-    assertEquals(0, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(plans).containsExactly(MuzzleTaskPlan(directive, null))
+    assertThat(fakeService.resolveCalls).isEqualTo(0)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
   @Test
@@ -73,61 +73,55 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive))
 
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(directive, artifact(version = "1.0.0")),
-        MuzzleTaskPlan(directive, artifact(version = "1.1.0")),
-        MuzzleTaskPlan(directive, artifact(version = "1.2.0")),
-        MuzzleTaskPlan(directive, artifact(version = "1.3.0")),
-      ),
-      plans
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(directive, artifact(version = "1.0.0")),
+      MuzzleTaskPlan(directive, artifact(version = "1.1.0")),
+      MuzzleTaskPlan(directive, artifact(version = "1.2.0")),
+      MuzzleTaskPlan(directive, artifact(version = "1.3.0")),
     )
-    assertEquals(1, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(fakeService.resolveCalls).isEqualTo(1)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
-    @Test
-    fun `multiple directives processed together preserves order`() {
-        val directive1 = MuzzleDirective().apply {
-            group = "com.example"
-            module = "first"
-            versions = "[1.0,2.0)"
-            assertPass = true
-        }
-        val directive2 = MuzzleDirective().apply {
-            group = "com.example"
-            module = "second"
-            versions = "[2.0,3.0)"
-            assertPass = true
-        }
-        val directive3 = MuzzleDirective().apply {
-            group = "com.example"
-            module = "third"
-            versions = "[3.0,4.0)"
-            assertPass = false
-        }
-        val fakeService = FakeResolutionService(
-            artifactsByDirective = mapOf(
-                directive1 to linkedSetOf(artifact("first", "1.5.0")),
-                directive2 to linkedSetOf(artifact("second", "2.5.0")),
-                directive3 to linkedSetOf(artifact("third", "3.5.0"))
-            )
-        )
-    
-        val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive1, directive2, directive3))
-    
-        assertEquals(
-            listOf(
-                MuzzleTaskPlan(directive1, artifact("first", "1.5.0")),
-                MuzzleTaskPlan(directive2, artifact("second", "2.5.0")),
-                MuzzleTaskPlan(directive3, artifact("third", "3.5.0")),
-            ),
-            plans
-        )
-        assertEquals(3, fakeService.resolveCalls)
-        assertEquals(0, fakeService.inverseCalls)
+  @Test
+  fun `multiple directives processed together preserves order`() {
+    val directive1 = MuzzleDirective().apply {
+      group = "com.example"
+      module = "first"
+      versions = "[1.0,2.0)"
+      assertPass = true
     }
-    
+    val directive2 = MuzzleDirective().apply {
+      group = "com.example"
+      module = "second"
+      versions = "[2.0,3.0)"
+      assertPass = true
+    }
+    val directive3 = MuzzleDirective().apply {
+      group = "com.example"
+      module = "third"
+      versions = "[3.0,4.0)"
+      assertPass = false
+    }
+    val fakeService = FakeResolutionService(
+      artifactsByDirective = mapOf(
+        directive1 to linkedSetOf(artifact("first", "1.5.0")),
+        directive2 to linkedSetOf(artifact("second", "2.5.0")),
+        directive3 to linkedSetOf(artifact("third", "3.5.0"))
+      )
+    )
+
+    val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive1, directive2, directive3))
+
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(directive1, artifact("first", "1.5.0")),
+      MuzzleTaskPlan(directive2, artifact("second", "2.5.0")),
+      MuzzleTaskPlan(directive3, artifact("third", "3.5.0")),
+    )
+    assertThat(fakeService.resolveCalls).isEqualTo(3)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
+  }
+
   @Test
   fun `assertInverse adds inverse plans on top of declared range plans`() {
     val directive = MuzzleDirective().apply {
@@ -158,16 +152,17 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive))
 
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(directive, directArtifactV1),
-        MuzzleTaskPlan(directive, directArtifactV2),
-        MuzzleTaskPlan(directive, directArtifactV3),
-        MuzzleTaskPlan(inversedDirective, inverseArtifactV1),
-        MuzzleTaskPlan(inversedDirective, inverseArtifactV2),
-      ), plans)
-    assertEquals(2, fakeService.resolveCalls, "main directive + additional one for the inverse directive")
-    assertEquals(1, fakeService.inverseCalls)
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(directive, directArtifactV1),
+      MuzzleTaskPlan(directive, directArtifactV2),
+      MuzzleTaskPlan(directive, directArtifactV3),
+      MuzzleTaskPlan(inversedDirective, inverseArtifactV1),
+      MuzzleTaskPlan(inversedDirective, inverseArtifactV2),
+    )
+    assertThat(fakeService.resolveCalls)
+      .withFailMessage("main directive + additional one for the inverse directive")
+      .isEqualTo(2)
+    assertThat(fakeService.inverseCalls).isEqualTo(1)
   }
 
   @Test
@@ -205,18 +200,15 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive))
 
-    assertEquals(4, plans.size, "Should have 3 pass plans + 1 inverse fail plan")
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.1.0")),
-        MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.1.50")),
-        MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.2.0")),
-        MuzzleTaskPlan(inverseDirective, artifact("netty-codec-http", "4.0.30")),
-      ),
-      plans
+    assertThat(plans).withFailMessage("Should have 3 pass plans + 1 inverse fail plan").hasSize(4)
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.1.0")),
+      MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.1.50")),
+      MuzzleTaskPlan(directive, artifact("netty-codec-http", "4.2.0")),
+      MuzzleTaskPlan(inverseDirective, artifact("netty-codec-http", "4.0.30")),
     )
-    assertEquals(2, fakeService.resolveCalls)
-    assertEquals(1, fakeService.inverseCalls)
+    assertThat(fakeService.resolveCalls).isEqualTo(2)
+    assertThat(fakeService.inverseCalls).isEqualTo(1)
   }
 
   @Test
@@ -239,15 +231,12 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(coreJdkDirective, artifactDirective))
 
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(coreJdkDirective, null),
-        MuzzleTaskPlan(artifactDirective, artifact("demo", "1.5.0")),
-      ),
-      plans
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(coreJdkDirective, null),
+      MuzzleTaskPlan(artifactDirective, artifact("demo", "1.5.0")),
     )
-    assertEquals(1, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(fakeService.resolveCalls).isEqualTo(1)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
   @Test
@@ -274,16 +263,13 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(passDirective, failDirective))
 
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(passDirective, artifact("demo", "2.5.0")),
-        MuzzleTaskPlan(passDirective, artifact("demo", "3.0.0")),
-        MuzzleTaskPlan(failDirective, artifact("demo", "1.5.0")),
-      ),
-      plans
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(passDirective, artifact("demo", "2.5.0")),
+      MuzzleTaskPlan(passDirective, artifact("demo", "3.0.0")),
+      MuzzleTaskPlan(failDirective, artifact("demo", "1.5.0")),
     )
-    assertEquals(2, fakeService.resolveCalls)
-    assertEquals(0, fakeService.inverseCalls)
+    assertThat(fakeService.resolveCalls).isEqualTo(2)
+    assertThat(fakeService.inverseCalls).isEqualTo(0)
   }
 
   @Test
@@ -329,17 +315,14 @@ class MuzzleTaskPlannerTest {
 
     val plans = MuzzleTaskPlanner(fakeService).plan(listOf(directive1, directive2))
 
-    assertEquals(
-      listOf(
-        MuzzleTaskPlan(directive1, artifact("first", "3.5.0")),
-        MuzzleTaskPlan(inverse1, artifact("first", "2.5.0")),
-        MuzzleTaskPlan(directive2, artifact("second", "2.5.0")),
-        MuzzleTaskPlan(inverse2, artifact("second", "1.5.0")),
-      ),
-      plans
+    assertThat(plans).containsExactly(
+      MuzzleTaskPlan(directive1, artifact("first", "3.5.0")),
+      MuzzleTaskPlan(inverse1, artifact("first", "2.5.0")),
+      MuzzleTaskPlan(directive2, artifact("second", "2.5.0")),
+      MuzzleTaskPlan(inverse2, artifact("second", "1.5.0")),
     )
-    assertEquals(4, fakeService.resolveCalls)
-    assertEquals(2, fakeService.inverseCalls)
+    assertThat(fakeService.resolveCalls).isEqualTo(4)
+    assertThat(fakeService.inverseCalls).isEqualTo(2)
   }
 
   private fun artifact(module: String = "demo", version: String) =

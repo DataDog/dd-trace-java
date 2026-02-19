@@ -3,18 +3,16 @@ package datadog.gradle.plugin.muzzle
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.testfixtures.ProjectBuilder
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.assertj.core.api.Assertions.assertThat
 
 class MuzzlePluginUtilsTest {
   @Test
   fun `pathSlug for root project is empty`() {
     val root = ProjectBuilder.builder().withName("root").build()
-    assertEquals("", root.pathSlug)
+    assertThat(root.pathSlug).isEmpty()
   }
 
   @ParameterizedTest(name = "[{index}] path ''{0}'' → slug ''{1}''")
@@ -27,7 +25,7 @@ class MuzzlePluginUtilsTest {
   fun `pathSlug for single-level child project`(childName: String, expectedSlug: String) {
     val root = ProjectBuilder.builder().withName("root").build()
     val child = ProjectBuilder.builder().withParent(root).withName(childName.trim()).build()
-    assertEquals(expectedSlug.trim(), child.pathSlug)
+    assertThat(child.pathSlug).isEqualTo(expectedSlug.trim())
   }
 
   @Test
@@ -37,7 +35,7 @@ class MuzzlePluginUtilsTest {
     val bar = ProjectBuilder.builder().withParent(foo).withName("bar").build()
     val baz = ProjectBuilder.builder().withParent(bar).withName("baz").build()
 
-    assertEquals("foo_bar_baz", baz.pathSlug)
+    assertThat(baz.pathSlug).isEqualTo("foo_bar_baz")
   }
 
   @Test
@@ -47,8 +45,7 @@ class MuzzlePluginUtilsTest {
 
     val sourceSets = project.allMainSourceSet
 
-    assertTrue(sourceSets.any { it.name == "main" })
-    assertFalse(sourceSets.any { it.name == "test" })
+    assertThat(sourceSets.map { it.name }).contains("main").doesNotContain("test")
   }
 
   @Test
@@ -62,9 +59,6 @@ class MuzzlePluginUtilsTest {
 
     val sourceSets = project.allMainSourceSet
 
-    assertEquals(3, sourceSets.size)
-    assertTrue(sourceSets.any { it.name == "main" })
-    assertTrue(sourceSets.any { it.name == "mainLegacy" })
-    assertTrue(sourceSets.any { it.name == "mainJava8" })
+    assertThat(sourceSets.map { it.name }).containsExactlyInAnyOrder("main", "mainLegacy", "mainJava8")
   }
 }
