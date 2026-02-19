@@ -454,7 +454,7 @@ class CoreTracerTest extends DDCoreSpecification {
   def "test local root service name override"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()
-    tracer.updatePreferredServiceName(preferred)
+    tracer.updatePreferredServiceName(preferred, preferred)
     when:
     def span = tracer.startSpan("", "test")
     span.finish()
