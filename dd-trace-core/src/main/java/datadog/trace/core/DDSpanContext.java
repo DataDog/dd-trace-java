@@ -774,7 +774,7 @@ public class DDSpanContext
       unsafeTags.set(key.toString(), value);
     }
   }
-  
+
   public void setMetric(final TagMap.EntryReader entry) {
     if (entry == null) {
       return;

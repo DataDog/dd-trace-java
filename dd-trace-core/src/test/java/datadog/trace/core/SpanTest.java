@@ -5,10 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
 
 public class SpanTest {
   static final CoreTracer TRACER = CoreTracer.builder().build();
@@ -64,7 +62,7 @@ public class SpanTest {
     assertInstanceOf(Double.class, value);
     assertEquals(Double.valueOf(expected), value);
   }
-  
+
   @Test
   @DisplayName("setTag: TagMap.Entry")
   public void setTagEntry() {

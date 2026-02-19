@@ -213,7 +213,7 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   public MutableSpan setMetric(final CharSequence metric, final long value) {
     return delegate.setMetric(metric, value);
   }
-  
+
   @Override
   public MutableSpan setMetric(final CharSequence metric, final float value) {
     return delegate.setMetric(metric, value);
