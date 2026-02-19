@@ -31,6 +31,13 @@ public class ChatCompletionDecorator {
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/chat/completions");
+    if (params != null) {
+      params
+          .model()
+          ._value()
+          .asString()
+          .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    }
     if (!llmObsEnabled) {
       return;
     }
@@ -39,11 +46,6 @@ public class ChatCompletionDecorator {
     if (params == null) {
       return;
     }
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     span.setTag(
         CommonTags.INPUT,

@@ -23,6 +23,13 @@ public class CompletionDecorator {
   public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/completions");
+    if (params != null) {
+      params
+          .model()
+          ._value()
+          .asString()
+          .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    }
     if (!llmObsEnabled) {
       return;
     }
@@ -31,12 +38,6 @@ public class CompletionDecorator {
     if (params == null) {
       return;
     }
-
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
     params
         .prompt()
         .flatMap(p -> p.string())
