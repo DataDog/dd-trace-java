@@ -19,7 +19,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class SerializingMetricWriterForkedTest extends DDSpecification {
-  
+
   def setupSpec() {
     Histograms.register(DDSketchHistograms.FACTORY)
   }
