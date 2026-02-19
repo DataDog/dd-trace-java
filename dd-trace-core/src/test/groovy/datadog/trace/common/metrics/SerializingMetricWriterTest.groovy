@@ -18,7 +18,7 @@ import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROC
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-class SerializingMetricWriterForkedTest extends DDSpecification {
+class SerializingMetricWriterTest extends DDSpecification {
 
   def setupSpec() {
     Histograms.register(DDSketchHistograms.FACTORY)
