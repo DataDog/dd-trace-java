@@ -91,7 +91,10 @@ public interface AgentSpan
 
   @Override
   AgentSpan setMetric(CharSequence key, long value);
-
+  
+  @Override
+  AgentSpan setMetric(CharSequence key, float value);
+  
   @Override
   AgentSpan setMetric(CharSequence key, double value);
 

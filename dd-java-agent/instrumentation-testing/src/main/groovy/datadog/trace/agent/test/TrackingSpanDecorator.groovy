@@ -178,7 +178,12 @@ class TrackingSpanDecorator implements AgentSpan {
   AgentSpan setMetric(CharSequence key, int value) {
     return delegate.setMetric(key, value)
   }
-
+  
+  @Override
+  AgentSpan setMetric(CharSequence key, float value) {
+    return delegate.setMetric(key, value)
+  }
+  
   @Override
   AgentSpan setMetric(CharSequence key, long value) {
     return delegate.setMetric(key, value)
