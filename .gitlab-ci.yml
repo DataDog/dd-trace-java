@@ -31,7 +31,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v26.01-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|ibm8)$/ # the latest "stable" version is 26
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|stable)$/ # the latest "stable" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"

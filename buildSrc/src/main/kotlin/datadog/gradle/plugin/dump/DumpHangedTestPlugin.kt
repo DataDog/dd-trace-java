@@ -127,9 +127,9 @@ class DumpHangedTestPlugin : Plugin<Project> {
       val allJavaProcessesFile = file("all-java-processes")
       runCmd(Redirect.to(allJavaProcessesFile), "jcmd", "-l")
 
-      // On IBM JDK javacore can be collected by signaling the matching `Gradle Test Executor` process with `kill -3`.
+      // On IBM JDK thread dump can be collected by signaling the matching `Gradle Test Executor` process with `kill -3`.
       // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
-      if (isIbm8Run(allJavaProcessesFile)) {
+      if (isIbm8(allJavaProcessesFile)) {
         val allProcessesFile = file("all-processes")
         runCmd(Redirect.to(allProcessesFile), "ps", "-ef")
         extractPidsIbm8(allProcessesFile).forEach { ibm8Pid ->
@@ -183,7 +183,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun isIbm8Run(file: File): Boolean =
+  private fun isIbm8(file: File): Boolean =
     file.readLines().any { it.contains("-PtestJvm=ibm8") }
 
   private fun extractPids(file: File): List<String> =
@@ -201,7 +201,9 @@ class DumpHangedTestPlugin : Plugin<Project> {
         .toList()
     }
 
-  // ps -ef format starts with: UID PID PPID ...
+  private val whitespaceRegex = Regex("\\s+")
+
+  // ps -ef format produce output like: UID PID PPID ...
   private fun extractPid(line: String): String? =
-    line.trim().split(Regex("\\s+")).getOrNull(1)
+    line.trimStart().split(whitespaceRegex, limit = 3).getOrNull(1)
 }
