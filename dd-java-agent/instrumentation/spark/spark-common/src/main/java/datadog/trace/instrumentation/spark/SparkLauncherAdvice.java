@@ -10,16 +10,16 @@ import org.apache.spark.launcher.SparkAppHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class SparkLauncherAdvice {
+public class SparkLauncherAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(SparkLauncherAdvice.class);
 
   /** The launcher span, accessible from SparkExitAdvice via reflection. */
-  static volatile AgentSpan launcherSpan;
+  public static volatile AgentSpan launcherSpan;
 
   private static volatile boolean shutdownHookRegistered = false;
 
-  private static synchronized void createLauncherSpan(String resource) {
+  public static synchronized void createLauncherSpan(String resource) {
     if (launcherSpan != null) {
       return;
     }
@@ -46,7 +46,7 @@ class SparkLauncherAdvice {
     }
   }
 
-  static synchronized void finishLauncherSpan(int exitCode) {
+  public static synchronized void finishLauncherSpan(int exitCode) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
