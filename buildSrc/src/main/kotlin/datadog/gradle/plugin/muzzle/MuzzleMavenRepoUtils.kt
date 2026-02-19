@@ -69,7 +69,8 @@ internal object MuzzleMavenRepoUtils {
   fun inverseOf(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
-    session: RepositorySystemSession
+    session: RepositorySystemSession,
+    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -77,7 +78,7 @@ internal object MuzzleMavenRepoUtils {
       "jar",
       "[,)"
     )
-    val repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
+    val repos = muzzleDirective.getRepositories(defaultRepos)
     val allRangeRequest = VersionRangeRequest().apply {
       repositories = repos
       artifact = allVersionsArtifact
@@ -122,7 +123,8 @@ internal object MuzzleMavenRepoUtils {
   fun resolveVersionRange(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
-    session: RepositorySystemSession
+    session: RepositorySystemSession,
+    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
   ): VersionRangeResult {
     val directiveArtifact: Artifact = DefaultArtifact(
       muzzleDirective.group,
@@ -132,7 +134,7 @@ internal object MuzzleMavenRepoUtils {
       muzzleDirective.versions
     )
     val rangeRequest = VersionRangeRequest().apply {
-      repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
+      repositories = muzzleDirective.getRepositories(defaultRepos)
       artifact = directiveArtifact
     }
 
