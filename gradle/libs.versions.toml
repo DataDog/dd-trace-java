@@ -40,7 +40,7 @@ jmh = "1.37"
 jmc = "8.1.0"
 
 # Web & Network
-jnr-unixsocket = "0.38.22"
+jnr-unixsocket = "0.38.24"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -56,7 +56,7 @@ lz4 = "1.7.1"
 
 # Logging
 slf4j = "1.7.30"
-logback = "1.2.13"
+logback = "1.2.13" # required by Java 8 modules.
 
 # JSON
 jackson = "2.20.0"

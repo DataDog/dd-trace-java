@@ -9,6 +9,7 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,8 +98,13 @@ public class MemFDUnixWriterFFM extends MemFDUnixWriter {
       return -1;
     }
     try (Arena arena = Arena.ofConfined()) {
-      // Allocate native string for file name
-      MemorySegment fileNameSegment = arena.allocateFrom(name);
+      // Allocate native string for file name (manual allocation for compatibility)
+      // the following works for UTF8 (not for unicode / UTF16)
+      byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
+      MemorySegment fileNameSegment =
+          arena.allocate(nameBytes.length + 1); // +1 for null terminator
+      MemorySegment.copy(nameBytes, 0, fileNameSegment, ValueLayout.JAVA_BYTE, 0, nameBytes.length);
+      fileNameSegment.set(ValueLayout.JAVA_BYTE, nameBytes.length, (byte) 0); // null terminator
       // Call memfd_create via syscall, passing captureState as first arg
       return (long) Lazy.syscallMH.invoke(captureState, (long) number, fileNameSegment, flags);
     } catch (Throwable t) {

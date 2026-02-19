@@ -115,6 +115,11 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
+  AgentSpan setTag(TagMap.EntryReader entry) {
+    return delegate.setTag(entry)
+  }
+
+  @Override
   void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {
     delegate.setRequestBlockingAction(rba)
   }
@@ -182,6 +187,11 @@ class TrackingSpanDecorator implements AgentSpan {
   @Override
   AgentSpan setMetric(CharSequence key, double value) {
     return delegate.setMetric(key, value)
+  }
+
+  @Override
+  AgentSpan setMetric(TagMap.EntryReader entry) {
+    return delegate.setMetric(entry)
   }
 
   @Override

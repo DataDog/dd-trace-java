@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SP
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
+import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -77,6 +78,9 @@ public interface AgentSpan
 
   AgentSpan setTag(String key, Object value);
 
+  /** entry may be null - in which case the tags remained unchanged */
+  AgentSpan setTag(TagMap.EntryReader entry);
+
   AgentSpan setAllTags(Map<String, ?> map);
 
   @Override
@@ -90,6 +94,9 @@ public interface AgentSpan
 
   @Override
   AgentSpan setMetric(CharSequence key, double value);
+
+  /** metricEntry may be null - in which case the tags remained unchanged */
+  AgentSpan setMetric(TagMap.EntryReader metricEntry);
 
   @Override
   AgentSpan setSpanType(final CharSequence type);
@@ -203,8 +210,8 @@ public interface AgentSpan
   }
 
   @Override
-  default Context storeInto(Context context) {
-    return context.with(SPAN_KEY, this);
+  default Context storeInto(@Nonnull Context context) {
+    return context == Context.root() ? this : context.with(SPAN_KEY, this);
   }
 
   @Nullable
@@ -217,5 +224,26 @@ public interface AgentSpan
   @Override
   default <T> Context with(@Nonnull ContextKey<T> key, @Nullable T value) {
     return SPAN_KEY == key ? (Context) value : Context.root().with(SPAN_KEY, this, key, value);
+  }
+
+  /**
+   * Attaches a context containing just the span to the current execution unit. Use this when you
+   * want to temporarily suppress any surrounding custom context during the span's scope.
+   *
+   * @return a scope to be closed when the span context is invalid.
+   */
+  @Override
+  default ContextScope attach() {
+    return Context.super.attach();
+  }
+
+  /**
+   * Attaches a context combining the span with the current context to the current execution unit.
+   * Use this when you want to maintain any surrounding custom context during the span's scope.
+   *
+   * @return a scope to be closed when the combined context is invalid.
+   */
+  default ContextScope attachWithCurrent() {
+    return storeInto(Context.current()).attach();
   }
 }

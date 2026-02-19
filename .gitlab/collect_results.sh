@@ -26,10 +26,7 @@ function get_source_file () {
     class="${RESULT_XML_FILE%.xml}"
     class="${class##*"TEST-"}"
     class="${class##*"."}"
-    # Extract the inner class name if there's a "$"
-    if [[ "$class" == *"$"* ]]; then
-      class="${class##*"$"}"
-    fi
+    class="${class##*"$"}" # remove inner class name if it exists
     set +e # allow grep to fail
     common_root=$(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null | head -n 1)
     set -e
@@ -39,14 +36,19 @@ function get_source_file () {
         while [[ $line != "$common_root"* ]]; do
           common_root=$(dirname "$common_root")
           if [[ "$common_root" == "$common_root/.." ]] || [[ "$common_root" == "/" ]]; then
+            common_root=""
             break
           fi
         done
       done < <(grep -rl "class $class\|static class $class" "$file_path" 2>/dev/null)
 
-      if [[ -n "$common_root" ]] && [[ "$common_root" != "/" ]]; then
+      if [[ -n "$common_root" && "$common_root" != "/" ]]; then
         file_path="/$common_root"
+      else
+        file_path="UNKNOWN"
       fi
+    else
+      file_path="UNKNOWN"
     fi
   fi
 }
@@ -55,17 +57,27 @@ echo "Saving test results:"
 while IFS= read -r -d '' RESULT_XML_FILE
 do
   echo -n "- $RESULT_XML_FILE"
+  # Assuming the path looks like that: dd-java-agent/instrumentation/tomcat/tomcat-5.5/build/test-results/forkedTest/TEST-TomcatServletV1ForkedTest.xml
+  # it will extracts 3 components from the path (counting from the end), to form the new name AGGREGATED_FILE_NAME:
+  #
+  #  1. Field 1 (from end): The XML filename itself
+  #  2. Field 2 (from end): The test suite type (test, forkedTest, etc.)
+  #  3. Field 5 (from end): The module/subproject name
+  #
+  # E.g. for the example path: tomcat-5.5_forkedTest_TEST-TomcatServletV1ForkedTest.xml
   AGGREGATED_FILE_NAME=$(echo "$RESULT_XML_FILE" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   echo -n " as $AGGREGATED_FILE_NAME"
-  cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  TARGET_DIR="$TEST_RESULTS_DIR"
+  mkdir -p "$TARGET_DIR"
+  cp "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
   get_source_file
-  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  if cmp -s "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"; then
+  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  if cmp -s "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"; then
     echo ""
   else
     echo -n " (non-stable test names detected)"

@@ -4,7 +4,9 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
@@ -24,17 +26,22 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     if (targetValue == Value.undefined()) {
       return targetValue;
     }
-    Object member;
+    CapturedContext.CapturedValue member;
     try {
       member = valueRefResolver.getMember(targetValue.getValue(), memberName);
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
-    if (member == Redaction.REDACTED_VALUE
-        || (member != null && Redaction.isRedactedType(member.getClass().getTypeName()))) {
+    Object memberValue = null;
+    if (member != null) {
+      memberValue = member.getValue();
+    }
+    if (memberValue != null
+        && (memberValue == Redaction.REDACTED_VALUE
+            || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
       ExpressionHelper.throwRedactedException(this);
     }
-    return Value.of(member);
+    return Value.of(member.getValue(), ValueType.of(member.getType()));
   }
 
   @Generated
