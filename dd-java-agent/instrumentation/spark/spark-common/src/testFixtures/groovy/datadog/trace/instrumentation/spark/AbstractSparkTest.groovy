@@ -789,15 +789,15 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     when:
     // Directly invoke the advice to simulate what would happen when startApplication is called
     def tracer = datadog.trace.bootstrap.instrumentation.api.AgentTracer.get()
-    def span = tracer
+    def launcherSpan = tracer
       .buildSpan("spark.launcher")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()
-    span.setSamplingPriority(
+    launcherSpan.setSamplingPriority(
       datadog.trace.api.sampling.PrioritySampling.USER_KEEP,
       datadog.trace.api.sampling.SamplingMechanism.DATA_JOBS)
-    SparkLauncherAdvice.launcherSpan = span
+    SparkLauncherAdvice.launcherSpan = launcherSpan
 
     // Simulate a non-zero exit finishing the launcher span
     SparkLauncherAdvice.finishLauncherSpan(1)
@@ -822,15 +822,15 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
     when:
     def tracer = datadog.trace.bootstrap.instrumentation.api.AgentTracer.get()
-    def span = tracer
+    def launcherSpan = tracer
       .buildSpan("spark.launcher")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.launch")
       .start()
-    span.setSamplingPriority(
+    launcherSpan.setSamplingPriority(
       datadog.trace.api.sampling.PrioritySampling.USER_KEEP,
       datadog.trace.api.sampling.SamplingMechanism.DATA_JOBS)
-    SparkLauncherAdvice.launcherSpan = span
+    SparkLauncherAdvice.launcherSpan = launcherSpan
 
     // Simulate a successful exit
     SparkLauncherAdvice.finishLauncherSpan(0)
