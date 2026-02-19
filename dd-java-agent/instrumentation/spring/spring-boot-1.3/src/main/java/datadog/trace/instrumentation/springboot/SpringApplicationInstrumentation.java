@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import org.springframework.core.env.ConfigurableEnvironment;
 
@@ -20,10 +19,9 @@ import org.springframework.core.env.ConfigurableEnvironment;
 @AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private static final CharSequence SPRING_BOOT = UTF8BytesString.create("spring-boot");
 
   public SpringApplicationInstrumentation() {
-    super(SPRING_BOOT.toString());
+    super("spring-boot");
   }
 
   @Override
@@ -63,7 +61,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
 
       final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName, SPRING_BOOT);
+        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
         ProcessTags.addTag("springboot.application", applicationName);
       }
       if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
@@ -92,7 +90,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
 
       final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName, SPRING_BOOT);
+        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
         ProcessTags.addTag("springboot.application", applicationName);
       }
       if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
