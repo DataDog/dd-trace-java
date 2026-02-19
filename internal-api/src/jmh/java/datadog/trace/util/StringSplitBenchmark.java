@@ -13,28 +13,28 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Strings.split is generally faster for String processing, since it create SubSequences that are
- * view into the backing String rather than new String objects.
+ * view into the backing String rather than new String objects. <code>
+ * Benchmark                           (testStr)   Mode  Cnt           Score           Error  Units
+ * StringSplitBenchmark.pattern_split      EMPTY  thrpt    6   291274421.621 ±  14834420.899  ops/s
+ * StringSplitBenchmark.string_split       EMPTY  thrpt    6  1035461179.368 ±  60212686.921  ops/s
+ * StringSplitBenchmark.strings_split      EMPTY  thrpt    6  8161781738.019 ± 178530888.497  ops/s
  *
- * <p>Benchmark (testStr) Mode Cnt Score Error Units StringSplitBenchmark.pattern_split EMPTY thrpt
- * 6 291274421.621 ± 14834420.899 ops/s StringSplitBenchmark.string_split EMPTY thrpt 6
- * 1035461179.368 ± 60212686.921 ops/s StringSplitBenchmark.strings_split EMPTY thrpt 6
- * 8161781738.019 ± 178530888.497 ops/s
+ * StringSplitBenchmark.pattern_split    TRIVIAL  thrpt    6    83982270.075 ±  10250565.633  ops/s
+ * StringSplitBenchmark.string_split     TRIVIAL  thrpt    6   848615850.339 ±  42453569.634  ops/s
+ * StringSplitBenchmark.strings_split    TRIVIAL  thrpt    6  1765290890.948 ± 160053487.111  ops/s
  *
- * <p>StringSplitBenchmark.pattern_split TRIVIAL thrpt 6 83982270.075 ± 10250565.633 ops/s
- * StringSplitBenchmark.string_split TRIVIAL thrpt 6 848615850.339 ± 42453569.634 ops/s
- * StringSplitBenchmark.strings_split TRIVIAL thrpt 6 1765290890.948 ± 160053487.111 ops/s
+ * StringSplitBenchmark.pattern_split      SMALL  thrpt    6    27383819.756 ±   5454020.100  ops/s
+ * StringSplitBenchmark.string_split       SMALL  thrpt    6   149047480.037 ±   6124271.615  ops/s
+ * StringSplitBenchmark.strings_split      SMALL  thrpt    6   564058097.162 ±  49305418.971  ops/s
  *
- * <p>StringSplitBenchmark.pattern_split SMALL thrpt 6 27383819.756 ± 5454020.100 ops/s
- * StringSplitBenchmark.string_split SMALL thrpt 6 149047480.037 ± 6124271.615 ops/s
- * StringSplitBenchmark.strings_split SMALL thrpt 6 564058097.162 ± 49305418.971 ops/s
+ * StringSplitBenchmark.pattern_split     MEDIUM  thrpt    6    14879131.729 ±   1981850.920  ops/s
+ * StringSplitBenchmark.string_split      MEDIUM  thrpt    6    51237769.598 ±   1808521.138  ops/s
+ * StringSplitBenchmark.strings_split     MEDIUM  thrpt    6   176976970.705 ±   6813886.658  ops/s
  *
- * <p>StringSplitBenchmark.pattern_split MEDIUM thrpt 6 14879131.729 ± 1981850.920 ops/s
- * StringSplitBenchmark.string_split MEDIUM thrpt 6 51237769.598 ± 1808521.138 ops/s
- * StringSplitBenchmark.strings_split MEDIUM thrpt 6 176976970.705 ± 6813886.658 ops/s
- *
- * <p>StringSplitBenchmark.pattern_split LARGE thrpt 6 482340.838 ± 24903.187 ops/s
- * StringSplitBenchmark.string_split LARGE thrpt 6 2460212.879 ± 86911.652 ops/s
- * StringSplitBenchmark.strings_split LARGE thrpt 6 4023658.103 ± 30305.699 ops/s
+ * StringSplitBenchmark.pattern_split      LARGE  thrpt    6      482340.838 ±     24903.187  ops/s
+ * StringSplitBenchmark.string_split       LARGE  thrpt    6     2460212.879 ±     86911.652  ops/s
+ * StringSplitBenchmark.strings_split      LARGE  thrpt    6     4023658.103 ±     30305.699  ops/s
+ * </code>
  */
 @Fork(2)
 @Warmup(iterations = 2)
