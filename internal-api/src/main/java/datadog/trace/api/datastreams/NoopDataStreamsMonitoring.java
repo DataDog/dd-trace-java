@@ -70,7 +70,6 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void reportKafkaConfig(
       String type,
       String kafkaClusterId,
-      String topic,
       String consumerGroup,
       Map<String, String> config) {}
 

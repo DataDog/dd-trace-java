@@ -53,7 +53,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] CONFIGS = "Configs".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_TYPE = "Type".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
-  private static final byte[] CONFIG_TOPIC = "Topic".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
 
@@ -288,7 +287,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     packer.writeUTF8(CONFIGS);
     packer.startArray(configs.size());
     for (KafkaConfigReport config : configs) {
-      packer.startMap(5); // Type, KafkaClusterId, Topic, ConsumerGroup, Config
+      packer.startMap(4); // Type, KafkaClusterId, ConsumerGroup, Config
 
       packer.writeUTF8(CONFIG_TYPE);
       packer.writeString(config.getType() != null ? config.getType() : "", null);
@@ -296,9 +295,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeUTF8(CONFIG_KAFKA_CLUSTER_ID);
       packer.writeString(
           config.getKafkaClusterId() != null ? config.getKafkaClusterId() : "", null);
-
-      packer.writeUTF8(CONFIG_TOPIC);
-      packer.writeString(config.getTopic() != null ? config.getTopic() : "", null);
 
       packer.writeUTF8(CONFIG_CONSUMER_GROUP);
       packer.writeString(config.getConsumerGroup() != null ? config.getConsumerGroup() : "", null);
