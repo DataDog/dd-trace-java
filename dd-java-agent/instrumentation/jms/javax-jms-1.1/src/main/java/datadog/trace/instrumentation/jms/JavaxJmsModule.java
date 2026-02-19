@@ -37,7 +37,7 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
       packageName + ".MessageExtractAdapter$1",
       packageName + ".MessageInjectAdapter",
       packageName + ".DatadogMessageListener",
-      packageName + ".JMSMessageConsumerInstrumentation$JMSLogger"
+      packageName + ".JMSLogger"
     };
   }
 

@@ -39,8 +39,6 @@ import javax.jms.MessageListener;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class JMSMessageConsumerInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
@@ -214,14 +212,6 @@ public final class JMSMessageConsumerInstrumentation
                   listener);
         }
       }
-    }
-  }
-
-  public static class JMSLogger {
-    private static final Logger log = LoggerFactory.getLogger(JMSLogger.class);
-
-    public static void logIterationSpan(AgentSpan span) {
-      log.debug("Expecting the following `ITERATION` span to be finished {}", span);
     }
   }
 }
