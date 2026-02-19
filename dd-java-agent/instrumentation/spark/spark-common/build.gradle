@@ -26,4 +26,8 @@ dependencies {
 
   testFixturesCompileOnly(libs.bundles.groovy)
   testFixturesCompileOnly(libs.bundles.spock)
+
+  testImplementation project(':dd-java-agent:instrumentation-testing')
+  testImplementation group: 'org.apache.spark', name: 'spark-launcher_2.12', version: '2.4.0'
 }
+
