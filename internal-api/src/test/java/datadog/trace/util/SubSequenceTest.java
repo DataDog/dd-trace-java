@@ -14,6 +14,7 @@ public class SubSequenceTest {
   public void empty() {
     SubSequence subSeq = SubSequence.EMPTY;
     assertEquals("", subSeq.toString());
+    assertEquals("".hashCode(), subSeq.hashCode());
 
     StringBuilder builder0 = new StringBuilder();
     builder0.append(subSeq);
@@ -33,6 +34,7 @@ public class SubSequenceTest {
     assertEquals("foo".length(), subSeq.beginIndex());
     assertEquals("foo".length(), subSeq.endIndex());
     assertEquals("", subSeq.toString());
+    assertEquals("".hashCode(), subSeq.hashCode());
 
     StringBuilder builder0 = new StringBuilder();
     builder0.append(subSeq);
