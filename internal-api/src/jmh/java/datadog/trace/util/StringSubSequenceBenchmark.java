@@ -12,7 +12,7 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>NOTE: The higher allocation rate is misleading because 5x the work was performed. After
  * accounting for the 5x throughput difference, the actual allocation rate is 0.25x that of
- * String.substring or String.subSequence. <code>
+ * String.substring or String.subSequence / SubSequence.of. <code>
  * Benchmark                                                          Mode  Cnt          Score          Error   Units
  * StringSubSequenceBenchmark.string_subSequence                     thrpt    6  140369998.493 ±  4387855.861   ops/s
  * StringSubSequenceBenchmark.string_subSequence:gc.alloc.rate       thrpt    6      88880.463 ±     2778.032  MB/sec
