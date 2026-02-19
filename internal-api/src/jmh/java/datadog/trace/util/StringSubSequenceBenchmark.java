@@ -8,19 +8,21 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Strings.substring has 5x throughput. This is primarily achieved through less allocation. NOTE:
- * The higher allocation rate is misleading because 5x the work was performed. After accounting for
- * the 5x, the actual allocation rate is 0.25x that of String.substring or String.subSequence.
+ * Strings.substring has 5x throughput. This is primarily achieved through less allocation.
  *
- * <p>Benchmark Mode Cnt Score Error Units StringSubSequenceBenchmark.string_subSequence thrpt 6
- * 140369998.493 ± 4387855.861 ops/s StringSubSequenceBenchmark.string_subSequence:gc.alloc.rate
- * thrpt 6 88880.463 ± 2778.032 MB/sec
+ * <p>NOTE: The higher allocation rate is misleading because 5x the work was performed. After
+ * accounting for the 5x throughput difference, the actual allocation rate is 0.25x that of
+ * String.substring or String.subSequence. <code>
+ * Benchmark                                                          Mode  Cnt          Score          Error   Units
+ * StringSubSequenceBenchmark.string_subSequence                     thrpt    6  140369998.493 ±  4387855.861   ops/s
+ * StringSubSequenceBenchmark.string_subSequence:gc.alloc.rate       thrpt    6      88880.463 ±     2778.032  MB/sec
  *
- * <p>StringSubSequenceBenchmark.string_substring thrpt 6 136916708.207 ± 12299226.575 ops/s
- * StringSubSequenceBenchmark.string_substring:gc.alloc.rate thrpt 6 86689.852 ± 7777.642 MB/sec
+ * StringSubSequenceBenchmark.string_substring                       thrpt    6  136916708.207 ± 12299226.575   ops/s
+ * StringSubSequenceBenchmark.string_substring:gc.alloc.rate         thrpt    6      86689.852 ±     7777.642  MB/sec
  *
- * <p>StringSubSequenceBenchmark.strings_substring thrpt 6 679669385.260 ± 7194043.619 ops/s
- * StringSubSequenceBenchmark.strings_substring:gc.alloc.rate thrpt 6 103702.745 ± 1095.741 MB/sec
+ * StringSubSequenceBenchmark.strings_substring                      thrpt    6  679669385.260 ±  7194043.619   ops/s
+ * StringSubSequenceBenchmark.strings_substring:gc.alloc.rate        thrpt    6     103702.745 ±     1095.741  MB/sec
+ * </code>
  */
 @Fork(2)
 @Warmup(iterations = 2)
