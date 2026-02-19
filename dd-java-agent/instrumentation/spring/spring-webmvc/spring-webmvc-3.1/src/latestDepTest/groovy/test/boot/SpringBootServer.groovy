@@ -86,7 +86,7 @@ class SpringBootServer implements WebsocketServer {
     synchronized (WebsocketEndpoint) {
       try {
         while (endpoint?.activeSession == null) {
-          WebsocketEndpoint.wait()
+          WebsocketEndpoint.wait(1000)
         }
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt()

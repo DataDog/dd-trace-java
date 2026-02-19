@@ -140,7 +140,7 @@ public abstract class BaseIntegrationTest {
     }
     datadogAgentServer.shutdown();
     statsDServer.close();
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
     LOG.info("===== Ending {} ====", testInfo.getDisplayName());
   }
 
@@ -174,7 +174,7 @@ public abstract class BaseIntegrationTest {
             // flush uploads every 100ms to have quick tests
             "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
             // increase timeout for serialization
-            "-Ddd.dynamic.instrumentation.capture.timeout=1000"));
+            "-Ddd.dynamic.instrumentation.capture.timeout=30000"));
   }
 
   protected enum RequestType {

@@ -50,6 +50,10 @@ out/
 ##########
 .cursor
 
+# Claude Code local custom settings #
+#####################################
+.claude/*.local.*
+
 # Vim #
 #######
 *.sw[nop]

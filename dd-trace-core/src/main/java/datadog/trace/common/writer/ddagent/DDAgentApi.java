@@ -122,15 +122,18 @@ public class DDAgentApi extends RemoteApi {
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
+
+        String responseString = getResponseBody(response);
+
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
-          return Response.failed(response.code());
+          return Response.failed(response.code(), responseString);
         }
+
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
-        String responseString = null;
+
         try {
-          responseString = getResponseBody(response);
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
