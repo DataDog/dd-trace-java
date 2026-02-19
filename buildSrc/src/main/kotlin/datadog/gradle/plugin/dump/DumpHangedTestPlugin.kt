@@ -123,30 +123,37 @@ class DumpHangedTestPlugin : Plugin<Project> {
       fun file(name: String, ext: String = "log") =
         File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
 
-      // For simplicity, use `0` as the PID, which collects all thread dumps across JVMs.
-      val allThreadsFile = file("all-thread-dumps")
-      runCmd(Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
-
       // Collect all JVMs pids.
       val allJavaProcessesFile = file("all-java-processes")
       runCmd(Redirect.to(allJavaProcessesFile), "jcmd", "-l")
 
-      // Collect pids for 'Gradle Test Executor'.
-      val pids = allJavaProcessesFile.readLines()
-        .filter { it.contains("Gradle Test Executor") }
-        .map { it.substringBefore(' ') }
+      // On IBM JDK javacore can be collected by signaling the matching `Gradle Test Executor` process with `kill -3`.
+      // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
+      if (isIbm8Run(allJavaProcessesFile)) {
+        val allProcessesFile = file("all-processes")
+        runCmd(Redirect.to(allProcessesFile), "ps", "-ef")
+        extractPidsIbm8(allProcessesFile).forEach { ibm8Pid ->
+          runCmd(Redirect.INHERIT, "kill", "-3", ibm8Pid)
+        }
+      } else {
+        val pids = extractPids(allJavaProcessesFile)
 
-      pids.forEach { pid ->
-        // Collect heap dump by pid.
-        val heapDumpPath = file("${pid}-heap-dump", "hprof").absolutePath
-        runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
+        pids.forEach { pid ->
+          // Collect heap dump by pid.
+          val heapDumpPath = file("${pid}-heap-dump", "hprof").absolutePath
+          runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
 
-        // Collect thread dump by pid.
-        val threadDumpFile = file("${pid}-thread-dump")
-        runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
+          // Collect thread dump by pid.
+          val threadDumpFile = file("${pid}-thread-dump")
+          runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
+        }
+
+        // Just in case collect all thread dumps by using special PID `0`.
+        val allThreadsFile = file("all-thread-dumps")
+        runCmd(Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
       }
     } catch (e: Throwable) {
-      t.logger.warn("Taking dumps failed with error: ${e.message}, for ${t.path}")
+      t.logger.warn("Taking dumps failed with error: ${e.message ?: e.javaClass.name}, for ${t.path}")
     }
   }
 
@@ -175,4 +182,26 @@ class DumpHangedTestPlugin : Plugin<Project> {
       throw IOException("Process failed: ${args.joinToString(" ")}, exit code: $exitCode")
     }
   }
+
+  private fun isIbm8Run(file: File): Boolean =
+    file.readLines().any { it.contains("-PtestJvm=ibm8") }
+
+  private fun extractPids(file: File): List<String> =
+    file.readLines()
+      .filter { it.contains("Gradle Test Executor") }
+      .map { it.substringBefore(' ') }
+
+  private val ibmMarkers: List<String> = listOf("ibm", "openj9", "semeru")
+
+  private fun extractPidsIbm8(file: File): List<String> =
+    file.useLines { lines ->
+      lines.filter { it.contains("Gradle Test Executor") }
+        .filter { line -> ibmMarkers.any { marker -> line.contains(marker, ignoreCase = true) } }
+        .mapNotNull(::extractPid)
+        .toList()
+    }
+
+  // ps -ef format starts with: UID PID PPID ...
+  private fun extractPid(line: String): String? =
+    line.trim().split(Regex("\\s+")).getOrNull(1)
 }
