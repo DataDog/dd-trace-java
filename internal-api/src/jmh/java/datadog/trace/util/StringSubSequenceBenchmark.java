@@ -20,8 +20,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * StringSubSequenceBenchmark.string_substring                       thrpt    6  136916708.207 ± 12299226.575   ops/s
  * StringSubSequenceBenchmark.string_substring:gc.alloc.rate         thrpt    6      86689.852 ±     7777.642  MB/sec
  *
- * StringSubSequenceBenchmark.strings_substring                      thrpt    6  679669385.260 ±  7194043.619   ops/s
- * StringSubSequenceBenchmark.strings_substring:gc.alloc.rate        thrpt    6     103702.745 ±     1095.741  MB/sec
+ * StringSubSequenceBenchmark.subSequence                            thrpt    6  679669385.260 ±  7194043.619   ops/s
+ * StringSubSequenceBenchmark.subSequence:gc.alloc.rate              thrpt    6     103702.745 ±     1095.741  MB/sec
  * </code>
  */
 @Fork(2)
@@ -53,7 +53,7 @@ public class StringSubSequenceBenchmark {
   }
 
   @Benchmark
-  public void strings_substring(Blackhole bh) {
+  public void subSequence(Blackhole bh) {
     String str = LOREM_IPSUM;
     int len = str.length();
 
