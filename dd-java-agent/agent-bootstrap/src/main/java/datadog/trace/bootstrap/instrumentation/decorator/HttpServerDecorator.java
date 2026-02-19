@@ -81,28 +81,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
 
-  // Used to cache the primary instrumentation name
-  // Deliberately not synchronized or volatile, reading a state null and
-  // repeating the name determination logic is fine
-  private String cachedPrimaryInstrumentationName = null;
+  private final String primaryInstrumentationName;
 
-  /**
-   * Wrapper around instrumentationNames() that caches the result to avoid repeatedly allocating a
-   * String[]
-   */
-  protected final String primaryInstrumentationName() {
-    String primaryName = cachedPrimaryInstrumentationName;
-    if (primaryName != null) return primaryName;
-
+  HttpServerDecorator() {
     String[] instrumentationNames = instrumentationNames();
-    primaryName =
+    this.primaryInstrumentationName =
         instrumentationNames != null && instrumentationNames.length > 0
             ? instrumentationNames[0]
             : DEFAULT_INSTRUMENTATION_NAME;
+  }
 
-    cachedPrimaryInstrumentationName = primaryName;
-
-    return primaryName;
+  protected final String primaryInstrumentationName() {
+    return primaryInstrumentationName;
   }
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
