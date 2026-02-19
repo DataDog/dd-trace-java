@@ -12,10 +12,28 @@ readonly REPORTS_DIR="${CI_PROJECT_DIR}/reports"
 readonly TYPE_DIR="${REPORTS_DIR}/${BENCHMARK_TYPE}"
 readonly CANDIDATE_RAW_DIR="${TYPE_DIR}/candidate-raw"
 readonly BASELINE_RAW_DIR="${TYPE_DIR}/baseline-raw"
+readonly BASELINE_INFO_FILE="${TYPE_DIR}/baseline-info.env"
 
 mkdir -p "${TYPE_DIR}" "${CANDIDATE_RAW_DIR}" "${BASELINE_RAW_DIR}"
 
-source "${REPORTS_DIR}/baseline-info.env"
+# DEBUG LINES
+echo "[benchmark-compare] BENCHMARK_TYPE=${BENCHMARK_TYPE}"
+echo "[benchmark-compare] CI_PROJECT_DIR=${CI_PROJECT_DIR}"
+echo "[benchmark-compare] REPORTS_DIR=${REPORTS_DIR}"
+echo "[benchmark-compare] TYPE_DIR=${TYPE_DIR}"
+echo "[benchmark-compare] Expecting baseline info at ${BASELINE_INFO_FILE}"
+
+if [[ ! -f "${BASELINE_INFO_FILE}" ]]; then
+  echo "[benchmark-compare] ERROR: Missing baseline info file: ${BASELINE_INFO_FILE}" >&2
+  echo "[benchmark-compare] DEBUG: pwd=$(pwd)" >&2
+  echo "[benchmark-compare] DEBUG: reports tree (depth 2)" >&2
+  find "${REPORTS_DIR}" -maxdepth 2 -type f 2>/dev/null | sort >&2 || true
+  exit 1
+fi
+
+source "${BASELINE_INFO_FILE}"
+echo "[benchmark-compare] Loaded baseline-info.env:"
+cat "${BASELINE_INFO_FILE}"
 
 export MD_REPORT_ONLY_CHANGES=1
 export MD_REPORT_SAMPLE_METRICS=1
