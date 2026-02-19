@@ -55,6 +55,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "resource1",
         "service1",
         "operation1",
+            null,
         "type",
         0,
         false,
@@ -75,6 +76,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "resource2",
         "service2",
         "operation2",
+            null,
         "type2",
         200,
         true,
@@ -95,6 +97,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "GET /api/users/:id",
         "web-service",
         "http.request",
+            null,
         "web",
         200,
         false,
@@ -113,6 +116,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           "resource" + i,
           "service" + i,
           "operation" + i,
+              null,
           "type",
           0,
           false,
@@ -189,7 +193,8 @@ class SerializingMetricWriterTest extends DDSpecification {
         // Calculate expected map size based on optional fields
         boolean hasHttpMethod = key.getHttpMethod() != null
         boolean hasHttpEndpoint = key.getHttpEndpoint() != null
-        int expectedMapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
+        boolean hasServiceSource = key.getServiceSource() != null
+        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
@@ -224,6 +229,12 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
+        // Service source is only present when the service name has been overridden by the tracer
+        if (hasServiceSource) {
+          assert unpacker.unpackString() == "ServiceSource"
+          assert unpacker.unpackString() == key.getServiceSource().toString()
+          ++elementCount
+        }
         // HTTPMethod and HTTPEndpoint are optional - only present if non-null
         if (hasHttpMethod) {
           assert unpacker.unpackString() == "HTTPMethod"
@@ -276,10 +287,10 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithBoth = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "GET", "/api/users")
-    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "POST", null)
-    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], null, "/api/orders")
-    def keyWithNeither = new MetricKey("resource", "service", "operation", "type", 200, false, false, "client", [], null, null)
+    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders")
+    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null)
 
     def content = [
       Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),

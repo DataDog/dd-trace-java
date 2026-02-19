@@ -10,6 +10,8 @@ import java.util.List;
 public final class MetricKey {
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
+  // note: it won't participate to equals/hashcode since not part of aggregation
+  private final UTF8BytesString serviceSource;
   private final UTF8BytesString operationName;
   private final UTF8BytesString type;
   private final int httpStatusCode;
@@ -21,35 +23,11 @@ public final class MetricKey {
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
 
-  // Constructor without httpMethod and httpEndpoint for backward compatibility
   public MetricKey(
       CharSequence resource,
       CharSequence service,
       CharSequence operationName,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetics,
-      boolean isTraceRoot,
-      CharSequence spanKind,
-      List<UTF8BytesString> peerTags) {
-    this(
-        resource,
-        service,
-        operationName,
-        type,
-        httpStatusCode,
-        synthetics,
-        isTraceRoot,
-        spanKind,
-        peerTags,
-        null,
-        null);
-  }
-
-  public MetricKey(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
+      CharSequence serviceSource,
       CharSequence type,
       int httpStatusCode,
       boolean synthetics,
@@ -60,6 +38,7 @@ public final class MetricKey {
       CharSequence httpEndpoint) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
+    this.serviceSource = null == serviceSource ? null : UTF8BytesString.create(serviceSource);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
     this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
@@ -99,6 +78,10 @@ public final class MetricKey {
 
   public UTF8BytesString getService() {
     return service;
+  }
+
+  public UTF8BytesString getServiceSource() {
+    return serviceSource;
   }
 
   public UTF8BytesString getOperationName() {

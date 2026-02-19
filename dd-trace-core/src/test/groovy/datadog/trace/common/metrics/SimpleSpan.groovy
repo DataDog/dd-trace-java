@@ -24,18 +24,18 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final Map<Object, Object> tags = [:]
 
   SimpleSpan(
-  String serviceName,
-  String operationName,
-  CharSequence resourceName,
-  String type,
-  boolean measured,
-  boolean topLevel,
-  boolean error,
-  long startTime,
-  long duration,
-  int statusCode,
-  boolean traceRoot = false,
-  int longRunningVersion = 0
+      String serviceName,
+      String operationName,
+      CharSequence resourceName,
+      String type,
+      boolean measured,
+      boolean topLevel,
+      boolean error,
+      long startTime,
+      long duration,
+      int statusCode,
+      boolean traceRoot = false,
+      int longRunningVersion = 0
   ) {
     this.serviceName = serviceName
     this.operationName = operationName

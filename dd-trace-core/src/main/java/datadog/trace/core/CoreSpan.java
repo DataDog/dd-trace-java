@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.DD_SVC_SRC;
+
 import datadog.trace.api.DDTraceId;
 import java.util.Map;
 
@@ -8,6 +10,18 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T getLocalRootSpan();
 
   String getServiceName();
+
+  default CharSequence getServiceNameSource() {
+    // overridden in DDSpan for a better implementation
+    final Object obj = getTag(DD_SVC_SRC);
+    if (obj == null) {
+      return null;
+    }
+    if (obj instanceof CharSequence) {
+      return (CharSequence) obj;
+    }
+    return obj.toString();
+  }
 
   CharSequence getOperationName();
 
