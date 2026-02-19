@@ -83,7 +83,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private final String primaryInstrumentationName;
 
-  HttpServerDecorator() {
+  protected HttpServerDecorator() {
     String[] instrumentationNames = instrumentationNames();
     this.primaryInstrumentationName =
         instrumentationNames != null && instrumentationNames.length > 0
