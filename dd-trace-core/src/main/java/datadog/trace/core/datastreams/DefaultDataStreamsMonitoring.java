@@ -297,14 +297,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void reportKafkaConfig(
       String type,
       String kafkaClusterId,
-      String topic,
       String consumerGroup,
       Map<String, String> config) {
     KafkaConfigReport report =
         new KafkaConfigReport(
             type,
             kafkaClusterId,
-            topic,
             consumerGroup,
             config,
             timeSource.getCurrentTimeNanos(),

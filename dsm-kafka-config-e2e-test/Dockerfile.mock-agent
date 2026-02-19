@@ -1,6 +1,0 @@
-FROM python:3.11-slim
-RUN pip install msgpack
-WORKDIR /app
-COPY agent-mock/mock_agent.py .
-EXPOSE 8126
-CMD ["python", "-u", "mock_agent.py"]
