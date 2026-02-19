@@ -192,34 +192,62 @@ public class InferredProxySpan implements ImplicitContextKeyed {
   }
 
   public void finish() {
-    if (this.span != null) {
-      // Copy AppSec tags from root span if needed (distributed tracing scenario)
-      copyAppSecTagsFromRoot();
+    finish(null);
+  }
 
+  /**
+   * Finishes this inferred proxy span and copies AppSec tags from the service-entry span to this
+   * span as required by RFC-1081. AppSec detection occurs in the service-entry span context, so its
+   * tags must be propagated to the inferred proxy span for endpoint correlation.
+   *
+   * @param serviceEntrySpan the service-entry child span, or null if not available
+   */
+  public void finish(AgentSpan serviceEntrySpan) {
+    if (this.span != null) {
+      copyAppSecTagsFromServiceEntry(serviceEntrySpan);
       this.span.finish();
       this.span = null;
     }
   }
 
   /**
-   * Copy AppSec tags from the root span to this inferred proxy span. This is needed when
-   * distributed tracing is active, because AppSec sets tags on the absolute root span (via
-   * setTagTop), but we need them on the inferred proxy span which may be a child of the upstream
-   * root span.
+   * Copies AppSec tags from the service-entry span to this inferred proxy span. This fulfils the
+   * RFC-1081 requirement that the inferred span contains the same AppSec tags as the service-entry
+   * span, enabling security activity to be correctly associated with the API Gateway endpoint.
    */
-  private void copyAppSecTagsFromRoot() {
-    AgentSpan rootSpan = this.span.getLocalRootSpan();
+  private void copyAppSecTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
+    if (serviceEntrySpan == null || serviceEntrySpan == this.span) {
+      return;
+    }
 
-    // If root span is different from this span (distributed tracing case)
-    if (rootSpan != null && rootSpan != this.span) {
-      // Copy _dd.appsec.enabled metric (always 1 if present)
-      Object appsecEnabled = rootSpan.getTag("_dd.appsec.enabled");
-      if (appsecEnabled != null) {
-        this.span.setMetric("_dd.appsec.enabled", 1);
+    // Copy _dd.appsec.enabled (RFC-1081: required on inferred span)
+    Object appsecEnabled = serviceEntrySpan.getTag("_dd.appsec.enabled");
+    if (appsecEnabled != null) {
+      this.span.setMetric("_dd.appsec.enabled", 1);
+    }
+
+    Object runtimeFamily = serviceEntrySpan.getTag("_dd.runtime_family");
+    if (runtimeFamily != null) {
+      this.span.setTag("_dd.runtime_family", runtimeFamily.toString());
+    }
+
+    // Copy event-related tags only when AppSec events were detected
+    Object appsecEvent = serviceEntrySpan.getTag("appsec.event");
+    if (appsecEvent != null) {
+      this.span.setTag("appsec.event", appsecEvent);
+
+      Object networkClientIp = serviceEntrySpan.getTag("network.client.ip");
+      if (networkClientIp != null) {
+        this.span.setTag("network.client.ip", networkClientIp.toString());
       }
 
-      // Copy _dd.appsec.json tag (AppSec events)
-      Object appsecJson = rootSpan.getTag("_dd.appsec.json");
+      Object actorIp = serviceEntrySpan.getTag("actor.ip");
+      if (actorIp != null) {
+        this.span.setTag("actor.ip", actorIp.toString());
+      }
+
+      // Copy _dd.appsec.json (RFC-1081: inferred span must contain same events as service-entry)
+      Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
       if (appsecJson != null) {
         this.span.setTag("_dd.appsec.json", appsecJson.toString());
       }

@@ -848,7 +848,6 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
-    // Cast to AgentSpan to access full API for adding tags to service-entry span
     AgentSpan span = (AgentSpan) spanInfo;
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
@@ -864,12 +863,11 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
-      // Add tags to both service-entry span (where detected) and root span (inferred proxy)
-      // This ensures tags are present on both spans as required by RFC-1081
+      // Set AppSec tags on the service-entry span (where detection occurs).
+      // When an inferred proxy span is present, InferredProxySpan.finish() will copy
+      // these tags to the inferred proxy span as required by RFC-1081.
       span.setMetric("_dd.appsec.enabled", 1);
       span.setTag("_dd.runtime_family", "jvm");
-      traceSeg.setTagTop("_dd.appsec.enabled", 1);
-      traceSeg.setTagTop("_dd.runtime_family", "jvm");
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
@@ -890,23 +888,19 @@ public class GatewayBridge {
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
 
-        // Add appsec.event tag to both service-entry span and root span
         span.setTag("appsec.event", true);
-        traceSeg.setTagTop("appsec.event", true);
 
-        // Add network.client.ip to both spans
         String peerAddress = ctx.getPeerAddress();
         span.setTag("network.client.ip", peerAddress);
-        traceSeg.setTagTop("network.client.ip", peerAddress);
 
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
           span.setTag("actor.ip", clientIp.toString());
-          traceSeg.setTagTop("actor.ip", clientIp);
         }
 
-        // Report AppSec events via "_dd.appsec.json" tag
+        // Report AppSec events on the service-entry span; also stored in meta_struct on the
+        // root span via setDataTop for agent processing
         AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
         span.setTag("_dd.appsec.json", wrapper);
         traceSeg.setDataTop("appsec", wrapper);
