@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -72,12 +73,15 @@ class AIGuardInternalTests extends DDSpecification {
   protected static final PROMPT = TOOL_OUTPUT + [AIGuard.Message.message('assistant', '2 + 2 is 5'), AIGuard.Message.message('user', '')]
 
   protected AgentSpan span
+  protected AgentSpan localRootSpan
 
   void setup() {
     injectEnvConfig('SERVICE', 'ai_guard_test')
     injectEnvConfig('ENV', 'test')
 
     span = Mock(AgentSpan)
+    localRootSpan = Mock(AgentSpan)
+    span.getLocalRootSpan() >> localRootSpan
     final builder = Mock(AgentTracer.SpanBuilder) {
       start() >> span
     }
@@ -185,6 +189,7 @@ class AIGuardInternalTests extends DDSpecification {
 
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
+    1 * localRootSpan.setTag(DDTags.MANUAL_KEEP, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
