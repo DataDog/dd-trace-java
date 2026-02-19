@@ -111,7 +111,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
         domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
 
     // Http.route - value of x-dd-proxy-resource-path (or x-dd-proxy-path as fallback)
-    span.setTag(HTTP_ROUTE, resourcePath != null ? resourcePath : path);
+    span.setTag(HTTP_ROUTE, resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path);
 
     // "stage" - value of x-dd-proxy-stage
     span.setTag("stage", header(STAGE));
@@ -146,7 +146,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Resource Name: <Method> <Route> when route available, else <Method> <Path>
     // Prefer x-dd-proxy-resource-path (route) over x-dd-proxy-path (path)
     // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
-    String routeOrPath = resourcePath != null ? resourcePath : path;
+    String routeOrPath = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path;
     String resourceName =
         httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
     if (resourceName != null) {
