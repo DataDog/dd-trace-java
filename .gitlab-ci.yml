@@ -146,7 +146,7 @@ default:
   stage: build
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 8
+    GRADLE_WORKERS: 6
     GRADLE_MEMORY_MIN: "1g"
     GRADLE_MEMORY_MAX: "6g"
     KUBERNETES_CPU_REQUEST: 10
