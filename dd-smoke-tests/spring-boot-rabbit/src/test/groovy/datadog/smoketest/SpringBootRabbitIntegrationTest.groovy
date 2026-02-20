@@ -30,6 +30,8 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   void beforeProcessBuilders() {
+    super.beforeProcessBuilders()
+
     rabbitMQContainer = new RabbitMQContainer("rabbitmq:3.9.20-alpine")
     rabbitMQContainer.start()
     rabbitHost = rabbitMQContainer.getHost()

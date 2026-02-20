@@ -287,7 +287,8 @@ abstract class AbstractSmokeTest extends ProcessManager {
     }
   }
 
-  def setupSpec() {
+  @Override
+  protected void beforeProcessBuilders() {
     startServer()
   }
 
