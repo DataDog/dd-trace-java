@@ -37,7 +37,8 @@ instrument-java = "0.0.3"
 jmh = "1.37"
 
 # Profiling
-jmc = "8.1.0"
+jafar-parser = "0.1.0"
+jmc = "9.1.1"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
@@ -112,8 +113,10 @@ bytebuddyagent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byt
 instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "instrument-java" }
 
 # Profiling
+jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar-parser" }
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
+jmc-flightrecorder-writer = { module = "org.openjdk.jmc:flightrecorder.writer", version.ref = "jmc" }
 
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
