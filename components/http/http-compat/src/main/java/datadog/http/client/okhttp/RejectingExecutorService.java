@@ -1,4 +1,4 @@
-package datadog.communication.http;
+package datadog.http.client.okhttp;
 
 import java.util.Collections;
 import java.util.List;
