@@ -65,6 +65,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation"
           tags {
             "$DDTags.DD_INTEGRATION" "opentracing"
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -105,6 +106,7 @@ class OpenTracingAPITest extends DDSpecification {
             "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -147,6 +149,7 @@ class OpenTracingAPITest extends DDSpecification {
             "$DDTags.DD_INTEGRATION" "opentracing"
             "someBoolean" true
             "someNumber" 1
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -209,6 +212,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation"
           tags {
             "$DDTags.DD_INTEGRATION" "opentracing"
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -218,7 +222,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation2"
           childOf(span(0))
           tags {
-            "$DDTags.DD_INTEGRATION" null
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -264,6 +268,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "someOperation"
           tags {
             "$DDTags.DD_INTEGRATION" "opentracing"
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -308,6 +313,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -316,6 +322,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "otherOperation"
           resourceName "otherOperation"
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -352,6 +359,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -476,6 +484,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "clientOperation"
           resourceName "clientOperation"
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }
@@ -487,6 +496,7 @@ class OpenTracingAPITest extends DDSpecification {
           resourceName "serverOperation"
           childOf(trace(0).get(0))
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags(true)
           }
         }
@@ -521,6 +531,7 @@ class OpenTracingAPITest extends DDSpecification {
           operationName "someOperation"
           resourceName "someOperation"
           tags {
+            serviceNameSource null // service name was manually set
             defaultTags()
           }
         }

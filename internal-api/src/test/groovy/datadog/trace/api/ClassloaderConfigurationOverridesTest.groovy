@@ -18,14 +18,14 @@ class ClassloaderConfigurationOverridesTest extends DDSpecification {
     when:
     ClassloaderConfigurationOverrides.CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT = splitByDeploymentEnabled
     ClassloaderConfigurationOverrides.addContextualInfo(Thread.currentThread().getContextClassLoader(),
-      new ClassloaderConfigurationOverrides.ContextualInfo(contextualServiceName))
+      new ClassloaderConfigurationOverrides.ContextualInfo(contextualServiceName, "test"))
     ClassloaderConfigurationOverrides.maybeEnrichSpan(span)
     then:
     if (splitByDeploymentEnabled && contextualServiceName != null && !contextualServiceName.isEmpty()) {
       (1.._) * span.getServiceName() >> spanServiceName
     }
     if (expected) {
-      1 * span.setServiceName(contextualServiceName)
+      1 * span.setServiceName(contextualServiceName, "test")
     }
 
     where:

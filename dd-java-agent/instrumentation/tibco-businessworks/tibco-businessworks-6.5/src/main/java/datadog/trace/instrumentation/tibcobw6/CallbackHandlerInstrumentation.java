@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.tibcobw6;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.instrumentation.tibcobw6.TibcoDecorator.TIBCO_BW;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -44,9 +45,9 @@ public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
         final AgentSpan span = activeSpan();
         AgentSpan root = span.getLocalRootSpan();
         if (root != null) {
-          root.setServiceName(pinnedName);
+          root.setServiceName(pinnedName, TIBCO_BW);
         }
-        span.setServiceName(pinnedName);
+        span.setServiceName(pinnedName, TIBCO_BW);
       }
     }
   }

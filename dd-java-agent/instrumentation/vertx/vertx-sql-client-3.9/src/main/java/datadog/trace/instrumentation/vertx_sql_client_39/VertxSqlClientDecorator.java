@@ -108,7 +108,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   protected void postProcessServiceAndOperationName(
       AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
     if (namingEntry.getService() != null) {
-      span.setServiceName(namingEntry.getService());
+      span.setServiceName(namingEntry.getService(), component());
     }
     span.setOperationName(namingEntry.getOperation());
   }

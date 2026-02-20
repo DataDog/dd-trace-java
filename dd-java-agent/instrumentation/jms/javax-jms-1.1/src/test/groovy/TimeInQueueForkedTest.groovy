@@ -651,6 +651,9 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "jms"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        // when not using the legacy tracing the service is set to DD_SERVICE
+        // while it should just not be set at all.
+        serviceNameSource "jms"
         defaultTagsNoPeerService()
       }
     }
@@ -679,6 +682,9 @@ abstract class TimeInQueueForkedTestBase extends VersionedNamingTestBase {
         if (!isTimestampDisabled) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
+        // when not using the legacy tracing the service is set to DD_SERVICE
+        // while it should just not be set at all.
+        serviceNameSource "jms"
         defaultTags(false)
       }
     }

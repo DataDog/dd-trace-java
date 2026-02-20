@@ -133,6 +133,8 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
       }
       topLevel parentSpan == null
       tags {
+        // manual tracing
+        serviceNameSource null
         defaultTags()
       }
     }
@@ -159,6 +161,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
           "error.stack" String
         }
         "$Tags.COMPONENT" "axis2"
+        serviceNameSource null
         defaultTags()
       }
     }
@@ -197,6 +200,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
         "$Tags.HTTP_STATUS" 200
         "$Tags.PEER_HOSTNAME" "my-host"
         "$Tags.PEER_PORT" 8080
+        serviceNameSource null
         defaultTags()
       }
     }

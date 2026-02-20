@@ -586,6 +586,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+    context.setServiceName(serviceName, source);
+  }
+
+  @Override
   public final DDSpan setResourceName(final CharSequence resourceName) {
     return setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
   }

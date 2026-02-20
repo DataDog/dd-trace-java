@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.instrumentation.opentracing.LogHandler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.tag.Tag;
@@ -164,6 +165,7 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   }
 
   @Override
+  @SuppressForbidden
   public OTSpan setServiceName(final String serviceName) {
     delegate.setServiceName(serviceName);
     return this;

@@ -41,6 +41,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
@@ -240,7 +241,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return null
     }
     @Override
-    String getPreferredServiceName() {
+    Pair<String, CharSequence> getPreferredServiceNameAndSource() {
       return null
     }
 

@@ -242,18 +242,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       case "Sqs.DeleteMessage":
       case "Sqs.DeleteMessageBatch":
         if (SQS_SERVICE_NAME != null) {
-          span.setServiceName(SQS_SERVICE_NAME);
+          span.setServiceName(SQS_SERVICE_NAME, COMPONENT_NAME);
         }
         break;
       case "Sns.PublishBatch":
       case "Sns.Publish":
         if (SNS_SERVICE_NAME != null) {
-          span.setServiceName(SNS_SERVICE_NAME);
+          span.setServiceName(SNS_SERVICE_NAME, COMPONENT_NAME);
         }
         break;
       default:
         if (GENERIC_SERVICE_NAME != null) {
-          span.setServiceName(GENERIC_SERVICE_NAME);
+          span.setServiceName(GENERIC_SERVICE_NAME, COMPONENT_NAME);
         }
         break;
     }
