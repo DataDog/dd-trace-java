@@ -1,6 +1,6 @@
 .benchmarks:
   stage: benchmarks
-  timeout: 1h
+  timeout: 2h
   tags: ["runner:apm-k8s-tweaked-metal"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
   needs: [ "build", "publish-artifacts-to-s3" ]
@@ -38,12 +38,26 @@ benchmarks-startup:
     - ./steps/run-benchmarks.sh startup
     - ./steps/analyze-results.sh startup
 
-benchmarks-load:
+benchmarks-load-petclinic:
   extends: .benchmarks
+  parallel:
+    matrix:
+      - RUN_ID: [1, 2, 3, 4, 5]
   script:
     - !reference [ .benchmarks, script ]
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
+    - ./steps/run-benchmarks.sh load petclinic
+    - ./steps/analyze-results.sh load
+
+benchmarks-load-insecure-bank:
+  extends: .benchmarks
+  parallel:
+    matrix:
+      - RUN_ID: [1, 2, 3, 4, 5]
+  script:
+    - !reference [ .benchmarks, script ]
+    - ./steps/capture-hardware-software-info.sh
+    - ./steps/run-benchmarks.sh load insecure-bank
     - ./steps/analyze-results.sh load
 
 benchmarks-dacapo:
@@ -64,7 +78,15 @@ benchmarks-post-results:
   needs:
     - job: benchmarks-startup
       artifacts: true
-    - job: benchmarks-load
+    - job: benchmarks-load-petclinic
+      parallel:
+        matrix:
+          - RUN_ID: [1, 2, 3, 4, 5]
+      artifacts: true
+    - job: benchmarks-load-insecure-bank
+      parallel:
+        matrix:
+          - RUN_ID: [1, 2, 3, 4, 5]
       artifacts: true
     - job: benchmarks-dacapo
       artifacts: true
