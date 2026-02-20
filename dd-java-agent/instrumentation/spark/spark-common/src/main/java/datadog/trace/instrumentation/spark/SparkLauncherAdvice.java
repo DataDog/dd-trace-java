@@ -111,14 +111,15 @@ public class SparkLauncherAdvice {
     }
   }
 
-  public static synchronized void finishSpan(boolean isError, String errorType) {
+  public static synchronized void finishSpan(boolean isError, String errorMessage) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
     }
     if (isError) {
       span.setError(true);
-      span.setTag(DDTags.ERROR_TYPE, errorType);
+      span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
+      span.setTag(DDTags.ERROR_MSG, errorMessage);
     }
     span.finish();
     launcherSpan = null;
@@ -176,7 +177,7 @@ public class SparkLauncherAdvice {
           if (state == SparkAppHandle.State.FAILED
               || state == SparkAppHandle.State.KILLED
               || state == SparkAppHandle.State.LOST) {
-            finishSpan(true, "Spark Application " + state);
+            finishSpan(true, "Application " + state);
           } else {
             finishSpan(false, null);
           }

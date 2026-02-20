@@ -160,7 +160,8 @@ class SparkLauncherTest extends InstrumentationSpecification {
           operationName "spark.launcher.launch"
           spanType "spark"
           errored true
-          assert span.tags["error.type"] == "Spark Application FAILED"
+          assert span.tags["error.type"] == "Spark Launcher Failed"
+          assert span.tags["error.msg"] == "Application FAILED"
           assert span.tags["spark.app_id"] == "app-456"
         }
       }
