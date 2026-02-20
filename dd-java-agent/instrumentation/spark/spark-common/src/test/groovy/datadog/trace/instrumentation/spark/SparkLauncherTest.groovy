@@ -11,7 +11,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
 
   def "StartApplicationAdvice extracts config tags from SparkLauncher"() {
     setup:
-    SparkLauncherAdvice.launcherSpan = null
+    SparkLauncherListener.launcherSpan = null
 
     when:
     def launcher = new SparkLauncher()
@@ -22,10 +22,8 @@ class SparkLauncherTest extends InstrumentationSpecification {
       .setAppResource("/path/to/app.jar")
       .setConf("spark.executor.memory", "4g")
       .setConf("spark.executor.instances", "10")
-    // Call the advice directly (handle=null, throwable=null simulates a successful call
-    // where no SparkAppHandle is returned — span stays open for shutdown hook)
-    SparkLauncherAdvice.createLauncherSpan(launcher)
-    SparkLauncherAdvice.finishSpan(false, null)
+    SparkLauncherListener.createLauncherSpan(launcher)
+    SparkLauncherListener.finishSpan(false, null)
 
     then:
     assertTraces(1) {
@@ -49,7 +47,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
 
   def "StartApplicationAdvice redacts sensitive conf values"() {
     setup:
-    SparkLauncherAdvice.launcherSpan = null
+    SparkLauncherListener.launcherSpan = null
 
     when:
     def launcher = new SparkLauncher()
@@ -57,8 +55,8 @@ class SparkLauncherTest extends InstrumentationSpecification {
       .setConf("spark.app.name", "my-secret-app")
       // spark.master is allowlisted; its value is harmless so should pass through
       .setConf("spark.master", "yarn")
-    SparkLauncherAdvice.createLauncherSpan(launcher)
-    SparkLauncherAdvice.finishSpan(false, null)
+    SparkLauncherListener.createLauncherSpan(launcher)
+    SparkLauncherListener.finishSpan(false, null)
 
     then:
     assertTraces(1) {
@@ -77,15 +75,15 @@ class SparkLauncherTest extends InstrumentationSpecification {
 
   def "finishSpanWithThrowable finishes span with error"() {
     setup:
-    SparkLauncherAdvice.launcherSpan = null
+    SparkLauncherListener.launcherSpan = null
 
     when:
     def launcher = new SparkLauncher().setAppName("test-app")
-    SparkLauncherAdvice.createLauncherSpan(launcher)
-    SparkLauncherAdvice.finishSpanWithThrowable(new RuntimeException("startApplication failed"))
+    SparkLauncherListener.createLauncherSpan(launcher)
+    SparkLauncherListener.finishSpanWithThrowable(new RuntimeException("startApplication failed"))
 
     then:
-    SparkLauncherAdvice.launcherSpan == null
+    SparkLauncherListener.launcherSpan == null
     assertTraces(1) {
       trace(1) {
         span {
@@ -97,19 +95,19 @@ class SparkLauncherTest extends InstrumentationSpecification {
     }
   }
 
-  def "AppHandleListener finishes span on final state FINISHED"() {
+  def "SparkLauncherListener finishes span on final state FINISHED"() {
     setup:
-    SparkLauncherAdvice.launcherSpan = null
+    SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
-    SparkLauncherAdvice.launcherSpan = tracer
+    SparkLauncherListener.launcherSpan = tracer
       .buildSpan("spark.launcher.launch")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()
-    SparkLauncherAdvice.launcherSpan.setSamplingPriority(
+    SparkLauncherListener.launcherSpan.setSamplingPriority(
       PrioritySampling.USER_KEEP,
       SamplingMechanism.DATA_JOBS)
-    def listener = new SparkLauncherAdvice.AppHandleListener()
+    def listener = new SparkLauncherListener()
     def handle = Mock(SparkAppHandle)
 
     when:
@@ -118,7 +116,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     listener.stateChanged(handle)
 
     then:
-    SparkLauncherAdvice.launcherSpan == null
+    SparkLauncherListener.launcherSpan == null
     assertTraces(1) {
       trace(1) {
         span {
@@ -132,19 +130,19 @@ class SparkLauncherTest extends InstrumentationSpecification {
     }
   }
 
-  def "AppHandleListener finishes span with error on FAILED state"() {
+  def "SparkLauncherListener finishes span with error on FAILED state"() {
     setup:
-    SparkLauncherAdvice.launcherSpan = null
+    SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
-    SparkLauncherAdvice.launcherSpan = tracer
+    SparkLauncherListener.launcherSpan = tracer
       .buildSpan("spark.launcher.launch")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()
-    SparkLauncherAdvice.launcherSpan.setSamplingPriority(
+    SparkLauncherListener.launcherSpan.setSamplingPriority(
       PrioritySampling.USER_KEEP,
       SamplingMechanism.DATA_JOBS)
-    def listener = new SparkLauncherAdvice.AppHandleListener()
+    def listener = new SparkLauncherListener()
     def handle = Mock(SparkAppHandle)
 
     when:
@@ -153,7 +151,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     listener.stateChanged(handle)
 
     then:
-    SparkLauncherAdvice.launcherSpan == null
+    SparkLauncherListener.launcherSpan == null
     assertTraces(1) {
       trace(1) {
         span {
@@ -161,7 +159,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
           spanType "spark"
           errored true
           assert span.tags["error.type"] == "Spark Launcher Failed"
-          assert span.tags["error.msg"] == "Application FAILED"
+          assert span.tags["error.message"] == "Application FAILED"
           assert span.tags["spark.app_id"] == "app-456"
         }
       }

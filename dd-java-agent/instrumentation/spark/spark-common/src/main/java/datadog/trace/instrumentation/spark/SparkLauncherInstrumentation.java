@@ -8,6 +8,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import net.bytebuddy.asm.Advice;
+import org.apache.spark.launcher.SparkAppHandle;
 
 @AutoService(InstrumenterModule.class)
 public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
@@ -31,8 +33,7 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SparkConfAllowList",
-      packageName + ".SparkLauncherAdvice",
-      packageName + ".SparkLauncherAdvice$AppHandleListener",
+      packageName + ".SparkLauncherListener",
     };
   }
 
@@ -42,6 +43,25 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
         isMethod()
             .and(named("startApplication"))
             .and(isDeclaredBy(named("org.apache.spark.launcher.SparkLauncher"))),
-        packageName + ".SparkLauncherAdvice$StartApplicationAdvice");
+        SparkLauncherInstrumentation.class.getName() + "$StartApplicationAdvice");
+  }
+
+  public static class StartApplicationAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(
+        @Advice.This Object launcher,
+        @Advice.Return SparkAppHandle handle,
+        @Advice.Thrown Throwable throwable) {
+      SparkLauncherListener.createLauncherSpan(launcher);
+
+      if (throwable != null) {
+        SparkLauncherListener.finishSpanWithThrowable(throwable);
+        return;
+      }
+
+      if (handle != null) {
+        handle.addListener(new SparkLauncherListener());
+      }
+    }
   }
 }
