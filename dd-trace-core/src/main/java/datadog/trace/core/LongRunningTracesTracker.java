@@ -1,14 +1,28 @@
 package datadog.trace.core;
 
+import static java.util.Comparator.comparingLong;
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.common.writer.TraceDumpJsonExporter;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class LongRunningTracesTracker {
+public class LongRunningTracesTracker implements TracerFlare.Reporter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LongRunningTracesTracker.class);
+  private static final int MAX_DUMPED_TRACES = 50;
+  private static final Comparator<PendingTrace> TRACE_BY_START_TIME =
+      comparingLong(PendingTrace::getRunningTraceStartTime);
+
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private long lastFlushMilli = 0;
@@ -41,6 +55,8 @@ public class LongRunningTracesTracker {
         (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
+
+    TracerFlare.addReporter(this);
   }
 
   public boolean add(PendingTraceBuffer.Element element) {
@@ -56,7 +72,7 @@ public class LongRunningTracesTracker {
     return true;
   }
 
-  private void addTrace(PendingTrace trace) {
+  private synchronized void addTrace(PendingTrace trace) {
     if (trace.empty()) {
       return;
     }
@@ -67,7 +83,7 @@ public class LongRunningTracesTracker {
     traceArray.add(trace);
   }
 
-  public void flushAndCompact(long nowMilli) {
+  public synchronized void flushAndCompact(long nowMilli) {
     if (nowMilli < lastFlushMilli + TimeUnit.SECONDS.toMillis(1)) {
       return;
     }
@@ -138,5 +154,26 @@ public class LongRunningTracesTracker {
     dropped = 0;
     write = 0;
     expired = 0;
+  }
+
+  public String getTracesAsJson() {
+    try (TraceDumpJsonExporter writer = new TraceDumpJsonExporter()) {
+      List<PendingTrace> traces;
+      synchronized (this) {
+        traces = new ArrayList<>(traceArray);
+      }
+      traces.sort(TRACE_BY_START_TIME);
+
+      int limit = Math.min(traces.size(), MAX_DUMPED_TRACES);
+      for (int i = 0; i < limit; i++) {
+        writer.write(traces.get(i).getSpans());
+      }
+      return writer.getDumpJson();
+    }
+  }
+
+  @Override
+  public void addReportToFlare(ZipOutputStream zip) throws IOException {
+    TracerFlare.addText(zip, "long_running_traces.txt", getTracesAsJson());
   }
 }
