@@ -141,7 +141,7 @@ public class RumInjectorConfig {
     return "<script>\n"
         + "(function(h,o,u,n,d) {\n"
         + "  h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}\n"
-        + "  d=o.createElement(u);d.async=1;d.src=n\n"
+        + "  d=o.createElement(u);d.async=1;d.src=n;d.crossorigin=''\n"
         + "  n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)\n"
         + "})(window,document,'script','"
         + getCdnUrl()
