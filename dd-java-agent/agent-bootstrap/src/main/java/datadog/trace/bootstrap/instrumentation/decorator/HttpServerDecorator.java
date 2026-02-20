@@ -80,6 +80,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
 
+  private final String primaryInstrumentationName;
+
+  protected HttpServerDecorator() {
+    String[] instrumentationNames = instrumentationNames();
+    this.primaryInstrumentationName =
+        instrumentationNames != null && instrumentationNames.length > 0
+            ? instrumentationNames[0]
+            : DEFAULT_INSTRUMENTATION_NAME;
+  }
+
+  protected final String primaryInstrumentationName() {
+    return primaryInstrumentationName;
+  }
+
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
   protected abstract AgentPropagation.ContextVisitor<RESPONSE> responseGetter();
@@ -152,11 +166,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
-    String[] instrumentationNames = instrumentationNames();
-    String instrumentationName =
-        instrumentationNames != null && instrumentationNames.length > 0
-            ? instrumentationNames[0]
-            : DEFAULT_INSTRUMENTATION_NAME;
+    String instrumentationName = primaryInstrumentationName();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
     extracted = callIGCallbackStart(extracted);
