@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
 import java.util.Map;
-import java.util.regex.Pattern;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.slf4j.Logger;
@@ -16,10 +15,6 @@ import org.slf4j.LoggerFactory;
 public class SparkLauncherAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(SparkLauncherAdvice.class);
-
-  // Same default pattern as spark.redaction.regex in Spark source
-  private static final Pattern CONF_REDACTION_PATTERN =
-      Pattern.compile("(?i)secret|password|token|access.key|api.key");
 
   static volatile AgentSpan launcherSpan;
 
@@ -55,11 +50,7 @@ public class SparkLauncherAdvice {
         if (conf != null) {
           for (Map.Entry<String, String> entry : conf.entrySet()) {
             if (SparkConfAllowList.canCaptureJobParameter(entry.getKey())) {
-              String value = entry.getValue();
-              if (CONF_REDACTION_PATTERN.matcher(entry.getKey()).find()
-                  || CONF_REDACTION_PATTERN.matcher(value).find()) {
-                value = "[redacted]";
-              }
+              String value = SparkConfAllowList.redactValue(entry.getKey(), entry.getValue());
               span.setTag("config." + entry.getKey().replace('.', '_'), value);
             }
           }
