@@ -32,6 +32,8 @@ public final class LLMObsMetricCollector
   private static final String AUTOINSTRUMENTED_FALSE = "autoinstrumented:0";
   private static final String ERROR_TRUE = "error:1";
   private static final String ERROR_FALSE = "error:0";
+  private static final String HAS_SESSION_ID_TRUE = "has_session_id:1";
+  private static final String HAS_SESSION_ID_FALSE = "has_session_id:0";
 
   private final BlockingQueue<LLMObsMetric> metricsQueue;
   private final DDCache<String, String> integrationTagCache;
@@ -51,13 +53,15 @@ public final class LLMObsMetricCollector
    * @param isRootSpan whether this is a root span
    * @param isAutoInstrumented whether this span was auto-instrumented
    * @param hasError whether the span had an error
+   * @param hasSessionId whether a session id was provided for this span
    */
   public void recordSpanFinished(
       String integration,
       String spanKind,
       boolean isRootSpan,
       boolean isAutoInstrumented,
-      boolean hasError) {
+      boolean hasError,
+      boolean hasSessionId) {
     String integrationTag =
         integrationTagCache.computeIfAbsent(integration, key -> "integration:" + key);
     String spanKindTag = spanKindTagCache.computeIfAbsent(spanKind, key -> "span_kind:" + key);
@@ -68,8 +72,8 @@ public final class LLMObsMetricCollector
             spanKindTag,
             isRootSpan ? IS_ROOT_SPAN_TRUE : IS_ROOT_SPAN_FALSE,
             isAutoInstrumented ? AUTOINSTRUMENTED_TRUE : AUTOINSTRUMENTED_FALSE,
-            hasError ? ERROR_TRUE : ERROR_FALSE);
-
+            hasError ? ERROR_TRUE : ERROR_FALSE,
+            hasSessionId ? HAS_SESSION_ID_TRUE : HAS_SESSION_ID_FALSE);
     LLMObsMetric metric =
         new LLMObsMetric(METRIC_NAMESPACE, true, SPAN_FINISHED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
     if (!metricsQueue.offer(metric)) {
