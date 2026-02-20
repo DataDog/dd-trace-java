@@ -77,7 +77,7 @@ public class SparkLauncherAdvice {
     }
   }
 
-  static synchronized void createLauncherSpan(Object launcher) {
+  public static synchronized void createLauncherSpan(Object launcher) {
     if (launcherSpan != null) {
       return;
     }
@@ -111,7 +111,7 @@ public class SparkLauncherAdvice {
     }
   }
 
-  static synchronized void finishSpan(boolean isError, String errorType) {
+  public static synchronized void finishSpan(boolean isError, String errorType) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
@@ -124,7 +124,7 @@ public class SparkLauncherAdvice {
     launcherSpan = null;
   }
 
-  static synchronized void finishSpanWithThrowable(Throwable throwable) {
+  public static synchronized void finishSpanWithThrowable(Throwable throwable) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
@@ -159,7 +159,7 @@ public class SparkLauncherAdvice {
     }
   }
 
-  static class AppHandleListener implements SparkAppHandle.Listener {
+  public static class AppHandleListener implements SparkAppHandle.Listener {
     @Override
     public void stateChanged(SparkAppHandle handle) {
       SparkAppHandle.State state = handle.getState();
