@@ -18,10 +18,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Efficient Trace Payload Protocol V1. */
 @SuppressWarnings("SameParameterValue")
 public final class TraceMapperV1 implements TraceMapper {
+  private static final Logger log = LoggerFactory.getLogger(TraceMapperV1.class);
+
   // Attribute value types (from V1 spec)
   static final int STRING_VALUE_TYPE = 1;
   static final int BOOL_VALUE_TYPE = 2;
@@ -169,7 +173,7 @@ public final class TraceMapperV1 implements TraceMapper {
         writable.writeBoolean((Boolean) val);
       } else {
         if (!(val instanceof String)) {
-          System.err.println("Not a string value: " + key + ", " + val);
+          log.debug("Not a string value for key: {}, value: {}", key, val);
         }
         writable.writeInt(STRING_VALUE_TYPE);
         writeStreamingString(
