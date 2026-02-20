@@ -116,7 +116,7 @@ public class OpenAiDecorator extends ClientDecorator {
         String spanKind = spanKindTag.toString();
         boolean isRootSpan = span.getLocalRootSpan() == span;
         LLMObsMetricCollector.get()
-            .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError());
+            .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
     return super.beforeFinish(span);
