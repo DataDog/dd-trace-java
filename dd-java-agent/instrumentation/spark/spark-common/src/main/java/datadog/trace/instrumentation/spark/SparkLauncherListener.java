@@ -97,7 +97,12 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
         if (state == SparkAppHandle.State.FAILED
             || state == SparkAppHandle.State.KILLED
             || state == SparkAppHandle.State.LOST) {
-          finishSpan(true, "Application " + state);
+          // Set error tags but don't finish yet — RunMainAdvice may add the throwable
+          // with the full stack trace. The span will be finished by RunMainAdvice or
+          // the shutdown hook.
+          span.setError(true);
+          span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
+          span.setTag(DDTags.ERROR_MSG, "Application " + state);
         } else {
           finishSpan(false, null);
         }

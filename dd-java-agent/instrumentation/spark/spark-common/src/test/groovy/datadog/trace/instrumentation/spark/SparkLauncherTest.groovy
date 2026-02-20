@@ -130,7 +130,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     }
   }
 
-  def "SparkLauncherListener finishes span with error on FAILED state"() {
+  def "SparkLauncherListener sets error tags on FAILED state but does not finish span"() {
     setup:
     SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
@@ -151,6 +151,40 @@ class SparkLauncherTest extends InstrumentationSpecification {
     listener.stateChanged(handle)
 
     then:
+    // Span stays open so RunMainAdvice can add the throwable
+    SparkLauncherListener.launcherSpan != null
+    SparkLauncherListener.launcherSpan.isError()
+    SparkLauncherListener.launcherSpan.getTags()["error.type"] == "Spark Launcher Failed"
+    SparkLauncherListener.launcherSpan.getTags()["error.message"] == "Application FAILED"
+    SparkLauncherListener.launcherSpan.getTags()["spark.app_id"] == "app-456"
+
+    cleanup:
+    SparkLauncherListener.finishSpan(false, null)
+  }
+
+  def "finishSpanWithThrowable adds stack trace after FAILED state"() {
+    setup:
+    SparkLauncherListener.launcherSpan = null
+    def tracer = AgentTracer.get()
+    SparkLauncherListener.launcherSpan = tracer
+      .buildSpan("spark.launcher.launch")
+      .withSpanType("spark")
+      .withResourceName("SparkLauncher.startApplication")
+      .start()
+    SparkLauncherListener.launcherSpan.setSamplingPriority(
+      PrioritySampling.USER_KEEP,
+      SamplingMechanism.DATA_JOBS)
+    def listener = new SparkLauncherListener()
+    def handle = Mock(SparkAppHandle)
+
+    when:
+    // Simulate: listener sets error tags, then RunMainAdvice finishes with throwable
+    handle.getState() >> SparkAppHandle.State.FAILED
+    handle.getAppId() >> "app-456"
+    listener.stateChanged(handle)
+    SparkLauncherListener.finishSpanWithThrowable(new RuntimeException("job crashed"))
+
+    then:
     SparkLauncherListener.launcherSpan == null
     assertTraces(1) {
       trace(1) {
@@ -158,8 +192,9 @@ class SparkLauncherTest extends InstrumentationSpecification {
           operationName "spark.launcher.launch"
           spanType "spark"
           errored true
-          assert span.tags["error.type"] == "Spark Launcher Failed"
-          assert span.tags["error.message"] == "Application FAILED"
+          assert span.tags["error.type"] == "java.lang.RuntimeException"
+          assert span.tags["error.message"] == "job crashed"
+          assert span.tags["error.stack"] != null
           assert span.tags["spark.app_id"] == "app-456"
         }
       }
