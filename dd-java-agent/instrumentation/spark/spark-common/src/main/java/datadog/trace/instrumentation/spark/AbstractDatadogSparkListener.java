@@ -254,41 +254,41 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     log.debug("Starting tracer application span.");
-    if(!isRunningOnDatabricks){
-    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
+    if (!isRunningOnDatabricks) {
+      AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
-    if (applicationStart != null) {
-      String ddTags =
-          Config.get().getGlobalTags().entrySet().stream()
-              .sorted(Map.Entry.comparingByKey())
-              .map(e -> e.getKey() + ":" + e.getValue())
-              .collect(Collectors.joining(","));
+      if (applicationStart != null) {
+        String ddTags =
+            Config.get().getGlobalTags().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> e.getKey() + ":" + e.getValue())
+                .collect(Collectors.joining(","));
 
-      builder
-          .withStartTimestamp(applicationStart.time() * 1000)
-          .withTag("application_name", applicationStart.appName())
-          .withTag("djm.tags", ddTags)
-          .withTag("spark_user", applicationStart.sparkUser());
+        builder
+            .withStartTimestamp(applicationStart.time() * 1000)
+            .withTag("application_name", applicationStart.appName())
+            .withTag("djm.tags", ddTags)
+            .withTag("spark_user", applicationStart.sparkUser());
 
-      if (applicationStart.appAttemptId().isDefined()) {
-        builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
+        if (applicationStart.appAttemptId().isDefined()) {
+          builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
+        }
       }
-    }
 
-    captureApplicationParameters(builder);
+      captureApplicationParameters(builder);
 
-    Optional<OpenlineageParentContext> openlineageParentContext =
-        OpenlineageParentContext.from(sparkConf);
-    // We know we're not in Databricks context
-    if (openlineageParentContext.isPresent()) {
-      captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
-    } else {
-      builder.asChildOf(predeterminedTraceIdContext);
-    }
+      Optional<OpenlineageParentContext> openlineageParentContext =
+          OpenlineageParentContext.from(sparkConf);
+      // We know we're not in Databricks context
+      if (openlineageParentContext.isPresent()) {
+        captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
+      } else {
+        builder.asChildOf(predeterminedTraceIdContext);
+      }
 
-    applicationSpan = builder.start();
-    setDataJobsSamplingPriority(applicationSpan);
-    applicationSpan.setMeasured(true);
+      applicationSpan = builder.start();
+      setDataJobsSamplingPriority(applicationSpan);
+      applicationSpan.setMeasured(true);
     }
   }
 
