@@ -43,11 +43,5 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
             .and(named("startApplication"))
             .and(isDeclaredBy(named("org.apache.spark.launcher.SparkLauncher"))),
         packageName + ".SparkLauncherAdvice$StartApplicationAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("launch"))
-            .and(isDeclaredBy(named("org.apache.spark.launcher.SparkLauncher"))),
-        packageName + ".SparkLauncherAdvice$LaunchAdvice");
   }
 }

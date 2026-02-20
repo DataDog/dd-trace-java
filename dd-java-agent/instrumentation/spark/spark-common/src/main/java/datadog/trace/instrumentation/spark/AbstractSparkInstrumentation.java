@@ -106,17 +106,6 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       if (AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), throwable, 0, null);
-      } else {
-        try {
-          Class<?> adviceClass =
-              Thread.currentThread()
-                  .getContextClassLoader()
-                  .loadClass("datadog.trace.instrumentation.spark.SparkLauncherAdvice");
-          java.lang.reflect.Method finishMethod =
-              adviceClass.getMethod("finishLauncherSpan", Throwable.class);
-          finishMethod.invoke(null, throwable);
-        } catch (Exception ignored) {
-        }
       }
     }
   }

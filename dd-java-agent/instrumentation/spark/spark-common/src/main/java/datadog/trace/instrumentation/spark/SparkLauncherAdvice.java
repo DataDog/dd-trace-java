@@ -5,7 +5,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -22,9 +21,7 @@ public class SparkLauncherAdvice {
   private static final Pattern CONF_REDACTION_PATTERN =
       Pattern.compile("(?i)secret|password|token|access.key|api.key");
 
-  /** The launcher span, accessible from SparkExitAdvice via reflection. */
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public static volatile AgentSpan launcherSpan;
+  static volatile AgentSpan launcherSpan;
 
   private static volatile boolean shutdownHookRegistered = false;
 
@@ -89,7 +86,7 @@ public class SparkLauncherAdvice {
     }
   }
 
-  public static synchronized void createLauncherSpan(String resource, Object launcher) {
+  static synchronized void createLauncherSpan(Object launcher) {
     if (launcherSpan != null) {
       return;
     }
@@ -99,14 +96,10 @@ public class SparkLauncherAdvice {
         tracer
             .buildSpan("spark.launcher.launch")
             .withSpanType("spark")
-            .withResourceName(resource)
+            .withResourceName("SparkLauncher.startApplication")
             .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
-
-    if (launcher != null) {
-      setLauncherConfigTags(span, launcher);
-    }
-
+    setLauncherConfigTags(span, launcher);
     launcherSpan = span;
 
     if (!shutdownHookRegistered) {
@@ -127,20 +120,20 @@ public class SparkLauncherAdvice {
     }
   }
 
-  public static synchronized void finishLauncherSpan(int exitCode) {
+  static synchronized void finishSpan(boolean isError, String errorType) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
     }
-    if (exitCode != 0) {
+    if (isError) {
       span.setError(true);
-      span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed with exit code " + exitCode);
+      span.setTag(DDTags.ERROR_TYPE, errorType);
     }
     span.finish();
     launcherSpan = null;
   }
 
-  public static synchronized void finishLauncherSpan(Throwable throwable) {
+  static synchronized void finishSpanWithThrowable(Throwable throwable) {
     AgentSpan span = launcherSpan;
     if (span == null) {
       return;
@@ -158,15 +151,10 @@ public class SparkLauncherAdvice {
         @Advice.This Object launcher,
         @Advice.Return SparkAppHandle handle,
         @Advice.Thrown Throwable throwable) {
-      createLauncherSpan("SparkLauncher.startApplication", launcher);
+      createLauncherSpan(launcher);
 
       if (throwable != null) {
-        AgentSpan span = launcherSpan;
-        if (span != null) {
-          span.addThrowable(throwable);
-          span.finish();
-          launcherSpan = null;
-        }
+        finishSpanWithThrowable(throwable);
         return;
       }
 
@@ -175,22 +163,6 @@ public class SparkLauncherAdvice {
           handle.addListener(new AppHandleListener());
         } catch (Exception e) {
           log.debug("Failed to register SparkAppHandle listener", e);
-        }
-      }
-    }
-  }
-
-  public static class LaunchAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.This Object launcher, @Advice.Thrown Throwable throwable) {
-      createLauncherSpan("SparkLauncher.launch", launcher);
-
-      if (throwable != null) {
-        AgentSpan span = launcherSpan;
-        if (span != null) {
-          span.addThrowable(throwable);
-          span.finish();
-          launcherSpan = null;
         }
       }
     }
@@ -213,8 +185,9 @@ public class SparkLauncherAdvice {
           if (state == SparkAppHandle.State.FAILED
               || state == SparkAppHandle.State.KILLED
               || state == SparkAppHandle.State.LOST) {
-            span.setError(true);
-            span.setTag(DDTags.ERROR_TYPE, "Spark Application " + state);
+            finishSpan(true, "Spark Application " + state);
+          } else {
+            finishSpan(false, null);
           }
         }
       }
