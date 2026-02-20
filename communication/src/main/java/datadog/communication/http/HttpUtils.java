@@ -99,11 +99,9 @@ public final class HttpUtils {
     // Configure timeouts
     builder.connectTimeout(Duration.of(timeoutMillis, MILLIS));
 
-    // Configure dispatcher/executor
+    // Configure dispatcher/executor if provided
     if (executor != null) {
       builder.executor(executor);
-    } else {
-      builder.executor(RejectingExecutorService.INSTANCE);
     }
 
     // Configure Unix domain socket or named pipe

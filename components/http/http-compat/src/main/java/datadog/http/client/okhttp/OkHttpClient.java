@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Credentials;
@@ -124,6 +125,9 @@ public final class OkHttpClient implements HttpClient {
 
     public Builder() {
       this.delegate = new okhttp3.OkHttpClient.Builder();
+      // Prevent async call by default, unless a custom executor is provided
+      // TODO Do we want to keep this behavior?
+      // executor(RejectingExecutorService.INSTANCE);
     }
 
     @Override
@@ -179,8 +183,8 @@ public final class OkHttpClient implements HttpClient {
       // If the executor is already an ExecutorService, use it directly
       // Otherwise, we'll set up the dispatcher with default executor
       // and note this limitation in documentation
-      if (executor instanceof java.util.concurrent.ExecutorService) {
-        Dispatcher dispatcher = new Dispatcher((java.util.concurrent.ExecutorService) executor);
+      if (executor instanceof ExecutorService) {
+        Dispatcher dispatcher = new Dispatcher((ExecutorService) executor);
         delegate.dispatcher(dispatcher);
       }
       // If not an ExecutorService, we can't configure it directly in OkHttp
