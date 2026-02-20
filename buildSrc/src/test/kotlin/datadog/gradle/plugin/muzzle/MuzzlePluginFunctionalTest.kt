@@ -4,7 +4,6 @@ import datadog.gradle.plugin.GradleFixture
 import datadog.gradle.plugin.MavenRepoFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -436,7 +435,6 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  @Disabled("Current implementation doesn't fail build when fail directive unexpectedly passes - MuzzleTask catches exceptions")
   fun `fail directive that passes validation causes build failure`(@TempDir projectDir: File) {
     val fixture = MuzzlePluginTestFixture(projectDir)
     fixture.writeProject(
