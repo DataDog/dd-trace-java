@@ -1,115 +1,9 @@
-.benchmarks:
-  stage: benchmarks
-  timeout: 1h
-  tags: ["runner:apm-k8s-tweaked-metal"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-java-benchmarks
-  needs: [ "build", "publish-artifacts-to-s3" ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: manual
-      allow_failure: true
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-      interruptible: false
-    - when: on_success
-      interruptible: true
-  script:
-    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git clone --branch dd-trace-java/tracer-benchmarks-parallel https://github.com/DataDog/benchmarking-platform.git /platform && cd /platform
-  artifacts:
-    name: "reports"
-    paths:
-      - reports/
-    expire_in: 3 months
-  variables:
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID # The ID of the current project. This ID is unique across all projects on the GitLab instance.
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME # "dd-trace-java"
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
-    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
-
-benchmarks-startup:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh startup
-    - ./steps/analyze-results.sh startup
-
-benchmarks-load:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh load
-    - ./steps/analyze-results.sh load
-
-benchmarks-dacapo:
-  extends: .benchmarks
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh dacapo
-    - ./steps/analyze-results.sh dacapo
-
-benchmarks-post-results:
-  extends: .benchmarks
-  tags: ["arch:amd64"]
-  script:
-    - !reference [ .benchmarks, script ]
-    - ./steps/upload-results-to-s3.sh
-    - ./steps/post-pr-comment.sh
-  needs:
-    - job: benchmarks-startup
-      artifacts: true
-    - job: benchmarks-load
-      artifacts: true
-    - job: benchmarks-dacapo
-      artifacts: true
-
-check-big-regressions:
-  extends: .benchmarks
-  needs:
-    - job: benchmarks-startup
-      artifacts: true
-    - job: benchmarks-dacapo
-      artifacts: true
-  when: on_success
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
-      when: never
-    - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
-    - when: never
-  # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
-  # need to convert them
-  script:
-    - !reference [ .benchmarks, script ]
-    - | 
-      for benchmarkType in startup dacapo; do
-          find "$ARTIFACTS_DIR/$benchmarkType" -name "benchmark-baseline.json" -o -name "benchmark-candidate.json" | while read file; do
-            relpath="${file#$ARTIFACTS_DIR/$benchmarkType/}"
-            prefix="${relpath%/benchmark-*}" # Remove the trailing /benchmark-(baseline|candidate).json
-            prefix="${prefix#./}" # Remove any leading ./
-            prefix="${prefix//\//-}" # Replace / with -
-            case "$file" in
-              *benchmark-baseline.json) type="baseline" ;;
-              *benchmark-candidate.json) type="candidate" ;;
-            esac
-            echo "Moving $file to $ARTIFACTS_DIR/${type}-${prefix}.converted.json"
-            cp "$file" "$ARTIFACTS_DIR/${type}-${prefix}.converted.json"
-          done
-      done
-    - bp-runner $CI_PROJECT_DIR/.gitlab/benchmarks/bp-runner.fail-on-regression.yml --debug
+# Insert more benchmark logic here
 
 .dsm-kafka-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # testing startup benchmarks only for now
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -154,6 +48,7 @@ dsm-kafka-consumer-benchmark:
 debugger-benchmarks:
   stage: benchmarks
   rules:
+    - when: never # testing startup benchmarks only for now
     - if: '$POPULATE_CACHE'
       when: never
     - if: $CI_PIPELINE_SOURCE != "schedule"
@@ -187,3 +82,87 @@ debugger-benchmarks:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+.benchmark-compare-template:
+  stage: benchmark-comparison
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
+  script:
+    - |
+      if [ "$(uname -m)" = "x86_64" ]; then AAA="amd64"; else AAA="arm64"; fi
+      wget -O /tmp/authanywhere "https://binaries.ddbuild.io/dd-source/authanywhere/LATEST/authanywhere-linux-${AAA}"
+      chmod +x /tmp/authanywhere
+      mv /tmp/authanywhere /usr/local/bin/authanywhere
+    - mkdir -p "$(pwd)/reports/${BENCHMARK_TYPE}"
+    - .gitlab/scripts/get-baseline-commit-info.sh "$(pwd)/reports/${BENCHMARK_TYPE}"
+    - .gitlab/scripts/benchmark-compare.sh "${BENCHMARK_TYPE}"
+  artifacts:
+    name: "benchmark-compare-${BENCHMARK_TYPE}"
+    when: always
+    paths:
+      - reports/${BENCHMARK_TYPE}/
+    expire_in: 3 months
+  variables:
+    TARGET_BRANCH: "master"
+
+benchmarks-compare-startup:
+  extends: .benchmark-compare-template
+  needs:
+    - job: linux-java-spring-petclinic-microbenchmark-startup-tracing
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-profiling
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-appsec
+      artifacts: false
+    - job: linux-java-spring-petclinic-microbenchmark-startup-iast
+      artifacts: false
+    - job: linux-java-insecure-bank-microbenchmark-startup-tracing
+      artifacts: false
+    - job: linux-java-insecure-bank-microbenchmark-startup-iast
+      artifacts: false
+  variables:
+    BENCHMARK_TYPE: startup
+
+benchmarks-compare-load:
+  extends: .benchmark-compare-template
+  rules:
+    - when: never # testing startup benchmarks only for now
+  variables:
+    BENCHMARK_TYPE: load
+
+benchmarks-compare-dacapo:
+  extends: .benchmark-compare-template
+  rules:
+    - when: never # TEMP: testing startup benchmarks only for now
+  variables:
+    BENCHMARK_TYPE: dacapo
+
+benchmarks-post-pr-comment:
+  stage: benchmark-comparison
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  tags: ["arch:amd64"]
+  interruptible: true
+  needs:
+    - job: benchmarks-compare-startup
+      artifacts: true
+    - job: benchmarks-compare-load
+      artifacts: true
+    - job: benchmarks-compare-dacapo
+      artifacts: true
+  rules:
+    - when: never # testing startup benchmarks only for now
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: always
+  script:
+    - .gitlab/scripts/post-benchmark-pr-comment.sh
+  variables:
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    BP_HEADER: "Benchmarks"
+    BP_ON_DUPLICATE: "replace"
