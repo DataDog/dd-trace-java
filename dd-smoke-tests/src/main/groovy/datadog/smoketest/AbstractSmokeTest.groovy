@@ -269,9 +269,14 @@ abstract class AbstractSmokeTest extends ProcessManager {
     return true
   }
 
-  def setup() {
+  protected void clearTracesBeforeEachTest() {
     traceCount.set(0)
     decodeTraces.clear()
+  }
+
+  def setup() {
+    clearTracesBeforeEachTest()
+
     remoteConfigResponse = "{}"
     traceDecodingFailure = null
   }

@@ -30,6 +30,13 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
     return {} // force traces decoding
   }
 
+  @Override
+  protected void clearTracesBeforeEachTest() {
+    // VirtualThread* smoke tests currently have one feature method per spec.
+    // Keep traces emitted during app startup (setupSpec) because clearing here can race with early
+    // trace submission and make decodeTraces empty when assertions run.
+  }
+
   protected static Function<DecodedTrace, Boolean> checkTrace() {
     return {
       trace ->
