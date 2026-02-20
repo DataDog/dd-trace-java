@@ -5,6 +5,9 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Field;
+import java.util.Map;
+import java.util.regex.Pattern;
 import net.bytebuddy.asm.Advice;
 import org.apache.spark.launcher.SparkAppHandle;
 import org.slf4j.Logger;
@@ -19,7 +22,70 @@ public class SparkLauncherAdvice {
 
   private static volatile boolean shutdownHookRegistered = false;
 
-  public static synchronized void createLauncherSpan(String resource) {
+  /** Extract SparkLauncher configuration via reflection and set as span tags. */
+  private static void setLauncherConfigTags(AgentSpan span, Object launcher) {
+    try {
+      // SparkLauncher extends AbstractLauncher which has a 'builder' field
+      Field builderField = launcher.getClass().getSuperclass().getDeclaredField("builder");
+      builderField.setAccessible(true);
+      Object builder = builderField.get(launcher);
+      if (builder == null) {
+        return;
+      }
+
+      Class<?> builderClass = builder.getClass();
+      // Fields are on AbstractCommandBuilder (parent of SparkSubmitCommandBuilder)
+      Class<?> abstractBuilderClass = builderClass.getSuperclass();
+
+      setStringFieldAsTag(span, builder, abstractBuilderClass, "master", "master");
+      setStringFieldAsTag(span, builder, abstractBuilderClass, "deployMode", "deploy_mode");
+      setStringFieldAsTag(span, builder, abstractBuilderClass, "appName", "application_name");
+      setStringFieldAsTag(span, builder, abstractBuilderClass, "mainClass", "main_class");
+      setStringFieldAsTag(span, builder, abstractBuilderClass, "appResource", "app_resource");
+
+      // Extract spark conf entries and redact sensitive values
+      try {
+        Field confField = abstractBuilderClass.getDeclaredField("conf");
+        confField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, String> conf = (Map<String, String>) confField.get(builder);
+        if (conf != null) {
+          Pattern redactionPattern =
+              Pattern.compile("(?i)secret|password|token|access.key|api.key");
+          for (Map.Entry<String, String> entry : conf.entrySet()) {
+            if (SparkConfAllowList.canCaptureJobParameter(entry.getKey())) {
+              String value = entry.getValue();
+              if (redactionPattern.matcher(entry.getKey()).find()
+                  || redactionPattern.matcher(value).find()) {
+                value = "[redacted]";
+              }
+              span.setTag("config." + entry.getKey().replace('.', '_'), value);
+            }
+          }
+        }
+      } catch (NoSuchFieldException e) {
+        log.debug("Could not find conf field on builder", e);
+      }
+    } catch (Exception e) {
+      log.debug("Failed to extract SparkLauncher configuration", e);
+    }
+  }
+
+  private static void setStringFieldAsTag(
+      AgentSpan span, Object obj, Class<?> clazz, String fieldName, String tagName) {
+    try {
+      Field field = clazz.getDeclaredField(fieldName);
+      field.setAccessible(true);
+      Object value = field.get(obj);
+      if (value != null) {
+        span.setTag(tagName, value.toString());
+      }
+    } catch (Exception e) {
+      log.debug("Could not read field {} from builder", fieldName, e);
+    }
+  }
+
+  public static synchronized void createLauncherSpan(String resource, Object launcher) {
     if (launcherSpan != null) {
       return;
     }
@@ -32,6 +98,11 @@ public class SparkLauncherAdvice {
             .withResourceName(resource)
             .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
+
+    if (launcher != null) {
+      setLauncherConfigTags(span, launcher);
+    }
+
     launcherSpan = span;
 
     if (!shutdownHookRegistered) {
@@ -80,8 +151,10 @@ public class SparkLauncherAdvice {
   public static class StartApplicationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void exit(
-        @Advice.Return SparkAppHandle handle, @Advice.Thrown Throwable throwable) {
-      createLauncherSpan("SparkLauncher.startApplication");
+        @Advice.This Object launcher,
+        @Advice.Return SparkAppHandle handle,
+        @Advice.Thrown Throwable throwable) {
+      createLauncherSpan("SparkLauncher.startApplication", launcher);
 
       if (throwable != null) {
         AgentSpan span = launcherSpan;
@@ -105,8 +178,8 @@ public class SparkLauncherAdvice {
 
   public static class LaunchAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.Thrown Throwable throwable) {
-      createLauncherSpan("SparkLauncher.launch");
+    public static void exit(@Advice.This Object launcher, @Advice.Thrown Throwable throwable) {
+      createLauncherSpan("SparkLauncher.launch", launcher);
 
       if (throwable != null) {
         AgentSpan span = launcherSpan;
