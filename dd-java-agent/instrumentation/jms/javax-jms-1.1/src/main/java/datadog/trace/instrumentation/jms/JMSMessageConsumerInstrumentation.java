@@ -164,6 +164,7 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.onError(span, throwable);
 
       activateNext(span); // scope is left open until next message or it times out
+      JMSLogger.logIterationSpan(span);
 
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {

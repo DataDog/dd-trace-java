@@ -82,14 +82,19 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
       switch (mode) {
         case CPU:
           {
-            // CPU execution profiling will take over these events
+            // CPU execution profiling will take over these events, including
+            // jdk.CPUTimeSample (JEP 518, JDK 25+) which is enabled as a fallback
+            // when ddprof is unavailable
             log.debug("Disabling built-in CPU profiling events");
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
+            recording.disable("jdk.CPUTimeSample");
+            recording.disable("jdk.CPUTimeSamplesLost");
             break;
           }
         case WALL:
           {
+            // wall-time profiling will take over these events
             log.debug("Disabling built-in wall-time tracing events");
             recording.disable("jdk.JavaMonitorWait");
             recording.disable("jdk.ThreadPark");
@@ -113,9 +118,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             break;
           }
         default:
-          {
-            // do nothing
-          }
+          break;
       }
     }
   }
