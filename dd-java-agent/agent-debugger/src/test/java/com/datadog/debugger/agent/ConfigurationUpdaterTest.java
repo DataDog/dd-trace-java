@@ -632,24 +632,27 @@ public class ConfigurationUpdaterTest {
   }
 
   @Test
-  public void methodParametersAttribute()
-      throws IOException, URISyntaxException, UnmodifiableClassException {
+  public void methodParametersAttribute() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 introduced Spring6 class
+      Class<?> springClass =
+          Class.forName(
+              "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
+    } else {
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    }
     ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
     configurationUpdater.accept(
         REMOTE_CONFIG,
         singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
-    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
-      ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
-      verify(inst, times(1)).retransformClasses(captor.capture());
-      List<Class<?>[]> allValues = captor.getAllValues();
-      assertEquals(testClass, allValues.get(0));
-    } else {
-      verify(inst).getAllLoadedClasses();
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 with Spring6 class, transformation cannot happen
+      verify(inst, times(2)).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());
       ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
       ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
@@ -658,6 +661,11 @@ public class ConfigurationUpdaterTest {
       assertEquals(
           "Method Parameters detected, instrumentation not supported for CapturedSnapshot01",
           strCaptor.getAllValues().get(0));
+    } else {
+      ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+      verify(inst, times(1)).retransformClasses(captor.capture());
+      List<Class<?>[]> allValues = captor.getAllValues();
+      assertEquals(testClass, allValues.get(0));
     }
   }
 

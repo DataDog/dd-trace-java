@@ -65,6 +65,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -2951,8 +2952,23 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  public void methodParametersAttribute() throws IOException, URISyntaxException {
+  public void methodParametersAttribute() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
+    Config config = mock(Config.class);
+    when(config.isDebuggerCodeOriginEnabled()).thenReturn(false);
+    when(config.isDebuggerExceptionEnabled()).thenReturn(false);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(false);
+    Instrumentation inst = mock(Instrumentation.class);
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 introduced Spring6 class
+      Class<?> springClass =
+          Class.forName(
+              "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {springClass});
+    } else {
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+    }
+    DebuggerAgent.run(config, inst, null);
     TestSnapshotListener listener =
         installMethodProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)");
     Map<String, byte[]> buffers =
@@ -2960,10 +2976,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
-    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
-      Snapshot snapshot = assertOneSnapshot(listener);
-      assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", String.class.getTypeName(), "1");
-    } else {
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 with Spring6 class, transformation cannot happen
       assertEquals(0, listener.snapshots.size());
       ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
       ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
@@ -2972,6 +2986,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       assertEquals(
           "Instrumentation failed for CapturedSnapshot01: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
+    } else {
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", String.class.getTypeName(), "1");
     }
   }
 
