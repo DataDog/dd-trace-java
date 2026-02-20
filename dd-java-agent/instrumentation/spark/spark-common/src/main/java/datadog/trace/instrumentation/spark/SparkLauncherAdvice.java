@@ -5,6 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -22,6 +23,7 @@ public class SparkLauncherAdvice {
       Pattern.compile("(?i)secret|password|token|access.key|api.key");
 
   /** The launcher span, accessible from SparkExitAdvice via reflection. */
+  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static volatile AgentSpan launcherSpan;
 
   private static volatile boolean shutdownHookRegistered = false;
