@@ -471,6 +471,7 @@ test_published_artifacts:
 
 check_build_src:
   extends: .check_job
+  needs: []
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 

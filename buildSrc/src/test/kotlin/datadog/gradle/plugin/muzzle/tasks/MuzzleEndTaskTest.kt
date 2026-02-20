@@ -2,9 +2,6 @@ package datadog.gradle.plugin.muzzle.tasks
 
 import org.gradle.kotlin.dsl.register
 import org.gradle.testfixtures.ProjectBuilder
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -15,6 +12,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
+import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleEndTaskTest {
 
@@ -70,38 +68,38 @@ class MuzzleEndTaskTest {
   @Test
   fun `junit report contains expected testsuite counters`() {
     val suite = junitDoc.documentElement
-    assertEquals("testsuite", suite.tagName)
-    assertEquals(":lettuce-5.0", suite.getAttribute("name"))
-    assertEquals("2", suite.getAttribute("tests"))
-    assertEquals("1", suite.getAttribute("failures"))
-    assertEquals("0", suite.getAttribute("errors"))
-    assertEquals("0", suite.getAttribute("skipped"))
+    assertThat(suite.tagName).isEqualTo("testsuite")
+    assertThat(suite.getAttribute("name")).isEqualTo(":lettuce-5.0")
+    assertThat(suite.getAttribute("tests")).isEqualTo("2")
+    assertThat(suite.getAttribute("failures")).isEqualTo("1")
+    assertThat(suite.getAttribute("errors")).isEqualTo("0")
+    assertThat(suite.getAttribute("skipped")).isEqualTo("0")
   }
 
   @Test
   fun `passed testcase has no failure node`() {
     val passedTestCase = findTestCaseByName(junitDoc, "muzzle-pass")
-    assertNotNull(passedTestCase)
-    assertNull(passedTestCase.getElementsByTagName("failure").item(0))
+    assertThat(passedTestCase).isNotNull()
+    assertThat(passedTestCase.getElementsByTagName("failure").item(0)).isNull()
   }
 
   @Test
   fun `failed testcase contains failure node and message`() {
     val failedTestCase = findTestCaseByName(junitDoc, "muzzle-fail")
-    assertNotNull(failedTestCase)
+    assertThat(failedTestCase).isNotNull()
     val failureNode = failedTestCase.getElementsByTagName("failure").item(0) as Element
-    assertEquals("Muzzle validation failed", failureNode.getAttribute("message"))
-    assertEquals("java.lang.IllegalStateException: something is broken", failureNode.textContent)
+    assertThat(failureNode.getAttribute("message")).isEqualTo("Muzzle validation failed")
+    assertThat(failureNode.textContent).isEqualTo("java.lang.IllegalStateException: something is broken")
   }
 
   @Test
   fun `legacy report keeps historical shape`() {
     val legacySuite = legacyDoc.documentElement
-    assertEquals("testsuite", legacySuite.tagName)
-    assertEquals("1", legacySuite.getAttribute("tests"))
-    assertEquals("0", legacySuite.getAttribute("id"))
-    assertEquals("muzzle-end", legacySuite.getAttribute("name"))
-    assertEquals(1, legacySuite.getElementsByTagName("testcase").length)
+    assertThat(legacySuite.tagName).isEqualTo("testsuite")
+    assertThat(legacySuite.getAttribute("tests")).isEqualTo("1")
+    assertThat(legacySuite.getAttribute("id")).isEqualTo("0")
+    assertThat(legacySuite.getAttribute("name")).isEqualTo("muzzle-end")
+    assertThat(legacySuite.getElementsByTagName("testcase").length).isEqualTo(1)
   }
 
   private fun parseXml(xml: String): Document {
