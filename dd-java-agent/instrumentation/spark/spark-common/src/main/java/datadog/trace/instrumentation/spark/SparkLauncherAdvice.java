@@ -17,6 +17,10 @@ public class SparkLauncherAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(SparkLauncherAdvice.class);
 
+  // Same default pattern as spark.redaction.regex in Spark source
+  private static final Pattern CONF_REDACTION_PATTERN =
+      Pattern.compile("(?i)secret|password|token|access.key|api.key");
+
   /** The launcher span, accessible from SparkExitAdvice via reflection. */
   public static volatile AgentSpan launcherSpan;
 
@@ -50,13 +54,11 @@ public class SparkLauncherAdvice {
         @SuppressWarnings("unchecked")
         Map<String, String> conf = (Map<String, String>) confField.get(builder);
         if (conf != null) {
-          Pattern redactionPattern =
-              Pattern.compile("(?i)secret|password|token|access.key|api.key");
           for (Map.Entry<String, String> entry : conf.entrySet()) {
             if (SparkConfAllowList.canCaptureJobParameter(entry.getKey())) {
               String value = entry.getValue();
-              if (redactionPattern.matcher(entry.getKey()).find()
-                  || redactionPattern.matcher(value).find()) {
+              if (CONF_REDACTION_PATTERN.matcher(entry.getKey()).find()
+                  || CONF_REDACTION_PATTERN.matcher(value).find()) {
                 value = "[redacted]";
               }
               span.setTag("config." + entry.getKey().replace('.', '_'), value);
