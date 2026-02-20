@@ -4,7 +4,7 @@ subject: repo:DataDog/dd-trace-java:pull_request
 
 claim_pattern:
   event_name: pull_request
-  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/enforce-datadog-merge-queue\.yaml@refs/heads/master
+  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/enforce-datadog-merge-queue\.yaml@refs/pull/[0-9]+/merge
 
 permissions:
   issues: write

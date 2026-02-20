@@ -28,6 +28,7 @@ import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -79,7 +80,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   public void after() {
     super.after();
     Redaction.clearUserDefinedTypes();
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
   }
 
   @Test
@@ -758,6 +759,11 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
+    for (ProbeDefinition probe : configuration.getDefinitions()) {
+      if (probe instanceof Sampled) {
+        ((Sampled) probe).initSamplers();
+      }
+    }
     ProbeMetadata probeMetadata = new ProbeMetadata();
     currentTransformer =
         new DebuggerTransformer(
