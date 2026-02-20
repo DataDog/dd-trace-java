@@ -37,6 +37,13 @@ public class ResponseDecorator {
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
     span.setResourceName(RESPONSES_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/responses");
+    if (params != null) {
+      // Use ResponseCreateParams._model() b/o ResponseCreateParams.model() changed type from
+      // ResponsesModel to Optional<ResponsesModel> in
+      // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
+      String modelName = extractResponseModel(params._model());
+      span.setTag(CommonTags.OPENAI_REQUEST_MODEL, modelName);
+    }
     if (!llmObsEnabled) {
       return;
     }
@@ -45,11 +52,6 @@ public class ResponseDecorator {
     if (params == null) {
       return;
     }
-    // Use ResponseCreateParams._model() b/o ResponseCreateParams.model() changed type from
-    // ResponsesModel to Optional<ResponsesModel> in
-    // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
-    String modelName = extractResponseModel(params._model());
-    span.setTag(CommonTags.OPENAI_REQUEST_MODEL, modelName);
 
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 

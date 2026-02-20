@@ -25,6 +25,13 @@ public class EmbeddingDecorator {
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
     span.setResourceName(EMBEDDINGS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/embeddings");
+    if (params != null) {
+      params
+          .model()
+          ._value()
+          .asString()
+          .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    }
     if (!llmObsEnabled) {
       return;
     }
@@ -33,11 +40,6 @@ public class EmbeddingDecorator {
     if (params == null) {
       return;
     }
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     span.setTag(CommonTags.INPUT, embeddingDocuments(params.input()));
 
