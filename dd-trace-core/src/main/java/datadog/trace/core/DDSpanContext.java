@@ -1183,6 +1183,9 @@ public class DDSpanContext
     if (measured) {
       s.append(" *measured*");
     }
+    if (topLevel) {
+      s.append(" *top_level*");
+    }
 
     synchronized (unsafeTags) {
       s.append(" tags=").append(new TreeMap<>(getTags()));
