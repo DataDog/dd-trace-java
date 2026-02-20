@@ -171,6 +171,7 @@ public class SparkLauncherAdvice {
         String appId = handle.getAppId();
         if (appId != null) {
           span.setTag("spark.app_id", appId);
+          span.setTag("app_id", appId);
         }
 
         if (state.isFinal()) {
@@ -192,6 +193,7 @@ public class SparkLauncherAdvice {
         String appId = handle.getAppId();
         if (appId != null) {
           span.setTag("spark.app_id", appId);
+          span.setTag("app_id", appId);
         }
       }
     }
