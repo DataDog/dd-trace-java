@@ -587,7 +587,17 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   options = "datadog.trace.agent.test.asserts.ListWriterAssert")
   @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
   final Closure spec) {
-    ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
+    // Ensure Groovy closure resolves methods (e.g., trace(), sortSpansByStart()) against ListWriterAssert
+    ListWriterAssert.assertTraces(
+      TEST_WRITER,
+      size,
+      ignoreAdditionalTraces,
+      { ListWriterAssert asserter ->
+        spec.delegate = asserter
+        spec.resolveStrategy = Closure.DELEGATE_FIRST
+        spec.call(asserter)
+      } as java.util.function.Consumer<ListWriterAssert>
+    )
   }
 
   protected static final Comparator<List<DDSpan>> SORT_TRACES_BY_ID = ListWriterAssert.SORT_TRACES_BY_ID
@@ -602,7 +612,18 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   options = "datadog.trace.agent.test.asserts.ListWriterAssert")
   @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
   final Closure spec) {
-    ListWriterAssert.assertTraces(TEST_WRITER, size, false, traceSorter, spec)
+    // Ensure Groovy closure resolves methods against ListWriterAssert when a custom sorter is provided
+    ListWriterAssert.assertTraces(
+      TEST_WRITER,
+      size,
+      false,
+      traceSorter,
+      { ListWriterAssert asserter ->
+        spec.delegate = asserter
+        spec.resolveStrategy = Closure.DELEGATE_FIRST
+        spec.call(asserter)
+      } as java.util.function.Consumer<ListWriterAssert>
+    )
   }
 
   void blockUntilChildSpansFinished(final int numberOfSpans) {
