@@ -254,7 +254,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     log.debug("Starting tracer application span.");
-
+    if(!isRunningOnDatabricks){
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
@@ -289,6 +289,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
+    }
   }
 
   private void captureOpenlineageContextIfPresent(
