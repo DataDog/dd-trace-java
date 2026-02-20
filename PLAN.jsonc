@@ -1,0 +1,375 @@
+// PLAN.jsonc
+{
+  "goal": "Implement Appendix A: Inferred Lambda Spans for Java tracer — ensure inferred lambda spans (synthetic spans produced when Lambda detects API Gateway invocation) include mandatory tag changes, metrics, and updated dd_resource_key behaviour so they can be used as reliable sources for API endpoint discovery and correlation with traces.",
+  "context": {
+    // USER: stable inputs provided by requestor
+    "user_request": "Implement Inferred Lambda Spans (Appendix A) for dd-trace-java. Use InferredProxySpan.java as reference implementation. Create similar functionality to detect API Gateway invocations within Lambda and emit properly shaped spans.",
+    "repo_paths": {
+      "reference_implementation": "internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java",
+      "lambda_instrumentation": "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/",
+      "test_file": "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/test/groovy/LambdaHandlerInstrumentationTest.groovy"
+    },
+    "constraints": {
+      "language": "Java (implementation) and English (PLAN/documentation)",
+      "pre_commit_rule": "./gradlew spotlessApply (mandatory before every commit)",
+      "deliverables": [
+        "InferredLambdaSpan.java class (similar to InferredProxySpan.java)",
+        "Integration with LambdaHandlerInstrumentation to detect and emit inferred spans",
+        "Unit/integration tests in Groovy validating tags/metrics/metadata",
+        "Documentation update if needed"
+      ]
+    },
+    "assumptions": {
+      "current_branch": "alejandro.gonzalez/RFC-1081-lambda",
+      "cloud_partitions": "Only standard AWS partition (aws) required unless requested later",
+      "privacy_policy": "aws_user tag is optional until PII concerns are clarified",
+      "event_detection": "API Gateway events will be detected from input object structure (APIGatewayProxyRequestEvent or APIGatewayV2HTTPEvent)"
+    },
+    "input_artifacts": {
+      "reference_impl": "internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java",
+      "reference_tests": "internal-api/src/test/java/datadog/trace/api/gateway/InferredProxySpanTests.java"
+    }
+  },
+  "design_notes": {
+    // AGENT: derived design-level decisions and rationale
+    "high_level": "Create InferredLambdaSpan.java (modeled after InferredProxySpan.java) that detects API Gateway invocations of Lambda functions and creates synthetic spans with canonical Appendix A shape: proper span.name (aws.apigateway/aws.httpapi), span.type=web, _dd.appsec.enabled metric, _dd.appsec.json meta when available, aws_user meta (conditionally), dd_resource_key as API Gateway ARN.",
+    "architecture": {
+      "class_structure": "InferredLambdaSpan will be similar to InferredProxySpan, but extract data from Lambda input event (APIGatewayProxyRequestEvent or APIGatewayV2HTTPEvent) instead of HTTP headers",
+      "integration_point": "LambdaHandlerInstrumentation.ExtensionCommunicationAdvice.enter() will detect API Gateway events and create InferredLambdaSpan before the normal lambda span",
+      "span_hierarchy": "InferredLambdaSpan becomes parent of the lambda invocation span, similar to how InferredProxySpan works"
+    },
+    "mandatory_changes": {
+      "span.name": "Set to 'aws.apigateway' for API Gateway REST v1 or 'aws.httpapi' for HTTP v2",
+      "span.type": "Set to 'web'",
+      "meta.operation_name": "Do not set (remove if present in existing code)",
+      "metrics._dd.appsec.enabled": "Add value 1.0 when DD_APPSEC_ENABLED or DD_SERVERLESS_APPSEC_ENABLED env var is true",
+      "meta._dd.appsec.json": "Copy from root span when appsec events exist (same logic as InferredProxySpan.copyAppSecTagsFromRoot())",
+      "_dd.inferred_span": "Add metric value 1 to indicate this is an inferred span"
+    },
+    "optional_changes": {
+      "meta.aws_user": "Extract requestContext.identity.userArn when available and PII policy allows (add env var guard)",
+      "meta.dd_resource_key": "Compute API Gateway ARN from region and apiId: arn:aws:apigateway:{region}::/restapis/{api-id} (v1) or arn:aws:apigateway:{region}::/apis/{api-id} (v2)",
+      "meta.apiname": "Do not emit (remove if currently set)",
+      "additional_tags": "Set http.method, http.url, http.route, stage, account_id, apiid, region similar to InferredProxySpan"
+    },
+    "compatibility": "Preserve function_arn tag for backward compatibility. InferredLambdaSpan is additive - only created when API Gateway invocation is detected. Normal lambda spans continue to work unchanged.",
+    "test_strategy": "Extend LambdaHandlerInstrumentationTest.groovy with new test cases for API Gateway v1 and v2 events. Validate span shape, tags, metrics. Test AppSec integration. Test that non-API-Gateway invocations are unaffected."
+  },
+  "implementation_notes": {
+    // AGENT: low-level implementation guidance for Java tracer
+    "files_to_create": [
+      "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java (main implementation)",
+      "internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java (unit tests)"
+    ],
+    "files_to_modify": [
+      "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/main/java/datadog/trace/instrumentation/aws/v1/lambda/LambdaHandlerInstrumentation.java (integration point)",
+      "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/test/groovy/LambdaHandlerInstrumentationTest.groovy (add test cases)"
+    ],
+    "InferredLambdaSpan_class_design": {
+      "package": "datadog.trace.api.gateway",
+      "pattern": "Use InferredProxySpan.java as template - similar structure but extract from Lambda event instead of headers",
+      "key_methods": {
+        "fromEvent(Object event)": "Static factory - inspect event object to determine if it's API Gateway v1/v2",
+        "isValid()": "Check if event contains required API Gateway request context",
+        "start(AgentSpanContext)": "Create and configure span with all required tags/metrics, return span context",
+        "finish()": "Finish span and copy AppSec tags from root",
+        "detectApiGatewayVersion()": "Return 1 for REST API, 2 for HTTP API, 0 for non-API-Gateway",
+        "copyAppSecTagsFromRoot()": "Copy _dd.appsec.enabled and _dd.appsec.json from root span"
+      }
+    },
+    "event_detection_logic": {
+      "v1_detection": "Check if event has 'requestContext.requestId' and 'requestContext.apiId' (APIGatewayProxyRequestEvent)",
+      "v2_detection": "Check if event has 'requestContext.http.method' and 'version' = '2.0' (APIGatewayV2HTTPEvent)",
+      "fallback": "Use reflection to access event fields since event types come from AWS SDK",
+      "field_extraction": "Extract: httpMethod, path, domainName, stage, requestContext.identity.userArn, requestContext.apiId, requestContext.accountId, region"
+    },
+    "key_tags_and_values": {
+      "span.name": "'aws.apigateway' (v1) or 'aws.httpapi' (v2) - use SUPPORTED_PROXIES map like InferredProxySpan",
+      "span.type": "'web'",
+      "component": "'aws-apigateway' or 'aws-httpapi'",
+      "span_kind": "SPAN_KIND_SERVER",
+      "http.method": "requestContext.httpMethod or requestContext.http.method",
+      "http.url": "https://{domainName}{path}",
+      "http.route": "requestContext.resourcePath or requestContext.http.path",
+      "stage": "requestContext.stage",
+      "account_id": "requestContext.accountId (optional)",
+      "apiid": "requestContext.apiId (optional)",
+      "region": "extract from domainName or environment (optional)",
+      "_dd.inferred_span": "1",
+      "_dd.appsec.enabled": "1.0 (metric) when DD_APPSEC_ENABLED=true or DD_SERVERLESS_APPSEC_ENABLED=true",
+      "_dd.appsec.json": "copy from root span when present",
+      "aws_user": "requestContext.identity.userArn (optional, guarded by env var)",
+      "dd_resource_key": "computed ARN (optional)",
+      "function_arn": "preserve from lambda context (backward compatibility)"
+    },
+    "integration_with_LambdaHandlerInstrumentation": {
+      "location": "ExtensionCommunicationAdvice.enter() method",
+      "logic": "1) Call InferredLambdaSpan.fromEvent(in); 2) if valid, call inferredSpan.start(lambdaContext); 3) Use returned context as parent for lambda span; 4) Store inferredSpan in Context for later finish; 5) In exit() advice, call inferredSpan.finish()",
+      "context_key": "Use ContextKey<InferredLambdaSpan> similar to InferredProxySpan.CONTEXT_KEY"
+    },
+    "appsec_detection": {
+      "env_vars": "Check Config.get().isAppSecStandalone() or System.getenv('DD_APPSEC_ENABLED') or System.getenv('DD_SERVERLESS_APPSEC_ENABLED')",
+      "metric": "If enabled, add span.setMetric('_dd.appsec.enabled', 1)",
+      "json": "Copy from root span via copyAppSecTagsFromRoot() in finish() method"
+    },
+    "ARN_computation": {
+      "format_v1": "arn:aws:apigateway:{region}::/restapis/{apiId}",
+      "format_v2": "arn:aws:apigateway:{region}::/apis/{apiId}",
+      "region_extraction": "Parse from domainName (e.g., 'xyz.execute-api.us-east-1.amazonaws.com') or check environment",
+      "result_field": "span.setTag('dd_resource_key', computedArn)"
+    },
+    "error_handling": "Use defensive coding - null checks, try-catch for reflection, gracefully degrade if fields missing. Log at DEBUG level when inferred span cannot be created.",
+    "testing_approach": "Unit test InferredLambdaSpan with mock API Gateway v1/v2 event structures. Integration test in LambdaHandlerInstrumentationTest with full event objects."
+  },
+  "workflow": {
+    "branching": "Currently on branch alejandro.gonzalez/RFC-1081-lambda. Continue working on this branch. Work in small, logical commits. Merge to master via PR with reviewers.",
+    "session_reset_rule": "If resuming work in a fresh session: 1) Open PLAN.jsonc, 2) Checkout alejandro.gonzalez/RFC-1081-lambda, 3) Review completed tasks, 4) Continue at first PENDING task.",
+    "development_cycle": [
+      "1. Implement change (follow task description)",
+      "2. Write/update tests",
+      "3. Run ./gradlew spotlessApply (mandatory)",
+      "4. Run relevant module tests (./gradlew :module:test)",
+      "5. Verify tests pass",
+      "6. Commit with descriptive message"
+    ],
+    "pre_commit_checklist": [
+      "./gradlew spotlessApply (mandatory - fixes formatting)",
+      "Run unit tests: ./gradlew :internal-api:test (for InferredLambdaSpan changes)",
+      "Run integration tests: ./gradlew :dd-java-agent:instrumentation:aws-java:aws-java-lambda-handler-1.2:test",
+      "Verify no compilation errors",
+      "Review diff before committing"
+    ],
+    "commit_cadence": "Commit after each completed task or logical chunk. Minimum: 1 commit for InferredLambdaSpan implementation, 1 commit for LambdaHandlerInstrumentation integration.",
+    "testing_strategy": {
+      "unit_tests": "InferredLambdaSpanTests.java - test event detection, field extraction, span creation, tag setting",
+      "integration_tests": "LambdaHandlerInstrumentationTest.groovy - test full flow with mock API Gateway events",
+      "regression_tests": "Run existing Lambda instrumentation tests to ensure no breakage",
+      "manual_tests": "Optional: deploy to real Lambda, invoke via API Gateway, verify traces"
+    },
+    "definition_of_done": [
+      "InferredLambdaSpan.java implemented with all mandatory Appendix A requirements",
+      "InferredLambdaSpanTests.java with comprehensive test coverage",
+      "LambdaHandlerInstrumentation integrated with InferredLambdaSpan",
+      "LambdaHandlerInstrumentationTest updated with API Gateway test cases",
+      "All tests pass (unit + integration)",
+      "Code formatted via ./gradlew spotlessApply",
+      "PR created with clear description and RFC reference",
+      "No regressions in existing Lambda instrumentation"
+    ]
+  },
+  "agent_notes": {
+    // AGENT: implementation-state and derived tasks / estimates (kept actionable, no private chain-of-thought)
+    "current_state": "Plan expanded with Java-specific details. Branch alejandro.gonzalez/RFC-1081-lambda exists. Ready to start implementation.",
+    "references": {
+      "reference_implementation": "internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java (completed implementation for proxy spans - use as template)",
+      "reference_tests": "internal-api/src/test/java/datadog/trace/api/gateway/InferredProxySpanTests.java",
+      "lambda_instrumentation": "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/",
+      "existing_tests": "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/test/groovy/LambdaHandlerInstrumentationTest.groovy"
+    },
+    "key_dependencies": {
+      "aws_sdk": "com.amazonaws.services.lambda.runtime.* (already available in instrumentation module)",
+      "event_types": "Need to handle events via reflection since AWS SDK event types (APIGatewayProxyRequestEvent, APIGatewayV2HTTPEvent) may not be present at compile time",
+      "config": "datadog.trace.api.Config for AppSec and service name configuration"
+    },
+    "risks_and_unknowns": {
+      "event_type_detection": "Must use reflection to detect and extract API Gateway event fields since AWS SDK classes may not be on classpath at instrumentation compile time. InferredProxySpan uses headers (always available), but InferredLambdaSpan needs event introspection.",
+      "pii_policy_for_aws_user": "aws_user inclusion marked optional until PII concerns are clarified. Recommend adding env var guard (e.g., DD_LAMBDA_INFERRED_SPAN_AWS_USER_ENABLED)",
+      "region_availability": "Region must be parsed from domainName (e.g., execute-api.{region}.amazonaws.com) or may not be available. ARN computation is optional if region missing.",
+      "backward_compatibility": "Ensure existing Lambda instrumentation behavior unchanged when API Gateway not detected. InferredLambdaSpan should be purely additive.",
+      "span_timing": "InferredLambdaSpan should use Lambda invocation start time, not API Gateway request time (unlike InferredProxySpan which uses proxy timestamp)"
+    },
+    "implementation_complexity": {
+      "estimated_effort": "Medium (2-3 days). Most logic can be copied from InferredProxySpan. Main complexity is event detection via reflection.",
+      "critical_path": "1) Create InferredLambdaSpan class, 2) Add reflection-based event detection, 3) Integrate with LambdaHandlerInstrumentation, 4) Test with v1/v2 events"
+    },
+    "notes_for_reviewers": {
+      "appsec_duplication": "AppSec event duplication (_dd.appsec.json) is consistent with InferredProxySpan implementation - verify this is acceptable",
+      "reflection_usage": "Reflection is necessary for event detection since AWS SDK event types not guaranteed at compile time",
+      "optional_fields": "Region, aws_user, and dd_resource_key are optional - implementation should degrade gracefully if unavailable",
+      "testing": "Need sample API Gateway v1 and v2 event structures for testing - can use AWS documentation examples"
+    }
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "description": "Study InferredProxySpan.java implementation and tests to understand the pattern",
+      "status": "COMPLETED",
+      "notes": "Reference: internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java and InferredProxySpanTests.java. Understand: span creation, tag setting, ARN computation, AppSec tag copying, context key usage.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredProxySpan.java",
+        "internal-api/src/test/java/datadog/trace/api/gateway/InferredProxySpanTests.java"
+      ]
+    },
+    {
+      "id": "T2",
+      "description": "Create InferredLambdaSpan.java class skeleton in internal-api module",
+      "status": "COMPLETED",
+      "notes": "Location: internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java. Copy structure from InferredProxySpan but adapt for Lambda event instead of headers. Add: CONTEXT_KEY, SUPPORTED_PROXIES map, fromEvent() factory, isValid(), start(), finish(), storeInto().",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T1"]
+    },
+    {
+      "id": "T3",
+      "description": "Implement event detection logic to identify API Gateway v1/v2 invocations",
+      "status": "COMPLETED",
+      "notes": "Use reflection to detect event type. v1: check for 'requestContext.requestId' + 'requestContext.apiId'. v2: check for 'requestContext.http' + 'version=2.0'. Add detectApiGatewayVersion() method returning 1, 2, or 0. Handle null/missing fields gracefully.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T2"]
+    },
+    {
+      "id": "T4",
+      "description": "Implement field extraction from API Gateway events using reflection",
+      "status": "COMPLETED",
+      "notes": "Extract fields: httpMethod, path, domainName (from headers.Host), stage, requestContext.identity.userArn, requestContext.apiId, requestContext.accountId, region (parse from domainName). Create helper methods: getEventField(), getNestedField(). Add null safety.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T3"]
+    },
+    {
+      "id": "T5",
+      "description": "Implement start() method to create and configure inferred span",
+      "status": "COMPLETED",
+      "notes": "Set span.name (aws.apigateway or aws.httpapi), span.type=web, component, span_kind=server. Set tags: http.method, http.url, http.route, stage, account_id, apiid, region, _dd.inferred_span=1. Set resource name as 'METHOD PATH'. Use MANUAL_INSTRUMENTATION priority. Return span context.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T4"]
+    },
+    {
+      "id": "T6",
+      "description": "Implement AppSec metric and tag support (_dd.appsec.enabled, _dd.appsec.json)",
+      "status": "COMPLETED",
+      "notes": "Add copyAppSecTagsFromRoot() method (copy from InferredProxySpan). Call in finish(). Copy _dd.appsec.enabled metric (value 1) and _dd.appsec.json tag from root span when present. Handles distributed tracing scenario.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T5"]
+    },
+    {
+      "id": "T7",
+      "description": "Implement ARN computation for dd_resource_key (optional)",
+      "status": "COMPLETED",
+      "notes": "Add computeArn(String apiGatewayVersion, String region, String apiId) method. Format v1: 'arn:aws:apigateway:{region}::/restapis/{apiId}'. Format v2: 'arn:aws:apigateway:{region}::/apis/{apiId}'. Only set if region and apiId available. Parse region from domainName if needed.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T5"]
+    },
+    {
+      "id": "T8",
+      "description": "Add optional aws_user tag support with privacy guard",
+      "status": "COMPLETED",
+      "notes": "Extract requestContext.identity.userArn when available. Add env var check: DD_LAMBDA_INFERRED_SPAN_AWS_USER_ENABLED (default false). Only set aws_user tag if env var=true and userArn present. Document in code comments.",
+      "files": [
+        "internal-api/src/main/java/datadog/trace/api/gateway/InferredLambdaSpan.java"
+      ],
+      "dependencies": ["T5"]
+    },
+    {
+      "id": "T9",
+      "description": "Create unit tests for InferredLambdaSpan class",
+      "status": "COMPLETED",
+      "notes": "Location: internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java. Test cases: v1 event detection, v2 event detection, invalid/non-API-Gateway events, field extraction, span creation, tag setting, ARN computation, AppSec tag copying, aws_user privacy guard. Use mock event structures.",
+      "files": [
+        "internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java"
+      ],
+      "dependencies": ["T8"]
+    },
+    {
+      "id": "T10",
+      "description": "Integrate InferredLambdaSpan into LambdaHandlerInstrumentation",
+      "status": "COMPLETED",
+      "notes": "Modify ExtensionCommunicationAdvice.enter(): 1) Call InferredLambdaSpan.fromEvent(in), 2) If valid, call inferredSpan.start(lambdaContext), 3) Use returned context as parent for lambda span, 4) Store inferredSpan in Context. Modify exit(): call inferredSpan.finish(). Update helperClassNames to include InferredLambdaSpan.",
+      "files": [
+        "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/main/java/datadog/trace/instrumentation/aws/v1/lambda/LambdaHandlerInstrumentation.java"
+      ],
+      "dependencies": ["T8"]
+    },
+    {
+      "id": "T11",
+      "description": "Add integration tests to LambdaHandlerInstrumentationTest",
+      "status": "PENDING",
+      "notes": "Add test cases: 1) Lambda invoked by API Gateway v1 - verify inferred span created with correct tags, 2) Lambda invoked by API Gateway v2 - verify span, 3) Lambda invoked without API Gateway - verify no inferred span, 4) AppSec enabled - verify _dd.appsec.enabled metric. Create sample API Gateway event objects.",
+      "files": [
+        "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/test/groovy/LambdaHandlerInstrumentationTest.groovy"
+      ],
+      "dependencies": ["T10"]
+    },
+    {
+      "id": "T12",
+      "description": "Test ARN computation and dd_resource_key tag",
+      "status": "PENDING",
+      "notes": "Add specific test cases for ARN computation: 1) v1 API with region and apiId present, 2) v2 API with region and apiId, 3) Missing region - no ARN, 4) Missing apiId - no ARN. Verify ARN format matches RFC spec.",
+      "files": [
+        "internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java"
+      ],
+      "dependencies": ["T9"]
+    },
+    {
+      "id": "T13",
+      "description": "Test aws_user privacy guard functionality",
+      "status": "PENDING",
+      "notes": "Test: 1) userArn present + env var enabled = tag set, 2) userArn present + env var disabled = tag not set, 3) userArn missing = tag not set. Test in both unit tests and integration tests.",
+      "files": [
+        "internal-api/src/test/java/datadog/trace/api/gateway/InferredLambdaSpanTests.java",
+        "dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/src/test/groovy/LambdaHandlerInstrumentationTest.groovy"
+      ],
+      "dependencies": ["T11", "T12"]
+    },
+    {
+      "id": "T14",
+      "description": "Run ./gradlew spotlessApply and fix any formatting issues",
+      "status": "COMPLETED",
+      "notes": "Mandatory before commit. Run on all modified files. Fix any style violations.",
+      "files": ["all modified files"],
+      "dependencies": ["T13"]
+    },
+    {
+      "id": "T15",
+      "description": "Run full test suite for Lambda instrumentation module",
+      "status": "PENDING",
+      "notes": "Execute: ./gradlew :dd-java-agent:instrumentation:aws-java:aws-java-lambda-handler-1.2:test. Verify all tests pass including new inferred span tests. Check for any regressions in existing Lambda tests.",
+      "dependencies": ["T14"]
+    },
+    {
+      "id": "T16",
+      "description": "Run full test suite for internal-api module",
+      "status": "PENDING",
+      "notes": "Execute: ./gradlew :internal-api:test. Verify InferredLambdaSpanTests and related tests pass. Ensure no regressions in InferredProxySpan tests.",
+      "dependencies": ["T14"]
+    },
+    {
+      "id": "T17",
+      "description": "Manual testing with sample Lambda function (optional but recommended)",
+      "status": "PENDING",
+      "notes": "Deploy test Lambda with dd-trace-java agent. Invoke via API Gateway v1 and v2. Verify inferred spans appear in traces with correct tags/metrics. Check AppSec integration if possible. Validate endpoint discovery works.",
+      "dependencies": ["T15", "T16"]
+    },
+    {
+      "id": "T18",
+      "description": "Update documentation (if needed)",
+      "status": "PENDING",
+      "notes": "Check if README or instrumentation docs need updates. Document: 1) Inferred Lambda Spans feature, 2) Required configuration (none by default), 3) Optional DD_LAMBDA_INFERRED_SPAN_AWS_USER_ENABLED flag, 4) Backward compatibility (fully backward compatible). Add migration notes if needed.",
+      "dependencies": ["T15", "T16"]
+    },
+    {
+      "id": "T19",
+      "description": "Create commit(s) with descriptive messages",
+      "status": "PENDING",
+      "notes": "Commit strategy: 1) Commit InferredLambdaSpan implementation + tests, 2) Commit LambdaHandlerInstrumentation integration + tests, 3) Commit docs if needed. Follow commit message conventions. Include RFC reference in commit messages.",
+      "dependencies": ["T18"]
+    },
+    {
+      "id": "T20",
+      "description": "Prepare PR for review",
+      "status": "PENDING",
+      "notes": "PR title: 'Implement RFC-1081 Appendix A: Inferred Lambda Spans for Java tracer'. Description: reference RFC, explain changes, list test coverage, mention backward compatibility. Request reviews from AppSec and Lambda instrumentation owners. Link related PRs if any.",
+      "dependencies": ["T19"]
+    }
+  ]
+}
