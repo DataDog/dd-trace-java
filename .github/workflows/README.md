@@ -53,9 +53,9 @@ This redirects GitHub's "Merge when ready" button to the Datadog merge queue sys
 
 _Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a minor release).
 
-_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x").
+_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x"). Then open a PR against the release branch that pins system tests.
 
-_Recovery:_ Manually create the branch from the "vM.N.0" git tag.
+_Recovery:_ Manually create the release branch from the "vM.N.0" git tag, and pin system tests to this branch by running the `./tooling/update_system_test_reference.sh` script.
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
