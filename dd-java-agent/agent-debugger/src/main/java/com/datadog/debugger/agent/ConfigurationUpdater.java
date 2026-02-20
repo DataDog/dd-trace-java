@@ -12,6 +12,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
+import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -216,6 +217,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
           continue;
         }
         if (parameters[0].isNamePresent()) {
+          if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
+            return changedClasses;
+          }
           LOGGER.debug(
               "Detecting method parameter: method={} param={}, Skipping retransforming this class",
               method.getName(),
