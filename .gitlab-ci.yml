@@ -375,6 +375,8 @@ spotless:
   extends: .gradle_build
   stage: tests
   needs: []
+  variables:
+    GRADLE_MEMORY_MAX: 6G
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
