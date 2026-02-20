@@ -98,6 +98,7 @@ public class Tags {
   public static final String TEST_IS_NEW = "test.is_new";
   public static final String TEST_IS_RETRY = "test.is_retry";
   public static final String TEST_RETRY_REASON = "test.retry_reason";
+  public static final String TEST_IS_DYNAMIC = "test.is_dynamic";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
   public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";

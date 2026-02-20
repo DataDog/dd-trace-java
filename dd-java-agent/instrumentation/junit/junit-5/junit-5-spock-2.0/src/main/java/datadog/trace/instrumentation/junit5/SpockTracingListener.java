@@ -119,7 +119,8 @@ public class SpockTracingListener implements EngineExecutionListener {
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, testSource, displayName);
     List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
 
@@ -221,7 +222,8 @@ public class SpockTracingListener implements EngineExecutionListener {
       final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, methodSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
