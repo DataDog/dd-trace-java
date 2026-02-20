@@ -1,22 +1,21 @@
 package datadog.trace.common.metrics
 
-import datadog.metrics.api.Histograms
-import datadog.metrics.impl.DDSketchHistograms
-import datadog.trace.api.Config
-import datadog.trace.api.ProcessTags
-import datadog.trace.api.WellKnownTags
-import datadog.trace.api.Pair
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.test.util.DDSpecification
-import org.msgpack.core.MessagePack
-import org.msgpack.core.MessageUnpacker
-
-import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicLongArray
-
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
+
+import datadog.metrics.api.Histograms
+import datadog.metrics.impl.DDSketchHistograms
+import datadog.trace.api.Config
+import datadog.trace.api.Pair
+import datadog.trace.api.ProcessTags
+import datadog.trace.api.WellKnownTags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
+import datadog.trace.test.util.DDSpecification
+import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLongArray
+import org.msgpack.core.MessagePack
+import org.msgpack.core.MessageUnpacker
 
 class SerializingMetricWriterTest extends DDSpecification {
 
@@ -55,6 +54,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "resource1",
         "service1",
         "operation1",
+        null,
         "type",
         0,
         false,
@@ -75,6 +75,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "resource2",
         "service2",
         "operation2",
+        null,
         "type2",
         200,
         true,
@@ -95,6 +96,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "GET /api/users/:id",
         "web-service",
         "http.request",
+        null,
         "web",
         200,
         false,
@@ -113,6 +115,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           "resource" + i,
           "service" + i,
           "operation" + i,
+          null,
           "type",
           0,
           false,
@@ -189,7 +192,8 @@ class SerializingMetricWriterTest extends DDSpecification {
         // Calculate expected map size based on optional fields
         boolean hasHttpMethod = key.getHttpMethod() != null
         boolean hasHttpEndpoint = key.getHttpEndpoint() != null
-        int expectedMapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
+        boolean hasServiceSource = key.getServiceSource() != null
+        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
@@ -224,6 +228,12 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
+        // Service source is only present when the service name has been overridden by the tracer
+        if (hasServiceSource) {
+          assert unpacker.unpackString() == "srv_src"
+          assert unpacker.unpackString() == key.getServiceSource().toString()
+          ++elementCount
+        }
         // HTTPMethod and HTTPEndpoint are optional - only present if non-null
         if (hasHttpMethod) {
           assert unpacker.unpackString() == "HTTPMethod"
@@ -269,6 +279,35 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
   }
 
+  def "ServiceSource optional in the payload"() {
+    setup:
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
+
+    // Create keys with different combinations of HTTP fields
+    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null)
+
+    def content = [
+      Pair.of(keyWithNoSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+    ]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+  }
+
   def "HTTPMethod and HTTPEndpoint fields are optional in payload"() {
     setup:
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
@@ -276,10 +315,10 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithBoth = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "GET", "/api/users")
-    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], "POST", null)
-    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", "type", 200, false, false, "server", [], null, "/api/orders")
-    def keyWithNeither = new MetricKey("resource", "service", "operation", "type", 200, false, false, "client", [], null, null)
+    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders")
+    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null)
 
     def content = [
       Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
