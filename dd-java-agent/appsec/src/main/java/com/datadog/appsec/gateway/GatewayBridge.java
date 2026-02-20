@@ -920,10 +920,14 @@ public class GatewayBridge {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(
             ctx, traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       } else {
         // Report minimum set of collected request headers
         writeRequestHeaders(
             ctx, traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
