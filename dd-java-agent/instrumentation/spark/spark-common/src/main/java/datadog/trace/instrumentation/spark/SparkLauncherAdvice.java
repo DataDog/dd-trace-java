@@ -40,11 +40,13 @@ public class SparkLauncherAdvice {
           .addShutdownHook(
               new Thread(
                   () -> {
-                    AgentSpan s = launcherSpan;
-                    if (s != null) {
-                      log.info("Finishing spark.launcher span from shutdown hook");
-                      s.finish();
-                      launcherSpan = null;
+                    synchronized (SparkLauncherAdvice.class) {
+                      AgentSpan s = launcherSpan;
+                      if (s != null) {
+                        log.info("Finishing spark.launcher span from shutdown hook");
+                        s.finish();
+                        launcherSpan = null;
+                      }
                     }
                   }));
     }
