@@ -26,7 +26,11 @@ public class SparkLauncherAdvice {
 
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     AgentSpan span =
-        tracer.buildSpan("spark.launcher.launch").withSpanType("spark").withResourceName(resource).start();
+        tracer
+            .buildSpan("spark.launcher.launch")
+            .withSpanType("spark")
+            .withResourceName(resource)
+            .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     launcherSpan = span;
 
