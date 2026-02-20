@@ -13,6 +13,7 @@ readonly TYPE_DIR="${REPORTS_DIR}/${BENCHMARK_TYPE}"
 readonly CANDIDATE_RAW_DIR="${TYPE_DIR}/candidate-raw"
 readonly BASELINE_RAW_DIR="${TYPE_DIR}/baseline-raw"
 readonly BASELINE_INFO_FILE="${TYPE_DIR}/baseline-info.env"
+readonly BTI_TOKEN_URL="https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=apm-reliability/dd-trace-java"
 
 mkdir -p "${TYPE_DIR}" "${CANDIDATE_RAW_DIR}" "${BASELINE_RAW_DIR}"
 
@@ -40,6 +41,36 @@ export MD_REPORT_SAMPLE_METRICS=1
 export FAIL_ON_REGRESSION_THRESHOLD=20.0
 
 readonly JOBS_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
+
+get_private_token() {
+  local auth_header bti_response http_status response_body private_token
+
+  if ! auth_header="$(authanywhere --audience sdm 2>&1)"; then
+    echo "Failed to get authanywhere token: ${auth_header}" >&2
+    return 1
+  fi
+
+  bti_response="$(
+    curl -w "\nHTTP_STATUS:%{http_code}" --silent --show-error \
+      --header "${auth_header}" \
+      "${BTI_TOKEN_URL}" 2>&1
+  )"
+  http_status="$(echo "${bti_response}" | rg "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
+  response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
+
+  if [[ "${http_status}" != "200" ]]; then
+    echo "BTI token request failed with status ${http_status}." >&2
+    return 1
+  fi
+
+  private_token="$(echo "${response_body}" | rg -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
+  if [[ -z "${private_token}" ]]; then
+    echo "Failed to parse private token from BTI response." >&2
+    return 1
+  fi
+
+  echo "${private_token}"
+}
 
 job_pattern_for_type() {
   case "${BENCHMARK_TYPE}" in
@@ -82,19 +113,36 @@ PY
 
 list_matching_jobs() {
   local pipeline_id="$1"
-  local pattern
+  local pattern private_token response http_status response_body
   pattern="$(job_pattern_for_type)"
 
-  curl --silent --show-error --fail \
-    --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    "${JOBS_API_URL}/pipelines/${pipeline_id}/jobs?scope[]=success&per_page=100" \
-    | python3 -c '
+  private_token="$(get_private_token)" || return 1
+  response="$(
+    curl -w "\nHTTP_STATUS:%{http_code}" --silent --show-error \
+      --header "PRIVATE-TOKEN: ${private_token}" \
+      "${JOBS_API_URL}/pipelines/${pipeline_id}/jobs?scope[]=success&per_page=100" 2>&1
+  )"
+  http_status="$(echo "${response}" | rg "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
+  response_body="$(echo "${response}" | sed '/HTTP_STATUS:/d')"
+
+  if [[ "${http_status}" != "200" ]]; then
+    echo "ERROR: Failed to list jobs for pipeline ${pipeline_id} (HTTP ${http_status})." >&2
+    echo "URL: ${JOBS_API_URL}/pipelines/${pipeline_id}/jobs?scope[]=success&per_page=100" >&2
+    echo "First 300 chars of response body: ${response_body:0:300}" >&2
+    return 1
+  fi
+
+  echo "${response_body}" | python3 -c '
 import json
 import re
 import sys
 
 pattern = re.compile(sys.argv[1])
-jobs = json.load(sys.stdin)
+try:
+    jobs = json.load(sys.stdin)
+except Exception as e:
+    print(f"ERROR: failed to parse jobs JSON: {e}", file=sys.stderr)
+    sys.exit(1)
 for job in jobs:
     if not pattern.match(job["name"]):
         continue
@@ -109,13 +157,14 @@ download_job_artifacts() {
   local output_dir="$2"
   local archive_path="${output_dir}/artifacts.zip"
   local artifacts_url="${JOBS_API_URL}/jobs/${job_id}/artifacts"
-  local http_code
+  local http_code private_token
 
   mkdir -p "${output_dir}"
 
+  private_token="$(get_private_token)" || return 1
   http_code="$(
     curl --silent --show-error --location \
-      --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+      --header "PRIVATE-TOKEN: ${private_token}" \
       --output "${archive_path}" \
       --write-out "%{http_code}" \
       "${artifacts_url}"
@@ -146,6 +195,7 @@ download_job_artifacts() {
     if [[ -n "${CI_PROJECT_URL:-}" ]]; then
       echo "See job details: ${CI_PROJECT_URL}/-/jobs/${job_id}" >&2
     fi
+    echo "Artifacts URL: ${artifacts_url}" >&2
     return 1
   fi
 
