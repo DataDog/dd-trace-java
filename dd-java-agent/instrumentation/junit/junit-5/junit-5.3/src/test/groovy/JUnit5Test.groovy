@@ -13,7 +13,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import org.example.TestAssumption
 import org.example.TestAssumptionAndSucceed
 import org.example.TestAssumptionLegacy
-
 import org.example.TestError
 import org.example.TestFactory
 import org.example.TestFailed
