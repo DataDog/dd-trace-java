@@ -55,7 +55,7 @@ get_private_token() {
       --header "${auth_header}" \
       "${BTI_TOKEN_URL}" 2>&1
   )"
-  http_status="$(echo "${bti_response}" | rg "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
+  http_status="$(echo "${bti_response}" | grep "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
   response_body="$(echo "${bti_response}" | sed '/HTTP_STATUS:/d')"
 
   if [[ "${http_status}" != "200" ]]; then
@@ -63,7 +63,7 @@ get_private_token() {
     return 1
   fi
 
-  private_token="$(echo "${response_body}" | rg -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
+  private_token="$(echo "${response_body}" | grep -o '"token":"[^"]*"' | sed 's/"token":"\([^"]*\)"/\1/')"
   if [[ -z "${private_token}" ]]; then
     echo "Failed to parse private token from BTI response." >&2
     return 1
@@ -122,7 +122,7 @@ list_matching_jobs() {
       --header "PRIVATE-TOKEN: ${private_token}" \
       "${JOBS_API_URL}/pipelines/${pipeline_id}/jobs?scope[]=success&per_page=100" 2>&1
   )"
-  http_status="$(echo "${response}" | rg "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
+  http_status="$(echo "${response}" | grep "HTTP_STATUS:" | sed 's/HTTP_STATUS://')"
   response_body="$(echo "${response}" | sed '/HTTP_STATUS:/d')"
 
   if [[ "${http_status}" != "200" ]]; then
