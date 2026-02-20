@@ -99,6 +99,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
     1 * poller.addListener(Product.ASM, _)
     1 * poller.addListener(Product.ASM_DATA, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
     0 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
@@ -135,6 +136,7 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     then:
     2 * config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
     1 * poller.addListener(Product.ASM_FEATURES, _, _)
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_)
     0 * poller.addListener(*_)
   }
@@ -211,11 +213,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
     0 * poller._
 
     when:
@@ -252,11 +256,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
     0 * poller._
 
     when:
@@ -416,11 +422,13 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       listeners.savedFeaturesDeserializer = it[1]
       listeners.savedFeaturesListener = it[2]
     }
+    1 * poller.addListener(Product.DEBUG, _, _)
     1 * poller.addConfigurationEndListener(_) >> {
       listeners.savedConfEndListener = it[0]
     }
     1 * poller.addCapabilities(CAPABILITY_ASM_ACTIVATION)
     1 * poller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE)
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
     0 * poller._
 
     when:
@@ -553,6 +561,8 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
       | CAPABILITY_ASM_HEADER_FINGERPRINT
       | CAPABILITY_ASM_TRACE_TAGGING_RULES
       | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION)
+    1 * poller.removeListeners(Product.DEBUG)
+    1 * poller.removeCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
     4 * poller.removeListeners(_)
     1 * poller.removeConfigurationEndListener(_)
     1 * poller.stop()
@@ -774,6 +784,74 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     noExceptionThrown()
+  }
+
+  void 'subscribes to ASM_SCA product when configuration poller is active'() {
+    setup:
+    appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.DEBUG, AppSecSCAConfigDeserializer.INSTANCE, _)
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
+  }
+
+  void 'unsubscribes from ASM_SCA product on close'() {
+    setup:
+    appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    when:
+    appSecConfigService.close()
+
+    then:
+    1 * poller.removeListeners(Product.DEBUG)
+    1 * poller.removeCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
+  }
+
+  void 'SCA listener is registered with correct deserializer and capability'() {
+    given:
+    appSecConfigService.init()
+    AppSecSystem.active = false
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    appSecConfigService.maybeSubscribeConfigPolling()
+
+    then:
+    // Verify SCA listener is registered with the correct deserializer
+    1 * poller.addListener(Product.DEBUG, AppSecSCAConfigDeserializer.INSTANCE, _)
+    // Verify SCA capability is advertised
+    1 * poller.addCapabilities({ it & datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION })
+  }
+
+  void 'SCA deserializer handles array format correctly'() {
+    when: 'deserialize array format from backend'
+    def arrayFormatJson = '''
+      [
+        {
+          "advisory": "GHSA-xxxx-yyyy-zzzz",
+          "cve": "CVE-2024-0001",
+          "external_entrypoint": {
+            "class": "com.example.VulnerableClass",
+            "methods": ["vulnerableMethod"]
+          }
+        }
+      ]
+    '''
+    def config = AppSecSCAConfigDeserializer.INSTANCE.deserialize(arrayFormatJson.bytes)
+
+    then:
+    config != null
+    config.vulnerabilities.size() == 1
+    config.vulnerabilities[0].advisory == "GHSA-xxxx-yyyy-zzzz"
+    config.vulnerabilities[0].cve == "CVE-2024-0001"
   }
 
 

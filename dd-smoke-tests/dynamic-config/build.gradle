@@ -11,6 +11,7 @@ dependencies {
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   implementation libs.slf4j
+  implementation libs.jackson.databind
 
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':utils:test-utils')
