@@ -144,7 +144,7 @@ public class TracingListener implements EngineExecutionListener {
     if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
       AgentSpan span = AgentTracer.activeSpan();
       if (span != null) {
-        span.setTag(Tags.TEST_IS_DYNAMIC, true);
+        span.setTag(Tags.TEST_JUNIT_IS_DYNAMIC, true);
       }
     }
   }
@@ -258,7 +258,7 @@ public class TracingListener implements EngineExecutionListener {
     if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
       AgentSpan span = AgentTracer.activeSpan();
       if (span != null) {
-        span.setTag(Tags.TEST_IS_DYNAMIC, true);
+        span.setTag(Tags.TEST_JUNIT_IS_DYNAMIC, true);
       }
     }
   }
