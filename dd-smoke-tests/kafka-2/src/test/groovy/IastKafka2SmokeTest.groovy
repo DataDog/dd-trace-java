@@ -16,8 +16,6 @@ class IastKafka2SmokeTest extends AbstractIastServerSmokeTest {
 
   @Override
   protected void beforeProcessBuilders() {
-    super.beforeProcessBuilders()
-
     embeddedKafka = new EmbeddedKafkaBroker(1, true)
     embeddedKafka.afterPropertiesSet()
   }

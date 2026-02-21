@@ -19,8 +19,6 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   protected void beforeProcessBuilders() {
-    super.beforeProcessBuilders()
-
     try {
       def catalinaPath = tomcatDirectory.resolve("bin/catalina.sh")
       def permissions = new HashSet<>(Files.getPosixFilePermissions(catalinaPath))

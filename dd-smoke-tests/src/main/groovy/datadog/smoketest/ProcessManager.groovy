@@ -71,6 +71,7 @@ abstract class ProcessManager extends Specification {
     assert Files.isDirectory(Paths.get(buildDirectory))
     assert Files.isRegularFile(Paths.get(shadowJarPath))
 
+    setupTracesConsumer()
     beforeProcessBuilders()
 
     (0..<numberOfProcesses).each { idx ->
@@ -236,6 +237,8 @@ abstract class ProcessManager extends Specification {
   void processTestLogLines(Closure<Boolean> checker) {
     outputThreads.processTestLogLines { return checker(it) }
   }
+
+  protected abstract void setupTracesConsumer()
 
   protected void beforeProcessBuilders() {}
 

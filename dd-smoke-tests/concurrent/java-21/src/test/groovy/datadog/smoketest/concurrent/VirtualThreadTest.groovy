@@ -1,73 +1,33 @@
 package datadog.smoketest.concurrent
 
-class VirtualThreadStartTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadStart']
-  }
-
+class VirtualThreadTest extends AbstractConcurrentTest {
   def 'test Thread.startVirtualThread() runnable'() {
     expect:
-    receivedCorrectTrace()
-  }
-}
-
-class VirtualThreadExecuteTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadExecute']
+    receivedCorrectTrace('virtualThreadStart')
   }
 
   def 'test VirtualThread execute runnable'() {
     expect:
-    receivedCorrectTrace()
-  }
-}
-
-class VirtualThreadInvokeAllTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadInvokeAll']
+    receivedCorrectTrace('virtualThreadExecute')
   }
 
   def 'test VirtualThread invokeAll callable'() {
     expect:
-    receivedCorrectTrace()
-  }
-}
-
-class VirtualThreadInvokeAnyTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadInvokeAny']
+    receivedCorrectTrace('virtualThreadInvokeAll')
   }
 
   def 'test VirtualThread invoke any callable'() {
     expect:
-    receivedCorrectTrace()
-  }
-}
-
-class VirtualThreadSubmitRunnableTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadSubmitRunnable']
+    receivedCorrectTrace('virtualThreadInvokeAny')
   }
 
   def 'test VirtualThread submit runnable'() {
     expect:
-    receivedCorrectTrace()
-  }
-}
-
-class VirtualThreadSubmitCallableTest extends AbstractConcurrentTest {
-  @Override
-  protected List<String> getTestArguments() {
-    return ['virtualThreadSubmitCallable']
+    receivedCorrectTrace('virtualThreadSubmitRunnable')
   }
 
   def 'test VirtualThread submit callable'() {
     expect:
-    receivedCorrectTrace()
+    receivedCorrectTrace('virtualThreadSubmitCallable')
   }
 }
