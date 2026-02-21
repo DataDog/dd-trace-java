@@ -186,13 +186,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
-    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
-    1 * traceSegment.setTagTop('appsec.event', true)
+    1 * spanInfo.setMetric("_dd.appsec.enabled", 1)
+    1 * spanInfo.setTag("_dd.runtime_family", "jvm")
+    1 * spanInfo.setTag('appsec.event', true)
+    1 * spanInfo.setTag('network.client.ip', '2001::1')
+    1 * spanInfo.setTag('actor.ip', '1.1.1.1')
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
-    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
-    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
-    1 * traceSegment.setTagTop('network.client.ip', '2001::1')
     1 * mockAppSecCtx.isWafBlocked()
     1 * mockAppSecCtx.hasWafErrors()
     1 * mockAppSecCtx.getWafTimeouts()
@@ -222,7 +221,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
-    1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
+    1 * spanInfo.setTag('actor.ip', '8.8.8.8')
   }
 
   void 'bridge can collect headers'() {

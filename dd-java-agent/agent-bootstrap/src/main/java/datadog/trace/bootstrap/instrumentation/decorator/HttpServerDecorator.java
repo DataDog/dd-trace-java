@@ -576,16 +576,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   protected void finishInferredProxySpan(Context context) {
-    InferredProxySpan span;
-    if ((span = InferredProxySpan.fromContext(context)) != null) {
-      span.finish();
+    InferredProxySpan inferredProxySpan;
+    if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
+      inferredProxySpan.finish(AgentSpan.fromContext(context));
     }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
-    if (span.getLocalRootSpan() != span) {
+    AgentSpan localRoot = span.getLocalRootSpan();
+
+    // Check if the local root is an inferred proxy span
+    boolean hasInferredProxyParent =
+        localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
+
+    // Only proceed if this is the root span OR if we have an inferred proxy parent
+    if (localRoot != span && !hasInferredProxyParent) {
       return;
     }
+
     CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
