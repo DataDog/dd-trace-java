@@ -3,6 +3,7 @@ package datadog.trace.civisibility.ipc;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class ExecutionSettingsResponse implements SignalResponse {
 
@@ -40,7 +41,7 @@ public class ExecutionSettingsResponse implements SignalResponse {
 
   @Override
   public int hashCode() {
-    return Objects.hash(settings);
+    return HashingUtils.hash(settings);
   }
 
   @Override

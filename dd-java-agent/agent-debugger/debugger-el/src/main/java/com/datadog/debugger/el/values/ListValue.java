@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import datadog.trace.util.HashingUtils;
 
 /**
  * A list-like {@linkplain Value}.<br>
@@ -243,7 +244,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
 
   @Override
   public int hashCode() {
-    return Objects.hash(listHolder, arrayHolder, arrayType);
+    return HashingUtils.hash(listHolder, arrayHolder, arrayType);
   }
 
   @Override

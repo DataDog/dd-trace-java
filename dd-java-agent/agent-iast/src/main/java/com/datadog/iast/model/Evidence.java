@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import datadog.trace.util.HashingUtils;
 
 public final class Evidence {
 
@@ -57,7 +58,7 @@ public final class Evidence {
 
   @Override
   public int hashCode() {
-    int result = Objects.hash(value);
+    int result = HashingUtils.hash(value);
     result = 31 * result + Arrays.hashCode(ranges);
     return result;
   }

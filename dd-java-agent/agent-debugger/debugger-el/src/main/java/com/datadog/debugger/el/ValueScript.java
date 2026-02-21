@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import datadog.trace.util.HashingUtils;
 
 /** Implements expression language for capturing values for metric probes */
 public class ValueScript implements DebuggerScript<Value<?>> {
@@ -51,7 +52,7 @@ public class ValueScript implements DebuggerScript<Value<?>> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(expr, dsl);
+    return HashingUtils.hash(expr, dsl);
   }
 
   @Override

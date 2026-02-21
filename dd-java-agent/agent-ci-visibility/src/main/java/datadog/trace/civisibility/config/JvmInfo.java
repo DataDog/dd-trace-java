@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class JvmInfo {
 
@@ -58,7 +59,7 @@ public class JvmInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, version, vendor);
+    return HashingUtils.hash(name, version, vendor);
   }
 
   @Override

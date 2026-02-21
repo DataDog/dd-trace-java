@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import datadog.trace.util.HashingUtils;
 
 public class SpanDecorationProbe extends ProbeDefinition implements CapturedContextProbe, Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
@@ -114,7 +115,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(name, value);
+      return HashingUtils.hash(name, value);
     }
   }
 
@@ -152,7 +153,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(when, tags);
+      return HashingUtils.hash(when, tags);
     }
   }
 
@@ -328,7 +329,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(language, id, version, tagMap, where, evaluateAt, targetSpan, decorations);
+        HashingUtils.hash(language, id, version, tagMap, where, evaluateAt, targetSpan, decorations);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

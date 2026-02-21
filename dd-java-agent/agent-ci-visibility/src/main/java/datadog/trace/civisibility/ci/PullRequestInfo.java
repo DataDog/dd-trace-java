@@ -4,6 +4,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.util.Strings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import datadog.trace.util.HashingUtils;
 
 public class PullRequestInfo {
 
@@ -101,7 +102,7 @@ public class PullRequestInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(baseBranch, baseBranchSha, headCommit, pullRequestNumber);
+    return HashingUtils.hash(baseBranch, baseBranchSha, headCommit, pullRequestNumber);
   }
 
   @Override

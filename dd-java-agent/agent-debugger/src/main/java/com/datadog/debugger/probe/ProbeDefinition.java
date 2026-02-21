@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Generic class storing common probe definition */
 public abstract class ProbeDefinition implements ProbeImplementation {
@@ -321,7 +322,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(key, value);
+      return HashingUtils.hash(key, value);
     }
   }
 

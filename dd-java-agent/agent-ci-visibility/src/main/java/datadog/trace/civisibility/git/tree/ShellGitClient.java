@@ -33,6 +33,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import datadog.trace.util.HashingUtils;
 
 public class ShellGitClient implements GitClient {
 
@@ -838,7 +839,7 @@ public class ShellGitClient implements GitClient {
 
     @Override
     public int hashCode() {
-      return Objects.hash(branch, behind, ahead);
+      return HashingUtils.hash(branch, behind, ahead);
     }
 
     @Override

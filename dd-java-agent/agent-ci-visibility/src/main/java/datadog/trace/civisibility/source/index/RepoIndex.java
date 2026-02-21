@@ -21,6 +21,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import datadog.trace.util.HashingUtils;
 
 public class RepoIndex {
 
@@ -194,7 +195,7 @@ public class RepoIndex {
 
     @Override
     public int hashCode() {
-      return Objects.hash(relativePath, language);
+      return HashingUtils.hash(relativePath, language);
     }
   }
 }

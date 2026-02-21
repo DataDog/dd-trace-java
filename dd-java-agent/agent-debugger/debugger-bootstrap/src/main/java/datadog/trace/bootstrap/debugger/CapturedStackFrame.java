@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.debugger;
 
+import datadog.trace.util.HashingUtils;
+
 /** Stores information of a stacktrace's frame */
 public class CapturedStackFrame {
   private final String fileName;
@@ -49,7 +51,7 @@ public class CapturedStackFrame {
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(fileName, function, lineNumber);
+    return HashingUtils.hash(fileName, function, lineNumber);
   }
 
   @Override

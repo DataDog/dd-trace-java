@@ -1,8 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
-import static java.lang.String.format;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
@@ -56,6 +54,9 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static java.lang.String.format;
+
 /** Stores definition of a log probe */
 public class LogProbe extends ProbeDefinition implements Sampled, CapturedContextProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
@@ -104,7 +105,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(str, parsedExpr);
+      return HashingUtils.hash(str, parsedExpr);
     }
 
     @Generated
@@ -204,7 +205,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
+      return HashingUtils.hash(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
     }
 
     @Generated
@@ -263,7 +264,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(snapshotsPerSecond);
+      return HashingUtils.hash(snapshotsPerSecond);
     }
 
     @Generated
@@ -1040,7 +1041,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(
+        HashingUtils.hash(
             language,
             id,
             version,

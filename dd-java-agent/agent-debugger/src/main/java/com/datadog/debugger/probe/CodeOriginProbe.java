@@ -1,9 +1,6 @@
 package com.datadog.debugger.probe;
 
-import static datadog.trace.api.DDTags.*;
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.CodeOriginInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
@@ -21,6 +18,10 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static datadog.trace.api.DDTags.*;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 
 public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
@@ -112,7 +113,7 @@ public class CodeOriginProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, version, tagMap, where, evaluateAt, entrySpanProbe);
+    int result = HashingUtils.hash(language, id, version, tagMap, where, evaluateAt, entrySpanProbe);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

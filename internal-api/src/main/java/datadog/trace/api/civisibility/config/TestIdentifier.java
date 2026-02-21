@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.config;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
+import datadog.trace.util.HashingUtils;
 
 /** Uniquely identifies a test case with FQN and parameters. */
 public class TestIdentifier {
@@ -55,7 +56,7 @@ public class TestIdentifier {
 
   @Override
   public int hashCode() {
-    return Objects.hash(fqn, parameters);
+    return HashingUtils.hash(fqn, parameters);
   }
 
   @Override

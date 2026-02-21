@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class GetMemberExpression implements ValueExpression<Value<?>> {
   private final ValueExpression<?> target;
@@ -56,7 +57,7 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(target, memberName);
+    return HashingUtils.hash(target, memberName);
   }
 
   @Generated

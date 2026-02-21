@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class DBInfo {
   public static final DBInfo DEFAULT = new Builder().type("database").build();
@@ -256,7 +257,7 @@ public final class DBInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         type,
         subtype,
         fullPropagationSupport,

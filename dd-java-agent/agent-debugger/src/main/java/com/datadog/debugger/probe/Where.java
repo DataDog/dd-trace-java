@@ -15,6 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
+import datadog.trace.util.HashingUtils;
 
 /** Stores probe location definition */
 public class Where {
@@ -279,7 +280,7 @@ public class Where {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(typeName, methodName, sourceFile, signature);
+    int result = HashingUtils.hash(typeName, methodName, sourceFile, signature);
     result = 31 * result + Arrays.hashCode(lines);
     return result;
   }
@@ -341,7 +342,7 @@ public class Where {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(from, till);
+      return HashingUtils.hash(from, till);
     }
   }
 

@@ -3,6 +3,7 @@ package com.datadog.debugger.instrumentation;
 import com.datadog.debugger.agent.Generated;
 import java.time.Instant;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Stores status information of a probe and instrumentation result */
 public final class DiagnosticMessage {
@@ -79,6 +80,6 @@ public final class DiagnosticMessage {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(timestamp, kind, message, throwable);
+    return HashingUtils.hash(timestamp, kind, message, throwable);
   }
 }
