@@ -17,7 +17,7 @@
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
-            <version>3.6.11</version>
+            <version>3.6.18</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -29,17 +29,17 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.11</version>
+            <version>1.5.28</version>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
-            <version>1.43.0</version>
+            <version>1.59.0</version>
         </dependency>
         <dependency>
             <groupId>com.datadoghq</groupId>
             <artifactId>dd-trace-api</artifactId>
-            <version>1.42.0</version>
+            <version>1.42.2</version>
         </dependency>
     </dependencies>
     <build>
