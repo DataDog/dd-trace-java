@@ -100,6 +100,7 @@ import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
+import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
@@ -1177,14 +1178,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
-    return LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+  public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    // Get context from AppSec
+    AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
+
+    // Get context from extension
+    AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+
+    // Merge contexts
+    return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
   }
 
   @Override
   public void notifyExtensionEnd(
       AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
     LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
+  }
+
+  @Override
+  public void notifyAppSecEnd(AgentSpan span) {
+    LambdaAppSecHandler.processRequestEnd(span);
   }
 
   @Override
