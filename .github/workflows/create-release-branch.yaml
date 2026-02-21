@@ -37,7 +37,7 @@ jobs:
         id: define-release-branch
         run: |
           TAG=${{ steps.determine-tag.outputs.tag }}
-          echo "branch=release/${TAG%.0}.x" >> "$GITHUB_OUTPUT"
+          echo "branch=test/${TAG%.0}.x" >> "$GITHUB_OUTPUT" # TODO: change back to release/ branch after testing
 
       - name: Checkout dd-trace-java at tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
