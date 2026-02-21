@@ -7,31 +7,50 @@ import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDe
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
 
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 
 public class HelperMethods {
-  public static AgentScope doMethodEnter(final HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
+
+  public static AgentScope doMethodEnter(
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      final ClassicHttpRequest request) {
+    if (testAndSet(instrumentationMarker, request)) {
       return null;
     }
-
     return activateHttpSpan(request);
   }
 
-  public static AgentScope doMethodEnter(HttpHost host, HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
+  public static AgentScope doMethodEnter(
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      HttpHost host,
+      final ClassicHttpRequest request) {
+    if (testAndSet(instrumentationMarker, request)) {
       return null;
     }
-
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
+  }
+
+  // checks current value in context store,
+  // and ensures it's set to true when this method exists
+  private static boolean testAndSet(
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      final ClassicHttpRequest request) {
+    if (request == null) {
+      // we probably don't want to instrument a call with a null request ?
+      return true;
+    }
+    Boolean instrumented = instrumentationMarker.get(request);
+    if (instrumented == Boolean.TRUE) {
+      return true;
+    }
+    instrumentationMarker.put(request, Boolean.TRUE);
+    return false;
   }
 
   private static AgentScope activateHttpSpan(final HttpRequest request) {
@@ -55,8 +74,8 @@ public class HelperMethods {
     if (scope == null) {
       return;
     }
-    final AgentSpan span = scope.span();
     try {
+      final AgentSpan span = scope.span();
       if (result instanceof HttpResponse) {
         DECORATE.onResponse(span, (HttpResponse) result);
       } // else they probably provided a ResponseHandler.
@@ -64,13 +83,9 @@ public class HelperMethods {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
     } finally {
+      AgentSpan span = scope.span();
       scope.close();
       span.finish();
-      CallDepthThreadLocalMap.reset(HttpClient.class);
     }
-  }
-
-  public static void onBlockingRequest() {
-    CallDepthThreadLocalMap.reset(HttpClient.class);
   }
 }
