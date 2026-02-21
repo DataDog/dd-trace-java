@@ -3065,6 +3065,30 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_SCRUB_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_SCRUB_EXCLUDE_EVENTS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_SCRUB_FAIL_OPEN": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_SMAP_AGGREGATION_ENABLED": [
       {
         "version": "A",
