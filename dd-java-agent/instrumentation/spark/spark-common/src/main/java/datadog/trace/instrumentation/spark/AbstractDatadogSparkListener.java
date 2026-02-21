@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.AccumulableInfo;
 import org.apache.spark.scheduler.JobFailed;
 import org.apache.spark.scheduler.SparkListener;
@@ -64,6 +65,7 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -127,8 +129,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
   // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
-  // an active SQL query)
-  // so capping the size of the collection storing them
+  // an active SQL query) so capping the size of the collection storing them
+  // TODO (CY): Is this potentially the reason why some Spark Plans aren't showing up consistently?
+  // If we know we don't need the accumulator values, can we drop all associated data and just map
+  // stage ID -> accumulator ID? Put this behind some FF
   private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
       new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
 
@@ -228,6 +232,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
   protected abstract int[] getStageParentIds(StageInfo info);
+
+  /**
+   * All External Accumulators associated with a given task. Provide an implementation based on a
+   * specific scala version
+   */
+  protected abstract List<AccumulatorV2> getExternalAccumulators(TaskMetrics metrics);
 
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
@@ -670,7 +680,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
@@ -684,7 +694,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.get(stageSpanKey);
     if (stageMetric != null) {
-      stageMetric.addTaskMetrics(taskEnd);
+      // Not happy that we have to extract external accumulators here, but needed as we're dealing
+      // with Seq which varies across Scala versions
+      stageMetric.addTaskMetrics(taskEnd, getExternalAccumulators(taskEnd.taskMetrics()));
     }
 
     if (taskEnd.taskMetrics() != null) {
