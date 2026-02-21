@@ -155,7 +155,7 @@ public class TagMapEntryTest {
   @ValueSource(booleans = {false, true})
   public void newBooleanEntry(boolean value) {
     test(
-        () -> TagMap.Entry.newBooleanEntry("foo", value),
+        () -> TagMap.Entry.create("foo", value),
         TagMap.Entry.BOOLEAN,
         (entry) ->
             multiCheck(
@@ -498,6 +498,21 @@ public class TagMapEntryTest {
 
   @ParameterizedTest
   @DisplayName("newDoubleEntry: double")
+  @ValueSource(
+      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  public void doubleEntry_via_create(double value) {
+    test(
+        () -> TagMap.Entry.create("foo", value),
+        TagMap.Entry.DOUBLE,
+        (entry) ->
+            multiCheck(
+                checkKey("foo", entry),
+                checkValue(value, entry),
+                checkIsNumericPrimitive(entry),
+                checkType(TagMap.Entry.DOUBLE, entry)));
+  }
+
+  @ParameterizedTest
   @ValueSource(
       doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
   public void doubleEntry(double value) {
