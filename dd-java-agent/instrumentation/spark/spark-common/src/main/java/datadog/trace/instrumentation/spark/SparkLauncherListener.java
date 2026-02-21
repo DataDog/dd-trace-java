@@ -35,7 +35,6 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     setLauncherConfigTags(span, launcher);
     launcherSpan = span;
 
-
     if (!shutdownHookRegistered) {
       shutdownHookRegistered = true;
       Runtime.getRuntime()

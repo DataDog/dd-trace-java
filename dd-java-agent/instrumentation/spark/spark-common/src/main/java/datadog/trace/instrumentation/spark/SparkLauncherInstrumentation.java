@@ -32,8 +32,7 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkLauncherListener",
+      packageName + ".SparkConfAllowList", packageName + ".SparkLauncherListener",
     };
   }
 
