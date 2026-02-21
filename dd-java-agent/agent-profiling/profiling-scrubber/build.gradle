@@ -1,0 +1,17 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumInstructionCoverage = 0.0
+minimumBranchCoverage = 0.0
+
+dependencies {
+  api libs.slf4j
+
+  implementation(libs.jafar.tools) {
+    // Agent has its own slf4j binding
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+  }
+
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation libs.bundles.jmc
+}
