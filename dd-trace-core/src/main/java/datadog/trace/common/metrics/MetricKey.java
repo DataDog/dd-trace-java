@@ -5,11 +5,13 @@ import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
+  private final UTF8BytesString serviceSource;
   private final UTF8BytesString operationName;
   private final UTF8BytesString type;
   private final int httpStatusCode;
@@ -21,35 +23,11 @@ public final class MetricKey {
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
 
-  // Constructor without httpMethod and httpEndpoint for backward compatibility
   public MetricKey(
       CharSequence resource,
       CharSequence service,
       CharSequence operationName,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetics,
-      boolean isTraceRoot,
-      CharSequence spanKind,
-      List<UTF8BytesString> peerTags) {
-    this(
-        resource,
-        service,
-        operationName,
-        type,
-        httpStatusCode,
-        synthetics,
-        isTraceRoot,
-        spanKind,
-        peerTags,
-        null,
-        null);
-  }
-
-  public MetricKey(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
+      CharSequence serviceSource,
       CharSequence type,
       int httpStatusCode,
       boolean synthetics,
@@ -60,6 +38,7 @@ public final class MetricKey {
       CharSequence httpEndpoint) {
     this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
     this.service = null == service ? EMPTY : UTF8BytesString.create(service);
+    this.serviceSource = null == serviceSource ? null : UTF8BytesString.create(serviceSource);
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
     this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
@@ -79,18 +58,34 @@ public final class MetricKey {
 
     // Only include httpMethod and httpEndpoint in hash if they are not null
     // This ensures backward compatibility when the feature is disabled
-    this.hash =
-        -196_513_505 * Boolean.hashCode(this.isTraceRoot)
-            + -1_807_454_463 * this.spanKind.hashCode()
-            + 887_503_681 * this.peerTags.hashCode()
-            + (this.httpMethod != null ? 28_629_151 * this.httpMethod.hashCode() : 0)
-            + (this.httpEndpoint != null ? 923_521 * this.httpEndpoint.hashCode() : 0)
-            + 29_791 * this.resource.hashCode()
-            + 961 * this.service.hashCode()
-            + 31 * this.operationName.hashCode()
-            + this.type.hashCode()
-            + 31 * httpStatusCode
-            + (this.synthetics ? 1 : 0);
+
+    // Note: all the multiplication got constant folded at compile time (see javap -verbose ...)
+    int tmpHash =
+        (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31) * Boolean.hashCode(this.isTraceRoot) // 8
+            + (int) (31L * 31 * 31 * 31 * 31 * 31 * 31) * this.spanKind.hashCode() // 7
+            + 31 * 31 * 31 * 31 * 31 * 31 * this.peerTags.hashCode() // 6
+            + 31 * 31 * 31 * 31 * 31 * this.resource.hashCode() // 5
+            + 31 * 31 * 31 * 31 * this.service.hashCode() // 4
+            + 31 * 31 * 31 * this.operationName.hashCode() // 3
+            + 31 * 31 * this.type.hashCode() // 2
+            + 31 * this.httpStatusCode // 1
+            + (this.synthetics ? 1 : 0); // 0
+    // optional fields
+    if (this.serviceSource != null) {
+      tmpHash +=
+          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31) * this.serviceSource.hashCode(); // 9
+    }
+    if (this.httpEndpoint != null) {
+      tmpHash +=
+          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31)
+              * this.httpEndpoint.hashCode(); // 10
+    }
+    if (this.httpMethod != null) {
+      tmpHash +=
+          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31)
+              * this.httpMethod.hashCode(); // 11
+    }
+    this.hash = tmpHash;
   }
 
   public UTF8BytesString getResource() {
@@ -99,6 +94,10 @@ public final class MetricKey {
 
   public UTF8BytesString getService() {
     return service;
+  }
+
+  public UTF8BytesString getServiceSource() {
+    return serviceSource;
   }
 
   public UTF8BytesString getOperationName() {
@@ -144,29 +143,19 @@ public final class MetricKey {
     }
     if ((o instanceof MetricKey)) {
       MetricKey metricKey = (MetricKey) o;
-      boolean basicEquals =
-          hash == metricKey.hash
-              && synthetics == metricKey.synthetics
-              && httpStatusCode == metricKey.httpStatusCode
-              && resource.equals(metricKey.resource)
-              && service.equals(metricKey.service)
-              && operationName.equals(metricKey.operationName)
-              && type.equals(metricKey.type)
-              && isTraceRoot == metricKey.isTraceRoot
-              && spanKind.equals(metricKey.spanKind)
-              && peerTags.equals(metricKey.peerTags);
-
-      // Only compare httpMethod and httpEndpoint if at least one of them is not null
-      // This ensures backward compatibility when the feature is disabled
-      boolean thisHasEndpoint = httpMethod != null || httpEndpoint != null;
-      boolean otherHasEndpoint = metricKey.httpMethod != null || metricKey.httpEndpoint != null;
-
-      if (thisHasEndpoint || otherHasEndpoint) {
-        return basicEquals
-            && java.util.Objects.equals(httpMethod, metricKey.httpMethod)
-            && java.util.Objects.equals(httpEndpoint, metricKey.httpEndpoint);
-      }
-      return basicEquals;
+      return hash == metricKey.hash
+          && synthetics == metricKey.synthetics
+          && httpStatusCode == metricKey.httpStatusCode
+          && resource.equals(metricKey.resource)
+          && service.equals(metricKey.service)
+          && operationName.equals(metricKey.operationName)
+          && type.equals(metricKey.type)
+          && isTraceRoot == metricKey.isTraceRoot
+          && spanKind.equals(metricKey.spanKind)
+          && peerTags.equals(metricKey.peerTags)
+          && Objects.equals(serviceSource, metricKey.serviceSource)
+          && Objects.equals(httpMethod, metricKey.httpMethod)
+          && Objects.equals(httpEndpoint, metricKey.httpEndpoint);
     }
     return false;
   }

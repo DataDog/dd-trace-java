@@ -37,6 +37,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
+  private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
@@ -109,7 +110,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     // Calculate dynamic map size based on optional fields
     final boolean hasHttpMethod = key.getHttpMethod() != null;
     final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
-    final int mapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+    final boolean hasServiceSource = key.getServiceSource() != null;
+    final int mapSize =
+        15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -145,6 +148,10 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(peerTag);
     }
 
+    if (hasServiceSource) {
+      writer.writeUTF8(SERVICE_SOURCE);
+      writer.writeUTF8(key.getServiceSource());
+    }
     // Only include HTTPMethod if present
     if (hasHttpMethod) {
       writer.writeUTF8(HTTP_METHOD);
