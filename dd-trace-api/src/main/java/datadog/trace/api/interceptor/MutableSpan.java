@@ -59,6 +59,8 @@ public interface MutableSpan {
 
   MutableSpan setMetric(final CharSequence metric, final long value);
 
+  MutableSpan setMetric(final CharSequence metric, final float value);
+
   MutableSpan setMetric(final CharSequence metric, final double value);
 
   boolean isError();
