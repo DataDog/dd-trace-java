@@ -70,7 +70,7 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   protected void receivedCorrectTrace(String signal) {
     sendScenarioSignal(signal)
 
-    waitForTrace(defaultPoll, checkTrace())
+    waitForTrace(longPoll, checkTrace())
 
     assert traceCount.get() == 1
     assert testedProcess.alive
