@@ -139,7 +139,7 @@ public class ASMHelper {
   }
 
   public static boolean isRecord(ClassNode classNode) {
-    return (classNode.access & Opcodes.ACC_RECORD) > 0;
+    return (classNode.access & Opcodes.ACC_RECORD) != 0;
   }
 
   public static void invokeStatic(
