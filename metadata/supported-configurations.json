@@ -3753,6 +3753,14 @@
         "aliases": []
       }
     ],
+    "DD_TELEMETRY_JMX_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TELEMETRY_LOG_COLLECTION_ENABLED": [
       {
         "version": "A",
