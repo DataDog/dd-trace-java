@@ -3,12 +3,17 @@ package datadog.trace.core;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LongRunningTracesTracker {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LongRunningTracesTracker.class);
+
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private long lastFlushMilli = 0;
@@ -21,6 +26,7 @@ public class LongRunningTracesTracker {
   private int dropped = 0;
   private int write = 0;
   private int expired = 0;
+  private int droppedSampling = 0;
 
   public static final int NOT_TRACKED = -1;
   public static final int UNDEFINED = 0;
@@ -41,6 +47,16 @@ public class LongRunningTracesTracker {
         (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
+
+    if (!features.supportsLongRunning()) {
+      LOGGER.warn(
+          "Long running trace tracking is enabled via {}, however the Datadog Agent version {} does not support receiving long running traces. "
+              + "Long running traces will be tracked locally in memory (up to {} traces) but will NOT be sent to the agent. "
+              + "Long running traces are included in tracer flares.",
+          "dd." + TracerConfig.TRACE_LONG_RUNNING_ENABLED,
+          features.getVersion() != null ? features.getVersion() : "unknown",
+          maxTrackedTraces);
+    }
   }
 
   public boolean add(PendingTraceBuffer.Element element) {
@@ -78,7 +94,7 @@ public class LongRunningTracesTracker {
         cleanSlot(i);
         continue;
       }
-      if (trace.empty() || !features.supportsLongRunning()) {
+      if (trace.empty()) {
         trace.compareAndSetLongRunningState(WRITE_RUNNING_SPANS, NOT_TRACKED);
         cleanSlot(i);
         continue;
@@ -92,12 +108,15 @@ public class LongRunningTracesTracker {
       if (shouldFlush(nowMilli, trace)) {
         if (negativeOrNullPriority(trace)) {
           trace.compareAndSetLongRunningState(TRACKED, NOT_TRACKED);
+          droppedSampling++;
           cleanSlot(i);
           continue;
         }
-        trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
-        write++;
-        trace.write();
+        if (features.supportsLongRunning()) {
+          trace.compareAndSetLongRunningState(TRACKED, WRITE_RUNNING_SPANS);
+          write++;
+          trace.write();
+        }
       }
       i++;
     }
@@ -134,9 +153,10 @@ public class LongRunningTracesTracker {
   }
 
   private void flushStats() {
-    healthMetrics.onLongRunningUpdate(dropped, write, expired);
+    healthMetrics.onLongRunningUpdate(dropped, write, expired, droppedSampling);
     dropped = 0;
     write = 0;
     expired = 0;
+    droppedSampling = 0;
   }
 }

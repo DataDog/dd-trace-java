@@ -40,7 +40,7 @@ This can manifest when creating mocks.
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
-  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, Mock(Config), null, null)
+  def buffer = PendingTraceBuffer.delaying(SystemTimeSource.INSTANCE, Mock(Config), null, HealthMetrics.NO_OP)
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
