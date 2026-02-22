@@ -52,7 +52,11 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
         RUNNABLE,
         Arrays.asList(
             "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
-            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable",
+            // VirtualThread context must be activated on mount/unmount, not on Runnable.run().
+            // If Runnable instrumentation also activates it, the scope can attach to carrier
+            // threads and fight with the dedicated virtual-thread instrumentation.
+            "java.lang.VirtualThread"));
     map.put(
         EXECUTOR,
         Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor"));
