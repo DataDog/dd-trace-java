@@ -1,5 +1,7 @@
 package datadog.smoketest.concurrent
 
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import datadog.smoketest.AbstractSmokeTest
 import datadog.trace.test.agent.decoder.DecodedTrace
 
@@ -9,7 +11,6 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   protected static final int TIMEOUT_SECS = 10
-  protected abstract List<String> getTestArguments()
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -19,7 +20,6 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.trace.otel.enabled=true")
     command.addAll(["-jar", jarPath])
-    command.addAll(getTestArguments())
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -28,6 +28,11 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   @Override
   Closure decodedTracesCallback() {
     return {} // force traces decoding
+  }
+
+  protected void sendScenarioSignal(String signal) {
+    testedProcess.outputStream.write((signal + System.lineSeparator()).getBytes(UTF_8))
+    testedProcess.outputStream.flush()
   }
 
   protected static Function<DecodedTrace, Boolean> checkTrace() {
@@ -66,8 +71,16 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
 
   protected void receivedCorrectTrace() {
     waitForTrace(defaultPoll, checkTrace())
-    assert traceCount.get() == 1
-    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
-    assert testedProcess.exitValue() == 0
+    assert traceCount.get() >= 1
+    assert testedProcess.alive
+  }
+
+  def cleanupSpec() {
+    if (testedProcess?.alive) {
+      sendScenarioSignal("exit")
+
+      assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+      assert testedProcess.exitValue() == 0
+    }
   }
 }
