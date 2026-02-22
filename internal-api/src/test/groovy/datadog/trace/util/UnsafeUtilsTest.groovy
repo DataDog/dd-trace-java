@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class UnsafeUtilsTest extends Specification {
 
-  def "test try shallow clone"() {
+  def "test try shallow clone does not clone final fields"() {
     given:
     def inner = new MyClass("a", false, [], "b", 2, null, null)
     def instance = new MyClass("aaa", true, [ 4, 5, 6, ], "ddd", 1, new int[] {
@@ -16,13 +16,27 @@ class UnsafeUtilsTest extends Specification {
 
     then:
     clone !== instance
-    clone.a === instance.a
-    clone.b == instance.b
-    clone.c === instance.c
-    clone.d === instance.d
-    clone.e == instance.e
-    clone.f === instance.f
-    clone.g === instance.g
+    clone.a == null
+    clone.b == false
+    clone.c == null
+    clone.d == null
+    clone.e == 0
+    clone.f == null
+    clone.g == null
+  }
+
+  def "test try shallow clone clones non-final fields"() {
+    given:
+    def instance = new MyNonFinalClass("a", 1, [2, 3, 4])
+
+    when:
+    def clone = UnsafeUtils.tryShallowClone(instance)
+
+    then:
+    clone !== instance
+    clone.h == instance.h
+    clone.j == instance.j
+    clone.k === instance.k
   }
 
   private static class MyParentClass {
@@ -63,6 +77,18 @@ class UnsafeUtilsTest extends Specification {
       this.e = e
       this.f = f
       this.g = g
+    }
+  }
+
+  private static class MyNonFinalClass {
+    private String h
+    private int j
+    private List<Integer> k
+
+    MyNonFinalClass(String h, int j, List<Integer> k) {
+      this.h = h
+      this.j = j
+      this.k = k
     }
   }
 }
