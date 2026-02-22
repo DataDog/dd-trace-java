@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.java.concurrent.virtualthread;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -15,7 +15,10 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.Advice.OnMethodEnter;
 import net.bytebuddy.asm.Advice.OnMethodExit;
@@ -44,7 +47,12 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextT
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.lang.Runnable", State.class.getName());
+    Map<String, String> stores = new HashMap<>(2);
+    stores.put("java.lang.Runnable", State.class.getName());
+    // Also declare the RunnableFuture store so Construct can cancel the FutureTask
+    // continuation that RunnableFutureInstrumentation captured at construction time.
+    stores.put("java.util.concurrent.RunnableFuture", State.class.getName());
+    return Collections.unmodifiableMap(stores);
   }
 
   @Override
@@ -55,8 +63,19 @@ public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextT
 
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
-    public static void captureScope(@Advice.This Runnable task) {
+    public static void captureScope(
+        @Advice.This Runnable task, @Advice.FieldValue("task") Runnable innerTask) {
       capture(InstrumentationContext.get(Runnable.class, State.class), task);
+      // When the wrapped task is a RunnableFuture (e.g. FutureTask created by
+      // AbstractExecutorService.submit(Runnable)), RunnableFutureInstrumentation
+      // already captured a continuation for it.  Since TaskRunnerInstrumentation owns
+      // context propagation on this executor, cancel that continuation immediately to
+      // avoid double-scoping and excess pendingReferenceCount churn under load.
+      if (innerTask instanceof RunnableFuture) {
+        cancelTask(
+            InstrumentationContext.get(RunnableFuture.class, State.class),
+            (RunnableFuture<?>) innerTask);
+      }
     }
   }
 
