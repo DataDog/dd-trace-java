@@ -393,6 +393,7 @@ import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_COLLEC
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.config.GeneralConfig.TELEMETRY_JMX_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_LOG_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_METRICS_INTERVAL;
@@ -1251,6 +1252,7 @@ public class Config {
   private final boolean isTelemetryDependencyServiceEnabled;
   private final boolean telemetryMetricsEnabled;
   private final boolean isTelemetryLogCollectionEnabled;
+  private final boolean isTelemetryJmxEnabled;
   private final int telemetryDependencyResolutionQueueSize;
 
   private final boolean azureAppServices;
@@ -2194,6 +2196,8 @@ public class Config {
         instrumenterConfig.isTelemetryEnabled()
             && configProvider.getBoolean(
                 TELEMETRY_LOG_COLLECTION_ENABLED, DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED);
+
+    isTelemetryJmxEnabled = configProvider.getBoolean(TELEMETRY_JMX_ENABLED, false);
 
     isTelemetryDependencyServiceEnabled =
         configProvider.getBoolean(
@@ -3778,6 +3782,10 @@ public class Config {
 
   public boolean isTelemetryLogCollectionEnabled() {
     return isTelemetryLogCollectionEnabled;
+  }
+
+  public boolean isTelemetryJmxEnabled() {
+    return isTelemetryJmxEnabled;
   }
 
   public int getTelemetryDependencyResolutionQueueSize() {
