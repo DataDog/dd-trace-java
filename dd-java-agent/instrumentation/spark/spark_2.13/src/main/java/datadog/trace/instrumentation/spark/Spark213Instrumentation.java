@@ -32,6 +32,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".RemoveEldestHashMap",
       packageName + ".SparkAggregatedTaskMetrics",
       packageName + ".SparkConfAllowList",
+      packageName + ".SparkLauncherListener",
       packageName + ".SparkSQLUtils",
       packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
       packageName + ".SparkSQLUtils$AccumulatorWithStage",
