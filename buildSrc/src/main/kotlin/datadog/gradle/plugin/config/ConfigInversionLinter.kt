@@ -23,12 +23,14 @@ class ConfigInversionLinter : Plugin<Project> {
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
     registerCheckConfigStringsTask(target, extension)
+    verifyAliasKeysAreSupported(target, extension)
   }
 }
 
 // Data class for fields from generated class
 private data class LoadedConfigFields(
   val supported: Set<String>,
+  val aliases: Map<String, List<String>> = emptyMap(),
   val aliasMapping: Map<String, String> = emptyMap()
 )
 
@@ -54,8 +56,12 @@ private fun loadConfigFields(
       }
 
       @Suppress("UNCHECKED_CAST")
+      val aliases = clazz.getField("ALIASES").get(null) as Map<String, List<String>>
+
+      @Suppress("UNCHECKED_CAST")
       val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-      LoadedConfigFields(supportedSet, aliasMappingMap)
+
+      LoadedConfigFields(supportedSet, aliases, aliasMappingMap)
     }.also { cachedConfigFields = it }
   }
 }
@@ -244,6 +250,47 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
       } else {
         logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
+      }
+    }
+  }
+}
+
+
+/** Registers `verifyAliasKeysAreSupported` to ensure all alias keys are documented as supported configurations. */
+private fun verifyAliasKeysAreSupported(project: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register("verifyAliasKeysAreSupported") {
+    group = "verification"
+    description =
+      "Verifies that all alias keys in `metadata/supported-configurations.json` are also documented as supported configurations."
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+    inputs.files(mainSourceSetOutput)
+
+    doLast {
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+      val supported = configFields.supported
+      val aliases = configFields.aliases.keys
+
+      val unsupportedAliasKeys = aliases - supported
+      val violations = buildList {
+        unsupportedAliasKeys.forEach { key ->
+          add("$key is listed as an alias key but is not documented as a supported configuration in the `supportedConfigurations` key")
+        }
+      }
+      if (violations.isNotEmpty()) {
+        logger.error("\nFound alias keys not documented as supported configurations:")
+        violations.forEach { logger.lifecycle(it) }
+        throw GradleException("Undocumented alias keys found. Please add the above keys to the `supportedConfigurations` in '${extension.jsonFile.get()}'.")
+      } else {
+        logger.info("All alias keys are documented as supported configurations.")
       }
     }
   }
