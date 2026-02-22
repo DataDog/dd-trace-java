@@ -18,7 +18,11 @@ public final class SourceCompiler {
   }
 
   public static Map<String, byte[]> compile(
-      String className, String source, DebugInfo debug, String version) {
+      String className,
+      String source,
+      DebugInfo debug,
+      String version,
+      List<String> additionalOptions) {
     JavaCompiler jc = ToolProvider.getSystemJavaCompiler();
     if (jc == null) throw new RuntimeException("Compiler unavailable");
 
@@ -26,7 +30,7 @@ public final class SourceCompiler {
 
     Iterable<? extends JavaFileObject> fileObjects = Collections.singletonList(jsfs);
 
-    List<String> options = new ArrayList<>();
+    List<String> options = new ArrayList<>(additionalOptions);
     switch (debug) {
       case ALL:
         {

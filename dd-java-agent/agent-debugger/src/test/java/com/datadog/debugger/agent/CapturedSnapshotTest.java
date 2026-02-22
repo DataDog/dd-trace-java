@@ -44,6 +44,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -64,6 +65,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -598,6 +600,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  @EnabledForJreRange(min = JRE.JAVA_21)
   public void sourceFileProbeScala() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot101";
     final String FILE_NAME = CLASS_NAME + SCALA_EXT;
@@ -2946,6 +2949,74 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
     CapturedContext.CapturedValue fldValue = fields.get("fld");
     assertEquals("depth", fldValue.getNotCapturedReason());
+  }
+
+  @Test
+  public void methodParametersAttribute() throws Exception {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    Config config = mock(Config.class);
+    when(config.isDebuggerCodeOriginEnabled()).thenReturn(false);
+    when(config.isDebuggerExceptionEnabled()).thenReturn(false);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(false);
+    Instrumentation inst = mock(Instrumentation.class);
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 introduced Spring6 class
+      Class<?> springClass =
+          Class.forName(
+              "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {springClass});
+    } else {
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+    }
+    DebuggerAgent.run(config, inst, null);
+    TestSnapshotListener listener =
+        installMethodProbeAtExit(CLASS_NAME, "main", "int (java.lang.String)");
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 with Spring6 class, transformation cannot happen
+      assertEquals(0, listener.snapshots.size());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals(
+          "Instrumentation failed for CapturedSnapshot01: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          strCaptor.getAllValues().get(0));
+    } else {
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureArgs(snapshot.getCaptures().getReturn(), "arg", String.class.getTypeName(), "1");
+    }
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void methodParametersAttributeRecord() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    TestSnapshotListener listener = installMethodProbeAtExit(RECORD_NAME, "<init>", null);
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(42, result);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+      Snapshot snapshot = assertOneSnapshot(listener);
+      assertCaptureArgs(
+          snapshot.getCaptures().getReturn(), "firstName", String.class.getTypeName(), "john");
+    } else {
+      assertEquals(0, listener.snapshots.size());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals(
+          "Instrumentation failed for com.datadog.debugger.MyRecord1: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          strCaptor.getAllValues().get(0));
+    }
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(

@@ -208,6 +208,10 @@ public class DebuggerSink {
     probeStatusSink.addBlocked(probeId);
   }
 
+  public void addError(ProbeId probeId, String msg) {
+    probeStatusSink.addError(probeId, msg);
+  }
+
   public void removeDiagnostics(ProbeId probeId) {
     probeStatusSink.removeDiagnostics(probeId);
   }
