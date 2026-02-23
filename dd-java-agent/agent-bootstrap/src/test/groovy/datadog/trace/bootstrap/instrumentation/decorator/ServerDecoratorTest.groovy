@@ -23,13 +23,15 @@ class ServerDecoratorTest extends BaseDecoratorTest {
 
     then:
     1 * span.setTag(TagMap.Entry.create(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE))
-    1 * span.setTag(COMPONENT, "test-component")
+    1 * span.setTag(TagMap.Entry.create(COMPONENT, "test-component"))
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(TagMap.Entry.create(SPAN_KIND, "server"))
     1 * span.setSpanType(decorator.spanType())
     if (decorator.traceAnalyticsEnabled) {
-      1 * span.setMetric(ANALYTICS_SAMPLE_RATE, 1.0)
+      1 * span.setMetric(TagMap.Entry.create(ANALYTICS_SAMPLE_RATE, 1.0))
+    } else {
+      1 * span.setMetric(null)
     }
     0 * _
   }
