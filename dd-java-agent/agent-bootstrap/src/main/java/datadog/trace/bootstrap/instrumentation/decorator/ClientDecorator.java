@@ -12,6 +12,14 @@ public abstract class ClientDecorator extends BaseDecorator {
 
   /** Caches span kind entry to reduce allocation */
   private final TagMap.Entry spanKindEntry() {
+    // DQH - I considered moving the creation of the TagMap.Entry into a ClientDecorator
+    // constructor, but that introduces a subtle ordering requirement.
+
+    // If the spanKind method refers to a static that isn't yet initialized,
+    // then spanKind will return null when the Decorator singleton is being constructed.
+
+    // Such an ordering problem did occur with similar changes in BaseDecorator, so I've
+    // decided to be cautious here, too.
     TagMap.Entry kindEntry = cachedSpanKindEntry;
     if (kindEntry == null) {
       cachedSpanKindEntry = kindEntry = TagMap.Entry.create(Tags.SPAN_KIND, spanKind());
