@@ -39,6 +39,7 @@ public final class HttpUtils {
   public static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String DATADOG_ENTITY_ID = "Datadog-Entity-ID";
   public static final String DATADOG_CONTAINER_TAGS_HASH = "Datadog-Container-Tags-Hash";
+  public static final String APPLICATION_MSGPACK = "application/msgpack";
 
   private static final String DD_API_KEY = "DD-API-KEY";
 
@@ -174,8 +175,8 @@ public final class HttpUtils {
 
   /**
    * Creates a msgpack request body from a list of ByteBuffers. Equivalent to {@code of(buffers)}
-   * but semantically indicates msgpack content. Content-Type header should be set to
-   * "application/msgpack" separately.
+   * but semantically indicates msgpack content. Content-Type header should be set to {@link
+   * #APPLICATION_MSGPACK} separately.
    *
    * @param buffers the msgpack content as ByteBuffers
    * @return a new HttpRequestBody

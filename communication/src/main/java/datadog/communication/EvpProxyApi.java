@@ -73,8 +73,7 @@ public class EvpProxyApi implements BackendApi {
             .addHeader(CONTENT_TYPE, contentType);
 
     if (requestListener != null) {
-      // TODO: Add support for event listeners in abstract API
-      // requestBuilder.tag(HttpUtils.CustomListener.class, requestListener);
+      requestBuilder.listener(requestListener);
     }
 
     if (requestCompression) {
