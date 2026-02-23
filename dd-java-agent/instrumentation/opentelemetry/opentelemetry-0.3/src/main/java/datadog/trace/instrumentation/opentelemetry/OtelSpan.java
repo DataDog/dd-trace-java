@@ -5,6 +5,7 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentelemetry.common.AttributeValue;
 import io.opentelemetry.trace.EndSpanOptions;
 import io.opentelemetry.trace.Event;
@@ -145,6 +146,7 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   }
 
   @Override
+  @SuppressForbidden
   public MutableSpan setServiceName(final String serviceName) {
     return delegate.setServiceName(serviceName);
   }

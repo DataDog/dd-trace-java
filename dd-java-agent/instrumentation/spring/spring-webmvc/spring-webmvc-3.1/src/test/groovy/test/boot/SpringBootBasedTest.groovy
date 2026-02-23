@@ -536,6 +536,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "runtime-id" String
             "thread.id" Number
             "thread.name" String
+            serviceNameSource "inferred_proxy"
           }
         }
         // Server span should be a child of the inferred proxy span

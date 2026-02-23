@@ -34,6 +34,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -249,8 +250,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void updatePreferredServiceName(String serviceName) {
-    dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+  public void updatePreferredServiceName(String serviceName, CharSequence source) {
+    dynamicConfig.current().setPreferredServiceNameAndSource(serviceName, source).apply();
     ServiceNameCollector.get().addService(serviceName);
   }
 
@@ -1867,6 +1868,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
 
       String parentServiceName = null;
+      CharSequence parentserviceNameSource = null;
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
@@ -1884,6 +1886,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         rootSpanTags = null;
         rootSpanTagsNeedsIntercept = false;
         parentServiceName = ddsc.getServiceName();
+        parentserviceNameSource = ddsc.getServiceNameSource();
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
@@ -1980,7 +1983,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
       }
       if (serviceName == null) {
-        serviceName = traceConfig.getPreferredServiceName();
+        final Pair<String, CharSequence> serviceNameAndSource =
+            traceConfig.getPreferredServiceNameAndSource();
+        ;
+        if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
+          serviceName = serviceNameAndSource.getLeft();
+          parentserviceNameSource = serviceNameAndSource.getRight();
+        }
       }
       Map<String, Object> contextualTags = null;
       if (parentServiceName == null) {
@@ -1992,6 +2001,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           // We can try to see if we can find one from the thread context classloader
           if (serviceName == null) {
             serviceName = contextualInfo.getServiceName();
+            if (serviceName != null) {
+              parentserviceNameSource = contextualInfo.getServiceNameSource();
+            }
           }
           contextualTags = contextualInfo.getTags();
         }
@@ -2033,6 +2045,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               spanId,
               parentSpanId,
               parentServiceName,
+              parentserviceNameSource,
               serviceName,
               operationName,
               resourceName,

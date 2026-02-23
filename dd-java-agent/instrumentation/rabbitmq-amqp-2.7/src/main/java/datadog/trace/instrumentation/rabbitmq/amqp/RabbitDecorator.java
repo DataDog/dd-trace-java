@@ -159,7 +159,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public void onTimeInQueue(final AgentSpan span, final String queue, final byte[] body) {
     String normalizedQueueName = normalizeQueueName(queue);
     if (Config.get().isMessageBrokerSplitByDestination()) {
-      span.setServiceName(normalizedQueueName);
+      span.setServiceName(normalizedQueueName, component());
     }
     span.setResourceName("amqp.deliver " + normalizedQueueName);
     if (null != body) {

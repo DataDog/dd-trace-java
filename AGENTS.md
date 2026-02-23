@@ -7,26 +7,20 @@ It ships ~120 integrations (~200 instrumentations) for tracing, profiling, AppSe
 
 ## Project layout
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed module descriptions.
+
 ```
-dd-java-agent/            Main agent
-  instrumentation/        All auto-instrumentations (one dir per framework)
-  agent-bootstrap/        Bootstrap classloader classes
-  agent-builder/          Agent build & bytecode weaving
-  agent-tooling/          Shared tooling for instrumentations
-  agent-{product}/        Product-specific modules (ci-visibility, iast, profiling, debugger, llmobs, aiguard, ...)
-  appsec/                 Application Security (WAF, threat detection)
+dd-java-agent/            Main agent (shadow jar, instrumentations, product modules)
 dd-trace-api/             Public API & configuration constants
 dd-trace-core/            Core tracing engine (spans, propagation, writer)
-dd-trace-ot/              OpenTracing compatibility layer
+dd-trace-ot/              Legacy OpenTracing compatibility library
 internal-api/             Internal shared API across modules
+components/               Shared low-level components (context, environment, json)
 products/                 Sub-products (feature flagging, metrics)
 communication/            HTTP transport to Datadog Agent
-components/               Shared low-level components
 remote-config/            Remote configuration support
 telemetry/                Agent telemetry
 utils/                    Shared utility modules (config, time, socket, test, etc.)
-metadata/                 Supported configurations metadata & requirements
-benchmark/                Performance benchmarks
 dd-smoke-tests/           Smoke tests (real apps + agent)
 docs/                     Developer documentation (see below)
 ```
@@ -35,6 +29,7 @@ docs/                     Developer documentation (see below)
 
 | Topic | File |
 |---|---|
+| Architecture & design | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Building from source | [BUILDING.md](BUILDING.md) |
 | Contributing & PR guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | How instrumentations work | [docs/how_instrumentations_work.md](docs/how_instrumentations_work.md) |

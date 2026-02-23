@@ -20,8 +20,10 @@ import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
 @AutoService(InstrumenterModule.class)
 public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private static final String TOMCAT = "tomcat";
+
   public WebappClassLoaderInstrumentation() {
-    super("tomcat", "tomcat-classloading");
+    super(TOMCAT, "tomcat-classloading");
   }
 
   @Override
@@ -49,7 +51,9 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
 
       final String contextName = context.getBaseName();
       if (contextName != null && !contextName.isEmpty()) {
-        info = ClassloaderConfigurationOverrides.withPinnedServiceName(classLoader, contextName);
+        info =
+            ClassloaderConfigurationOverrides.withPinnedServiceName(
+                classLoader, contextName, TOMCAT);
       }
       if (context.getNamingResources() != null) {
         final ContextEnvironment[] envs = context.getNamingResources().findEnvironments();
