@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.JEE_SPLIT_BY_DEPLOYMENT;
+
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -28,10 +30,10 @@ public class ClassloaderConfigurationOverrides {
 
   public static class ContextualInfo {
     private final String serviceName;
-    private final String serviceNameSource;
+    private final CharSequence serviceNameSource;
     private final Map<String, Object> tags = new HashMap<>();
 
-    public ContextualInfo(String serviceName, String source) {
+    public ContextualInfo(String serviceName, CharSequence source) {
       this.serviceName = serviceName;
       this.serviceNameSource = source;
     }
@@ -40,7 +42,7 @@ public class ClassloaderConfigurationOverrides {
       return serviceName;
     }
 
-    public String getServiceNameSource() {
+    public CharSequence getServiceNameSource() {
       return serviceNameSource;
     }
 
@@ -88,12 +90,11 @@ public class ClassloaderConfigurationOverrides {
   }
 
   @Nullable
-  public static ContextualInfo withPinnedServiceName(
-      ClassLoader classLoader, String serviceName, String serviceNameSource) {
+  public static ContextualInfo withPinnedServiceName(ClassLoader classLoader, String serviceName) {
     if (!CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT) {
       return null;
     }
-    final ContextualInfo contextualInfo = new ContextualInfo(serviceName, serviceNameSource);
+    final ContextualInfo contextualInfo = new ContextualInfo(serviceName, JEE_SPLIT_BY_DEPLOYMENT);
     addContextualInfo(classLoader, contextualInfo);
     return contextualInfo;
   }
