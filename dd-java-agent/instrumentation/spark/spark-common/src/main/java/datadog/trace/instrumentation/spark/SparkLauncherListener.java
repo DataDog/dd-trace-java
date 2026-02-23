@@ -11,6 +11,12 @@ import org.apache.spark.launcher.SparkAppHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Listener for SparkLauncher spans. Tracks the lifecycle of a Spark application submitted via
+ * SparkLauncher.startApplication(). Only a single launcher span can be active at a time. Subsequent
+ * calls to startApplication() from the same or different launcher instances will not create spans;
+ * only the first launch in the JVM is traced
+ */
 public class SparkLauncherListener implements SparkAppHandle.Listener {
 
   private static final Logger log = LoggerFactory.getLogger(SparkLauncherListener.class);
@@ -81,29 +87,31 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
 
   @Override
   public void stateChanged(SparkAppHandle handle) {
-    SparkAppHandle.State state = handle.getState();
-    AgentSpan span = launcherSpan;
-    if (span != null) {
-      span.setTag("spark.launcher.app_state", state.toString());
+    synchronized (SparkLauncherListener.class) {
+      SparkAppHandle.State state = handle.getState();
+      AgentSpan span = launcherSpan;
+      if (span != null) {
+        span.setTag("spark.launcher.app_state", state.toString());
 
-      String appId = handle.getAppId();
-      if (appId != null) {
-        span.setTag("spark.app_id", appId);
-        span.setTag("app_id", appId);
-      }
+        String appId = handle.getAppId();
+        if (appId != null) {
+          span.setTag("spark.app_id", appId);
+          span.setTag("app_id", appId);
+        }
 
-      if (state.isFinal()) {
-        if (state == SparkAppHandle.State.FAILED
-            || state == SparkAppHandle.State.KILLED
-            || state == SparkAppHandle.State.LOST) {
-          // Set error tags but don't finish yet — RunMainAdvice may add the throwable
-          // with the full stack trace. The span will be finished by RunMainAdvice or
-          // the shutdown hook.
-          span.setError(true);
-          span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
-          span.setTag(DDTags.ERROR_MSG, "Application " + state);
-        } else {
-          finishSpan(false, null);
+        if (state.isFinal()) {
+          if (state == SparkAppHandle.State.FAILED
+              || state == SparkAppHandle.State.KILLED
+              || state == SparkAppHandle.State.LOST) {
+            // Set error tags but don't finish yet — RunMainAdvice may add the throwable
+            // with the full stack trace. The span will be finished by RunMainAdvice or
+            // the shutdown hook.
+            span.setError(true);
+            span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
+            span.setTag(DDTags.ERROR_MSG, "Application " + state);
+          } else {
+            finishSpan(false, null);
+          }
         }
       }
     }
@@ -111,16 +119,24 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
 
   @Override
   public void infoChanged(SparkAppHandle handle) {
-    AgentSpan span = launcherSpan;
-    if (span != null) {
-      String appId = handle.getAppId();
-      if (appId != null) {
-        span.setTag("spark.app_id", appId);
-        span.setTag("app_id", appId);
+    synchronized (SparkLauncherListener.class) {
+      AgentSpan span = launcherSpan;
+      if (span != null) {
+        String appId = handle.getAppId();
+        if (appId != null) {
+          span.setTag("spark.app_id", appId);
+          span.setTag("app_id", appId);
+        }
       }
     }
   }
 
+  /**
+   * Extract launcher configuration via reflection and set as span tags. Secret redaction uses the
+   * default pattern only (not spark.redaction.regex) because the SparkLauncher conf map is a plain
+   * Map, not a SparkConf, so there is no way to read the user's custom redaction regex at this
+   * point.
+   */
   private static void setLauncherConfigTags(AgentSpan span, Object launcher) {
     try {
       Field builderField = launcher.getClass().getSuperclass().getDeclaredField("builder");
