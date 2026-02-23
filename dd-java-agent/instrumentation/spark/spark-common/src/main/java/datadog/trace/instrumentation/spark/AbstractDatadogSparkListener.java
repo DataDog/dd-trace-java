@@ -21,11 +21,15 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -276,6 +280,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
+    captureEmrStepId(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -1208,6 +1213,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+  }
+
+  private static final Pattern EMR_STEP_ID_PATTERN = Pattern.compile("^(s-[0-9A-Za-z]+)$");
+
+  private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
+    String userDir = System.getProperty("user.dir");
+    if (userDir != null) {
+      Path workDir = Paths.get(userDir).getFileName();
+      if (workDir != null) {
+        Matcher matcher = EMR_STEP_ID_PATTERN.matcher(workDir.toString());
+        if (matcher.matches()) {
+          builder.withTag("emr_step_id", matcher.group(1));
+        }
+      }
+    }
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {
