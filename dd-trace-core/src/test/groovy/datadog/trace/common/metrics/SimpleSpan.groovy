@@ -10,6 +10,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String serviceName
   private final String operationName
   private final CharSequence resourceName
+  private final CharSequence serviceNameSource
   private final String type
   private final boolean measured
   private final boolean topLevel
@@ -35,11 +36,12 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   long duration,
   int statusCode,
   boolean traceRoot = false,
-  int longRunningVersion = 0
-  ) {
+  int longRunningVersion = 0,
+  CharSequence serviceNameSource = null) {
     this.serviceName = serviceName
     this.operationName = operationName
     this.resourceName = resourceName
+    this.serviceNameSource = serviceNameSource
     this.type = type
     this.measured = measured
     this.topLevel = topLevel
@@ -59,6 +61,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   String getServiceName() {
     return serviceName
+  }
+
+  @Override
+  CharSequence getServiceNameSource() {
+    return serviceNameSource
   }
 
   @Override

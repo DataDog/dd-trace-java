@@ -48,8 +48,8 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    redissonClient.shutdown()
     lowLevelRedisClient.shutdown()
+    redissonClient.shutdown()
     redisServer.stop()
   }
 

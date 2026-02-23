@@ -8,6 +8,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -144,6 +145,10 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         METRICS_OTEL_TIMEOUT,
         getOtelProperty("otel.metric.export.timeout", "dd." + METRICS_OTEL_TIMEOUT));
+    capture(
+        METRICS_OTEL_CARDINALITY_LIMIT,
+        getOtelProperty(
+            "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
     if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {

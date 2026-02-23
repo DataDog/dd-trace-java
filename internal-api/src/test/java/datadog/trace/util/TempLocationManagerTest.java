@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.time.ControllableTimeSource;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -16,7 +19,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -25,7 +27,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -232,23 +233,33 @@ public class TempLocationManagerTest {
   void testCleanupWithTimeout(boolean shouldSucceed, String section) throws Exception {
     /*
      * Test that cleanup correctly handles timeout conditions.
-     * Uses a hook that introduces delays at specific points in the file tree walk.
+     * Uses a ControllableTimeSource for fully deterministic behavior:
+     * - Success case: time is never advanced, so timeout never occurs
+     * - Failure case: time is advanced past timeout on first matching hook call
      *
-     * Timing strategy (more generous for JDK 8 compatibility):
-     * - Base delay: 100ms (was 10ms - too tight for JDK 8 timer resolution)
-     * - Success case: 500ms timeout with 100ms delays → plenty of margin
-     * - Failure case: 20ms timeout with 100ms delays → guaranteed timeout
+     * This approach is independent of how many times hooks are invoked.
      */
-    long delayMs = 100;
+    long timeoutMs = 100;
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+
     AtomicBoolean withTimeout = new AtomicBoolean(false);
+    AtomicBoolean timeAdvanced = new AtomicBoolean(false);
     TempLocationManager.CleanupHook delayer =
         new TempLocationManager.CleanupHook() {
+          private void maybeAdvanceTime() {
+            // Only advance time once, and only for failure case
+            if (!shouldSucceed && timeAdvanced.compareAndSet(false, true)) {
+              // Advance well past the timeout
+              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(timeoutMs * 10));
+            }
+          }
+
           @Override
           public FileVisitResult preVisitDirectory(
               Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("preVisitDirectory")) {
-              waitFor(Duration.ofMillis(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
           }
@@ -258,7 +269,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFileFailed")) {
-              waitFor(Duration.ofMillis(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.visitFileFailed(file, exc, timeout);
           }
@@ -268,7 +279,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("postVisitDirectory")) {
-              waitFor(Duration.ofMillis(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
           }
@@ -278,7 +289,7 @@ public class TempLocationManagerTest {
               throws IOException {
             withTimeout.compareAndSet(false, timeout);
             if (section.equals("visitFile")) {
-              waitFor(Duration.ofMillis(delayMs));
+              maybeAdvanceTime();
             }
             return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
           }
@@ -287,16 +298,15 @@ public class TempLocationManagerTest {
         Files.createTempDirectory(
             "ddprof-test-",
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-    TempLocationManager instance = instance(baseDir, false, delayer);
+    TempLocationManager instance = instance(baseDir, false, delayer, timeSource);
     Path mytempdir = instance.getTempDir();
     Path otherTempdir = mytempdir.getParent().resolve("pid_0000");
     Files.createDirectories(otherTempdir);
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));
-    // Success: 500ms timeout (5 * 100ms) with 100ms delays → should complete
-    // Failure: 20ms timeout (0.2 * 100ms) with 100ms delays → should timeout
-    boolean rslt =
-        instance.cleanup((long) (delayMs * (shouldSucceed ? 5 : 0.2d)), TimeUnit.MILLISECONDS);
+    // Set controllable time AFTER files are created so their modification times are in the past
+    timeSource.set(TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()));
+    boolean rslt = instance.cleanup(timeoutMs, TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
     assertNotEquals(shouldSucceed, withTimeout.get()); // timeout = !shouldSucceed
   }
@@ -313,6 +323,14 @@ public class TempLocationManagerTest {
 
   private TempLocationManager instance(
       Path baseDir, boolean withStartupCleanup, TempLocationManager.CleanupHook cleanupHook) {
+    return instance(baseDir, withStartupCleanup, cleanupHook, SystemTimeSource.INSTANCE);
+  }
+
+  private TempLocationManager instance(
+      Path baseDir,
+      boolean withStartupCleanup,
+      TempLocationManager.CleanupHook cleanupHook,
+      TimeSource timeSource) {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, baseDir.toString());
     props.put(
@@ -320,16 +338,6 @@ public class TempLocationManagerTest {
         "0"); // to force immediate cleanup; must be a string value!
 
     return new TempLocationManager(
-        ConfigProvider.withPropertiesOverride(props), withStartupCleanup, cleanupHook);
-  }
-
-  private void waitFor(Duration timeout) {
-    long target = System.nanoTime() + timeout.toNanos();
-    while (System.nanoTime() < target) {
-      long toSleep = target - System.nanoTime();
-      if (toSleep > 0) {
-        LockSupport.parkNanos(toSleep);
-      }
-    }
+        ConfigProvider.withPropertiesOverride(props), withStartupCleanup, cleanupHook, timeSource);
   }
 }

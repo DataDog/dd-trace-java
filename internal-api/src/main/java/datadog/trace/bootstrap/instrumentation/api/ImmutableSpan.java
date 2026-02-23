@@ -78,6 +78,11 @@ public abstract class ImmutableSpan implements AgentSpan {
   }
 
   @Override
+  public AgentSpan setMetric(CharSequence key, float value) {
+    return this;
+  }
+
+  @Override
   public AgentSpan setMetric(CharSequence key, double value) {
     return this;
   }

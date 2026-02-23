@@ -130,7 +130,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     def context = span.context()
 
     when:
-    context.setMetric("test", value)
+    context.setMetric("test", (Number)value)
 
     then:
     type.isInstance(context.getTag("test"))

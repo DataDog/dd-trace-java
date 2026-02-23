@@ -17,9 +17,9 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
 
   void 'test multiple span finished metrics with different tags'() {
     when:
-    collector.recordSpanFinished('openai', 'llm', true, true, false)
-    collector.recordSpanFinished('openai', 'llm', false, true, false)
-    collector.recordSpanFinished('anthropic', 'embedding', true, false, true)
+    collector.recordSpanFinished('openai', 'llm', true, true, false, true)
+    collector.recordSpanFinished('openai', 'llm', false, true, false, false)
+    collector.recordSpanFinished('anthropic', 'embedding', true, false, true, false)
     periodicAction.doIteration(telemetryService)
 
     then:
@@ -31,7 +31,8 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
           'span_kind:llm',
           'is_root_span:1',
           'autoinstrumented:1',
-          'error:0'
+          'error:0',
+          'has_session_id:1'
         ].toSet()
     })
     1 * telemetryService.addMetric({ Metric metric ->
@@ -42,7 +43,8 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
           'span_kind:llm',
           'is_root_span:0',
           'autoinstrumented:1',
-          'error:0'
+          'error:0',
+          'has_session_id:0'
         ].toSet()
     })
     1 * telemetryService.addMetric({ Metric metric ->
@@ -53,7 +55,8 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
           'span_kind:embedding',
           'is_root_span:1',
           'autoinstrumented:0',
-          'error:1'
+          'error:1',
+          'has_session_id:0'
         ].toSet()
     })
     0 * _
@@ -61,9 +64,9 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
 
   void 'test aggregation of identical metrics'() {
     when:
-    collector.recordSpanFinished('openai', 'llm', true, true, false)
-    collector.recordSpanFinished('openai', 'llm', true, true, false)
-    collector.recordSpanFinished('openai', 'llm', true, true, false)
+    collector.recordSpanFinished('openai', 'llm', true, true, false, false)
+    collector.recordSpanFinished('openai', 'llm', true, true, false, false)
+    collector.recordSpanFinished('openai', 'llm', true, true, false, false)
     periodicAction.doIteration(telemetryService)
 
     then:
@@ -77,7 +80,8 @@ class LLMObsMetricPeriodicActionTest extends DDSpecification {
           'span_kind:llm',
           'is_root_span:1',
           'autoinstrumented:1',
-          'error:0'
+          'error:0',
+          'has_session_id:0'
         ].toSet()
     })
     0 * _

@@ -172,7 +172,7 @@ class WriterFactoryTest extends DDSpecification {
     } else if (hasEvpProxy) {
       endpoints = [DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT]
     } else {
-      endpoints = [DDAgentFeaturesDiscovery.V4_ENDPOINT]
+      endpoints = [DDAgentFeaturesDiscovery.V04_ENDPOINT]
     }
 
     def response = [

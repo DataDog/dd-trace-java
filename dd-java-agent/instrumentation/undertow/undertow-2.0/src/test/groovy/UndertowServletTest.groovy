@@ -99,7 +99,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     void awaitConnected() {
       while (TestEndpoint.activeSession == null) {
         synchronized (TestEndpoint) {
-          TestEndpoint.wait()
+          TestEndpoint.wait(1000)
         }
       }
     }

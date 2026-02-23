@@ -77,6 +77,8 @@ class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements Testi
             "$InstrumentationTags.SERVLET_CONTEXT" "/test"
             "$InstrumentationTags.SERVLET_PATH" "/hello"
             "custom-metric" 1983
+            // the service name is set as tag - no source expected right now
+            serviceNameSource null
             defaultTags(true)
           }
         }
