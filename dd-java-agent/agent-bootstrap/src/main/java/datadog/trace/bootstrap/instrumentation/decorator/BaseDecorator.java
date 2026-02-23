@@ -45,7 +45,8 @@ public abstract class BaseDecorator {
 
   private final TagMap.Entry traceAnalyticsEntry;
 
-  protected final TagMap.Entry componentEntry;
+  // Deliberately not volatile, reading null and repeating the calculation is safe
+  private TagMap.Entry cachedComponentEntry = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -63,8 +64,6 @@ public abstract class BaseDecorator {
         this.traceAnalyticsEnabled
             ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
             : null;
-
-    this.componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
   }
 
   protected abstract String[] instrumentationNames();
@@ -72,6 +71,15 @@ public abstract class BaseDecorator {
   protected abstract CharSequence spanType();
 
   protected abstract CharSequence component();
+
+  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
+  protected final TagMap.Entry componentEntry() {
+    TagMap.Entry componentEntry = cachedComponentEntry;
+    if (componentEntry == null) {
+      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+    }
+    return componentEntry;
+  }
 
   protected boolean traceAnalyticsDefault() {
     return false;
@@ -82,8 +90,10 @@ public abstract class BaseDecorator {
       span.setSpanType(spanType());
     }
 
-    span.setTag(componentEntry);
+    span.setTag(componentEntry());
 
+    // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
+    // unclear which option is better here
     final CharSequence component = component();
     span.context().setIntegrationName(component);
 
