@@ -14,7 +14,13 @@ public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
   @Override
   public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
     testExecuted = true;
-    return new ExecutionOutcomeImpl(status == TestStatus.fail, testExecuted, false, false, null);
+    return new ExecutionOutcomeImpl(
+        status == TestStatus.fail,
+        testExecuted,
+        false,
+        false,
+        null,
+        status == TestStatus.fail ? TestStatus.pass : status);
   }
 
   @Override

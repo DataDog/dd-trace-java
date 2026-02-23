@@ -28,11 +28,10 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
       final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-      final AgentSpan span = spanFromContext(storedContext);
-      if (span == null) {
+      if (storedContext == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
-        try (final ContextScope scope = span.attach()) {
+        try (final ContextScope scope = storedContext.attach()) {
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }

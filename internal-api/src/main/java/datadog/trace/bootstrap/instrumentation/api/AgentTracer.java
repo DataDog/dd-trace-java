@@ -4,6 +4,7 @@ import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
+import datadog.trace.api.Pair;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -432,8 +433,9 @@ public class AgentTracer {
      * Sets the new service name to be used as a default.
      *
      * @param serviceName The service name to use as default.
+     * @param source the source which is setting it.
      */
-    void updatePreferredServiceName(String serviceName);
+    void updatePreferredServiceName(String serviceName, CharSequence source);
 
     void addShutdownListener(Runnable listener);
   }
@@ -678,7 +680,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void updatePreferredServiceName(String serviceName) {
+    public void updatePreferredServiceName(String serviceName, CharSequence preferredServiceName) {
       // no ops
     }
   }
@@ -748,7 +750,7 @@ public class AgentTracer {
     }
 
     @Override
-    public String getPreferredServiceName() {
+    public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
       return null;
     }
 

@@ -6,6 +6,7 @@ import static java.util.Locale.ROOT;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
@@ -17,6 +18,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -75,6 +77,11 @@ public final class Initializer {
   }
 
   public static boolean initialize(boolean forceJmx) {
+    // J9/OpenJ9 requires different initialization path
+    if (JavaVirtualMachine.isJ9()) {
+      return initializeJ9();
+    }
+
     try {
       FlagAccess access = null;
       // Native images don't support the native ddprof library, use JMX instead
@@ -103,6 +110,105 @@ public final class Initializer {
       LOG.debug("Failed to initialize crash tracking: {}", t.getMessage(), t);
     }
     return false;
+  }
+
+  /**
+   * Initialize crash tracking for J9/OpenJ9 JVMs.
+   *
+   * <p>Unlike HotSpot, J9's -Xdump option cannot be modified at runtime. This method:
+   *
+   * <ol>
+   *   <li>Checks if -Xdump:tool is already configured
+   *   <li>Deploys the crash uploader script if configured
+   *   <li>Logs instructions for manual configuration if not configured
+   * </ol>
+   *
+   * @return true if -Xdump is properly configured, false otherwise
+   */
+  private static boolean initializeJ9() {
+    try {
+      String scriptPath = getJ9CrashUploaderScriptPath();
+
+      // Check if -Xdump:tool is already configured via JVM arguments
+      boolean xdumpConfigured = isXdumpToolConfigured();
+      // Get custom javacore path if configured
+      String javacorePath = getJ9JavacorePath();
+
+      if (xdumpConfigured) {
+        LOG.debug("J9 crash tracking: -Xdump:tool already configured, crash uploads enabled");
+        // Initialize the crash uploader script and config manager
+        CrashUploaderScriptInitializer.initialize(scriptPath, null, javacorePath);
+        // Also set up OOME notifier script
+        String oomeScript = getScript("dd_oome_notifier");
+        OOMENotifierScriptInitializer.initialize(oomeScript);
+        return true;
+      } else {
+        // Log instructions for manual configuration
+        LOG.info("J9 JVM detected. To enable crash tracking, add this JVM argument at startup:");
+        LOG.info("  -Xdump:tool:events=gpf+abort,exec={}\\ %pid", scriptPath);
+        LOG.info(
+            "Crash tracking will not be active until this argument is added and JVM is restarted.");
+        return false;
+      }
+    } catch (Throwable t) {
+      logInitializationError(
+          "Unexpected exception while initializing J9 crash tracking. Crash tracking will not work.",
+          t);
+    }
+    return false;
+  }
+
+  /**
+   * Get the custom javacore file path from -Xdump:java:file=... JVM argument.
+   *
+   * @return the custom javacore path, or null if not configured
+   */
+  private static String getJ9JavacorePath() {
+    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+    for (String arg : vmArgs) {
+      if (arg.startsWith("-Xdump:java:file=") || arg.startsWith("-Xdump:java+heap:file=")) {
+        int fileIdx = arg.indexOf("file=");
+        if (fileIdx >= 0) {
+          String path = arg.substring(fileIdx + 5);
+          // Handle comma-separated options: -Xdump:java:file=/path,request=exclusive
+          int commaIdx = path.indexOf(',');
+          if (commaIdx > 0) {
+            path = path.substring(0, commaIdx);
+          }
+          return path;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if -Xdump:tool is configured with our crash uploader script.
+   *
+   * <p>Looks for JVM arguments matching: -Xdump:tool:events=...,exec=...dd_crash_uploader...
+   */
+  private static boolean isXdumpToolConfigured() {
+    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+    for (String arg : vmArgs) {
+      if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Get the path where the crash uploader script should be deployed for J9.
+   *
+   * <p>Note: The actual script deployment is handled by {@link CrashUploaderScriptInitializer} when
+   * initialize() is called with this path.
+   *
+   * @return the full path for the crash uploader script
+   */
+  private static String getJ9CrashUploaderScriptPath() {
+    String scriptFileName = getScriptFileName("dd_crash_uploader");
+    Path scriptPath = TempLocationManager.getInstance().getTempDir().resolve(scriptFileName);
+    return scriptPath.toString();
   }
 
   static InputStream getCrashUploaderTemplate() {

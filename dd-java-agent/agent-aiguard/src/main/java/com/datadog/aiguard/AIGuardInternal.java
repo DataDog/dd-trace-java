@@ -12,6 +12,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
@@ -218,6 +219,10 @@ public class AIGuardInternal implements Evaluator {
       builder.asChildOf(parent.context());
     }
     final AgentSpan span = builder.start();
+    final AgentSpan localRootSpan = span.getLocalRootSpan();
+    if (localRootSpan != null) {
+      localRootSpan.setTag(DDTags.MANUAL_KEEP, true);
+    }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {

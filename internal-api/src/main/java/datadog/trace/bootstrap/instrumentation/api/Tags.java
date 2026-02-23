@@ -49,12 +49,14 @@ public class Tags {
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";
+  public static final String BASE_HASH = "_dd.propagated_hash";
 
   public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FINAL_STATUS = "test.final_status";
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";
@@ -96,6 +98,7 @@ public class Tags {
   public static final String TEST_IS_NEW = "test.is_new";
   public static final String TEST_IS_RETRY = "test.is_retry";
   public static final String TEST_RETRY_REASON = "test.retry_reason";
+  public static final String TEST_JUNIT_IS_DYNAMIC = "test.junit5.is_dynamic";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
   public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
