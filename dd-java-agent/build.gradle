@@ -106,6 +106,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
     // Minimize and relocate the airlift compressor dependency for ZSTD
+    exclude '**/META-INF/maven/io.airlift/**'
     exclude '**/io/airlift/compress/bzip2/**'
     exclude '**/io/airlift/compress/deflate/**'
     exclude '**/io/airlift/compress/gzip/**'
