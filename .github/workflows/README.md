@@ -36,13 +36,26 @@ _Action:_ Check the pull request did not introduce unexpected label.
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
+### enforce-datadog-merge-queue [🔗](enforce-datadog-merge-queue.yaml)
+
+_Trigger:_ When creating or updating a pull request, or when a pull request is added to GitHub merge queue.
+
+_Actions:_
+
+* Pass the `Merge queue check` status check on pull requests so they remain in a mergeable state,
+* When a pull request is enqueued in GitHub merge queue, post a `/merge` comment to trigger the Datadog merge queue,
+* Fail the `Merge queue check` status check on merge groups to prevent GitHub from merging directly.
+
+_Recovery:_ The workflow is expected to fail to block GitHub merge queue.
+This redirects GitHub's "Merge when ready" button to the Datadog merge queue system.
+
 ### create-release-branch [🔗](create-release-branch.yaml)
 
 _Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a minor release).
 
-_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x").
+_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x"). Then open a PR against the release branch that pins system tests.
 
-_Recovery:_ Manually create the branch from the "vM.N.0" git tag.
+_Recovery:_ Manually create the release branch from the "vM.N.0" git tag, and pin system tests to this branch by running the `./tooling/update_system_test_reference.sh` script.
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 

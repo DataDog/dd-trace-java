@@ -12,6 +12,7 @@ import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
+import org.eclipse.aether.transport.file.FileTransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
@@ -34,13 +35,15 @@ internal object MuzzleMavenRepoUtils {
   }
 
   /**
-   * Create new RepositorySystem for muzzle's Maven/Aether resoltions.
+   * Create new RepositorySystem for muzzle's Maven/Aether resolutions.
+   * Supports both HTTP/HTTPS and file:// repositories.
    */
   @JvmStatic
   fun newRepositorySystem(): RepositorySystem {
     val locator = MavenRepositorySystemUtils.newServiceLocator().apply {
       addService(RepositoryConnectorFactory::class.java, BasicRepositoryConnectorFactory::class.java)
       addService(TransporterFactory::class.java, HttpTransporterFactory::class.java)
+      addService(TransporterFactory::class.java, FileTransporterFactory::class.java)
     }
     return locator.getService(RepositorySystem::class.java)
   }
@@ -66,7 +69,8 @@ internal object MuzzleMavenRepoUtils {
   fun inverseOf(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
-    session: RepositorySystemSession
+    session: RepositorySystemSession,
+    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -74,7 +78,7 @@ internal object MuzzleMavenRepoUtils {
       "jar",
       "[,)"
     )
-    val repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
+    val repos = muzzleDirective.getRepositories(defaultRepos)
     val allRangeRequest = VersionRangeRequest().apply {
       repositories = repos
       artifact = allVersionsArtifact
@@ -119,7 +123,8 @@ internal object MuzzleMavenRepoUtils {
   fun resolveVersionRange(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
-    session: RepositorySystemSession
+    session: RepositorySystemSession,
+    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
   ): VersionRangeResult {
     val directiveArtifact: Artifact = DefaultArtifact(
       muzzleDirective.group,
@@ -129,7 +134,7 @@ internal object MuzzleMavenRepoUtils {
       muzzleDirective.versions
     )
     val rangeRequest = VersionRangeRequest().apply {
-      repositories = muzzleDirective.getRepositories(MUZZLE_REPOS)
+      repositories = muzzleDirective.getRepositories(defaultRepos)
       artifact = directiveArtifact
     }
 

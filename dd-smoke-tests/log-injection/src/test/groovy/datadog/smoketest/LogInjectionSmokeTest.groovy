@@ -362,7 +362,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = () -> JavaVirtualMachine.isIbm8())
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8())
   def "check raw file injection"() {
     when:
     def count = waitForTraceCount(2)

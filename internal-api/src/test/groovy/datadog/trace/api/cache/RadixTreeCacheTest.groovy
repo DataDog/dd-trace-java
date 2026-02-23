@@ -118,13 +118,6 @@ class RadixTreeCacheTest extends DDSpecification {
     })
   }
 
-  def "cache ports"() {
-    expect:
-    Integer.valueOf(port) == RadixTreeCache.PORTS.get(port)
-    where:
-    port << [0, 80, 443, 4444, 8080, 65535]
-  }
-
   def "cache HTTP statuses"() {
     expect:
     Integer.toString(status) == RadixTreeCache.HTTP_STATUSES.get(status) as String

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_CLIENT_SPLIT_BY_INSTANCE;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.cluster.Cluster;
@@ -81,7 +82,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
       }
       span.setTag(Tags.DB_INSTANCE, instanceName);
       if (Config.get().isDbClientSplitByInstance()) {
-        span.setServiceName(instanceName);
+        span.setServiceName(instanceName, DB_CLIENT_SPLIT_BY_INSTANCE);
       }
     }
 

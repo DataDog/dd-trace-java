@@ -14,13 +14,13 @@ abstract class OpenTelemetry14ActivationTest extends InstrumentationSpecificatio
 
     expect:
     if (shouldBeInjected()) {
-      tracer.class.name.endsWith(".OtelTracer")
-      builder.class.name.endsWith(".OtelSpanBuilder")
-      result.class.name.endsWith(".OtelSpan")
-      context.class.name.endsWith(".OtelContext")
+      assert tracer.class.name.endsWith(".OtelTracer")
+      assert builder.class.name.endsWith(".OtelSpanBuilder")
+      assert result.class.name.endsWith(".OtelSpan")
+      assert context.class.name.endsWith(".OtelContext")
     } else {
-      tracer.class.name.endsWith(".DefaultTracer")
-      context.class.name.endsWith(".ArrayBasedContext")
+      assert tracer.class.name.endsWith(".DefaultTracer")
+      assert context.class.name.endsWith(".ArrayBasedContext")
     }
   }
 }

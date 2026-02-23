@@ -14,15 +14,25 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings(
+    value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
+    justification =
+        "The GitHub Actions runner diagnostics directories have well-known absolute paths for Linux runners")
 class GithubActionsInfo implements CIProviderInfo {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GithubActionsInfo.class);
@@ -43,11 +53,26 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GHACTIONS_JOB = "GITHUB_JOB";
   public static final String GITHUB_BASE_REF = "GITHUB_BASE_REF";
   public static final String GITHUB_EVENT_PATH = "GITHUB_EVENT_PATH";
+  public static final String GHACTIONS_JOB_CHECK_RUN_ID = "JOB_CHECK_RUN_ID";
+
+  static final String GHA_DIAGNOSTICS_DIR = "/home/runner/actions-runner/_diag";
+  static final String GHA_DIAGNOSTICS_DIR_CACHED = "/home/runner/actions-runner/cached/_diag";
+  private static final Pattern CHECK_RUN_ID_PATTERN =
+      Pattern.compile("\"k\"\\s*:\\s*\"check_run_id\"\\s*,\\s*\"v\"\\s*:\\s*(\\d+(?:\\.\\d+)?)");
 
   private final CiEnvironment environment;
+  private final Path diagnosticsDir;
+  private final Path diagnosticsDirCached;
 
   GithubActionsInfo(CiEnvironment environment) {
+    this(environment, Paths.get(GHA_DIAGNOSTICS_DIR), Paths.get(GHA_DIAGNOSTICS_DIR_CACHED));
+  }
+
+  // for testing purposes
+  GithubActionsInfo(CiEnvironment environment, Path diagnosticsDir, Path diagnosticsDirCached) {
     this.environment = environment;
+    this.diagnosticsDir = diagnosticsDir;
+    this.diagnosticsDirCached = diagnosticsDirCached;
   }
 
   @Override
@@ -63,26 +88,35 @@ class GithubActionsInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
+    String serverUrl = filterSensitiveInfo(environment.get(GHACTIONS_URL));
+    String repository = environment.get(GHACTIONS_REPOSITORY);
+    String pipelineId = environment.get(GHACTIONS_PIPELINE_ID);
+    String commit = environment.get(GHACTIONS_SHA);
+
     final String pipelineUrl =
         buildPipelineUrl(
-            filterSensitiveInfo(environment.get(GHACTIONS_URL)),
-            environment.get(GHACTIONS_REPOSITORY),
-            environment.get(GHACTIONS_PIPELINE_ID),
-            environment.get(GHACTIONS_PIPELINE_RETRY));
-    final String jobUrl =
-        buildJobUrl(
-            filterSensitiveInfo(environment.get(GHACTIONS_URL)),
-            environment.get(GHACTIONS_REPOSITORY),
-            environment.get(GHACTIONS_SHA));
+            serverUrl, repository, pipelineId, environment.get(GHACTIONS_PIPELINE_RETRY));
+
+    // Try to get numeric job ID for better job URL
+    String numericJobId = getNumericJobId();
+    String jobId;
+    String jobUrl;
+    if (numericJobId != null) {
+      jobId = numericJobId;
+      jobUrl = buildJobUrlWithNumericId(serverUrl, repository, pipelineId, numericJobId);
+    } else {
+      jobId = environment.get(GHACTIONS_JOB);
+      jobUrl = buildJobUrl(serverUrl, repository, commit);
+    }
 
     CIInfo.Builder builder = CIInfo.builder(environment);
     return builder
         .ciProviderName(GHACTIONS_PROVIDER_NAME)
-        .ciPipelineId(environment.get(GHACTIONS_PIPELINE_ID))
+        .ciPipelineId(pipelineId)
         .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
         .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
         .ciPipelineUrl(pipelineUrl)
-        .ciJobId(environment.get(GHACTIONS_JOB))
+        .ciJobId(jobId)
         .ciJobName(environment.get(GHACTIONS_JOB))
         .ciJobUrl(jobUrl)
         .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
@@ -184,6 +218,94 @@ class GithubActionsInfo implements CIProviderInfo {
 
   private String buildJobUrl(final String host, final String repo, final String commit) {
     return String.format("%s/%s/commit/%s/checks", host, repo, commit);
+  }
+
+  private String buildJobUrlWithNumericId(
+      final String host, final String repo, final String pipelineId, final String jobId) {
+    return String.format("%s/%s/actions/runs/%s/job/%s", host, repo, pipelineId, jobId);
+  }
+
+  /**
+   * Gets the numeric job ID for GitHub Actions.
+   *
+   * <p>First checks the JOB_CHECK_RUN_ID environment variable. If not present, falls back to
+   * parsing GitHub Actions diagnostics files (Worker_*.log) in the runner's diagnostics directory.
+   *
+   * @return the numeric job ID, or null if not found
+   */
+  @Nullable
+  private String getNumericJobId() {
+    // First, check if the numeric job ID is provided via environment variable
+    String jobId = environment.get(GHACTIONS_JOB_CHECK_RUN_ID);
+    if (Strings.isNotBlank(jobId)) {
+      return jobId;
+    }
+
+    // Fall back to parsing diagnostics files
+    jobId = parseJobIdFromDirectory(diagnosticsDir);
+    if (Strings.isNotBlank(jobId)) {
+      return jobId;
+    }
+
+    return parseJobIdFromDirectory(diagnosticsDirCached);
+  }
+
+  @Nullable
+  private String parseJobIdFromDirectory(Path directory) {
+    if (!Files.isDirectory(directory)) {
+      return null;
+    }
+
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory, "Worker_*.log")) {
+      // Find the most recent file by filename (contains timestamp like
+      // Worker_20260130-154110-utc.log)
+      Path mostRecentLog = null;
+      for (Path workerLog : stream) {
+        if (mostRecentLog == null
+            || workerLog.getFileName().toString().compareTo(mostRecentLog.getFileName().toString())
+                > 0) {
+          mostRecentLog = workerLog;
+        }
+      }
+
+      if (mostRecentLog == null) {
+        return null;
+      }
+
+      String content = new String(Files.readAllBytes(mostRecentLog), StandardCharsets.UTF_8);
+      return parseCheckRunIdFromContent(content);
+    } catch (IOException e) {
+      LOGGER.debug("Error reading diagnostics directory: {}", directory, e);
+      return null;
+    }
+  }
+
+  /**
+   * Extracts the last check_run_id value from the file content.
+   *
+   * <p>The JSON structure in worker logs contains: {"k":"check_run_id","v":12345.0}
+   *
+   * <p>Uses the last match because a single worker file might contain multiple jobs' data, and the
+   * most recent job entry appears last.
+   *
+   * @param content the file content to parse
+   * @return the check_run_id as a string, or null if not found
+   */
+  @Nullable
+  String parseCheckRunIdFromContent(String content) {
+    Matcher matcher = CHECK_RUN_ID_PATTERN.matcher(content);
+    String lastMatch = null;
+    while (matcher.find()) {
+      String value = matcher.group(1);
+      // Strip decimal part if present
+      int pointIdx = value.indexOf('.');
+      if (pointIdx != -1) {
+        lastMatch = value.substring(0, pointIdx);
+      } else {
+        lastMatch = value;
+      }
+    }
+    return lastMatch;
   }
 
   @Override

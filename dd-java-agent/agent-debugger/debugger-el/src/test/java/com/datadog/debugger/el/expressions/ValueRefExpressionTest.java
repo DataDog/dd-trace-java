@@ -10,6 +10,7 @@ import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.util.Redaction;
@@ -69,10 +70,10 @@ class ValueRefExpressionTest {
     long duration = TimeUnit.NANOSECONDS.convert(680, TimeUnit.MILLISECONDS);
     boolean returnVal = true;
     Throwable exception = new RuntimeException("oops");
-    Map<String, Object> exts = new HashMap<>();
-    exts.put(ValueReferences.RETURN_EXTENSION_NAME, returnVal);
-    exts.put(ValueReferences.DURATION_EXTENSION_NAME, duration);
-    exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, exception);
+    Map<String, CapturedValue> exts = new HashMap<>();
+    exts.put(ValueReferences.RETURN_EXTENSION_NAME, CapturedValue.of(returnVal));
+    exts.put(ValueReferences.DURATION_EXTENSION_NAME, CapturedValue.of(duration));
+    exts.put(ValueReferences.EXCEPTION_EXTENSION_NAME, CapturedValue.of(exception));
     ValueReferenceResolver resolver =
         RefResolverHelper.createResolver(new Obj()).withExtensions(exts);
 

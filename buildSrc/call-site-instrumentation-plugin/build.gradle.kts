@@ -1,6 +1,5 @@
 plugins {
   java
-  groovy
   id("com.diffplug.spotless") version "8.2.1"
   id("com.gradleup.shadow") version "8.3.9"
 }
@@ -17,7 +16,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat("1.33.0")
+    googleJavaFormat("1.34.1")
   }
 }
 
@@ -34,8 +33,9 @@ dependencies {
   implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.bundles.groovy)
-  testImplementation(libs.bundles.spock)
+  testImplementation(libs.bundles.junit5)
+  testRuntimeOnly(libs.junit.platform.launcher)
+  testImplementation(libs.bundles.mockito)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation(libs.spotbugs.annotations)
 }

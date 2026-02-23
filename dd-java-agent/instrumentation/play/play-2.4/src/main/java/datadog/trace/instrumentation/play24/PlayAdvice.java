@@ -40,7 +40,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan("play", PLAY_REQUEST);
       span.setMeasured(true);
-      scope = span.attach();
+      scope = span.attachWithCurrent();
     }
 
     DECORATE.afterStart(span);

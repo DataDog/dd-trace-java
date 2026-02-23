@@ -1,6 +1,4 @@
 apply from: "$rootDir/gradle/java.gradle"
-// Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 testJvmConstraints {
   // TODO Java 17: This version of vertx-web doesn't support Java 17

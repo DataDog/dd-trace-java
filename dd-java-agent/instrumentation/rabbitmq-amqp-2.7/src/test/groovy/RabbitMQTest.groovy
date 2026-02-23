@@ -1,3 +1,5 @@
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION
+
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
@@ -772,6 +774,9 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       errored exception != null
       measured true
 
+      final boolean isV0 = version() == 0
+      final boolean isSplitByDestination = splitByDestination()
+
       tags {
         "$Tags.COMPONENT" "rabbitmq-amqp"
         "$Tags.PEER_HOSTNAME" { it == null || it instanceof String }
@@ -826,6 +831,13 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
+        }
+        if (distributedRootSpan && isSplitByDestination) {
+          serviceNameSource MESSAGE_BROKER_SPLIT_BY_DESTINATION
+        } else if (isV0) {
+          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
+          // this is a buggy behaviour that could not be easily fixed.
+          serviceNameSource "rabbitmq-amqp"
         }
         if ([Tags.SPAN_KIND_PRODUCER, Tags.SPAN_KIND_CLIENT].any({ it == tag(Tags.SPAN_KIND) })) {
           peerServiceFrom(Tags.PEER_HOSTNAME)
