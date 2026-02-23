@@ -111,7 +111,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     String traceSamplingRulesJson;
     Double traceSampleRate;
 
-    String preferredServiceName;
+    Pair<String, CharSequence> preferredServiceNameAndSource;
     List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
     Builder() {}
@@ -135,7 +135,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.tracingTags = snapshot.tracingTags;
 
-      this.preferredServiceName = snapshot.preferredServiceName;
+      this.preferredServiceNameAndSource = snapshot.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = snapshot.dataStreamsTransactionExtractors;
     }
 
@@ -226,8 +226,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
-    public Builder setPreferredServiceName(String preferredServiceName) {
-      this.preferredServiceName = preferredServiceName;
+    public Builder setPreferredServiceNameAndSource(
+        String preferredServiceName, CharSequence source) {
+      this.preferredServiceNameAndSource = Pair.of(preferredServiceName, source);
       return this;
     }
 
@@ -332,7 +333,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     final Double traceSampleRate;
     final Map<String, String> tracingTags;
 
-    final String preferredServiceName;
+    final Pair<String, CharSequence> preferredServiceNameAndSource;
     final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
@@ -354,7 +355,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.tracingTags = nullToEmpty(builder.tracingTags);
 
-      this.preferredServiceName = builder.preferredServiceName;
+      this.preferredServiceNameAndSource = builder.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = builder.dataStreamsTransactionExtractors;
     }
 
@@ -412,8 +413,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
-    public String getPreferredServiceName() {
-      return preferredServiceName;
+    public Pair<String, CharSequence> getPreferredServiceNameAndSource() {
+      return preferredServiceNameAndSource;
     }
 
     @Override
@@ -463,8 +464,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + traceSampleRate
           + ", tracingTags="
           + tracingTags
-          + ", preferredServiceName="
-          + preferredServiceName
+          + ", preferredServiceNameAndSource="
+          + preferredServiceNameAndSource
           + '}';
     }
   }
