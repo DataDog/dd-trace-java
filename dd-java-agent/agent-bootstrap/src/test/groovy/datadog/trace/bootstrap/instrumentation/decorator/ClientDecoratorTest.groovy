@@ -23,12 +23,13 @@ class ClientDecoratorTest extends BaseDecoratorTest {
       1 * span.setServiceName(serviceName, "test-component")
     }
     1 * span.setMeasured(true)
-    1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
     1 * span.setSpanType(decorator.spanType())
-    1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
+    1 * span.setMetric(TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0))
+    _ * span.setTag(_)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setTag(_)
     _ * span.setServiceName(_)

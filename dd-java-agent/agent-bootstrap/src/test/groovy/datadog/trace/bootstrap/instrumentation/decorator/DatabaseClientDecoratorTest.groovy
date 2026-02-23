@@ -27,12 +27,12 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setServiceName(serviceName, "test-component")
     }
     1 * span.setMeasured(true)
-    1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
     1 * span.setSpanType("test-type")
-    1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
+    1 * span.setMetric(TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0))
     0 * _
 
     where:
