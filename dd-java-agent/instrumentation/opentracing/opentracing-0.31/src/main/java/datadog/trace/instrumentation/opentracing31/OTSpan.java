@@ -64,6 +64,12 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   }
 
   @Override
+  public OTSpan setMetric(final CharSequence metric, final float value) {
+    delegate.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
   public OTSpan setMetric(final CharSequence metric, final double value) {
     delegate.setMetric(metric, value);
     return this;

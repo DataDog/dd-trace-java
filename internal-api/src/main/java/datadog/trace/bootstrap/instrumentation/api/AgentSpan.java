@@ -93,6 +93,9 @@ public interface AgentSpan
   AgentSpan setMetric(CharSequence key, long value);
 
   @Override
+  AgentSpan setMetric(CharSequence key, float value);
+
+  @Override
   AgentSpan setMetric(CharSequence key, double value);
 
   /** metricEntry may be null - in which case the tags remained unchanged */
