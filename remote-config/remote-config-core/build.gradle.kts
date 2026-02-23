@@ -40,5 +40,6 @@ dependencies {
   implementation(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))
-  testImplementation(libs.okhttp)
+  testImplementation(project(":components:http:http-compat"))
+  testImplementation(project(":components:http:http-lib"))
 }

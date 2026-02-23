@@ -1,25 +1,21 @@
 package datadog.remoteconfig
 
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import cafe.cryptography.ed25519.Ed25519PrivateKey
 import cafe.cryptography.ed25519.Ed25519PublicKey
 import cafe.cryptography.ed25519.Ed25519Signature
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpRequestBody
+import datadog.http.client.HttpResponse
+import datadog.http.client.HttpUrl
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-import okhttp3.Call
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import okhttp3.ResponseBody
-import okio.Buffer
-
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -30,30 +26,31 @@ import java.util.function.Supplier
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR
 
 class DefaultConfigurationPollerSpecification extends DDSpecification {
-  final static HttpUrl URL = HttpUrl.get('https://example.com/v0.7/config')
-  private static final Request REQUEST = new Request.Builder()
-  .url('https://example.com').build()
+  final static HttpUrl URL = HttpUrl.parse('https://example.com/v0.7/config')
   private static final int DEFAULT_POLL_PERIOD = 5000
   private static final String KEY_ID = 'TEST_KEY_ID'
   private static final Ed25519PrivateKey PRIVATE_KEY = Ed25519PrivateKey.generate(new SecureRandom())
   private static final Ed25519PublicKey PUBLIC_KEY = PRIVATE_KEY.derivePublic()
 
-  private Response buildOKResponse(String bodyStr) {
-    ResponseBody body = ResponseBody.create(MediaType.get('application/json'), bodyStr)
-    new Response.Builder()
-      .request(REQUEST).protocol(Protocol.HTTP_1_1).message('OK').body(body).code(200).build()
+  private HttpResponse buildOKResponse(String bodyStr) {
+    Mock(HttpResponse) {
+      code() >> 200
+      isSuccessful() >> true
+      bodyAsString() >> bodyStr
+      body() >> { new ByteArrayInputStream(bodyStr.getBytes(UTF_8)) }
+      close() >> {}
+    }
   }
 
   private final static JsonSlurper SLURPER = new JsonSlurper()
 
-  OkHttpClient okHttpClient = Mock()
+  HttpClient httpClient = Mock()
   AgentTaskScheduler scheduler = Mock()
   AgentTaskScheduler.Scheduled<ConfigurationPoller> scheduled = Mock()
   DefaultConfigurationPoller poller
 
   AgentTaskScheduler.Task task
-  Request request
-  Call call = Mock()
+  HttpRequest request
   Supplier<String> configUrlSupplier = { -> URL.toString() } as Supplier<String>
 
   void setup() {
@@ -68,17 +65,16 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
       '',
       '',
       { -> configUrlSupplier.get() } as Supplier<String>,
-      okHttpClient,
+      httpClient,
       scheduler,
       )
   }
 
-  private parseBody(RequestBody body) {
-    Buffer buffer = new Buffer()
-    body.writeTo(buffer)
-    byte[] bytes = new byte[buffer.size()]
-    buffer.read(bytes)
-    SLURPER.parse(bytes)
+  private static parseBody(HttpRequestBody body) {
+    try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+      body.writeTo(bos)
+      return SLURPER.parse(bos.toByteArray())
+    }
   }
 
   void 'issues no request if there are no subscriptions'() {
@@ -96,8 +92,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      {throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { cfg, hinter -> true } as ConfigurationChangesTypedListener)
+    {throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { cfg, hinter -> true } as ConfigurationChangesTypedListener)
     poller.removeListeners(Product.ASM_DD)
     task.run(poller)
 
@@ -116,8 +112,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -127,8 +123,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept(_, _, _ as PollingRateHinter)
     0 * _._
 
@@ -195,8 +193,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     then:
     1 * configUrlSupplier.get() >> URL.toString()
-    2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    2 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * deserializer.deserialize(_) >> true
     1 * listener.accept(_, _, _)
     0 * _._
@@ -207,40 +207,40 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     ConfigurationChangesTypedListener activationListener = Mock(ConfigurationChangesTypedListener)
     ConfigurationChangesTypedListener sampleRateListener = Mock(ConfigurationChangesTypedListener)
     def respBody = JsonOutput.toJson(
-      client_configs: [
-        'datadog/2/ASM_FEATURES/asm_features_activation/config',
-        'datadog/2/ASM_FEATURES/api_security/sample_rate',
+    client_configs: [
+      'datadog/2/ASM_FEATURES/asm_features_activation/config',
+      'datadog/2/ASM_FEATURES/api_security/sample_rate',
+    ],
+    roots: [],
+    target_files: [
+      [
+        path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
+        raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
       ],
-      roots: [],
-      target_files: [
-        [
-          path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
-          raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+      [
+        path: 'datadog/2/ASM_FEATURES/api_security/sample_rate',
+        raw: Base64.encoder.encodeToString('{"api_security": {"request_sample_rate": 0.1}'.getBytes('UTF-8'))
+      ]
+    ],
+    targets: signAndBase64EncodeTargets(
+    signed: [
+      expires: '2022-09-17T12:49:15Z',
+      spec_version: '1.0.0',
+      targets: [
+        'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+          custom: [ v: 1 ],
+          hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
+          length : 24,
         ],
-        [
-          path: 'datadog/2/ASM_FEATURES/api_security/sample_rate',
-          raw: Base64.encoder.encodeToString('{"api_security": {"request_sample_rate": 0.1}'.getBytes('UTF-8'))
+        'datadog/2/ASM_FEATURES/api_security/sample_rate': [
+          custom: [v:1],
+          hashes: [ sha256: 'bc898b7eb75d9fd0ddee1c1a556bc3c528dd41382950aa86e48816f792d01494' ],
+          length : 45,
         ]
       ],
-      targets: signAndBase64EncodeTargets(
-      signed: [
-        expires: '2022-09-17T12:49:15Z',
-        spec_version: '1.0.0',
-        targets: [
-          'datadog/2/ASM_FEATURES/asm_features_activation/config': [
-            custom: [ v: 1 ],
-            hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
-            length : 24,
-          ],
-          'datadog/2/ASM_FEATURES/api_security/sample_rate': [
-            custom: [v:1],
-            hashes: [ sha256: 'bc898b7eb75d9fd0ddee1c1a556bc3c528dd41382950aa86e48816f792d01494' ],
-            length : 45,
-          ]
-        ],
-        version: 1
-      ]
-      ))
+      version: 1
+    ]
+    ))
 
     def noConfigs = SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
       it['client_configs'] = []
@@ -259,8 +259,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(respBody) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(respBody)
+    }
 
     then:
     2 * deserializer.deserialize(_) >> true
@@ -273,8 +275,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(noConfigs) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(noConfigs)
+    }
     1 * activationListener.accept('datadog/2/ASM_FEATURES/asm_features_activation/config', _, _)
     1 * sampleRateListener.accept('datadog/2/ASM_FEATURES/api_security/sample_rate', _, _)
     0 * _._
@@ -284,70 +288,70 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     def deserializer = Mock(ConfigurationDeserializer)
     List<ConfigurationChangesTypedListener> listeners = (1..5).collect { Mock(ConfigurationChangesTypedListener) }
     def respBody = JsonOutput.toJson(
-      client_configs: [
-        'datadog/2/ASM_FEATURES/asm_features_activation/config',
-        'foo/ASM_DD/bar/config',
-        'foo/ASM/bar/config',
-        'foo/ASM_DATA/bar/config',
-        'foo/LIVE_DEBUGGING/bar/config',
+    client_configs: [
+      'datadog/2/ASM_FEATURES/asm_features_activation/config',
+      'foo/ASM_DD/bar/config',
+      'foo/ASM/bar/config',
+      'foo/ASM_DATA/bar/config',
+      'foo/LIVE_DEBUGGING/bar/config',
+    ],
+    roots: [],
+    target_files: [
+      [
+        path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
+        raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
       ],
-      roots: [],
-      target_files: [
-        [
-          path: 'datadog/2/ASM_FEATURES/asm_features_activation/config',
-          raw: Base64.encoder.encodeToString('{"asm":{"enabled":true}}'.getBytes('UTF-8'))
+      [
+        path: 'foo/ASM_DD/bar/config',
+        raw: ''
+      ],
+      [
+        path: 'foo/ASM/bar/config',
+        raw: ''
+      ],
+      [
+        path: 'foo/ASM_DATA/bar/config',
+        raw: ''
+      ],
+      [
+        path: 'foo/LIVE_DEBUGGING/bar/config',
+        raw: ''
+      ],
+    ],
+    targets: signAndBase64EncodeTargets(
+    signed: [
+      expires: '2022-09-17T12:49:15Z',
+      spec_version: '1.0.0',
+      targets: [
+        'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+          custom: [ v: 1 ],
+          hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
+          length : 24,
         ],
-        [
-          path: 'foo/ASM_DD/bar/config',
-          raw: ''
+        'foo/ASM_DD/bar/config': [
+          custom: [v:1],
+          hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+          length : 0,
         ],
-        [
-          path: 'foo/ASM/bar/config',
-          raw: ''
+        'foo/ASM/bar/config': [
+          custom: [v:1],
+          hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+          length : 0,
         ],
-        [
-          path: 'foo/ASM_DATA/bar/config',
-          raw: ''
+        'foo/ASM_DATA/bar/config': [
+          custom: [v:1],
+          hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+          length : 0,
         ],
-        [
-          path: 'foo/LIVE_DEBUGGING/bar/config',
-          raw: ''
+        'foo/LIVE_DEBUGGING/bar/config': [
+          custom: [v:1],
+          hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+          length : 0,
         ],
       ],
-      targets: signAndBase64EncodeTargets(
-      signed: [
-        expires: '2022-09-17T12:49:15Z',
-        spec_version: '1.0.0',
-        targets: [
-          'datadog/2/ASM_FEATURES/asm_features_activation/config': [
-            custom: [ v: 1 ],
-            hashes: [ sha256: '159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db' ],
-            length : 24,
-          ],
-          'foo/ASM_DD/bar/config': [
-            custom: [v:1],
-            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
-            length : 0,
-          ],
-          'foo/ASM/bar/config': [
-            custom: [v:1],
-            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
-            length : 0,
-          ],
-          'foo/ASM_DATA/bar/config': [
-            custom: [v:1],
-            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
-            length : 0,
-          ],
-          'foo/LIVE_DEBUGGING/bar/config': [
-            custom: [v:1],
-            hashes: [ sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
-            length : 0,
-          ],
-        ],
-        version: 1
-      ]
-      ))
+      version: 1
+    ]
+    ))
 
     when:
     poller.addListener(Product.ASM_DD, deserializer, listeners[1])
@@ -364,10 +368,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(respBody) }
-
-    then:
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(respBody)
+    }
     1 * deserializer.deserialize(_) >> true
     1 * listeners[0].accept(*_)
     1 * deserializer.deserialize(_) >> true
@@ -378,19 +382,17 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     1 * listeners[3].accept(*_)
     1 * deserializer.deserialize(_) >> true
     1 * listeners[4].accept(*_)
-
-    then:
     0 * _
   }
 
   void 'reschedules if instructed to do so'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer, { cngKey, cfg, hinter ->
-        hinter.suggestPollingRate(Duration.ofMillis(124))
-        hinter.suggestPollingRate(Duration.ofMillis(123))
-        hinter.suggestPollingRate(Duration.ofMillis(1230)) // higher is ignored
-      } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer, { cngKey, cfg, hinter ->
+      hinter.suggestPollingRate(Duration.ofMillis(124))
+      hinter.suggestPollingRate(Duration.ofMillis(123))
+      hinter.suggestPollingRate(Duration.ofMillis(1230)) // higher is ignored
+    } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -400,8 +402,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * scheduler.scheduleAtFixedRate(_, poller, 123, 123, TimeUnit.MILLISECONDS) >> scheduled
     1 * scheduled.cancel()
     0 * _._
@@ -410,8 +414,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'sets cached files and config state on second request'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -421,8 +425,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     2.times { task.run(poller) }
 
     then:
-    2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    2 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     then:
@@ -454,8 +460,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'removes cached file if configuration is pulled'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -465,16 +471,14 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> { buildOKResponse(SAMPLE_RESP_BODY) }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         it['client_configs'] = []
         buildOKResponse(JsonOutput.toJson(it))
@@ -486,8 +490,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     then:
@@ -500,8 +506,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'does not update targets version number if there is an error'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -511,16 +517,14 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> { buildOKResponse(SAMPLE_RESP_BODY) }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         it['target_files'] = []
         def targetDecoded = Base64.decoder.decode(it['targets'])
@@ -537,8 +541,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     then:
@@ -550,7 +556,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         config_states == []
         has_error == true
         error == 'Told to apply config for employee/ASM_DD/1.recommended.json/config but no corresponding entry ' +
-          'exists in targets.targets_signed.targets'
+        'exists in targets.targets_signed.targets'
         root_version == 1
         targets_version == 23337393
       }
@@ -562,8 +568,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -573,8 +579,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     2.times { task.run(poller) }
 
     then:
-    2 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    2 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    2 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept(_, _, _ as PollingRateHinter)
     0 * _._
 
@@ -582,8 +590,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         byte[] fileDecoded = Base64.decoder.decode(it['target_files'][0]['raw'])
         byte[] newFile = new byte[fileDecoded.length + 1]
@@ -593,7 +601,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = SLURPER.parse(targetDecoded)
         target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['hashes']['sha256'] =
-          new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(newFile)).toString(16)
+        new BigInteger((byte[])MessageDigest.getInstance('SHA-256').digest(newFile)).toString(16)
         target['signed']['targets']['employee/ASM_DD/1.recommended.json/config']['length'] += 1
         it['targets'] = signAndBase64EncodeTargets(target)
         buildOKResponse(JsonOutput.toJson(it))
@@ -608,8 +616,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -622,8 +630,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = SLURPER.parse(targetDecoded)
@@ -638,8 +646,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept('employee/ASM_DD/1.recommended.json/config', _, _)
     0 * _._
 
@@ -657,8 +667,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -668,8 +678,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         byte[] fileDecoded = Base64.decoder.decode(it['target_files'][0]['raw'])
         it['target_files'][0]['raw'] = Base64.encoder.encodeToString(fileDecoded) + '##'
@@ -682,8 +692,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept(_, _, _)
     0 * _._
 
@@ -699,8 +711,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { null } as ConfigurationDeserializer,
-      listener)
+    { null } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -710,8 +722,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
   }
 
@@ -720,8 +734,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -731,8 +745,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parse(SAMPLE_RESP_BODY.bytes).with {
         def targetDecoded = Base64.decoder.decode(it['targets'])
         def target = SLURPER.parse(targetDecoded)
@@ -760,8 +774,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse('{}') }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse('{}')
+    }
     0 * deserializer._
     0 * listener._
     0 * _._
@@ -769,13 +785,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
   void 'accepts HTTP 204 as a response to indicate no changes'() {
     given:
-    Response resp = new Response.Builder()
-      .request(REQUEST)
-      .protocol(Protocol.HTTP_1_1)
-      .message('No Content')
-      .body(ResponseBody.create(MediaType.parse("application/json"), ""))
-      .code(204)
-      .build()
+    HttpResponse resp = Mock(HttpResponse)
     def listener = Mock(ConfigurationChangesTypedListener)
     def deserializer = Mock(ConfigurationDeserializer)
 
@@ -790,8 +800,12 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> resp
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      resp
+    }
+    2 * resp.code() >> 204
+    1 * resp.close()
     0 * deserializer._
     0 * listener._
     0 * _
@@ -819,8 +833,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept(_, { it != null }, _) >> false
     1 * listener.commit(_)
     0 * _._
@@ -829,8 +845,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     // no listnenr.commit() should be called as no changed where detected
     0 * _._
 
@@ -838,8 +856,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(cfgWithoutAsm)
+    }
     1 * listener.remove(_, _)
     1 * listener.commit(_)
     0 * _._
@@ -848,8 +868,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(cfgWithoutAsm)
+    }
     // no listnenr.commit() should be called as no changed where detected
     0 * _._
   }
@@ -867,8 +889,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -878,8 +900,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept(_, { it != null }, _) >> false // should still unapply afterwards even if failed
     0 * _._
 
@@ -887,8 +911,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(cfgWithoutAsm)
+    }
     1 * listener.accept(_, null, _)
     0 * _._
 
@@ -897,8 +923,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(cfgWithoutAsm) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(cfgWithoutAsm)
+    }
     0 * _._
   }
 
@@ -916,8 +944,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -928,8 +956,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept('employee/ASM_DD/1.recommended.json/config', { it != null }, _) >> false // should still unapply afterwards even if failed
     0 * _._
 
@@ -938,8 +968,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(multiConfigs) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(multiConfigs)
+    }
     1 * listener.accept('employee/ASM_DD/2.suggested.json/config', { it != null }, _)
     0 * _._
 
@@ -948,8 +980,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     1 * listener.accept('employee/ASM_DD/2.suggested.json/config', null, _) >> false // should still unapply afterwards even if failed
     0 * _._
 
@@ -958,8 +992,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(noConfigs) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(noConfigs)
+    }
     1 * listener.accept('employee/ASM_DD/1.recommended.json/config', null, _) >> false // should still unapply afterwards even if failed
     0 * _._
   }
@@ -970,11 +1006,11 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { Object[] args -> throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.addListener(Product.LIVE_DEBUGGING,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { Object[] args -> } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { Object[] args -> } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -984,8 +1020,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parseText(SAMPLE_RESP_BODY).with {
         it['client_configs'] << newConfigKey
         def targetDecoded = Base64.decoder.decode(it['targets'])
@@ -1011,8 +1047,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     then:
@@ -1042,8 +1080,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'bad responses'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1053,36 +1091,46 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> resp
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      resp
+    }
     0 * _._
 
     where:
     resp << [
       // 404 with body
-      new Response.Builder().request(REQUEST)
-      .protocol(Protocol.HTTP_1_1)
-      .message('Not Found').code(404).body(
-      ResponseBody.create(MediaType.get('text/plain'), 'not found!')).build(),
+      Mock(HttpResponse) {
+        code() >> 404
+        isSuccessful() >> false
+        bodyAsString() >> 'not found!'
+      },
       // 404 without body
-      new Response.Builder().request(REQUEST)
-      .protocol(Protocol.HTTP_1_1)
-      .message('Not Found').code(404).build(),
+      Mock(HttpResponse) {
+        code() >> 404
+        isSuccessful() >> false
+        bodyAsString() >> ''
+      },
       // success, no body
-      new Response.Builder().request(REQUEST)
-      .protocol(Protocol.HTTP_1_1)
-      .message('Created').code(201).build(),
+      Mock(HttpResponse) {
+        code() >> 201
+        isSuccessful() >> true
+        bodyAsString() >> ''
+      },
       // not json
-      new Response.Builder()
-      .request(REQUEST).protocol(Protocol.HTTP_1_1).message('OK').body(ResponseBody.create(MediaType.get('text/plain'), SAMPLE_RESP_BODY)).code(200).build()
+      Mock(HttpResponse) {
+        code() >> 200
+        isSuccessful() >> true
+        bodyAsString() >> SAMPLE_RESP_BODY
+      },
     ]
   }
 
   void 'body does not satisfy format'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1092,9 +1140,11 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    // targets is not a string
-    1 * call.execute() >> { buildOKResponse(bodyStr) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      // targets is not a string
+      buildOKResponse(bodyStr)
+    }
     0 * _._
 
     where:
@@ -1108,8 +1158,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'reportable errors #errorMsg'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1119,18 +1169,22 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    // targets is not a string
-    1 * call.execute() >> { buildOKResponse(bodyStr) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      // targets is not a string
+      buildOKResponse(bodyStr)
+    }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    // targets is not a string
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      // targets is not a string
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     def body = parseBody(request.body())
@@ -1200,8 +1254,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'reports error during deserialization'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { throw new RuntimeException('my deserializer error') } as ConfigurationDeserializer,
-      { } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('my deserializer error') } as ConfigurationDeserializer,
+    { } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1214,16 +1268,17 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> call
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> { buildOKResponse(SAMPLE_RESP_BODY) }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     def body = parseBody(request.body())
@@ -1238,8 +1293,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
   void 'reports error applying configuration'() {
     when:
     poller.addListener(Product.ASM_DD,
-      { true } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('error applying config') } as ConfigurationChangesTypedListener)
+    { true } as ConfigurationDeserializer,
+    { Object[] args -> throw new RuntimeException('error applying config') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1252,16 +1307,17 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> call
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> { buildOKResponse(SAMPLE_RESP_BODY) }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(SAMPLE_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(SAMPLE_RESP_BODY)
+    }
     0 * _._
 
     def body = parseBody(request.body())
@@ -1277,8 +1333,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     ConfigurationDeserializer deserializer = Mock()
     when:
     poller.addListener(Product.ASM_DD,
-      deserializer,
-      { throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
+    deserializer,
+    { throw new RuntimeException('throw here') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1288,8 +1344,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> {
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
       SLURPER.parseText(SAMPLE_RESP_BODY).with {
         it['target_files'] << [
           path: 'foo/bar',
@@ -1307,8 +1363,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addFileListener(file,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      { path, conf, hinter -> savedConf = conf } as ConfigurationChangesTypedListener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    { path, conf, hinter -> savedConf = conf } as ConfigurationChangesTypedListener)
     poller.start()
     file << '{"foo":"bar"}'.getBytes('UTF-8')
 
@@ -1340,8 +1396,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_FEATURES,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     poller.start()
 
     then:
@@ -1351,12 +1407,14 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     1 * listener.accept(
-      _,
-      { cfg -> cfg['asm']['enabled'] == true },
-      _ as PollingRateHinter)
+    _,
+    { cfg -> cfg['asm']['enabled'] == true },
+    _ as PollingRateHinter)
     0 * _._
   }
 
@@ -1365,8 +1423,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_FEATURES,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
     poller.start()
 
     then:
@@ -1377,17 +1435,19 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_FEATURES,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener)
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     1 * listener.accept(
-      _,
-      { cfg -> cfg['asm']['enabled'] == true },
-      _ as PollingRateHinter)
+    _,
+    { cfg -> cfg['asm']['enabled'] == true },
+    _ as PollingRateHinter)
     0 * _._
   }
 
@@ -1397,11 +1457,11 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_FEATURES,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener1)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener1)
     poller.addListener(Product.ASM_FEATURES,
-      { SLURPER.parse(it) } as ConfigurationDeserializer,
-      listener2)
+    { SLURPER.parse(it) } as ConfigurationDeserializer,
+    listener2)
     poller.start()
 
     then:
@@ -1411,16 +1471,18 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     1 * listener1.accept(
-      _,
-      { cfg -> cfg['asm']['enabled'] == true },
-      _ as PollingRateHinter)
+    _,
+    { cfg -> cfg['asm']['enabled'] == true },
+    _ as PollingRateHinter)
     1 * listener2.accept(
-      _,
-      { cfg -> cfg['api_security']['request_sample_rate'] == 0.1 },
-      _ as PollingRateHinter)
+    _,
+    { cfg -> cfg['api_security']['request_sample_rate'] == 0.1 },
+    _ as PollingRateHinter)
     0 * _._
   }
 
@@ -1429,8 +1491,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product.ASM_FEATURES,
-      {true } as ConfigurationDeserializer<Boolean>,
-      { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesTypedListener<Boolean>)
+    {true } as ConfigurationDeserializer<Boolean>,
+    { Object[] args -> called = true; throw new RuntimeException('throws') } as ConfigurationChangesTypedListener<Boolean>)
     poller.start()
 
     then:
@@ -1440,8 +1502,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     0 * _._
     called == true
     // error does not escape
@@ -1452,11 +1516,11 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product._UNKNOWN,
-      { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
-      { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
+    { throw new RuntimeException('should not be called') } as ConfigurationDeserializer,
+    { Object[] args -> throw new RuntimeException('should not be called') } as ConfigurationChangesTypedListener)
     poller.addListener(Product.ASM_FEATURES,
-      {} as ConfigurationDeserializer<Boolean>,
-      listener)
+    {} as ConfigurationDeserializer<Boolean>,
+    listener)
     poller.removeListeners(Product.ASM_FEATURES)
     poller.start()
 
@@ -1467,8 +1531,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     0 * _._ // in particular, listener is not called
 
     when:
@@ -1484,8 +1550,8 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
 
     when:
     poller.addListener(Product._UNKNOWN,
-      {true } as ConfigurationDeserializer<Boolean>,
-      listener)
+    {true } as ConfigurationDeserializer<Boolean>,
+    listener)
     poller.start()
 
     then:
@@ -1495,8 +1561,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     0 * _._
     def body = parseBody(request.body())
     with(body.client) {
@@ -1542,8 +1610,10 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(FEATURES_RESP_BODY) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(FEATURES_RESP_BODY)
+    }
     0 * _._
     def body = parseBody(request.body())
     body.client.capabilities as byte[] == encoded

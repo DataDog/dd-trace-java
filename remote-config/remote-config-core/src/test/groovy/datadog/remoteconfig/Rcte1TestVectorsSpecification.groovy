@@ -1,20 +1,16 @@
 package datadog.remoteconfig
 
+import static java.nio.charset.StandardCharsets.UTF_8
+
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpRequest
+import datadog.http.client.HttpRequestBody
+import datadog.http.client.HttpResponse
+import datadog.http.client.HttpUrl
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import groovy.json.JsonSlurper
-import okhttp3.Call
-import okhttp3.HttpUrl
-import okhttp3.MediaType
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import okhttp3.ResponseBody
-import okio.Buffer
-
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 
@@ -24,22 +20,23 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
   private static final String KEY_ID = 'ed7672c9a24abda78872ee32ee71c7cb1d5235e8db4ecbf1ca28b9c50eb75d9e'
   private static final String PUBLIC_KEY = '7d3102e39abe71044d207550bda239c71380d013ec5a115f79f51622630054e6'
 
-  final static HttpUrl URL = HttpUrl.get('https://example.com/v0.7/config')
-  OkHttpClient okHttpClient = Mock()
+  final static HttpUrl URL = HttpUrl.parse('https://example.com/v0.7/config')
+  HttpClient httpClient = Mock()
   AgentTaskScheduler scheduler = Mock()
   AgentTaskScheduler.Scheduled<ConfigurationPoller> scheduled = Mock()
   ConfigurationPoller poller
 
   AgentTaskScheduler.Task task
-  Request request
-  Call call = Mock()
+  HttpRequest request
 
-  private static final Request REQUEST = new Request.Builder()
-  .url('https://example.com').build()
-  private Response buildOKResponse(String bodyStr) {
-    ResponseBody body = ResponseBody.create(MediaType.get('application/json'), bodyStr)
-    new Response.Builder()
-      .request(REQUEST).protocol(Protocol.HTTP_1_1).message('OK').body(body).code(200).build()
+  private HttpResponse buildOKResponse(String bodyStr) {
+    Mock(HttpResponse) {
+      code() >> 200
+      isSuccessful() >> true
+      bodyAsString() >> bodyStr
+      body() >> { new ByteArrayInputStream(bodyStr.getBytes(UTF_8))}
+      close() >> {}
+    }
   }
 
   void setup() {
@@ -53,7 +50,7 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
       'containerid',
       'entityid',
       { -> URL.toString() },
-      okHttpClient,
+      httpClient,
       scheduler
       )
   }
@@ -63,22 +60,21 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
       "src/test/resources/rcte1/${baseFileName}.json").text
   }
 
-  private parseBody(RequestBody body) {
-    Buffer buffer = new Buffer()
-    body.writeTo(buffer)
-    byte[] bytes = new byte[buffer.size()]
-    buffer.read(bytes)
-    SLURPER.parse(bytes)
+  private static parseBody(HttpRequestBody body) {
+    try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+      body.writeTo(bos)
+      return SLURPER.parse(bos.toByteArray())
+    }
   }
 
   void 'valid file'() {
     setup:
     Map savedConfig
     poller.addListener(
-      Product.ASM_DD,
-      { SLURPER.parse(it) } as ConfigurationDeserializer<Map>,
-      { String cfgKey, Map map, PollingRateHinter hinter -> savedConfig = map } as ConfigurationChangesTypedListener<Map>
-      )
+    Product.ASM_DD,
+    { SLURPER.parse(it) } as ConfigurationDeserializer<Map>,
+    { String cfgKey, Map map, PollingRateHinter hinter -> savedConfig = map } as ConfigurationChangesTypedListener<Map>
+    )
 
     when:
     poller.start()
@@ -90,8 +86,10 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(getFileContents('validOneFile')) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(getFileContents('validOneFile'))
+    }
     0 * _._
     savedConfig != null
   }
@@ -99,10 +97,10 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
   void 'invalid file #baseFileName'() {
     setup:
     poller.addListener(
-      Product.ASM_DD,
-      { assert false, 'should never be called' } as ConfigurationDeserializer<Map>,
-      { Object[] args -> } as ConfigurationChangesTypedListener<Map>
-      )
+    Product.ASM_DD,
+    { assert false, 'should never be called' } as ConfigurationDeserializer<Map>,
+    { Object[] args -> } as ConfigurationChangesTypedListener<Map>
+    )
 
     when:
     poller.start()
@@ -114,16 +112,20 @@ class Rcte1TestVectorsSpecification extends DDSpecification {
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse(getFileContents(baseFileName)) }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse(getFileContents(baseFileName))
+    }
     0 * _._
 
     when:
     task.run(poller)
 
     then:
-    1 * okHttpClient.newCall(_ as Request) >> { request = it[0]; call }
-    1 * call.execute() >> { buildOKResponse('validOneFile') }
+    1 * httpClient.execute(_ as HttpRequest) >> {
+      request = it[0]
+      buildOKResponse('validOneFile')
+    }
     0 * _._
 
     def body = parseBody(request.body())
