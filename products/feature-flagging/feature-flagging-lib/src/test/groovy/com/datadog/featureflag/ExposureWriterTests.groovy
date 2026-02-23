@@ -6,6 +6,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import com.squareup.moshi.Moshi
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
+import datadog.http.client.HttpClient
+import datadog.http.client.HttpUrl
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
@@ -21,8 +23,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import okio.Okio
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -68,8 +68,8 @@ class ExposureWriterTests extends DDSpecification {
       }
     }
   }.tap {
-    agentUrl = HttpUrl.get(server.address)
-    agentHttpClient = new OkHttpClient.Builder().build()
+    agentUrl = HttpUrl.from(server.address)
+    agentHttpClient = HttpClient.newBuilder().build()
   }
 
   void cleanup() {
