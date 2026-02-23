@@ -165,12 +165,8 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
           return FileVisitResult.CONTINUE
         }
       })
-    // Verify the profiling pipeline produces JFR files with system properties.
-    // With fail-open=true, files are produced even if scrubbing fails.
     foundSystemProps
-    // TODO: assert allScrubbed once jafar handles native-image JFR chunk format
-    // (jafar 0.14.0-SNAPSHOT fails with "Cannot compute fitting payload length for: 0"
-    //  on SubstrateVM JFR recordings)
+    allScrubbed
   }
 
   int countJfrs() {
