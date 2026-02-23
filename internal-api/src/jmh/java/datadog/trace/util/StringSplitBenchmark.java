@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.regex.Pattern;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -41,6 +42,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 3)
 @Threads(8)
 @State(Scope.Benchmark)
+@SuppressForbidden
 public class StringSplitBenchmark {
   public enum TestString {
     EMPTY(""),
