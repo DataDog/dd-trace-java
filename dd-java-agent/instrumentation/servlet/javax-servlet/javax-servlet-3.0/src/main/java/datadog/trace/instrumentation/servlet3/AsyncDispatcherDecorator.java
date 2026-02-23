@@ -5,9 +5,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class AsyncDispatcherDecorator extends BaseDecorator {
   public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
-    UTF8BytesString.create("java-web-servlet-async-dispatcher");
-	  
-  // DQH - Careful ordering issue here, BaseDecorator calls component, 
+      UTF8BytesString.create("java-web-servlet-async-dispatcher");
+
+  // DQH - Careful ordering issue here, BaseDecorator calls component,
   // so JAVA_WEB_SERVLET_DISPATCHER needs to be set-up before DECORATE
   public static final AsyncDispatcherDecorator DECORATE = new AsyncDispatcherDecorator();
 
