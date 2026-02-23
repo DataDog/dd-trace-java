@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -132,7 +133,9 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
     if (buffers.isEmpty()) {
       return new JdkHttpRequestBody(BodyPublishers.noBody());
     }
-    return new JdkHttpRequestBody(BodyPublishers.fromPublisher(new ByteBufferPublisher(buffers)));
+    long contentLength = buffers.stream().mapToLong(Buffer::remaining).sum();
+    return new JdkHttpRequestBody(
+        BodyPublishers.fromPublisher(new ByteBufferPublisher(buffers), contentLength));
   }
 
   private static final class ByteBufferPublisher implements Flow.Publisher<ByteBuffer> {
@@ -144,8 +147,42 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
 
     @Override
     public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
-      this.buffers.forEach(subscriber::onNext);
-      subscriber.onComplete();
+      subscriber.onSubscribe(new ByteBufferSubscription(this.buffers, subscriber));
+    }
+  }
+
+  private static final class ByteBufferSubscription implements Flow.Subscription {
+    private final List<ByteBuffer> buffers;
+    private final Flow.Subscriber<? super ByteBuffer> subscriber;
+    private int index = 0;
+    private volatile boolean cancelled = false;
+
+    ByteBufferSubscription(
+        List<ByteBuffer> buffers, Flow.Subscriber<? super ByteBuffer> subscriber) {
+      this.buffers = buffers;
+      this.subscriber = subscriber;
+    }
+
+    @Override
+    public void request(long n) {
+      if (this.cancelled) {
+        return;
+      }
+      if (n <= 0) {
+        this.subscriber.onError(new IllegalArgumentException("n must be positive, was: " + n));
+        return;
+      }
+      for (long i = 0; i < n && this.index < this.buffers.size() && !this.cancelled; i++) {
+        this.subscriber.onNext(this.buffers.get(this.index++).duplicate());
+      }
+      if (!this.cancelled && this.index >= this.buffers.size()) {
+        this.subscriber.onComplete();
+      }
+    }
+
+    @Override
+    public void cancel() {
+      this.cancelled = true;
     }
   }
 
