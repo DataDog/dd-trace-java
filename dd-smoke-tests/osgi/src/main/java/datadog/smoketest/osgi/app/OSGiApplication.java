@@ -70,6 +70,8 @@ public class OSGiApplication {
 
     framework.waitForStop(1_000);
 
+    Thread.sleep(1000 * 60 * 21); // TODO emulating hanging task on CI
+
     // XXX: Knopflerfish will leave some dangling non-daemon thread and prevent shutdown here.
     System.exit(0);
   }

@@ -120,42 +120,26 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
       dumpsDir.mkdirs()
 
-      fun file(name: String, ext: String = "log") =
-        File(dumpsDir, "$name-${System.currentTimeMillis()}.$ext")
+      val allProcessesFile = file(dumpsDir, "all-processes")
+      runCmd(Redirect.to(allProcessesFile), "ps", "-ef")
 
-      // Collect all JVMs pids.
-      val allJavaProcessesFile = file("all-java-processes")
-      runCmd(Redirect.to(allJavaProcessesFile), "jcmd", "-l")
+      val allProcesses = extractProcesses(allProcessesFile)
 
-      // On IBM JDK thread dump can be collected by signaling the matching `Gradle Test Executor` process with `kill -3`.
-      // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
-      if (isIbm8(allJavaProcessesFile)) {
-        val allProcessesFile = file("all-processes")
-        runCmd(Redirect.to(allProcessesFile), "ps", "-ef")
-        extractPidsIbm8(allProcessesFile).forEach { ibm8Pid ->
-          runCmd(Redirect.INHERIT, "kill", "-3", ibm8Pid)
-        }
-      } else {
-        val pids = extractPids(allJavaProcessesFile)
+      val gradleTestExecutors = allProcesses.filter { it.command.contains("Gradle Test Executor") }
+      val childProcesses = collectChildProcesses(allProcesses, gradleTestExecutors)
 
-        pids.forEach { pid ->
-          // Collect heap dump by pid.
-          val heapDumpPath = file("${pid}-heap-dump", "hprof").absolutePath
-          runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
+      (gradleTestExecutors + childProcesses).forEach { process -> collectDump(dumpsDir, process) }
 
-          // Collect thread dump by pid.
-          val threadDumpFile = file("${pid}-thread-dump")
-          runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
-        }
-
-        // Just in case collect all thread dumps by using special PID `0`.
-        val allThreadsFile = file("all-thread-dumps")
-        runCmd(Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
-      }
+      // Just in case collect all thread dumps by using special PID `0`.
+      val allThreadsFile = file(dumpsDir, "all-thread-dumps")
+      runCmd(Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
     } catch (e: Throwable) {
       t.logger.warn("Taking dumps failed with error: ${e.message ?: e.javaClass.name}, for ${t.path}")
     }
   }
+
+  private fun file(baseDir: File, name: String, ext: String = "log") =
+    File(baseDir, "$name-${System.currentTimeMillis()}.$ext")
 
   private fun cleanup(t: Task) {
     val future = t.extra
@@ -183,23 +167,55 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun isIbm8(file: File): Boolean =
-    file.readLines().any { it.contains("-PtestJvm=ibm8") }
-
-  private fun extractPids(file: File): List<String> =
-    file.readLines()
-      .filter { it.contains("Gradle Test Executor") }
-      .map { it.substringBefore(' ') }
-
-  private fun extractPidsIbm8(file: File): List<String> =
-    file.readLines()
-      .filter { it.contains("Gradle Test Executor") }
-      .filter { it.contains("ibm", ignoreCase = true) }
-      .mapNotNull(::extractPid)
+  private data class ProcessInfo(
+    val pid: String,
+    val ppid: String,
+    val command: String,
+    val isIbm: Boolean
+  )
 
   private val whitespaceRegex = Regex("\\s+")
 
-  // ps -ef format produce output like: UID PID PPID ...
-  private fun extractPid(line: String): String? =
-    line.trimStart().split(whitespaceRegex, limit = 3).getOrNull(1)
+  // ps -ef format produce output like: `UID PID PPID C STIME TTY TIME CMD`
+  private fun extractProcesses(file: File): List<ProcessInfo> =
+    file.readLines()
+      .filter { it.contains("/bin/java") }
+      .map {
+        val parts = it.trimStart().split(whitespaceRegex, limit = 8)
+        val command = parts.getOrNull(7) ?: ""
+
+        ProcessInfo(
+          pid = parts[1],
+          ppid = parts[2],
+          command = command,
+          isIbm = command.contains("/ibm8")
+        )
+      }
+
+  private fun collectChildProcesses(
+    allProcesses: List<ProcessInfo>,
+    gradleTestExecutors: List<ProcessInfo>
+  ): List<ProcessInfo> {
+    val parentPids = gradleTestExecutors.map { it.pid }.toSet()
+    return allProcesses.filter { parentPids.contains(it.ppid) }
+  }
+
+  private fun collectDump(
+    baseDir: File,
+    process: ProcessInfo
+  ) {
+    if (process.isIbm) {
+      // On IBM JDK thread dump can be collected by signaling process with `kill -3`.
+      // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
+      runCmd(Redirect.INHERIT, "kill", "-3", process.pid)
+    } else {
+      // Collect heap dump by pid.
+      val heapDumpPath = file(baseDir, "${process.pid}-heap-dump", "hprof").absolutePath
+      runCmd(Redirect.INHERIT, "jcmd", process.pid, "GC.heap_dump", heapDumpPath)
+
+      // Collect thread dump by pid.
+      val threadDumpFile = file(baseDir, "${process.pid}-thread-dump", "log")
+      runCmd(Redirect.to(threadDumpFile), "jcmd", process.pid, "Thread.print", "-l")
+    }
+  }
 }
