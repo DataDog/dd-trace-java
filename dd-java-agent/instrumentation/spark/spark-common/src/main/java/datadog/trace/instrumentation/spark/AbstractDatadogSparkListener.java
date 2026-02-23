@@ -254,7 +254,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     log.debug("Starting tracer application span.");
+    log.debug(databricksClusterName);
     if (!isRunningOnDatabricks) {
+      String databricksClusterNameSpark = databricksClusterName + "creating a spark.app";
+      log.debug(databricksClusterNameSpark);
       AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
       if (applicationStart != null) {
