@@ -41,8 +41,9 @@ jobs:
 
       - name: Checkout dd-trace-java at tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
-        with:
-          ref: ${{ steps.determine-tag.outputs.tag }}
+        # TODO: uncomment after testing
+        # with:
+        #   ref: ${{ steps.determine-tag.outputs.tag }}
 
       - name: Check if branch already exists
         id: check-release-branch
