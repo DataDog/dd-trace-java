@@ -2,13 +2,13 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import org.apache.maven.cli.MavenCli
 import org.codehaus.plexus.util.FileUtils
+import org.slf4j.MDC
 import spock.lang.TempDir
 
 import java.nio.file.Path
 import java.nio.file.Paths
 
 import static org.junit.jupiter.api.Assertions.assertEquals
-import static org.junit.jupiter.api.Assumptions.abort
 
 class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
@@ -19,6 +19,14 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   @Override
   def setup() {
+    // Workaround for maven-surefire 3.5.5 bug (https://github.com/apache/maven-surefire/pull/3241):
+    // ThreadedStreamConsumer$Pumper.run() calls MDC.setContextMap(MDC.getCopyOfContextMap()),
+    // but LogbackMDCAdapter.getCopyOfContextMap() returns null when MDC is uninitialized,
+    // and LogbackMDCAdapter.setContextMap(null) throws NPE via HashMap.putAll(null).
+    // Pre-initializing MDC ensures getCopyOfContextMap() returns an empty map instead of null.
+    MDC.put("_init", "true")
+    MDC.remove("_init")
+
     System.setProperty("maven.multiModuleProjectDirectory", projectFolder.toAbsolutePath().toString())
     givenMavenProjectFiles((String) specificationContext.currentIteration.dataVariables.testcaseName)
     givenMavenDependenciesAreLoaded()
@@ -32,10 +40,6 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    if (skipLatest && Boolean.getBoolean("test.isLatestDepTest")) {
-      abort("Skipping latest dep test")
-    }
-
     String workingDirectory = projectFolder.toString()
 
     def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
@@ -44,15 +48,15 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                                                                      | args                           | expectedExitCode | skipLatest
-    "test_maven_build_with_no_tests_generates_spans"                                  | ["-B", "verify"]               | 0                | false
-    "test_maven_build_with_incorrect_command_generates_spans"                          | ["-B", "unknownPhase"]         | 1                | false
-    "test_maven_build_with_tests_generates_spans"                                     | ["-B", "clean", "test"]        | 0                | false
-    "test_maven_build_with_failed_tests_generates_spans"                              | ["-B", "clean", "test"]        | 1                | false
-    "test_maven_build_with_tests_in_multiple_modules_generates_spans"                 | ["-B", "clean", "test"]        | 1                | false
-    "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans" | ["-B", "-T4", "clean", "test"] | 0                | false
-    "test_maven_build_with_unit_and_integration_tests_generates_spans"                | ["-B", "verify"]               | 0                | true // temporary workaround to avoid failures with maven-failsafe-plugin 3.5.5
-    "test_maven_build_with_no_fork_generates_spans"                                   | ["-B", "clean", "test"]        | 0                | false
+    testcaseName                                                                      | args                           | expectedExitCode
+    "test_maven_build_with_no_tests_generates_spans"                                  | ["-B", "verify"]               | 0
+    "test_maven_build_with_incorrect_command_generates_spans"                         | ["-B", "unknownPhase"]         | 1
+    "test_maven_build_with_tests_generates_spans"                                     | ["-B", "clean", "test"]        | 0
+    "test_maven_build_with_failed_tests_generates_spans"                              | ["-B", "clean", "test"]        | 1
+    "test_maven_build_with_tests_in_multiple_modules_generates_spans"                 | ["-B", "clean", "test"]        | 1
+    "test_maven_build_with_tests_in_multiple_modules_run_in_parallel_generates_spans" | ["-B", "-T4", "clean", "test"] | 0
+    "test_maven_build_with_unit_and_integration_tests_generates_spans"                | ["-B", "verify"]               | 0
+    "test_maven_build_with_no_fork_generates_spans"                                   | ["-B", "clean", "test"]        | 0
   }
 
   private void givenMavenProjectFiles(String projectFilesSources) {
