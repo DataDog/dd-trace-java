@@ -1,3 +1,5 @@
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION
+
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
@@ -773,6 +775,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
       measured true
 
       final boolean isV0 = version() == 0
+      final boolean isSplitByDestination = splitByDestination()
 
       tags {
         "$Tags.COMPONENT" "rabbitmq-amqp"
@@ -829,7 +832,9 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
-        if (isV0) {
+        if (distributedRootSpan && isSplitByDestination) {
+          serviceNameSource MESSAGE_BROKER_SPLIT_BY_DESTINATION
+        } else if (isV0) {
           // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
           // this is a buggy behaviour that could not be easily fixed.
           serviceNameSource "rabbitmq-amqp"
