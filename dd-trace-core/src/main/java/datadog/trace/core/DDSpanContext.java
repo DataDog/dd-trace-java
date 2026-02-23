@@ -40,11 +40,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +97,7 @@ public class DDSpanContext
 
   private volatile short httpStatusCode;
   private CharSequence integrationName;
+  private CharSequence serviceNameSource;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -156,7 +159,6 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private volatile CharSequence lastParentId;
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -190,6 +192,7 @@ public class DDSpanContext
         spanId,
         parentId,
         parentServiceName,
+        null,
         serviceName,
         operationName,
         resourceName,
@@ -237,6 +240,7 @@ public class DDSpanContext
         spanId,
         parentId,
         parentServiceName,
+        null,
         serviceName,
         operationName,
         resourceName,
@@ -263,53 +267,7 @@ public class DDSpanContext
       final long spanId,
       final long parentId,
       final CharSequence parentServiceName,
-      final String serviceName,
-      final CharSequence operationName,
-      final CharSequence resourceName,
-      final int samplingPriority,
-      final CharSequence origin,
-      final Map<String, String> baggageItems,
-      final boolean errorFlag,
-      final CharSequence spanType,
-      final int tagsSize,
-      final TraceCollector traceCollector,
-      final Object requestContextDataAppSec,
-      final Object requestContextDataIast,
-      final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
-      final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration) {
-    this(
-        traceId,
-        spanId,
-        parentId,
-        parentServiceName,
-        serviceName,
-        operationName,
-        resourceName,
-        samplingPriority,
-        origin,
-        baggageItems,
-        null,
-        errorFlag,
-        spanType,
-        tagsSize,
-        traceCollector,
-        requestContextDataAppSec,
-        requestContextDataIast,
-        null,
-        pathwayContext,
-        disableSamplingMechanismValidation,
-        propagationTags,
-        profilingContextIntegration,
-        true);
-  }
-
-  public DDSpanContext(
-      final DDTraceId traceId,
-      final long spanId,
-      final long parentId,
-      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
       final String serviceName,
       final CharSequence operationName,
       final CharSequence resourceName,
@@ -367,6 +325,7 @@ public class DDSpanContext
     this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
 
     setServiceName(serviceName);
+    this.serviceNameSource = serviceNameSource;
     this.operationName = operationName;
     setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
     this.errorFlag = errorFlag;
@@ -426,9 +385,27 @@ public class DDSpanContext
     return serviceName;
   }
 
-  public void setServiceName(final String serviceName) {
+  private void internalSetServiceName(String serviceName) {
     this.serviceName = traceCollector.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
+  }
+
+  public void setServiceName(final String serviceName) {
+    internalSetServiceName(serviceName);
+    setServiceNameSource(null);
+  }
+
+  public void setServiceName(String serviceName, @Nonnull CharSequence integrationName) {
+    internalSetServiceName(serviceName);
+    setServiceNameSource(Objects.requireNonNull(integrationName));
+  }
+
+  public CharSequence getServiceNameSource() {
+    return serviceNameSource;
+  }
+
+  public void setServiceNameSource(final CharSequence serviceNameSource) {
+    this.serviceNameSource = serviceNameSource;
   }
 
   // TODO this logic is inconsistent with hasResourceName

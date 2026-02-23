@@ -6,6 +6,7 @@ import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
@@ -29,7 +30,6 @@ import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -74,7 +74,7 @@ public class TagInterceptor {
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
     this.ruleFlags = ruleFlags;
-    splitByServletContext = splitServiceTags.contains(InstrumentationTags.SERVLET_CONTEXT);
+    splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
 
     shouldSet404ResourceName =
         ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
@@ -111,7 +111,7 @@ public class TagInterceptor {
       case Tags.SAMPLING_PRIORITY:
       case Tags.PROPAGATED_TRACE_SOURCE:
       case Tags.PROPAGATED_DEBUG:
-      case InstrumentationTags.SERVLET_CONTEXT:
+      case SERVLET_CONTEXT:
       case SPAN_TYPE:
       case ANALYTICS_SAMPLE_RATE:
       case Tags.ERROR:
@@ -166,7 +166,7 @@ public class TagInterceptor {
       case Tags.PROPAGATED_DEBUG:
         span.updateDebugPropagation(String.valueOf(value));
         return true;
-      case InstrumentationTags.SERVLET_CONTEXT:
+      case SERVLET_CONTEXT:
         return interceptServletContext(span, value);
       case SPAN_TYPE:
         return interceptSpanType(span, value);
@@ -340,15 +340,15 @@ public class TagInterceptor {
       String serviceName = null;
       if (contextName.equals("/")) {
         serviceName = Config.get().getRootContextServiceName();
-        span.setServiceName(serviceName);
+        span.setServiceName(serviceName, SERVLET_CONTEXT);
       } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
           serviceName = contextName.substring(1);
-          span.setServiceName(serviceName);
+          span.setServiceName(serviceName, SERVLET_CONTEXT);
         }
       } else {
         serviceName = contextName;
-        span.setServiceName(serviceName);
+        span.setServiceName(serviceName, SERVLET_CONTEXT);
       }
       ServiceNameCollector.get().addService(serviceName);
     }

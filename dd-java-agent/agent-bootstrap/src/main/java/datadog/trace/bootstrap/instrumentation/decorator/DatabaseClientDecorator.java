@@ -76,7 +76,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         span.setTag(Tags.PEER_HOSTNAME, hostName);
 
         if (Config.get().isDbClientSplitByHost()) {
-          span.setServiceName(hostName.toString());
+          span.setServiceName(hostName.toString(), component());
         }
       }
     }
@@ -88,7 +88,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       span.setTag(Tags.DB_INSTANCE, dbInstance);
       String serviceName = dbClientService(dbInstance);
       if (null != serviceName) {
-        span.setServiceName(serviceName);
+        span.setServiceName(serviceName, component());
       }
     }
     return span;

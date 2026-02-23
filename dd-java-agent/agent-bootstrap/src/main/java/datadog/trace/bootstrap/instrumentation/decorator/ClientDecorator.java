@@ -13,8 +13,9 @@ public abstract class ClientDecorator extends BaseDecorator {
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    if (service() != null) {
-      span.setServiceName(service());
+    final String service = service();
+    if (service != null) {
+      span.setServiceName(service, component());
     }
     span.setTag(Tags.SPAN_KIND, spanKind());
 
