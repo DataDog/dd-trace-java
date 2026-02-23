@@ -74,6 +74,11 @@ public abstract class BaseDecorator {
 
   /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
   protected final TagMap.Entry componentEntry() {
+    // DQH = Tried calling component() in the constructor, but that had issues with static
+    // field ordering.  That was caught be an integration test, but I didn't want to risk
+    // breaking other integrations where the test is not as thorough.
+
+    // This approach while more complicated doesn't have any field initialization ordering issues.
     TagMap.Entry componentEntry = cachedComponentEntry;
     if (componentEntry == null) {
       cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
