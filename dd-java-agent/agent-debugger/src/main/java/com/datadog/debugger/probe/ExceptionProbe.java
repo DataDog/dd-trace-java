@@ -50,6 +50,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         null);
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
+    initSamplers();
   }
 
   @Override

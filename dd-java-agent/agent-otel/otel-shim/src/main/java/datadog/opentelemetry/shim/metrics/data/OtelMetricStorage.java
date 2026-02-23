@@ -112,6 +112,13 @@ public final class OtelMetricStorage {
   }
 
   public void recordDouble(double value, Attributes attributes) {
+    if (Double.isNaN(value)) {
+      LOGGER.debug(
+          "Instrument {} has recorded measurement Not-a-Number (NaN) value with attributes {}. Dropping measurement.",
+          getInstrumentName(),
+          attributes);
+      return;
+    }
     if (resetOnCollect) {
       Recording recording = acquireRecordingForWrite();
       try {

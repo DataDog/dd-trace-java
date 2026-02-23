@@ -20,7 +20,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (serviceName != null) {
-      1 * span.setServiceName(serviceName)
+      1 * span.setServiceName(serviceName, "test-component")
     }
     1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")

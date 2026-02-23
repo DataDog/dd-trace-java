@@ -53,6 +53,6 @@ class NoOpHistogram implements Histogram {
 
   @Override
   public ByteBuffer serialize() {
-    return null;
+    return ByteBuffer.allocate(0);
   }
 }
