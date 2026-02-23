@@ -920,10 +920,14 @@ public class GatewayBridge {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(
             ctx, traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       } else {
         // Report minimum set of collected request headers
         writeRequestHeaders(
             ctx, traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
@@ -949,10 +953,15 @@ public class GatewayBridge {
   private boolean maybeSampleForApiSecurity(
       AppSecRequestContext ctx, IGSpanInfo spanInfo, Map<String, Object> tags) {
     log.debug("Checking API Security for end of request handler on span: {}", spanInfo.getSpanId());
-    // API Security sampling requires http.route tag.
+    // API Security sampling requires http.route tag or http.url for endpoint inference.
     final Object route = tags.get(Tags.HTTP_ROUTE);
     if (route != null) {
       ctx.setRoute(route.toString());
+    }
+    // Pass http.url to enable endpoint inference when route is absent
+    final Object url = tags.get(Tags.HTTP_URL);
+    if (url != null) {
+      ctx.setHttpUrl(url.toString());
     }
     ApiSecuritySampler requestSampler = requestSamplerSupplier.get();
     return requestSampler.preSampleRequest(ctx);

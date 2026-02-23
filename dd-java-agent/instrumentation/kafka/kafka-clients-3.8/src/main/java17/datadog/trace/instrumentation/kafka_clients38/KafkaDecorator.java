@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.ME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
@@ -145,7 +146,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(topic);
       if (Config.get().isMessageBrokerSplitByDestination()) {
-        span.setServiceName(topic);
+        span.setServiceName(topic, MESSAGE_BROKER_SPLIT_BY_DESTINATION);
       }
     }
   }

@@ -1192,6 +1192,10 @@ class GatewayBridgeSpecification extends DDSpecification {
       'x-sigsci-tags'                    : ['SQLI, XSS'],
       'akamai-user-risk'                 : ['uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0'],
     ]
+    mockAppSecCtx.responseHeaders >> [
+      'content-type'  : ['text/plain'],
+      'content-length': ['13'],
+    ]
     final mockCtx = Stub(RequestContext) {
       getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
       getTraceSegment() >> traceSegment
@@ -1217,6 +1221,8 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * traceSegment.setTagTop('http.request.headers.x-sigsci-requestid', '55c24b96ca84c02201000001')
     1 * traceSegment.setTagTop('http.request.headers.x-sigsci-tags', 'SQLI, XSS')
     1 * traceSegment.setTagTop('http.request.headers.akamai-user-risk', 'uuid=913c4545-757b-4d8d-859d-e1361a828361;status=0')
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/plain')
+    1 * traceSegment.setTagTop('http.response.headers.content-length', '13')
   }
 
   void 'request headers are always set when there are user tracking events'() {
@@ -1225,6 +1231,9 @@ class GatewayBridgeSpecification extends DDSpecification {
       transferCollectedEvents() >> []
       getRequestHeaders() >> [
         'host': ['localhost']
+      ]
+      getResponseHeaders() >> [
+        'content-type': ['text/plain']
       ]
     }
     final mockCtx = Stub(RequestContext) {
@@ -1239,6 +1248,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     then:
     (userTracking ? 1 : 0) * traceSegment.setTagTop('http.request.headers.host', 'localhost')
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/plain')
 
     where:
     tag                                       | userTracking

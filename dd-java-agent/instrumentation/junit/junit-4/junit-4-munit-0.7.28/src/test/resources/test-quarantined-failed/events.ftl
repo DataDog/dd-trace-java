@@ -121,6 +121,7 @@
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
       "test.failure_suppressed" : "true",
+      "test.final_status" : "pass",
       "test.framework" : "munit",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "junit-4-munit-0.7.28",

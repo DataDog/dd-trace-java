@@ -143,7 +143,7 @@ public class LogProbeTest {
         builder.tags("session_id:" + sessionId);
       }
       LogProbe logProbe = builder.build();
-      ProbeRateLimiter.setRate(logProbe.id, -1, captureSnapshot);
+      logProbe.initSamplers();
 
       CapturedContext entryContext = capturedContext(span, logProbe);
       CapturedContext exitContext = capturedContext(span, logProbe);

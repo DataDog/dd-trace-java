@@ -56,7 +56,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
-  private static final int UNSET_PORT = 0;
 
   public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
@@ -80,6 +79,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
+
+  private final String primaryInstrumentationName;
+
+  protected HttpServerDecorator() {
+    String[] instrumentationNames = instrumentationNames();
+    this.primaryInstrumentationName =
+        instrumentationNames != null && instrumentationNames.length > 0
+            ? instrumentationNames[0]
+            : DEFAULT_INSTRUMENTATION_NAME;
+  }
+
+  protected final String primaryInstrumentationName() {
+    return primaryInstrumentationName;
+  }
 
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
@@ -153,11 +166,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
-    String[] instrumentationNames = instrumentationNames();
-    String instrumentationName =
-        instrumentationNames != null && instrumentationNames.length > 0
-            ? instrumentationNames[0]
-            : DEFAULT_INSTRUMENTATION_NAME;
+    String instrumentationName = primaryInstrumentationName();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
     extracted = callIGCallbackStart(extracted);
@@ -186,7 +195,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
       DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> getRequestHeader((REQUEST) source, headerName);
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   public AgentSpan onRequest(
       final AgentSpan span,

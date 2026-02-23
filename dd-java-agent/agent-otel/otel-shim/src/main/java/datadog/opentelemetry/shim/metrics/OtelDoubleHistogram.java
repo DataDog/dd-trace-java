@@ -102,8 +102,7 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     public DoubleHistogram build() {
       return new OtelDoubleHistogram(
           meter.registerStorage(
-              builder.descriptor(),
-              descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
     }
 
     static List<Double> validateBoundaries(List<Double> boundaries) {

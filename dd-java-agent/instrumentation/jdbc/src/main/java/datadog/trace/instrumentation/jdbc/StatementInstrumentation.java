@@ -159,6 +159,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+        DECORATE.withBaseHash(span);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

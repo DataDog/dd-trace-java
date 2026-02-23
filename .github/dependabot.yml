@@ -19,3 +19,19 @@ updates:
       gh-actions-packages:
         patterns:
           - "*"
+
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "gradle"
+    ignore:
+      - dependency-name: "gradle"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "comp: tooling"
+      - "tag: dependencies"
+      - "tag: no release notes"
+    commit-message:
+      prefix: "chore(build): "

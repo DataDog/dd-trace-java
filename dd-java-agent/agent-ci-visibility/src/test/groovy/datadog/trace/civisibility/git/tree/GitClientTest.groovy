@@ -23,6 +23,56 @@ class GitClientTest extends Specification {
   @TempDir
   private Path tempDir
 
+  def "test find git repo root with .git directory"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root with .git file (worktree)"() {
+    given:
+    givenGitWorktree("ci/git/worktree")
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root defaults to original when no .git"() {
+    given:
+    def dirWithNoGit = tempDir.resolve("no_git_here")
+    Files.createDirectories(dirWithNoGit)
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(dirWithNoGit.toFile())
+
+    then:
+    repoRoot == dirWithNoGit.toAbsolutePath().toString()
+  }
+
   def "test is not shallow"() {
     given:
     givenGitRepo()
@@ -397,7 +447,7 @@ class GitClientTest extends Specification {
     sortedBranches == expectedOrder
 
     where:
-    metrics                                                     | expectedOrder
+    metrics                                                       | expectedOrder
     [
       new ShellGitClient.BaseBranchMetric("main", 10, 2),
       new ShellGitClient.BaseBranchMetric("master", 15, 1),
@@ -406,7 +456,7 @@ class GitClientTest extends Specification {
       new ShellGitClient.BaseBranchMetric("main", 10, 2),
       new ShellGitClient.BaseBranchMetric("master", 15, 2),
       new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
-    []                                                          | []
+    []                                                            | []
   }
 
   def "test get base branch sha: #testcaseName"() {
@@ -427,6 +477,13 @@ class GitClientTest extends Specification {
 
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
+  }
+
+  private void givenGitWorktree(String resourceName) {
+    // Worktree has a .git file (not directory) that points to the actual git dir
+    def gitFile = Paths.get(getClass().getClassLoader().getResource(resourceName + "/git").toURI())
+    def tempGitFile = tempDir.resolve(GIT_FOLDER)
+    Files.copy(gitFile, tempGitFile)
   }
 
   private void givenGitRepo(String resourceName) {
