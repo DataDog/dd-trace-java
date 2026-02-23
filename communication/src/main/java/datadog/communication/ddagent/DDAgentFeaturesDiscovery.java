@@ -21,7 +21,6 @@ import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
-import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
@@ -160,11 +159,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (HttpResponse response = client.execute(request)) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
-          InputStream bodyStream = response.body();
-          byte[] bytes = new byte[8192];
-          int bytesRead = bodyStream.read(bytes);
-          String bodyString = bytesRead > 0 ? new String(bytes, 0, bytesRead) : "";
-          fallback = !processInfoResponse(newState, bodyString);
+          fallback = !processInfoResponse(newState, response.bodyAsString());
         }
       } catch (Throwable error) {
         errorQueryingEndpoint("info", error);
