@@ -27,7 +27,7 @@ public final class TagsPostProcessorFactory {
     }
 
     private static TagsPostProcessor createLazyChain() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(7);
+      final List<TagsPostProcessor> processors = new ArrayList<>(8);
 
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       if (addRemoteHostname) {
@@ -47,6 +47,7 @@ public final class TagsPostProcessorFactory {
         processors.add(new SpanPointersProcessor());
       }
       processors.add(new IntegrationAdder());
+      processors.add(new ServiceNameSourceAdder());
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }

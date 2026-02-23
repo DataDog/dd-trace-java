@@ -82,7 +82,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Service: value of x-dd-proxy-domain-name or global config if not found
     String serviceName =
         domainName != null && !domainName.isEmpty() ? domainName : Config.get().getServiceName();
-    span.setServiceName(serviceName);
+    span.setServiceName(serviceName, INSTRUMENTATION_NAME);
 
     // Component: aws-apigateway
     span.setTag(COMPONENT, proxySystem);

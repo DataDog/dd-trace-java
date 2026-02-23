@@ -51,7 +51,14 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   }
 
   private void givenGradleWrapper(String gradleVersion) {
-    def shellCommandExecutor = new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, ["JAVA_HOME": JAVA_HOME])
+    def shellCommandExecutor = new ShellCommandExecutor(
+    projectFolder.toFile(),
+    GRADLE_BUILD_TIMEOUT_MILLIS,
+    [
+      "JAVA_HOME": JAVA_HOME,
+      "GRADLE_OPTS": "" // avoids inheriting CI's GRADLE_OPTS which might be incompatible with the tested JVM
+    ])
+
     for (int attempt = 0; attempt < GRADLE_WRAPPER_RETRIES; attempt++) {
       try {
         shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion)
