@@ -64,7 +64,7 @@ public abstract class BaseDecorator {
         this.traceAnalyticsEnabled
             ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
             : null;
-    
+
     this.componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
   }
 
@@ -82,7 +82,7 @@ public abstract class BaseDecorator {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
-    
+
     span.setTag(componentEntry);
 
     final CharSequence component = component();
