@@ -39,6 +39,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
             .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     setLauncherConfigTags(span, launcher);
+    captureEmrStepId(span);
     launcherSpan = span;
 
     if (!shutdownHookRegistered) {
@@ -128,6 +129,13 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
           span.setTag("app_id", appId);
         }
       }
+    }
+  }
+
+  private static void captureEmrStepId(AgentSpan span) {
+    String stepId = EmrStepIdCapture.getEmrStepId();
+    if (stepId != null) {
+      span.setTag("emr_step_id", stepId);
     }
   }
 
