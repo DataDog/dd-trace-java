@@ -6,12 +6,10 @@ import static scala.concurrent.impl.Promise.Transformation;
 
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.scala.PromiseHelper;
-import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import scala.util.Try;
 
@@ -33,14 +31,6 @@ public final class DefaultPromiseInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
-  }
-
-  public boolean isEnabled() {
-    // Only enable this if integrations have been enabled and the extra "integration"
-    // scala_promise_completion_priority has been enabled specifically
-    return InstrumenterConfig.get()
-        .isIntegrationEnabled(
-            Collections.singletonList("scala_promise_completion_priority"), false);
   }
 
   public static final class TryComplete {
