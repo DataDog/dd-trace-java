@@ -325,6 +325,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     log.info("Finishing spark application trace");
 
     if (applicationEnded) {
+      log.info(
+          "finishApplicationEnded: isRunningOnDatabricks={}, databricksClusterName={}, applicationSpan={}, jobCount={}",
+          isRunningOnDatabricks,
+          databricksClusterName,
+          applicationSpan != null ? "exists" : "null",
+          jobCount);
       return;
     }
     applicationEnded = true;
