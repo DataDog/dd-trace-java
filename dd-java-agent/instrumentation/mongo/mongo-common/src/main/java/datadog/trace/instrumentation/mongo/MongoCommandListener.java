@@ -140,7 +140,7 @@ public final class MongoCommandListener implements CommandListener {
       if (applicationName != null) {
         span.setTag(Tags.DB_INSTANCE, applicationName);
         if (Config.get().isDbClientSplitByInstance()) {
-          span.setServiceName(applicationName);
+          span.setServiceName(applicationName, decorator.component());
         }
       }
       if (event.getConnectionDescription() != null
