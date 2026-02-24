@@ -36,6 +36,7 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -374,12 +375,13 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     }
     MessageDigest digest;
     try {
-      // TODO avoid lookup a new instance every time
+      // A new instance is needed each time for thread safety.
+      // Per micro-benchmarks, the overhead of getInstance() is negligible.
       digest = MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
       return null;
     }
-    digest.update(userId.getBytes());
+    digest.update(userId.getBytes(StandardCharsets.UTF_8));
     byte[] hash = digest.digest();
     if (hash.length > HASH_SIZE_BYTES) {
       byte[] temp = new byte[HASH_SIZE_BYTES];

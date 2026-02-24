@@ -3,6 +3,7 @@ package com.datadog.debugger.exception;
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.slf4j.Logger;
@@ -30,14 +31,14 @@ public class Fingerprinter {
       return null;
     }
     String typeName = clazz.getTypeName();
-    digest.update(typeName.getBytes());
+    digest.update(typeName.getBytes(StandardCharsets.UTF_8));
     StackTraceElement[] stackTrace = t.getStackTrace();
     for (StackTraceElement stackTraceElement : stackTrace) {
       String className = stackTraceElement.getClassName();
       if (classNameFiltering.isExcluded(className)) {
         continue;
       }
-      digest.update(stackTraceElement.toString().getBytes());
+      digest.update(stackTraceElement.toString().getBytes(StandardCharsets.UTF_8));
     }
     return bytesToHex(digest.digest());
   }
@@ -45,7 +46,7 @@ public class Fingerprinter {
   public static String fingerprint(StackTraceElement element) {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      digest.update(element.toString().getBytes());
+      digest.update(element.toString().getBytes(StandardCharsets.UTF_8));
       return bytesToHex(digest.digest());
     } catch (NoSuchAlgorithmException e) {
       LOGGER.debug("Unable to find digest algorithm SHA-256", e);
