@@ -13,7 +13,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Strings.split is generally faster for String processing, since it create SubSequences that are
+ * Strings.split is generally faster for String processing, since it creates SubSequences that are
  * views into the backing String rather than new String objects. <code>
  * Benchmark                           (testStr)   Mode  Cnt           Score           Error  Units
  * StringSplitBenchmark.pattern_split      EMPTY  thrpt    6   291274421.621 ±  14834420.899  ops/s
