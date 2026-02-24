@@ -5,23 +5,30 @@ import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Extracts the AWS EMR Step ID from the working directory name (e.g. {@code s-0039...}). */
 class EmrStepIdCapture {
 
+  private static final Logger log = LoggerFactory.getLogger(EmrStepIdCapture.class);
   private static final Pattern EMR_STEP_ID_PATTERN = Pattern.compile("^(s-[0-9A-Za-z]+)$");
 
   @Nullable
   static String getEmrStepId() {
-    String userDir = System.getProperty("user.dir");
-    if (userDir != null) {
-      Path workDir = Paths.get(userDir).getFileName();
-      if (workDir != null) {
-        Matcher matcher = EMR_STEP_ID_PATTERN.matcher(workDir.toString());
-        if (matcher.matches()) {
-          return matcher.group(1);
+    try {
+      String userDir = System.getProperty("user.dir");
+      if (userDir != null) {
+        Path workDir = Paths.get(userDir).getFileName();
+        if (workDir != null) {
+          Matcher matcher = EMR_STEP_ID_PATTERN.matcher(workDir.toString());
+          if (matcher.matches()) {
+            return matcher.group(1);
+          }
         }
       }
+    } catch (Throwable t) {
+      log.debug("Unable to extract EMR step ID from working directory", t);
     }
     return null;
   }
