@@ -12,14 +12,21 @@ import java.util.List;
 /** Wrapper around the DDSketch library so that it can be used in an instrumentation */
 public class DDSketchHistogram implements Histogram {
   private final DDSketch sketch;
+  private double sum;
 
   public DDSketchHistogram(DDSketch sketch) {
     this.sketch = sketch;
+    this.sum = 0;
   }
 
   @Override
   public double getCount() {
     return sketch.getCount();
+  }
+
+  @Override
+  public double getSum() {
+    return sum;
   }
 
   @Override
@@ -30,11 +37,13 @@ public class DDSketchHistogram implements Histogram {
   @Override
   public void accept(double value) {
     sketch.accept(value);
+    sum += value;
   }
 
   @Override
   public void accept(double value, double count) {
     sketch.accept(value, count);
+    sum += value * count;
   }
 
   @Override

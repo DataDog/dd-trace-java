@@ -13,6 +13,11 @@ class NoOpHistogram implements Histogram {
   }
 
   @Override
+  public double getSum() {
+    return 0;
+  }
+
+  @Override
   public boolean isEmpty() {
     return true;
   }
