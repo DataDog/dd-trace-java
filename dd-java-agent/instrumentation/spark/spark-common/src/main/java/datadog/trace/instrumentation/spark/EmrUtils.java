@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Extracts the AWS EMR Step ID from the working directory name (e.g. {@code s-0039...}). */
+/** Extracts the AWS EMR Step ID from the working directory name (e.g. s-07767992IY7VC5NVV854). */
 class EmrUtils {
 
   private static final Logger log = LoggerFactory.getLogger(EmrUtils.class);
