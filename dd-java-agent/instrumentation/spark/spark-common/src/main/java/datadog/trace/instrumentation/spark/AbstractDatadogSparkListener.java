@@ -346,7 +346,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (applicationSpan == null) {
       // On Databricks or streaming environments, the application span is not created.
       // Flush any remaining traces and return.
-      log.info("No application span created, skipping. isRunningOnDatabricks={}", isRunningOnDatabricks);
+      log.info(
+          "No application span created, skipping. isRunningOnDatabricks={}", isRunningOnDatabricks);
       tracer.flush();
       return;
     }
