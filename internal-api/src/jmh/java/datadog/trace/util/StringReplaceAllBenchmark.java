@@ -1,4 +1,4 @@
-package datadog.trace.util;
+package benchmarks.reference;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.regex.Pattern;
@@ -9,22 +9,35 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * For simple replacements, Strings.replaceAll out performs String.replaceAll and
- * regex.Matcher.replaceAll by 3x. Strings.replaceAll also requires less allocation.
+ * <p>For simple replacements, Strings.replaceAll is recommened.
+ *
+ * <p>
+ * For simple replacements, Strings.replaceAll or String.replace out performs the regex based
+ * methods String.replaceAll and regex.Matcher.replaceAll by 3x in terms of throughput.
+ *
+ * <p>String.replace and Strings.replaceAll also require less allocation.
+ *
+ * <p>Strings.replaceAll out performs String.replace by 1.2x in terms of throughput,
+ * but results may vary depending on the JVM version being used.
  *
  * <p>When pattern matching is needed, compiling the regex to Pattern slightly improves overhead,
  * but dramatically reduces memory allocation to 1/4x of String.replaceAll. <code>
  * MacBook M1 with 8 threads (Java 21)
  *
- * Benchmark                                                          Mode  Cnt         Score         Error   Units
- * StringReplacementBenchmark.regex_replaceAll                       thrpt    6  13795837.811 ± 3635087.691   ops/s
- * StringReplacementBenchmark.regex_replaceAll:gc.alloc.rate         thrpt    6      3988.955 ±    1148.316  MB/sec
+ * <code>
+ * MacBook M1 - 8 Threads - Java 21
  *
- * StringReplacementBenchmark.string_replaceAll                      thrpt    6  14611046.391 ± 4865682.875   ops/s
- * StringReplacementBenchmark.string_replaceAll:gc.alloc.rate        thrpt    6     11391.346 ±    3790.917  MB/sec
+ * StringReplaceAllBenchmark.regex_replaceAll                       thrpt    6  15500559.098 ± 8640183.754   ops/s
+ * StringReplaceAllBenchmark.regex_replaceAll:gc.alloc.rate         thrpt    6      4516.464 ±    2561.063  MB/sec
  *
- * StringReplacementBenchmark.strings_replaceAll                     thrpt    6  39514695.575 ± 7169844.210   ops/s
- * StringReplacementBenchmark.strings_replaceAll:gc.alloc.rate       thrpt    6      2777.083 ±     506.909  MB/sec
+ * StringReplaceAllBenchmark.string_replace                         thrpt    6  35429131.963 ± 3203548.932   ops/s
+ * StringReplaceAllBenchmark.string_replace:gc.alloc.rate           thrpt    6      3185.108 ±     152.601  MB/sec
+ *
+ * StringReplaceAllBenchmark.string_replaceAll                      thrpt    6  14253964.929 ± 4060225.866   ops/s
+ * StringReplaceAllBenchmark.string_replaceAll:gc.alloc.rate        thrpt    6     11114.939 ±    3129.891  MB/sec
+ *
+ * StringReplaceAllBenchmark.strings_replaceAll                     thrpt    6  43789250.524 ± 1910948.420   ops/s
+ * StringReplaceAllBenchmark.strings_replaceAll:gc.alloc.rate       thrpt    6      3079.973 ±     134.617  MB/sec
  * </code>
  */
 @Fork(2)
@@ -32,7 +45,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 3)
 @Threads(8)
 @SuppressForbidden
-public class StringReplacementBenchmark {
+public class StringReplaceAllBenchmark {
   static final String[] INPUTS = {
     "foo",
     "baz",
@@ -63,6 +76,15 @@ public class StringReplacementBenchmark {
   static String _string_replaceAll(String input) {
     // Underneath, this does Pattern.compile("foo").matcher(str).replaceAll()
     return input.replaceAll("foo", "*redacted*");
+  }
+
+  @Benchmark
+  public String string_replace() {
+    return _string_replace(nextInput());
+  }
+
+  static String _string_replace(String input) {
+    return input.replace("foo", "*redacted*");
   }
 
   static final Pattern REGEX_COMPILED = Pattern.compile("foo");
