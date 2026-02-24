@@ -26,7 +26,7 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       packageName + ".AbstractSparkPlanSerializer",
       packageName + ".AbstractSparkPlanUtils",
       packageName + ".DatabricksParentContext",
-      packageName + ".EmrStepIdCapture",
+      packageName + ".EmrUtils",
       packageName + ".OpenlineageParentContext",
       packageName + ".DatadogSpark213Listener",
       packageName + ".PredeterminedTraceIdContext",

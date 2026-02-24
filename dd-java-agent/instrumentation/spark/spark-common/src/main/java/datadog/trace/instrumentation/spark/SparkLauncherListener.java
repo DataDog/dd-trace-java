@@ -133,7 +133,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
   }
 
   private static void captureEmrStepId(AgentSpan span) {
-    String stepId = EmrStepIdCapture.getEmrStepId();
+    String stepId = EmrUtils.getEmrStepId();
     if (stepId != null) {
       span.setTag("emr_step_id", stepId);
     }

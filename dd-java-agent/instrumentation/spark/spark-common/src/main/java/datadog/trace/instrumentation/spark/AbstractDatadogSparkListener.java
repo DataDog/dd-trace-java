@@ -1212,7 +1212,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
-    String stepId = EmrStepIdCapture.getEmrStepId();
+    String stepId = EmrUtils.getEmrStepId();
     if (stepId != null) {
       builder.withTag("emr_step_id", stepId);
     }

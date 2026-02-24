@@ -9,9 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Extracts the AWS EMR Step ID from the working directory name (e.g. {@code s-0039...}). */
-class EmrStepIdCapture {
+class EmrUtils {
 
-  private static final Logger log = LoggerFactory.getLogger(EmrStepIdCapture.class);
+  private static final Logger log = LoggerFactory.getLogger(EmrUtils.class);
   private static final Pattern EMR_STEP_ID_PATTERN = Pattern.compile("^(s-[0-9A-Za-z]+)$");
 
   @Nullable
@@ -34,5 +34,5 @@ class EmrStepIdCapture {
     return null;
   }
 
-  private EmrStepIdCapture() {}
+  private EmrUtils() {}
 }
