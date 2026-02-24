@@ -125,7 +125,7 @@ cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.
 cafe-crypto-curve25519 = { module = "cafe.cryptography:curve25519-elisabeth", version.ref = "cafe_crypto" }
 
 # Common utils
-aircompressor = { module = "io.airlift:aircompressor", version = "2.0.2"} # aircompressor v3 requires Java 22
+aircompressor = { module = "io.airlift:aircompressor", version = "2.0.3"} # aircompressor v3 requires Java 22
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
