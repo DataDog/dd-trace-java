@@ -11,10 +11,6 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("latestDepTest", Test) {
-  systemProperty 'test.isLatestDepTest', 'true'
-}
-
 dependencies {
   compileOnly 'org.apache.maven:maven-embedder:3.2.1'
 

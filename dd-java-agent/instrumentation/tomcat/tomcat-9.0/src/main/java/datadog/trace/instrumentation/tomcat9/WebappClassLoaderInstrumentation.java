@@ -51,9 +51,7 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
 
       final String contextName = context.getBaseName();
       if (contextName != null && !contextName.isEmpty()) {
-        info =
-            ClassloaderConfigurationOverrides.withPinnedServiceName(
-                classLoader, contextName, TOMCAT);
+        info = ClassloaderConfigurationOverrides.withPinnedServiceName(classLoader, contextName);
       }
       if (context.getNamingResources() != null) {
         final ContextEnvironment[] envs = context.getNamingResources().findEnvironments();

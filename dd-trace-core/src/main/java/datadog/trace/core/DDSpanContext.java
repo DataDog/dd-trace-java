@@ -728,6 +728,30 @@ public class DDSpanContext
     }
   }
 
+  public void setMetric(final CharSequence key, final int value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final long value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final float value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final double value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
   public void setMetric(final TagMap.EntryReader entry) {
     if (entry == null) {
       return;

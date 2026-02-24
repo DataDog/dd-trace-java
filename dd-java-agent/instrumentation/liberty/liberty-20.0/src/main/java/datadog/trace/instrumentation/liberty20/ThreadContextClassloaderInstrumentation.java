@@ -42,7 +42,7 @@ public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.
     public static void afterConstruct(@Advice.This ThreadContextClassLoader self) {
       final String name = BundleNameHelper.extractDeploymentName(self);
       if (name != null && !name.isEmpty()) {
-        ClassloaderConfigurationOverrides.withPinnedServiceName(self, name, LIBERTY);
+        ClassloaderConfigurationOverrides.withPinnedServiceName(self, name);
       }
     }
   }
