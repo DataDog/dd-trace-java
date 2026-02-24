@@ -1,8 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.assertj.core.api.Assertions.assertThat
 
 class VersionSetTest {
 
@@ -26,13 +26,11 @@ class VersionSetTest {
 
     for (c in cases) {
       val parsed = VersionSet.ParsedVersion(c.version)
-      assertEquals(c.versionNumber, parsed.versionNumber, "versionNumber for ${c.version}")
-      assertEquals(c.ending, parsed.ending, "ending for ${c.version}")
-      assertEquals(
-        c.versionNumber shr 12,
-        parsed.majorMinor.toLong(),
-        "majorMinor for ${c.version}"
-      )
+      assertThat(parsed.versionNumber).withFailMessage("versionNumber for ${c.version}").isEqualTo(c.versionNumber)
+      assertThat(parsed.ending).withFailMessage("ending for ${c.version}").isEqualTo(c.ending)
+      assertThat(parsed.majorMinor.toLong())
+        .withFailMessage("majorMinor for ${c.version}")
+        .isEqualTo(c.versionNumber shr 12)
     }
   }
 
@@ -71,7 +69,7 @@ class VersionSetTest {
 
     versionsCases.zip(expectedCases).forEach { (versions, expected) ->
       val versionSet = VersionSet(versions)
-      assertEquals(expected, versionSet.lowAndHighForMajorMinor)
+      assertThat(versionSet.lowAndHighForMajorMinor).isEqualTo(expected)
     }
   }
 

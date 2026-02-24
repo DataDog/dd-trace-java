@@ -9,7 +9,7 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-core'
     versions = "[$muleVersion,)"
-    skipVersions = ['4.9.1'] // missing transitive dependency
+    skipVersions = ['4.6.27', '4.9.1'] // missing transitive dependency
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
@@ -19,7 +19,7 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-tracer-customization-impl'
     versions = "[$muleVersion,)"
-    skipVersions = ['4.9.1'] // missing transitive dependency
+    skipVersions = ['4.6.27', '4.9.1'] // missing transitive dependency
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'

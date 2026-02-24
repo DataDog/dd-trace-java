@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -23,15 +24,15 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (serviceName != null) {
-      1 * span.setServiceName(serviceName)
+      1 * span.setServiceName(serviceName, "test-component")
     }
     1 * span.setMeasured(true)
-    1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
-    1 * span.setTag(Tags.SPAN_KIND, "client")
+    1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
     1 * span.setSpanType("test-type")
-    1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
+    1 * span.setMetric(TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0))
     0 * _
 
     where:
@@ -58,11 +59,11 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }
       if (instanceTypeSuffix && renameByInstance && session.instance) {
-        1 * span.setServiceName(session.instance + "-" + decorator.dbType())
+        1 * span.setServiceName(session.instance + "-" + decorator.dbType(), _)
       } else if (renameByInstance && session.instance) {
-        1 * span.setServiceName(session.instance)
+        1 * span.setServiceName(session.instance, _)
       } else if (renameByHost) {
-        1 * span.setServiceName(session.hostname)
+        1 * span.setServiceName(session.hostname, _)
       }
     }
     0 * _
