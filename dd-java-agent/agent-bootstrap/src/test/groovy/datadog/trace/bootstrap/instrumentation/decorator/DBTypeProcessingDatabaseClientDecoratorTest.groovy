@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -26,7 +27,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
-    1 * span.setTag(Tags.SPAN_KIND, "client")
+    1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
     1 * span.setSpanType("test-type")
     1 * span.setServiceName("test-db")
     1 * span.setOperationName(UTF8BytesString.create("test-db.query"))
