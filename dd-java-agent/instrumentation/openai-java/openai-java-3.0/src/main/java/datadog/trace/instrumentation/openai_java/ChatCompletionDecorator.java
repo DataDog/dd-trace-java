@@ -31,11 +31,6 @@ public class ChatCompletionDecorator {
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/chat/completions");
-    if (!llmObsEnabled) {
-      return;
-    }
-
-    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -44,6 +39,12 @@ public class ChatCompletionDecorator {
         ._value()
         .asString()
         .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
 
     span.setTag(
         CommonTags.INPUT,
@@ -97,12 +98,13 @@ public class ChatCompletionDecorator {
   }
 
   public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
-    if (!llmObsEnabled) {
-      return;
-    }
     String modelName = completion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()

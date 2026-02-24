@@ -37,11 +37,6 @@ public class ResponseDecorator {
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
     span.setResourceName(RESPONSES_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/responses");
-    if (!llmObsEnabled) {
-      return;
-    }
-
-    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
@@ -50,6 +45,12 @@ public class ResponseDecorator {
     // https://github.com/openai/openai-java/commit/87dd64658da6cec7564f3b571e15ec0e2db0660b
     String modelName = extractResponseModel(params._model());
     span.setTag(CommonTags.OPENAI_REQUEST_MODEL, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
 
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
@@ -369,10 +370,6 @@ public class ResponseDecorator {
   }
 
   public void withResponseStreamEvents(AgentSpan span, List<ResponseStreamEvent> events) {
-    if (!llmObsEnabled) {
-      return;
-    }
-
     for (ResponseStreamEvent event : events) {
       if (event.isCompleted()) {
         Response response = event.asCompleted().response();
@@ -388,13 +385,13 @@ public class ResponseDecorator {
   }
 
   private void withResponse(AgentSpan span, Response response, boolean stream) {
-    if (!llmObsEnabled) {
-      return;
-    }
-
     String modelName = extractResponseModel(response._model());
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
 
     List<LLMObs.LLMMessage> outputMessages = extractResponseOutputMessages(response.output());
     if (!outputMessages.isEmpty()) {
