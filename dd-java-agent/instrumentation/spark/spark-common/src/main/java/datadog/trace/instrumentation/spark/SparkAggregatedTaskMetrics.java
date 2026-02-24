@@ -321,6 +321,7 @@ class SparkAggregatedTaskMetrics {
       if (name != null && hist != null) {
         generator.writeStartObject();
         generator.writeStringField(name, histogramToBase64(hist));
+        generator.writeNumberField("sum", hist.getSum());
         generator.writeStringField("type", info.metricType());
         generator.writeEndObject();
       }
