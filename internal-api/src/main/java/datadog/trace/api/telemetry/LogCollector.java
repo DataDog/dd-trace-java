@@ -69,7 +69,7 @@ public class LogCollector {
       return Collections.emptyList();
     }
 
-    List<RawLogMessage> list = new ArrayList<>();
+    List<RawLogMessage> list = new ArrayList<>(rawLogMessages.size());
     Iterator<Map.Entry<RawLogMessage, AtomicInteger>> iterator =
         rawLogMessages.entrySet().iterator();
 
