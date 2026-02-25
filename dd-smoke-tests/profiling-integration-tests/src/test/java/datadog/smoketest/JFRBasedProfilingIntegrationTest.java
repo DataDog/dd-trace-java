@@ -977,6 +977,10 @@ class JFRBasedProfilingIntegrationTest {
   @Test
   @DisplayName("Test JFR scrubbing")
   void testJfrScrubbing(final TestInfo testInfo) throws Exception {
+    Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+    // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable
+    Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
+
     testWithRetry(
         () -> {
           try {
@@ -996,10 +1000,6 @@ class JFRBasedProfilingIntegrationTest {
                         true,
                         "-Ddd.profiling.scrub.enabled=true")
                     .start();
-
-            Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
-            // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable
-            Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
 
             final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
