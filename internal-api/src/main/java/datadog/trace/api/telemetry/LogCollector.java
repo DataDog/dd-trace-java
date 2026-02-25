@@ -97,7 +97,7 @@ public class LogCollector {
     public final long timestamp;
     public int count;
 
-    StackTraceElement[] cachedStackTrace = null;
+    private StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
         String logLevel, String message, Throwable throwable, String tags, long timestamp) {
@@ -120,7 +120,7 @@ public class LogCollector {
       if (stackTrace != null) return stackTrace;
 
       cachedStackTrace = stackTrace = throwable.getStackTrace();
-      return cachedStackTrace;
+      return stackTrace;
     }
 
     @Override
