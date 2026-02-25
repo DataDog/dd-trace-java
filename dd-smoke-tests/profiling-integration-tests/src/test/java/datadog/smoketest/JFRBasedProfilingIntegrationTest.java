@@ -998,6 +998,8 @@ class JFRBasedProfilingIntegrationTest {
                     .start();
 
             Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+            // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable
+            Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
 
             final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
