@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.spark;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -18,18 +19,13 @@ class EmrUtils {
   private static final Pattern EMR_STEP_ID_PATTERN = Pattern.compile("^(s-[0-9A-Z]{20})$");
 
   /**
-   * Returns true if the Spark job is running on AWS EMR. Detection uses two EMR-exclusive keys:
-   *
-   * <ul>
-   *   <li>{@code spark.sql.emr.internal.extensions}: registers EMR's Spark session extensions,
-   *       present across all known EMR releases (observed in community EMR configs)
-   *   <li>{@code spark.emr.default.executor.cores}: newer EMR default, added as a fallback for
-   *       future releases where the extensions key might change
-   * </ul>
+   * Returns true if the Spark job is running on AWS EMR. Detection scans all SparkConf keys for the
+   * {@code .emr.} substring, which is present in EMR-specific keys (e.g. {@code
+   * spark.emr.default.executor.cores}, {@code spark.sql.emr.internal.extensions}) and absent from
+   * all standard Spark configuration keys.
    */
   static boolean isRunningOnEmr(SparkConf conf) {
-    return conf.contains("spark.sql.emr.internal.extensions")
-        || conf.contains("spark.emr.default.executor.cores");
+    return Arrays.stream(conf.getAll()).anyMatch(t -> t._1().contains(".emr."));
   }
 
   @Nullable
