@@ -134,6 +134,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
+  private final boolean isRunningOnEmr;
   private final String databricksClusterName;
   private final String databricksServiceName;
   private final String sparkServiceName;
@@ -156,6 +157,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     this.sparkVersion = sparkVersion;
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
+    isRunningOnEmr = EmrUtils.isRunningOnEmr(sparkConf);
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
@@ -276,7 +278,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
-    captureEmrStepId(builder);
+    captureEmrStepId(builder, isRunningOnEmr);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -1211,7 +1213,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("config.spark_version", sparkVersion);
   }
 
-  private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
+  private static void captureEmrStepId(AgentTracer.SpanBuilder builder, boolean isRunningOnEmr) {
+    if (!isRunningOnEmr) {
+      return;
+    }
     String stepId = EmrUtils.getEmrStepId();
     if (stepId != null) {
       builder.withTag("emr_step_id", stepId);
