@@ -131,15 +131,19 @@ public class LogCollector {
       if (!Objects.equals(logLevel, that.logLevel)) return false;
       if (!Objects.equals(message, that.message)) return false;
 
-      if (throwable == null && that.throwable == null) {
-        return true;
-      } else if (throwable == that.throwable) {
+      if (throwable == that.throwable) {
         // DQH - While this path may seem unlikely, it does happen if the JVM fast
         // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
+    	  
+    	// This also covers the case where both throwables are null
         return true;
-      } else {
+      } else if (this.throwable != null && that.throwable != null) {
+    	// Both have a throwable perform a deeper comparison
         return throwable.getClass().equals(that.throwable.getClass())
             && Objects.deepEquals(stackTrace(), that.stackTrace());
+      } else {
+    	// One has an exception & the other doesn't, not equal
+    	return false;
       }
     }
 
