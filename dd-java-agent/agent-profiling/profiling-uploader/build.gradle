@@ -28,6 +28,7 @@ dependencies {
   implementation project(':utils:version-utils')
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation project(':dd-java-agent:agent-profiling:profiling-otel')
 
   implementation libs.okhttp
   implementation libs.lz4
