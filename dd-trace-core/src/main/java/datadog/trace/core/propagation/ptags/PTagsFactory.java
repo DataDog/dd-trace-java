@@ -124,6 +124,9 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile CharSequence lastParentId;
 
+    /** The OPM (Org Propagation Marker) received in the inbound request. */
+    private volatile String inboundOpm;
+
     public PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
@@ -434,6 +437,50 @@ public class PTagsFactory implements PropagationTags.Factory {
           clearCachedHeader(DATADOG);
           clearCachedHeader(W3C);
         }
+      }
+    }
+
+    @Override
+    public String getInboundOpm() {
+      return inboundOpm;
+    }
+
+    @Override
+    public void setInboundOpm(String opm) {
+      this.inboundOpm = opm;
+    }
+
+    @Override
+    public String getOutboundOpm(String localOpm) {
+      if (localOpm != null) {
+        return localOpm;
+      }
+      return inboundOpm;
+    }
+
+    @Override
+    public void clearSamplingAndTags() {
+      if (samplingPriority != PrioritySampling.UNSET) {
+        clearCachedHeader(W3C);
+        samplingPriority = PrioritySampling.UNSET;
+      }
+      if (decisionMakerTagValue != null) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        decisionMakerTagValue = null;
+        canChangeDecisionMaker = true;
+      }
+      if (origin != null) {
+        clearCachedHeader(W3C);
+        origin = null;
+      }
+      // Clear propagation tags (_dd.p.*) held in the mutable tagPairs list
+      List<TagElement> pairs = tagPairs;
+      if (pairs != null && !pairs.isEmpty()) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        pairs.clear();
+        invalidateXDatadogTagsSize();
       }
     }
   }

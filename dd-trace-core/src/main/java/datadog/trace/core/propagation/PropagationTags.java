@@ -137,4 +137,33 @@ public abstract class PropagationTags {
   }
 
   public abstract void updateAndLockDecisionMaker(PropagationTags source);
+
+  /**
+   * Returns the OPM (Org Propagation Marker) received in the inbound request, or {@code null} if
+   * not present.
+   */
+  public abstract String getInboundOpm();
+
+  /**
+   * Stores the OPM (Org Propagation Marker) received in the inbound request.
+   *
+   * @param opm the inbound OPM value
+   */
+  public abstract void setInboundOpm(String opm);
+
+  /**
+   * Returns the OPM value to inject in outbound requests. Uses the local OPM if set, otherwise
+   * forwards the inbound OPM. Returns {@code null} if neither is available.
+   *
+   * @param localOpm the local OPM known to this service (from agent /info)
+   * @return the OPM to inject, or {@code null}
+   */
+  public abstract String getOutboundOpm(String localOpm);
+
+  /**
+   * Clears sampling priority, decision-maker tag, and _dd.p.* tags from the propagation context,
+   * while preserving trace and parent IDs. Used by the org propagation guard when a cross-org
+   * request is detected.
+   */
+  public abstract void clearSamplingAndTags();
 }

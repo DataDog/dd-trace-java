@@ -251,6 +251,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
         if (propagationTags == null) {
           propagationTags = propagationTagsFactory.empty();
         }
+        applyOrgGuard(propagationTags);
         return new ExtractedContext(
             traceId,
             spanId,
@@ -280,6 +281,28 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       }
     }
     return null;
+  }
+
+  private void applyOrgGuard(PropagationTags propagationTags) {
+    Config config = Config.get();
+    if (!config.isTraceOrgGuardEnforce()) {
+      return;
+    }
+    String localOpm = OrgPropagationMarker.getLocalOpm();
+    if (localOpm == null) {
+      return; // local OPM unknown → no action
+    }
+    String inboundOpm = propagationTags.getInboundOpm();
+    if (inboundOpm == null) {
+      return; // inbound has no OPM → no action
+    }
+    boolean trusted =
+        localOpm.equals(inboundOpm) || config.getTraceOrgGuardTrustedOpm().contains(inboundOpm);
+    if (!trusted) {
+      samplingPriority = PrioritySampling.UNSET;
+      origin = null;
+      propagationTags.clearSamplingAndTags();
+    }
   }
 
   protected void invalidateContext() {

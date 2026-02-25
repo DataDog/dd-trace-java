@@ -166,5 +166,8 @@ public final class TracerConfig {
       "trace.cloud.payload.tagging.max-tags";
   public static final String TRACE_SERVICE_DISCOVERY_ENABLED = "trace.service.discovery.enabled";
 
+  public static final String TRACE_ORG_GUARD_ENFORCE = "trace.org.guard.enforce";
+  public static final String TRACE_ORG_GUARD_TRUSTED_OPM = "trace.org.guard.trusted.opm";
+
   private TracerConfig() {}
 }

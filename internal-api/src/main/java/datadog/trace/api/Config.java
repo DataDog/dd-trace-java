@@ -651,6 +651,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_ENFORCE;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_TRUSTED_OPM;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_HOSTNAME_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
@@ -1240,6 +1242,9 @@ public class Config {
   private final String dataStreamsTransactionExtractors;
 
   private final boolean serviceDiscoveryEnabled;
+
+  private final boolean traceOrgGuardEnforce;
+  private final List<String> traceOrgGuardTrustedOpm;
 
   private final Set<String> iastWeakHashAlgorithms;
 
@@ -2827,6 +2832,11 @@ public class Config {
         configProvider.getBoolean(
             TRACE_SERVICE_DISCOVERY_ENABLED, DEFAULT_SERVICE_DISCOVERY_ENABLED);
 
+    traceOrgGuardEnforce = configProvider.getBoolean(TRACE_ORG_GUARD_ENFORCE, true);
+    traceOrgGuardTrustedOpm =
+        tryMakeImmutableList(
+            configProvider.getList(TRACE_ORG_GUARD_TRUSTED_OPM, Collections.emptyList()));
+
     if (longRunningEnabled
         && (longRunningTraceInitialFlushInterval < 10
             || longRunningTraceInitialFlushInterval > 450)) {
@@ -3135,6 +3145,14 @@ public class Config {
 
   public boolean isServiceDiscoveryEnabled() {
     return serviceDiscoveryEnabled;
+  }
+
+  public boolean isTraceOrgGuardEnforce() {
+    return traceOrgGuardEnforce;
+  }
+
+  public List<String> getTraceOrgGuardTrustedOpm() {
+    return traceOrgGuardTrustedOpm;
   }
 
   public boolean isLongRunningTraceEnabled() {

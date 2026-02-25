@@ -620,6 +620,36 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     }
   }
 
+  static final String INFO_WITH_OPM_RESPONSE = loadJsonFile("agent-info-with-opm.json")
+
+  def "test parse /info response with opm"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available with opm field"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_OPM_RESPONSE) }
+    features.getOrgPropagationMarker() == "abc123def456"
+    0 * _
+  }
+
+  def "test parse /info response without opm returns null"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available without opm field"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+    features.getOrgPropagationMarker() == null
+    0 * _
+  }
+
   private static String loadJsonFile(String name) {
     return new String(Files.readAllBytes(Paths.get("src/test/resources/agent-features").resolve(name)))
   }

@@ -93,6 +93,7 @@ import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
+import datadog.trace.core.propagation.OrgPropagationMarker;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
@@ -758,6 +759,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
+
+    // Initialise org propagation marker from agent info and keep it refreshed
+    String opm = featuresDiscovery.getOrgPropagationMarker();
+    if (opm != null) {
+      OrgPropagationMarker.setLocalOpm(opm);
+    }
+    featuresDiscovery.setOpmListener(OrgPropagationMarker::setLocalOpm);
 
     if (config.isCiVisibilityEnabled()) {
       // ensure updated discovery and sync if the another discovery currently being done

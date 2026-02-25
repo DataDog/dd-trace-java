@@ -35,6 +35,7 @@ class DatadogHttpCodec {
   static final String ORIGIN_KEY = "x-datadog-origin";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
   static final String DATADOG_TAGS_KEY = "x-datadog-tags";
+  static final String OPM_KEY = "x-dd-opm";
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -82,6 +83,12 @@ class DatadogHttpCodec {
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
+
+      // inject x-dd-opm
+      String opm = context.getPropagationTags().getOutboundOpm(OrgPropagationMarker.getLocalOpm());
+      if (opm != null) {
+        setter.set(carrier, OPM_KEY, opm);
+      }
     }
   }
 
@@ -100,13 +107,22 @@ class DatadogHttpCodec {
     private static final int OT_BAGGAGE = 4;
     private static final int E2E_START = 5;
     private static final int DD_TAGS = 6;
+    private static final int OPM = 7;
     private static final int IGNORE = -1;
+
+    private String inboundOpm;
 
     private final boolean isAwsPropagationEnabled;
 
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
+    }
+
+    @Override
+    public ContextInterpreter reset(TraceConfig traceConfig) {
+      inboundOpm = null;
+      return super.reset(traceConfig);
     }
 
     @Override
@@ -142,6 +158,8 @@ class DatadogHttpCodec {
             return true;
           } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
             classification = DD_TAGS;
+          } else if (OPM_KEY.equalsIgnoreCase(key)) {
+            classification = OPM;
           }
           break;
         case 'f':
@@ -187,6 +205,9 @@ class DatadogHttpCodec {
               case DD_TAGS:
                 propagationTags = propagationTagsFactory.fromHeaderValue(HeaderType.DATADOG, value);
                 break;
+              case OPM:
+                inboundOpm = firstHeaderValue(value);
+                break;
               case OT_BAGGAGE:
                 {
                   if (baggage.isEmpty()) {
@@ -219,6 +240,12 @@ class DatadogHttpCodec {
     @Override
     protected TagContext build() {
       restore128bTraceId();
+      if (inboundOpm != null) {
+        if (propagationTags == null) {
+          propagationTags = propagationTagsFactory.empty();
+        }
+        propagationTags.setInboundOpm(inboundOpm);
+      }
       return super.build();
     }
 

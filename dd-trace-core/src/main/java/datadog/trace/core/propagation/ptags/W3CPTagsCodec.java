@@ -4,6 +4,7 @@ import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
 
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.core.propagation.OrgPropagationMarker;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
@@ -27,6 +28,8 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
   private static final int MAX_MEMBER_COUNT = 32;
+  private static final String OPM_KEY = "opm";
+  private static final String OPM_KEY_WITH_SEPARATOR = OPM_KEY + KEY_VALUE_SEPARATOR;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -97,6 +100,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int traceSource = ProductTraceSource.UNSET;
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
+    String parsedOpm = null;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -137,6 +141,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         origin = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
       } else if (keyLength == 1 && c == 'p') {
         lastParentId = TagValue.from(Encoding.W3C, value, tagValuePos, tagValueEndsAt);
+      } else if (keyLength == OPM_KEY.length() && value.startsWith(OPM_KEY, tagPos)) {
+        parsedOpm = value.substring(tagValuePos, tagValueEndsAt);
       } else {
         TagKey tagKey = TagKey.from(Encoding.W3C, value, tagPos, tagKeyEndsAt);
         if (tagKey != null) {
@@ -178,20 +184,25 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    return new W3CPTags(
-        tagsFactory,
-        tagPairs,
-        decisionMakerTagValue,
-        traceIdTagValue,
-        traceSource,
-        samplingPriority,
-        origin,
-        value,
-        firstMemberStart,
-        ddMemberStart,
-        ddMemberValueEnd,
-        maxUnknownSize,
-        lastParentId);
+    W3CPTags result =
+        new W3CPTags(
+            tagsFactory,
+            tagPairs,
+            decisionMakerTagValue,
+            traceIdTagValue,
+            traceSource,
+            samplingPriority,
+            origin,
+            value,
+            firstMemberStart,
+            ddMemberStart,
+            ddMemberValueEnd,
+            maxUnknownSize,
+            lastParentId);
+    if (parsedOpm != null) {
+      result.setInboundOpm(parsedOpm);
+    }
+    return result;
   }
 
   @Override
@@ -204,6 +215,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     }
     if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
       size += 5; // 's:-?[0-9]' + delimiter
+    }
+    String outboundOpm = pTags.getOutboundOpm(OrgPropagationMarker.getLocalOpm());
+    if (outboundOpm != null) {
+      size += OPM_KEY.length() + 1 + outboundOpm.length() + 1; // 'opm:' + value + delimiter
     }
     if (pTags instanceof W3CPTags) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
@@ -252,6 +267,16 @@ public class W3CPTagsCodec extends PTagsCodec {
       } else {
         sb.append(lastParent);
       }
+    }
+    // append org propagation marker (opm)
+    String outboundOpm = ptags.getOutboundOpm(OrgPropagationMarker.getLocalOpm());
+    if (outboundOpm != null) {
+      if (sb.length() > EMPTY_SIZE) {
+        sb.append(';');
+      }
+      sb.append(OPM_KEY);
+      sb.append(':');
+      sb.append(outboundOpm);
     }
     return sb.length();
   }
@@ -628,7 +653,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (!original.startsWith(Encoding.W3C.getPrefix(), elementStart)) {
         char first = original.charAt(elementStart);
         char second = original.charAt(elementStart + 1);
-        if (second != KEY_VALUE_SEPARATOR || (first != 'o' && first != 's')) {
+        boolean isOpmKey = original.startsWith(OPM_KEY_WITH_SEPARATOR, elementStart);
+        if (!isOpmKey && (second != KEY_VALUE_SEPARATOR || (first != 'o' && first != 's'))) {
           // only append elements that we don't know about or are not tags
           if (sb.length() > EMPTY_SIZE) {
             sb.append(ELEMENT_SEPARATOR);

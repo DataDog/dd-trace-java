@@ -99,6 +99,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
     long lastTimeDiscovered;
+    String orgPropagationMarker;
   }
 
   private volatile State discoveryState;
@@ -304,6 +305,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                 ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
                 : emptySet();
       }
+      newState.orgPropagationMarker = (String) map.get("opm");
+
       try {
         newState.state = Strings.sha256(response);
       } catch (NoSuchAlgorithmException ex) {
@@ -448,5 +451,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsTelemetryProxy() {
     return discoveryState.telemetryProxyEndpoint != null;
+  }
+
+  public String getOrgPropagationMarker() {
+    return discoveryState.orgPropagationMarker;
   }
 }
