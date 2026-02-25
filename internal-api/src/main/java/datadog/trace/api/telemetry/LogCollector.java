@@ -135,7 +135,7 @@ public class LogCollector {
       if (throwable == null && that.throwable == null) {
         return true;
       } else if (throwable == that.throwable) {
-        // DQH - While this path may seem unlikely, it does happen if the JVM hot
+        // DQH - While this path may seem unlikely, it does happen if the JVM fast
         // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
         return true;
       } else {

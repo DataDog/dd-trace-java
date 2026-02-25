@@ -14,8 +14,8 @@ public class LogCollectorBenchmark {
 
   @Benchmark
   public void nullPointerException() {
-    // Represents the hot throw case where the JVM switches to using
-    // a single Exception instance to represent a hot throw location
+    // Represents the fast throw case where the JVM switches to using
+    // a single Exception instance to handle a hot throw location
     // of NullPointerException, ArrayIndexOutOfBoundsException, etc.
     // In this case, the stacktrace of the exception will not be available.
     try {
