@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * number of times. Stops retrying as soon as the test passes.
  */
 @SuppressFBWarnings(
-    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE"},
     justification =
         "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class AutoTestRetry implements TestExecutionPolicy {
