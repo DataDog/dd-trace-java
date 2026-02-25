@@ -1,6 +1,5 @@
 package datadog.trace.api.telemetry;
 
-import datadog.trace.api.telemetry.LogCollectorAfter.RawLogMessage;
 import datadog.trace.util.HashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
