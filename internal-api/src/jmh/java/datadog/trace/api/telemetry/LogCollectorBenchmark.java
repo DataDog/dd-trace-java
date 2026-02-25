@@ -1,12 +1,10 @@
 package datadog.trace.api.telemetry;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.infra.Blackhole;
-
 import datadog.trace.bootstrap.Fork;
 import datadog.trace.bootstrap.Measurement;
 import datadog.trace.bootstrap.Threads;
 import datadog.trace.bootstrap.Warmup;
+import org.openjdk.jmh.annotations.Benchmark;
 
 @Fork(2)
 @Warmup(iterations = 2)
@@ -17,7 +15,7 @@ public class LogCollectorBenchmark {
   public void noException_before() {
     LogCollector.get().addLogMessage("error", "ugh!", null);
   }
-	  
+
   static final Object NULL = null;
 
   @Benchmark
