@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 class EmrUtils {
 
   private static final Logger log = LoggerFactory.getLogger(EmrUtils.class);
+
   /** EMR step ID is a 20 character string with numbers and uppercase letters only */
   private static final Pattern EMR_STEP_ID_PATTERN = Pattern.compile("^(s-[0-9A-Z]{20})$");
 

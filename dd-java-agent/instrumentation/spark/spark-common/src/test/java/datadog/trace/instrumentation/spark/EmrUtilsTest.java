@@ -44,7 +44,8 @@ class EmrUtilsTest {
   @Test
   void isRunningOnEmrReturnsTrueWhenEmrInternalExtensionsPresent() {
     SparkConf conf = new SparkConf();
-    conf.set("spark.sql.emr.internal.extensions", "com.amazonaws.emr.spark.EmrSparkSessionExtensions");
+    conf.set(
+        "spark.sql.emr.internal.extensions", "com.amazonaws.emr.spark.EmrSparkSessionExtensions");
     assertTrue(EmrUtils.isRunningOnEmr(conf));
   }
 
@@ -54,5 +55,4 @@ class EmrUtilsTest {
     conf.set("spark.emr.default.executor.cores", "1");
     assertTrue(EmrUtils.isRunningOnEmr(conf));
   }
-
 }
