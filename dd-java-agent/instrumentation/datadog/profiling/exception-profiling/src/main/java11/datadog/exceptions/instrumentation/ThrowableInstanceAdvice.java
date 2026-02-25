@@ -3,6 +3,7 @@ package datadog.exceptions.instrumentation;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
@@ -12,6 +13,9 @@ import net.bytebuddy.asm.Advice;
 public class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This final Object t) {
+    if (Platform.isNativeImageBuilder()) {
+      return;
+    }
     if (ExceptionProfiling.Exclusion.isEffective()) {
       return;
     }
