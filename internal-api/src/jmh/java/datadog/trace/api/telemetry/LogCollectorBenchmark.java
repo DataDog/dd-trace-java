@@ -1,5 +1,8 @@
 package datadog.trace.api.telemetry;
 
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.infra.Blackhole;
+
 import datadog.trace.bootstrap.Fork;
 import datadog.trace.bootstrap.Measurement;
 import datadog.trace.bootstrap.Threads;
@@ -10,6 +13,11 @@ import datadog.trace.bootstrap.Warmup;
 @Measurement(iterations = 5)
 @Threads(8)
 public class LogCollectorBenchmark {
+  @Benchmark
+  public void noException_before() {
+    LogCollector.get().addLogMessage("error", "ugh!", null);
+  }
+	  
   static final Object NULL = null;
 
   @Benchmark
@@ -22,7 +30,6 @@ public class LogCollectorBenchmark {
       NULL.hashCode();
     } catch (Throwable t) {
       LogCollector.get().addLogMessage("error", "npe", t);
-      bh.consume(t);
     }
   }
 
@@ -33,8 +40,7 @@ public class LogCollectorBenchmark {
     try {
       unsupportedOperation();
     } catch (Throwable t) {
-      LogCollector.get().addLogMessage("error", "npe", t);
-      bh.consume(t);
+      LogCollector.get().addLogMessage("error", "unsupported", t);
     }
   }
 
