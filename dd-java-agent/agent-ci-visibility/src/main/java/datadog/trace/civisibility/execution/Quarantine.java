@@ -1,13 +1,14 @@
 package datadog.trace.civisibility.execution;
 
+import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 
 /**
- * Runs a test case once. If it fails - suppresses the failure so that the build status is not
- * affected.
+ * Execution policy for quarantined tests. Runs a test case once. If it fails, suppresses the
+ * failure so that the build status is not affected.
  */
-public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
+public class Quarantine implements TestExecutionPolicy {
 
   private boolean testExecuted;
 
@@ -17,8 +18,7 @@ public class RunOnceIgnoreOutcome implements TestExecutionPolicy {
     return new ExecutionOutcomeImpl(
         status == TestStatus.fail,
         testExecuted,
-        false,
-        false,
+        ExecutionAggregation.NONE.withExecution(status),
         null,
         status == TestStatus.fail ? TestStatus.pass : status);
   }

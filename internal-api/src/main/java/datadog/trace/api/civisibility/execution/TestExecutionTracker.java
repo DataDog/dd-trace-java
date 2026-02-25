@@ -3,9 +3,23 @@ package datadog.trace.api.civisibility.execution;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import javax.annotation.Nullable;
 
-public interface TestExecutionHistory {
+/**
+ * Stateful tracker for test executions within a single test case. Records execution results and
+ * produces {@link ExecutionOutcome} objects that describe what happened and what tags/metadata to
+ * attach to the test span.
+ *
+ * <p>This is the narrower view of a {@link TestExecutionPolicy}: tracing listeners receive a {@code
+ * TestExecutionTracker} to record results, while execution instrumentations receive the full {@link
+ * TestExecutionPolicy} which adds decision methods ({@link TestExecutionPolicy#applicable()},
+ * {@link TestExecutionPolicy#suppressFailures()}) used to drive retry loops.
+ *
+ * @see TestExecutionPolicy
+ */
+public interface TestExecutionTracker {
 
   /**
+   * Records the result of a test execution and returns the outcome.
+   *
    * @param status result of the execution: pass, fail or skip
    * @param durationMillis duration of current test execution in milliseconds
    */
@@ -29,16 +43,9 @@ public interface TestExecutionHistory {
     boolean lastExecution();
 
     /**
-     * @return {@code true} if the test has failed all retry attempts (only for policies that allow
-     *     multiple retries)
+     * @return Aggregated results across all executions so far
      */
-    boolean failedAllRetries();
-
-    /**
-     * @return {@code true} if the test has succeeded all retry attempts (only for policies that
-     *     allow multiple retries)
-     */
-    boolean succeededAllRetries();
+    ExecutionAggregation aggregation();
 
     /**
      * @return retry reason for current test execution ({@code null} if current execution is not a
