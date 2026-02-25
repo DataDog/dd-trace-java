@@ -1,5 +1,7 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.api.telemetry.LogCollectorAfter.RawLogMessage;
+import datadog.trace.util.HashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -87,13 +89,15 @@ public class LogCollector {
     return list;
   }
 
-  public static class RawLogMessage {
+  public static final class RawLogMessage {
     public final String message;
     public final String logLevel;
     public final Throwable throwable;
     public final String tags;
     public final long timestamp;
     public int count;
+
+    StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
         String logLevel, String message, Throwable throwable, String tags, long timestamp) {
@@ -104,24 +108,45 @@ public class LogCollector {
       this.timestamp = timestamp;
     }
 
+    public StackTraceElement[] stackTrace() {
+      if (throwable == null) return null;
+
+      // DQH - getStackTrace makes a defensive copy, so getStackTrace can become a significant
+      // source of allocation
+      // In the worst case of a hot exception, we'll constantly call hashCode & equals to
+      // check against the key stored in the map, so avoiding repeated allocation on each
+      // comparison does provide a measurable gain
+      StackTraceElement[] stackTrace = cachedStackTrace;
+      if (stackTrace != null) return stackTrace;
+
+      cachedStackTrace = stackTrace = throwable.getStackTrace();
+      return cachedStackTrace;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       RawLogMessage that = (RawLogMessage) o;
-      return Objects.equals(logLevel, that.logLevel)
-          && Objects.equals(message, that.message)
-          && Objects.equals(
-              throwable == null ? null : throwable.getClass(),
-              that.throwable == null ? null : that.throwable.getClass())
-          && Objects.deepEquals(
-              throwable == null ? null : throwable.getStackTrace(),
-              that.throwable == null ? null : that.throwable.getStackTrace());
+
+      if (!Objects.equals(logLevel, that.logLevel)) return false;
+      if (!Objects.equals(message, that.message)) return false;
+
+      if (throwable == null && that.throwable == null) {
+        return true;
+      } else if (throwable == that.throwable) {
+        // DQH - While this path may seem unlikely, it does happen if the JVM hot
+        // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
+        return true;
+      } else {
+        return throwable.getClass().equals(that.throwable.getClass())
+            && Objects.deepEquals(stackTrace(), that.stackTrace());
+      }
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(logLevel, message, throwable == null ? null : throwable.getClass());
+      return HashingUtils.hash(logLevel, message, throwable == null ? null : throwable.getClass());
     }
   }
 }
