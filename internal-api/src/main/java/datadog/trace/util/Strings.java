@@ -290,6 +290,11 @@ public final class Strings {
 
       if (curIndex > len) throw new NoSuchElementException();
 
+      // NOTE: Experimented with returning a single mutable SubSequence
+      // where the index range is updated each time.  In typical usage,
+      // that was slightly worse -- likely because escape analysis was
+      // able to eliminate the allocation, but that hasn't been directly
+      // confirmed.
       SubSequence subSeq;
 
       int nextIndex = this.nextIndex;
