@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.CallbackRunnable;
@@ -44,7 +45,7 @@ public final class PromiseObjectInstrumentation
         final Context existing = contextStore.get(resolved);
         Try<T> next =
             PromiseHelper.getTry(
-                resolved, span, existing != null ? AgentSpan.fromContext(existing) : null);
+                resolved, span, existing != null ? Java8BytecodeBridge.spanFromContext(existing) : null);
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;

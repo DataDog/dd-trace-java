@@ -57,14 +57,16 @@ public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
+    final InstrumenterConfig config = InstrumenterConfig.get();
     final List<Instrumenter> instrumenters = new ArrayList<>(3);
     instrumenters.add(new CallbackRunnableInstrumentation());
-    instrumenters.add(new FutureObjectInstrumentation());
+    if (config.isIntegrationEnabled(singleton("scala_future_object"), true)) {
+      instrumenters.add(new FutureObjectInstrumentation());
+    }
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(
-            Collections.singletonList("scala_promise_completion_priority"), false)) {
+    if (config.isIntegrationEnabled(
+        Collections.singletonList("scala_promise_completion_priority"), false)) {
       instrumenters.add(new PromiseObjectInstrumentation());
     }
     return instrumenters;
