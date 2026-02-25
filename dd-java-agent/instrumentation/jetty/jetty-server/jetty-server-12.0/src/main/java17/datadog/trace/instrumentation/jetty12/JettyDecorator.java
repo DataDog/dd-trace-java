@@ -91,6 +91,10 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   public AgentSpan onResponse(AgentSpan span, HttpChannelState channel) {
     Request request = channel.getRequest();
     Response response = channel.getResponse();
+    return onResponse(span, request, response);
+  }
+
+  public AgentSpan onResponse(AgentSpan span, Request request, Response response) {
     if (Config.get().isServletPrincipalEnabled()) {
       final Request.AuthenticationState authenticationState =
           Request.getAuthenticationState(request);
