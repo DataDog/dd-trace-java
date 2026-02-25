@@ -1,9 +1,12 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.HttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.HttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.HttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
 
 import com.squareup.moshi.JsonAdapter;
@@ -12,7 +15,6 @@ import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
 import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
-import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpResponse;
 import datadog.http.client.HttpUrl;
 import datadog.metrics.api.Monitoring;
@@ -21,6 +23,7 @@ import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
+import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
@@ -132,9 +135,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   private synchronized void discoverIfOutdated(final long maxElapsedMs) {
-    final long now = System.currentTimeMillis();
+    final long now = System.nanoTime();
     final long elapsed = now - discoveryState.lastTimeDiscovered;
-    if (elapsed > maxElapsedMs) {
+    if (elapsed > maxElapsedMs * 1_000_000) {
       final State newState = new State();
       doDiscovery(newState);
       newState.lastTimeDiscovered = now;
@@ -149,13 +152,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      HttpRequest.Builder requestBuilder =
-          HttpRequest.newBuilder().url(agentBaseUrl.resolve("info"));
-      final String containerId = ContainerInfo.get().getContainerId();
-      if (containerId != null) {
-        requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
-      }
-      HttpRequest request = requestBuilder.get().build();
+      HttpRequest request =
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
       try (HttpResponse response = client.execute(request)) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
@@ -200,9 +198,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     for (String candidate : endpoints) {
       try {
         HttpRequest request =
-            HttpRequest.newBuilder()
-                .put(HttpRequestBody.of(PROBE_MESSAGE))
-                .url(agentBaseUrl.resolve(candidate))
+            prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+                .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                 .build();
         try (HttpResponse response = client.execute(request)) {
           if (response.code() != 404) {
