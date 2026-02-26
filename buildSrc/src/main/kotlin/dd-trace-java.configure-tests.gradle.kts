@@ -59,7 +59,7 @@ tasks.withType<Test>().configureEach {
   }
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
-  timeout.set(Duration.of(20, ChronoUnit.MINUTES))
+  timeout.set(Duration.of(10, ChronoUnit.MINUTES))
 }
 
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
