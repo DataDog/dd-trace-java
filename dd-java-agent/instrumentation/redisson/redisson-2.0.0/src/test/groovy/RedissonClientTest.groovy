@@ -73,8 +73,8 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   // Some shutdown paths in old Redisson versions can block forever.
-  // In tests this is acceptable as best-effort cleanup, so run shutdown in a daemon helper
-  // thread to make sure teardown cannot keep the JVM alive.
+  // In tests this is acceptable as best-effort cleanup, so run shutdown in
+  // a daemon helper thread to make sure teardown cannot keep the JVM alive.
   private static void tryShutdown(String component, Closure shutdownAction) {
     Thread shutdownThread = new Thread({
       try {
@@ -87,14 +87,13 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
     shutdownThread.start()
 
     try {
-      // Keep test teardown bounded to avoid hanging CI jobs indefinitely.
       shutdownThread.join(10_000L)
     } catch (InterruptedException ignored) {
       Thread.currentThread().interrupt()
     }
 
     if (shutdownThread.isAlive()) {
-      println "Timed out shutting down ${component}"
+      println "Timed out shutting down of ${component}"
     }
   }
 
