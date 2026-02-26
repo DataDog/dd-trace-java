@@ -2313,6 +2313,14 @@
         "aliases": []
       }
     ],
+    "DD_OTLP_METRICS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "NONE",
+        "aliases": []
+      }
+    ],
     "DD_OTLP_METRICS_TIMEOUT": [
       {
         "version": "A",
@@ -11089,6 +11097,14 @@
         "aliases": []
       }
     ],
+    "OTEL_EXPORTER_OTLP_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "OTEL_EXPORTER_OTLP_TIMEOUT": [
       {
         "version": "A",
@@ -11114,6 +11130,14 @@
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION": [
       {
         "version": "A",
         "type": "string",

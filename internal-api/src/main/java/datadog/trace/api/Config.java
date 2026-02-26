@@ -450,6 +450,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
@@ -921,6 +922,7 @@ public class Config {
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
+  private final OtlpConfig.Compression otlpMetricsCompression;
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
@@ -1933,6 +1935,9 @@ public class Config {
     otlpMetricsProtocol =
         configProvider.getEnum(
             OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpMetricsCompression =
+        configProvider.getEnum(
+            OTLP_METRICS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
 
     String otlpMetricsEndpointFromEnvironment = configProvider.getString(OTLP_METRICS_ENDPOINT);
     if (otlpMetricsEndpointFromEnvironment == null) {
@@ -5239,6 +5244,10 @@ public class Config {
     return otlpMetricsProtocol;
   }
 
+  public OtlpConfig.Compression getOtlpMetricsCompression() {
+    return otlpMetricsCompression;
+  }
+
   public int getOtlpMetricsTimeout() {
     return otlpMetricsTimeout;
   }
@@ -6270,6 +6279,8 @@ public class Config {
         + otlpMetricsHeaders
         + ", otlpMetricsProtocol="
         + otlpMetricsProtocol
+        + ", otlpMetricsCompression="
+        + otlpMetricsCompression
         + ", otlpMetricsTimeout="
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
