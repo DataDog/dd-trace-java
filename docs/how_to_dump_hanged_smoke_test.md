@@ -1,8 +1,6 @@
 # Reproduce hanged smoke test and collect dumps (including child process)
 
 Sometimes a smoke test that passes locally fails on CI.
-Such tests can be found
-on [Test optimization: Flaky Management](https://app.datadoghq.com/ci/test/flaky?query=%40git.repository.id_v2%3Agithub.com%2Fdatadog%2Fdd-trace-java%20%40test.suite%3A%2Asmoke%2A&sort=-pipelines_failed&viewMode=flaky).
 An indicator of a potential problem in the smoke application is an error saying that a condition was not
 satisfied after some time and several attempts.
 For example:
