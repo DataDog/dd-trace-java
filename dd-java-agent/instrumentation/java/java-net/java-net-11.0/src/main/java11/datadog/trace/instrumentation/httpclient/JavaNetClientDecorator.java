@@ -3,13 +3,12 @@ package datadog.trace.instrumentation.httpclient;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse<?>> {
-
-  public static final CharSequence COMPONENT = UTF8BytesString.create("java-http-client");
+  public static final String INSTRUMENTATION_NAME = "java-http-client";
+  public static final CharSequence COMPONENT = UTF8BytesString.create(INSTRUMENTATION_NAME);
 
   public static final JavaNetClientDecorator DECORATE = new JavaNetClientDecorator();
 
@@ -18,7 +17,7 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"java-http-client"};
+    return new String[] {INSTRUMENTATION_NAME};
   }
 
   @Override
@@ -32,7 +31,7 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   }
 
   @Override
-  protected URI url(HttpRequest httpRequest) throws URISyntaxException {
+  protected URI url(HttpRequest httpRequest) {
     return httpRequest.uri();
   }
 

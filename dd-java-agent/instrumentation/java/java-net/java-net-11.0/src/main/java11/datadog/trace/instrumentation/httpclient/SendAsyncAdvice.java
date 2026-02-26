@@ -2,13 +2,15 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
+import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -21,6 +23,9 @@ public class SendAsyncAdvice {
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
     try {
+      if (DECORATE.isAgentRequest(httpRequest)) {
+        return null;
+      }
       // Here we avoid having the advice applied twice in case we have nested call of this
       // intercepted
       // method.
@@ -30,7 +35,7 @@ public class SendAsyncAdvice {
       if (callDepth > 0) {
         return null;
       }
-      final AgentSpan span = AgentTracer.startSpan(JavaNetClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
       final AgentScope scope = activateSpan(span);
       if (bodyHandler != null) {
         bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));
