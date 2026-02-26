@@ -24,7 +24,7 @@ class MetricsTest extends InstrumentationSpecification {
   void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("dd.integration.opentelemetry-metrics.enabled", "true")
+    injectSysConfig("dd.metrics.otel.enabled", "true")
   }
 
   @Shared
