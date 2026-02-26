@@ -1,7 +1,9 @@
 package benchmarks.reference;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+
 import java.util.regex.Pattern;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;

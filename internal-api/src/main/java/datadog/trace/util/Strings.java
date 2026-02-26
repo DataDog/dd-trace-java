@@ -185,7 +185,7 @@ public final class Strings {
   }
 
   /** Low overhead replaceAll */
-  public static String replaceAll(String input, String needle, String replacement) {
+  public static final String replaceAll(String input, String needle, String replacement) {
     int index = input.indexOf(needle);
     if (index == -1) return input;
 
