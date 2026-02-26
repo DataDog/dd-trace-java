@@ -20,15 +20,17 @@ class EmrUtils {
   static String getEmrStepId() {
     try {
       String userDir = System.getProperty("user.dir");
-      if (userDir != null) {
-        Path workDir = Paths.get(userDir).getFileName();
-        if (workDir != null) {
-          Matcher matcher = EMR_STEP_ID_PATTERN.matcher(workDir.toString());
-          if (matcher.matches()) {
-            log.debug("EMR step ID extracted: {}", matcher.group(1));
-            return matcher.group(1);
-          }
-        }
+      if (userDir == null) {
+        return null;
+      }
+      Path workDir = Paths.get(userDir).getFileName();
+      if (workDir == null) {
+        return null;
+      }
+      Matcher matcher = EMR_STEP_ID_PATTERN.matcher(workDir.toString());
+      if (matcher.matches()) {
+        log.debug("EMR step ID extracted: {}", matcher.group(1));
+        return matcher.group(1);
       }
     } catch (Throwable t) {
       log.debug("Unable to extract EMR step ID from working directory", t);
