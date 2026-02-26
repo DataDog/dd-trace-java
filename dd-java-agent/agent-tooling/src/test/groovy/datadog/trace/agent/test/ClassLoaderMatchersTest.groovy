@@ -41,7 +41,7 @@ class ClassLoaderMatchersTest extends DDSpecification {
 
   def "helper class names are hardcoded in Log Instrumentations"() {
     expect:
-    LogContextScopeListener.name == "datadog.trace.agent.tooling.log.LogContextScopeListener"
+    LogContextScopeListener.name == "datadog.trace.bootstrap.instrumentation.log.LogContextScopeListener"
   }
 
   /*
