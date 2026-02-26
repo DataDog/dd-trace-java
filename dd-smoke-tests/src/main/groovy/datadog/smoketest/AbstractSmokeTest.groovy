@@ -69,6 +69,9 @@ abstract class AbstractSmokeTest extends ProcessManager {
   protected final PollingConditions defaultPoll = new PollingConditions(timeout: 30, initialDelay: 0, delay: 1, factor: 1)
 
   @Shared
+  protected final PollingConditions hangedPoll = new PollingConditions(timeout: 700, initialDelay: 0, delay: 5, factor: 2)
+
+  @Shared
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
