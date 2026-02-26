@@ -1,9 +1,8 @@
-package datadog.trace.core.propagation;
+package datadog.trace.api.propagation;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpanContext;
 
 /**
  * Utility class for building W3C traceparent headers.
@@ -39,10 +38,5 @@ public final class W3CTraceParent {
 
   public static String from(AgentSpan span) {
     return from(span.getTraceId(), span.getSpanId(), span.context().getSamplingPriority() > 0);
-  }
-
-  public static String from(DDSpanContext spanContext) {
-    return from(
-        spanContext.getTraceId(), spanContext.getSpanId(), spanContext.getSamplingPriority() > 0);
   }
 }

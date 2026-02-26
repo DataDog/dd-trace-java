@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.HashingUtils;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -49,42 +50,19 @@ public final class MetricKey {
     this.httpMethod = httpMethod == null ? null : UTF8BytesString.create(httpMethod);
     this.httpEndpoint = httpEndpoint == null ? null : UTF8BytesString.create(httpEndpoint);
 
-    // Unrolled polynomial hashcode to avoid varargs allocation
-    // and eliminate data dependency between iterations as in Arrays.hashCode.
-    // Coefficient constants are powers of 31, with integer overflow (hence negative numbers).
-    // See
-    // https://richardstartin.github.io/posts/collecting-rocks-and-benchmarks
-    // https://richardstartin.github.io/posts/still-true-in-java-9-handwritten-hash-codes-are-faster
-
-    // Only include httpMethod and httpEndpoint in hash if they are not null
-    // This ensures backward compatibility when the feature is disabled
-
-    // Note: all the multiplication got constant folded at compile time (see javap -verbose ...)
-    int tmpHash =
-        (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31) * Boolean.hashCode(this.isTraceRoot) // 8
-            + (int) (31L * 31 * 31 * 31 * 31 * 31 * 31) * this.spanKind.hashCode() // 7
-            + 31 * 31 * 31 * 31 * 31 * 31 * this.peerTags.hashCode() // 6
-            + 31 * 31 * 31 * 31 * 31 * this.resource.hashCode() // 5
-            + 31 * 31 * 31 * 31 * this.service.hashCode() // 4
-            + 31 * 31 * 31 * this.operationName.hashCode() // 3
-            + 31 * 31 * this.type.hashCode() // 2
-            + 31 * this.httpStatusCode // 1
-            + (this.synthetics ? 1 : 0); // 0
-    // optional fields
-    if (this.serviceSource != null) {
-      tmpHash +=
-          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31) * this.serviceSource.hashCode(); // 9
-    }
-    if (this.httpEndpoint != null) {
-      tmpHash +=
-          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31)
-              * this.httpEndpoint.hashCode(); // 10
-    }
-    if (this.httpMethod != null) {
-      tmpHash +=
-          (int) (31L * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31 * 31)
-              * this.httpMethod.hashCode(); // 11
-    }
+    int tmpHash = 0;
+    tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.spanKind);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.peerTags);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.resource);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.service);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.operationName);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.type);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.httpStatusCode);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.synthetics);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.serviceSource);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.httpEndpoint);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.httpMethod);
     this.hash = tmpHash;
   }
 
