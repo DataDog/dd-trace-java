@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.concurrent.executor;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.java.concurrent.executor.ThreadPoolExecutorInstrumentation.TPE;
 import static java.util.Collections.singleton;
@@ -53,19 +52,7 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
         RUNNABLE,
         Arrays.asList(
             "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
-            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable",
-            // VirtualThread context must be activated on mount/unmount, not on Runnable.run().
-            // If Runnable instrumentation also activates it, the scope can attach to carrier
-            // threads and fight with the dedicated virtual-thread instrumentation.
-            "java.lang.VirtualThread"));
-    map.put(
-        RUNNABLE_FUTURE,
-        Collections.singletonList(
-            // JDK21 ThreadPerTaskExecutor wraps Callable in ThreadBoundFuture (extends FutureTask)
-            // and runs it on a virtual thread. VirtualThreadInstrumentation already propagates
-            // context for that virtual thread lifecycle, so capturing RunnableFuture state here
-            // creates redundant continuations for the same logical task.
-            "java.util.concurrent.ThreadPerTaskExecutor$ThreadBoundFuture"));
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
     map.put(
         EXECUTOR,
         Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor"));

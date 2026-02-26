@@ -1,60 +1,72 @@
 package datadog.smoketest.concurrent
 
 class VirtualThreadStartTest extends AbstractConcurrentTest {
-  def 'test Thread.startVirtualThread() runnable'() {
-    setup:
-    sendScenarioSignal('virtualThreadStart')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadStart']
+  }
 
+  def 'test Thread.startVirtualThread() runnable'() {
     expect:
     receivedCorrectTrace()
   }
 }
 
 class VirtualThreadExecuteTest extends AbstractConcurrentTest {
-  def 'test VirtualThread execute runnable'() {
-    setup:
-    sendScenarioSignal('virtualThreadExecute')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadExecute']
+  }
 
+  def 'test VirtualThread execute runnable'() {
     expect:
     receivedCorrectTrace()
   }
 }
 
 class VirtualThreadInvokeAllTest extends AbstractConcurrentTest {
-  def 'test VirtualThread invokeAll callable'() {
-    setup:
-    sendScenarioSignal('virtualThreadInvokeAll')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadInvokeAll']
+  }
 
+  def 'test VirtualThread invokeAll callable'() {
     expect:
     receivedCorrectTrace()
   }
 }
 
 class VirtualThreadInvokeAnyTest extends AbstractConcurrentTest {
-  def 'test VirtualThread invoke any callable'() {
-    setup:
-    sendScenarioSignal('virtualThreadInvokeAny')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadInvokeAny']
+  }
 
+  def 'test VirtualThread invoke any callable'() {
     expect:
     receivedCorrectTrace()
   }
 }
 
 class VirtualThreadSubmitRunnableTest extends AbstractConcurrentTest {
-  def 'test VirtualThread submit runnable'() {
-    setup:
-    sendScenarioSignal('virtualThreadSubmitRunnable')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadSubmitRunnable']
+  }
 
+  def 'test VirtualThread submit runnable'() {
     expect:
     receivedCorrectTrace()
   }
 }
 
 class VirtualThreadSubmitCallableTest extends AbstractConcurrentTest {
-  def 'test VirtualThread submit callable'() {
-    setup:
-    sendScenarioSignal('virtualThreadSubmitCallable')
+  @Override
+  protected List<String> getTestArguments() {
+    return ['virtualThreadSubmitCallable']
+  }
 
+  def 'test VirtualThread submit callable'() {
     expect:
     receivedCorrectTrace()
   }
