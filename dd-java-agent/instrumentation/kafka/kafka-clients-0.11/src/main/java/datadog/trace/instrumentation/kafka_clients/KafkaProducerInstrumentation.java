@@ -44,6 +44,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -91,14 +92,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "MetadataState",
       packageName + ".AvroSchemaExtractor",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+    return singletonMap("org.apache.kafka.clients.Metadata",
+        "MetadataState");
   }
 
   @Override
@@ -137,7 +140,11 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+      MetadataState metadataState =
+          InstrumentationContext.get(
+                  Metadata.class, MetadataState.class)
+              .get(metadata);
+      String clusterId = metadataState != null ? metadataState.clusterId : null;
 
       // Set cluster ID for Schema Registry instrumentation
       if (clusterId != null) {
@@ -260,8 +267,19 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(0) ProducerConfig producerConfig) {
       if (Config.get().isDataStreamsEnabled()) {
+        MetadataState state =
+            InstrumentationContext.get(
+                    Metadata.class,
+                    MetadataState.class)
+                .get(metadata);
+        if (state == null) {
+          state = new MetadataState();
+          InstrumentationContext.get(
+                  Metadata.class, MetadataState.class)
+              .put(metadata, state);
+        }
         KafkaConfigHelper.storePendingProducerConfig(
-            metadata, KafkaConfigHelper.extractProducerConfig(producerConfig));
+            state, KafkaConfigHelper.extractProducerConfig(producerConfig));
       }
     }
   }

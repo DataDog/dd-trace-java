@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -55,13 +56,15 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".KafkaDecorator",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+    return singletonMap("org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
   @Override
@@ -84,8 +87,14 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
       if (newCluster != null && !newCluster.isBootstrapConfigured()) {
         String clusterId = newCluster.clusterResource().clusterId();
-        InstrumentationContext.get(Metadata.class, String.class).put(metadata, clusterId);
-        KafkaConfigHelper.reportPendingConfig(metadata, clusterId);
+        MetadataState state =
+            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+        if (state == null) {
+          state = new MetadataState();
+          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
+        }
+        state.clusterId = clusterId;
+        KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }
     }
 
@@ -102,8 +111,14 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final Metadata metadata, @Advice.Argument(1) final MetadataResponse response) {
       if (response != null) {
         String clusterId = response.clusterId();
-        InstrumentationContext.get(Metadata.class, String.class).put(metadata, clusterId);
-        KafkaConfigHelper.reportPendingConfig(metadata, clusterId);
+        MetadataState state =
+            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+        if (state == null) {
+          state = new MetadataState();
+          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
+        }
+        state.clusterId = clusterId;
+        KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }
     }
 
