@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.log.UnionMap;
+import datadog.trace.bootstrap.instrumentation.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
@@ -58,15 +58,6 @@ public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod().and(named("getMdcCopy")).and(takesArguments(0)),
         ExtLogRecordInstrumentation.class.getName() + "$GetMdcCopyAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.agent.tooling.log.UnionMap",
-      "datadog.trace.agent.tooling.log.UnionMap$1",
-      "datadog.trace.agent.tooling.log.UnionMap$1$1",
-    };
   }
 
   public static class GetMdcAdvice {
