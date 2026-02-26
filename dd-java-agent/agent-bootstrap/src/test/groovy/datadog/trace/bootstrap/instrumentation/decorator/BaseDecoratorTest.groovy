@@ -30,9 +30,11 @@ class BaseDecoratorTest extends DDSpecification {
     1 * spanContext.setIntegrationName("test-component")
     _ * span.setTag(_)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
+    _ * span.setTag(_)
     _ * span.setMeasured(true)
     _ * span.setMetric(_)
     _ * span.setMetric(_, _)
+    _ * span.setMetric(_)
     _ * span.setServiceName(_, _)
     _ * span.setOperationName(_)
     _ * span.setSamplingPriority(_)
