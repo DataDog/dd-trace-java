@@ -1,4 +1,4 @@
-package datadog.trace.core.propagation
+package datadog.trace.api.propagation
 
 import datadog.trace.api.DDTraceId
 import datadog.trace.test.util.DDSpecification
