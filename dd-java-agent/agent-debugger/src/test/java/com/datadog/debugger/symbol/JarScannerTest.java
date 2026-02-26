@@ -8,10 +8,13 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 class JarScannerTest {
   @Test
@@ -49,5 +52,29 @@ class JarScannerTest {
     ProtectionDomain protectionDomain = new ProtectionDomain(codeSource, null);
     assertEquals(
         jarFileUrl.getFile(), JarScanner.extractJarPath(protectionDomain, null).toString());
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  public void extractJarPathFromFileOnWindows() throws URISyntaxException {
+    URL mockLocation = mock(URL.class);
+    when(mockLocation.toString()).thenReturn("file:/C:/apps/server/classes/");
+    CodeSource codeSource = new CodeSource(mockLocation, (Certificate[]) null);
+    ProtectionDomain protectionDomain = new ProtectionDomain(codeSource, null);
+    Path result = JarScanner.extractJarPath(protectionDomain, SymDBReport.NO_OP);
+    assertNotNull(result);
+    assertTrue(result.toString().contains("server"));
+  }
+
+  @Test
+  @EnabledOnOs(OS.WINDOWS)
+  public void extractJarPathFromJarOnWindows() throws URISyntaxException {
+    URL mockLocation = mock(URL.class);
+    when(mockLocation.toString()).thenReturn("jar:file:/C:/libs/app.jar!/com/example/");
+    CodeSource codeSource = new CodeSource(mockLocation, (Certificate[]) null);
+    ProtectionDomain protectionDomain = new ProtectionDomain(codeSource, null);
+    Path result = JarScanner.extractJarPath(protectionDomain, SymDBReport.NO_OP);
+    assertNotNull(result);
+    assertTrue(result.toString().contains("app.jar"));
   }
 }

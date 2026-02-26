@@ -3,13 +3,16 @@ package datadog.trace.civisibility.execution
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason
 import datadog.trace.civisibility.config.ExecutionsByDuration
+import datadog.trace.civisibility.execution.exit.ExitOnFailure
+import datadog.trace.civisibility.execution.exit.ExitOnFlake
+import datadog.trace.civisibility.execution.exit.NoExit
 import spock.lang.Specification
 
 class RunNTimesTest extends Specification {
 
   def "test run N times"() {
     setup:
-    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd)
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd, NoExit.INSTANCE)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -47,7 +50,7 @@ class RunNTimesTest extends Specification {
 
   def "test failed all retries"() {
     setup:
-    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd)
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd, NoExit.INSTANCE)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -85,7 +88,7 @@ class RunNTimesTest extends Specification {
 
   def "test succeeded all retries"() {
     setup:
-    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd)
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd, NoExit.INSTANCE)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -123,7 +126,7 @@ class RunNTimesTest extends Specification {
 
   def "test suppress failures"() {
     setup:
-    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], true, RetryReason.attemptToFix)
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], true, RetryReason.attemptToFix, NoExit.INSTANCE)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -159,9 +162,40 @@ class RunNTimesTest extends Specification {
     outcome3.finalStatus() == TestStatus.pass
   }
 
+  def "test exits on flake"(){
+    setup:
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.efd, ExitOnFlake.INSTANCE)
+
+    when:
+    def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
+
+    then:
+    !outcome.lastExecution()
+    outcome.finalStatus() == null
+
+    when:
+    def outcome2 = executionPolicy.registerExecution(TestStatus.pass, 0)
+
+    then:
+    outcome2.lastExecution()
+    outcome2.finalStatus() == TestStatus.fail
+  }
+
+  def "test exits on failure"() {
+    setup:
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false, RetryReason.attemptToFix, ExitOnFailure.INSTANCE)
+
+    when:
+    def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
+
+    then:
+    outcome.lastExecution()
+    outcome.finalStatus() == TestStatus.fail
+  }
+
   def "test adaptive retry count"() {
     when:
-    def executionPolicy = new RunNTimes([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], true, RetryReason.efd)
+    def executionPolicy = new RunNTimes([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], true, RetryReason.efd, NoExit.INSTANCE)
 
     then:
     !executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
@@ -169,7 +203,7 @@ class RunNTimesTest extends Specification {
     executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
 
     when:
-    executionPolicy = new RunNTimes([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], true, RetryReason.efd)
+    executionPolicy = new RunNTimes([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], true, RetryReason.efd, NoExit.INSTANCE)
 
     then:
     !executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
