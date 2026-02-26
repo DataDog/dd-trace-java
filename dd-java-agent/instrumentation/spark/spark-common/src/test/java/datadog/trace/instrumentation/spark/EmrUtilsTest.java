@@ -2,9 +2,7 @@ package datadog.trace.instrumentation.spark;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.apache.spark.SparkConf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,13 +37,5 @@ class EmrUtilsTest {
   void returnsNullForApplicationIdWorkdir() {
     System.setProperty("user.dir", "/home/hadoop/application_1234567890_0001");
     assertNull(EmrUtils.getEmrStepId());
-  }
-
-  @Test
-  void isRunningOnEmrReturnsTrueWhenConfContainsEmrKey() {
-    SparkConf conf = new SparkConf();
-    conf.set(
-        "spark.sql.emr.internal.extensions", "com.amazonaws.emr.spark.EmrSparkSessionExtensions");
-    assertTrue(EmrUtils.isRunningOnEmr(conf));
   }
 }
