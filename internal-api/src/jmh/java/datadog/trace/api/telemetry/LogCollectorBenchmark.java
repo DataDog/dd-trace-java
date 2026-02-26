@@ -1,10 +1,10 @@
 package datadog.trace.api.telemetry;
 
-import datadog.trace.bootstrap.Fork;
-import datadog.trace.bootstrap.Measurement;
-import datadog.trace.bootstrap.Threads;
-import datadog.trace.bootstrap.Warmup;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
 
 @Fork(2)
 @Warmup(iterations = 2)
