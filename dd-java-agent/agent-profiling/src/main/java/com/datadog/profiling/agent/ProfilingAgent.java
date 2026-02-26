@@ -2,6 +2,7 @@ package com.datadog.profiling.agent;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
@@ -152,7 +153,10 @@ public class ProfilingAgent {
               };
         }
         // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
-        if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)) {
+        // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
+        // corrupting customer data
+        if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)
+            && !isOracleJDK8()) {
           List<String> excludeEventTypes =
               configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
           boolean failOpen =
