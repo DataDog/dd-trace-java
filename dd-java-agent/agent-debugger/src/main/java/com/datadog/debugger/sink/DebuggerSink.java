@@ -94,9 +94,6 @@ public class DebuggerSink {
   public void stop() {
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
-    // clear interrupt flag that could be set by JVM shutdown to allow to serialize and upload
-    // snapshots
-    Thread.interrupted();
     lowRateFlush(this);
     snapshotSink.highRateFlush(null);
     probeStatusSink.stop();
