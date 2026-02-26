@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.log;
+package datadog.trace.bootstrap.instrumentation.log;
 
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.WithGlobalTracer;

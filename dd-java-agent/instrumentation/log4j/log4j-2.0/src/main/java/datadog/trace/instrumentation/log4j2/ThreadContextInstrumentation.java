@@ -44,10 +44,7 @@ public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.agent.tooling.log.LogContextScopeListener",
-      "datadog.trace.instrumentation.log4j2.ThreadContextUpdater"
-    };
+    return new String[] {"datadog.trace.instrumentation.log4j2.ThreadContextUpdater"};
   }
 
   public static class ThreadContextAdvice {
