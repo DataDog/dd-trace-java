@@ -7,6 +7,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -40,17 +41,29 @@ public abstract class BaseDecorator {
           Functions.PrefixJoin.of("."));
 
   protected final boolean traceAnalyticsEnabled;
-  protected final Double traceAnalyticsSampleRate;
+  protected final double traceAnalyticsSampleRate;
+
+  private final TagMap.Entry traceAnalyticsEntry;
+
+  // Deliberately not volatile, reading null and repeating the calculation is safe
+  private TagMap.Entry cachedComponentEntry = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
+
     this.traceAnalyticsEnabled =
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
                 traceAnalyticsDefault(), instrumentationNames);
+
     this.traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+
+    this.traceAnalyticsEntry =
+        this.traceAnalyticsEnabled
+            ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
+            : null;
   }
 
   protected abstract String[] instrumentationNames();
@@ -58,6 +71,20 @@ public abstract class BaseDecorator {
   protected abstract CharSequence spanType();
 
   protected abstract CharSequence component();
+
+  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
+  protected final TagMap.Entry componentEntry() {
+    // DQH = Tried calling component() in the constructor, but that had issues with static
+    // field ordering.  That was caught be an integration test, but I didn't want to risk
+    // breaking other integrations where the test is not as thorough.
+
+    // This approach while more complicated doesn't have any field initialization ordering issues.
+    TagMap.Entry componentEntry = cachedComponentEntry;
+    if (componentEntry == null) {
+      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+    }
+    return componentEntry;
+  }
 
   protected boolean traceAnalyticsDefault() {
     return false;
@@ -67,12 +94,17 @@ public abstract class BaseDecorator {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
+
+    span.setTag(componentEntry());
+
+    // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
+    // unclear which option is better here
     final CharSequence component = component();
-    span.setTag(Tags.COMPONENT, component);
     span.context().setIntegrationName(component);
-    if (traceAnalyticsEnabled) {
-      span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
-    }
+
+    // null handled by setMetric
+    span.setMetric(traceAnalyticsEntry);
+
     return span;
   }
 
