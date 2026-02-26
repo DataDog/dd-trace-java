@@ -92,13 +92,10 @@ public class DebuggerSink {
   }
 
   public void stop() {
-    // Cancel periodic schedules first to prevent them from racing with the final flush below.
-    // A periodic flush running on an interrupted thread (during JVM shutdown) can drain the
-    // snapshot queue and then fail during serialization, losing all snapshots.
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
-    // Clear the interrupt flag that may have been set by the JVM shutdown sequence
-    // so that the final flush can serialize and upload snapshots without interruption.
+    // clear interrupt flag that could be set by JVM shutdown to allow to serialize and upload
+    // snapshots
     Thread.interrupted();
     lowRateFlush(this);
     snapshotSink.highRateFlush(null);
