@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -13,8 +14,14 @@ public class MetadataUpdateBefore22Advice {
       @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
     if (newCluster != null && !newCluster.isBootstrapConfigured()) {
       String clusterId = newCluster.clusterResource().clusterId();
-      InstrumentationContext.get(Metadata.class, String.class).put(metadata, clusterId);
-      KafkaConfigHelper.reportPendingConfig(metadata, clusterId);
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      if (state == null) {
+        state = new MetadataState();
+        InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
+      }
+      state.clusterId = clusterId;
+      KafkaConfigHelper.reportPendingConfig(state, clusterId);
     }
   }
 

@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -30,7 +31,7 @@ public class RecordsAdvice {
     if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       if (clusterId != null) {
         ClusterIdHolder.set(clusterId);
       }

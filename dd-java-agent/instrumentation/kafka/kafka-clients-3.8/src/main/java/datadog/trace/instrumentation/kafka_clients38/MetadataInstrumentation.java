@@ -42,13 +42,15 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".KafkaDecorator",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+    return singletonMap("org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
   @Override

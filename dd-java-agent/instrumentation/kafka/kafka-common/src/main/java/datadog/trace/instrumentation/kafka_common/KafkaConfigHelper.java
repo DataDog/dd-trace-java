@@ -7,7 +7,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.slf4j.Logger;
@@ -33,44 +32,24 @@ public class KafkaConfigHelper {
               "sasl.oauthbearer.assertion.private.key.file",
               "sasl.oauthbearer.assertion.file"));
 
-  /** Holds pending Kafka config info until the cluster ID becomes available from metadata. */
-  private static class PendingConfig {
-    final String type;
-    final String consumerGroup;
-    final Map<String, String> config;
-
-    PendingConfig(String type, String consumerGroup, Map<String, String> config) {
-      this.type = type;
-      this.consumerGroup = consumerGroup;
-      this.config = config;
-    }
-  }
-
-  /**
-   * Stores pending configs keyed by the Metadata instance. When the metadata update fires with the
-   * cluster ID, the config is reported and removed from this map.
-   */
-  private static final ConcurrentHashMap<Object, PendingConfig> pendingConfigs =
-      new ConcurrentHashMap<>();
-
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
-  public static void storePendingProducerConfig(Object metadataKey, Map<String, String> config) {
-    pendingConfigs.put(metadataKey, new PendingConfig("producer", "", config));
+  public static void storePendingProducerConfig(
+      MetadataState state, Map<String, String> config) {
+    state.setPendingConfig(new PendingConfig("producer", "", config));
     log.debug("Stored pending producer config (cluster ID not yet known)");
   }
 
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingConsumerConfig(
-      Object metadataKey, String consumerGroup, Map<String, String> config) {
-    pendingConfigs.put(
-        metadataKey,
+      MetadataState state, String consumerGroup, Map<String, String> config) {
+    state.setPendingConfig(
         new PendingConfig("consumer", consumerGroup != null ? consumerGroup : "", config));
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 
   /** Called from metadata update advice when the cluster ID becomes available. */
-  public static void reportPendingConfig(Object metadataKey, String clusterId) {
-    PendingConfig pending = pendingConfigs.remove(metadataKey);
+  public static void reportPendingConfig(MetadataState state, String clusterId) {
+    PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
       log.debug("Received cluster ID, reporting {} config", pending.type);
       if (Config.get().isDataStreamsEnabled()) {
