@@ -17,10 +17,16 @@ package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOC_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LATENCY_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
@@ -192,14 +198,101 @@ public final class OpenJdkController implements Controller {
 
     // Toggle settings from config
 
-    if (configProvider.getBoolean(
-        ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT)) {
-      log.debug("Enabling OldObjectSample JFR event with the config.");
-      recordingSettings.put("jdk.OldObjectSample#enabled", "true");
+    // --- CPU profiling umbrella (profiling.cpu.enabled) ---
+    Boolean cpuUmbrella = configProvider.getBoolean(PROFILING_CPU_ENABLED);
+    if (cpuUmbrella != null) {
+      if (cpuUmbrella) {
+        // Re-enable the correct CPU sampling event for the current JDK
+        if (JavaVirtualMachine.isJavaVersionAtLeast(25) && OperatingSystem.isLinux()) {
+          enableEvent(recordingSettings, "jdk.CPUTimeSample", EXPLICITLY_ENABLED);
+          enableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", EXPLICITLY_ENABLED);
+        } else {
+          enableEvent(recordingSettings, "jdk.ExecutionSample", EXPLICITLY_ENABLED);
+        }
+      } else {
+        disableEvent(recordingSettings, "jdk.ExecutionSample", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.CPUTimeSample", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", EXPLICITLY_DISABLED);
+      }
     }
 
-    if (configProvider.getBoolean(
-        ProfilingConfig.PROFILING_ALLOCATION_ENABLED, isObjectAllocationSampleAvailable())) {
+    // --- Latency profiling umbrella (profiling.latency.enabled) ---
+    Boolean latencyUmbrella = configProvider.getBoolean(PROFILING_LATENCY_ENABLED);
+    if (latencyUmbrella != null) {
+      if (latencyUmbrella) {
+        enableEvent(recordingSettings, "jdk.JavaMonitorEnter", EXPLICITLY_ENABLED);
+        enableEvent(recordingSettings, "jdk.JavaMonitorWait", EXPLICITLY_ENABLED);
+        enableEvent(recordingSettings, "jdk.JavaMonitorInflate", EXPLICITLY_ENABLED);
+        enableEvent(recordingSettings, "jdk.FileRead", EXPLICITLY_ENABLED);
+        if (isFileWriteDurationCorrect()) {
+          enableEvent(recordingSettings, "jdk.FileWrite", EXPLICITLY_ENABLED);
+        }
+        enableEvent(recordingSettings, "jdk.SocketRead", EXPLICITLY_ENABLED);
+        enableEvent(recordingSettings, "jdk.SocketWrite", EXPLICITLY_ENABLED);
+        enableEvent(recordingSettings, "jdk.ThreadStart", EXPLICITLY_ENABLED);
+      } else {
+        disableEvent(recordingSettings, "jdk.JavaMonitorEnter", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.JavaMonitorWait", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.JavaMonitorInflate", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.FileRead", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.FileWrite", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.SocketRead", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.SocketWrite", EXPLICITLY_DISABLED);
+        disableEvent(recordingSettings, "jdk.ThreadStart", EXPLICITLY_DISABLED);
+      }
+    }
+
+    // --- Live heap profiling (profiling.liveheap.enabled / profiling.heap.enabled) ---
+    // profiling.heap.enabled (explicit JFR override) takes precedence over umbrella
+    Boolean heapExplicit = configProvider.getBoolean(ProfilingConfig.PROFILING_HEAP_ENABLED);
+    if (heapExplicit != null) {
+      if (heapExplicit) {
+        log.debug("Enabling OldObjectSample JFR event with the config.");
+        recordingSettings.put("jdk.OldObjectSample#enabled", "true");
+      } else {
+        disableEvent(recordingSettings, "jdk.OldObjectSample", EXPLICITLY_DISABLED);
+      }
+    } else {
+      // Umbrella defaults to true — all GA features enabled out of the box.
+      // Use nullable check to distinguish explicit user setting from default.
+      Boolean liveheapUmbrella = configProvider.getBoolean(PROFILING_LIVEHEAP_ENABLED);
+      boolean liveheapEnabled =
+          liveheapUmbrella != null ? liveheapUmbrella : PROFILING_LIVEHEAP_ENABLED_DEFAULT;
+      if (liveheapEnabled) {
+        // Enable liveheap on the best available backend.
+        // ddprof handles it when: ddprof is overall active AND liveheap not explicitly disabled.
+        boolean ddprofLiveheapExplicitlyDisabled =
+            Boolean.FALSE.equals(
+                configProvider.getBoolean(
+                    ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+                    ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED));
+        boolean ddprofEnabled =
+            configProvider.getBoolean(ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, false);
+        if (ddprofEnabled && !ddprofLiveheapExplicitlyDisabled) {
+          // ddprof will handle live heap; suppress JFR OldObjectSample to avoid redundant overhead
+          disableEvent(
+              recordingSettings, "jdk.OldObjectSample", "ddprof backend handles live heap");
+        } else if (liveheapUmbrella != null || isOldObjectSampleAvailable()) {
+          // Explicit umbrella=true: force-enable OldObjectSample (even on older JDKs).
+          // Default (umbrella not set): only enable if OldObjectSample is inexpensive.
+          recordingSettings.put("jdk.OldObjectSample#enabled", "true");
+        }
+      } else {
+        disableEvent(recordingSettings, "jdk.OldObjectSample", EXPLICITLY_DISABLED);
+      }
+    }
+
+    // --- Allocation profiling (profiling.alloc.enabled / profiling.allocation.enabled) ---
+    // Priority: profiling.allocation.enabled (JFR override) > profiling.alloc.enabled (umbrella)
+    //           > default (ObjectAllocationSample availability)
+    Boolean allocationExplicit =
+        configProvider.getBoolean(ProfilingConfig.PROFILING_ALLOCATION_ENABLED);
+    Boolean allocationUmbrella = configProvider.getBoolean(PROFILING_ALLOC_ENABLED);
+    boolean allocationEnabled =
+        allocationExplicit != null
+            ? allocationExplicit
+            : allocationUmbrella != null ? allocationUmbrella : isObjectAllocationSampleAvailable();
+    if (allocationEnabled) {
       // jdk.ObjectAllocationSample is available and enabled by default
       if (!isObjectAllocationSampleAvailable()) {
         log.debug(
@@ -212,6 +305,16 @@ public final class OpenJdkController implements Controller {
       if (isObjectAllocationSampleAvailable()) {
         log.debug("Disabling ObjectAllocationSample JFR event with the config.");
         recordingSettings.put("jdk.ObjectAllocationSample#enabled", "false");
+      }
+    }
+
+    // --- Exception profiling umbrella (profiling.exception.enabled) ---
+    Boolean exceptionUmbrella = configProvider.getBoolean(PROFILING_EXCEPTION_ENABLED);
+    if (exceptionUmbrella != null) {
+      if (exceptionUmbrella) {
+        enableEvent(recordingSettings, "datadog.ExceptionSample", EXPLICITLY_ENABLED);
+      } else {
+        disableEvent(recordingSettings, "datadog.ExceptionSample", EXPLICITLY_DISABLED);
       }
     }
 

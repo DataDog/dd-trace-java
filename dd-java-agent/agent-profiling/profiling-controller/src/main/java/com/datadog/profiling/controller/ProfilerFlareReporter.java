@@ -99,6 +99,42 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
             ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT),
         ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
 
+    sb.append("\n=== Feature Umbrella Settings ===\n");
+    appendConfig(
+        sb,
+        "CPU Profiling",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_CPU_ENABLED, ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Latency Profiling",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_LATENCY_ENABLED,
+            ProfilingConfig.PROFILING_LATENCY_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_LATENCY_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Allocation Profiling (umbrella)",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_ALLOC_ENABLED,
+            ProfilingConfig.PROFILING_ALLOC_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_ALLOC_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Live Heap Profiling",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_LIVEHEAP_ENABLED,
+            ProfilingConfig.PROFILING_LIVEHEAP_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_LIVEHEAP_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Exception Profiling",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED,
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT);
+
     sb.append("\n=== Upload Settings ===\n");
     appendConfig(
         sb,

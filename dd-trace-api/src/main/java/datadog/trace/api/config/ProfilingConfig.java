@@ -5,10 +5,149 @@ package datadog.trace.api.config;
  *
  * <p>Configure via system properties, environment variables, or config properties file. See online
  * documentation for details.
+ *
+ * <h2>GA feature umbrella properties</h2>
+ *
+ * <p>Each GA profiling feature has a single umbrella property of the form {@code
+ * profiling.<feature>.enabled}. All umbrella properties default to {@code true}, meaning every GA
+ * feature is enabled out of the box. Setting a property to {@code false} disables the feature
+ * entirely. The agent automatically selects the best available backend for the current JVM.
+ *
+ * <p>The low-level backend properties (e.g. {@code profiling.ddprof.cpu.enabled}) remain fully
+ * supported and take precedence over the umbrella when both are set. This allows fine-grained
+ * control: for example, {@code profiling.liveheap.enabled=true} together with {@code
+ * profiling.ddprof.liveheap.enabled=false} enables live-heap profiling via JFR OldObjectSample even
+ * though the ddprof backend is also available.
+ *
+ * <table border="1">
+ *   <caption>GA feature umbrella properties</caption>
+ *   <tr><th>Feature</th><th>Umbrella property</th><th>JFR mechanism</th><th>ddprof mechanism</th></tr>
+ *   <tr><td>CPU</td><td>{@value #PROFILING_CPU_ENABLED}</td>
+ *       <td>jdk.ExecutionSample / jdk.CPUTimeSample (JDK 25+ on Linux)</td>
+ *       <td>{@value #PROFILING_DATADOG_PROFILER_CPU_ENABLED}</td></tr>
+ *   <tr><td>Latency (lock / I/O / thread)</td><td>{@value #PROFILING_LATENCY_ENABLED}</td>
+ *       <td>jdk.JavaMonitor*, jdk.File*, jdk.Socket*, jdk.ThreadStart</td>
+ *       <td>{@value #PROFILING_DATADOG_PROFILER_WALL_ENABLED} (wall-clock)</td></tr>
+ *   <tr><td>Allocation</td><td>{@value #PROFILING_ALLOC_ENABLED}</td>
+ *       <td>jdk.ObjectAllocationSample (see also {@value #PROFILING_ALLOCATION_ENABLED})</td>
+ *       <td>{@value #PROFILING_DATADOG_PROFILER_ALLOC_ENABLED}</td></tr>
+ *   <tr><td>Live heap</td><td>{@value #PROFILING_LIVEHEAP_ENABLED}</td>
+ *       <td>jdk.OldObjectSample (see also {@value #PROFILING_HEAP_ENABLED})</td>
+ *       <td>{@value #PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED}</td></tr>
+ *   <tr><td>Exception</td><td>{@value #PROFILING_EXCEPTION_ENABLED}</td>
+ *       <td>datadog.ExceptionSample (instrumentation-based)</td><td>n/a</td></tr>
+ * </table>
  */
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
+
+  // spotless:off
+  /**
+   * Enables or disables CPU profiling across all backends. Defaults to {@code true}.
+   *
+   * <ul>
+   *   <li>{@code true} (default) — activates JFR ExecutionSample (or CPUTimeSample on JDK 25+ /
+   *       Linux) and, when the ddprof backend is available,
+   *       {@value #PROFILING_DATADOG_PROFILER_CPU_ENABLED}.
+   *   <li>{@code false} — disables both JFR CPU events and ddprof CPU profiling.
+   * </ul>
+   *
+   * <p>Fine-grained override: {@value #PROFILING_DATADOG_PROFILER_CPU_ENABLED} takes precedence
+   * over this property for the ddprof backend.
+   */
+  // spotless:on
+  public static final String PROFILING_CPU_ENABLED = "profiling.cpu.enabled";
+
+  public static final boolean PROFILING_CPU_ENABLED_DEFAULT = true;
+
+  // spotless:off
+  /**
+   * Enables or disables latency profiling (lock contention, I/O waits, and thread creation) across
+   * all backends. Defaults to {@code true}.
+   *
+   * <ul>
+   *   <li>{@code true} (default) — JFR monitor / file / socket / thread events are active and
+   *       ddprof wall-clock profiling is enabled (if the ddprof backend is available and the JVM
+   *       supports it — e.g. wall-clock is not available on J9 or in ultra-minimal mode).
+   *   <li>{@code false} — disables the JFR lock/I/O/thread events and ddprof wall-clock profiling.
+   * </ul>
+   *
+   * <p>Fine-grained override: {@value #PROFILING_DATADOG_PROFILER_WALL_ENABLED} takes precedence
+   * over this property for the ddprof backend.
+   */
+  // spotless:on
+  public static final String PROFILING_LATENCY_ENABLED = "profiling.latency.enabled";
+
+  public static final boolean PROFILING_LATENCY_ENABLED_DEFAULT = true;
+
+  // spotless:off
+  /**
+   * Enables or disables allocation profiling across all backends. Defaults to {@code true}.
+   *
+   * <ul>
+   *   <li>{@code true} (default) — activates JFR ObjectAllocationSample (JDK 16+) and ddprof
+   *       allocation profiling (if the ddprof backend is available and the JVM is considered stable
+   *       for jmethodID usage).
+   *   <li>{@code false} — disables both JFR allocation events and ddprof allocation profiling.
+   * </ul>
+   *
+   * <p>Fine-grained overrides: {@value #PROFILING_DATADOG_PROFILER_ALLOC_ENABLED} for the ddprof
+   * backend; {@value #PROFILING_ALLOCATION_ENABLED} for the JFR backend. Both take precedence over
+   * this property for their respective backends.
+   */
+  // spotless:on
+  public static final String PROFILING_ALLOC_ENABLED = "profiling.alloc.enabled";
+
+  public static final boolean PROFILING_ALLOC_ENABLED_DEFAULT = true;
+
+  // spotless:off
+  /**
+   * Enables or disables live heap profiling, automatically selecting the best available backend.
+   * Defaults to {@code true}.
+   *
+   * <ul>
+   *   <li>{@code true} (default) — when the ddprof backend is active and
+   *       {@value #PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED} is not explicitly disabled, ddprof
+   *       live-heap profiling is used and JFR OldObjectSample is suppressed to avoid redundant
+   *       overhead. When ddprof is not active (or is explicitly disabled for live heap), JFR
+   *       OldObjectSample is enabled instead (on supported JDK versions).
+   *   <li>{@code false} — disables both ddprof live-heap profiling and JFR OldObjectSample.
+   * </ul>
+   *
+   * <p>Fine-grained overrides: {@value #PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED} for the
+   * ddprof backend; {@value #PROFILING_HEAP_ENABLED} for the JFR backend. Both take precedence
+   * over this property for their respective backends.
+   *
+   * <p>Example — prefer JFR even when ddprof is available:
+   * <pre>
+   *   profiling.liveheap.enabled=true
+   *   profiling.ddprof.liveheap.enabled=false
+   * </pre>
+   */
+  // spotless:on
+  public static final String PROFILING_LIVEHEAP_ENABLED = "profiling.liveheap.enabled";
+
+  public static final boolean PROFILING_LIVEHEAP_ENABLED_DEFAULT = true;
+
+  // spotless:off
+  /**
+   * Enables or disables exception profiling. Defaults to {@code true}.
+   *
+   * <ul>
+   *   <li>{@code true} (default) — the {@code datadog.ExceptionSample} JFR event is active,
+   *       rate-limited by {@value #PROFILING_EXCEPTION_SAMPLE_LIMIT}.
+   *   <li>{@code false} — exception profiling is disabled.
+   * </ul>
+   *
+   * <p>There is no ddprof backend for exception profiling; this property controls only the JFR
+   * instrumentation path.
+   */
+  // spotless:on
+  public static final String PROFILING_EXCEPTION_ENABLED = "profiling.exception.enabled";
+
+  public static final boolean PROFILING_EXCEPTION_ENABLED_DEFAULT = true;
+
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
