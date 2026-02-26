@@ -41,7 +41,8 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>(4);
-    contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
+    contextStores.put("org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
     contextStores.put(
@@ -78,7 +79,8 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
       packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper$PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
 
