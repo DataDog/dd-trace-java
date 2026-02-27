@@ -1,4 +1,4 @@
-package datadog.trace.core.endpoint;
+package datadog.trace.api.endpoint;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 
