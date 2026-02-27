@@ -1,6 +1,6 @@
 package datadog.common.queue;
 
-public class MpscBlockingConsumerArrayQueue<E>
+public final class MpscBlockingConsumerArrayQueue<E>
     extends org.jctools.queues.MpscBlockingConsumerArrayQueue<E>
     implements MessagePassingBlockingQueue<E> {
 
