@@ -173,8 +173,7 @@ public class SharedCommunicationObjects {
                   agentHttpClient,
                   monitoring,
                   agentUrl,
-                  config.isTraceAgentV05Enabled(),
-                  config.isTraceAgentV1Enabled(),
+                  config.getTraceAgentProtocolVersion(),
                   config.isTracerMetricsEnabled());
 
           if (paused) {

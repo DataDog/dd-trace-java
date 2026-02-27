@@ -3977,11 +3977,11 @@
         "aliases": []
       }
     ],
-    "DD_TRACE_V1_PAYLOAD_FORMAT_ENABLED": [
+    "DD_TRACE_AGENT_PROTOCOL_VERSION": [
       {
         "version": "A",
-        "type": "boolean",
-        "default": "false",
+        "type": "string",
+        "default": "0.4",
         "aliases": []
       }
     ],
