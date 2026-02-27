@@ -1,4 +1,4 @@
-package datadog.trace.core.endpoint
+package datadog.trace.api.endpoint
 
 import spock.lang.Specification
 
