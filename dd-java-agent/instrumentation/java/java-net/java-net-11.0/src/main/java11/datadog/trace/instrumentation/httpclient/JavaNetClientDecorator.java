@@ -15,6 +15,8 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(DECORATE.operationName());
 
+  private static final ThreadLocal<Boolean> INJECT_CONTEXT = new ThreadLocal<>();
+
   @Override
   protected String[] instrumentationNames() {
     return new String[] {INSTRUMENTATION_NAME};
@@ -53,5 +55,25 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
   @Override
   protected String getResponseHeader(HttpResponse<?> response, String headerName) {
     return response.headers().firstValue(headerName).orElse(null);
+  }
+
+  /**
+   * Checks whether context injection into HTTP headers is currently allowed.
+   *
+   * @return {@code true} if context injection is allowed for the current thread, {@code false}
+   *     otherwise
+   */
+  public boolean isContextInjectionAllowed() {
+    return INJECT_CONTEXT.get() != null && INJECT_CONTEXT.get();
+  }
+
+  /** Enables context injection into HTTP headers for the current thread. */
+  public void allowContextInjection() {
+    INJECT_CONTEXT.set(true);
+  }
+
+  /** Disables context injection into HTTP headers for the current thread. */
+  public void blockContextInjection() {
+    INJECT_CONTEXT.remove();
   }
 }

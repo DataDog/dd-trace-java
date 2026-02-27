@@ -30,6 +30,7 @@ public class SendAdvice {
       if (callDepth > 0) {
         return null;
       }
+      DECORATE.allowContextInjection();
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
       final AgentScope scope = activateSpan(span);
 
@@ -40,6 +41,7 @@ public class SendAdvice {
       return scope;
     } catch (BlockingException e) {
       CallDepthThreadLocalMap.reset(HttpClient.class);
+      DECORATE.blockContextInjection();
       // re-throw blocking exceptions
       throw e;
     }
@@ -54,6 +56,7 @@ public class SendAdvice {
       return;
     }
     CallDepthThreadLocalMap.reset(HttpClient.class);
+    DECORATE.blockContextInjection();
 
     AgentSpan span = scope.span();
     if (null != throwable) {
