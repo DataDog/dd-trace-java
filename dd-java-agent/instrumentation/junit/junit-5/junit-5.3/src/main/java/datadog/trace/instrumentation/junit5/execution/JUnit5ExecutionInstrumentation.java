@@ -154,7 +154,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
-      TestEventsHandlerHolder.setExecutionHistory(testDescriptor, executionPolicy);
+      TestEventsHandlerHolder.setExecutionTracker(testDescriptor, executionPolicy);
 
       ThrowableCollectorFactoryWrapper factory =
           (ThrowableCollectorFactoryWrapper) taskHandle.getThrowableCollectorFactory();
@@ -188,7 +188,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
-        TestEventsHandlerHolder.setExecutionHistory(retryDescriptor, executionPolicy);
+        TestEventsHandlerHolder.setExecutionTracker(retryDescriptor, executionPolicy);
 
         // restore parent context, since the reference is overwritten with null after execution
         taskHandle.setParentContext(parentContext);
