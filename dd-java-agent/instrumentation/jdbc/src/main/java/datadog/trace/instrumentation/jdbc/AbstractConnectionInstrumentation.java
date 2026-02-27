@@ -33,7 +33,7 @@ public abstract class AbstractConnectionInstrumentation extends InstrumenterModu
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.propagation.W3CTraceParent", packageName + ".JDBCDecorator",
+      packageName + ".JDBCDecorator",
     };
   }
 

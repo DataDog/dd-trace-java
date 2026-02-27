@@ -7,6 +7,8 @@ import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
@@ -237,7 +239,7 @@ public class TagInterceptor {
 
   private boolean intercept(DDSpanContext span, String tag, Object value) {
     if (splitServiceTags.contains(tag)) {
-      span.setServiceName(String.valueOf(value));
+      span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
       return true;
     }
     return false;
@@ -347,15 +349,15 @@ public class TagInterceptor {
       String serviceName = null;
       if (contextName.equals("/")) {
         serviceName = Config.get().getRootContextServiceName();
-        span.setServiceName(serviceName, SERVLET_CONTEXT);
+        span.setServiceName(serviceName, SPLIT_BY_SERVLET_CONTEXT);
       } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
           serviceName = contextName.substring(1);
-          span.setServiceName(serviceName, SERVLET_CONTEXT);
+          span.setServiceName(serviceName, SPLIT_BY_SERVLET_CONTEXT);
         }
       } else {
         serviceName = contextName;
-        span.setServiceName(serviceName, SERVLET_CONTEXT);
+        span.setServiceName(serviceName, SPLIT_BY_SERVLET_CONTEXT);
       }
       ServiceNameCollector.get().addService(serviceName);
     }

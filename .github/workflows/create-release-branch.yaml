@@ -1,4 +1,4 @@
-name: Create Release Branch
+name: Create Release Branch and Pin System Tests
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
           TAG=${{ steps.determine-tag.outputs.tag }}
           echo "branch=release/${TAG%.0}.x" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout dd-trace-java at tag
+      - name: Check out repo at tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
           ref: ${{ steps.determine-tag.outputs.tag }}
@@ -75,7 +75,7 @@ jobs:
           scope: DataDog/dd-trace-java
           policy: self.pin-system-tests.create-pr
 
-      - name: Checkout dd-trace-java at release branch
+      - name: Check out repo at release branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
           ref: ${{ needs.create-release-branch.outputs.release-branch-name }}
@@ -85,7 +85,7 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Define pin-system-tests branch name
+      - name: Define pin-system-tests branch name from date
         id: define-pin-branch
         run: echo "branch=ci/pin-system-tests-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
