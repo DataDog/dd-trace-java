@@ -11,7 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
@@ -81,7 +81,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionHistory.class.getName());
+        "org.junit.runner.Description", TestExecutionTracker.class.getName());
   }
 
   @Override
@@ -136,7 +136,7 @@ public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
 
       final TracingListener tracingListener =
           new JUnit4TracingListener(
-              InstrumentationContext.get(Description.class, TestExecutionHistory.class));
+              InstrumentationContext.get(Description.class, TestExecutionTracker.class));
       runNotifier.addListener(tracingListener);
     }
 
