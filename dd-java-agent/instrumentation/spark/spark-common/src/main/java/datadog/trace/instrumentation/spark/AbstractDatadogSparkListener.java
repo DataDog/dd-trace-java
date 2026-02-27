@@ -251,6 +251,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               .orElse(predeterminedTraceIdContext.getTraceId()));
     }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
+    log.info("end of application start");
   }
 
   private void initApplicationSpanIfNotInitialized() {
@@ -395,7 +396,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // as soon as the application finishes, the JVM starts to shut down
     tracer.flush();
   }
- 
+
   private AgentSpan getOrCreateStreamingBatchSpan(
       String batchKey, Long timeMs, Properties jobProperties) {
     AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
