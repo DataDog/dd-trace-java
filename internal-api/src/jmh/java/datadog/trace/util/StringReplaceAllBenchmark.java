@@ -1,4 +1,4 @@
-package benchmarks.reference;
+package datadog.trace.util;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.regex.Pattern;
