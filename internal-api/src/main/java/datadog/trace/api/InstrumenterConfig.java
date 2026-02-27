@@ -21,6 +21,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
@@ -81,6 +82,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
@@ -200,6 +202,7 @@ public class InstrumenterConfig {
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> traceNativeMethods;
   private final Map<String, Set<String>> measureMethods;
 
   private final boolean internalExitOnFailure;
@@ -343,6 +346,9 @@ public class InstrumenterConfig {
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    traceNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
@@ -645,6 +651,10 @@ public class InstrumenterConfig {
 
   public Map<String, Set<String>> getTraceMethods() {
     return traceMethods;
+  }
+
+  public Map<String, Set<String>> getTraceNativeMethods() {
+    return traceNativeMethods;
   }
 
   public boolean isMethodMeasured(Method method) {
