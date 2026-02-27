@@ -6,11 +6,11 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
-import datadog.trace.api.DDTags
 import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -189,7 +189,7 @@ class AIGuardInternalTests extends DDSpecification {
 
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
-    1 * localRootSpan.setTag(DDTags.MANUAL_KEEP, true)
+    1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
