@@ -162,6 +162,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     predeterminedTraceIdContext =
         new PredeterminedTraceIdContext(Config.get().getIdGenerationStrategy().generateTraceId());
 
+
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
     // Using shutdown hook to close the span, but it is only best effort:
@@ -233,6 +234,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
 
+    if (isRunningOnDatabricks){
+      log.info("databricksClusterName{}", databricksClusterName);
+
+    }
     if (openLineageSparkListener == null) {
       openLineageSparkListener =
           InstanceStore.of(SparkListenerInterface.class).get("openLineageListener");
@@ -308,6 +313,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    if (isRunningOnDatabricks){
+      log.info("On Application End");
+
+    }
     log.info(
         "Received spark application end event, finish trace on this event: {}",
         finishTraceOnApplicationEnd);
@@ -386,7 +395,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // as soon as the application finishes, the JVM starts to shut down
     tracer.flush();
   }
-
+ 
   private AgentSpan getOrCreateStreamingBatchSpan(
       String batchKey, Long timeMs, Properties jobProperties) {
     AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
