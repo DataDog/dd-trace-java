@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling;
+package datadog.trace.bootstrap;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;

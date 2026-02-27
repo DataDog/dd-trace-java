@@ -2,9 +2,9 @@ package datadog.trace.instrumentation.jaxrs2;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
-import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;

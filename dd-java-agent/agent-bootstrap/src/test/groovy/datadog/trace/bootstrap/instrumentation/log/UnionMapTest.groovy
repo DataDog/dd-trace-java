@@ -1,4 +1,4 @@
-package datadog.trace.agent.tooling.log
+package datadog.trace.bootstrap.instrumentation.log
 
 
 import com.google.common.collect.testing.MapTestSuiteBuilder
