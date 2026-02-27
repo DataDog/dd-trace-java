@@ -1,30 +1,28 @@
 package datadog.trace.civisibility.execution;
 
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.ExecutionAggregation;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import javax.annotation.Nullable;
 
-class ExecutionOutcomeImpl implements TestExecutionHistory.ExecutionOutcome {
+class ExecutionOutcomeImpl implements TestExecutionTracker.ExecutionOutcome {
 
   private final boolean failureSuppressed;
   private final boolean lastExecution;
-  private final boolean failedAllRetries;
-  private final boolean succeededAllRetries;
+  private final ExecutionAggregation aggregation;
   private final RetryReason retryReason;
   private final TestStatus finalStatus;
 
   ExecutionOutcomeImpl(
       boolean failureSuppressed,
       boolean lastExecution,
-      boolean failedAllRetries,
-      boolean succeededAllRetries,
+      ExecutionAggregation aggregation,
       RetryReason retryReason,
       TestStatus finalStatus) {
     this.failureSuppressed = failureSuppressed;
     this.lastExecution = lastExecution;
-    this.failedAllRetries = failedAllRetries;
-    this.succeededAllRetries = succeededAllRetries;
+    this.aggregation = aggregation;
     this.retryReason = retryReason;
     this.finalStatus = finalStatus;
   }
@@ -40,13 +38,8 @@ class ExecutionOutcomeImpl implements TestExecutionHistory.ExecutionOutcome {
   }
 
   @Override
-  public boolean failedAllRetries() {
-    return failedAllRetries;
-  }
-
-  @Override
-  public boolean succeededAllRetries() {
-    return succeededAllRetries;
+  public ExecutionAggregation aggregation() {
+    return aggregation;
   }
 
   @Nullable
