@@ -3,7 +3,7 @@ package datadog.trace.core.tagprocessor
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.endpoint.EndpointResolver
+import datadog.trace.api.endpoint.EndpointResolver
 import spock.lang.Specification
 
 class HttpEndpointPostProcessorTest extends Specification {
