@@ -1,0 +1,38 @@
+plugins {
+  id 'idea'
+}
+
+muzzle {
+  pass {
+    coreJdk('22')
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_25)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_22
+}
+
+idea {
+  module {
+    jdkName = '25'
+  }
+}
+
+
+tasks.named("compileMain_java25Java", JavaCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
+}
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  configureCompiler(it, 25)
+}
+dependencies {
+  implementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+}
