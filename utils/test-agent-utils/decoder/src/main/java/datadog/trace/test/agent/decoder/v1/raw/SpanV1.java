@@ -213,7 +213,7 @@ public class SpanV1 implements DecodedSpan {
    * @return the decoded string
    * @throws IOException if unpacking fails
    */
-  private static String unpackStreamingString(MessageUnpacker unpacker, List<String> stringTable)
+  static String unpackStreamingString(MessageUnpacker unpacker, List<String> stringTable)
       throws IOException {
     ValueType valueType = unpacker.getNextFormat().getValueType();
     if (valueType == ValueType.INTEGER) {

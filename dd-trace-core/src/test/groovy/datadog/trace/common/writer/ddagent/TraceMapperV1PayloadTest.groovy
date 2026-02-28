@@ -1,718 +1,743 @@
 package datadog.trace.common.writer.ddagent
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
+import static org.junit.jupiter.api.Assertions.assertArrayEquals
 import static org.junit.jupiter.api.Assertions.assertEquals
-import static org.junit.jupiter.api.Assertions.assertFalse
 import static org.junit.jupiter.api.Assertions.assertNotNull
 import static org.junit.jupiter.api.Assertions.assertTrue
 import static org.msgpack.core.MessageFormat.FIXSTR
-import static org.msgpack.core.MessageFormat.FLOAT32
-import static org.msgpack.core.MessageFormat.FLOAT64
-import static org.msgpack.core.MessageFormat.INT16
-import static org.msgpack.core.MessageFormat.INT32
-import static org.msgpack.core.MessageFormat.INT64
-import static org.msgpack.core.MessageFormat.INT8
-import static org.msgpack.core.MessageFormat.NEGFIXINT
-import static org.msgpack.core.MessageFormat.POSFIXINT
 import static org.msgpack.core.MessageFormat.STR16
 import static org.msgpack.core.MessageFormat.STR32
 import static org.msgpack.core.MessageFormat.STR8
-import static org.msgpack.core.MessageFormat.UINT16
-import static org.msgpack.core.MessageFormat.UINT32
-import static org.msgpack.core.MessageFormat.UINT64
-import static org.msgpack.core.MessageFormat.UINT8
 
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.trace.api.Config
-import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
 import datadog.trace.test.util.DDSpecification
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 
-/**
- * Test class for TraceMapperV1 payload format
- */
 class TraceMapperV1PayloadTest extends DDSpecification {
 
-  // def "test traces written correctly"() {
-  //   setup:
-  //   List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //
-  //   def buffer = new FlushingBuffer(bufferSize, verifier)
-  //   MsgPackWriter packer = new MsgPackWriter(buffer)
-  //
-  //   when:
-  //   boolean tracesFitInBuffer = true
-  //   for (List<TraceGenerator.PojoSpan> trace : traces) {
-  //     if (!packer.format(trace, traceMapper)) {
-  //       verifier.skipLargeTrace()
-  //       tracesFitInBuffer = false
-  //       traceMapper.reset()
-  //     }
-  //   }
-  //   packer.flush()
-  //
-  //   then:
-  //   if (tracesFitInBuffer) {
-  //     verifier.verifyTracesConsumed()
-  //   }
-  //
-  //   where:
-  //   bufferSize | traceCount | lowCardinality
-  //   20 << 10   | 0          | true
-  //   20 << 10   | 1          | true
-  //   30 << 10   | 1          | true
-  //   30 << 10   | 2          | true
-  //   20 << 10   | 0          | false
-  //   20 << 10   | 1          | false
-  //   30 << 10   | 1          | false
-  //   30 << 10   | 2          | false
-  //   100 << 10  | 0          | true
-  //   100 << 10  | 1          | true
-  //   100 << 10  | 10         | true
-  //   100 << 10  | 100        | true
-  //   100 << 10  | 0          | false
-  //   100 << 10  | 1          | false
-  //   100 << 10  | 10         | false
-  //   100 << 10  | 100        | false
-  // }
-  //
-  // def "test endpoint returns v1.0"() {
-  //   setup:
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //
-  //   expect:
-  //   traceMapper.endpoint() == "v1.0"
-  // }
-  //
-  // def "test span kind value conversion"() {
-  //   expect:
-  //   TraceMapperV1.getSpanKindValue(null) == TraceMapperV1.SPAN_KIND_INTERNAL
-  //   TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_INTERNAL) == TraceMapperV1.SPAN_KIND_INTERNAL
-  //   TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_SERVER) == TraceMapperV1.SPAN_KIND_SERVER
-  //   TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CLIENT) == TraceMapperV1.SPAN_KIND_CLIENT
-  //   TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_PRODUCER) == TraceMapperV1.SPAN_KIND_PRODUCER
-  //   TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CONSUMER) == TraceMapperV1.SPAN_KIND_CONSUMER
-  //   TraceMapperV1.getSpanKindValue("unknown") == TraceMapperV1.SPAN_KIND_INTERNAL
-  // }
-  //
-  // def "test string table deduplication"() {
-  //   setup:
-  //   TraceMapperV1.StringTable stringTable = new TraceMapperV1.StringTable()
-  //
-  //   expect:
-  //   // Empty string should be pre-populated at index 0
-  //   stringTable.get("") == 0
-  //
-  //   // New strings should return null until added
-  //   stringTable.get("test") == null
-  //
-  //   // After adding, should return the index
-  //   when:
-  //   stringTable.add("test")
-  //   then:
-  //   stringTable.get("test") == 1
-  //
-  //   // Adding same string again shouldn't change index
-  //   when:
-  //   stringTable.add("test")
-  //   then:
-  //   stringTable.get("test") == 1
-  //
-  //   // New string gets next index
-  //   when:
-  //   stringTable.add("another")
-  //   then:
-  //   stringTable.get("another") == 2
-  //
-  //   // Clear should reset
-  //   when:
-  //   stringTable.clear()
-  //   then:
-  //   stringTable.get("") == 0
-  //   stringTable.get("test") == null
-  //   stringTable.size() == 1
-  // }
-  //
-  // def "test simple span serialization"() {
-  //   setup:
-  //   def span = new TraceGenerator.PojoSpan(
-  //     "test-service",
-  //     "test-operation",
-  //     "test-resource",
-  //     DDTraceId.ONE,
-  //     123L,
-  //     456L,
-  //     1000000L,
-  //     5000L,
-  //     0,
-  //     [:],
-  //     [:],
-  //     "web",
-  //     false,
-  //     PrioritySampling.SAMPLER_KEEP,
-  //     200,
-  //     "test-origin")
-  //   def traces = [[span]]
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format([span], traceMapper)
-  //   packer.flush()
-  //
-  //   then:
-  //   verifier.verifyTracesConsumed()
-  // }
-  //
-  // def "test error span serialization"() {
-  //   setup:
-  //   def span = new TraceGenerator.PojoSpan(
-  //     "test-service",
-  //     "test-operation",
-  //     "test-resource",
-  //     DDTraceId.ONE,
-  //     123L,
-  //     456L,
-  //     1000000L,
-  //     5000L,
-  //     1,  // error = 1
-  //     [:],
-  //     [:],
-  //     "web",
-  //     false,
-  //     PrioritySampling.SAMPLER_KEEP,
-  //     500,
-  //     null)
-  //   def traces = [[span]]
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format([span], traceMapper)
-  //   packer.flush()
-  //
-  //   then:
-  //   verifier.verifyTracesConsumed()
-  // }
-  //
-  // def "test span with promoted tags"() {
-  //   setup:
-  //   def tags = [
-  //     (Tags.ENV): "production",
-  //     (Tags.DD_VERSION): "1.0.0",
-  //     (Tags.COMPONENT): "http-client",
-  //     (Tags.SPAN_KIND): Tags.SPAN_KIND_CLIENT,
-  //     "custom.tag": "custom-value"
-  //   ]
-  //   def span = new TraceGenerator.PojoSpan(
-  //     "test-service",
-  //     "test-operation",
-  //     "test-resource",
-  //     DDTraceId.ONE,
-  //     123L,
-  //     456L,
-  //     1000000L,
-  //     5000L,
-  //     0,
-  //     [:],
-  //     tags,
-  //     "http",
-  //     false,
-  //     PrioritySampling.SAMPLER_KEEP,
-  //     200,
-  //     null)
-  //   def traces = [[span]]
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format([span], traceMapper)
-  //   packer.flush()
-  //
-  //   then:
-  //   verifier.verifyTracesConsumed()
-  // }
-  //
-  // def "test span with metrics"() {
-  //   setup:
-  //   def tags = [
-  //     "metric.int": 42,
-  //     "metric.long": 1234567890L,
-  //     "metric.float": 3.14f,
-  //     "metric.double": 2.718281828d
-  //   ]
-  //   def span = new TraceGenerator.PojoSpan(
-  //     "test-service",
-  //     "test-operation",
-  //     "test-resource",
-  //     DDTraceId.ONE,
-  //     123L,
-  //     456L,
-  //     1000000L,
-  //     5000L,
-  //     0,
-  //     [:],
-  //     tags,
-  //     "web",
-  //     false,
-  //     PrioritySampling.SAMPLER_KEEP,
-  //     0,
-  //     null)
-  //   def traces = [[span]]
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format([span], traceMapper)
-  //   packer.flush()
-  //
-  //   then:
-  //   verifier.verifyTracesConsumed()
-  // }
-  //
-  // def "test process tags serialization"() {
-  //   setup:
-  //   assertNotNull(ProcessTags.tagsForSerialization)
-  //   def spans = (1..2).collect {
-  //     new TraceGenerator.PojoSpan(
-  //       'service',
-  //       'operation',
-  //       'resource',
-  //       DDTraceId.ONE,
-  //       it,
-  //       -1L,
-  //       123L,
-  //       456L,
-  //       0,
-  //       [:],
-  //       [:],
-  //       'type',
-  //       false,
-  //       0,
-  //       0,
-  //       'origin')
-  //   }
-  //
-  //   def traces = [spans]
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format(spans, traceMapper)
-  //   packer.flush()
-  //
-  //   then:
-  //   verifier.verifyTracesConsumed()
-  // }
-  //
-  // def "test mapper reset clears string table"() {
-  //   setup:
-  //   TraceMapperV1 traceMapper = new TraceMapperV1()
-  //   def span = new TraceGenerator.PojoSpan(
-  //     "test-service",
-  //     "test-operation",
-  //     "test-resource",
-  //     DDTraceId.ONE,
-  //     123L,
-  //     456L,
-  //     1000000L,
-  //     5000L,
-  //     0,
-  //     [:],
-  //     [:],
-  //     "web",
-  //     false,
-  //     PrioritySampling.UNSET,
-  //     0,
-  //     null)
-  //   def verifier = new PayloadVerifier([[span]], traceMapper)
-  //   MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier))
-  //
-  //   when:
-  //   packer.format([span], traceMapper)
-  //   packer.flush()
-  //   traceMapper.reset()
-  //
-  //   then:
-  //   // String table should be cleared (only empty string at index 0)
-  //   traceMapper.stringTable.size() == 1
-  //   traceMapper.stringTable.get("") == 0
-  //   traceMapper.stringTable.get("test-service") == null
-  // }
-  //
-  // /**
-  //  * PayloadVerifier for V1.0 format
-  //  *
-  //  * The V1.0 format uses:
-  //  * - Integer field IDs instead of string keys
-  //  * - Attributes encoded as arrays with triplets (key, type, value)
-  //  * - Promoted fields (env, version, component, spanKind) as separate span fields
-  //  * - Error as boolean instead of int
-  //  * - SpanKind as uint32 matching OTEL spec values
-  //  */
-  // private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
-  //
-  //   private final List<List<TraceGenerator.PojoSpan>> expectedTraces
-  //   private final TraceMapperV1 mapper
-  //   private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
-  //   private int position = 0
-  //   // String table for streaming string decoding
-  //   private List<String> stringTable = new ArrayList<>()
-  //
-  //   private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV1 mapper) {
-  //     this.expectedTraces = traces
-  //     this.mapper = mapper
-  //   }
-  //
-  //   private void resetStringTable() {
-  //     stringTable.clear()
-  //     stringTable.add("") // Index 0 is always empty string
-  //   }
-  //
-  //   void skipLargeTrace() {
-  //     ++position
-  //   }
-  //
-  //   @Override
-  //   void accept(int messageCount, ByteBuffer buffer) {
-  //     if (expectedTraces.isEmpty() && messageCount == 0) {
-  //       return
-  //     }
-  //     int processTagsCount = 0
-  //     resetStringTable() // Reset string table for each payload
-  //     try {
-  //       Payload payload = mapper.newPayload().withBody(messageCount, buffer)
-  //       payload.writeTo(this)
-  //       captured.flip()
-  //       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
-  //
-  //       // V1.0 format: map header with field 11 (chunks) containing array of trace chunks
-  //       int mapSize = unpacker.unpackMapHeader()
-  //       assertTrue(mapSize >= 1, "Expected at least 1 field in payload map")
-  //
-  //       // Read field ID (should be 11 for chunks)
-  //       int fieldId = unpacker.unpackInt()
-  //       assertEquals(11, fieldId, "Expected chunks field ID")
-  //
-  //       // Read trace count
-  //       int traceCount = unpacker.unpackArrayHeader()
-  //
-  //       for (int i = 0; i < traceCount; ++i) {
-  //         List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
-  //         int spanCount = unpacker.unpackArrayHeader()
-  //         assertEquals(expectedTrace.size(), spanCount)
-  //
-  //         for (int k = 0; k < spanCount; ++k) {
-  //           TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
-  //
-  //           // V1.0 spans are maps with integer field IDs
-  //           int spanFieldCount = unpacker.unpackMapHeader()
-  //           assertEquals(16, spanFieldCount, "Expected 16 fields in span")
-  //
-  //           Map<Integer, Object> spanFields = new HashMap<>()
-  //           Map<String, Object> attributes = new HashMap<>()
-  //
-  //           for (int f = 0; f < spanFieldCount; ++f) {
-  //             int spanFieldId = unpacker.unpackInt()
-  //
-  //             switch (spanFieldId) {
-  //               case TraceMapperV1.SPAN_FIELD_SERVICE:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_NAME:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_RESOURCE:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_SPAN_ID:
-  //                 spanFields.put(spanFieldId, unpacker.unpackValue().asNumberValue().toLong())
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_PARENT_ID:
-  //                 spanFields.put(spanFieldId, unpacker.unpackValue().asNumberValue().toLong())
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_START:
-  //                 spanFields.put(spanFieldId, unpacker.unpackLong())
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_DURATION:
-  //                 spanFields.put(spanFieldId, unpacker.unpackLong())
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_ERROR:
-  //                 spanFields.put(spanFieldId, unpacker.unpackBoolean())
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_ATTRIBUTES:
-  //               // Attributes are encoded as array with triplets: key, type, value
-  //                 int attrArraySize = unpacker.unpackArrayHeader()
-  //                 int attrCount = attrArraySize / 3
-  //                 for (int a = 0; a < attrCount; ++a) {
-  //                   String attrKey = readStreamingString(unpacker)
-  //                   int attrType = unpacker.unpackInt()
-  //                   Object attrValue = readAttributeValue(unpacker, attrType)
-  //                   attributes.put(attrKey, attrValue)
-  //                 }
-  //                 spanFields.put(spanFieldId, attributes)
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_TYPE:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_SPAN_LINKS:
-  //                 int linksCount = unpacker.unpackArrayHeader()
-  //               // Skip span links for now
-  //                 spanFields.put(spanFieldId, linksCount)
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_SPAN_EVENTS:
-  //                 int eventsCount = unpacker.unpackArrayHeader()
-  //               // Skip span events for now
-  //                 spanFields.put(spanFieldId, eventsCount)
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_ENV:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_VERSION:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_COMPONENT:
-  //                 spanFields.put(spanFieldId, readStreamingString(unpacker))
-  //                 break
-  //               case TraceMapperV1.SPAN_FIELD_SPAN_KIND:
-  //                 spanFields.put(spanFieldId, unpacker.unpackInt())
-  //                 break
-  //               default:
-  //                 Assert.fail("Unknown span field ID: " + spanFieldId)
-  //             }
-  //           }
-  //
-  //           // Verify basic span fields
-  //           assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(),
-  //             (String) spanFields.get(TraceMapperV1.SPAN_FIELD_SERVICE))
-  //           assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(),
-  //             (String) spanFields.get(TraceMapperV1.SPAN_FIELD_NAME))
-  //           assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(),
-  //             (String) spanFields.get(TraceMapperV1.SPAN_FIELD_RESOURCE))
-  //           assertEquals(expectedSpan.getSpanId(),
-  //             spanFields.get(TraceMapperV1.SPAN_FIELD_SPAN_ID))
-  //           assertEquals(expectedSpan.getParentId(),
-  //             spanFields.get(TraceMapperV1.SPAN_FIELD_PARENT_ID))
-  //           assertEquals(expectedSpan.getStartTime(),
-  //             spanFields.get(TraceMapperV1.SPAN_FIELD_START))
-  //           assertEquals(expectedSpan.getDurationNano(),
-  //             spanFields.get(TraceMapperV1.SPAN_FIELD_DURATION))
-  //
-  //           // V1.0 format: error is boolean
-  //           boolean expectedError = expectedSpan.getError() != 0
-  //           assertEquals(expectedError, spanFields.get(TraceMapperV1.SPAN_FIELD_ERROR))
-  //
-  //           assertEqualsWithNullAsEmpty(expectedSpan.getType(),
-  //             (String) spanFields.get(TraceMapperV1.SPAN_FIELD_TYPE))
-  //
-  //           // Verify promoted fields
-  //           String expectedEnv = expectedSpan.getTag(Tags.ENV)
-  //           String actualEnv = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_ENV)
-  //           if (expectedEnv != null) {
-  //             assertEquals(expectedEnv, actualEnv)
-  //           }
-  //
-  //           String expectedVersion = expectedSpan.getTag(Tags.DD_VERSION)
-  //           String actualVersion = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_VERSION)
-  //           if (expectedVersion != null) {
-  //             assertEquals(expectedVersion, actualVersion)
-  //           }
-  //
-  //           String expectedComponent = expectedSpan.getTag(Tags.COMPONENT)
-  //           String actualComponent = (String) spanFields.get(TraceMapperV1.SPAN_FIELD_COMPONENT)
-  //           if (expectedComponent != null) {
-  //             assertEquals(expectedComponent, actualComponent)
-  //           }
-  //
-  //           // Verify span kind is OTEL uint32
-  //           int spanKind = (int) spanFields.get(TraceMapperV1.SPAN_FIELD_SPAN_KIND)
-  //           String expectedSpanKind = expectedSpan.getTag(Tags.SPAN_KIND)
-  //           assertEquals(TraceMapperV1.getSpanKindValue(expectedSpanKind), spanKind)
-  //
-  //           // Verify attributes
-  //           Map<String, Object> spanAttributes = (Map<String, Object>) spanFields.get(TraceMapperV1.SPAN_FIELD_ATTRIBUTES)
-  //
-  //           // Check process tags (only on first span)
-  //           if (spanAttributes.containsKey(DDTags.PROCESS_TAGS)) {
-  //             processTagsCount++
-  //             assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled())
-  //             assertEquals(0, k)
-  //             assertEquals(ProcessTags.tagsForSerialization.toString(), spanAttributes.get(DDTags.PROCESS_TAGS))
-  //           }
-  //
-  //           // Verify sampling priority attribute (on first and last span)
-  //           if (spanAttributes.containsKey("_sampling_priority_v1")) {
-  //             if (k == 0 || k == spanCount - 1) {
-  //               Number priority = (Number) spanAttributes.get("_sampling_priority_v1")
-  //               assertEquals(expectedSpan.samplingPriority(), priority.intValue())
-  //             } else {
-  //               assertFalse(expectedSpan.hasSamplingPriority())
-  //             }
-  //           }
-  //
-  //           // Verify measured attribute
-  //           if (expectedSpan.isMeasured()) {
-  //             assertTrue(spanAttributes.containsKey(DD_MEASURED.toString()))
-  //             assertEquals(1, ((Number) spanAttributes.get(DD_MEASURED.toString())).intValue())
-  //           }
-  //
-  //           // Verify other tags/metrics are in attributes
-  //           for (Map.Entry<String, Object> tagEntry : expectedSpan.getTags().entrySet()) {
-  //             String tagKey = tagEntry.getKey()
-  //             Object tagValue = tagEntry.getValue()
-  //
-  //             // Skip promoted tags
-  //             if (Tags.ENV.equals(tagKey) || Tags.DD_VERSION.equals(tagKey) ||
-  //               Tags.COMPONENT.equals(tagKey) || Tags.SPAN_KIND.equals(tagKey)) {
-  //               continue
-  //             }
-  //
-  //             if (spanAttributes.containsKey(tagKey)) {
-  //               Object actualValue = spanAttributes.get(tagKey)
-  //               if (tagValue instanceof Number && actualValue instanceof Number) {
-  //                 assertEquals(((Number) tagValue).doubleValue(),
-  //                   ((Number) actualValue).doubleValue(), 0.001, tagKey)
-  //               } else {
-  //                 assertEquals(String.valueOf(tagValue), String.valueOf(actualValue), tagKey)
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     } catch (IOException e) {
-  //       Assert.fail(e.getMessage())
-  //     } finally {
-  //       mapper.reset()
-  //       captured.position(0)
-  //       captured.limit(captured.capacity())
-  //       assert processTagsCount == 0 || Config.get().isExperimentalPropagateProcessTagsEnabled()
-  //     }
-  //   }
-  //
-  //   private String readStreamingString(MessageUnpacker unpacker) throws IOException {
-  //     MessageFormat format = unpacker.getNextFormat()
-  //     if (format == FIXSTR || format == STR8 || format == STR16 || format == STR32) {
-  //       String str = unpacker.unpackString()
-  //       // Add to string table if not already present
-  //       if (!stringTable.contains(str)) {
-  //         stringTable.add(str)
-  //       }
-  //       return str
-  //     }
-  //     // It's an index reference (positive integer)
-  //     int index = unpacker.unpackInt()
-  //     if (index < stringTable.size()) {
-  //       return stringTable.get(index)
-  //     }
-  //     // Return placeholder if index is out of bounds (shouldn't happen in valid payloads)
-  //     return "[string_ref:" + index + "]"
-  //   }
-  //
-  //   private Object readAttributeValue(MessageUnpacker unpacker, int attrType) throws IOException {
-  //     switch (attrType) {
-  //       case TraceMapperV1.STRING_VALUE_TYPE:
-  //         return readStreamingString(unpacker)
-  //       case TraceMapperV1.BOOL_VALUE_TYPE:
-  //         return unpacker.unpackBoolean()
-  //       case TraceMapperV1.FLOAT_VALUE_TYPE:
-  //       // Float values can be encoded as integer or double depending on the actual value
-  //         MessageFormat format = unpacker.getNextFormat()
-  //         switch (format) {
-  //           case FLOAT32:
-  //             return (double) unpacker.unpackFloat()
-  //           case FLOAT64:
-  //             return unpacker.unpackDouble()
-  //           case NEGFIXINT:
-  //           case POSFIXINT:
-  //           case INT8:
-  //           case UINT8:
-  //           case INT16:
-  //           case UINT16:
-  //           case INT32:
-  //           case UINT32:
-  //             return (double) unpacker.unpackInt()
-  //           case INT64:
-  //           case UINT64:
-  //             return (double) unpacker.unpackLong()
-  //           default:
-  //             Assert.fail("Unexpected format for FLOAT_VALUE_TYPE: " + format)
-  //             return null
-  //         }
-  //       case TraceMapperV1.INT_VALUE_TYPE:
-  //         return unpacker.unpackLong()
-  //       case TraceMapperV1.BYTES_VALUE_TYPE:
-  //         int len = unpacker.unpackBinaryHeader()
-  //         byte[] bytes = new byte[len]
-  //         unpacker.readPayload(bytes)
-  //         return bytes
-  //       case TraceMapperV1.ARRAY_VALUE_TYPE:
-  //         int arrayLen = unpacker.unpackArrayHeader()
-  //         List<Object> array = new ArrayList<>()
-  //         for (int i = 0; i < arrayLen; ++i) {
-  //           int innerType = unpacker.unpackInt()
-  //           array.add(readAttributeValue(unpacker, innerType))
-  //         }
-  //         return array
-  //       default:
-  //         Assert.fail("Unknown attribute type: " + attrType)
-  //         return null
-  //     }
-  //   }
-  //
-  //   @Override
-  //   int write(ByteBuffer src) {
-  //     if (captured.remaining() < src.remaining()) {
-  //       ByteBuffer newBuffer = ByteBuffer.allocate(captured.capacity() + src.capacity())
-  //       captured.flip()
-  //       newBuffer.put(captured)
-  //       captured = newBuffer
-  //       return write(src)
-  //     }
-  //     captured.put(src)
-  //     return src.position()
-  //   }
-  //
-  //   void verifyTracesConsumed() {
-  //     assertEquals(expectedTraces.size(), position)
-  //   }
-  //
-  //   @Override
-  //   boolean isOpen() {
-  //     return true
-  //   }
-  //
-  //   @Override
-  //   void close() {
-  //   }
-  // }
-  //
-  // private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
-  //   if (null == expected) {
-  //     assertEquals("", actual)
-  //   } else {
-  //     assertEquals(expected.toString(), actual.toString())
-  //   }
-  // }
-}
+  def "test traces written correctly"() {
+    setup:
+    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
+    TraceMapperV1 traceMapper = new TraceMapperV1()
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier))
 
+    when:
+    boolean tracesFitInBuffer = true
+    for (List<TraceGenerator.PojoSpan> trace : traces) {
+      if (!packer.format(trace, traceMapper)) {
+        verifier.skipLargeTrace()
+        tracesFitInBuffer = false
+        traceMapper.reset()
+      }
+    }
+    packer.flush()
+
+    then:
+    if (tracesFitInBuffer) {
+      verifier.verifyTracesConsumed()
+    }
+
+    where:
+    bufferSize | traceCount | lowCardinality
+    20 << 10   | 0          | true
+    20 << 10   | 1          | true
+    30 << 10   | 2          | true
+    20 << 10   | 0          | false
+    20 << 10   | 1          | false
+    30 << 10   | 2          | false
+    100 << 10  | 10         | true
+    100 << 10  | 100        | false
+  }
+
+  def "test endpoint returns v1.0"() {
+    expect:
+    new TraceMapperV1().endpoint() == "v1.0"
+  }
+
+  def "test span kind value conversion"() {
+    expect:
+    TraceMapperV1.getSpanKindValue(null) == TraceMapperV1.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_INTERNAL) == TraceMapperV1.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_SERVER) == TraceMapperV1.SPAN_KIND_SERVER
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CLIENT) == TraceMapperV1.SPAN_KIND_CLIENT
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_PRODUCER) == TraceMapperV1.SPAN_KIND_PRODUCER
+    TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CONSUMER) == TraceMapperV1.SPAN_KIND_CONSUMER
+    TraceMapperV1.getSpanKindValue("unknown") == TraceMapperV1.SPAN_KIND_INTERNAL
+  }
+
+  def "test payload contains expected header and chunk fields"() {
+    setup:
+    Map<String, Object> tags = [
+      (Tags.ENV): "prod",
+      (Tags.VERSION): "1.2.3",
+      (Tags.COMPONENT): "http-client",
+      (Tags.SPAN_KIND): Tags.SPAN_KIND_CLIENT,
+      "attr.string": "value",
+      "attr.bool"  : true,
+      "attr.number": 12.5d,
+      "_dd.p.dm"   : "-3"
+    ]
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      1,
+      [:],
+      tags,
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      "rum")
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    int payloadFieldCount = unpacker.unpackMapHeader()
+    Set<Integer> payloadFieldsSeen = new HashSet<>()
+    int chunkCount = -1
+
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int fieldId = unpacker.unpackInt()
+      payloadFieldsSeen.add(fieldId)
+      switch (fieldId) {
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+          readStreamingString(unpacker, stringTable)
+          break
+        case 10:
+          assertEquals(0, unpacker.unpackArrayHeader())
+          break
+        case 11:
+          chunkCount = unpacker.unpackArrayHeader()
+          assertEquals(1, chunkCount)
+          verifyChunk(unpacker, [span], stringTable)
+          break
+        default:
+          Assertions.fail("Unexpected payload field id: " + fieldId)
+      }
+    }
+
+    then:
+    assertEquals(10, payloadFieldCount)
+    assertEquals((2..11).toSet(), payloadFieldsSeen)
+    assertEquals(1, chunkCount)
+  }
+
+  def "test sampling mechanism normalization from _dd.p.dm"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      321L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      decisionMakerTag == null ? [:] : ["_dd.p.dm": decisionMakerTag],
+      "custom",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    unpacker.unpackMapHeader()
+    int samplingMechanism = -1
+
+    for (int i = 0; i < 10; i++) {
+      int payloadFieldId = unpacker.unpackInt()
+      if (payloadFieldId == 11) {
+        int chunkCount = unpacker.unpackArrayHeader()
+        assertEquals(1, chunkCount)
+        int chunkFieldCount = unpacker.unpackMapHeader()
+        for (int j = 0; j < chunkFieldCount; j++) {
+          int chunkFieldId = unpacker.unpackInt()
+          if (chunkFieldId == 7) {
+            samplingMechanism = unpacker.unpackInt()
+          } else {
+            skipChunkField(unpacker, chunkFieldId, stringTable)
+          }
+        }
+      } else {
+        skipPayloadField(unpacker, payloadFieldId, stringTable)
+      }
+    }
+
+    then:
+    assertEquals(expectedSamplingMechanism, samplingMechanism)
+
+    where:
+    decisionMakerTag | expectedSamplingMechanism
+    null             | SamplingMechanism.DEFAULT
+    "-3"            | 3
+    "934086a686-7"  | 7
+    "invalid"       | SamplingMechanism.DEFAULT
+  }
+
+  private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
+
+    private final List<List<TraceGenerator.PojoSpan>> expectedTraces
+    private final TraceMapperV1 mapper
+    private ByteBuffer captured = ByteBuffer.allocate(200 << 10)
+    private int position = 0
+
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> expectedTraces, TraceMapperV1 mapper) {
+      this.expectedTraces = expectedTraces
+      this.mapper = mapper
+    }
+
+    void skipLargeTrace() {
+      ++position
+    }
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      if (expectedTraces.isEmpty() && messageCount == 0) {
+        return
+      }
+      try {
+        Payload payload = mapper.newPayload().withBody(messageCount, buffer)
+        payload.writeTo(this)
+        captured.flip()
+
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
+        if (messageCount == 0) {
+          assertEquals(0, unpacker.unpackMapHeader())
+          return
+        }
+
+        List<String> stringTable = new ArrayList<>()
+        stringTable.add("")
+
+        int payloadFieldCount = unpacker.unpackMapHeader()
+        assertEquals(10, payloadFieldCount)
+
+        boolean seenChunks = false
+        for (int i = 0; i < payloadFieldCount; i++) {
+          int fieldId = unpacker.unpackInt()
+          if (fieldId == 11) {
+            int traceCount = unpacker.unpackArrayHeader()
+            assertEquals(messageCount, traceCount)
+            seenChunks = true
+            for (int traceIndex = 0; traceIndex < traceCount; traceIndex++) {
+              List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
+              verifyChunk(unpacker, expectedTrace, stringTable)
+            }
+          } else {
+            skipPayloadField(unpacker, fieldId, stringTable)
+          }
+        }
+
+        assertTrue(seenChunks)
+      } catch (IOException e) {
+        Assertions.fail(e.getMessage())
+      } finally {
+        mapper.reset()
+        captured.position(0)
+        captured.limit(captured.capacity())
+      }
+    }
+
+    @Override
+    int write(ByteBuffer src) {
+      if (captured.remaining() < src.remaining()) {
+        ByteBuffer newBuffer = ByteBuffer.allocate(captured.capacity() + src.remaining())
+        captured.flip()
+        newBuffer.put(captured)
+        captured = newBuffer
+        return write(src)
+      }
+      captured.put(src)
+      return src.position()
+    }
+
+    void verifyTracesConsumed() {
+      assertEquals(expectedTraces.size(), position)
+    }
+
+    @Override
+    boolean isOpen() {
+      return true
+    }
+
+    @Override
+    void close() {
+    }
+  }
+
+  private static void verifyChunk(
+    MessageUnpacker unpacker,
+    List<TraceGenerator.PojoSpan> expectedTrace,
+    List<String> stringTable) {
+    int chunkFieldCount = unpacker.unpackMapHeader()
+    assertEquals(6, chunkFieldCount)
+
+    Integer priority = null
+    String origin = null
+    int chunkAttributesCount = -1
+    byte[] traceId = null
+    Integer samplingMechanism = null
+    List<TraceGenerator.PojoSpan> decodedSpans = null
+
+    for (int i = 0; i < chunkFieldCount; i++) {
+      int fieldId = unpacker.unpackInt()
+      switch (fieldId) {
+        case 1:
+          priority = unpacker.unpackInt()
+          break
+        case 2:
+          origin = readStreamingString(unpacker, stringTable)
+          break
+        case 3:
+          chunkAttributesCount = unpacker.unpackArrayHeader()
+          break
+        case 4:
+          decodedSpans = verifySpans(unpacker, expectedTrace, stringTable)
+          break
+        case 6:
+          int traceIdLen = unpacker.unpackBinaryHeader()
+          traceId = new byte[traceIdLen]
+          unpacker.readPayload(traceId)
+          break
+        case 7:
+          samplingMechanism = unpacker.unpackInt()
+          break
+        default:
+          Assertions.fail("Unexpected chunk field id: " + fieldId)
+      }
+    }
+
+    assertNotNull(priority)
+    assertNotNull(origin)
+    assertNotNull(decodedSpans)
+    assertNotNull(traceId)
+    assertNotNull(samplingMechanism)
+    assertEquals(0, chunkAttributesCount)
+
+    TraceGenerator.PojoSpan firstSpan = expectedTrace.get(0)
+    assertEquals(firstSpan.samplingPriority(), priority)
+    assertEqualsWithNullAsEmpty(firstSpan.getOrigin(), origin)
+    assertArrayEquals(firstSpan.getTraceId().to128BitBytes(), traceId)
+    assertEquals(expectedSamplingMechanism(firstSpan.getTags()), samplingMechanism)
+  }
+
+  private static List<TraceGenerator.PojoSpan> verifySpans(
+    MessageUnpacker unpacker,
+    List<TraceGenerator.PojoSpan> expectedTrace,
+    List<String> stringTable) {
+    int spanCount = unpacker.unpackArrayHeader()
+    assertEquals(expectedTrace.size(), spanCount)
+
+    for (int i = 0; i < spanCount; i++) {
+      verifySpan(unpacker, expectedTrace.get(i), stringTable)
+    }
+    return expectedTrace
+  }
+
+  private static void verifySpan(
+    MessageUnpacker unpacker,
+    TraceGenerator.PojoSpan expectedSpan,
+    List<String> stringTable) {
+    int spanFieldCount = unpacker.unpackMapHeader()
+    assertEquals(16, spanFieldCount)
+
+    String service = null
+    String name = null
+    String resource = null
+    Long spanId = null
+    Long parentId = null
+    Long start = null
+    Long duration = null
+    Boolean error = null
+    Map<String, Object> attributes = null
+    String type = null
+    int linksCount = -1
+    int eventsCount = -1
+    String env = null
+    String version = null
+    String component = null
+    Integer spanKind = null
+
+    for (int i = 0; i < spanFieldCount; i++) {
+      int fieldId = unpacker.unpackInt()
+      switch (fieldId) {
+        case 1:
+          service = readStreamingString(unpacker, stringTable)
+          break
+        case 2:
+          name = readStreamingString(unpacker, stringTable)
+          break
+        case 3:
+          resource = readStreamingString(unpacker, stringTable)
+          break
+        case 4:
+          spanId = unpacker.unpackValue().asNumberValue().toLong()
+          break
+        case 5:
+          parentId = unpacker.unpackValue().asNumberValue().toLong()
+          break
+        case 6:
+          start = unpacker.unpackLong()
+          break
+        case 7:
+          duration = unpacker.unpackLong()
+          break
+        case 8:
+          error = unpacker.unpackBoolean()
+          break
+        case 9:
+          attributes = readAttributes(unpacker, stringTable)
+          break
+        case 10:
+          type = readStreamingString(unpacker, stringTable)
+          break
+        case 11:
+          linksCount = unpacker.unpackArrayHeader()
+          break
+        case 12:
+          eventsCount = unpacker.unpackArrayHeader()
+          break
+        case 13:
+          env = readStreamingString(unpacker, stringTable)
+          break
+        case 14:
+          version = readStreamingString(unpacker, stringTable)
+          break
+        case 15:
+          component = readStreamingString(unpacker, stringTable)
+          break
+        case 16:
+          spanKind = unpacker.unpackInt()
+          break
+        default:
+          Assertions.fail("Unexpected span field id: " + fieldId)
+      }
+    }
+
+    assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), service)
+    assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), name)
+    assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resource)
+    assertEquals(expectedSpan.getSpanId(), spanId)
+    assertEquals(expectedSpan.getParentId(), parentId)
+    assertEquals(expectedSpan.getStartTime(), start)
+    assertEquals(expectedSpan.getDurationNano(), duration)
+    assertEquals(expectedSpan.getError() != 0, error)
+    assertEqualsWithNullAsEmpty(expectedSpan.getType(), type)
+    assertEquals(0, linksCount)
+    assertEquals(0, eventsCount)
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.ENV), env)
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.VERSION), version)
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(Tags.COMPONENT), component)
+    assertEquals(TraceMapperV1.getSpanKindValue(expectedSpan.getTag(Tags.SPAN_KIND)), spanKind)
+
+    assertNotNull(attributes)
+    assertEquals(expectedSpan.getTags().size(), attributes.size())
+    for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
+      String key = entry.getKey()
+      Object expectedValue = entry.getValue()
+      assertTrue(attributes.containsKey(key), "Missing attribute key: $key")
+      assertAttributeValueEquals(expectedValue, attributes.get(key), key)
+    }
+  }
+
+  private static Map<String, Object> readAttributes(MessageUnpacker unpacker, List<String> stringTable) {
+    int attrArraySize = unpacker.unpackArrayHeader()
+    assertEquals(0, attrArraySize % 3)
+    int attrCount = attrArraySize / 3
+
+    Map<String, Object> attributes = new HashMap<>()
+    for (int i = 0; i < attrCount; i++) {
+      String key = readStreamingString(unpacker, stringTable)
+      int attrType = unpacker.unpackInt()
+      Object value
+      switch (attrType) {
+        case TraceMapperV1.VALUE_TYPE_STRING:
+          value = readStreamingString(unpacker, stringTable)
+          break
+        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
+          value = unpacker.unpackBoolean()
+          break
+        case TraceMapperV1.VALUE_TYPE_FLOAT:
+          value = unpacker.unpackDouble()
+          break
+        default:
+          Assertions.fail("Unknown attribute value type: " + attrType)
+      }
+      attributes.put(key, value)
+    }
+    return attributes
+  }
+
+  private static void assertAttributeValueEquals(Object expected, Object actual, String key) {
+    if (expected instanceof Number) {
+      assertTrue(actual instanceof Number, "Attribute $key should be numeric")
+      double expectedValue = ((Number) expected).doubleValue()
+      double actualValue = ((Number) actual).doubleValue()
+      double delta = Math.max(0.000001d, Math.abs(expectedValue) * 0.000000000001d)
+      assertEquals(expectedValue, actualValue, delta, "Numeric mismatch for $key")
+    } else if (expected instanceof Boolean) {
+      assertEquals(expected, actual, "Boolean mismatch for $key")
+    } else {
+      assertEquals(String.valueOf(expected), String.valueOf(actual), "String mismatch for $key")
+    }
+  }
+
+  private static int expectedSamplingMechanism(Map<String, Object> tags) {
+    Object decisionMakerRaw = tags.get("_dd.p.dm")
+    if (decisionMakerRaw == null) {
+      return SamplingMechanism.DEFAULT
+    }
+
+    String decisionMaker = String.valueOf(decisionMakerRaw)
+    try {
+      int value = Integer.parseInt(decisionMaker)
+      return value < 0 ? -value : value
+    } catch (NumberFormatException ignored) {
+      int separator = decisionMaker.lastIndexOf('-')
+      if (separator >= 0 && separator + 1 < decisionMaker.length()) {
+        try {
+          int value = Integer.parseInt(decisionMaker.substring(separator + 1))
+          return value < 0 ? -value : value
+        } catch (NumberFormatException ignoredAgain) {
+        }
+      }
+      return SamplingMechanism.DEFAULT
+    }
+  }
+
+  private static String readStreamingString(MessageUnpacker unpacker, List<String> stringTable) {
+    MessageFormat format = unpacker.getNextFormat()
+    if (format == FIXSTR || format == STR8 || format == STR16 || format == STR32) {
+      String value = unpacker.unpackString()
+      if (!stringTable.contains(value)) {
+        stringTable.add(value)
+      }
+      return value
+    }
+
+    int index = unpacker.unpackInt()
+    assertTrue(index >= 0 && index < stringTable.size(), "Invalid string-table index: " + index)
+    return stringTable.get(index)
+  }
+
+  private static void skipPayloadField(MessageUnpacker unpacker, int fieldId, List<String> stringTable) {
+    switch (fieldId) {
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+        readStreamingString(unpacker, stringTable)
+        break
+      case 10:
+        int attrArray = unpacker.unpackArrayHeader()
+        assertEquals(0, attrArray)
+        break
+      default:
+        Assertions.fail("Unexpected payload field id while skipping: " + fieldId)
+    }
+  }
+
+  private static void skipChunkField(MessageUnpacker unpacker, int fieldId, List<String> stringTable) {
+    switch (fieldId) {
+      case 1:
+        unpacker.unpackInt()
+        break
+      case 2:
+        readStreamingString(unpacker, stringTable)
+        break
+      case 3:
+        unpacker.unpackArrayHeader()
+        break
+      case 4:
+        int spanCount = unpacker.unpackArrayHeader()
+        for (int i = 0; i < spanCount; i++) {
+          skipSpan(unpacker, stringTable)
+        }
+        break
+      case 6:
+        int len = unpacker.unpackBinaryHeader()
+        byte[] ignored = new byte[len]
+        unpacker.readPayload(ignored)
+        break
+      default:
+        Assertions.fail("Unexpected chunk field id while skipping: " + fieldId)
+    }
+  }
+
+  private static void skipSpan(MessageUnpacker unpacker, List<String> stringTable) {
+    int fieldCount = unpacker.unpackMapHeader()
+    for (int i = 0; i < fieldCount; i++) {
+      int fieldId = unpacker.unpackInt()
+      switch (fieldId) {
+        case 1:
+        case 2:
+        case 3:
+        case 10:
+        case 13:
+        case 14:
+        case 15:
+          readStreamingString(unpacker, stringTable)
+          break
+        case 4:
+        case 5:
+          unpacker.unpackValue().asNumberValue().toLong()
+          break
+        case 6:
+        case 7:
+          unpacker.unpackLong()
+          break
+        case 8:
+          unpacker.unpackBoolean()
+          break
+        case 9:
+          int attrArraySize = unpacker.unpackArrayHeader()
+          int attrCount = attrArraySize / 3
+          for (int j = 0; j < attrCount; j++) {
+            readStreamingString(unpacker, stringTable)
+            int type = unpacker.unpackInt()
+            switch (type) {
+              case TraceMapperV1.VALUE_TYPE_STRING:
+                readStreamingString(unpacker, stringTable)
+                break
+              case TraceMapperV1.VALUE_TYPE_BOOLEAN:
+                unpacker.unpackBoolean()
+                break
+              case TraceMapperV1.VALUE_TYPE_FLOAT:
+                unpacker.unpackDouble()
+                break
+              default:
+                Assertions.fail("Unexpected attribute type while skipping: " + type)
+            }
+          }
+          break
+        case 11:
+        case 12:
+          unpacker.unpackArrayHeader()
+          break
+        case 16:
+          unpacker.unpackInt()
+          break
+        default:
+          Assertions.fail("Unexpected span field id while skipping: " + fieldId)
+      }
+    }
+  }
+
+  private static byte[] serializeMappedPayload(
+    TraceMapperV1 mapper,
+    List<List<TraceGenerator.PojoSpan>> traces) {
+    CapturedBody capturedBody = new CapturedBody(mapper)
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(2 << 20, capturedBody))
+
+    for (List<TraceGenerator.PojoSpan> trace : traces) {
+      assertTrue(packer.format(trace, mapper))
+    }
+    packer.flush()
+
+    assertNotNull(capturedBody.payloadBytes)
+    return capturedBody.payloadBytes
+  }
+
+  private static byte[] serializePayload(Payload payload) {
+    ByteArrayChannel channel = new ByteArrayChannel()
+    payload.writeTo(channel)
+    return channel.bytes()
+  }
+
+  private static class CapturedBody implements ByteBufferConsumer {
+    private final TraceMapperV1 mapper
+    private byte[] payloadBytes
+
+    private CapturedBody(TraceMapperV1 mapper) {
+      this.mapper = mapper
+    }
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      Payload payload = mapper.newPayload().withBody(messageCount, buffer)
+      payloadBytes = serializePayload(payload)
+      mapper.reset()
+    }
+  }
+
+  private static class ByteArrayChannel implements WritableByteChannel {
+    private byte[] data = new byte[0]
+
+    @Override
+    int write(ByteBuffer src) {
+      int len = src.remaining()
+      byte[] incoming = new byte[len]
+      src.get(incoming)
+      byte[] combined = new byte[data.length + incoming.length]
+      System.arraycopy(data, 0, combined, 0, data.length)
+      System.arraycopy(incoming, 0, combined, data.length, incoming.length)
+      data = combined
+      return len
+    }
+
+    byte[] bytes() {
+      return data
+    }
+
+    @Override
+    boolean isOpen() {
+      return true
+    }
+
+    @Override
+    void close() {
+    }
+  }
+
+  private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
+    if (expected == null) {
+      assertEquals("", actual)
+    } else {
+      assertEquals(expected.toString(), actual.toString())
+    }
+  }
+}

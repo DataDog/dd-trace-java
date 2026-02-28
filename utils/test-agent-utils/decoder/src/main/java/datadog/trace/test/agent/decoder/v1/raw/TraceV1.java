@@ -2,10 +2,12 @@ package datadog.trace.test.agent.decoder.v1.raw;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.ValueType;
 
 /**
  * TraceV1 represents a decoded trace in V1.0 format.
@@ -30,7 +32,17 @@ public class TraceV1 implements DecodedTrace {
       }
       DecodedTrace[] traces = new TraceV1[size];
       for (int i = 0; i < size; i++) {
-        traces[i] = unpack(unpacker, stringTable);
+        ValueType valueType = unpacker.getNextFormat().getValueType();
+        if (valueType == ValueType.ARRAY) {
+          // Legacy expectation: chunks field contains traces directly.
+          traces[i] = unpack(unpacker, stringTable);
+        } else if (valueType == ValueType.MAP) {
+          // Current V1 payload: chunks field contains chunk maps, each with spans in field 4.
+          traces[i] = unpackChunk(unpacker, stringTable);
+        } else {
+          throw new IllegalArgumentException(
+              "Expected trace/chunk entry as ARRAY or MAP, got " + valueType);
+        }
       }
       return traces;
     } catch (Throwable t) {
@@ -51,6 +63,63 @@ public class TraceV1 implements DecodedTrace {
    */
   public static TraceV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
     return new TraceV1(SpanV1.unpackSpans(unpacker, stringTable));
+  }
+
+  private static TraceV1 unpackChunk(MessageUnpacker unpacker, List<String> stringTable)
+      throws IOException {
+    int fieldCount = unpacker.unpackMapHeader();
+    DecodedSpan[] spans = new DecodedSpan[0];
+
+    for (int i = 0; i < fieldCount; i++) {
+      int fieldId = unpacker.unpackInt();
+      switch (fieldId) {
+        case 2:
+          // origin (streaming string)
+          SpanV1.unpackStreamingString(unpacker, stringTable);
+          break;
+        case 3:
+          // chunk attributes (triplets array)
+          skipAttributes(unpacker, stringTable);
+          break;
+        case 4:
+          spans = SpanV1.unpackSpans(unpacker, stringTable);
+          break;
+        default:
+          // numeric or binary fields that don't affect the string table.
+          unpacker.skipValue();
+          break;
+      }
+    }
+
+    return new TraceV1(spans);
+  }
+
+  private static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)
+      throws IOException {
+    int arraySize = unpacker.unpackArrayHeader();
+    if (arraySize % 3 != 0) {
+      throw new IllegalArgumentException(
+          "Attributes array size must be divisible by 3, got: " + arraySize);
+    }
+    int tripletCount = arraySize / 3;
+    for (int i = 0; i < tripletCount; i++) {
+      SpanV1.unpackStreamingString(unpacker, stringTable);
+      int valueType = unpacker.unpackInt();
+      switch (valueType) {
+        case SpanV1.STRING_VALUE_TYPE:
+          SpanV1.unpackStreamingString(unpacker, stringTable);
+          break;
+        case SpanV1.BOOL_VALUE_TYPE:
+          unpacker.unpackBoolean();
+          break;
+        case SpanV1.FLOAT_VALUE_TYPE:
+          unpacker.unpackDouble();
+          break;
+        default:
+          unpacker.skipValue();
+          break;
+      }
+    }
   }
 
   private final DecodedSpan[] spans;

@@ -75,8 +75,8 @@ public class MessageV1 implements DecodedMessage {
             DecodedTrace[] traceArray = TraceV1.unpackTraces(unpacker, stringTable);
             traces.addAll(Arrays.asList(traceArray));
           } else {
-            // Skip unknown fields
-            unpacker.skipValue();
+            // Keep string table aligned while skipping known header fields.
+            skipPayloadField(unpacker, fieldId, stringTable);
           }
         }
       } else if (firstType == ValueType.ARRAY) {
@@ -112,6 +112,52 @@ public class MessageV1 implements DecodedMessage {
   }
 
   private final DecodedTrace[] traces;
+
+  private static void skipPayloadField(
+      MessageUnpacker unpacker, int fieldId, List<String> stringTable) throws IOException {
+    switch (fieldId) {
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+        SpanV1.unpackStreamingString(unpacker, stringTable);
+        break;
+      case 10:
+        // Header-level attributes: same triplet encoding as span attributes.
+        int arraySize = unpacker.unpackArrayHeader();
+        if (arraySize % 3 != 0) {
+          throw new IllegalArgumentException(
+              "Attributes array size must be divisible by 3, got: " + arraySize);
+        }
+        int tripletCount = arraySize / 3;
+        for (int i = 0; i < tripletCount; i++) {
+          SpanV1.unpackStreamingString(unpacker, stringTable);
+          int valueType = unpacker.unpackInt();
+          switch (valueType) {
+            case SpanV1.STRING_VALUE_TYPE:
+              SpanV1.unpackStreamingString(unpacker, stringTable);
+              break;
+            case SpanV1.BOOL_VALUE_TYPE:
+              unpacker.unpackBoolean();
+              break;
+            case SpanV1.FLOAT_VALUE_TYPE:
+              unpacker.unpackDouble();
+              break;
+            default:
+              unpacker.skipValue();
+              break;
+          }
+        }
+        break;
+      default:
+        unpacker.skipValue();
+        break;
+    }
+  }
 
   private MessageV1(DecodedTrace[] traces) {
     this.traces = traces;
