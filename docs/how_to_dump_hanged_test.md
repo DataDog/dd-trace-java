@@ -1,6 +1,6 @@
 # Reproduce hung test and collect dumps (including child process)
 
-Sometimes a test that passes locally fails on CI with timeout.
+Sometimes a test that passes locally fails on CI due to a timeout.
 One common indicator is an error saying that a condition was not satisfied after some time and several attempts.
 For example:
 
@@ -13,19 +13,18 @@ decodeTraces.find { predicate.apply(it) } != null
 
 This failure often masks a real problem, usually a deadlock or livelock in the tested application or in the test
 process itself.
-To investigate these issues we need thread and heap dumps that simplify root cause analysis.
+To investigate these issues, collect thread and heap dumps to simplify root-cause analysis.
 
-Use this guide when a test repeatedly times out on CI while passing locally, and you need actionable JVM dumps.
-Step 1 is optional and only reduces CI turnaround time.
+Use this guide when a test repeatedly times out on CI while passing locally and you need actionable JVM dumps.
+Step 1 is optional; it only reduces CI turnaround time.
 
-See this [PR](https://github.com/DataDog/dd-trace-java/pull/10698) for an example investigation that followed this
-document.
+See this [PR](https://github.com/DataDog/dd-trace-java/pull/10698) for an example investigation using this guide.
 
 ## Step 0: Setup
 
 Create a branch for testing.
 
-## Step 1 (optional): Modify build scripts to minimize CI time.
+## Step 1 (Optional): Modify build scripts to minimize CI time.
 
 These are temporary debugging-only changes. Revert them after collecting dumps.
 
@@ -41,7 +40,7 @@ DEFAULT_TEST_JVMS: /^(21)$/
 
 Modify `buildSrc/src/main/kotlin/dd-trace-java.configure-tests.gradle.kts`:
 
-- Replace timeout of 20 mins with 10 mins:
+- Replace the timeout from 20 minutes to 10 minutes:
 
 ```
 timeout.set(Duration.of(10, ChronoUnit.MINUTES))
@@ -50,7 +49,7 @@ timeout.set(Duration.of(10, ChronoUnit.MINUTES))
 ## Step 2: Modify the target test.
 
 Adjust the target test so it stays alive until Gradle timeout triggers dump collection. For Spock tests, one option is
-to use a long-running `PollingConditions` in a base class or directly in the target test class:
+to use `PollingConditions` with a long timeout in a base class or directly in the target test class:
 
 ```
 @Shared
@@ -67,14 +66,14 @@ Use this poll in the test, for example by replacing `defaultPoll` with `hangedPo
 waitForTrace(hangedPoll, checkTrace())
 ```
 
-In other test frameworks, use an equivalent approach to keep the test running longer than the test timeout (for example,
+In other test frameworks, use an equivalent approach to keep the test running past the timeout (for example,
 `Thread.sleep(XXX)` in a temporary debugging branch).
 The main goal is to keep the test process alive to allow dump collection for all related JVMs.
 
 ## Step 3: Run the test on CI and collect dumps.
 
 - Commit your changes.
-- Push the reproducer branch that will trigger the GitLab pipeline.
+- Push the reproducer branch to trigger the GitLab pipeline.
 - Wait for the target test job to hit timeout.
 - In job logs, confirm the dump hook executed (look for `Taking dumps after ... for :...`).
 - Wait until the job fails and download job artifacts.
@@ -94,14 +93,14 @@ Quick verification checklist:
 ### HotSpot/OpenJDK (heap + thread dumps):
 
 - Open the report folder of the failed module/test task.
-- There will be files, such as `<pid>-heap-dump-<timestamp>.hprof`, `<pid>-thread-dump-<timestamp>.log`, and
+- You should see files such as `<pid>-heap-dump-<timestamp>.hprof`, `<pid>-thread-dump-<timestamp>.log`, and
   `all-thread-dumps-<timestamp>.log`.
   ![Dumps](how_to_dump_hanged_test/dumps.png)
 
 ### IBM JDK (javacore thread dumps only):
 
-- In this case dumps are produced via `kill -3` and written as `javacore` text files, basically thread dumps.
-- Collect root-level javacore artifacts with path pattern `reports/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt`.
+- In this case, dumps are produced via `kill -3` and written as `javacore` text files (thread dumps).
+- Collect root-level javacore artifacts with the path pattern `reports/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt`.
   ![Javacores](how_to_dump_hanged_test/javacores.png)
 
 ## Step 5: Run the investigation
