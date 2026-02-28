@@ -178,11 +178,12 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
             // Display full stack traces on debug logs
             log.warn("Unable to create StatsD client - {} - Will not retry", statsDAddress(), t);
           } else {
-            // Only report the top and root cause message
             Throwable rootCause = t;
-            while (rootCause.getCause() != null) {
+            int i = 100; // arbitrary limit to avoid infinite loops with cycling causes
+            do {
               rootCause = rootCause.getCause();
-            }
+              i--;
+            } while (rootCause.getCause() != null && i > 0);
             log.warn(
                 "Unable to create StatsD client - {} - Will not retry: {}, {}",
                 statsDAddress(),
