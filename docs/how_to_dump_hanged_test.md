@@ -18,8 +18,8 @@ To investigate these issues we need thread and heap dumps that simplify root cau
 Use this guide when a test repeatedly times out on CI while passing locally, and you need actionable JVM dumps.
 Step 1 is optional and only reduces CI turnaround time.
 
-Check this [PR](https://github.com/DataDog/dd-trace-java/pull/10698) as an example of investigation navigated by this
-very document.
+See this [PR](https://github.com/DataDog/dd-trace-java/pull/10698) for an example investigation that followed this
+document.
 
 ## Step 0: Setup
 
