@@ -45,7 +45,7 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   @Override
   void setupSpec() {
-    TagsPostProcessorFactory.withAddBaseService(false)
+    TagsPostProcessorFactory.withAddInternalTags(false)
     TagsPostProcessorFactory.withAddRemoteHostname(false)
   }
 
@@ -93,6 +93,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
+      null,
       null,
       "fakeService",
       "fakeOperation",

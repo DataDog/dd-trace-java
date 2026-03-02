@@ -10,6 +10,7 @@ import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -72,12 +73,15 @@ class AIGuardInternalTests extends DDSpecification {
   protected static final PROMPT = TOOL_OUTPUT + [AIGuard.Message.message('assistant', '2 + 2 is 5'), AIGuard.Message.message('user', '')]
 
   protected AgentSpan span
+  protected AgentSpan localRootSpan
 
   void setup() {
     injectEnvConfig('SERVICE', 'ai_guard_test')
     injectEnvConfig('ENV', 'test')
 
     span = Mock(AgentSpan)
+    localRootSpan = Mock(AgentSpan)
+    span.getLocalRootSpan() >> localRootSpan
     final builder = Mock(AgentTracer.SpanBuilder) {
       start() >> span
     }
@@ -185,6 +189,7 @@ class AIGuardInternalTests extends DDSpecification {
 
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
+    1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }

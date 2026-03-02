@@ -28,6 +28,7 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -218,6 +219,10 @@ public class AIGuardInternal implements Evaluator {
       builder.asChildOf(parent.context());
     }
     final AgentSpan span = builder.start();
+    final AgentSpan localRootSpan = span.getLocalRootSpan();
+    if (localRootSpan != null) {
+      localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+    }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {

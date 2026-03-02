@@ -87,8 +87,8 @@ public class ThirdPartyLibraries {
   }
 
   private static class InternalConfig {
-    private final String version;
-    private final List<String> prefixes;
+    private String version;
+    private List<String> prefixes;
 
     public InternalConfig(String version, List<String> prefixes) {
       this.version = version;

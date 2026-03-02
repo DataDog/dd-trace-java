@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import io.opentelemetry.api.metrics.MeterProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -31,8 +32,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
 
   @Override
   protected boolean defaultEnabled() {
-    // TODO: return InstrumenterConfig.get().isMetricsOtelEnabled(); when fully implemented
-    return false;
+    return InstrumenterConfig.get().isMetricsOtelEnabled();
   }
 
   @Override
@@ -83,7 +83,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.metrics.data.OtelMetricStorage$Recording",
       "datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor",
       "datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor",
-      "datadog.opentelemetry.shim.metrics.export.OtelMetricVisitor",
+      "datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
       "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
@@ -100,6 +100,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.metrics.OtelLongHistogram$Builder",
       "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
       "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$Builder",
+      "datadog.opentelemetry.shim.metrics.OtelObservableCallback",
+      "datadog.opentelemetry.shim.metrics.OtelObservableMeasurement",
     };
   }
 

@@ -8,9 +8,11 @@ import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -453,7 +455,7 @@ class CoreTracerTest extends DDCoreSpecification {
   def "test local root service name override"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()
-    tracer.updatePreferredServiceName(preferred)
+    tracer.updatePreferredServiceName(preferred, preferred)
     when:
     def span = tracer.startSpan("", "test")
     span.finish()
@@ -475,7 +477,7 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
-    TagsPostProcessorFactory.withAddBaseService(true)
+    TagsPostProcessorFactory.withAddInternalTags(true)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
@@ -490,7 +492,7 @@ class CoreTracerTest extends DDCoreSpecification {
     span2.finish()
     then:
     span2.getServiceName() == "dd_service_name"
-    span2.getTags()["version"] == "1.0.0"
+    span2.getTags()["version"]?.toString() == "1.0.0"
 
     cleanup:
     tracer?.close()
@@ -569,6 +571,58 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env"  | "service_1"   | "env"
     "service" | "env"  | "service"     | "env_1"
     "service" | "env"  | "service_2"   | "env_2"
+  }
+
+  def "service name source is recorded when using two-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    def child = tracer.buildSpan("child").start()
+    child.finish()
+    span.finish()
+
+    then:
+    [span, child].each {
+      assert span.getServiceName() == "custom-service"
+      assert span.getTag(DDTags.DD_SVC_SRC) == "my-integration"
+    }
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is marked as manual when using one-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    span.setServiceName("another")
+    span.finish()
+
+    then:
+    span.getServiceName() == "another"
+    span.getTag(DDTags.DD_SVC_SRC) == ServiceNameSources.MANUAL
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is missing when not explicitly setting the service name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.finish()
+
+    then:
+    span.getServiceName() == tracer.serviceName
+    span.getTag(DDTags.DD_SVC_SRC) == null
+    cleanup:
+    tracer?.close()
   }
 }
 

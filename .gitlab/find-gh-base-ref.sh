@@ -14,6 +14,12 @@ if [[ $CI_COMMIT_BRANCH =~ ^(master|release/.*)$ ]]; then
   exit 1
 fi
 
+# See .test_job declaration
+if [[ $CI_COMMIT_BRANCH =~ ^(mq-working-branch-|gh-readonly-queue/) ]]; then
+  echo "CI_COMMIT_BRANCH is a merge queue branch, skipping base ref detection" >&2
+  exit 1
+fi
+
 CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
 if [[ -z "${CURRENT_HEAD_SHA:-}" ]]; then
   echo "Failed to determine current HEAD SHA" >&2
