@@ -463,6 +463,10 @@ public class DebuggerAgent {
     return sink;
   }
 
+  static Instrumentation getInstrumentation() {
+    return instrumentation;
+  }
+
   private static DebuggerTransformer createTransformer(
       Config config,
       Configuration configuration,
