@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -12,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.core.CoreSpan;
 import java.util.List;
 
 public class OpenAiDecorator extends ClientDecorator {
@@ -111,6 +113,9 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
     if (llmObsEnabled) {
+      span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
+      span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
+
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
