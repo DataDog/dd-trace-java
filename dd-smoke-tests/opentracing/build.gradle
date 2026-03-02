@@ -7,7 +7,6 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  implementation project(path: ':dd-trace-ot', configuration: 'shadow')
   implementation project(':dd-trace-api')
   // OpenTracing
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'

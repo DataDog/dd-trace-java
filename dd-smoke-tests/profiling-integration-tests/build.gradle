@@ -20,7 +20,6 @@ tasks.named("jar", Jar) {
 
 dependencies {
   implementation project(':dd-trace-api')
-  api project(':dd-trace-ot')
   implementation 'org.apache.commons:commons-math3:3.6.1'
   implementation libs.lz4
   implementation libs.aircompressor

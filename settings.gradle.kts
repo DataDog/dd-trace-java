@@ -49,8 +49,6 @@ rootProject.name = "dd-trace-java"
 // external apis
 include(
   ":dd-trace-api",
-  ":dd-trace-ot",
-  ":dd-trace-ot:correlation-id-injection",
 )
 
 // agent projects
