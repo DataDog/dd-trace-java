@@ -9,6 +9,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags
 import datadog.trace.api.intake.TrackType
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.core.DDSpan
@@ -179,7 +180,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
           (Tags.OS_ARCHITECTURE)                : "my-os-arch",
           (Tags.OS_PLATFORM)                    : "my-os-platform",
           (Tags.OS_VERSION)                     : "my-os-version",
-          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false"
+          (DDTags.TEST_IS_USER_PROVIDED_SERVICE): "false",
         ])]),
       "events"  : [new TreeMap<>([
         "type"   : "span",
@@ -194,7 +195,7 @@ class DDIntakeApiTest extends DDCoreSpecification {
           "parent_id": 0L,
           "start"    : 1000L,
           "duration" : 10L,
-          "meta"     : [:],
+          "meta"     : [(DDTags.DD_SVC_SRC):ServiceNameSources.MANUAL.toString()],
           "metrics"  : [:]
         ])
       ])]
