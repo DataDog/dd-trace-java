@@ -364,7 +364,6 @@ public final class CrashUploader {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
     headers.put(CONTENT_TYPE, APPLICATION_JSON);
-    headers.put("Content-Length", Long.toString(requestBody.contentLength()));
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
@@ -447,7 +446,6 @@ public final class CrashUploader {
     final Map<String, String> headers = new HashMap<>();
     // Set chunked transfer
     headers.put(CONTENT_TYPE, APPLICATION_JSON);
-    headers.put("Content-Length", Long.toString(requestBody.contentLength()));
     headers.put("Transfer-Encoding", "chunked");
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
