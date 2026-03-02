@@ -16,7 +16,7 @@ tracerJava {
 }
 
 testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_22
+  minJavaVersion = JavaVersion.VERSION_25
 }
 
 idea {

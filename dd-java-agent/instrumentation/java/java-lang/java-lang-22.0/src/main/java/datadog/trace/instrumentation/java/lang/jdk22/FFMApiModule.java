@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Pair;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,8 +20,8 @@ public class FFMApiModule extends InstrumenterModule.Tracing {
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> ret = new HashMap<>();
-    ret.put("java.lang.foreign.SymbolLookup", "java.lang.String");
-    ret.put("java.lang.foreign.MemorySegment", "java.lang.CharSequence");
+    ret.put("java.lang.foreign.SymbolLookup", String.class.getName());
+    ret.put("java.lang.foreign.MemorySegment", Pair.class.getName());
     return ret;
   }
 
@@ -32,13 +33,5 @@ public class FFMApiModule extends InstrumenterModule.Tracing {
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(new LinkerInstrumentation(), new SymbolLookupInstrumentation());
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-        // this could be moved to the boostrap eventually
-      "datadog.trace.instrumentation.trace_annotation.TraceDecorator",
-    };
   }
 }

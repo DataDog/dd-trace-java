@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.java.lang.jdk22;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
@@ -19,13 +20,18 @@ public class LinkerInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("java.lang.foreign.Linker"));
+    return hasInterface(named("java.lang.foreign.Linker"));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("downcallHandle")),
+        isMethod().and(named("defaultLookup")),
+        "datadog.trace.instrumentation.java.lang.jdk22.SymbolLookupAdvices$CaptureDefaultLookup");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("downcallHandle"))
+            .and(takesArgument(0, named("java.lang.foreign.MemorySegment"))),
         "datadog.trace.instrumentation.java.lang.jdk22.DownCallWrapAdvice");
   }
 }

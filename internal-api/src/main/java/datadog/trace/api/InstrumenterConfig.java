@@ -347,7 +347,7 @@ public class InstrumenterConfig {
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
     traceNativeMethods =
-        MethodFilterConfigParser.parse(
+        MethodFilterConfigParser.parseForNativeMethods(
             configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
@@ -657,6 +657,10 @@ public class InstrumenterConfig {
     return traceNativeMethods;
   }
 
+  public Map<String, Set<String>> getMeasureMethods() {
+    return measureMethods;
+  }
+
   public boolean isMethodMeasured(Method method) {
     if (this.measureMethods.isEmpty()) {
       return false;
@@ -801,6 +805,9 @@ public class InstrumenterConfig {
         + traceAnnotationAsync
         + ", traceMethods='"
         + traceMethods
+        + '\''
+        + ", traceNativeMethods='"
+        + traceNativeMethods
         + '\''
         + ", measureMethods= '"
         + measureMethods
