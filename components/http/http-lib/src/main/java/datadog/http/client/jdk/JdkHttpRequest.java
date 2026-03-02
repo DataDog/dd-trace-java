@@ -88,8 +88,43 @@ public final class JdkHttpRequest implements HttpRequest {
         throw new IllegalArgumentException("HttpUrl must be JdkHttpUrl implementation");
       }
       URI uri = ((JdkHttpUrl) url).unwrap();
-      this.delegate.uri(uri);
+      this.delegate.uri(normalizeUri(uri));
       return this;
+    }
+
+    /**
+     * Normalizes a URI to work around Java HttpClient bugs.
+     *
+     * <p>Java 11-19 HttpClient has a bug where it sends malformed HTTP/1.1 request lines with
+     * "relative path with authority" format that violates the HTTP/1.1 specification. This causes
+     * servers (like Jetty) to reject requests with: {@code IllegalArgumentException: Relative path
+     * with authority}
+     *
+     * <p>This bug was fixed in Java 20 (JDK-8272702), but the workaround is applied unconditionally
+     * for simplicity and to ensure robust behavior across all Java versions.
+     *
+     * <p>The fix explicitly reconstructs the URI with proper components to ensure correct
+     * formatting before passing to the JDK HttpClient.
+     *
+     * @param uri the URI to normalize
+     * @return normalized URI with properly separated components, or original URI if already correct
+     */
+    private URI normalizeUri(URI uri) {
+      String authority = uri.getAuthority();
+      String path = uri.getPath();
+      // Fast path: if path is already correct (starts with / or is null/empty)
+      if (authority == null || path == null || path.isEmpty() || path.startsWith("/")) {
+        return uri;
+      }
+      // Ensure path starts with / if we have an authority
+      try {
+        String correctedPath = "/" + path;
+        return new URI(
+            uri.getScheme(), authority, correctedPath, uri.getQuery(), uri.getFragment());
+      } catch (java.net.URISyntaxException e) {
+        // If normalization fails, return the original URI
+        return uri;
+      }
     }
 
     @Override
