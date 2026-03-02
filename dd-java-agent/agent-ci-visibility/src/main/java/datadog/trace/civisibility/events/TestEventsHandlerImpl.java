@@ -8,8 +8,9 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -142,7 +143,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable Collection<String> categories,
       final @Nonnull TestSourceData testSourceData,
       final @Nullable Long startTime,
-      final @Nullable TestExecutionHistory testExecutionHistory) {
+      final @Nullable TestExecutionTracker testExecutionTracker) {
     if (skipTrace(testSourceData.getTestClass())) {
       return;
     }
@@ -180,8 +181,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       test.setTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX, true);
     }
 
-    if (testExecutionHistory != null) {
-      test.getContext().set(TestExecutionHistory.class, testExecutionHistory);
+    if (testExecutionTracker != null) {
+      test.getContext().set(TestExecutionTracker.class, testExecutionTracker);
     }
 
     if (testFramework != null) {
@@ -243,7 +244,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
   public void onTestFinish(
       TestKey descriptor,
       @Nullable Long endTime,
-      @Nullable TestExecutionHistory testExecutionHistory) {
+      @Nullable TestExecutionTracker testExecutionTracker) {
     TestImpl test = inProgressTests.remove(descriptor);
     if (test == null) {
       log.debug("Ignoring finish event, could not find test {}", descriptor);
@@ -252,9 +253,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
 
     TestStatus testStatus = test.getStatus() != null ? test.getStatus() : TestStatus.skip;
 
-    if (testExecutionHistory != null) {
-      TestExecutionHistory.ExecutionOutcome outcome =
-          testExecutionHistory.registerExecution(testStatus, test.getDuration(endTime));
+    if (testExecutionTracker != null) {
+      TestExecutionTracker.ExecutionOutcome outcome =
+          testExecutionTracker.registerExecution(testStatus, test.getDuration(endTime));
 
       RetryReason retryReason = outcome.retryReason();
       if (retryReason != null) {
@@ -269,13 +270,14 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       if (outcome.lastExecution()) {
         test.setTag(Tags.TEST_FINAL_STATUS, outcome.finalStatus());
 
-        if (retryReason != null && outcome.failedAllRetries()) {
+        if (retryReason != null && outcome.aggregation() == ExecutionAggregation.ONLY_FAILED) {
           test.setTag(Tags.TEST_HAS_FAILED_ALL_RETRIES, true);
         }
 
         if (testModule.isAttemptToFix(test.getIdentifier())) {
           test.setTag(
-              Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED, outcome.succeededAllRetries());
+              Tags.TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED,
+              outcome.aggregation() == ExecutionAggregation.ONLY_PASSED);
         }
       }
     } else {
@@ -296,7 +298,7 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       final @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       final @Nullable String reason,
-      @Nullable TestExecutionHistory testExecutionHistory) {
+      @Nullable TestExecutionTracker testExecutionTracker) {
     onTestStart(
         suiteDescriptor,
         testDescriptor,
@@ -307,9 +309,9 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
         categories,
         testSourceData,
         null,
-        testExecutionHistory);
+        testExecutionTracker);
     onTestSkip(testDescriptor, reason);
-    onTestFinish(testDescriptor, null, testExecutionHistory);
+    onTestFinish(testDescriptor, null, testExecutionTracker);
   }
 
   @Override

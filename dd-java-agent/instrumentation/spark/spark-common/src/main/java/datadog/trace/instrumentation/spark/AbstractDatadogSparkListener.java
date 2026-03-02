@@ -281,7 +281,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         }
       }
 
-      captureApplicationParameters(builder);
+    captureApplicationParameters(builder);
+    captureEmrStepId(builder);
 
       Optional<OpenlineageParentContext> openlineageParentContext =
           OpenlineageParentContext.from(sparkConf);
@@ -1241,6 +1242,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+  }
+
+  private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
+    String stepId = EmrUtils.getEmrStepId();
+    if (stepId != null) {
+      builder.withTag("emr_step_id", stepId);
+    }
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {

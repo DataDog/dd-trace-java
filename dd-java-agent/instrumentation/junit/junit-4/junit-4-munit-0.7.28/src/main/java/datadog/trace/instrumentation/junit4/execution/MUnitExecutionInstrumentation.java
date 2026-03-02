@@ -9,8 +9,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
@@ -62,7 +62,7 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionHistory.class.getName());
+        "org.junit.runner.Description", TestExecutionTracker.class.getName());
   }
 
   @Override
@@ -99,7 +99,7 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestExecutionHistory.class)
+      InstrumentationContext.get(Description.class, TestExecutionTracker.class)
           .put(description, executionPolicy);
 
       Future<?> result = Future.successful(false);

@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -134,7 +134,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
             tags,
             TestSourceData.UNKNOWN,
             null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
@@ -161,11 +161,11 @@ public class CucumberTracingListener implements EngineExecutionListener {
             .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestExecutionHistory executionHistory =
-        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestExecutionTracker executionTracker =
+        TestEventsHandlerHolder.getExecutionTracker(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestFinish(testDescriptor, null, executionHistory);
+        .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   @Override
@@ -197,6 +197,6 @@ public class CucumberTracingListener implements EngineExecutionListener {
             tags,
             TestSourceData.UNKNOWN,
             reason,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
   }
 }
