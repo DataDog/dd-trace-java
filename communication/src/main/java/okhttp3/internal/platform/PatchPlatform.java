@@ -16,6 +16,7 @@
  */
 package okhttp3.internal.platform;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
@@ -91,6 +92,7 @@ public class PatchPlatform {
     return "OkHttp";
   }
 
+  @SuppressForbidden // allow this use of Class.forName()
   protected @Nullable X509TrustManager trustManager(SSLSocketFactory sslSocketFactory) {
     // Attempt to get the trust manager from an OpenJDK socket factory. We attempt this on all
     // platforms in order to support Robolectric, which mixes classes from both Android and the
