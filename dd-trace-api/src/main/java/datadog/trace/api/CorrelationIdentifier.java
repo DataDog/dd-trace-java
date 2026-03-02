@@ -22,12 +22,4 @@ public class CorrelationIdentifier {
   public static String getSpanIdKey() {
     return SPAN_ID_KEY;
   }
-
-  public static String getTraceId() {
-    return GlobalTracer.get().getTraceId();
-  }
-
-  public static String getSpanId() {
-    return GlobalTracer.get().getSpanId();
-  }
 }

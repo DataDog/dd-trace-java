@@ -2,6 +2,7 @@ package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.CorrelationIdentifier
+import datadog.trace.api.GlobalTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
@@ -45,8 +46,8 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     AgentScope rootScope = activateSpan(rootSpan)
 
     then:
-    get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
-    get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
+    get(CorrelationIdentifier.getTraceIdKey()) == GlobalTracer.get().getTraceId()
+    get(CorrelationIdentifier.getSpanIdKey()) == GlobalTracer.get().getSpanId()
     get("foo") == "bar"
 
     when:
@@ -54,8 +55,8 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     AgentScope childScope = activateSpan(childSpan)
 
     then:
-    get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
-    get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
+    get(CorrelationIdentifier.getTraceIdKey()) == GlobalTracer.get().getTraceId()
+    get(CorrelationIdentifier.getSpanIdKey()) == GlobalTracer.get().getSpanId()
     get("foo") == "bar"
 
     when:
@@ -63,8 +64,8 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     childSpan.finish()
 
     then:
-    get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
-    get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
+    get(CorrelationIdentifier.getTraceIdKey()) == GlobalTracer.get().getTraceId()
+    get(CorrelationIdentifier.getSpanIdKey()) == GlobalTracer.get().getSpanId()
     get("foo") == "bar"
 
     when:
@@ -109,7 +110,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     thread1.start()
     thread2.start()
     final String mainThreadTraceId = get(CorrelationIdentifier.getTraceIdKey())
-    final String expectedMainThreadTraceId = CorrelationIdentifier.getTraceId()
+    final String expectedMainThreadTraceId = GlobalTracer.get().getTraceId()
 
     thread1.join()
     thread2.join()

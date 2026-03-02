@@ -58,9 +58,9 @@ public abstract class BaseApplication {
     doLog("INSIDE FIRST SPAN");
     System.out.println(
         "FIRSTTRACEID "
-            + CorrelationIdentifier.getTraceId()
+            + GlobalTracer.get().getTraceId()
             + " "
-            + CorrelationIdentifier.getSpanId());
+            + GlobalTracer.get().getSpanId());
   }
 
   @Trace
@@ -68,9 +68,9 @@ public abstract class BaseApplication {
     doLog("INSIDE SECOND SPAN");
     System.out.println(
         "SECONDTRACEID "
-            + CorrelationIdentifier.getTraceId()
+            + GlobalTracer.get().getTraceId()
             + " "
-            + CorrelationIdentifier.getSpanId());
+            + GlobalTracer.get().getSpanId());
   }
 
   @Trace
@@ -78,9 +78,9 @@ public abstract class BaseApplication {
     doLog("INSIDE THIRD SPAN");
     System.out.println(
         "THIRDTRACEID "
-            + CorrelationIdentifier.getTraceId()
+            + GlobalTracer.get().getTraceId()
             + " "
-            + CorrelationIdentifier.getSpanId());
+            + GlobalTracer.get().getSpanId());
   }
 
   @Trace
@@ -88,9 +88,9 @@ public abstract class BaseApplication {
     doLog("INSIDE FORTH SPAN");
     System.out.println(
         "FORTHTRACEID "
-            + CorrelationIdentifier.getTraceId()
+            + GlobalTracer.get().getTraceId()
             + " "
-            + CorrelationIdentifier.getSpanId());
+            + GlobalTracer.get().getSpanId());
   }
 
   private static boolean waitForCondition(Supplier<Boolean> condition) throws InterruptedException {
