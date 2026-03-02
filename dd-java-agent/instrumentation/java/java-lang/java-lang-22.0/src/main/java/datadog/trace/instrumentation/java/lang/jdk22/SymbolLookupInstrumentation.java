@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -30,9 +29,6 @@ public class SymbolLookupInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isStatic()).and(named("defaultLookup")),
-        "datadog.trace.instrumentation.java.lang.jdk22.SymbolLookupAdvices$CaptureDefaultLookup");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
