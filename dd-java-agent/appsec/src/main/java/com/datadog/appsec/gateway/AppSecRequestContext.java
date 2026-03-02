@@ -413,7 +413,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    this.savedRawURI = savedRawURI;
+    if (this.savedRawURI == null) {
+      this.savedRawURI = savedRawURI;
+    }
   }
 
   public String getRoute() {
