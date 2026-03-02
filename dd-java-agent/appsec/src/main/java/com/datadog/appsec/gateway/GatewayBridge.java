@@ -1007,7 +1007,10 @@ public class GatewayBridge {
         }
       }
     } else {
-      log.debug("Raw URI already set to '{}'; ignoring new URI callback", ctx.getSavedRawURI());
+      log.debug(
+          SEND_TELEMETRY,
+          "Raw URI already set to '{}'; ignoring new URI callback",
+          ctx.getSavedRawURI());
     }
     return maybePublishRequestData(ctx);
   }
