@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -592,7 +593,7 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer?.close()
   }
 
-  def "service name source is nullified when using one-parameter setServiceName"() {
+  def "service name source is marked as manual when using one-parameter setServiceName"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
@@ -604,7 +605,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     span.getServiceName() == "another"
-    span.getTag(DDTags.DD_SVC_SRC) == null
+    span.getTag(DDTags.DD_SVC_SRC) == ServiceNameSources.MANUAL
     cleanup:
     tracer?.close()
   }
