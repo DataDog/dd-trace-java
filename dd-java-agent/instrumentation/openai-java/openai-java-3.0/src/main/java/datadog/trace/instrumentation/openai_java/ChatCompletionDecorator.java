@@ -56,9 +56,7 @@ public class ChatCompletionDecorator {
     // maxTokens is deprecated but integration tests missing to provide maxCompletionTokens
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
-    if (stream) {
-      metadata.put("stream", true);
-    }
+    metadata.put("stream", stream);
     params
         .streamOptions()
         .ifPresent(
