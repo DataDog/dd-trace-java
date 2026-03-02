@@ -13,6 +13,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static utils.InstrumentationTestHelper.compile;
+import static utils.InstrumentationTestHelper.loadClass;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
@@ -23,11 +25,14 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -35,10 +40,13 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import utils.SourceCompiler;
 
 @ExtendWith(MockitoExtension.class)
 public class ConfigurationUpdaterTest {
@@ -621,6 +629,67 @@ public class ConfigurationUpdaterTest {
     Exception ex = new Exception("oops");
     configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
     verify(probeStatusSink).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
+  }
+
+  @Test
+  public void methodParametersAttribute() throws Exception {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    Map<String, byte[]> buffers =
+        compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 introduced Spring6 class
+      Class<?> springClass =
+          Class.forName(
+              "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
+    } else {
+      when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    }
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    configurationUpdater.accept(
+        REMOTE_CONFIG,
+        singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
+    if (JavaVirtualMachine.isJavaVersion(17)) {
+      // on JDK 17 with Spring6 class, transformation cannot happen
+      verify(inst, times(2)).getAllLoadedClasses();
+      verify(inst, times(0)).retransformClasses(any());
+      ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+      ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+      verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+      assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
+      assertEquals(
+          "Method Parameters detected, instrumentation not supported for CapturedSnapshot01",
+          strCaptor.getAllValues().get(0));
+    } else {
+      ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+      verify(inst, times(1)).retransformClasses(captor.capture());
+      List<Class<?>[]> allValues = captor.getAllValues();
+      assertEquals(testClass, allValues.get(0));
+    }
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void methodParametersAttributeRecord()
+      throws IOException, URISyntaxException, UnmodifiableClassException {
+    // make sure record method are not detected as having methodParameters attribute.
+    // /!\ record canonical constructor has the MethodParameters attribute,
+    // but not returned by Class::getDeclaredMethods()
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
+    final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
+    Class<?> testClass = loadClass(RECORD_NAME, buffers);
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    configurationUpdater.accept(
+        REMOTE_CONFIG,
+        singletonList(LogProbe.builder().probeId(PROBE_ID).where(RECORD_NAME, "<init>").build()));
+    verify(inst).getAllLoadedClasses();
+    ArgumentCaptor<Class<?>[]> captor = ArgumentCaptor.forClass(Class[].class);
+    verify(inst, times(1)).retransformClasses(captor.capture());
+    List<Class<?>[]> allValues = captor.getAllValues();
+    assertEquals(testClass, allValues.get(0));
   }
 
   private DebuggerTransformer createTransformer(

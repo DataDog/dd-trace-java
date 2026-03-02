@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+at.yawk.lz4:lz4-java:1.10.1=iastLatestDepTest3RuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=buildTimeInstrumentationPlugin,iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,muzzleTooling,runtimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=buildTimeInstrumentationPlugin,iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,muzzleTooling,runtimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -106,7 +107,7 @@ org.apache.commons:commons-lang3:3.19.0=spotbugs
 org.apache.commons:commons-text:1.14.0=spotbugs
 org.apache.kafka:kafka-clients:0.11.0.0=compileClasspath,testCompileClasspath,testRuntimeClasspath
 org.apache.kafka:kafka-clients:3.2.3=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-org.apache.kafka:kafka-clients:3.9.1=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath
+org.apache.kafka:kafka-clients:3.9.2=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath
 org.apache.kafka:kafka-metadata:3.2.3=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.apache.kafka:kafka-raft:3.2.3=latestDepTestRuntimeClasspath
 org.apache.kafka:kafka-server-common:3.2.3=latestDepTestRuntimeClasspath
@@ -154,7 +155,7 @@ org.junit.platform:junit-platform-suite-api:1.14.1=iastLatestDepTest3RuntimeClas
 org.junit.platform:junit-platform-suite-commons:1.14.1=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.14.0=spotbugs
 org.junit:junit-bom:5.14.1=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.lz4:lz4-java:1.8.0=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath
+org.lz4:lz4-java:1.8.0=latestDepTestRuntimeClasspath
 org.mockito:mockito-core:2.19.0=iastLatestDepTest3CompileClasspath,latestDepTestCompileClasspath,testCompileClasspath
 org.mockito:mockito-core:4.4.0=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.objenesis:objenesis:3.3=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

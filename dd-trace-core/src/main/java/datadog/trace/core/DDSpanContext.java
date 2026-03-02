@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -324,7 +325,7 @@ public class DDSpanContext
     // to get away with doing this just once per span
     this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
 
-    setServiceName(serviceName);
+    internalSetServiceName(serviceName);
     this.serviceNameSource = serviceNameSource;
     this.operationName = operationName;
     setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
@@ -391,13 +392,12 @@ public class DDSpanContext
   }
 
   public void setServiceName(final String serviceName) {
-    internalSetServiceName(serviceName);
-    setServiceNameSource(null);
+    setServiceName(serviceName, MANUAL);
   }
 
-  public void setServiceName(String serviceName, @Nonnull CharSequence integrationName) {
+  public void setServiceName(String serviceName, @Nonnull CharSequence source) {
     internalSetServiceName(serviceName);
-    setServiceNameSource(Objects.requireNonNull(integrationName));
+    setServiceNameSource(Objects.requireNonNull(source));
   }
 
   public CharSequence getServiceNameSource() {
