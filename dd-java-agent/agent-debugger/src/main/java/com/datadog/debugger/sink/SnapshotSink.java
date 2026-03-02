@@ -186,13 +186,13 @@ public class SnapshotSink {
         if (!largeBatch) {
           LOGGER.debug("Sending snapshot for probe: {}", snapshot.getProbe().getId());
         }
-      } catch (Exception e) {
-        ExceptionHelper.logException(LOGGER, e, "Error during snapshot serialization:");
-      } catch (Throwable e) {
-        // Re-queue on Errors (e.g. AssertionError from Moshi when thread is interrupted)
-        // so the shutdown hook flush can retry with a non-interrupted thread
+      } catch (AssertionError e) {
+        // Re-queue on AssertionError from Moshi when thread is interrupted so the shutdown hook
+        // flush can retry with a non-interrupted thread
         ExceptionHelper.logException(LOGGER, e, "Error during snapshot serialization:");
         queue.offer(snapshot);
+      } catch (Exception e) {
+        ExceptionHelper.logException(LOGGER, e, "Error during snapshot serialization:");
       }
     }
     return serializedSnapshots;
