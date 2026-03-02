@@ -84,7 +84,7 @@ class AndroidGradleUtils {
     FileTree javaTree = project.fileTree(dir: javaDestinations, excludes: EXCLUDES)
 
     FileTree destinationsTree
-    def kotlinDestinations = "${project.buildDir}/tmp/kotlin-classes/${variant.name}"
+    def kotlinDestinations = "${project.layout.buildDirectory.asFile.get()}/tmp/kotlin-classes/${variant.name}"
     if (Files.exists(Paths.get(kotlinDestinations))) {
       def kotlinTree = project.fileTree(dir: kotlinDestinations, excludes: EXCLUDES)
       destinationsTree = javaTree + kotlinTree
@@ -97,9 +97,15 @@ class AndroidGradleUtils {
   }
 
   private static getJavaDestinations(variant) {
+    def javaCompileTask
     if (variant.hasProperty('javaCompileProvider')) {
-      return variant.javaCompileProvider.get().destinationDir
+      javaCompileTask = variant.javaCompileProvider.get()
+    } else {
+      javaCompileTask = variant.javaCompile
     }
-    return variant.javaCompile.destinationDir
+    if (javaCompileTask.hasProperty('destinationDirectory')) {
+      return javaCompileTask.destinationDirectory.asFile.get()
+    }
+    return javaCompileTask.destinationDir
   }
 }
