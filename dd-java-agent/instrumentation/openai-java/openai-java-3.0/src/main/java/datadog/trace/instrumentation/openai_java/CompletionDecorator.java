@@ -45,7 +45,7 @@ public class CompletionDecorator {
             input ->
                 span.setTag(
                     CommonTags.INPUT,
-                    Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
+                    Collections.singletonList(LLMObs.LLMMessage.from("", input))));
 
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
@@ -72,7 +72,7 @@ public class CompletionDecorator {
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
-            .map(v -> LLMObs.LLMMessage.from(null, v.text()))
+            .map(v -> LLMObs.LLMMessage.from("", v.text()))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
@@ -116,7 +116,7 @@ public class CompletionDecorator {
     List<LLMObs.LLMMessage> output =
         textByChoiceIndex.entrySet().stream()
             .sorted(Map.Entry.comparingByKey())
-            .map(entry -> LLMObs.LLMMessage.from(null, entry.getValue().toString()))
+            .map(entry -> LLMObs.LLMMessage.from("", entry.getValue().toString()))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
