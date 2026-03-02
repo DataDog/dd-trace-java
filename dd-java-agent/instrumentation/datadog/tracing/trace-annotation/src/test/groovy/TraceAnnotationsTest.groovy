@@ -267,7 +267,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           errored true
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             errorTags(error.class)
             defaultTags()
           }
@@ -294,7 +293,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           errored true
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             errorTags(error.class)
             defaultTags()
           }
@@ -316,7 +314,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             defaultTags()
           }
         }
@@ -342,7 +339,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             defaultTags()
           }
         }
@@ -352,7 +348,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
             operationName "trace.annotation"
             tags {
               "$Tags.COMPONENT" "trace"
-              serviceNameSource "m"
               defaultTags()
             }
           }
@@ -390,7 +385,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             defaultTags()
           }
         }
@@ -403,7 +397,6 @@ class TraceAnnotationsTest extends InstrumentationSpecification {
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
-            serviceNameSource "m"
             defaultTags()
           }
         }
