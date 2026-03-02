@@ -16,7 +16,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
 
   public InternalTagsAdder(@Nullable final String ddService, @Nullable final String version) {
     this.ddService = ddService != null ? UTF8BytesString.create(ddService) : null;
-    this.version = version != null ? UTF8BytesString.create(version) : null;
+    this.version = version != null && !version.isEmpty() ? UTF8BytesString.create(version) : null;
   }
 
   @Override

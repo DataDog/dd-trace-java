@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TagsPostProcessorFactory {
-  private static boolean addBaseService = true;
+  private static boolean addInternalTags = true;
   private static boolean addRemoteHostname = true;
 
   private static class Lazy {
@@ -15,7 +15,7 @@ public final class TagsPostProcessorFactory {
     private static TagsPostProcessor createEagerChain() {
       final List<TagsPostProcessor> processors = new ArrayList<>(3);
       processors.add(new PeerServiceCalculator());
-      if (addBaseService) {
+      if (addInternalTags) {
         processors.add(
             new InternalTagsAdder(Config.get().getServiceName(), Config.get().getVersion()));
       }
@@ -67,8 +67,8 @@ public final class TagsPostProcessorFactory {
    *
    * @param enabled if false, {@link InternalTagsAdder} is not put in the chain.
    */
-  public static void withAddBaseService(boolean enabled) {
-    addBaseService = enabled;
+  public static void withAddInternalTags(boolean enabled) {
+    addInternalTags = enabled;
     Lazy.eagerProcessor = Lazy.createEagerChain();
   }
 
@@ -84,7 +84,7 @@ public final class TagsPostProcessorFactory {
 
   /** Used for testing purposes. It reset the singleton and restore default options */
   public static void reset() {
-    withAddBaseService(true);
+    withAddInternalTags(true);
     withAddRemoteHostname(true);
   }
 }

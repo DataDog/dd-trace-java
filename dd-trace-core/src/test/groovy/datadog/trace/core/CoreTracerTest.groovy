@@ -476,7 +476,7 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
-    TagsPostProcessorFactory.withAddBaseService(true)
+    TagsPostProcessorFactory.withAddInternalTags(true)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
@@ -491,7 +491,7 @@ class CoreTracerTest extends DDCoreSpecification {
     span2.finish()
     then:
     span2.getServiceName() == "dd_service_name"
-    span2.getTags()["version"] == "1.0.0"
+    span2.getTags()["version"]?.toString() == "1.0.0"
 
     cleanup:
     tracer?.close()
