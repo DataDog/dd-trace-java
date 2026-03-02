@@ -110,6 +110,7 @@ public class TagInterceptor {
       case DDTags.MANUAL_KEEP:
       case DDTags.MANUAL_DROP:
       case Tags.ASM_KEEP:
+      case Tags.AI_GUARD_KEEP:
       case Tags.SAMPLING_PRIORITY:
       case Tags.PROPAGATED_TRACE_SOURCE:
       case Tags.PROPAGATED_DEBUG:
@@ -154,6 +155,12 @@ public class TagInterceptor {
       case Tags.ASM_KEEP:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.APPSEC);
+          return true;
+        }
+        return false;
+      case Tags.AI_GUARD_KEEP:
+        if (asBoolean(value)) {
+          span.forceKeep(SamplingMechanism.AI_GUARD);
           return true;
         }
         return false;

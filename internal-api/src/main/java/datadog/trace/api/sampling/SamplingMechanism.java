@@ -37,6 +37,7 @@ public class SamplingMechanism {
 
   public static final byte REMOTE_USER_RULE = 11;
   public static final byte REMOTE_ADAPTIVE_RULE = 12;
+  public static final byte AI_GUARD = 13;
 
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
