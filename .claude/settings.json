@@ -1,0 +1,7 @@
+{
+  "defaultMode": "acceptEdits",
+  "enabledMcpjsonServers": [
+    "datadog"
+  ],
+  "enableAllProjectMcpServers": true
+}
