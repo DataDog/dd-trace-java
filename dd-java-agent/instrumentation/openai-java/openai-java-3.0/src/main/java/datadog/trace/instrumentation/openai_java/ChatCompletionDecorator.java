@@ -117,6 +117,10 @@ public class ChatCompletionDecorator {
               span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
               span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
               span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+              usage
+                  .promptTokensDetails()
+                  .flatMap(details -> details.cachedTokens())
+                  .ifPresent(v -> span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, v));
             });
   }
 
