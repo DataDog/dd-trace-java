@@ -413,10 +413,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different raw URI for given request context");
-    }
     this.savedRawURI = savedRawURI;
   }
 
