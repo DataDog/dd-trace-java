@@ -131,7 +131,7 @@ public class ChatCompletionDecorator {
     if (roleOpt.isPresent()) {
       role = String.valueOf(roleOpt.get());
     }
-    String content = msg.content().orElse(null);
+    String content = msg.content().orElse("");
 
     Optional<List<ChatCompletionMessageToolCall>> toolCallsOpt = msg.toolCalls();
     if (toolCallsOpt.isPresent() && !toolCallsOpt.get().isEmpty()) {
