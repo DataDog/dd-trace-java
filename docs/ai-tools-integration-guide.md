@@ -20,19 +20,32 @@ Model Context Protocol (MCP) servers extend AI capabilities with specialized too
 
 **Available MCP Servers:**
 
-- **Datadog MCP Server**: Provides CI Visibility integration including pipeline event search and aggregation, test event analysis, flaky test detection, code coverage summaries, and PR insights. Pre-configured in the repository via `.cursor/mcp.json` (for Cursor) and `.mcp.json` (for Claude CLI and other compatible tools). See [Datadog MCP Server Setup](datadog-mcp-server.md) for detailed setup and usage instructions.
+- **Datadog MCP Server**: Provides CI Visibility integration including pipeline event search and aggregation, test event analysis, flaky test detection, code coverage summaries, and PR insights. Pre-configured in the repository via `.mcp.json` (for Claude CLI and other compatible tools). Cursor users need to set up `.cursor/mcp.json` manually (see setup instructions below). 
 
 To set up MCP servers, follow the specific setup guides for each server. All MCP servers integrate seamlessly with compatible AI tools, providing enhanced context and capabilities for working with the dd-trace-java repository.
 
 #### Datadog MCP Server Setup for dd-trace-java
 
-The Datadog MCP server connects Cursor's AI assistant to Datadog's CI Visibility platform, letting you query pipeline events, test results, flaky tests, code coverage, and PR insights directly from the chat.
+The Datadog MCP server connects Cursor's/Claude AI assistant to Datadog's CI Visibility platform, letting you query pipeline events, test results, flaky tests, code coverage, and PR insights directly from the chat.
 
 ##### Setup
 
-**1. Repository Configuration (Pre-configured)**
+**1. Repository Configuration**
 
-The repository already includes the MCP server configuration in `.cursor/mcp.json`:
+The repository includes the MCP server configuration for Claude CLI and other compatible tools in `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "datadog": {
+      "type": "http",
+      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=software-delivery"
+    }
+  }
+}
+```
+
+For **Cursor** users, the `.cursor/` directory is not tracked in git. Create the file `.cursor/mcp.json` manually with the following content:
 
 ```json
 {
@@ -49,11 +62,12 @@ The repository already includes the MCP server configuration in `.cursor/mcp.jso
 
 The Datadog MCP server uses SSO for authentication. No API or App keys are required.
 
-1. Open Cursor IDE in the dd-trace-java repository
-2. Go to the MCP settings panel and trigger the **login** command on the `datadog` server
-   For the in terminal agent use `/mcp login`.
+1. Open your AI tool in the dd-trace-java repository
+2. Trigger the **login** command on the `datadog` MCP server:
+   - **Cursor**: Go to the MCP settings panel and trigger the login command. For the in-terminal agent use `/mcp login`.
+   - **Claude CLI**: Run `/mcp` to see server status, then follow the login prompt.
 3. A browser tab opens automatically for Datadog SSO login
-4. Complete the login in your browser — Cursor picks up the session automatically
+4. Complete the login in your browser — the tool picks up the session automatically
 
 After logging in, the MCP tools are immediately available in the AI chat.
 
