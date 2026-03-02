@@ -190,6 +190,20 @@ public class PatchPlatform {
     return buildCertificateChainCleaner(trustManager);
   }
 
+  /* Avoid eager call to Security.getProviders()
+  ----------------------------------------------
+  | public static boolean isConscryptPreferred() {
+  |   // mainly to allow tests to run cleanly
+  |   if ("conscrypt".equals(System.getProperty("okhttp.platform"))) {
+  |     return true;
+  |   }
+  |
+  |   // check if Provider manually installed
+  |   String preferredProvider = Security.getProviders()[0].getName();
+  |   return "Conscrypt".equals(preferredProvider);
+  | }
+  ---------------------------------------------- */
+
   /** Attempt to match the host runtime to a capable Platform implementation. */
   private static Platform findPlatform() {
     if (isAndroid()) {
@@ -206,6 +220,17 @@ public class PatchPlatform {
   }
 
   private static Platform findJvmPlatform() {
+    /* Avoid eager call to Security.getProviders()
+    ----------------------------------------------
+    | if (isConscryptPreferred()) {
+    |   Platform conscrypt = ConscryptPlatform.buildIfSupported();
+    |
+    |   if (conscrypt != null) {
+    |     return conscrypt;
+    |   }
+    | }
+    ---------------------------------------------- */
+
     Platform jdk9 = Jdk9Platform.buildIfSupported();
 
     if (jdk9 != null) {
