@@ -31,7 +31,7 @@ public class GlobalTracer {
         }
 
         @Override
-        public TraceScope muteTracing() {
+        public Blackhole muteTracing() {
           return NoopTraceScope.INSTANCE;
         }
 

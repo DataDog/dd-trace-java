@@ -1,6 +1,8 @@
 package datadog.trace.context;
 
-public class NoopTraceScope implements TraceScope {
+import datadog.trace.api.Tracer;
+
+public class NoopTraceScope implements TraceScope, Tracer.Blackhole {
   public static final NoopTraceScope INSTANCE = new NoopTraceScope();
 
   public static class NoopContinuation implements Continuation {

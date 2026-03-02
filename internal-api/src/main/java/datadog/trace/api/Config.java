@@ -5685,8 +5685,8 @@ public class Config {
     }
 
     // Try hostname command
-    try (final TraceScope scope = AgentTracer.get().muteTracing();
-        final BufferedReader reader =
+    try (final Tracer.Blackhole scope = AgentTracer.get().muteTracing();
+         final BufferedReader reader =
             new BufferedReader(
                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();

@@ -897,7 +897,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
                 final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
                 if (serviceDiscovery != null) {
                   // JNA can do ldconfig and other commands. Those are hidden since internal.
-                  try (final TraceScope blackhole = muteTracing()) {
+                  try (final Blackhole blackhole = muteTracing()) {
                     serviceDiscovery.writeTracerMetadata(config);
                   }
                 }
@@ -1321,7 +1321,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public TraceScope muteTracing() {
+  public Blackhole muteTracing() {
     return activateSpan(blackholeSpan());
   }
 
