@@ -84,7 +84,7 @@ class AndroidGradleUtils {
     FileTree javaTree = project.fileTree(dir: javaDestinations, excludes: EXCLUDES)
 
     FileTree destinationsTree
-    def kotlinDestinations = "${project.layout.buildDirectory.asFile.get()}/tmp/kotlin-classes/${variant.name}"
+    def kotlinDestinations = "${project.buildDir}/tmp/kotlin-classes/${variant.name}"
     if (Files.exists(Paths.get(kotlinDestinations))) {
       def kotlinTree = project.fileTree(dir: kotlinDestinations, excludes: EXCLUDES)
       destinationsTree = javaTree + kotlinTree
