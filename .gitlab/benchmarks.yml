@@ -85,7 +85,7 @@ debugger-benchmarks:
 
 .benchmark-compare-template:
   stage: benchmark-comparison
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   tags: ["arch:amd64"]
   interruptible: true
   rules:
@@ -144,7 +144,7 @@ benchmarks-compare-dacapo:
 
 benchmarks-post-pr-comment:
   stage: benchmark-comparison
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:6845f3c7
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   tags: ["arch:amd64"]
   interruptible: true
   needs:
