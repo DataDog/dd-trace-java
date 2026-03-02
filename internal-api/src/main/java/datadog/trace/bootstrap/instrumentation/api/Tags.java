@@ -164,6 +164,7 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+  public static final String VERSION = "version";
 
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";

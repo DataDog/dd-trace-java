@@ -16,7 +16,8 @@ public final class TagsPostProcessorFactory {
       final List<TagsPostProcessor> processors = new ArrayList<>(3);
       processors.add(new PeerServiceCalculator());
       if (addBaseService) {
-        processors.add(new BaseServiceAdder(Config.get().getServiceName()));
+        processors.add(
+            new InternalTagsAdder(Config.get().getServiceName(), Config.get().getVersion()));
       }
       // Add HTTP endpoint post processor for resource renaming
       // This must run BEFORE metrics aggregation so the correct resource name is used in metrics
@@ -64,7 +65,7 @@ public final class TagsPostProcessorFactory {
   /**
    * Mostly used for test purposes.
    *
-   * @param enabled if false, {@link BaseServiceAdder} is not put in the chain.
+   * @param enabled if false, {@link InternalTagsAdder} is not put in the chain.
    */
   public static void withAddBaseService(boolean enabled) {
     addBaseService = enabled;

@@ -2238,9 +2238,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (!config.getEnv().isEmpty()) {
         result.put("env", config.getEnv());
       }
-      if (!config.getVersion().isEmpty()) {
-        result.put("version", config.getVersion());
-      }
       if (config.isDataJobsEnabled()) {
         result.put(DJM_ENABLED, 1);
       }
