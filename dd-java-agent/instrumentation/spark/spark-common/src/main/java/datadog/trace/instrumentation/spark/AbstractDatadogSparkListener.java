@@ -233,9 +233,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
 
-    if (isRunningOnDatabricks) {
-      log.info("databricksClusterName{}", databricksClusterName);
-    }
     if (openLineageSparkListener == null) {
       openLineageSparkListener =
           InstanceStore.of(SparkListenerInterface.class).get("openLineageListener");
@@ -249,7 +246,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               .orElse(predeterminedTraceIdContext.getTraceId()));
     }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
-    log.info("end of application start");
   }
 
   private void initApplicationSpanIfNotInitialized() {
@@ -258,25 +254,25 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     log.debug("Starting tracer application span.");
-      AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
+    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
-      if (applicationStart != null) {
-        String ddTags =
-            Config.get().getGlobalTags().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> e.getKey() + ":" + e.getValue())
-                .collect(Collectors.joining(","));
+    if (applicationStart != null) {
+      String ddTags =
+          Config.get().getGlobalTags().entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .map(e -> e.getKey() + ":" + e.getValue())
+              .collect(Collectors.joining(","));
 
-        builder
-            .withStartTimestamp(applicationStart.time() * 1000)
-            .withTag("application_name", applicationStart.appName())
-            .withTag("djm.tags", ddTags)
-            .withTag("spark_user", applicationStart.sparkUser());
+      builder
+          .withStartTimestamp(applicationStart.time() * 1000)
+          .withTag("application_name", applicationStart.appName())
+          .withTag("djm.tags", ddTags)
+          .withTag("spark_user", applicationStart.sparkUser());
 
-        if (applicationStart.appAttemptId().isDefined()) {
-          builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
-        }
+      if (applicationStart.appAttemptId().isDefined()) {
+        builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
       }
+    }
 
       captureApplicationParameters(builder);
       captureEmrStepId(builder);
@@ -312,9 +308,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
-    if (isRunningOnDatabricks) {
-      log.info("On Application End");
-    }
     log.info(
         "Received spark application end event, finish trace on this event: {}",
         finishTraceOnApplicationEnd);
@@ -330,6 +323,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
     log.info("Finishing spark application trace");
+
+    if(applicationEnded){
+      return;
+    }
     applicationEnded = true;
 
     if (applicationSpan == null && jobCount > 0) {
