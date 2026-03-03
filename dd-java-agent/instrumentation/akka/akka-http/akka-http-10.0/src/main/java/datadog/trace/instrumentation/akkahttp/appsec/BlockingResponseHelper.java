@@ -32,6 +32,11 @@ public class BlockingResponseHelper {
       HttpResponse altResponse = ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
       if (altResponse != null) {
         // we already blocked during the request
+        DECORATE.callIGCallbackResponseAndHeaders(
+            span,
+            altResponse,
+            altResponse.status().intValue(),
+            AkkaHttpServerHeaders.responseGetter());
         return altResponse;
       }
     }
@@ -55,7 +60,12 @@ public class BlockingResponseHelper {
   }
 
   public static HttpResponse maybeCreateBlockingResponse(AgentSpan span, HttpRequest request) {
-    return maybeCreateBlockingResponse(span.getRequestBlockingAction(), request);
+    HttpResponse response = maybeCreateBlockingResponse(span.getRequestBlockingAction(), request);
+    if (response != null) {
+      DECORATE.callIGCallbackResponseAndHeaders(
+          span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+    }
+    return response;
   }
 
   public static HttpResponse maybeCreateBlockingResponse(

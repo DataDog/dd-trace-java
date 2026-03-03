@@ -81,6 +81,37 @@ class AppSecRequestContextSpecification extends DDSpecification {
     thrown(IllegalStateException)
   }
 
+  void 'clearResponseHeadersForBlocking clears response headers and resets finished flag'() {
+    given:
+    ctx.addResponseHeader('content-type', 'text/html')
+    ctx.finishResponseHeaders()
+
+    expect:
+    !ctx.responseHeaders.isEmpty()
+    ctx.isFinishedResponseHeaders()
+
+    when:
+    ctx.clearResponseHeadersForBlocking()
+
+    then:
+    ctx.responseHeaders.isEmpty()
+    !ctx.isFinishedResponseHeaders()
+  }
+
+  void 'after clearResponseHeadersForBlocking new response headers can be added'() {
+    given:
+    ctx.addResponseHeader('content-type', 'text/html')
+    ctx.finishResponseHeaders()
+    ctx.clearResponseHeadersForBlocking()
+
+    when:
+    ctx.addResponseHeader('content-type', 'application/json')
+
+    then:
+    ctx.responseHeaders == ['content-type': ['application/json']]
+    notThrown(IllegalStateException)
+  }
+
   void 'setting uri a second time is ignored, first value wins'() {
     when:
     ctx.rawURI = '/a'

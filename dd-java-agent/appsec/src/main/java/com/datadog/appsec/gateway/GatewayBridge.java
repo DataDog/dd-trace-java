@@ -657,7 +657,11 @@ public class GatewayBridge {
       return NoopFlow.INSTANCE;
     }
     ctx.finishResponseHeaders();
-    return maybePublishResponseData(ctx);
+    Flow<Void> flow = maybePublishResponseData(ctx);
+    if (flow.getAction() instanceof Flow.Action.RequestBlockingAction) {
+      ctx.clearResponseHeadersForBlocking();
+    }
+    return flow;
   }
 
   private void onResponseHeader(RequestContext ctx_, String name, String value) {

@@ -8,7 +8,6 @@ import akka.http.scaladsl.util.FastFuture$;
 import akka.stream.Materializer;
 import datadog.context.Context;
 import datadog.context.ContextScope;
-import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.akkahttp.appsec.BlockingResponseHelper;
 import scala.Function1;
@@ -35,10 +34,9 @@ public class DatadogAsyncHandlerWrapper
     Future<HttpResponse> futureResponse;
 
     // handle blocking in the beginning of the request
-    Flow.Action.RequestBlockingAction rba;
-    if ((rba = span.getRequestBlockingAction()) != null) {
+    if (span.getRequestBlockingAction() != null) {
       request.discardEntityBytes(materializer);
-      HttpResponse response = BlockingResponseHelper.maybeCreateBlockingResponse(rba, request);
+      HttpResponse response = BlockingResponseHelper.maybeCreateBlockingResponse(span, request);
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
       DatadogWrapperHelper.finishSpan(context, response);
       return FastFuture$.MODULE$.<HttpResponse>successful().apply(response);

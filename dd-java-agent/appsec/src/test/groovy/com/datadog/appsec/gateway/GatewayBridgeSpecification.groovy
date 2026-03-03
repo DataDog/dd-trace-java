@@ -18,6 +18,7 @@ import datadog.trace.api.appsec.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -223,6 +224,49 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
     1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
+  }
+
+  void 'request_end writes response headers even when no appsec events'() {
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    mockAppSecCtx.requestHeaders >> [:]
+    mockAppSecCtx.responseHeaders >> ['content-type': ['text/plain']]
+    RequestContext mockCtx = Stub(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecCtx
+      getTraceSegment() >> traceSegment
+    }
+    IGSpanInfo spanInfo = Mock(AgentSpan)
+
+    when:
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
+
+    then:
+    1 * spanInfo.getTags() >> TagMap.fromMap([:])
+    1 * mockAppSecCtx.transferCollectedEvents() >> []
+    1 * mockAppSecCtx.close()
+    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
+    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/plain')
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _)
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'response_header_done clears response headers for blocking when WAF blocks'() {
+    given:
+    def blockingFlow = Stub(Flow) {
+      getAction() >> new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    }
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+
+    when:
+    respHeaderCB.accept(ctx, 'content-type', 'text/html')
+    responseStartedCB.apply(ctx, 403)
+    respHeadersDoneCB.apply(ctx)
+
+    then:
+    ctx.data.responseHeaders.isEmpty()
+    !ctx.data.finishedResponseHeaders
   }
 
   void 'bridge can collect headers'() {

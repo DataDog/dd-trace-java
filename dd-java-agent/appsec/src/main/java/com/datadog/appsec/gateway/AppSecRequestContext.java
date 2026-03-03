@@ -529,6 +529,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return finishedResponseHeaders;
   }
 
+  void clearResponseHeadersForBlocking() {
+    responseHeaders.clear();
+    finishedResponseHeaders = false;
+  }
+
   Map<String, List<String>> getResponseHeaders() {
     return responseHeaders;
   }

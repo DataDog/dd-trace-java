@@ -1,11 +1,18 @@
 package datadog.trace.instrumentation.netty40.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -112,6 +119,16 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     }
 
     this.hasBlockedAlready = true;
+
+    Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+    AgentSpan span = spanFromContext(storedContext);
+    if (span != null) {
+      DECORATE.callIGCallbackResponseAndHeaders(
+          span, response, httpCode, ResponseExtractAdapter.GETTER);
+    }
+    ctx.channel().attr(ANALYZED_RESPONSE_KEY).set(Boolean.TRUE);
+    ctx.channel().attr(BLOCKED_RESPONSE_KEY).set(Boolean.TRUE);
+
     ReferenceCountUtil.release(msg);
 
     // write starts in the handler before the one associated with ctx
