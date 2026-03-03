@@ -44,6 +44,17 @@ abstract class JavaHttpClientTest extends HttpClientTest {
     false
   }
 
+  def "request to agent not traced"() {
+    when:
+    def status = doRequest("GET", server.address.resolve("/success"), ["Datadog-Meta-Lang": "java"])
+
+    then:
+    status == 200
+    assertTraces(1) {
+      server.distributedRequestTrace(it)
+    }
+  }
+
   def 'should not inject duplicate headers'() {
     when:
     def status = doRequest("GET", server.address.resolve("/success"),
