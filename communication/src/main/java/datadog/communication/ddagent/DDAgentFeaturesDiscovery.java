@@ -152,8 +152,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      HttpRequest request =
-          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+      HttpRequest request = prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
       try (HttpResponse response = client.execute(request)) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);

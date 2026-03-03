@@ -130,10 +130,10 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
    * @throws NullPointerException if the list of buffers is null
    */
   public static JdkHttpRequestBody ofByteBuffers(List<ByteBuffer> buffers) {
-    if (buffers.isEmpty()) {
+    long contentLength = buffers.stream().mapToLong(Buffer::remaining).sum();
+    if (contentLength == 0) {
       return new JdkHttpRequestBody(BodyPublishers.noBody());
     }
-    long contentLength = buffers.stream().mapToLong(Buffer::remaining).sum();
     return new JdkHttpRequestBody(
         BodyPublishers.fromPublisher(new ByteBufferPublisher(buffers), contentLength));
   }
