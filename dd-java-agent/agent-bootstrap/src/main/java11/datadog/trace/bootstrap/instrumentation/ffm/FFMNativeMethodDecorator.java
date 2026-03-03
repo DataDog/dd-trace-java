@@ -153,6 +153,9 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
     AgentSpan span = AgentTracer.startSpan(TRACE_FFM.toString(), OPERATION_NAME);
     DECORATE.afterStart(span);
     span.setResourceName(resourceName);
+    if (methodMeasured) {
+      span.setMeasured(true);
+    }
     return AgentTracer.activateSpan(span);
   }
 
@@ -183,7 +186,7 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
   }
 
   public static boolean isMethodMeasured(final String library, final String method) {
-    return matches(InstrumenterConfig.get().getMeasureMethods().get(library), method);
+    return matches(InstrumenterConfig.get().getMeasureNativeMethods().get(library), method);
   }
 
   public static CharSequence resourceNameFor(final String library, final String method) {

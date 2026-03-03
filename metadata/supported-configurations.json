@@ -2233,6 +2233,14 @@
         "aliases": []
       }
     ],
+    "DD_MEASURE_NATIVE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_MESSAGE_BROKER_SPLIT_BY_DESTINATION": [
       {
         "version": "A",

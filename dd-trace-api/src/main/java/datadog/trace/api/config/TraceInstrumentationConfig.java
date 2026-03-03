@@ -29,6 +29,7 @@ public final class TraceInstrumentationConfig {
   https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/
    */
   public static final String MEASURE_METHODS = "measure.methods";
+  public static final String MEASURE_NATIVE_METHODS = "measure.native.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";
