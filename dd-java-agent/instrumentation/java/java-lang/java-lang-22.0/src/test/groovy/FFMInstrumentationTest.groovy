@@ -57,6 +57,43 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
     "[*]"      | true          | "strlen"
   }
 
+  def "should measure methods for #configured"() {
+    setup:
+    injectSysConfig("trace.native.methods", "[strlen]")
+    injectSysConfig("measure.native.methods", configured)
+    final MemorySegment strlenAddr = Linker.nativeLinker().defaultLookup().findOrThrow("strlen")
+    final MethodHandle strlenHandle =
+    Linker.nativeLinker().downcallHandle(
+    strlenAddr, FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS))
+
+    when:
+    long len
+    try (final Arena arena = Arena.ofConfined()) {
+      len = (long) strlenHandle.invokeWithArguments(arena.allocateFrom("Hello world!"))
+    }
+
+    then:
+    len == 12
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "trace.native"
+          resourceName "strlen"
+          measured expectMeasured
+          tags {
+            "$Tags.COMPONENT" "trace-ffm"
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    where:
+    configured | expectMeasured
+    "[strlen]" | true
+    ""         | false
+  }
+
   @IgnoreIf({ !os.isLinux() })
   def "should trace ffm calls using libraryLookup by name for #configured"() {
     setup:
