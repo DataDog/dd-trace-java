@@ -1,5 +1,7 @@
 package datadog.http.client.okhttp;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestListener;
@@ -132,7 +134,14 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder connectTimeout(Duration timeout) {
-      delegate.connectTimeout(timeout).readTimeout(timeout).writeTimeout(timeout);
+      // We can't use overloaded timeout methods with Duration
+      // as instrumentation tests are injecting an old OkHttp3 version
+      // where such methods were not introduced
+      long timeoutMillis = timeout.toMillis();
+      delegate
+          .connectTimeout(timeoutMillis, MILLISECONDS)
+          .readTimeout(timeoutMillis, MILLISECONDS)
+          .writeTimeout(timeoutMillis, MILLISECONDS);
       return this;
     }
 
