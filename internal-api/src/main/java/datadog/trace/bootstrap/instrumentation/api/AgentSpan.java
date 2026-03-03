@@ -122,9 +122,6 @@ public interface AgentSpan
 
   AgentSpan addThrowable(Throwable throwable, byte errorPriority);
 
-  @Override
-  AgentSpan getLocalRootSpan();
-
   boolean isSameTrace(AgentSpan otherSpan);
 
   AgentSpanContext context();

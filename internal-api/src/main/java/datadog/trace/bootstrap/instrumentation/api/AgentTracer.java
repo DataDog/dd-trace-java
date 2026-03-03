@@ -18,7 +18,6 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
-import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -354,10 +353,20 @@ public class AgentTracer {
     /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
     void activateSpanWithoutScope(AgentSpan span);
 
-    @Override
     AgentScope.Continuation captureActiveSpan();
 
     AgentScope.Continuation captureSpan(AgentSpan span);
+
+    /**
+     * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
+     * asynchronous boundaries.
+     */
+    boolean isAsyncPropagationEnabled();
+
+    /**
+     * Enables or disables asynchronous propagation for the active span.
+     */
+    void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
 
     void checkpointActiveForRollback();
 
@@ -622,7 +631,7 @@ public class AgentTracer {
     }
 
     @Override
-    public TraceScope muteTracing() {
+    public Blackhole muteTracing() {
       return NoopScope.INSTANCE;
     }
 

@@ -31,16 +31,6 @@ class ExtractedSpan extends ImmutableSpan {
   }
 
   @Override
-  public AgentSpan getRootSpan() {
-    return this;
-  }
-
-  @Override
-  public AgentSpan getLocalRootSpan() {
-    return this;
-  }
-
-  @Override
   public boolean isError() {
     return false;
   }
