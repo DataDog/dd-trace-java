@@ -374,8 +374,8 @@ dependencies {
     // (which are loaded on the bootstrap cl)
   }
   sharedShadowInclude project(':components:http:http-api')
-  sharedShadowInclude project(':components:http:http-lib')
-  sharedShadowInclude project(':components:http:http-compat')
+  sharedShadowInclude project(':components:http:http-lib-jdk')
+  sharedShadowInclude project(':components:http:http-lib-okhttp')
   sharedShadowInclude group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
   sharedShadowInclude project(':telemetry'), {
     transitive = false

@@ -6,7 +6,7 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-description = "HTTP Client Library"
+description = "HTTP Client Library - JDK Implementation"
 
 java {
   toolchain {

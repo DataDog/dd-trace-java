@@ -13,8 +13,8 @@ dependencies {
 
   api(project(":components:http:http-api"))
   api(project(":remote-config:remote-config-api"))
-  implementation(project(":components:http:http-compat"))
-  implementation(project(":components:http:http-lib"))
+  implementation(project(":components:http:http-lib-jdk"))
+  implementation(project(":components:http:http-lib-okhttp"))
   implementation(project(":remote-config:remote-config-core"))
   implementation(project(":internal-api"))
   implementation(project(":utils:container-utils"))

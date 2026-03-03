@@ -4,7 +4,7 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-description = "HTTP Client Library - Java 8 Compatibility"
+description = "HTTP Client Library - OkHttp Implementation"
 
 dependencies {
   api(project(":components:http:http-api"))

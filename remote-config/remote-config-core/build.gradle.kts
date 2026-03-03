@@ -40,6 +40,6 @@ dependencies {
   implementation(project(":internal-api"))
 
   testImplementation(project(":utils:test-utils"))
-  testImplementation(project(":components:http:http-compat"))
-  testImplementation(project(":components:http:http-lib"))
+  testImplementation(project(":components:http:http-lib-jdk"))
+  testImplementation(project(":components:http:http-lib-okhttp"))
 }
