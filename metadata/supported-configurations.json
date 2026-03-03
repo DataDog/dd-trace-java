@@ -7649,6 +7649,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_NATIVE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_MICRONAUT_ANALYTICS_ENABLED": [
       {
         "version": "A",
