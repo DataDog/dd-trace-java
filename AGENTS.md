@@ -97,6 +97,5 @@ See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) f
 
 ### Handling the Pull Request and CI
 
-- To create and monitor PR data, use the gh client (GitHub Tools).
 - If the request relates to CI status for a branch or PR, MUST ALWAYS try the Datadog MCP first.
 - Use local GitLab/GitHub tools as a fallback/support for the Datadog MCP when interacting with GitLab/GitHub CI.

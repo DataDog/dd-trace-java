@@ -1,5 +1,4 @@
 {
-  "defaultMode": "acceptEdits",
   "enabledMcpjsonServers": [
     "datadog"
   ],
