@@ -71,6 +71,24 @@ public class ChatCompletionDecorator {
     params.n().ifPresent(v -> metadata.put("n", v));
     params.seed().ifPresent(v -> metadata.put("seed", v));
     span.setTag(CommonTags.METADATA, metadata);
+    params
+        .toolChoice()
+        .ifPresent(
+            toolChoice -> {
+              String choice = null;
+              if (toolChoice.isAuto()) {
+                choice = "auto";
+              } else if (toolChoice.isAllowedToolChoice()) {
+                choice = "allowed_tools";
+              } else if (toolChoice.isNamedToolChoice()) {
+                choice = "function";
+              } else if (toolChoice.isNamedToolChoiceCustom()) {
+                choice = "custom";
+              }
+              if (choice != null) {
+                metadata.put("tool_choice", choice);
+              }
+            });
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
