@@ -17,7 +17,7 @@ import okhttp3.Response;
 public class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
-    if (chain.request().header("Datadog-Meta-Lang") != null) {
+    if (DECORATE.isAgentRequest(chain.request())) {
       return chain.proceed(chain.request());
     }
 

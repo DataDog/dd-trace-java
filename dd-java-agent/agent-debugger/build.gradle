@@ -67,6 +67,7 @@ dependencies {
 
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: libs.versions.scala213.get()
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
+  testRuntimeOnly group: 'org.springframework', name: 'spring-web', version: '6.0.0'
 }
 
 tasks.named("shadowJar", ShadowJar) {
