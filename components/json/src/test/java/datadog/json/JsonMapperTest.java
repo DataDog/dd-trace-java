@@ -37,14 +37,14 @@ class JsonMapperTest {
         String k = entry.getKey();
         Object v = entry.getValue();
         assertTrue(parsed.containsKey(k));
-        Object parsed_k = parsed.get(k);
+        Object parsed_v = parsed.get(k);
         if (v instanceof UnsupportedType) {
-          assertEquals(v.toString(), parsed_k);
+          assertEquals(v.toString(), parsed_v);
         } else if (v instanceof Float) {
-          assertTrue(parsed_k instanceof Double);
-          assertEquals((Float) v, (Double) parsed_k, 0.001);
+          assertTrue(parsed_v instanceof Double);
+          assertEquals((Float) v, (Double) parsed_v, 0.001);
         } else {
-          assertEquals(v, parsed_k);
+          assertEquals(v, parsed_v);
         }
       }
     }
