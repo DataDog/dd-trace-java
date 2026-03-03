@@ -49,6 +49,9 @@ public class NativeLibraryResolver {
   /**
    * Returns the full native library path that defines the given symbol. Returns null if the symbol
    * cannot be resolved.
+   *
+   * @param symbolAddress the address of the symbol to resolve.
+   * @return the library path or null if cannot be found.
    */
   public static String findLibraryPath(MemorySegment symbolAddress) {
     try (Arena arena = Arena.ofConfined()) {

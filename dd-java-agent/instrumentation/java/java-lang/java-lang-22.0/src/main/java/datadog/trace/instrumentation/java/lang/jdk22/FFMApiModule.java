@@ -32,6 +32,9 @@ public class FFMApiModule extends InstrumenterModule.Tracing {
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(new LinkerInstrumentation(), new SymbolLookupInstrumentation());
+    return asList(
+        new LinkerInstrumentation(),
+        new SymbolLookupInstrumentation(),
+        new SymbolLookupStaticInstrumentation());
   }
 }
