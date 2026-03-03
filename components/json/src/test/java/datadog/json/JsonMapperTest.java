@@ -39,10 +39,7 @@ class JsonMapperTest {
           assertEquals(entry.getValue().toString(), parsed.get(entry.getKey()));
         } else if (entry.getValue() instanceof Float) {
           assertTrue(parsed.get(entry.getKey()) instanceof Double);
-          assertEquals(
-              (double) (float) (Float) entry.getValue(),
-              (Double) parsed.get(entry.getKey()),
-              0.001);
+          assertEquals((Float) entry.getValue(), (Double) parsed.get(entry.getKey()), 0.001);
         } else {
           assertEquals(entry.getValue(), parsed.get(entry.getKey()));
         }
