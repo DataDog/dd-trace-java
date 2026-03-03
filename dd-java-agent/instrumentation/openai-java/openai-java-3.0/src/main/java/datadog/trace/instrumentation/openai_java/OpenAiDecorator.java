@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import datadog.trace.core.CoreSpan;
 import java.util.List;
 
 public class OpenAiDecorator extends ClientDecorator {

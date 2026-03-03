@@ -230,6 +230,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_NAME,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
+                    LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
                     LLMOBS_TAG_PREFIX + LLMObsTags.METADATA)));
 
     MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {

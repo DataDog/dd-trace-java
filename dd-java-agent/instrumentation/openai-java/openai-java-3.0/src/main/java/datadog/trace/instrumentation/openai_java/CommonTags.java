@@ -28,6 +28,8 @@ interface CommonTags {
   String SERVICE = TAG_PREFIX + "service";
   String PARENT_ID = TAG_PREFIX + "parent_id";
 
+  String TOOL_DEFINITIONS = TAG_PREFIX + "tool_definitions";
+
   String METRIC_PREFIX = "_ml_obs_metric.";
   String INPUT_TOKENS = METRIC_PREFIX + "input_tokens";
   String OUTPUT_TOKENS = METRIC_PREFIX + "output_tokens";

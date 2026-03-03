@@ -1,12 +1,16 @@
 package datadog.trace.instrumentation.openai_java;
 
+import com.openai.core.JsonValue;
 import com.openai.helpers.ChatCompletionAccumulator;
+import com.openai.models.FunctionDefinition;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionFunctionTool;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
+import com.openai.models.chat.completions.ChatCompletionTool;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -89,6 +93,110 @@ public class ChatCompletionDecorator {
                 metadata.put("tool_choice", choice);
               }
             });
+
+    List<ChatCompletionTool> tools = params.tools().orElse(Collections.emptyList());
+    if (!tools.isEmpty()) {
+      span.setTag(CommonTags.TOOL_DEFINITIONS, extractToolDefinitions(tools));
+    }
+  }
+
+  private List<Map<String, Object>> extractToolDefinitions(List<ChatCompletionTool> tools) {
+    List<Map<String, Object>> toolDefinitions = new ArrayList<>();
+    for (ChatCompletionTool tool : tools) {
+      if (tool.isFunction()) {
+        Map<String, Object> toolDef = extractFunctionToolDef(tool.asFunction());
+        if (toolDef != null) {
+          toolDefinitions.add(toolDef);
+        }
+      }
+    }
+    return toolDefinitions;
+  }
+
+  private static Map<String, Object> extractFunctionToolDef(ChatCompletionFunctionTool funcTool) {
+    // Try typed access first (works when built programmatically)
+    Optional<FunctionDefinition> funcDefOpt = funcTool._function().asKnown();
+    if (funcDefOpt.isPresent()) {
+      FunctionDefinition funcDef = funcDefOpt.get();
+      Map<String, Object> toolDef = new HashMap<>();
+      toolDef.put("name", funcDef.name());
+      funcDef.description().ifPresent(desc -> toolDef.put("description", desc));
+      funcDef
+          .parameters()
+          .ifPresent(
+              params ->
+                  toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
+      return toolDef;
+    }
+
+    // Fall back to raw JSON extraction (when deserialized from HTTP request)
+    Optional<JsonValue> rawOpt = funcTool._function().asUnknown();
+    if (!rawOpt.isPresent()) {
+      return null;
+    }
+    Optional<Map<String, JsonValue>> objOpt = rawOpt.get().asObject();
+    if (!objOpt.isPresent()) {
+      return null;
+    }
+    Map<String, JsonValue> obj = objOpt.get();
+    JsonValue nameValue = obj.get("name");
+    if (nameValue == null) {
+      return null;
+    }
+    Optional<String> nameOpt = nameValue.asString();
+    if (!nameOpt.isPresent()) {
+      return null;
+    }
+    Map<String, Object> toolDef = new HashMap<>();
+    toolDef.put("name", nameOpt.get());
+    JsonValue descValue = obj.get("description");
+    if (descValue != null) {
+      descValue.asString().ifPresent(desc -> toolDef.put("description", desc));
+    }
+    JsonValue paramsValue = obj.get("parameters");
+    if (paramsValue != null) {
+      Object schema = jsonValueToObject(paramsValue);
+      if (schema != null) {
+        toolDef.put("schema", schema);
+      }
+    }
+    return toolDef;
+  }
+
+  private static Map<String, Object> jsonValueMapToObject(Map<String, JsonValue> map) {
+    Map<String, Object> result = new HashMap<>();
+    for (Map.Entry<String, JsonValue> entry : map.entrySet()) {
+      result.put(entry.getKey(), jsonValueToObject(entry.getValue()));
+    }
+    return result;
+  }
+
+  private static Object jsonValueToObject(JsonValue value) {
+    Optional<String> str = value.asString();
+    if (str.isPresent()) {
+      return str.get();
+    }
+    Optional<Number> num = value.asNumber();
+    if (num.isPresent()) {
+      return num.get();
+    }
+    Optional<Boolean> bool = value.asBoolean();
+    if (bool.isPresent()) {
+      return bool.get();
+    }
+    Optional<Map<String, JsonValue>> obj = value.asObject();
+    if (obj.isPresent()) {
+      return jsonValueMapToObject(obj.get());
+    }
+    Optional<List<JsonValue>> arr = value.asArray();
+    if (arr.isPresent()) {
+      List<Object> list = new ArrayList<>();
+      for (JsonValue item : arr.get()) {
+        list.add(jsonValueToObject(item));
+      }
+      return list;
+    }
+    return null;
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
