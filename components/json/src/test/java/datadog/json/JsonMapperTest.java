@@ -34,14 +34,17 @@ class JsonMapperTest {
     } else {
       assertEquals(input.size(), parsed.size());
       for (Map.Entry<String, Object> entry : input.entrySet()) {
-        assertTrue(parsed.containsKey(entry.getKey()));
-        if (entry.getValue() instanceof UnsupportedType) {
-          assertEquals(entry.getValue().toString(), parsed.get(entry.getKey()));
-        } else if (entry.getValue() instanceof Float) {
-          assertTrue(parsed.get(entry.getKey()) instanceof Double);
-          assertEquals((Float) entry.getValue(), (Double) parsed.get(entry.getKey()), 0.001);
+        String k = entry.getKey();
+        Object v = entry.getValue();
+        assertTrue(parsed.containsKey(k));
+        Object parsed_k = parsed.get(k);
+        if (v instanceof UnsupportedType) {
+          assertEquals(v.toString(), parsed_k);
+        } else if (v instanceof Float) {
+          assertTrue(parsed_k instanceof Double);
+          assertEquals((Float) v, (Double) parsed_k, 0.001);
         } else {
-          assertEquals(entry.getValue(), parsed.get(entry.getKey()));
+          assertEquals(v, parsed_k);
         }
       }
     }
@@ -151,8 +154,8 @@ class JsonMapperTest {
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonString_arguments")
   void testMappingToJsonString(String input, String expected) {
-    String escaped = JsonMapper.toJson(input);
-    assertEquals(expected, escaped);
+    String json = JsonMapper.toJson(input);
+    assertEquals(expected, json);
   }
 
   static Stream<Arguments> testMappingToJsonString_arguments() {
