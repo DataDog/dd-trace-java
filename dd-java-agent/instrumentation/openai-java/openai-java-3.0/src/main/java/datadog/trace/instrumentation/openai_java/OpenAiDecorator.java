@@ -98,6 +98,7 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.VERSION, wellKnownTags.getVersion());
 
       span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
+      span.setTag(CommonTags.SOURCE, "integration");
 
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;

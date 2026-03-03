@@ -20,6 +20,7 @@ interface CommonTags {
 
   String ML_APP = TAG_PREFIX + LLMObsTags.ML_APP;
   String VERSION = TAG_PREFIX + "version";
+  String SOURCE = TAG_PREFIX + "source";
 
   String ERROR = TAG_PREFIX + "error";
   String ERROR_TYPE = TAG_PREFIX + "error_type";
