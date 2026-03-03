@@ -122,7 +122,7 @@ public final class JdkHttpClient implements HttpClient {
 
   /** Builder for JdkHttpClient. */
   public static final class Builder implements HttpClient.Builder {
-
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
     private final java.net.http.HttpClient.Builder delegate;
     private File unixDomainSocket;
     private String namedPipe;
@@ -130,6 +130,7 @@ public final class JdkHttpClient implements HttpClient {
 
     public Builder() {
       this.delegate = java.net.http.HttpClient.newBuilder();
+      connectTimeout(DEFAULT_TIMEOUT);
     }
 
     @Override
