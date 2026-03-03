@@ -4,13 +4,16 @@ import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
+import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
@@ -23,6 +26,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -38,6 +42,9 @@ public final class TraceMapperV1 implements TraceMapper {
   static final int VALUE_TYPE_STRING = 1;
   static final int VALUE_TYPE_BOOLEAN = 2;
   static final int VALUE_TYPE_FLOAT = 3;
+  static final int VALUE_TYPE_INT = 4;
+  static final int VALUE_TYPE_BYTES = 5;
+  static final int VALUE_TYPE_ARRAY = 6;
 
   // Span kind OTEL values
   static final int SPAN_KIND_INTERNAL = 1;
@@ -48,16 +55,21 @@ public final class TraceMapperV1 implements TraceMapper {
 
   // Decision maker tag key
   private static final String KEY_DECISION_MAKER = "_dd.p.dm";
+  private static final String HTTP_STATUS = "http.status_code";
 
   private final int bufferSize;
   private final StringTable stringTable;
   private final SpanMetadata spanMetadata;
+  private final GrowableBuffer metaStructBuffer;
+  private final MsgPackWriter metaStructWriter;
   private final ByteBuffer header;
 
   public TraceMapperV1(int bufferSize) {
     this.bufferSize = bufferSize;
     this.stringTable = new StringTable();
     this.spanMetadata = new SpanMetadata();
+    this.metaStructBuffer = new GrowableBuffer(1 << 10);
+    this.metaStructWriter = new MsgPackWriter(Codec.INSTANCE, metaStructBuffer);
     this.header = buildHeader();
   }
 
@@ -68,7 +80,7 @@ public final class TraceMapperV1 implements TraceMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggage(spanMetadata);
+    firstSpan.processTagsAndBaggage(spanMetadata, false);
     Metadata meta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -80,7 +92,10 @@ public final class TraceMapperV1 implements TraceMapper {
     encodeField(writable, 2, firstSpan.getOrigin()); // TODO double check
     // attributes = 3, a collection of key to value pairs common in all `spans`
     encodeAttributes(
-        writable, 3, Collections.emptyMap()); // TODO double check if something useful can be added
+        writable,
+        3,
+        Collections.emptyMap(),
+        Collections.emptyMap()); // TODO double check if something useful can be added
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
@@ -98,9 +113,10 @@ public final class TraceMapperV1 implements TraceMapper {
     for (int i = 0; i < spansCount; i++) {
       final CoreSpan<?> span = spans.get(i);
 
-      span.processTagsAndBaggage(spanMetadata);
+      span.processTagsAndBaggage(spanMetadata, false);
       Metadata meta = spanMetadata.metadata;
       TagMap tags = meta.getTags();
+      Map<String, Object> metaStruct = span.getMetaStruct();
 
       // Span has 16 fields
       writable.startMap(16);
@@ -123,18 +139,14 @@ public final class TraceMapperV1 implements TraceMapper {
       // error = 8, if there is an error associated with this span
       encodeField(writable, 8, span.getError() != 0);
       // attributes = 9, a collection of string key to value pairs on the span
-      encodeAttributes(writable, 9, tags);
+      encodeSpanAttributes(writable, 9, meta, metaStruct);
       // type = 10, the string type of the service with which this span is associated
       // (example values: web, db, lambda)
       encodeField(writable, 10, span.getType());
       // links = 11, a collection of links to other spans
-      // TODO: empty array for now, should be implemented
-      writable.writeInt(11);
-      writable.startArray(0);
+      encodeSpanLinks(writable, 11, meta.getSpanLinks());
       // events = 12, a collection of events that occurred during this span
-      // TODO: empty array for now, should be implemented
-      writable.writeInt(12);
-      writable.startArray(0);
+      encodeSpanEvents(writable, 12, tags.getObject(DDTags.SPAN_EVENTS));
       // env = 13, the optional string environment of this span
       encodeField(writable, 13, tags.getString(Tags.ENV));
       // version = 14, the optional string version of this span
@@ -146,30 +158,262 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeAttributes(Writable writable, int fieldId, Map<String, Object> attrs) {
+  private void encodeSpanLinks(Writable writable, int fieldId, List<AgentSpanLink> links) {
     writable.writeInt(fieldId);
-    writable.startArray(attrs.size() * 3); // Array of triplets: (key, type, value).
+    if (links == null || links.isEmpty()) {
+      writable.startArray(0);
+      return;
+    }
+
+    writable.startArray(links.size());
+    for (AgentSpanLink link : links) {
+      writable.startMap(5);
+      encodeField(writable, 1, link.traceId().to128BitBytes());
+      encodeField(writable, 2, link.spanId());
+      Map<String, Object> attributes = new LinkedHashMap<>();
+      attributes.putAll(link.attributes().asMap());
+      encodeAttributes(writable, 3, attributes, Collections.emptyMap());
+      encodeField(writable, 4, link.traceState());
+      encodeField(writable, 5, (long) (link.traceFlags() & 0xFF));
+    }
+  }
+
+  private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
+    writable.writeInt(fieldId);
+    if (!(eventsObject instanceof List) || ((List<?>) eventsObject).isEmpty()) {
+      writable.startArray(0);
+      return;
+    }
+
+    List<?> events = (List<?>) eventsObject;
+    int encodableCount = 0;
+    for (Object event : events) {
+      if (isEncodableSpanEvent(event)) {
+        encodableCount++;
+      }
+    }
+    writable.startArray(encodableCount);
+    for (Object event : events) {
+      if (!(event instanceof Map)) {
+        continue;
+      }
+      Map<?, ?> eventMap = (Map<?, ?>) event;
+      Long timeUnixNano = asLong(eventMap.get("time_unix_nano"));
+      Object nameObject = eventMap.get("name");
+      if (timeUnixNano == null || nameObject == null) {
+        continue;
+      }
+
+      Map<?, ?> attributes =
+          eventMap.get("attributes") instanceof Map ? (Map<?, ?>) eventMap.get("attributes") : null;
+
+      writable.startMap(3);
+      encodeField(writable, 1, timeUnixNano);
+      encodeField(writable, 2, String.valueOf(nameObject));
+      encodeEventAttributes(writable, 3, attributes);
+    }
+  }
+
+  private boolean isEncodableSpanEvent(Object event) {
+    if (!(event instanceof Map)) {
+      return false;
+    }
+    Map<?, ?> eventMap = (Map<?, ?>) event;
+    return asLong(eventMap.get("time_unix_nano")) != null && eventMap.get("name") != null;
+  }
+
+  private void encodeEventAttributes(Writable writable, int fieldId, Map<?, ?> attrs) {
+    writable.writeInt(fieldId);
+    if (attrs == null || attrs.isEmpty()) {
+      writable.startArray(0);
+      return;
+    }
+
+    int attributeCount = 0;
+    for (Map.Entry<?, ?> entry : attrs.entrySet()) {
+      if (isEncodableEventAttribute(entry.getValue())) {
+        attributeCount++;
+      }
+    }
+    writable.startArray(attributeCount * 3);
+
+    for (Map.Entry<?, ?> entry : attrs.entrySet()) {
+      Object value = entry.getValue();
+      if (!isEncodableEventAttribute(value)) {
+        continue;
+      }
+      writeStreamingString(writable, String.valueOf(entry.getKey()));
+      writeEventAttributeValue(writable, value);
+    }
+  }
+
+  private boolean isEncodableEventAttribute(Object value) {
+    return value instanceof String
+        || value instanceof CharSequence
+        || value instanceof Boolean
+        || value instanceof Number
+        || value instanceof List;
+  }
+
+  private void writeEventAttributeValue(Writable writable, Object value) {
+    if (value instanceof Boolean) {
+      writable.writeInt(VALUE_TYPE_BOOLEAN);
+      writable.writeBoolean((Boolean) value);
+      return;
+    }
+    if (value instanceof Number) {
+      writeEventNumberValue(writable, (Number) value);
+      return;
+    }
+    if (value instanceof List) {
+      List<?> values = (List<?>) value;
+      int itemCount = 0;
+      for (Object item : values) {
+        if (isEncodableEventArrayItem(item)) {
+          itemCount++;
+        }
+      }
+      writable.writeInt(VALUE_TYPE_ARRAY);
+      writable.startArray(itemCount * 2);
+      for (Object item : values) {
+        if (!isEncodableEventArrayItem(item)) {
+          continue;
+        }
+        writeEventArrayItemValue(writable, item);
+      }
+      return;
+    }
+    writable.writeInt(VALUE_TYPE_STRING);
+    writeStreamingString(writable, String.valueOf(value));
+  }
+
+  private boolean isEncodableEventArrayItem(Object item) {
+    return item instanceof String
+        || item instanceof CharSequence
+        || item instanceof Boolean
+        || item instanceof Number;
+  }
+
+  private void writeEventArrayItemValue(Writable writable, Object item) {
+    if (item instanceof Boolean) {
+      writable.writeInt(VALUE_TYPE_BOOLEAN);
+      writable.writeBoolean((Boolean) item);
+      return;
+    }
+    if (item instanceof Number) {
+      writeEventNumberValue(writable, (Number) item);
+      return;
+    }
+    writable.writeInt(VALUE_TYPE_STRING);
+    writeStreamingString(writable, String.valueOf(item));
+  }
+
+  private void writeEventNumberValue(Writable writable, Number number) {
+    if (isIntegralNumber(number)) {
+      writable.writeInt(VALUE_TYPE_INT);
+      writable.writeLong(number.longValue());
+      return;
+    }
+    writable.writeInt(VALUE_TYPE_FLOAT);
+    writable.writeDouble(number.doubleValue());
+  }
+
+  private boolean isIntegralNumber(Number number) {
+    return !(number instanceof Float || number instanceof Double);
+  }
+
+  private Long asLong(Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).longValue();
+    }
+    if (value instanceof CharSequence) {
+      try {
+        return Long.parseLong(value.toString());
+      } catch (NumberFormatException ignored) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private void encodeSpanAttributes(
+      Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
+    TagMap tags = meta.getTags();
+    String httpStatusCode =
+        meta.getHttpStatusCode() == null ? null : meta.getHttpStatusCode().toString();
+    boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
+    int tagCount = 0;
+    for (TagMap.EntryReader entry : tags) {
+      if (!DDTags.SPAN_EVENTS.equals(entry.tag())) {
+        tagCount++;
+      }
+    }
+
+    writable.writeInt(fieldId);
+    writable.startArray((tagCount + metaStruct.size() + (writeHttpStatus ? 1 : 0)) * 3);
+
+    for (TagMap.EntryReader entry : tags) {
+      if (DDTags.SPAN_EVENTS.equals(entry.tag())) {
+        continue;
+      }
+      writeAttribute(writable, entry.tag(), entry.objectValue());
+    }
+    if (writeHttpStatus) {
+      writeAttribute(writable, HTTP_STATUS, httpStatusCode);
+    }
+    for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
+      writeStreamingString(writable, metaStructField.getKey());
+      writable.writeInt(VALUE_TYPE_BYTES);
+      writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
+    }
+  }
+
+  private void encodeAttributes(
+      Writable writable, int fieldId, Map<String, Object> attrs, Map<String, Object> metaStruct) {
+    writable.writeInt(fieldId);
+    writable.startArray((attrs.size() + metaStruct.size()) * 3); // Triplets: (key, type, value).
 
     for (Map.Entry<String, Object> attr : attrs.entrySet()) {
-      String key = attr.getKey();
-      writeStreamingString(writable, key);
+      writeAttribute(writable, attr.getKey(), attr.getValue());
+    }
 
-      Object val = attr.getValue();
+    for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
+      writeStreamingString(writable, metaStructField.getKey());
+      writable.writeInt(VALUE_TYPE_BYTES);
+      writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
+    }
+  }
 
-      if (val instanceof Number) {
-        writable.writeInt(VALUE_TYPE_FLOAT);
-        writable.writeDouble(((Number) val).doubleValue());
-      } else if (val instanceof Boolean) {
-        writable.writeInt(VALUE_TYPE_BOOLEAN);
-        writable.writeBoolean((Boolean) val);
-      } else {
-        if (!(val instanceof String)) {
-          log.debug("Not a string value for key: {}, value: {}", key, val);
-        }
-        writable.writeInt(VALUE_TYPE_STRING);
-        writeStreamingString(
-            writable, val == null ? "" : val.toString()); // TODO check and implement
-      }
+  private void writeAttribute(Writable writable, String key, Object value) {
+    writeStreamingString(writable, key);
+    if (value instanceof Number) {
+      writable.writeInt(VALUE_TYPE_FLOAT);
+      writable.writeDouble(((Number) value).doubleValue());
+      return;
+    }
+    if (value instanceof Boolean) {
+      writable.writeInt(VALUE_TYPE_BOOLEAN);
+      writable.writeBoolean((Boolean) value);
+      return;
+    }
+    if (!(value instanceof String) && value != null) {
+      log.debug("Not a string value for key: {}, value: {}", key, value);
+    }
+    writable.writeInt(VALUE_TYPE_STRING);
+    writeStreamingString(writable, value == null ? "" : value.toString());
+  }
+
+  private byte[] serializeMetaStructValue(Object value) {
+    metaStructBuffer.mark();
+    try {
+      metaStructWriter.writeObject(value, null);
+      metaStructWriter.flush();
+      ByteBuffer encoded = metaStructBuffer.slice();
+      byte[] bytes = new byte[encoded.remaining()];
+      encoded.get(bytes);
+      return bytes;
+    } finally {
+      metaStructBuffer.reset();
     }
   }
 
@@ -289,7 +533,8 @@ public final class TraceMapperV1 implements TraceMapper {
     // appVersion = 9, the optional string `version` tag for the application set in the tracer
     encodeField(headerWriter, 9, cfg.getVersion());
     // attributes = 10, a collection of key to value pairs common in all `chunks`
-    encodeAttributes(headerWriter, 10, Collections.emptyMap()); // TODO check useful attrs.
+    encodeAttributes(
+        headerWriter, 10, Collections.emptyMap(), Collections.emptyMap()); // TODO check useful attrs.
     // chunks = 11, a list of trace `chunks`, value is written by PayloadV1
     headerWriter.writeInt(11);
 

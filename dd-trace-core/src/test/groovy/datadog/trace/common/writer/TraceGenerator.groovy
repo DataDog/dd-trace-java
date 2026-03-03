@@ -7,6 +7,7 @@ import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
@@ -164,7 +165,8 @@ class TraceGenerator {
     boolean measured,
     int samplingPriority,
     int statusCode,
-    CharSequence origin) {
+    CharSequence origin,
+    List<AgentSpanLink> spanLinks = Collections.emptyList()) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -180,7 +182,7 @@ class TraceGenerator {
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, samplingPriority, measured, topLevel,
         statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0,
-        ProcessTags.tagsForSerialization)
+        ProcessTags.tagsForSerialization, spanLinks == null ? Collections.emptyList() : spanLinks)
       this.httpStatusCode = (short) statusCode
     }
 

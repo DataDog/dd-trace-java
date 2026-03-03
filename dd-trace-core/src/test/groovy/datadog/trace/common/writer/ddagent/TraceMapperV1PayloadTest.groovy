@@ -14,8 +14,11 @@ import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.DDSpanId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
+import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
@@ -212,6 +215,245 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     "-3"            | 3
     "934086a686-7"  | 7
     "invalid"       | SamplingMechanism.DEFAULT
+  }
+
+  def "test span links are encoded from structured span links"() {
+    setup:
+    List<SpanLink> spanLinks = [
+      new SpanLink(
+        DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+        DDSpanId.fromHex("000000000000002a"),
+        (byte) 1,
+        "dd=s:1",
+        SpanAttributes.fromMap(["link.kind": "follows_from", "context_headers": "tracecontext"])),
+      new SpanLink(
+        DDTraceId.fromHex("00000000000000000000000000000001"),
+        DDSpanId.fromHex("0000000000000002"),
+        (byte) 0,
+        "",
+        SpanAttributes.EMPTY)
+    ]
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null,
+      spanLinks)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    List<Map<String, Object>> links = readFirstSpanLinks(unpacker, stringTable)
+
+    then:
+    assertEquals(2, links.size())
+    assertArrayEquals(DDTraceId.fromHex("11223344556677889900aabbccddeeff").to128BitBytes(), links[0].traceId as byte[])
+    assertEquals(DDSpanId.fromHex("000000000000002a"), links[0].spanId)
+    assertEquals("dd=s:1", links[0].tracestate)
+    assertEquals(1L, links[0].flags)
+    assertEquals(["link.kind": "follows_from", "context_headers": "tracecontext"], links[0].attributes)
+
+    assertArrayEquals(DDTraceId.fromHex("00000000000000000000000000000001").to128BitBytes(), links[1].traceId as byte[])
+    assertEquals(DDSpanId.fromHex("0000000000000002"), links[1].spanId)
+    assertEquals("", links[1].tracestate)
+    assertEquals(0L, links[1].flags)
+    assertEquals([:], links[1].attributes)
+  }
+
+  def "test missing span links encode empty links"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    List<Map<String, Object>> links = readFirstSpanLinks(unpacker, stringTable)
+
+    then:
+    assertTrue(links.isEmpty())
+  }
+
+  def "test span events are encoded from events tag"() {
+    setup:
+    List<Map<String, Object>> eventPayload = [
+      [
+        time_unix_nano: 1234567890L,
+        name          : "event.one",
+        attributes    : [
+          str   : "v",
+          int   : 42L,
+          double: 12.5d,
+          bool  : true,
+          arr   : ["x", 7L, 2.5d, false]
+        ]
+      ],
+      [
+        time_unix_nano: 1234567891L,
+        name          : "event.two"
+      ]
+    ]
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      ["events": eventPayload],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    List<Map<String, Object>> events = readFirstSpanEvents(unpacker, stringTable)
+
+    then:
+    assertEquals(2, events.size())
+    assertEquals(1234567890L, events[0].timeUnixNano)
+    assertEquals("event.one", events[0].name)
+    assertEquals("v", events[0].attributes["str"])
+    assertEquals(42L, events[0].attributes["int"])
+    assertEquals(12.5d, (events[0].attributes["double"] as Number).doubleValue(), 0.000001d)
+    assertEquals(true, events[0].attributes["bool"])
+    assertEquals(["x", 7L, 2.5d, false], events[0].attributes["arr"])
+
+    assertEquals(1234567891L, events[1].timeUnixNano)
+    assertEquals("event.two", events[1].name)
+    assertEquals([:], events[1].attributes)
+  }
+
+  def "test malformed span events fall back to empty events"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      ["events": [foo: "bar"]],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    List<Map<String, Object>> events = readFirstSpanEvents(unpacker, stringTable)
+
+    then:
+    assertTrue(events.isEmpty())
+  }
+
+  def "test meta struct is encoded as bytes attribute"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+    span.setMetaStruct("meta_key", [foo: "bar", answer: 42L])
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable)
+    byte[] metaStructBytes = attributes["meta_key"] as byte[]
+    MessageUnpacker metaStructUnpacker = MessagePack.newDefaultUnpacker(metaStructBytes)
+    int metaStructFieldCount = metaStructUnpacker.unpackMapHeader()
+    Map<String, Object> decodedMetaStruct = [:]
+    for (int i = 0; i < metaStructFieldCount; i++) {
+      String key = metaStructUnpacker.unpackString()
+      switch (metaStructUnpacker.getNextFormat().getValueType()) {
+        case org.msgpack.value.ValueType.INTEGER:
+          decodedMetaStruct[key] = metaStructUnpacker.unpackLong()
+          break
+        case org.msgpack.value.ValueType.STRING:
+          decodedMetaStruct[key] = metaStructUnpacker.unpackString()
+          break
+        default:
+          Assertions.fail("Unexpected meta_struct value type for key " + key)
+      }
+    }
+
+    then:
+    assertNotNull(metaStructBytes)
+    assertEquals("bar", decodedMetaStruct["foo"])
+    assertEquals(42L, decodedMetaStruct["answer"])
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
@@ -471,12 +713,17 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals(TraceMapperV1.getSpanKindValue(expectedSpan.getTag(Tags.SPAN_KIND)), spanKind)
 
     assertNotNull(attributes)
-    assertEquals(expectedSpan.getTags().size(), attributes.size())
+    int expectedHttpStatusCode = expectedSpan.getHttpStatusCode()
+    boolean shouldContainHttpStatus = expectedHttpStatusCode != 0 && !expectedSpan.getTags().containsKey("http.status_code")
+    assertEquals(expectedSpan.getTags().size() + (shouldContainHttpStatus ? 1 : 0), attributes.size())
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
       String key = entry.getKey()
       Object expectedValue = entry.getValue()
       assertTrue(attributes.containsKey(key), "Missing attribute key: $key")
       assertAttributeValueEquals(expectedValue, attributes.get(key), key)
+    }
+    if (shouldContainHttpStatus) {
+      assertEquals(Integer.toString(expectedHttpStatusCode), attributes.get("http.status_code"))
     }
   }
 
@@ -499,6 +746,12 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           break
         case TraceMapperV1.VALUE_TYPE_FLOAT:
           value = unpacker.unpackDouble()
+          break
+        case TraceMapperV1.VALUE_TYPE_BYTES:
+          int len = unpacker.unpackBinaryHeader()
+          byte[] data = new byte[len]
+          unpacker.readPayload(data)
+          value = data
           break
         default:
           Assertions.fail("Unknown attribute value type: " + attrType)
@@ -649,6 +902,11 @@ class TraceMapperV1PayloadTest extends DDSpecification {
               case TraceMapperV1.VALUE_TYPE_FLOAT:
                 unpacker.unpackDouble()
                 break
+              case TraceMapperV1.VALUE_TYPE_BYTES:
+                int len = unpacker.unpackBinaryHeader()
+                byte[] ignored = new byte[len]
+                unpacker.readPayload(ignored)
+                break
               default:
                 Assertions.fail("Unexpected attribute type while skipping: " + type)
             }
@@ -663,6 +921,366 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           break
         default:
           Assertions.fail("Unexpected span field id while skipping: " + fieldId)
+      }
+    }
+  }
+
+  private static Map<String, Object> readFirstSpanAttributes(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int payloadFieldCount = unpacker.unpackMapHeader()
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int payloadFieldId = unpacker.unpackInt()
+      if (payloadFieldId != 11) {
+        skipPayloadField(unpacker, payloadFieldId, stringTable)
+        continue
+      }
+
+      int chunkCount = unpacker.unpackArrayHeader()
+      assertEquals(1, chunkCount)
+
+      int chunkFieldCount = unpacker.unpackMapHeader()
+      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
+        int chunkFieldId = unpacker.unpackInt()
+        if (chunkFieldId != 4) {
+          skipChunkField(unpacker, chunkFieldId, stringTable)
+          continue
+        }
+
+        int spanCount = unpacker.unpackArrayHeader()
+        assertEquals(1, spanCount)
+
+        int spanFieldCount = unpacker.unpackMapHeader()
+        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
+          int spanFieldId = unpacker.unpackInt()
+          if (spanFieldId == 9) {
+            return readAttributes(unpacker, stringTable)
+          }
+          skipSpanField(unpacker, spanFieldId, stringTable)
+        }
+      }
+    }
+    Assertions.fail("Could not find span attributes field in first span")
+    return [:]
+  }
+
+  private static List<Map<String, Object>> readFirstSpanLinks(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int payloadFieldCount = unpacker.unpackMapHeader()
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int payloadFieldId = unpacker.unpackInt()
+      if (payloadFieldId != 11) {
+        skipPayloadField(unpacker, payloadFieldId, stringTable)
+        continue
+      }
+
+      int chunkCount = unpacker.unpackArrayHeader()
+      assertEquals(1, chunkCount)
+
+      int chunkFieldCount = unpacker.unpackMapHeader()
+      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
+        int chunkFieldId = unpacker.unpackInt()
+        if (chunkFieldId != 4) {
+          skipChunkField(unpacker, chunkFieldId, stringTable)
+          continue
+        }
+
+        int spanCount = unpacker.unpackArrayHeader()
+        assertEquals(1, spanCount)
+
+        int spanFieldCount = unpacker.unpackMapHeader()
+        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
+          int spanFieldId = unpacker.unpackInt()
+          if (spanFieldId == 11) {
+            return readSpanLinks(unpacker, stringTable)
+          }
+          skipSpanField(unpacker, spanFieldId, stringTable)
+        }
+      }
+    }
+    Assertions.fail("Could not find span links field in first span")
+    return []
+  }
+
+  private static void skipSpanField(MessageUnpacker unpacker, int fieldId, List<String> stringTable) {
+    switch (fieldId) {
+      case 1:
+      case 2:
+      case 3:
+      case 10:
+      case 13:
+      case 14:
+      case 15:
+        readStreamingString(unpacker, stringTable)
+        break
+      case 4:
+      case 5:
+        unpacker.unpackValue().asNumberValue().toLong()
+        break
+      case 6:
+      case 7:
+        unpacker.unpackLong()
+        break
+      case 8:
+        unpacker.unpackBoolean()
+        break
+      case 9:
+        readAttributes(unpacker, stringTable)
+        break
+      case 12:
+        int eventsCount = unpacker.unpackArrayHeader()
+        for (int j = 0; j < eventsCount; j++) {
+          skipSpanEvent(unpacker, stringTable)
+        }
+        break
+      case 11:
+        int linksCount = unpacker.unpackArrayHeader()
+        for (int j = 0; j < linksCount; j++) {
+          int linkFieldCount = unpacker.unpackMapHeader()
+          for (int k = 0; k < linkFieldCount; k++) {
+            int linkFieldId = unpacker.unpackInt()
+            switch (linkFieldId) {
+              case 1:
+                int traceIdLen = unpacker.unpackBinaryHeader()
+                byte[] ignored = new byte[traceIdLen]
+                unpacker.readPayload(ignored)
+                break
+              case 2:
+              case 5:
+                unpacker.unpackValue().asNumberValue().toLong()
+                break
+              case 3:
+                readAttributes(unpacker, stringTable)
+                break
+              case 4:
+                readStreamingString(unpacker, stringTable)
+                break
+              default:
+                Assertions.fail("Unexpected span link field id while skipping: " + linkFieldId)
+            }
+          }
+        }
+        break
+      case 16:
+        unpacker.unpackInt()
+        break
+      default:
+        Assertions.fail("Unexpected span field id while skipping: " + fieldId)
+    }
+  }
+
+  private static List<Map<String, Object>> readSpanLinks(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int linksCount = unpacker.unpackArrayHeader()
+    List<Map<String, Object>> links = []
+
+    for (int i = 0; i < linksCount; i++) {
+      int linkFieldCount = unpacker.unpackMapHeader()
+      assertEquals(5, linkFieldCount)
+
+      byte[] traceId = null
+      Long spanId = null
+      Map<String, Object> attributes = null
+      String tracestate = null
+      Long flags = null
+
+      for (int j = 0; j < linkFieldCount; j++) {
+        int linkFieldId = unpacker.unpackInt()
+        switch (linkFieldId) {
+          case 1:
+            int traceIdLen = unpacker.unpackBinaryHeader()
+            traceId = new byte[traceIdLen]
+            unpacker.readPayload(traceId)
+            break
+          case 2:
+            spanId = unpacker.unpackValue().asNumberValue().toLong()
+            break
+          case 3:
+            attributes = readAttributes(unpacker, stringTable)
+            break
+          case 4:
+            tracestate = readStreamingString(unpacker, stringTable)
+            break
+          case 5:
+            flags = unpacker.unpackValue().asNumberValue().toLong()
+            break
+          default:
+            Assertions.fail("Unexpected span link field id: " + linkFieldId)
+        }
+      }
+
+      links.add([
+        traceId   : traceId,
+        spanId    : spanId,
+        attributes: attributes,
+        tracestate: tracestate,
+        flags     : flags
+      ])
+    }
+
+    return links
+  }
+
+  private static List<Map<String, Object>> readFirstSpanEvents(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int payloadFieldCount = unpacker.unpackMapHeader()
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int payloadFieldId = unpacker.unpackInt()
+      if (payloadFieldId != 11) {
+        skipPayloadField(unpacker, payloadFieldId, stringTable)
+        continue
+      }
+
+      int chunkCount = unpacker.unpackArrayHeader()
+      assertEquals(1, chunkCount)
+
+      int chunkFieldCount = unpacker.unpackMapHeader()
+      for (int chunkFieldIndex = 0; chunkFieldIndex < chunkFieldCount; chunkFieldIndex++) {
+        int chunkFieldId = unpacker.unpackInt()
+        if (chunkFieldId != 4) {
+          skipChunkField(unpacker, chunkFieldId, stringTable)
+          continue
+        }
+
+        int spanCount = unpacker.unpackArrayHeader()
+        assertEquals(1, spanCount)
+
+        int spanFieldCount = unpacker.unpackMapHeader()
+        for (int spanFieldIndex = 0; spanFieldIndex < spanFieldCount; spanFieldIndex++) {
+          int spanFieldId = unpacker.unpackInt()
+          if (spanFieldId == 12) {
+            return readSpanEvents(unpacker, stringTable)
+          }
+          skipSpanField(unpacker, spanFieldId, stringTable)
+        }
+      }
+    }
+    Assertions.fail("Could not find span events field in first span")
+    return []
+  }
+
+  private static List<Map<String, Object>> readSpanEvents(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int eventsCount = unpacker.unpackArrayHeader()
+    List<Map<String, Object>> events = []
+
+    for (int i = 0; i < eventsCount; i++) {
+      int eventFieldCount = unpacker.unpackMapHeader()
+      assertEquals(3, eventFieldCount)
+
+      Long timeUnixNano = null
+      String name = null
+      Map<String, Object> attributes = null
+
+      for (int j = 0; j < eventFieldCount; j++) {
+        int eventFieldId = unpacker.unpackInt()
+        switch (eventFieldId) {
+          case 1:
+            timeUnixNano = unpacker.unpackLong()
+            break
+          case 2:
+            name = readStreamingString(unpacker, stringTable)
+            break
+          case 3:
+            attributes = readEventAttributes(unpacker, stringTable)
+            break
+          default:
+            Assertions.fail("Unexpected span event field id: " + eventFieldId)
+        }
+      }
+
+      events.add([
+        timeUnixNano: timeUnixNano,
+        name        : name,
+        attributes  : attributes
+      ])
+    }
+    return events
+  }
+
+  private static Map<String, Object> readEventAttributes(
+    MessageUnpacker unpacker,
+    List<String> stringTable) {
+    int attrArraySize = unpacker.unpackArrayHeader()
+    assertEquals(0, attrArraySize % 3)
+    int attrCount = attrArraySize / 3
+    Map<String, Object> attributes = new HashMap<>()
+
+    for (int i = 0; i < attrCount; i++) {
+      String key = readStreamingString(unpacker, stringTable)
+      int attrType = unpacker.unpackInt()
+      Object value
+      switch (attrType) {
+        case TraceMapperV1.VALUE_TYPE_STRING:
+          value = readStreamingString(unpacker, stringTable)
+          break
+        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
+          value = unpacker.unpackBoolean()
+          break
+        case TraceMapperV1.VALUE_TYPE_FLOAT:
+          value = unpacker.unpackDouble()
+          break
+        case TraceMapperV1.VALUE_TYPE_INT:
+          value = unpacker.unpackLong()
+          break
+        case TraceMapperV1.VALUE_TYPE_ARRAY:
+          value = readEventArrayValue(unpacker, stringTable)
+          break
+        default:
+          Assertions.fail("Unknown event attribute value type: " + attrType)
+      }
+      attributes.put(key, value)
+    }
+    return attributes
+  }
+
+  private static List<Object> readEventArrayValue(MessageUnpacker unpacker, List<String> stringTable) {
+    int itemArraySize = unpacker.unpackArrayHeader()
+    assertEquals(0, itemArraySize % 2)
+    int itemCount = itemArraySize / 2
+    List<Object> values = []
+    for (int i = 0; i < itemCount; i++) {
+      int itemType = unpacker.unpackInt()
+      switch (itemType) {
+        case TraceMapperV1.VALUE_TYPE_STRING:
+          values.add(readStreamingString(unpacker, stringTable))
+          break
+        case TraceMapperV1.VALUE_TYPE_BOOLEAN:
+          values.add(unpacker.unpackBoolean())
+          break
+        case TraceMapperV1.VALUE_TYPE_FLOAT:
+          values.add(unpacker.unpackDouble())
+          break
+        case TraceMapperV1.VALUE_TYPE_INT:
+          values.add(unpacker.unpackLong())
+          break
+        default:
+          Assertions.fail("Unknown event array item type: " + itemType)
+      }
+    }
+    return values
+  }
+
+  private static void skipSpanEvent(MessageUnpacker unpacker, List<String> stringTable) {
+    int fieldCount = unpacker.unpackMapHeader()
+    for (int i = 0; i < fieldCount; i++) {
+      int fieldId = unpacker.unpackInt()
+      switch (fieldId) {
+        case 1:
+          unpacker.unpackLong()
+          break
+        case 2:
+          readStreamingString(unpacker, stringTable)
+          break
+        case 3:
+          readEventAttributes(unpacker, stringTable)
+          break
+        default:
+          Assertions.fail("Unexpected event field id while skipping: " + fieldId)
       }
     }
   }

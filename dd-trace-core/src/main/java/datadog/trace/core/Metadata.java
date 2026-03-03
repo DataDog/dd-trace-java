@@ -3,7 +3,10 @@ package datadog.trace.core;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import datadog.trace.api.TagMap;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public final class Metadata {
@@ -19,6 +22,7 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
+  private final List<AgentSpanLink> spanLinks;
 
   public Metadata(
       long threadId,
@@ -31,7 +35,8 @@ public final class Metadata {
       UTF8BytesString httpStatusCode,
       CharSequence origin,
       int longRunningVersion,
-      UTF8BytesString processTags) {
+      UTF8BytesString processTags,
+      List<AgentSpanLink> spanLinks) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -43,6 +48,7 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
+    this.spanLinks = spanLinks == null ? Collections.emptyList() : spanLinks;
   }
 
   public UTF8BytesString getHttpStatusCode() {
@@ -91,5 +97,9 @@ public final class Metadata {
 
   public UTF8BytesString processTags() {
     return processTags;
+  }
+
+  public List<AgentSpanLink> getSpanLinks() {
+    return spanLinks;
   }
 }
