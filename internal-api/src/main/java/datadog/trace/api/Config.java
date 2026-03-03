@@ -706,7 +706,6 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.config.inversion.ConfigHelper;
-import datadog.trace.context.TraceScope;
 import datadog.trace.util.ConfigStrings;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;

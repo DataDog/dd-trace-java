@@ -9,7 +9,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.flare.TracerFlare
 import datadog.trace.api.time.SystemTimeSource
 import datadog.trace.api.datastreams.NoopPathwayContext
-import datadog.trace.context.TraceScope
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.scopemanager.ContinuableScopeManager
@@ -47,7 +47,7 @@ class PendingTraceBufferTest extends DDSpecification {
   def traceConfig = Mock(CoreTracer.ConfigSnapshot)
   def scopeManager = new ContinuableScopeManager(10, true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy, SystemTimeSource.INSTANCE, false, HealthMetrics.NO_OP)
-  List<TraceScope.Continuation> continuations = []
+  List<AgentScope.Continuation> continuations = []
 
   def setup() {
     tracer.captureTraceConfig() >> traceConfig
@@ -272,7 +272,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     def trace = factory.create(DDTraceId.ONE)
     def parent = addContinuation(newSpanOf(trace))
-    TraceScope.Continuation continuation = continuations[0]
+    AgentScope.Continuation continuation = continuations[0]
 
     expect:
     continuations.size() == 1

@@ -5,7 +5,6 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
-import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.PropagationTags
@@ -146,7 +145,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
     def scope = tracer.buildSpan("some name").startActive(finishSpan)
 
     expect:
-    scope instanceof TraceScope
     tracer.activeSpan().delegate == scope.span().delegate
 
     when:
@@ -169,23 +167,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
     AgentTracer.TracerAPI internalTracer = tracer.tracer.tracer
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
-    internalTracer.setAsyncPropagationEnabled(false)
-
-    expect:
-    span instanceof MutableSpan
-    scope instanceof TraceScope
-    !internalTracer.isAsyncPropagationEnabled()
-    (scope as TraceScope).capture() == noopContinuation()
-    (tracer.scopeManager().active().span().delegate == span.delegate)
-
-    when:
-    internalTracer.setAsyncPropagationEnabled(true)
-    def continuation = (scope as TraceScope).capture()
-    continuation.cancel()
-
-    then:
-    internalTracer.isAsyncPropagationEnabled()
-    continuation instanceof TraceScope.Continuation
 
     when: "attempting to close the span this way doesn't work because we lost the 'finishSpan' reference"
     tracer.scopeManager().active().close()
@@ -217,7 +198,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
 
     expect:
     !(span instanceof MutableSpan)
-    scope instanceof TraceScope
 
     and: "non OTSpans aren't supported and get converted to NoopAgentSpan"
     tracer.scopeManager().active().span() != span
@@ -228,36 +208,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
 
     then:
     assertTraces(0) {}
-  }
-
-  def "test continuation"() {
-    setup:
-    def span = tracer.buildSpan("some name").start()
-    TraceScope scope = tracer.scopeManager().activate(span, false)
-
-    expect:
-    tracer.activeSpan().delegate == span.delegate
-
-    when:
-    def continuation = scope.capture()
-
-    then:
-    continuation instanceof TraceScope.Continuation
-
-    when:
-    scope.close()
-
-    then:
-    tracer.activeSpan() == null
-
-    when:
-    scope = continuation.activate()
-
-    then:
-    tracer.activeSpan().delegate == span.delegate
-
-    cleanup:
-    scope.close()
   }
 
   def "closing scope when not on top"() {

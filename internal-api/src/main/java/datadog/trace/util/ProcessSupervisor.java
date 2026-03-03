@@ -9,7 +9,6 @@ import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
 
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.io.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

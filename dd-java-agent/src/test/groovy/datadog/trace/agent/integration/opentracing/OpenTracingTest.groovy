@@ -1,7 +1,5 @@
 package datadog.trace.agent.integration.opentracing
 
-import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.context.TraceScope
 import io.opentracing.util.GlobalTracer
 import spock.lang.Specification
 import spock.lang.Subject
@@ -22,15 +20,10 @@ class OpenTracingTest extends Specification {
   def "test span/scope interfaces"() {
     setup:
     def span = tracer.buildSpan("test").start()
-
-    expect:
-    span instanceof MutableSpan
-
-    when:
     def scope = tracer.scopeManager().activate(span, false)
 
     then:
-    scope instanceof TraceScope
+    scope.span() == span
 
     cleanup:
     scope.close()

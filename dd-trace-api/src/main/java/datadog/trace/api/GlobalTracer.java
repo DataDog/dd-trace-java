@@ -1,8 +1,6 @@
 package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.context.NoopTraceScope;
-import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -32,22 +30,12 @@ public class GlobalTracer {
 
         @Override
         public Blackhole muteTracing() {
-          return NoopTraceScope.INSTANCE;
+          return NO_OP_BLACKHOLE;
         }
-
-        @Override
-        public TraceScope.Continuation captureActiveSpan() {
-          return NoopTraceScope.NoopContinuation.INSTANCE;
-        }
-
-        @Override
-        public boolean isAsyncPropagationEnabled() {
-          return false;
-        }
-
-        @Override
-        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
       };
+
+  private static final Tracer.Blackhole NO_OP_BLACKHOLE = () -> {
+  };
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;

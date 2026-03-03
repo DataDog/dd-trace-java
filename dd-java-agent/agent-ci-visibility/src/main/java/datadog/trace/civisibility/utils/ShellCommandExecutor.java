@@ -4,7 +4,6 @@ import datadog.communication.util.IOUtils;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.io.ByteArrayInputStream;

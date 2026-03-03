@@ -23,7 +23,7 @@ public interface Tracer {
    */
   boolean addTraceInterceptor(TraceInterceptor traceInterceptor);
 
-  TraceScope muteTracing();
+  Blackhole muteTracing();
 
   /**
    * When asynchronous propagation is enabled, prevent the currently active trace from reporting
@@ -61,4 +61,8 @@ public interface Tracer {
    */
   @Deprecated
   void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
+  interface Blackhole extends AutoCloseable {
+    @Override
+    void close();
+  }
 }

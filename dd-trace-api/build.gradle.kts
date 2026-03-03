@@ -58,9 +58,6 @@ val excludedClassesCoverage by extra(
     "datadog.appsec.api.user.*",
     "datadog.appsec.api.login.*",
     // Default fallback methods to not break legacy API
-    "datadog.trace.context.TraceScope",
-    "datadog.trace.context.NoopTraceScope.NoopContinuation",
-    "datadog.trace.context.NoopTraceScope",
     "datadog.trace.payloadtags.PayloadTagsData",
     "datadog.trace.payloadtags.PayloadTagsData.PathAndValue",
     "datadog.trace.api.llmobs.LLMObsTags",

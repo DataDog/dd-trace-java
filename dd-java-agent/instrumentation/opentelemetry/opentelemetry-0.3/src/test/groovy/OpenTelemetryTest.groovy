@@ -8,7 +8,6 @@ import datadog.trace.core.propagation.PropagationTags
 import static datadog.trace.api.TracePropagationStyle.NONE
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
-import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
 import io.opentelemetry.OpenTelemetry
@@ -190,7 +189,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     def scope = tracer.withSpan(span)
 
     expect:
-    scope instanceof TraceScope
     tracer.currentSpan.delegate == scope.delegate.span()
 
     when:
@@ -227,37 +225,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     tracer.currentSpan == null
     _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
-  }
-
-  def "test continuation"() {
-    setup:
-    def span = tracer.spanBuilder("some name").startSpan()
-    TraceScope scope = tracer.withSpan(span)
-
-    expect:
-    tracer.currentSpan.delegate == span.delegate
-
-    when:
-    def continuation = scope.capture()
-
-    then:
-    continuation instanceof TraceScope.Continuation
-
-    when:
-    scope.close()
-
-    then:
-    tracer.currentSpan == null
-
-    when:
-    scope = continuation.activate()
-
-    then:
-    tracer.currentSpan.delegate == span.delegate
-
-    cleanup:
-    scope.close()
-    span.end()
   }
 
   def "test inject extract"() {

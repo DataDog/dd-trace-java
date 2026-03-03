@@ -10,7 +10,6 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
