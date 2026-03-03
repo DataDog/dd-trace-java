@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.http.client.HttpResponse;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -75,8 +76,20 @@ public final class JdkHttpResponse implements HttpResponse {
 
   @Override
   public String bodyAsString() throws IOException {
-    try (InputStream body = body()) {
-      return new String(body.readAllBytes(), parseCharset());
+    // JDK 11 has a bug where calling readAllBytes() on the HttpResponseInputStream triggers an
+    // AssertionError ResponseSubscribers.java when internal assertions are enabled.
+    // The workaround is to use manual buffered reading instead.
+    try (InputStream bodyStream = delegate.body()) {
+      if (bodyStream == null) {
+        return "";
+      }
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      byte[] chunk = new byte[8192];
+      int bytesRead;
+      while ((bytesRead = bodyStream.read(chunk)) != -1) {
+        buffer.write(chunk, 0, bytesRead);
+      }
+      return buffer.toString(parseCharset());
     }
   }
 
@@ -116,16 +129,7 @@ public final class JdkHttpResponse implements HttpResponse {
 
   @Override
   public void close() {
-    // TODO Need review. Unclear if needed
-    // JDK HttpResponse doesn't require explicit closing
-    // The InputStream will be closed by the caller
-    try {
-      InputStream body = delegate.body();
-      if (body != null) {
-        body.close();
-      }
-    } catch (Exception e) {
-      // Ignore exceptions during close
-    }
+    // JDK HttpResponse doesn't require explicit closing.
+    // The JDK HTTP client caller must manage the response body stream when calling #body().
   }
 }
