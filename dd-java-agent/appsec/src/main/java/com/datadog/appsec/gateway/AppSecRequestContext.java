@@ -11,9 +11,9 @@ import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.core.endpoint.EndpointResolver;
 import datadog.trace.util.Numbers;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -413,11 +413,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different raw URI for given request context");
+    if (this.savedRawURI == null) {
+      this.savedRawURI = savedRawURI;
     }
-    this.savedRawURI = savedRawURI;
   }
 
   public String getRoute() {

@@ -920,10 +920,14 @@ public class GatewayBridge {
         // Report all collected request headers on user tracking event
         writeRequestHeaders(
             ctx, traceSeg, REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       } else {
         // Report minimum set of collected request headers
         writeRequestHeaders(
             ctx, traceSeg, DEFAULT_REQUEST_HEADERS_ALLOW_LIST, ctx.getRequestHeaders(), false);
+        writeResponseHeaders(
+            ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
@@ -985,21 +989,28 @@ public class GatewayBridge {
     }
     ctx.setMethod(method);
     ctx.setScheme(uri.scheme());
-    if (uri.supportsRaw()) {
-      ctx.setRawURI(uri.raw());
-    } else {
-      try {
-        URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
-        String q = encodedUri.getRawQuery();
-        StringBuilder encoded = new StringBuilder();
-        encoded.append(encodedUri.getRawPath());
-        if (null != q && !q.isEmpty()) {
-          encoded.append('?').append(q);
+    if (ctx.getSavedRawURI() == null) {
+      if (uri.supportsRaw()) {
+        ctx.setRawURI(uri.raw());
+      } else {
+        try {
+          URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
+          String q = encodedUri.getRawQuery();
+          StringBuilder encoded = new StringBuilder();
+          encoded.append(encodedUri.getRawPath());
+          if (null != q && !q.isEmpty()) {
+            encoded.append('?').append(q);
+          }
+          ctx.setRawURI(encoded.toString());
+        } catch (URISyntaxException e) {
+          log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
         }
-        ctx.setRawURI(encoded.toString());
-      } catch (URISyntaxException e) {
-        log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
       }
+    } else {
+      log.debug(
+          SEND_TELEMETRY,
+          "Raw URI already set to '{}'; ignoring new URI callback",
+          ctx.getSavedRawURI());
     }
     return maybePublishRequestData(ctx);
   }

@@ -1,5 +1,6 @@
 package com.datadog.debugger.symbol;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -65,6 +66,13 @@ public class JarScanner {
   private static Path getPathFromPrefixedFileName(String locationStr, String prefix, int endIdx) {
     String fileName = locationStr.substring(prefix.length(), endIdx);
     LOGGER.debug("jar filename={}", fileName);
-    return Paths.get(fileName);
+    try {
+      // Reconstruct a file URI and use Paths.get(URI) to correctly handle
+      // platform-specific paths, including Windows drive letters (e.g. /C:/...)
+      return Paths.get(new URI("file:" + fileName));
+    } catch (URISyntaxException e) {
+      LOGGER.debug("Failed to parse as URI: {}, falling back to direct path", fileName, e);
+      return Paths.get(fileName);
+    }
   }
 }

@@ -199,6 +199,7 @@ class TracerFlareSmokeTest extends AbstractSmokeTest {
     validateNoUnexpectedFiles(zipContents, CORE_FILES + OPTIONAL_FILES)
   }
 
+  @Flaky("No flare file created in 30 seconds under various JDKs: oracle8, ibm8, zulu8")
   def "tracer generates flare with profiling template override"() {
     when:
     // Wait for flare file to be created for process 2 (profiling with template override)

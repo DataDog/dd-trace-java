@@ -17,13 +17,13 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-import datadog.trace.core.propagation.W3CTraceParent;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -60,10 +60,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.propagation.W3CTraceParent",
-      packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
     };
   }
 
