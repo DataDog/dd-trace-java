@@ -253,12 +253,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void initApplicationSpanIfNotInitialized() {
-    if (applicationSpan != null) {
+    if (applicationSpan != null || isRunningOnDatabricks) {
       return;
     }
 
     log.debug("Starting tracer application span.");
-    if (!isRunningOnDatabricks) {
       AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
       if (applicationStart != null) {
@@ -294,7 +293,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan = builder.start();
       setDataJobsSamplingPriority(applicationSpan);
       applicationSpan.setMeasured(true);
-    }
+
   }
 
   private void captureOpenlineageContextIfPresent(
@@ -331,24 +330,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
     log.info("Finishing spark application trace");
-
-    if (applicationEnded) {
-      log.info(
-          "finishApplicationEnded: isRunningOnDatabricks={}, databricksClusterName={}, applicationSpan={}, jobCount={}",
-          isRunningOnDatabricks,
-          databricksClusterName,
-          applicationSpan != null ? "exists" : "null",
-          jobCount);
-      return;
-    }
     applicationEnded = true;
-
-    log.info(
-        "finishApplication: isRunningOnDatabricks={}, databricksClusterName={}, applicationSpan={}, jobCount={}",
-        isRunningOnDatabricks,
-        databricksClusterName,
-        applicationSpan != null ? "exists" : "null",
-        jobCount);
 
     if (applicationSpan == null && jobCount > 0) {
       // If the application span is not initialized, but spark jobs have been executed, all those
@@ -360,8 +342,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (applicationSpan == null) {
       // On Databricks or streaming environments, the application span is not created.
       // Flush any remaining traces and return.
-      log.info(
-          "No application span created, skipping. isRunningOnDatabricks={}", isRunningOnDatabricks);
       tracer.flush();
       return;
     }
