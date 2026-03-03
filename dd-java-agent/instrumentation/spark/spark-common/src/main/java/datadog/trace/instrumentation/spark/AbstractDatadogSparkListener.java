@@ -274,22 +274,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     }
 
-      captureApplicationParameters(builder);
-      captureEmrStepId(builder);
+    captureApplicationParameters(builder);
+    captureEmrStepId(builder);
 
-      Optional<OpenlineageParentContext> openlineageParentContext =
-          OpenlineageParentContext.from(sparkConf);
-      // We know we're not in Databricks context
-      if (openlineageParentContext.isPresent()) {
-        captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
-      } else {
-        builder.asChildOf(predeterminedTraceIdContext);
-      }
+    Optional<OpenlineageParentContext> openlineageParentContext =
+        OpenlineageParentContext.from(sparkConf);
+    // We know we're not in Databricks context
+    if (openlineageParentContext.isPresent()) {
+      captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
+    } else {
+      builder.asChildOf(predeterminedTraceIdContext);
+    }
 
-      applicationSpan = builder.start();
-      setDataJobsSamplingPriority(applicationSpan);
-      applicationSpan.setMeasured(true);
-
+    applicationSpan = builder.start();
+    setDataJobsSamplingPriority(applicationSpan);
+    applicationSpan.setMeasured(true);
   }
 
   private void captureOpenlineageContextIfPresent(
@@ -324,7 +323,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       long time, Throwable throwable, int exitCode, String msg) {
     log.info("Finishing spark application trace");
 
-    if(applicationEnded){
+    if (applicationEnded) {
       return;
     }
     applicationEnded = true;
