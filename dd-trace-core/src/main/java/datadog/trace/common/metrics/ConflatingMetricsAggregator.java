@@ -32,6 +32,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.common.writer.ddagent.GenerationalUtf8Cache;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -65,19 +66,30 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS =
       DDCaches.newFixedSizeCache(16);
+
   private static final DDCache<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE =
           DDCaches.newFixedSizeCache(
               64); // it can be unbounded since those values are returned by the agent and should be
   // under control. 64 entries is enough in this case to contain all the peer tags.
+  // Shared bytes cache: keys are composite "tagName:tagValue" strings. Using a single instance is
+  // safe because composites already carry the tag-name prefix, so cross-tag collisions cannot
+  // occur.  The GenerationalUtf8Cache is consulted only on inner-DDCache miss; on hit the
+  // UTF8BytesString is returned directly from the inner DDCache with zero allocations.
+  private static final GenerationalUtf8Cache PEER_TAGS_BYTES_CACHE =
+      new GenerationalUtf8Cache(512);
   private static final Function<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE_ADDER =
           key ->
               Pair.of(
                   DDCaches.newFixedSizeCache(512),
-                  value -> UTF8BytesString.create(key + ":" + value));
+                  value -> {
+                    final String composite = key + ":" + value;
+                    return UTF8BytesString.create(
+                        composite, PEER_TAGS_BYTES_CACHE.getUtf8(composite));
+                  });
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
