@@ -254,7 +254,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     log.debug("Starting tracer application span.");
-    
+
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
