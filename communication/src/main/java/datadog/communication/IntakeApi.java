@@ -94,6 +94,7 @@ public class IntakeApi implements BackendApi {
                 + uri
                 + " returned error response "
                 + response.code()
+                + "; "
                 + response.bodyAsString());
       }
     }

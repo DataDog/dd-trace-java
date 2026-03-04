@@ -101,25 +101,13 @@ public class EvpProxyApi implements BackendApi {
 
         return responseParser.apply(responseBodyStream);
       } else {
-        String errorBody = "";
-        try {
-          InputStream errorStream = response.body();
-          if (errorStream != null) {
-            byte[] bytes = new byte[8192];
-            int read = errorStream.read(bytes);
-            if (read > 0) {
-              errorBody = new String(bytes, 0, read);
-            }
-          }
-        } catch (IOException e) {
-          // Ignore errors reading error body
-        }
         throw new IOException(
             "Request to "
                 + uri
                 + " returned error response "
                 + response.code()
-                + (errorBody.isEmpty() ? "" : "; " + errorBody));
+                + "; "
+                + response.bodyAsString());
       }
     }
   }
