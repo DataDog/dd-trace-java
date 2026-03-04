@@ -43,6 +43,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
@@ -931,10 +932,15 @@ public class GatewayBridge {
             ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
       // For blocking responses the normal response-header collection is bypassed; write the
-      // content-type that was determined when the blocking action was raised.
+      // content-type and content-length that were determined when the blocking action was raised.
       String blockingContentType = ctx.getBlockingResponseContentType();
       if (blockingContentType != null) {
         traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
+        int blockingContentLength = ctx.getBlockingResponseContentLength();
+        if (blockingContentLength >= 0) {
+          traceSeg.setTagTop(
+              "http.response.headers.content-length", String.valueOf(blockingContentLength));
+        }
       }
 
       // If extracted any derivatives - commit them
@@ -1299,26 +1305,14 @@ public class GatewayBridge {
     if (bct == BlockingContentType.NONE) {
       return; // redirect — no response body
     }
-    String contentType;
-    if (bct == BlockingContentType.HTML) {
-      contentType = "text/html;charset=utf-8";
-    } else if (bct == BlockingContentType.JSON) {
-      contentType = "application/json";
-    } else {
-      // AUTO: pick based on the request Accept header
-      List<String> acceptValues = ctx.getRequestHeaders().get("accept");
-      boolean preferHtml = false;
-      if (acceptValues != null) {
-        for (String accept : acceptValues) {
-          if (accept != null && accept.contains("text/html")) {
-            preferHtml = true;
-            break;
-          }
-        }
-      }
-      contentType = preferHtml ? "text/html;charset=utf-8" : "application/json";
-    }
-    ctx.setBlockingResponseContentType(contentType);
+    List<String> acceptValues = ctx.getRequestHeaders().get("accept");
+    String acceptHeader =
+        (acceptValues == null || acceptValues.isEmpty()) ? null : acceptValues.get(0);
+    BlockingActionHelper.TemplateType tt =
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+    byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
+    ctx.setBlockingResponseContentType(BlockingActionHelper.getContentType(tt));
+    ctx.setBlockingResponseContentLength(template.length);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(
