@@ -102,6 +102,9 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
+    // patch OkHttp to avoid premain provider lookup
+    exclude '**/okhttp3/internal/platform/Platform.class'
+    relocate('okhttp3.internal.platform.Platform', 'datadog.okhttp3.internal.platform.PatchPlatform')
     // use dd-instrument-java's embedded copy of asm
     relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
