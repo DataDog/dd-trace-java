@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -44,6 +45,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     llmSpan.setTag("_ml_obs_tag.input", inputMessages)
     llmSpan.setTag("_ml_obs_tag.output", outputMessages)
     llmSpan.setTag("_ml_obs_tag.metadata", [temperature: 0.7, max_tokens: 100])
+    llmSpan.setError(true)
+    llmSpan.setTag(DDTags.ERROR_MSG, "boom")
+    llmSpan.setTag(DDTags.ERROR_TYPE, "java.lang.IllegalStateException")
+    llmSpan.setTag(DDTags.ERROR_STACK, "stacktrace")
 
     llmSpan.finish()
 
@@ -101,7 +106,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanData.containsKey("trace_id")
     spanData.containsKey("start_ns")
     spanData.containsKey("duration")
-    spanData["error"] == 0
+    spanData["error"] == 1
     spanData.containsKey("_dd")
     spanData["_dd"]["span_id"] == spanData["span_id"]
     spanData["_dd"]["trace_id"] == spanData["trace_id"]
@@ -109,6 +114,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     spanData.containsKey("meta")
     spanData["meta"]["span.kind"] == "llm"
+    spanData["meta"].containsKey("error")
+    spanData["meta"]["error"]["message"] == "boom"
+    spanData["meta"]["error"]["type"] == "java.lang.IllegalStateException"
+    spanData["meta"]["error"]["stack"] == "stacktrace"
     spanData["meta"].containsKey("input")
     spanData["meta"]["input"].containsKey("messages")
     spanData["meta"]["input"]["messages"][0].containsKey("content")

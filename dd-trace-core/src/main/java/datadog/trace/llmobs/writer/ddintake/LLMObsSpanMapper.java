@@ -60,6 +60,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] START_NS = "start_ns".getBytes(StandardCharsets.UTF_8);
   private static final byte[] STATUS = "status".getBytes(StandardCharsets.UTF_8);
   private static final byte[] ERROR = "error".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] ERROR_MESSAGE = "message".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] ERROR_TYPE = "type".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] ERROR_STACK = "stack".getBytes(StandardCharsets.UTF_8);
 
   private static final byte[] META = "meta".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
@@ -215,15 +218,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
     Map<String, String> errors = new HashMap<>();
     String errorMsg = span.getTag(DDTags.ERROR_MSG);
     if (errorMsg != null && !errorMsg.isEmpty()) {
-      errors.put(DDTags.ERROR_MSG, errorMsg);
+      errors.put("message", errorMsg);
     }
     String errorType = span.getTag(DDTags.ERROR_TYPE);
     if (errorType != null && !errorType.isEmpty()) {
-      errors.put(DDTags.ERROR_TYPE, errorType);
+      errors.put("type", errorType);
     }
     String errorStack = span.getTag(DDTags.ERROR_STACK);
     if (errorStack != null && !errorStack.isEmpty()) {
-      errors.put(DDTags.ERROR_STACK, errorStack);
+      errors.put("stack", errorStack);
     }
     return errors;
   }
@@ -306,15 +309,35 @@ public class LLMObsSpanMapper implements RemoteMapper {
       }
 
       // write meta (11)
-      int metaSize = tagsToRemapToMeta.size() + 1 + (null != errorInfo ? errorInfo.size() : 0);
+      int metaSize =
+          tagsToRemapToMeta.size()
+              + 1
+              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
       writable.writeString(spanKind, null);
 
-      for (Map.Entry<String, String> error : errorInfo.entrySet()) {
-        writable.writeUTF8(error.getKey().getBytes());
-        writable.writeString(error.getValue(), null);
+      if (null != errorInfo && !errorInfo.isEmpty()) {
+        writable.writeUTF8(ERROR);
+        writable.startMap(errorInfo.size());
+        for (Map.Entry<String, String> error : errorInfo.entrySet()) {
+          switch (error.getKey()) {
+            case "message":
+              writable.writeUTF8(ERROR_MESSAGE);
+              break;
+            case "type":
+              writable.writeUTF8(ERROR_TYPE);
+              break;
+            case "stack":
+              writable.writeUTF8(ERROR_STACK);
+              break;
+            default:
+              writable.writeString(error.getKey(), null);
+              break;
+          }
+          writable.writeString(error.getValue(), null);
+        }
       }
 
       for (Map.Entry<String, Object> tag : tagsToRemapToMeta.entrySet()) {
