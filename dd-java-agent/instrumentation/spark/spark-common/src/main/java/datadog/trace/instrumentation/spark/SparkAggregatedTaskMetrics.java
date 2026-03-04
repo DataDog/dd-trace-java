@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.TaskFailedReason;
@@ -19,6 +18,7 @@ import org.apache.spark.util.AccumulatorV2;
 class SparkAggregatedTaskMetrics {
   private static final double HISTOGRAM_RELATIVE_ACCURACY = 1 / 32.0;
   private static final int HISTOGRAM_MAX_NUM_BINS = 512;
+  private static final int MAX_ACCUMULATOR_SIZE = 5000;
   private final boolean isSparkTaskHistogramEnabled = Config.get().isSparkTaskHistogramEnabled();
 
   private long executorDeserializeTime = 0L;
@@ -143,7 +143,7 @@ class SparkAggregatedTaskMetrics {
         // only needed for SHS?
         if (externalAccumulators != null && !externalAccumulators.isEmpty()) {
           if (externalAccumulableHistograms == null) {
-            externalAccumulableHistograms = new HashMap<>(externalAccumulators.size());
+            externalAccumulableHistograms = new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
           }
 
           externalAccumulators.forEach(
