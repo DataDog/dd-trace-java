@@ -10,6 +10,8 @@ def otelInstrumentationApiVersion = '2.4.0'
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'dd-trace-java.build-time-instrumentation'
 
+def otelUnpackedDir = layout.buildDirectory.dir("otel-unpacked")
+
 configurations {
   def ec = register('embeddedClasspath') {
     visible = false
@@ -30,6 +32,7 @@ configurations {
 
 buildTimeInstrumentation {
   plugins.addAll('datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin')
+  includeClassDirectories.from(otelUnpackedDir)
 }
 
 minimumInstructionCoverage = 0.0
@@ -60,7 +63,8 @@ dependencies {
   // buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationToolingPlugins')
 }
 
-// unpack embeddedClasspath to same path as compiled classes so it can get instrumented
+// Unpack the embeddedClasspath jars into otelUnpackedDir so that OtelShimGradlePlugin can
+// instrument them (e.g. inject the OTel shim).
 tasks.register('unpackJars', Copy) {
   dependsOn configurations.named('embeddedClasspath')
   exclude 'META-INF/'
@@ -72,7 +76,9 @@ tasks.register('unpackJars', Copy) {
       zipTree(it)
     }
   })
-  into compileJava.destinationDirectory
+  // Note: they are intentionally kept in a separate directory from compileJava's output so that
+  // Gradle's stale-output cleanup on a full rebuild does not delete them before instrumentation.
+  into otelUnpackedDir
 }
 
 tasks.named('compileJava') {
