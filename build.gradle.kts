@@ -9,6 +9,12 @@ plugins {
   id("dd-trace-java.tracer-version")
   id("dd-trace-java.dump-hanged-test")
   id("dd-trace-java.config-inversion-linter")
+  id("dd-trace-java.empty-instrumentation-linter")
+  id("dd-trace-java.unnecessary-else-linter")
+  id("dd-trace-java.naming-convention-linter")
+  id("dd-trace-java.javadoc-linter")
+  id("dd-trace-java.copy-paste-detector")
+  id("dd-trace-java.assertj-preference-linter")
   id("dd-trace-java.ci-jobs")
 
   id("com.diffplug.spotless") version "8.2.1"

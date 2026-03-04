@@ -468,6 +468,17 @@ check_build_src:
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 
+check_pr_hygiene:
+  extends: .gradle_build
+  needs: []
+  stage: tests
+  script:
+    - bash scripts/check-ci-debug-flags.sh || true
+    - bash scripts/check-extraneous-files.sh || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != "master"
+
 check_base:
   extends: .check_job
   variables:
