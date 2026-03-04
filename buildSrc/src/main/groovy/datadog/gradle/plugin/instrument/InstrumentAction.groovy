@@ -44,6 +44,15 @@ abstract class InstrumentAction implements WorkAction<InstrumentWorkParameters> 
       from(classesDirectory)
       into(tmpUninstrumentedDir)
     }
+    // Merge any additional source directories (e.g. unpacked dependency JARs) to be processed
+    parameters.includeClassDirectories.files.each { sourceDir ->
+      if (sourceDir.exists()) {
+        fileSystemOperations.copy {
+          from(sourceDir)
+          into(tmpUninstrumentedDir)
+        }
+      }
+    }
     fileSystemOperations.delete {
       delete(objects.fileTree().from(classesDirectory))
     }

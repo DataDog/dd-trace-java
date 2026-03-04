@@ -126,6 +126,7 @@ class BuildTimeInstrumentationPlugin implements Plugin<Project> {
           it.inputs.property("javaVersion", javaVersion)
           it.inputs.property("plugins", extension.plugins)
           it.inputs.files(extension.additionalClasspath)
+          it.inputs.files(extension.includeClassDirectories)
 
           // Temporary location for raw (un-instrumented) classes
           DirectoryProperty tmpUninstrumentedClasses = project.objects.directoryProperty().value(
@@ -149,7 +150,8 @@ class BuildTimeInstrumentationPlugin implements Plugin<Project> {
               extension.plugins,
               instrumentingClassPath,
               it.destinationDirectory,
-              tmpUninstrumentedClasses
+              tmpUninstrumentedClasses,
+              extension.includeClassDirectories
             )
           )
           logger.info("[BuildTimeInstrumentationPlugin] Configured post-compile instrumentation for $compileTaskName for source-set $sourceSetName")
