@@ -4,7 +4,6 @@ on:
     types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
       - master
-      - release/v*
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +15,7 @@ jobs:
     permissions:
       issues: write # Required to create a comment on the pull request
       pull-requests: write # Required to create a comment on the pull request
+      contents: read # Required to read migrated modules file
     runs-on: ubuntu-latest
     steps:
       - name: Check for Groovy regressions
@@ -30,8 +30,8 @@ jobs:
 
             // Check for override label — skip all checks if label present
             const labels = context.payload.pull_request.labels.map(l => l.name)
-            if (labels.includes('override-groovy-enforcement')) {
-              console.log('override-groovy-enforcement label detected — skipping all checks.')
+            if (labels.includes('tag: override-groovy-enforcement')) {
+              console.log('tag: override-groovy-enforcement label detected — skipping all checks.')
               return
             }
 
@@ -39,7 +39,7 @@ jobs:
             const migratedMods = await github.rest.repos.getContent({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              path: '.github/migrated-modules.txt',
+              path: '.github/g2j-migrated-modules.txt',
               ref: 'master'
             })
             const migratedPrefixes = Buffer.from(migratedMods.data.content, 'base64')
@@ -103,9 +103,9 @@ jobs:
                 .map(({ path, mod }) => `- \`${path}\` (module: \`${mod}\`)`)
                 .join('\n')
               const body = `**❌ Groovy Test Regression Detected**\n\n` +
-                `The following files add Groovy tests to modules that have been fully migrated to Java:\n\n` +
+                `The following files add Groovy tests to modules that have been fully migrated to Java / JUnit 5:\n\n` +
                 `${fileList}\n\n` +
-                `These modules no longer accept Groovy test files. Please rewrite the test in Java instead.\n\n` +
+                `These modules no longer accept Groovy test files. Please rewrite the test in Java / JUnit 5 instead.\n\n` +
                 regressionMarker
               if (existingRegressionComment) {
                 await github.rest.issues.updateComment({
@@ -136,9 +136,9 @@ jobs:
                 .map(({ path, mod }) => `- \`${path}\` (module: \`${mod}\`)`)
                 .join('\n')
               const body = `**⚠️ New Groovy Test Files Added**\n\n` +
-                `The following files add Groovy tests to modules that are candidates for migration to Java:\n\n` +
+                `The following files add Groovy tests to modules that are candidates for migration to Java / JUnit 5:\n\n` +
                 `${fileList}\n\n` +
-                `Consider writing these tests in Java instead to help with the ongoing migration effort.\n\n` +
+                `Consider writing these tests in Java / JUnit 5 instead to help with the ongoing migration effort.\n\n` +
                 warningMarker
               if (existingWarningComment) {
                 await github.rest.issues.updateComment({
@@ -165,5 +165,5 @@ jobs:
 
             // Fail the check if there are regressions
             if (regressions.length > 0) {
-              core.setFailed(`${regressions.length} Groovy regression(s) detected in migrated module(s). See PR comment for details. To skip this check entirely, add the 'override-groovy-enforcement' label.`)
+              core.setFailed(`${regressions.length} Groovy regression(s) detected in migrated module(s). See PR comment for details. To skip this check entirely, add the 'tag: override-groovy-enforcement' label.`)
             }

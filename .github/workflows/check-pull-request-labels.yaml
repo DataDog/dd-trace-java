@@ -33,8 +33,7 @@ jobs:
               'mergequeue-status:',
               'team:',
               'performance:',  // To refactor to 'ci: ' in the future
-              'run-tests:',    // Unused since GitLab migration
-              'override-groovy-enforcement'
+              'run-tests:'     // Unused since GitLab migration
             ]
             // Look for invalid labels
             const invalidLabels = context.payload.pull_request.labels

@@ -9,6 +9,7 @@ Migrate test Groovy files to Java using JUnit 5
 2. convert groovy files to Java using Junit 5
 3. make sure the tests are still passing after migration
 4. remove groovy files
+5. Add the migrated module path(s) to `.github/g2j-migrated-modules.txt`
 
 When converting groovy code to java code make sure that:
 - the Java code generated is compatible with JDK 8
