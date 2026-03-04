@@ -26,6 +26,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
@@ -929,6 +930,13 @@ public class GatewayBridge {
         writeResponseHeaders(
             ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
+      // For blocking responses the normal response-header collection is bypassed; write the
+      // content-type that was determined when the blocking action was raised.
+      String blockingContentType = ctx.getBlockingResponseContentType();
+      if (blockingContentType != null) {
+        traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
+      }
+
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
@@ -1230,7 +1238,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -1263,7 +1273,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -1275,6 +1287,38 @@ public class GatewayBridge {
       downstreamSampler = new ApiSecurityDownstreamSamplerImpl();
     }
     return downstreamSampler;
+  }
+
+  private static void maybeRecordBlockingContentType(AppSecRequestContext ctx, Flow<?> flow) {
+    Flow.Action action = flow.getAction();
+    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+      return;
+    }
+    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+    BlockingContentType bct = rba.getBlockingContentType();
+    if (bct == BlockingContentType.NONE) {
+      return; // redirect — no response body
+    }
+    String contentType;
+    if (bct == BlockingContentType.HTML) {
+      contentType = "text/html;charset=utf-8";
+    } else if (bct == BlockingContentType.JSON) {
+      contentType = "application/json";
+    } else {
+      // AUTO: pick based on the request Accept header
+      List<String> acceptValues = ctx.getRequestHeaders().get("accept");
+      boolean preferHtml = false;
+      if (acceptValues != null) {
+        for (String accept : acceptValues) {
+          if (accept != null && accept.contains("text/html")) {
+            preferHtml = true;
+            break;
+          }
+        }
+      }
+      contentType = preferHtml ? "text/html;charset=utf-8" : "application/json";
+    }
+    ctx.setBlockingResponseContentType(contentType);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(

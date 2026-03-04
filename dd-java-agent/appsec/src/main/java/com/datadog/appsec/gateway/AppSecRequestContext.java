@@ -162,6 +162,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
 
   private volatile boolean wafBlocked;
+  private volatile String blockingResponseContentType;
   private volatile boolean wafErrors;
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
@@ -235,6 +236,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafBlocked() {
     return wafBlocked;
+  }
+
+  public void setBlockingResponseContentType(String contentType) {
+    this.blockingResponseContentType = contentType;
+  }
+
+  public String getBlockingResponseContentType() {
+    return blockingResponseContentType;
   }
 
   public void setWafErrors() {
