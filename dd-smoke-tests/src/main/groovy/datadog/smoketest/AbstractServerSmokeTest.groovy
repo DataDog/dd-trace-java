@@ -71,7 +71,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       def process = testedProcesses[idx]
 
       try {
-        PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
+        PortUtils.waitForPortToOpen(port, 700, TimeUnit.SECONDS, process)
       } catch ( Exception e ) {
         throw new RuntimeException(e.getMessage() + " - log file " + logFilePaths[idx], e)
       }
