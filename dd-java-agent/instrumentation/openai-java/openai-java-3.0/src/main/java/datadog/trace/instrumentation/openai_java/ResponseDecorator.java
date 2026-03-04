@@ -6,6 +6,7 @@ import com.openai.models.Reasoning;
 import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
+import com.openai.models.responses.ResponseCustomToolCall;
 import com.openai.models.responses.ResponseFunctionToolCall;
 import com.openai.models.responses.ResponseInputContent;
 import com.openai.models.responses.ResponseInputItem;
@@ -486,6 +487,23 @@ public class ResponseDecorator {
           List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
           messages.add(LLMObs.LLMMessage.from("assistant", null, toolCalls));
         }
+      } else if (item.isCustomToolCall()) {
+        ResponseCustomToolCall customToolCall = item.asCustomToolCall();
+        LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(customToolCall);
+        if (toolCall != null) {
+          messages.add(
+              LLMObs.LLMMessage.from("assistant", null, Collections.singletonList(toolCall)));
+        }
+      } else if (item.isMcpCall()) {
+        ResponseOutputItem.McpCall mcpCall = item.asMcpCall();
+        LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(mcpCall);
+        List<LLMObs.ToolCall> toolCalls =
+            toolCall == null ? null : Collections.singletonList(toolCall);
+        String outputText = mcpCall.output().orElse("");
+        LLMObs.ToolResult toolResult =
+            LLMObs.ToolResult.from(mcpCall.name(), "mcp_tool_result", mcpCall.id(), outputText);
+        List<LLMObs.ToolResult> toolResults = Collections.singletonList(toolResult);
+        messages.add(LLMObs.LLMMessage.from("assistant", null, toolCalls, toolResults));
       } else if (item.isMessage()) {
         ResponseOutputMessage message = item.asMessage();
         String textContent = extractMessageContent(message);

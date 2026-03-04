@@ -354,14 +354,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
               List<LLMObs.ToolResult> toolResults = message.getToolResults();
               boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
               boolean hasToolResults = null != toolResults && !toolResults.isEmpty();
-              int mapSize = 2; // role and content
+              boolean hasContent = message.getContent() != null;
+              int mapSize = 1; // role
+              if (hasContent) mapSize++;
               if (hasToolCalls) mapSize++;
               if (hasToolResults) mapSize++;
               writable.startMap(mapSize);
               writable.writeUTF8(LLM_MESSAGE_ROLE);
               writable.writeString(message.getRole(), null);
-              writable.writeUTF8(LLM_MESSAGE_CONTENT);
-              writable.writeString(message.getContent(), null);
+              if (hasContent) {
+                writable.writeUTF8(LLM_MESSAGE_CONTENT);
+                writable.writeString(message.getContent(), null);
+              }
               if (hasToolCalls) {
                 writable.writeUTF8(LLM_MESSAGE_TOOL_CALLS);
                 writable.startArray(toolCalls.size());
