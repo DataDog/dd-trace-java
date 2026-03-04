@@ -544,64 +544,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  @Deprecated
-  private CoreTracer(
-      final Config config,
-      final String serviceName,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      final Writer writer,
-      final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
-      final SingleSpanSampler singleSpanSampler,
-      final HttpCodec.Injector injector,
-      final HttpCodec.Extractor extractor,
-      final Map<String, Object> localRootSpanTags,
-      final TagMap defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final Map<String, String> baggageMapping,
-      final int partialFlushMinSpans,
-      final HealthMetrics healthMetrics,
-      final TagInterceptor tagInterceptor,
-      final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway,
-      final TimeSource timeSource,
-      final DataStreamsMonitoring dataStreamsMonitoring,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean reportInTracerFlare,
-      final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags,
-      final boolean flushOnClose) {
-    this(
-        config,
-        serviceName,
-        sharedCommunicationObjects,
-        writer,
-        idGenerationStrategy,
-        sampler,
-        singleSpanSampler,
-        injector,
-        extractor,
-        TagMap.fromMap(localRootSpanTags),
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        baggageMapping,
-        partialFlushMinSpans,
-        healthMetrics,
-        tagInterceptor,
-        strictTraceWrites,
-        instrumentationGateway,
-        null,
-        timeSource,
-        dataStreamsMonitoring,
-        profilingContextIntegration,
-        reportInTracerFlare,
-        pollForTracingConfiguration,
-        injectBaggageAsTags,
-        flushOnClose);
-  }
-
   // These field names must be stable to ensure the builder api is stable.
   private CoreTracer(
       final Config config,
