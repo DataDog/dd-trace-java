@@ -1,36 +1,8 @@
 
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceSets {
-  register("main_java25") {
-    java {
-      srcDirs = [file('src/main/java25')]
-    }
-  }
-  named("main_java25") {
-    compileClasspath += sourceSets.main.output
-    runtimeClasspath += sourceSets.main.output
-  }
-  named("test") {
-    compileClasspath += sourceSets.main_java25.output
-    runtimeClasspath += sourceSets.main_java25.output
-  }
-}
-
 dependencies {
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   testImplementation group: 'com.newrelic.agent.java', name: 'newrelic-api', version: '6.+'
-}
-
-tasks.named("jar") {
-  from(sourceSets.main_java25.output)
-}
-
-tasks.named("compileMain_java25Java") {
-  configureCompiler(
-    it,
-    25,
-    JavaVersion.VERSION_1_8,
-    "Java 25 sourceset for FFM native tracing advice.")
 }
