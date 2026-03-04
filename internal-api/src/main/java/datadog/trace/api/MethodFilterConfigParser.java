@@ -41,16 +41,8 @@ public final class MethodFilterConfigParser {
     return !string.equals("*") && hasIllegalCharacters(string);
   }
 
-  public static Map<String, Set<String>> parse(String configString) {
-    return parse(configString, false);
-  }
-
-  public static Map<String, Set<String>> parseForNativeMethods(String configString) {
-    return parse(configString, true);
-  }
-
   @SuppressForbidden
-  private static Map<String, Set<String>> parse(String configString, boolean allowEmptyClassNames) {
+  public static Map<String, Set<String>> parse(String configString) {
     Map<String, Set<String>> classMethodsToTrace;
     if (configString == null || configString.trim().isEmpty()) {
       classMethodsToTrace = Collections.emptyMap();
@@ -85,7 +77,7 @@ public final class MethodFilterConfigParser {
             break;
           }
           String className = configString.substring(start, methodsStart).trim();
-          if ((className.isEmpty() && !allowEmptyClassNames) || isIllegalClassName(className)) {
+          if (className.isEmpty() || isIllegalClassName(className)) {
             toTrace = logWarn("with illegal class name", start, end, configString);
             break;
           }

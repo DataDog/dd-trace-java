@@ -6,8 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.api.Pair;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -18,23 +17,17 @@ public class FFMApiModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> ret = new HashMap<>();
-    ret.put("java.lang.foreign.SymbolLookup", String.class.getName());
-    ret.put("java.lang.foreign.MemorySegment", Pair.class.getName());
-    return ret;
-  }
-
-  @Override
   public boolean isEnabled() {
     return super.isEnabled() && !InstrumenterConfig.get().getTraceNativeMethods().isEmpty();
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap("jdk.internal.loader.NativeLibrary", "java.lang.String");
+  }
+
+  @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new LinkerInstrumentation(),
-        new SymbolLookupInstrumentation(),
-        new SymbolLookupStaticInstrumentation());
+    return asList(new LinkerInstrumentation(), new NativeLibraryInstrumentation());
   }
 }

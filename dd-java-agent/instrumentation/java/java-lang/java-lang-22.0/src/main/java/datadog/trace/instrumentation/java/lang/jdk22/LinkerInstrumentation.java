@@ -26,9 +26,6 @@ public class LinkerInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("defaultLookup")),
-        "datadog.trace.instrumentation.java.lang.jdk22.SymbolLookupAdvices$CaptureDefaultLookup");
-    transformer.applyAdvice(
         isMethod()
             .and(named("downcallHandle"))
             .and(takesArgument(0, named("java.lang.foreign.MemorySegment"))),
