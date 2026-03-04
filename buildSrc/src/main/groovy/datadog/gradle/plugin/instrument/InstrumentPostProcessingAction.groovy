@@ -35,6 +35,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
   final FileCollection instrumentingClassPath
   final DirectoryProperty compilerOutputDirectory
   final DirectoryProperty tmpDirectory
+  final FileCollection includeClassDirectories
 
   @Inject
   InstrumentPostProcessingAction(
@@ -42,23 +43,25 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
       ListProperty<String> plugins,
       FileCollection instrumentingClassPath,
       DirectoryProperty compilerOutputDirectory,
-      DirectoryProperty tmpDirectory
+      DirectoryProperty tmpDirectory,
+      FileCollection includeClassDirectories
   ) {
     this.javaVersion = javaVersion == BuildTimeInstrumentationPlugin.DEFAULT_JAVA_VERSION ? JavaLanguageVersion.current() : JavaLanguageVersion.of(javaVersion)
     this.plugins = plugins
     this.instrumentingClassPath = instrumentingClassPath
     this.compilerOutputDirectory = compilerOutputDirectory
     this.tmpDirectory = tmpDirectory
+    this.includeClassDirectories = includeClassDirectories
   }
 
   @Override
   void execute(AbstractCompile task) {
     logger.info(
         """
-        [InstrumentPostProcessingAction] About to instrument classes 
-          javaVersion=${javaVersion}, 
-          plugins=${plugins.get()}, 
-          instrumentingClassPath=${instrumentingClassPath.files}, 
+        [InstrumentPostProcessingAction] About to instrument classes
+          javaVersion=${javaVersion},
+          plugins=${plugins.get()},
+          instrumentingClassPath=${instrumentingClassPath.files},
           rawClassesDirectory=${compilerOutputDirectory.get().asFile}
         """.stripIndent()
     )
@@ -72,6 +75,7 @@ abstract class InstrumentPostProcessingAction implements Action<AbstractCompile>
       parameters.instrumentingClassPath.setFrom(postCompileAction.instrumentingClassPath)
       parameters.compilerOutputDirectory.set(postCompileAction.compilerOutputDirectory)
       parameters.tmpDirectory.set(postCompileAction.tmpDirectory)
+      parameters.includeClassDirectories.setFrom(postCompileAction.includeClassDirectories)
     })
   }
 
