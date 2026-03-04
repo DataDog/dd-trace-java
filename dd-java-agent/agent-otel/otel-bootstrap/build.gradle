@@ -65,7 +65,7 @@ dependencies {
 
 // Unpack the embeddedClasspath jars into otelUnpackedDir so that OtelShimGradlePlugin can
 // instrument them (e.g. inject the OTel shim).
-tasks.register('unpackJars', Copy) {
+tasks.register('unpackOtelJars', Copy) {
   dependsOn configurations.named('embeddedClasspath')
   exclude 'META-INF/'
   exclude '**/module-info.class'
@@ -82,7 +82,7 @@ tasks.register('unpackJars', Copy) {
 }
 
 tasks.named('compileJava') {
-  dependsOn 'unpackJars'
+  dependsOn 'unpackOtelJars'
 }
 
 tasks.named("shadowJar", ShadowJar) {
