@@ -69,6 +69,11 @@ gradlePlugin {
       id = "dd-trace-java.unnecessary-else-linter"
       implementationClass = "datadog.gradle.plugin.lint.UnnecessaryElseLinter"
     }
+
+    create("naming-convention-linter") {
+      id = "dd-trace-java.naming-convention-linter"
+      implementationClass = "datadog.gradle.plugin.lint.NamingConventionLinter"
+    }
   }
 }
 
