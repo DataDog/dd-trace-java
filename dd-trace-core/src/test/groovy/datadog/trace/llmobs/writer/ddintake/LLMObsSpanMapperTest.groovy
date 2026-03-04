@@ -106,7 +106,6 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanData.containsKey("trace_id")
     spanData.containsKey("start_ns")
     spanData.containsKey("duration")
-    spanData["error"] == 1
     spanData.containsKey("_dd")
     spanData["_dd"]["span_id"] == spanData["span_id"]
     spanData["_dd"]["trace_id"] == spanData["trace_id"]

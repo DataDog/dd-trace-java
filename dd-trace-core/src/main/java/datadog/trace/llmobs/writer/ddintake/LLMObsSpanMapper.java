@@ -125,7 +125,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
     }
 
     for (CoreSpan<?> span : llmobsSpans) {
-      writable.startMap(12);
+      writable.startMap(11);
       // 1
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
@@ -152,16 +152,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeFloat(span.getDurationNano());
 
       // 7
-      writable.writeUTF8(ERROR);
-      writable.writeInt(span.getError());
-
-      boolean errored = span.getError() == 1;
+      writable.writeUTF8(STATUS);
+      writable.writeString(span.getError() == 0 ? "ok" : "error", null);
 
       // 8
-      writable.writeUTF8(STATUS);
-      writable.writeString(errored ? "error" : "ok", null);
-
-      // 9
       writable.writeUTF8(DD);
       writable.startMap(3);
       writable.writeUTF8(SPAN_ID);
@@ -171,7 +165,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
 
-      /* 10 (metrics), 11 (tags), 12 meta */
+      /* 9 (metrics), 10 (tags), 11 meta */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
 
@@ -310,9 +304,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // write meta (11)
       int metaSize =
-          tagsToRemapToMeta.size()
-              + 1
-              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
+          tagsToRemapToMeta.size() + 1 + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
