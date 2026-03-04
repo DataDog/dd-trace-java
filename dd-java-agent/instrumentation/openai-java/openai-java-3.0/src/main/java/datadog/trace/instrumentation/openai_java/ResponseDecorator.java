@@ -455,9 +455,7 @@ public class ResponseDecorator {
       metadata.put("text", textMap);
     }
 
-    if (stream) {
-      metadata.put("stream", true);
-    }
+    metadata.put("stream", stream);
 
     span.setTag(CommonTags.METADATA, metadata);
 
