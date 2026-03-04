@@ -59,6 +59,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("naming-convention-linter") {
+      id = "dd-trace-java.naming-convention-linter"
+      implementationClass = "datadog.gradle.plugin.lint.NamingConventionLinter"
+    }
   }
 }
 
