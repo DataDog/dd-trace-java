@@ -14,7 +14,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0'
 
-  testImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0'
+  testImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0.2' // we need this fix https://github.com/apache/httpcomponents-client/commit/a22d889807eb74a0d4b8dd8d6360802a391a6eb3
 
   latestDepTestImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '+'
 }
