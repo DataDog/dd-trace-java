@@ -1,6 +1,6 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-def minVer = '3.0.0'
+def minVer = '3.0.1'
 
 muzzle {
   pass {

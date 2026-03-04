@@ -424,6 +424,7 @@ public class ResponseDecorator {
             (Response.Truncation t) ->
                 metadata.put("truncation", t._value().asString().orElse(null)));
 
+    Map<String, Object> textMap = new HashMap<>();
     response
         .text()
         .ifPresent(
@@ -432,7 +433,6 @@ public class ResponseDecorator {
                   .format()
                   .ifPresent(
                       format -> {
-                        Map<String, Object> textMap = new HashMap<>();
                         Map<String, String> formatMap = new HashMap<>();
                         if (format.isText()) {
                           formatMap.put("type", "text");
@@ -442,9 +442,17 @@ public class ResponseDecorator {
                           formatMap.put("type", "json_object");
                         }
                         textMap.put("format", formatMap);
-                        metadata.put("text", textMap);
+                      });
+              textConfig
+                  .verbosity()
+                  .ifPresent(
+                      verbosity -> {
+                        textMap.put("verbosity", verbosity.asString());
                       });
             });
+    if (!textMap.isEmpty()) {
+      metadata.put("text", textMap);
+    }
 
     if (stream) {
       metadata.put("stream", true);
