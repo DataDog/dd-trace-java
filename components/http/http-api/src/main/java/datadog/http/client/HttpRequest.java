@@ -60,7 +60,7 @@ public interface HttpRequest {
     return HttpProviders.newRequestBuilder();
   }
 
-  /** Builder for constructing {@link HttpRequest} intances. */
+  /** Builder for constructing {@link HttpRequest} instances. */
   interface Builder {
     /**
      * Sets the request URL.

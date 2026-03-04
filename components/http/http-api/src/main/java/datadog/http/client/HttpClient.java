@@ -6,6 +6,7 @@ import java.net.Proxy;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import javax.annotation.Nullable;
 
 /**
  * This interface is an abstraction for HTTP clients, providing request execution capabilities. This
@@ -65,10 +66,10 @@ public interface HttpClient {
      * Sets proxy authentication credentials.
      *
      * @param username the proxy username
-     * @param password the proxy password
+     * @param password the proxy password, or {@code null} to use an empty password
      * @return this builder
      */
-    Builder proxyAuthenticator(String username, String password);
+    Builder proxyAuthenticator(String username, @Nullable String password);
 
     /**
      * Configures the client to use a Unix domain socket.
