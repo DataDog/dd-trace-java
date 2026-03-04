@@ -59,6 +59,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("unnecessary-else-linter") {
+      id = "dd-trace-java.unnecessary-else-linter"
+      implementationClass = "datadog.gradle.plugin.lint.UnnecessaryElseLinter"
+    }
   }
 }
 
