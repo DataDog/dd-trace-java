@@ -52,6 +52,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   private static final byte[] SPAN_ID = "span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TRACE_ID = "trace_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] DD = "_dd".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] APM_TRACE_ID = "apm_trace_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PARENT_ID = "parent_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] NAME = "name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] DURATION = "duration".getBytes(StandardCharsets.UTF_8);
@@ -120,7 +122,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
     }
 
     for (CoreSpan<?> span : llmobsSpans) {
-      writable.startMap(11);
+      writable.startMap(12);
       // 1
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
@@ -156,7 +158,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(STATUS);
       writable.writeString(errored ? "error" : "ok", null);
 
-      /* 9 (metrics), 10 (tags), 11 meta */
+      // 9
+      writable.writeUTF8(DD);
+      writable.startMap(3);
+      writable.writeUTF8(SPAN_ID);
+      writable.writeString(String.valueOf(span.getSpanId()), null);
+      writable.writeUTF8(TRACE_ID);
+      writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeUTF8(APM_TRACE_ID);
+      writable.writeString(span.getTraceId().toHexString(), null);
+
+      /* 10 (metrics), 11 (tags), 12 meta */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
 
