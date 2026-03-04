@@ -10,6 +10,26 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+/**
+ * Factory class providing HTTP client implementations with automatic fallback support.
+ *
+ * <p>This class acts as a provider abstraction layer that dynamically discovers and instantiates
+ * HTTP client implementations at runtime using reflection. It supports two modes of operation: a
+ * default mode using JDK-based HTTP clients and a compatibility mode using OkHttp-based clients.
+ *
+ * <p>The provider uses lazy initialization and caching of reflection metadata (constructors and
+ * methods) to minimize performance overhead. All cached references are stored in volatile fields to
+ * ensure thread-safe access in concurrent environments.
+ *
+ * <p>When a component is requested (e.g., client builder, request builder, URL parser), the class
+ * attempts to locate the appropriate implementation by searching for specific class names in the
+ * classpath. If the default implementation is unavailable or if compatibility mode is enabled, it
+ * falls back to alternative implementations.
+ *
+ * <p>Thread Safety: This class is thread-safe. The volatile fields ensure visibility of cached
+ * reflection metadata across threads, and the lazy initialization pattern is safe for concurrent
+ * access.
+ */
 public final class HttpProviders {
   private static volatile boolean compatibilityMode = false;
 
@@ -248,7 +268,7 @@ public final class HttpProviders {
     }
     // If no class loaded, raise the illegal state
     if (clazz == null) {
-      throw new IllegalStateException("No HttpClientBuilder implementation found");
+      throw new IllegalStateException("No http client implementation found");
     }
     return clazz;
   }

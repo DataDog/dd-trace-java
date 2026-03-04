@@ -1,19 +1,18 @@
 package datadog.http.client;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
- * Abstraction for HTTP responses, providing access to status code, headers, and body. This
- * abstraction is implementation-agnostic and can be backed by either OkHttp's Response or JDK
- * HttpClient's HttpResponse.
+ * This interface is an abstraction for HTTP responses, providing access to status code, headers,
+ * and body.
  *
  * <p>HttpResponse instances must be closed after use to release resources.
  */
-public interface HttpResponse extends Closeable {
+public interface HttpResponse extends AutoCloseable {
 
   /**
    * Returns the HTTP status code.
@@ -23,26 +22,27 @@ public interface HttpResponse extends Closeable {
   int code();
 
   /**
-   * Returns true if the response code is in [200..300), indicating the request was successful.
+   * Check whether the response code is in [200..300), indicating the request was successful.
    *
-   * @return true if successful, false otherwise
+   * @return {@code true} if successful, {@code false} otherwise
    */
   boolean isSuccessful();
 
   /**
-   * Returns the first header value for the given name, or null if not present. Header names are
-   * case-insensitive.
+   * Returns the first header value for the given name, or {@code null} if not present. Header names
+   * are case-insensitive.
    *
    * @param name the header name
-   * @return the first header value, or null
+   * @return the first header value, or {@code null} if not present
    */
+  @Nullable
   String header(String name);
 
   /**
    * Returns all header values for the given name. Header names are case-insensitive.
    *
    * @param name the header name
-   * @return list of header values, empty if not present
+   * @return list of header values, an empty list if not present
    */
   List<String> headers(String name);
 
@@ -54,21 +54,23 @@ public interface HttpResponse extends Closeable {
   Set<String> headerNames();
 
   /**
-   * Returns the response body as an InputStream. The caller is responsible for closing the stream.
+   * Returns the response body as an {@link InputStream}. The caller is responsible for closing the
+   * stream.
    *
    * @return the response body stream
    */
   InputStream body();
 
   /**
-   * Returns the response body as a String using Content-Type charset or UTF-8 if absent.
+   * Returns the response body as a {@link String} using {@code Content-Type} charset or UTF-8 if
+   * absent.
    *
-   * @return the response body as a String
+   * @return the response body as a {@link String}
    * @throws IOException if an I/O error occurs
    */
   String bodyAsString() throws IOException;
 
-  // TODO Not sure if it's the response that should be closed, or the response body.
+  // TODO Not sure if the response should be closed, the response body sure is.
   /**
    * Closes the response and releases any resources. This method should be called after the response
    * is no longer needed.

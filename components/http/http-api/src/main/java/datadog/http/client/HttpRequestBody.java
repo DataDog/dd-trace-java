@@ -7,15 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Abstraction for HTTP request bodies, providing content writing capabilities. This abstraction is
- * implementation-agnostic and can be backed by either OkHttp's RequestBody or JDK HttpClient's
- * BodyPublisher.
+ * This interface is an abstraction for HTTP request bodies, providing content writing capabilities.
+ * It also offers static factory methods to build common request body types, including gzip
+ * compression and multipart/form-data.
  */
 public interface HttpRequestBody {
   /**
-   * Returns the content length in bytes, or -1 if unknown (e.g., for gzipped content).
+   * Returns the content length in bytes, or {@code -1} if unknown (e.g., for gzipped content).
    *
-   * @return the content length, or -1 if unknown
+   * @return the content length, or {@code -1} if unknown
    */
   long contentLength();
 
@@ -32,8 +32,7 @@ public interface HttpRequestBody {
    * request headers.
    *
    * @param content the string content
-   * @return a new HttpRequestBody
-   * @throws NullPointerException if content is null
+   * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(String content) {
     return HttpProviders.requestBodyOfString(content);
@@ -43,20 +42,18 @@ public interface HttpRequestBody {
    * Creates a request body from raw bytes. Content-Type should be set via request headers.
    *
    * @param bytes the string content
-   * @return a new HttpRequestBody
-   * @throws NullPointerException if the byte array is null
+   * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(byte[] bytes) {
     return HttpProviders.requestBodyOfBytes(bytes);
   }
 
   /**
-   * Creates a request body from a list of ByteBuffers. Content-Type should be set via request
-   * headers.
+   * Creates a request body from a list of {@link ByteBuffer}s. Content-Type should be set via
+   * request headers.
    *
    * @param buffers the string content
-   * @return a new HttpRequestBody
-   * @throws NullPointerException if the list of buffers is null
+   * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(List<ByteBuffer> buffers) {
     return HttpProviders.requestBodyOfByteBuffers(buffers);
@@ -68,8 +65,7 @@ public interface HttpRequestBody {
    * via request headers.
    *
    * @param body the body to compress
-   * @return a new gzip-compressed HttpRequestBody
-   * @throws NullPointerException if body is null
+   * @return a new gzip-compressed {@link HttpRequestBody}
    */
   static HttpRequestBody gzip(HttpRequestBody body) {
     return HttpProviders.requestBodyGzip(body);
@@ -78,7 +74,7 @@ public interface HttpRequestBody {
   /**
    * Creates a builder for multipart/form-data request bodies.
    *
-   * @return a new MultipartBuilder
+   * @return a new {@link MultipartBuilder}
    */
   static MultipartBuilder multipart() {
     return HttpProviders.requestBodyMultipart();
@@ -95,7 +91,6 @@ public interface HttpRequestBody {
      * @param name the field name
      * @param value the field value
      * @return this builder
-     * @throws NullPointerException if name or value is null
      */
     MultipartBuilder addFormDataPart(String name, String value);
 
@@ -106,7 +101,6 @@ public interface HttpRequestBody {
      * @param filename the filename
      * @param body the file content
      * @return this builder
-     * @throws NullPointerException if any argument is null
      */
     MultipartBuilder addFormDataPart(String name, String filename, HttpRequestBody body);
 
@@ -114,15 +108,15 @@ public interface HttpRequestBody {
      * Adds a part with custom headers (advanced usage). Use this when you need full control over
      * part headers.
      *
-     * @param headers map of header name to value (e.g., Content-Disposition, Content-Type)
+     * @param headers map of header name to value (e.g., {@code Content-Disposition}, {@code
+     *     Content-Type})
      * @param body the part content
      * @return this builder
-     * @throws NullPointerException if headers or body is null
      */
     MultipartBuilder addPart(Map<String, String> headers, HttpRequestBody body);
 
     /**
-     * Returns the Content-Type header value for this multipart body. Includes the boundary
+     * Returns the {@code Content-Type} header value for this multipart body. Includes the boundary
      * parameter required for parsing. Can be called before or after build().
      *
      * @return the content type string (e.g., "multipart/form-data; boundary=...")
@@ -132,7 +126,7 @@ public interface HttpRequestBody {
     /**
      * Builds the multipart request body.
      *
-     * @return the constructed HttpRequestBody
+     * @return the constructed {@link HttpRequestBody}
      */
     HttpRequestBody build();
   }

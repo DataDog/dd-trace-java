@@ -8,13 +8,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Abstraction for HTTP clients, providing request execution capabilities. This abstraction is
- * implementation-agnostic and can be backed by either OkHttp or JDK HttpClient.
+ * This interface is an abstraction for HTTP clients, providing request execution capabilities. This
+ * abstraction is implementation-agnostic and can be backed by third party libraries of the JDK
+ * itself.
  *
  * <p>HttpClient instances should be reused across requests for connection pooling.
  */
 public interface HttpClient {
-
   /**
    * Executes an HTTP request synchronously and returns the response. The caller is responsible for
    * closing the response.
@@ -26,12 +26,8 @@ public interface HttpClient {
   HttpResponse execute(HttpRequest request) throws IOException;
 
   /**
-   * Executes an HTTP request asynchronously and returns a CompletableFuture. The caller is
+   * Executes an HTTP request asynchronously and returns a {@link CompletableFuture}. The caller is
    * responsible for closing the response.
-   *
-   * <p>If the request has an {@link HttpRequestListener} attached, its callbacks will be invoked:
-   * {@code onRequestStart} before the request is sent, {@code onRequestEnd} when the response is
-   * received, or {@code onRequestFailure} if an error occurs.
    *
    * @param request the request to execute
    * @return a CompletableFuture that completes with the HTTP response
@@ -39,17 +35,16 @@ public interface HttpClient {
   CompletableFuture<HttpResponse> executeAsync(HttpRequest request);
 
   /**
-   * Creates a new builder for constructing HTTP clients.
+   * Creates a new {@link Builder} for constructing HTTP clients.
    *
-   * @return a new Builder
+   * @return a new http client builder
    */
   static Builder newBuilder() {
     return HttpProviders.newClientBuilder();
   }
 
-  /** Builder for constructing HttpClient instances with custom configuration. */
+  /** Builder for constructing {@link HttpClient} instances. */
   interface Builder {
-
     /**
      * Sets the client timeouts, including the connection.
      *
@@ -94,21 +89,21 @@ public interface HttpClient {
     /**
      * Forces clear text (HTTP) connections, disabling TLS.
      *
-     * @param clearText true to force HTTP, false to allow HTTPS
+     * @param clearText {@code true} to force HTTP, {@code false} to allow HTTPS
      * @return this builder
      */
     Builder clearText(boolean clearText);
 
     /**
-     * Sets a custom executor for executing requests.
+     * Sets a custom executor for executing async requests.
      *
-     * @param executor the executor
+     * @param executor the executor to use for async requests
      * @return this builder
      */
     Builder executor(Executor executor);
 
     /**
-     * Builds the HttpClient with the configured settings.
+     * Builds the {@link HttpClient} with the configured settings.
      *
      * @return the constructed HttpClient
      */

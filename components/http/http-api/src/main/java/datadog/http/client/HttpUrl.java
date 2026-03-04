@@ -6,12 +6,11 @@ import java.net.URI;
 import javax.annotation.Nullable;
 
 /**
- * Abstraction for HTTP URLs, providing URL parsing, building, and manipulation capabilities. This
- * abstraction is implementation-agnostic and can be backed by either OkHttp's HttpUrl or
- * java.net.URI.
+ * This interface is an abstraction for HTTP URLs, providing URL parsing, building, and manipulation
+ * capabilities. It also offers static factory methods to build URLs from JDK URIs using {@link
+ * #from(URI)}, or parse from strings using {@link #parse(String)}.
  */
 public interface HttpUrl {
-
   /**
    * Returns the complete URL as a string.
    *
@@ -45,35 +44,34 @@ public interface HttpUrl {
    * Resolves a relative URL against this URL.
    *
    * @param path the relative path to resolve
-   * @return a new HttpUrl with the resolved path
+   * @return a new {@link HttpUrl} with the resolved path
    */
   HttpUrl resolve(String path);
 
   /**
-   * Returns a builder to modify this URL.
+   * Returns a {@link Builder} to modify this URL.
    *
-   * @return a new Builder based on this URL
+   * @return a new {@link Builder} based on this URL
    */
   Builder newBuilder();
 
   /**
-   * Parses a URL string into an HttpUrl.
+   * Parses a URL string into an {@link HttpUrl}.
    *
    * @param url the URL string to parse
-   * @return the parsed HttpUrl
+   * @return the parsed {@link HttpUrl}
    * @throws IllegalArgumentException if the URL is malformed
-   * @throws NullPointerException if url is null
    */
-  static HttpUrl parse(String url) {
+  static HttpUrl parse(String url) throws IllegalArgumentException {
     requireNonNull(url, "url");
     return HttpProviders.httpUrlParse(url);
   }
 
   /**
-   * Creates an HttpUrl from an URI.
+   * Creates an HttpUrl from an {@link URI}.
    *
-   * @param uri the URI to get an HttpUrl from
-   * @return the HttpUrl related to the URI
+   * @param uri the {@link URI} to get an {@link HttpUrl} from
+   * @return the {@link HttpUrl} related to the URI
    */
   static HttpUrl from(URI uri) {
     requireNonNull(uri, "uri");
@@ -81,17 +79,16 @@ public interface HttpUrl {
   }
 
   /**
-   * Creates a new builder for constructing URLs.
+   * Creates a new {@link Builder}der for constructing URLs.
    *
-   * @return a new Builder
+   * @return a new {@link Builder}
    */
   static Builder builder() {
     return HttpProviders.newUrlBuilder();
   }
 
-  /** Builder for constructing HttpUrl instances. */
+  /** Builder for constructing {@link HttpUrl} instances. */
   interface Builder {
-
     /**
      * Sets the scheme (protocol) for the URL.
      *

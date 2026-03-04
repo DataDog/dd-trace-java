@@ -4,11 +4,11 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Abstraction for HTTP requests, providing access to URL, method, headers, body, and tags. This
- * abstraction is implementation-agnostic and can be backed by either OkHttp's Request or JDK
- * HttpClient's HttpRequest.
+ * This interface is an abstraction for HTTP requests, providing access to URL, method, headers, and
+ * body.
  */
 public interface HttpRequest {
+  /* Common headers names and values widely used in HTTP requests */
   String CONTENT_TYPE = "Content-Type";
   String APPLICATION_JSON = "application/json; charset=utf-8";
 
@@ -20,17 +20,17 @@ public interface HttpRequest {
   HttpUrl url();
 
   /**
-   * Returns the HTTP method (GET, POST, PUT, etc.).
+   * Returns the HTTP method ({@code GET}, {@code POST}, {@code PUT}, etc.).
    *
    * @return the method name
    */
   String method();
 
   /**
-   * Returns the first header value for the given name, or null if not present.
+   * Returns the first header value for the given name, or {@code null} if not present.
    *
    * @param name the header name
-   * @return the first header value, or null
+   * @return the first header value, or {@code null} if not present
    */
   @Nullable
   String header(String name);
@@ -39,28 +39,28 @@ public interface HttpRequest {
    * Returns all header values for the given name.
    *
    * @param name the header name
-   * @return list of header values, empty if not present
+   * @return list of header values, an empty list if not present
    */
   List<String> headers(String name);
 
   /**
-   * Returns the request body, or null if this request has no body (e.g., GET requests).
+   * Returns the request body, or {@code null} if this request has no body (e.g., GET requests).
    *
-   * @return the request body, or null
+   * @return the request body, or {@code null} if this request has no body
    */
   @Nullable
   HttpRequestBody body();
 
   /**
-   * Creates a new builder for constructing HTTP requests.
+   * Creates a new {@link Builder} for constructing HTTP requests.
    *
-   * @return a new Builder
+   * @return a new builder
    */
   static Builder newBuilder() {
     return HttpProviders.newRequestBuilder();
   }
 
-  /** Builder for constructing HttpRequest instances. */
+  /** Builder for constructing {@link HttpRequest} intances. */
   interface Builder {
     /**
      * Sets the request URL.
@@ -71,7 +71,7 @@ public interface HttpRequest {
     Builder url(HttpUrl url);
 
     /**
-     * Sets the request URL from a string.
+     * Sets the request URL from a {@link String}.
      *
      * @param url the URL string
      * @return this builder
@@ -79,14 +79,15 @@ public interface HttpRequest {
     Builder url(String url);
 
     /**
-     * Sets the request method to GET.
+     * Sets the request method to {@code GET}. This is the default method if other methods are not
+     * set.
      *
      * @return this builder
      */
     Builder get();
 
     /**
-     * Sets the request method to POST with the given body.
+     * Sets the request method to {@code POST} with the given body.
      *
      * @param body the request body
      * @return this builder
@@ -94,7 +95,7 @@ public interface HttpRequest {
     Builder post(HttpRequestBody body);
 
     /**
-     * Sets the request method to PUT with the given body.
+     * Sets the request method to {@code PUT} with the given body.
      *
      * @param body the request body
      * @return this builder
@@ -132,7 +133,7 @@ public interface HttpRequest {
      * Builds the HttpRequest.
      *
      * @return the constructed HttpRequest
-     * @throws IllegalStateException if required fields (url, method) are missing
+     * @throws IllegalStateException if required fields (like url) are missing
      */
     HttpRequest build();
   }
