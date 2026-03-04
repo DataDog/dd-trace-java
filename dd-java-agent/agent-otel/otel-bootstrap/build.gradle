@@ -10,8 +10,6 @@ def otelInstrumentationApiVersion = '2.4.0'
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'dd-trace-java.build-time-instrumentation'
 
-def otelUnpackedDir = layout.buildDirectory.dir("otel-unpacked")
-
 configurations {
   def ec = register('embeddedClasspath') {
     visible = false
@@ -30,9 +28,26 @@ configurations {
   }
 }
 
+// Unpack the embeddedClasspath jars into otelUnpackedDir so that OtelShimGradlePlugin can
+// instrument them (e.g. inject the OTel shim).
+def unpackOtelJars = tasks.register('unpackOtelJars', Sync) {
+  exclude 'META-INF/'
+  exclude '**/module-info.class'
+  exclude '**/package-info.class'
+
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
+  // Note: they are intentionally kept in a separate directory from compileJava's output so that
+  // Gradle's stale-output cleanup on a full rebuild does not delete them before instrumentation.
+  into layout.buildDirectory.dir("otel-unpacked")
+}
+
 buildTimeInstrumentation {
   plugins.addAll('datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin')
-  includeClassDirectories.from(otelUnpackedDir)
+  includeClassDirectories.from(unpackOtelJars)
 }
 
 minimumInstructionCoverage = 0.0
@@ -59,30 +74,6 @@ dependencies {
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
-
-  // buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationToolingPlugins')
-}
-
-// Unpack the embeddedClasspath jars into otelUnpackedDir so that OtelShimGradlePlugin can
-// instrument them (e.g. inject the OTel shim).
-tasks.register('unpackOtelJars', Copy) {
-  dependsOn configurations.named('embeddedClasspath')
-  exclude 'META-INF/'
-  exclude '**/module-info.class'
-  exclude '**/package-info.class'
-
-  from(configurations.named('embeddedClasspath').map {
-    it.collect {
-      zipTree(it)
-    }
-  })
-  // Note: they are intentionally kept in a separate directory from compileJava's output so that
-  // Gradle's stale-output cleanup on a full rebuild does not delete them before instrumentation.
-  into otelUnpackedDir
-}
-
-tasks.named('compileJava') {
-  dependsOn 'unpackOtelJars'
 }
 
 tasks.named("shadowJar", ShadowJar) {
