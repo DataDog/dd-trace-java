@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +32,26 @@ public class GlobalTracer {
         @Override
         public Blackhole muteTracing() {
           return NO_OP_BLACKHOLE;
+        }
+
+        @Override
+        public MutableSpan getActiveMutableSpan() {
+          return null;
+        }
+
+        @Override
+        public MutableSpan getLocalRootSpan() {
+          return null;
+        }
+
+        @Override
+        public MutableSpan getLocalRootSpan(MutableSpan mutableSpan) {
+          return null;
+        }
+
+        @Override
+        public MutableSpan toMutableSpan(Object span) throws IllegalArgumentException {
+          return null;
         }
       };
 

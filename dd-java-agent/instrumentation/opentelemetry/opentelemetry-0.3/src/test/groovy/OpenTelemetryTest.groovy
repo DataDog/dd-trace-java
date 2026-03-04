@@ -2,6 +2,7 @@ import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.GlobalTracer
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.core.propagation.PropagationTags
 
@@ -48,8 +49,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     }
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    GlobalTracer.get().getLocalRootSpan() == result.delegate
     tracer.currentSpan == null
 
     when:
@@ -106,9 +106,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    (result as MutableSpan).isError() == (exception != null)
+    GlobalTracer.get().getLocalRootSpan() == result.delegate
+    GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
     tracer.currentSpan == null
 
     when:
@@ -148,8 +147,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     def result = builder.startSpan()
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    GlobalTracer.get().localRootSpan == result.delegate
     tracer.currentSpan == null
 
     when:

@@ -70,6 +70,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
@@ -1322,6 +1323,38 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public Blackhole muteTracing() {
     return activateSpan(blackholeSpan());
+  }
+
+  @Override
+  public MutableSpan getActiveMutableSpan() {
+    return activeSpan();
+  }
+
+  @Override
+  public MutableSpan getLocalRootSpan() {
+    return getLocalRootSpan(activeSpan());
+  }
+
+  @Override
+  public MutableSpan getLocalRootSpan(MutableSpan mutableSpan) {
+    if (mutableSpan instanceof AgentSpan) {
+      return ((AgentSpan) mutableSpan).getLocalRootSpan();
+    }
+
+    return mutableSpan;
+  }
+
+  @Override
+  public MutableSpan toMutableSpan(Object span) throws IllegalArgumentException {
+    if (span == null) {
+      throw new IllegalArgumentException("Provide span is null");
+    }
+
+    if (span instanceof WithAgentSpan) {
+      return ((WithAgentSpan) span).asAgentSpan();
+    }
+
+    throw new IllegalArgumentException("Provided span with type: " + span.getClass() + " is not convertible");
   }
 
   @Override

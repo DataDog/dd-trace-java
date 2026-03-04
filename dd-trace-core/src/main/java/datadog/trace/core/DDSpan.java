@@ -315,13 +315,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getParentId() == DDSpanId.ZERO;
   }
 
-  @Override
-  @Deprecated
-  public AgentSpan getRootSpan() {
-    return getLocalRootSpan();
-  }
-
-  @Override
   public DDSpan getLocalRootSpan() {
     return context.getTraceCollector().getRootSpan();
   }

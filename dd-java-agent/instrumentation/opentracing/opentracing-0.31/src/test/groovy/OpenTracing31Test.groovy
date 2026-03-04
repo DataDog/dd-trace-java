@@ -62,9 +62,8 @@ class OpenTracing31Test extends InstrumentationSpecification {
     }
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan.delegate == result.delegate
-    (result as MutableSpan).isError() == (exception != null)
+    datadog.trace.api.GlobalTracer.get().localRootSpan == result.delegate
+    datadog.trace.api.GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
     tracer.activeSpan() == null
     result.context().baggageItems().isEmpty()
 

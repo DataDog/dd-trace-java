@@ -13,6 +13,7 @@ import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
@@ -633,6 +634,26 @@ public class AgentTracer {
     @Override
     public Blackhole muteTracing() {
       return NoopScope.INSTANCE;
+    }
+
+    @Override
+    public MutableSpan getActiveMutableSpan() {
+      return NoopSpan.INSTANCE;
+    }
+
+    @Override
+    public MutableSpan getLocalRootSpan() {
+      return NoopSpan.INSTANCE;
+    }
+
+    @Override
+    public MutableSpan getLocalRootSpan(MutableSpan mutableSpan) {
+      return NoopSpan.INSTANCE;
+    }
+
+    @Override
+    public MutableSpan toMutableSpan(Object span) throws IllegalArgumentException {
+      return NoopSpan.INSTANCE;
     }
 
     @Override

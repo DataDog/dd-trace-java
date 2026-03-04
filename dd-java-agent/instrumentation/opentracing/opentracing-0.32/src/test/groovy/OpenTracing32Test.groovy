@@ -67,9 +67,8 @@ class OpenTracing32Test extends InstrumentationSpecification {
     }
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan.delegate == result.delegate
-    (result as MutableSpan).isError() == (exception != null)
+    datadog.trace.api.GlobalTracer.get().localRootSpan == result.delegate
+    datadog.trace.api.GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
     tracer.activeSpan() == null
     result.context().baggageItems().isEmpty()
 
@@ -196,10 +195,7 @@ class OpenTracing32Test extends InstrumentationSpecification {
     def span = NoopSpan.INSTANCE
     def scope = tracer.scopeManager().activate(span, true)
 
-    expect:
-    !(span instanceof MutableSpan)
-
-    and: "non OTSpans aren't supported and get converted to NoopAgentSpan"
+    expect: "non OTSpans aren't supported and get converted to NoopAgentSpan"
     tracer.scopeManager().active().span() != span
 
     when:
