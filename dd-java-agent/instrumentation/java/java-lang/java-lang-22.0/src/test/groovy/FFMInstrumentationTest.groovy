@@ -8,8 +8,7 @@ import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout
 import java.lang.invoke.MethodHandle
 import java.nio.file.Path
-import spock.lang.IgnoreIf
-import util.NativeLibraryResolver
+import util.LoaderUtil
 
 class FFMInstrumentationTest extends InstrumentationSpecification {
   @Override
@@ -40,7 +39,7 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
         trace(1) {
           span {
             operationName "trace.native"
-            resourceName "$resource"
+            resourceName "libsyslookup.strlen"
             tags {
               "$Tags.COMPONENT" "trace-ffm"
               defaultTags()
@@ -51,15 +50,15 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
     }
 
     where:
-    configured | traceExpected | resource
-    ""         | false         | _
-    "[strlen]" | true          | "strlen"
-    "[*]"      | true          | "strlen"
+    configured             | traceExpected
+    ""                     | false
+    "libsyslookup[strlen]" | true
+    "libsyslookup[*]"      | true
   }
 
   def "should measure methods for #configured"() {
     setup:
-    injectSysConfig("trace.native.methods", "[strlen]")
+    injectSysConfig("trace.native.methods", "libsyslookup[strlen]")
     injectSysConfig("measure.native.methods", configured)
     final MemorySegment strlenAddr = Linker.nativeLinker().defaultLookup().findOrThrow("strlen")
     final MethodHandle strlenHandle =
@@ -78,7 +77,7 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
       trace(1) {
         span {
           operationName "trace.native"
-          resourceName "strlen"
+          resourceName "libsyslookup.strlen"
           measured expectMeasured
           tags {
             "$Tags.COMPONENT" "trace-ffm"
@@ -89,35 +88,37 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
     }
 
     where:
-    configured | expectMeasured
-    "[strlen]" | true
-    ""         | false
+    configured             | expectMeasured
+    "libsyslookup[strlen]" | true
+    ""                     | false
   }
 
-  @IgnoreIf({ !os.isLinux() })
-  def "should trace ffm calls using libraryLookup by name for #configured"() {
+  def "should trace ffm calls using libraryLookup of jdk library for #configured"() {
     setup:
+    // libzip ships with every JDK; System.mapLibraryName gives the correct platform filename
+    final String libName = System.mapLibraryName("zip")  // "libzip.so" on Linux, "libzip.dylib" on macOS
+    final Path libzipPath = Path.of(System.getProperty("java.home"), "lib", libName)
     injectSysConfig("trace.native.methods", configured)
 
     when:
-    long len
     try (final Arena arena = Arena.ofConfined()) {
-      final SymbolLookup libLookup = SymbolLookup.libraryLookup("c", arena)
-      final MemorySegment strlenAddr = libLookup.findOrThrow("strlen")
-      final MethodHandle strlenHandle =
+      final SymbolLookup libLookup = SymbolLookup.libraryLookup(libzipPath, arena)
+      final MemorySegment zipOpenAddr = libLookup.findOrThrow("ZIP_Open")
+      final MethodHandle zipOpenHandle =
       Linker.nativeLinker().downcallHandle(
-      strlenAddr, FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS))
-      len = (long) strlenHandle.invokeWithArguments(arena.allocateFrom("Hello world!"))
+      zipOpenAddr,
+      FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS))
+      // open a nonexistent path — ZIP_Open guards on pmsg before deref, returns NULL safely
+      zipOpenHandle.invokeWithArguments(arena.allocateFrom("/nonexistent.zip"), MemorySegment.NULL)
     }
 
     then:
-    len == 12
     assertTraces(traceExpected ? 1 : 0) {
       if (traceExpected) {
         trace(1) {
           span {
             operationName "trace.native"
-            resourceName "$resource"
+            resourceName "libzip.ZIP_Open"
             tags {
               "$Tags.COMPONENT" "trace-ffm"
               defaultTags()
@@ -128,54 +129,71 @@ class FFMInstrumentationTest extends InstrumentationSpecification {
     }
 
     where:
-    configured       | traceExpected | resource
-    ""               | false         | _
-    "c[strlen]"      | true          | "c.strlen"
-    "c[*]"           | true          | "c.strlen"
-    "unknown_lib[*]" | false         | _
+    configured         | traceExpected
+    "libzip[ZIP_Open]" | true
+    "libzip[*]"        | true
   }
 
-  @IgnoreIf({ !os.isLinux() })
-  def "should trace ffm calls using libraryLookup by path for #configTemplate"() {
+  def "should trace ffm calls using libraryLookup by path for library loaded with System.load"() {
     setup:
-    final MemorySegment strlenSym = Linker.nativeLinker().defaultLookup().findOrThrow("strlen")
-    final String libPath = NativeLibraryResolver.findLibraryPath(strlenSym)
-    final String libFileName = Path.of(libPath).getFileName().toString().toLowerCase(Locale.ROOT)
-    injectSysConfig("trace.native.methods", configTemplate.replace("{lib}", libFileName))
+    injectSysConfig("trace.native.methods", "libjvm[*]")
+    final String libName = System.mapLibraryName("jvm")
+    final Path libPath = Path.of(System.getProperty("java.home"), "lib", "server", libName)
 
     when:
-    long len
+    LoaderUtil.loadLibrary(libPath)
     try (final Arena arena = Arena.ofConfined()) {
-      final SymbolLookup libLookup = SymbolLookup.libraryLookup(Path.of(libPath), arena)
-      final MemorySegment strlenAddr = libLookup.findOrThrow("strlen")
-      final MethodHandle strlenHandle =
-      Linker.nativeLinker().downcallHandle(
-      strlenAddr, FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS))
-      len = (long) strlenHandle.invokeWithArguments(arena.allocateFrom("Hello world!"))
+      final SymbolLookup libLookup = LoaderUtil.loaderLookup()
+      FunctionDescriptor fd = FunctionDescriptor.of(
+      ValueLayout.JAVA_INT,   // jint return
+      ValueLayout.ADDRESS,    // JavaVM**
+      ValueLayout.JAVA_INT,   // jsize bufLen
+      ValueLayout.ADDRESS     // jsize* nVMs
+      )
+
+      // this is a quite stable symbol (it's in the public API)
+      MemorySegment sym =
+      libLookup.find("JNI_GetCreatedJavaVMs")
+      .orElseThrow()
+
+      MethodHandle methodHandle = Linker.nativeLinker().downcallHandle(sym, fd)
+
+      // Allocate space for JavaVM* (we only expect 1 VM)
+      MemorySegment vmBuf = arena.allocate(ValueLayout.ADDRESS)
+
+      // Allocate space for jsize nVMs
+      MemorySegment nVMs = arena.allocate(ValueLayout.JAVA_INT)
+
+      int result = (int) methodHandle.invokeWithArguments(
+      vmBuf,
+      1,
+      nVMs
+      )
+
+      int count = nVMs.get(ValueLayout.JAVA_INT, 0)
+
+      System.out.println("Return code: " + result)
+      System.out.println("Number of VMs: " + count)
+
+      if (count > 0) {
+        MemorySegment vmPtr = vmBuf.get(ValueLayout.ADDRESS, 0)
+        System.out.println("JavaVM pointer: " + vmPtr)
+      }
     }
 
+
     then:
-    len == 12
-    assertTraces(traceExpected ? 1 : 0) {
-      if (traceExpected) {
-        trace(1) {
-          span {
-            operationName "trace.native"
-            resourceName "${libFileName}.strlen"
-            tags {
-              "$Tags.COMPONENT" "trace-ffm"
-              defaultTags()
-            }
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "trace.native"
+          resourceName "libjvm.JNI_GetCreatedJavaVMs"
+          tags {
+            "$Tags.COMPONENT" "trace-ffm"
+            defaultTags()
           }
         }
       }
     }
-
-    where:
-    configTemplate   | traceExpected
-    ""               | false
-    "{lib}[strlen]"  | true
-    "{lib}[*]"       | true
-    "unknown_lib[*]" | false
   }
 }

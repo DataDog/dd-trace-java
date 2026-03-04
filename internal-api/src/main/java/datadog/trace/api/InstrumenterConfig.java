@@ -350,13 +350,13 @@ public class InstrumenterConfig {
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
     traceNativeMethods =
-        MethodFilterConfigParser.parseForNativeMethods(
+        MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
     measureNativeMethods =
-        MethodFilterConfigParser.parseForNativeMethods(
+        MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 

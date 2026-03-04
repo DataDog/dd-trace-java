@@ -171,7 +171,6 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
             DECORATE.onError(span, t);
             span.addThrowable(t);
           }
-
           span.finish();
         }
       }
@@ -190,9 +189,6 @@ public final class FFMNativeMethodDecorator extends BaseDecorator {
   }
 
   public static CharSequence resourceNameFor(final String library, final String method) {
-    if (library == null || library.isEmpty()) {
-      return UTF8BytesString.create(method);
-    }
     return UTF8BytesString.create(library + "." + method);
   }
 

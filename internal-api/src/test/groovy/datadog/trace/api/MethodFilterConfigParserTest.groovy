@@ -46,27 +46,6 @@ class MethodFilterConfigParserTest extends DDSpecification {
     "asdfg;c1[m1]"                                                  | [:]
   }
 
-  def "test native method configuration \"#value\""() {
-    setup:
-    if (value) {
-      injectSysConfig("dd.trace.native.methods", value)
-    } else {
-      removeSysConfig("dd.trace.methods")
-    }
-
-    expect:
-    InstrumenterConfig.get().traceNativeMethods == expected
-
-    where:
-    value                      | expected
-    null                       | [:]
-    " "                        | [:]
-    "*"                        | [:]
-    "[ method , ]"             | ["": ["method"].toSet()]
-    "lib[ method1 ,  method2]" | ["lib": ["method1", "method2"].toSet()]
-    "[*]"                      | ["": ["*"].toSet()]
-  }
-
   def "survive very long list"() {
     setup:
     def mset = ["m1", "m2"].toSet()
