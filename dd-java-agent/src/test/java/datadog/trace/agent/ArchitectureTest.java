@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.library.freeze.FreezingArchRule;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Test;
  * Architecture fitness tests enforcing module dependency rules. These rules prevent the most common
  * violations found during PR reviews: bootstrap depending on core, instrumentations reaching into
  * core internals, and forbidden JDK APIs in bootstrap code.
+ *
+ * <p>Uses {@link FreezingArchRule} to baseline existing violations so only new violations fail.
  */
 class ArchitectureTest {
 
@@ -37,7 +40,7 @@ class ArchitectureTest {
             .resideInAPackage("datadog.trace.core..")
             .because("Bootstrap classes load before core and must not depend on core internals");
 
-    rule.check(allClasses);
+    FreezingArchRule.freeze(rule).check(allClasses);
   }
 
   @Test
@@ -51,7 +54,7 @@ class ArchitectureTest {
             .resideInAPackage("datadog.trace.core.internal..")
             .because("Instrumentations should use internal-api, not core internals directly");
 
-    rule.check(allClasses);
+    FreezingArchRule.freeze(rule).check(allClasses);
   }
 
   @Test
@@ -67,7 +70,7 @@ class ArchitectureTest {
                 "java.util.logging locks in the log manager before the app configures it"
                     + " (see docs/bootstrap_design_guidelines.md)");
 
-    rule.check(allClasses);
+    FreezingArchRule.freeze(rule).check(allClasses);
   }
 
   @Test
@@ -83,6 +86,6 @@ class ArchitectureTest {
                 "javax.management causes class loading issues in premain"
                     + " (see docs/bootstrap_design_guidelines.md)");
 
-    rule.check(allClasses);
+    FreezingArchRule.freeze(rule).check(allClasses);
   }
 }

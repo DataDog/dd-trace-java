@@ -58,7 +58,7 @@ class JavadocLinter : Plugin<Project> {
     return try {
       val stdout = ByteArrayOutputStream()
       project.exec {
-        commandLine("git", "diff", "--name-only", "--diff-filter=ACMR", "HEAD~1")
+        commandLine("git", "diff", "--name-only", "--diff-filter=ACMR", "origin/master...HEAD")
         standardOutput = stdout
         isIgnoreExitValue = true
       }

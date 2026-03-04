@@ -46,7 +46,7 @@ class AssertJPreferenceLinter : Plugin<Project> {
     return try {
       val stdout = ByteArrayOutputStream()
       project.exec {
-        commandLine("git", "diff", "--name-only", "--diff-filter=A", "HEAD~1")
+        commandLine("git", "diff", "--name-only", "--diff-filter=A", "origin/master...HEAD")
         standardOutput = stdout
         isIgnoreExitValue = true
       }

@@ -10,8 +10,7 @@ class UnnecessaryElseLinter : Plugin<Project> {
       description = "Scan changed Java files for unnecessary else blocks after return/throw/continue/break"
 
       doLast {
-        val baseSha = "9b933669729ea8a7af00f5cf3c36b6720ec433bd"
-        val changedFiles = getChangedJavaFiles(target, baseSha)
+        val changedFiles = getChangedJavaFiles(target)
         val repoRoot = target.rootProject.projectDir.toPath()
         val warnings = mutableListOf<String>()
 
@@ -33,9 +32,9 @@ class UnnecessaryElseLinter : Plugin<Project> {
   }
 }
 
-private fun getChangedJavaFiles(project: Project, baseSha: String): List<java.io.File> {
+private fun getChangedJavaFiles(project: Project): List<java.io.File> {
   return try {
-    val process = ProcessBuilder("git", "diff", "--name-only", baseSha, "HEAD")
+    val process = ProcessBuilder("git", "diff", "--name-only", "--diff-filter=ACM", "origin/master...HEAD")
       .directory(project.rootProject.projectDir)
       .redirectErrorStream(true)
       .start()
