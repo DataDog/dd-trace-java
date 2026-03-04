@@ -7,6 +7,10 @@ java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
 java.lang.String#replaceFirst(java.lang.String,java.lang.String)
 
+@defaultMessage Use String.indexOf/substring/contains for performance. Regex creates objects on every call.
+java.util.regex.Pattern#compile(java.lang.String)
+java.util.regex.Pattern#compile(java.lang.String, int)
+
 # can initialize java.util.logging when ACCP is installed, prefer RandomUtils instead
 java.util.UUID#randomUUID()
 
