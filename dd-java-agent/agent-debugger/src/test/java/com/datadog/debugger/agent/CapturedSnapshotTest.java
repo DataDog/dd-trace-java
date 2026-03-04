@@ -3019,9 +3019,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Instrumentation inst = mock(Instrumentation.class);
     if (JavaVirtualMachine.isJavaVersion(17)) {
       // on JDK 17 introduced Spring6 class
-      Class<?> springClass =
-          Class.forName(
-              "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+      Class<?> springClass = Class.forName("org.springframework.web.client.RestClient");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {springClass});
     } else {
       when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
