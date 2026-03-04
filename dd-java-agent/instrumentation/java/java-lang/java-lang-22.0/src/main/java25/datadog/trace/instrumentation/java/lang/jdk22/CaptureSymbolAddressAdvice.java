@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.java.lang.jdk22;
 
+import static datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper.onSymbolLookup;
+
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper;
 import net.bytebuddy.asm.Advice;
 
 public class CaptureSymbolAddressAdvice {
@@ -14,6 +15,6 @@ public class CaptureSymbolAddressAdvice {
         (String)
             InstrumentationContext.get("jdk.internal.loader.NativeLibrary", "java.lang.String")
                 .get(self);
-    NativeLibraryHelper.onSymbolLookup(libraryName, symbol, address);
+    onSymbolLookup(libraryName, symbol, address);
   }
 }

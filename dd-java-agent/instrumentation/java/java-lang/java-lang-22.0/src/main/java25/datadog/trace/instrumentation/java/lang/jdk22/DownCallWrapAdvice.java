@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.java.lang.jdk22;
 
 import static datadog.trace.bootstrap.instrumentation.ffm.FFMNativeMethodDecorator.wrap;
+import static datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper.reverseResolveLibraryAndSymbol;
 
 import datadog.trace.api.Pair;
-import datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import net.bytebuddy.asm.Advice;
@@ -17,7 +17,7 @@ public class DownCallWrapAdvice {
       return;
     }
     final Pair<String, String> libAndMethod =
-        NativeLibraryHelper.reverseResolveLibraryAndSymbol(memorySegment.address());
+        reverseResolveLibraryAndSymbol(memorySegment.address());
     if (libAndMethod == null) {
       return;
     }

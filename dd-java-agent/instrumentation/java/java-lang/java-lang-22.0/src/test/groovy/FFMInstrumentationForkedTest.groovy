@@ -10,7 +10,7 @@ import java.lang.invoke.MethodHandle
 import java.nio.file.Path
 import util.LoaderUtil
 
-class FFMInstrumentationTest extends InstrumentationSpecification {
+class FFMInstrumentationForkedTest extends InstrumentationSpecification {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
