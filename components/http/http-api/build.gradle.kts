@@ -7,6 +7,22 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 description = "HTTP Client API"
 
+// Exclude interfaces for test coverage
+val excludedClassesCoverage by extra(
+  listOf(
+    "datadog.http.client.HttpClient",
+    "datadog.http.client.HttpClient.Builder",
+    "datadog.http.client.HttpRequest",
+    "datadog.http.client.HttpRequest.Builder",
+    "datadog.http.client.HttpRequestBody",
+    "datadog.http.client.HttpRequestBody.MultipartBuilder",
+    "datadog.http.client.HttpRequestListener",
+    "datadog.http.client.HttpResponse",
+    "datadog.http.client.HttpUrl",
+    "datadog.http.client.HttpUrl.Builder",
+  )
+)
+
 dependencies {
   // Add API implementations to test providers
   testRuntimeOnly(project(":components:http:http-lib-jdk"))
