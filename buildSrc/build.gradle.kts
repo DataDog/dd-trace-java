@@ -59,6 +59,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("empty-instrumentation-linter") {
+      id = "dd-trace-java.empty-instrumentation-linter"
+      implementationClass = "datadog.gradle.plugin.lint.EmptyInstrumentationLinter"
+    }
   }
 }
 
