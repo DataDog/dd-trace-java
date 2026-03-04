@@ -64,6 +64,11 @@ gradlePlugin {
       id = "dd-trace-java.empty-instrumentation-linter"
       implementationClass = "datadog.gradle.plugin.lint.EmptyInstrumentationLinter"
     }
+
+    create("unnecessary-else-linter") {
+      id = "dd-trace-java.unnecessary-else-linter"
+      implementationClass = "datadog.gradle.plugin.lint.UnnecessaryElseLinter"
+    }
   }
 }
 
