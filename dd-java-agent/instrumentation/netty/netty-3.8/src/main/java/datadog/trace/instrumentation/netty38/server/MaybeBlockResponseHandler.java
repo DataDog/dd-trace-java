@@ -33,6 +33,10 @@ public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
     this.contextStore = contextStore;
   }
 
+  public ContextStore<Channel, ChannelTraceContext> getContextStore() {
+    return contextStore;
+  }
+
   @Override
   public void writeRequested(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
     final ChannelTraceContext channelTraceContext =

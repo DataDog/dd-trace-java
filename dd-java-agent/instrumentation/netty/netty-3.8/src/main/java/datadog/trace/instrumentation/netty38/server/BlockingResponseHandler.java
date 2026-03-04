@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.netty38.server;
 
+import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 import static org.jboss.netty.handler.codec.http.HttpHeaders.setContentLength;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -131,6 +134,22 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
       response.setContent(buf);
     }
 
+    MaybeBlockResponseHandler maybeBlock =
+        (MaybeBlockResponseHandler) ctx.getPipeline().get(MaybeBlockResponseHandler.class);
+    if (maybeBlock != null) {
+      ChannelTraceContext ctc = maybeBlock.getContextStore().get(ctx.getChannel());
+      if (ctc != null) {
+        AgentSpan span = ctc.getServerSpan();
+        if (span != null) {
+          DECORATE.callIGCallbackResponseAndHeaders(
+              span, response, httpCode, ResponseExtractAdapter.GETTER);
+          writeBlockingResponseHeaderTags(span, response);
+        }
+        ctc.setAnalyzedResponse(true);
+        ctc.setBlockedResponse(true);
+      }
+    }
+
     this.hasBlockedAlready = true;
     segment.effectivelyBlocked();
 
@@ -146,5 +165,21 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
           fut.getChannel().close();
         });
     Channels.write(ctxForDownstream, future, response);
+  }
+
+  private static void writeBlockingResponseHeaderTags(
+      AgentSpan span, DefaultHttpResponse response) {
+    String contentType = response.headers().get("Content-type");
+    if (contentType != null) {
+      span.getRequestContext()
+          .getTraceSegment()
+          .setTagTop("http.response.headers.content-type", contentType);
+    }
+    String contentLength = response.headers().get("Content-Length");
+    if (contentLength != null) {
+      span.getRequestContext()
+          .getTraceSegment()
+          .setTagTop("http.response.headers.content-length", contentLength);
+    }
   }
 }

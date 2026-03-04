@@ -199,6 +199,22 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     tags['response.header.content-type'] != null
     tags['response.header.content-length'] == SUCCESS.body.length() as String
   }
+
+  def 'blocking response sets http.response.headers.content-type span tag'() {
+    setup:
+    org.junit.jupiter.api.Assumptions.assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'auto')
+      .build()
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+
+    expect:
+    def rootSpan = TEST_WRITER.get(0).find { it.parentId == 0 }
+    rootSpan != null
+    rootSpan.tags['http.response.headers.content-type'] != null
+  }
 }
 
 abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {

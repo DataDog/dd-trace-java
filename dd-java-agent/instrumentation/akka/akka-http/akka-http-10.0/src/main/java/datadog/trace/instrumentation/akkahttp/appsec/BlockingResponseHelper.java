@@ -4,7 +4,9 @@ import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DEC
 
 import akka.http.javadsl.model.HttpHeader;
 import akka.http.javadsl.model.headers.RawHeader;
+import akka.http.scaladsl.model.ContentType;
 import akka.http.scaladsl.model.ContentTypes;
+import akka.http.scaladsl.model.HttpEntity;
 import akka.http.scaladsl.model.HttpEntity$;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -37,6 +39,7 @@ public class BlockingResponseHelper {
             altResponse,
             altResponse.status().intValue(),
             AkkaHttpServerHeaders.responseGetter());
+        writeBlockingResponseHeaderTags(span, altResponse);
         return altResponse;
       }
     }
@@ -64,6 +67,7 @@ public class BlockingResponseHelper {
     if (response != null) {
       DECORATE.callIGCallbackResponseAndHeaders(
           span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+      writeBlockingResponseHeaderTags(span, response);
     }
     return response;
   }
@@ -109,5 +113,22 @@ public class BlockingResponseHelper {
       code = StatusCodes.custom(httpCode, "Request Blocked", "", false, true);
     }
     return HttpResponse.apply(code, headersList, entity, request.protocol());
+  }
+
+  private static void writeBlockingResponseHeaderTags(AgentSpan span, HttpResponse response) {
+    ResponseEntity entity = response.entity();
+    if (entity instanceof HttpEntity.Strict) {
+      HttpEntity.Strict strictEntity = (HttpEntity.Strict) entity;
+      ContentType contentType = strictEntity.contentType();
+      if (contentType != null) {
+        span.getRequestContext()
+            .getTraceSegment()
+            .setTagTop("http.response.headers.content-type", contentType.value());
+      }
+      span.getRequestContext()
+          .getTraceSegment()
+          .setTagTop(
+              "http.response.headers.content-length", Long.toString(strictEntity.contentLength()));
+    }
   }
 }

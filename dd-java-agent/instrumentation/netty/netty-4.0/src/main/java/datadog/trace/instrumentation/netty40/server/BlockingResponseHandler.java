@@ -125,6 +125,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     if (span != null) {
       DECORATE.callIGCallbackResponseAndHeaders(
           span, response, httpCode, ResponseExtractAdapter.GETTER);
+      writeBlockingResponseHeaderTags(span, response.headers());
     }
     ctx.channel().attr(ANALYZED_RESPONSE_KEY).set(Boolean.TRUE);
     ctx.channel().attr(BLOCKED_RESPONSE_KEY).set(Boolean.TRUE);
@@ -157,6 +158,21 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
               }
               ctx.channel().close();
             });
+  }
+
+  private static void writeBlockingResponseHeaderTags(AgentSpan span, HttpHeaders headers) {
+    String contentType = headers.get("Content-type");
+    if (contentType != null) {
+      span.getRequestContext()
+          .getTraceSegment()
+          .setTagTop("http.response.headers.content-type", contentType);
+    }
+    String contentLength = headers.get("Content-Length");
+    if (contentLength != null) {
+      span.getRequestContext()
+          .getTraceSegment()
+          .setTagTop("http.response.headers.content-length", contentLength);
+    }
   }
 
   @ChannelHandler.Sharable

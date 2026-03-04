@@ -63,6 +63,7 @@ import org.jboss.netty.logging.InternalLogLevel
 import org.jboss.netty.logging.InternalLoggerFactory
 import org.jboss.netty.logging.Slf4JLoggerFactory
 import org.jboss.netty.util.CharsetUtil
+import org.junit.jupiter.api.Assumptions
 import spock.lang.Ignore
 
 abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
@@ -315,6 +316,22 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
   @Override
   boolean testBadUrl() {
     false
+  }
+
+  def 'blocking response sets http.response.headers.content-type span tag'() {
+    setup:
+    Assumptions.assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'auto')
+      .build()
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+
+    expect:
+    def rootSpan = TEST_WRITER.get(0).find { it.parentId == 0 }
+    rootSpan != null
+    rootSpan.tags['http.response.headers.content-type'] != null
   }
 }
 

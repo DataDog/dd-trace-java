@@ -253,6 +253,22 @@ abstract class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
   boolean testBadUrl() {
     false
   }
+
+  def 'blocking response sets http.response.headers.content-type span tag'() {
+    setup:
+    org.junit.jupiter.api.Assumptions.assumeTrue(testBlocking())
+
+    def request = request(SUCCESS, 'GET', null)
+      .addHeader(IG_BLOCK_HEADER, 'auto')
+      .build()
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+
+    expect:
+    def rootSpan = TEST_WRITER.get(0).find { it.parentId == 0 }
+    rootSpan != null
+    rootSpan.tags['http.response.headers.content-type'] != null
+  }
 }
 
 class Netty40ServerV0Test extends Netty40ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
