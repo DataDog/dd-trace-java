@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -31,10 +30,5 @@ public class DDTraceCoreInfo {
       v = "unknown";
     }
     VERSION = v;
-  }
-
-  @SuppressForbidden
-  public static void main(final String... args) {
-    System.out.println(VERSION);
   }
 }
