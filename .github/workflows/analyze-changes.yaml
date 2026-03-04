@@ -39,14 +39,8 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew clean :dd-java-agent:shadowJar \
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
         uses: github/codeql-action/analyze@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
@@ -85,14 +79,8 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew clean publishToMavenLocal \
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          ./gradlew clean publishToMavenLocal --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Copy published artifacts
         run: |
