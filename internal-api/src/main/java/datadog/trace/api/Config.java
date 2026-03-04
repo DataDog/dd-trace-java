@@ -6210,6 +6210,8 @@ public class Config {
         + injectBaggageAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", appLogsCollectionEnabled="
+        + appLogsCollectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
         + ", sparkAppNameAsService="
