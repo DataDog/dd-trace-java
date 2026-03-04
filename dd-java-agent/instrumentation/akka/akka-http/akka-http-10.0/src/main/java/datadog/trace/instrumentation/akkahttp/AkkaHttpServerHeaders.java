@@ -31,14 +31,19 @@ public class AkkaHttpServerHeaders {
       HttpMessage carrier,
       akka.http.javadsl.model.HttpEntity entity,
       AgentPropagation.KeyClassifier classifier) {
-    if (entity instanceof HttpEntity.Strict) {
-      HttpEntity.Strict strictEntity = (HttpEntity.Strict) entity;
-      ContentType contentType = strictEntity.contentType();
+    // In Akka HTTP, Content-Type is part of the entity, not a regular header.
+    // Extract it for all entity types (Default, Chunked, etc.), not only Strict.
+    if (entity instanceof HttpEntity) {
+      ContentType contentType = ((HttpEntity) entity).contentType();
       if (contentType != null) {
-        if (!classifier.accept("content-type", contentType.value())) {
+        String contentTypeValue = contentType.value();
+        if (!contentTypeValue.isEmpty() && !classifier.accept("content-type", contentTypeValue)) {
           return;
         }
       }
+    }
+    if (entity instanceof HttpEntity.Strict) {
+      HttpEntity.Strict strictEntity = (HttpEntity.Strict) entity;
       if (!classifier.accept("content-length", Long.toString(strictEntity.contentLength()))) {
         return;
       }
