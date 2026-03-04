@@ -2,6 +2,7 @@ package datadog.http.client;
 
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.condition.JRE.JAVA_10;
 import static org.junit.jupiter.api.condition.JRE.JAVA_11;
@@ -18,6 +19,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 abstract class HttpProvidersTest {
+  private static final String URL_EXAMPLE = "http://localhost";
+  private static final String CONTENT_EXAMPLE = "content";
 
   abstract String getImplementationPackage();
 
@@ -37,19 +40,27 @@ abstract class HttpProvidersTest {
 
   @Test
   void testHttpUrlParse() {
-    HttpUrl url = HttpProviders.httpUrlParse("http://localhost");
+    HttpUrl url = HttpProviders.httpUrlParse(URL_EXAMPLE);
     assertType(url);
   }
 
   @Test
+  void testHttpUrlParseInvalidUrl() {
+    // An invalid URL causes the underlying parse() to throw IllegalArgumentException,
+    // wrapped as InvocationTargetException. HttpProviders unwraps and re-throws it.
+    assertThrows(
+        IllegalArgumentException.class, () -> HttpProviders.httpUrlParse("not a valid url"));
+  }
+
+  @Test
   void testHttpUrlFromUri() {
-    HttpUrl url = HttpProviders.httpUrlFrom(URI.create("http://localhost"));
+    HttpUrl url = HttpProviders.httpUrlFrom(URI.create(URL_EXAMPLE));
     assertType(url);
   }
 
   @Test
   void testRequestBodyOfString() {
-    HttpRequestBody body = HttpProviders.requestBodyOfString("content");
+    HttpRequestBody body = HttpProviders.requestBodyOfString(CONTENT_EXAMPLE);
     assertType(body);
   }
 
@@ -68,7 +79,7 @@ abstract class HttpProvidersTest {
   @Test
   void testRequestBodyGzip() {
     HttpRequestBody body =
-        HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString("content"));
+        HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE));
     assertType(body);
   }
 
@@ -76,6 +87,33 @@ abstract class HttpProvidersTest {
   void testRequestBodyMultipart() {
     HttpRequestBody.MultipartBuilder builder = HttpProviders.requestBodyMultipart();
     assertType(builder);
+  }
+
+  @Test
+  void testCachedProviders() {
+    // First calls — populate all lazy-init caches
+    HttpProviders.newClientBuilder();
+    HttpProviders.newRequestBuilder();
+    HttpProviders.newUrlBuilder();
+    HttpProviders.httpUrlParse(URL_EXAMPLE);
+    HttpProviders.httpUrlFrom(URI.create(URL_EXAMPLE));
+    HttpProviders.requestBodyOfString(CONTENT_EXAMPLE);
+    HttpProviders.requestBodyOfBytes(new byte[0]);
+    HttpProviders.requestBodyOfByteBuffers(emptyList());
+    HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE));
+    HttpProviders.requestBodyMultipart();
+    // Second calls — hit the non-null (cached) branch for every lazy field
+    assertNotNull(HttpProviders.newClientBuilder());
+    assertNotNull(HttpProviders.newRequestBuilder());
+    assertNotNull(HttpProviders.newUrlBuilder());
+    assertNotNull(HttpProviders.httpUrlParse(URL_EXAMPLE));
+    assertNotNull(HttpProviders.httpUrlFrom(URI.create(URL_EXAMPLE)));
+    assertNotNull(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE));
+    assertNotNull(HttpProviders.requestBodyOfBytes(new byte[0]));
+    assertNotNull(HttpProviders.requestBodyOfByteBuffers(emptyList()));
+    assertNotNull(
+        HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString(CONTENT_EXAMPLE)));
+    assertNotNull(HttpProviders.requestBodyMultipart());
   }
 
   private void assertType(Object builder) {
@@ -109,6 +147,13 @@ abstract class HttpProvidersTest {
     @Override
     String getImplementationPackage() {
       return "datadog.http.client.okhttp";
+    }
+
+    @Test
+    void testForceCompatClientIsIdempotent() {
+      // compatibilityMode is already true — second call must hit early return (no NPE, no reset)
+      HttpProviders.forceCompatClient();
+      assertNotNull(HttpProviders.newClientBuilder());
     }
   }
 }

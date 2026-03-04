@@ -7,6 +7,9 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 description = "HTTP Client API"
 
+val minimumBranchCoverage by extra(0.7)
+val minimumInstructionCoverage by extra(0.7)
+
 // Exclude interfaces for test coverage
 val excludedClassesCoverage by extra(
   listOf(
