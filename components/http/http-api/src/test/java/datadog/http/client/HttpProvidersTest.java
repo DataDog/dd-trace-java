@@ -3,6 +3,8 @@ package datadog.http.client;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.condition.JRE.JAVA_10;
+import static org.junit.jupiter.api.condition.JRE.JAVA_11;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.net.URI;
@@ -11,7 +13,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
-import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -30,8 +31,8 @@ abstract class HttpProvidersTest {
   static Stream<Arguments> builders() {
     return Stream.of(
         arguments("client", (Supplier<?>) HttpProviders::newClientBuilder),
-        arguments("request", (Supplier<?>) HttpProviders::newClientBuilder),
-        arguments("url", (Supplier<?>) HttpProviders::newClientBuilder));
+        arguments("request", (Supplier<?>) HttpProviders::newRequestBuilder),
+        arguments("url", (Supplier<?>) HttpProviders::newUrlBuilder));
   }
 
   @Test
@@ -64,12 +65,25 @@ abstract class HttpProvidersTest {
     assertType(body);
   }
 
+  @Test
+  void testRequestBodyGzip() {
+    HttpRequestBody body =
+        HttpProviders.requestBodyGzip(HttpProviders.requestBodyOfString("content"));
+    assertType(body);
+  }
+
+  @Test
+  void testRequestBodyMultipart() {
+    HttpRequestBody.MultipartBuilder builder = HttpProviders.requestBodyMultipart();
+    assertType(builder);
+  }
+
   private void assertType(Object builder) {
     assertNotNull(builder);
     assertTrue(builder.getClass().getName().startsWith(getImplementationPackage()));
   }
 
-  @EnabledForJreRange(max = JRE.JAVA_10)
+  @EnabledForJreRange(max = JAVA_10)
   static class OkHttpProvidersForkedTest extends HttpProvidersTest {
     @Override
     String getImplementationPackage() {
@@ -77,7 +91,7 @@ abstract class HttpProvidersTest {
     }
   }
 
-  @EnabledForJreRange(min = JRE.JAVA_11)
+  @EnabledForJreRange(min = JAVA_11)
   static class JdkHttpProvidersForkedTest extends HttpProvidersTest {
     @Override
     String getImplementationPackage() {
@@ -85,7 +99,7 @@ abstract class HttpProvidersTest {
     }
   }
 
-  @EnabledForJreRange(min = JRE.JAVA_11)
+  @EnabledForJreRange(min = JAVA_11)
   static class HttpProvidersCompatForkedTest extends HttpProvidersTest {
     @BeforeAll
     static void beforeAll() {
