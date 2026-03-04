@@ -496,12 +496,30 @@ public class ResponseDecorator {
         ResponseReasoningItem reasoning = item.asReasoning();
         try (JsonWriter writer = new JsonWriter()) {
           writer.beginObject();
+
+          String summaryText = null;
           if (!reasoning.summary().isEmpty()) {
-            writer.name("summary").value(reasoning.summary().get(0).text());
+            summaryText = reasoning.summary().get(0).text();
           }
-          reasoning.encryptedContent().ifPresent(v -> writer.name("encrypted_content").value(v));
-          writer.name("id").value(reasoning.id());
+          writer.name("summary");
+          if (summaryText != null && !summaryText.isEmpty()) {
+            writer.value(summaryText);
+          } else {
+            writer.beginArray().endArray();
+          }
+
+          writer.name("encrypted_content");
+          if (reasoning.encryptedContent().isPresent()) {
+            writer.value(reasoning.encryptedContent().get());
+          } else {
+            writer.nullValue();
+          }
+
+          String id = reasoning.id();
+          writer.name("id").value(id == null ? "" : id);
+
           writer.endObject();
+
           messages.add(LLMObs.LLMMessage.from("reasoning", writer.toString()));
         }
       }
