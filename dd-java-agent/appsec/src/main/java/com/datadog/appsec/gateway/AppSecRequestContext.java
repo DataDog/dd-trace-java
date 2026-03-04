@@ -163,7 +163,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   private volatile boolean wafBlocked;
   private volatile String blockingResponseContentType;
-  private volatile int blockingResponseContentLength = -1;
+  private volatile Integer blockingResponseContentLength;
   private volatile boolean wafErrors;
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
@@ -247,11 +247,11 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return blockingResponseContentType;
   }
 
-  public void setBlockingResponseContentLength(int contentLength) {
+  public void setBlockingResponseContentLength(Integer contentLength) {
     this.blockingResponseContentLength = contentLength;
   }
 
-  public int getBlockingResponseContentLength() {
+  public Integer getBlockingResponseContentLength() {
     return blockingResponseContentLength;
   }
 

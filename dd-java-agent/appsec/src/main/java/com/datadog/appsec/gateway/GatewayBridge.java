@@ -936,8 +936,8 @@ public class GatewayBridge {
       String blockingContentType = ctx.getBlockingResponseContentType();
       if (blockingContentType != null) {
         traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
-        int blockingContentLength = ctx.getBlockingResponseContentLength();
-        if (blockingContentLength >= 0) {
+        Integer blockingContentLength = ctx.getBlockingResponseContentLength();
+        if (blockingContentLength != null) {
           traceSeg.setTagTop(
               "http.response.headers.content-length", String.valueOf(blockingContentLength));
         }
