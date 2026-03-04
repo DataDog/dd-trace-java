@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ffm;
 
 import datadog.trace.api.Pair;
+import java.io.File;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class NativeLibraryHelper {
@@ -22,5 +24,12 @@ public final class NativeLibraryHelper {
 
   public static Pair<String, String> reverseResolveLibraryAndSymbol(long address) {
     return SYMBOLS_MAP.get(address);
+  }
+
+  public static String extractLibraryName(String fullPath) {
+    String libraryName = new File(fullPath).getName().toLowerCase(Locale.ROOT);
+    int dot = libraryName.lastIndexOf('.');
+    libraryName = (dot > 0) ? libraryName.substring(0, dot) : libraryName;
+    return libraryName;
   }
 }

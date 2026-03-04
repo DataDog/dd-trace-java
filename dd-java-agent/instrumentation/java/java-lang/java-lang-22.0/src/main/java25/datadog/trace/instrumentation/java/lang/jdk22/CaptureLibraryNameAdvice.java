@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.java.lang.jdk22;
 
+import static datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper.extractLibraryName;
+
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.Locale;
 import net.bytebuddy.asm.Advice;
 
 public class CaptureLibraryNameAdvice {
@@ -19,9 +19,7 @@ public class CaptureLibraryNameAdvice {
               .findVirtual(self.getClass(), "name", MethodType.methodType(String.class));
       String libraryName = (String) mh.invoke(self);
       if (libraryName != null) {
-        libraryName = new File(libraryName).getName().toLowerCase(Locale.ROOT);
-        int dot = libraryName.lastIndexOf('.');
-        libraryName = (dot > 0) ? libraryName.substring(0, dot) : libraryName;
+        libraryName = extractLibraryName(libraryName);
       } else {
         libraryName = "";
       }
