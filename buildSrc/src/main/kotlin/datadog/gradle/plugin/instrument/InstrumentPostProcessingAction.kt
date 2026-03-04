@@ -21,7 +21,8 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
   val plugins: ListProperty<String>,
   val instrumentingClassPath: FileCollection,
   val compilerOutputDirectory: DirectoryProperty,
-  val tmpDirectory: DirectoryProperty
+  val tmpDirectory: DirectoryProperty,
+  val includeClassDirectories: FileCollection
 ) : Action<Task> {
   private val logger = Logging.getLogger(InstrumentPostProcessingAction::class.java)
   private val resolvedJavaVersion: JavaLanguageVersion = when (javaVersion) {
@@ -61,6 +62,7 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
       instrumentingClassPath.setFrom(action.instrumentingClassPath)
       compilerOutputDirectory.set(action.compilerOutputDirectory)
       tmpDirectory.set(action.tmpDirectory)
+      includeClassDirectories.setFrom(action.includeClassDirectories)
     }
   }
 

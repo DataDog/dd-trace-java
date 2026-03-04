@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.instrument
 
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 
@@ -23,4 +24,9 @@ abstract class BuildTimeInstrumentationExtension {
    * Additional classpath entries required to resolve instrumentation plugins and their dependencies.
    */
   abstract val additionalClasspath: ListProperty<DirectoryProperty>
+
+  /**
+   * Additional class directories to include in instrumentation processing.
+   */
+  abstract val includeClassDirectories: ConfigurableFileCollection
 }

@@ -130,6 +130,7 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
         inputs.property("javaVersion", resolvedJavaVersion)
         inputs.property("plugins", extension.plugins)
         inputs.files(extension.additionalClasspath)
+        inputs.files(extension.includeClassDirectories)
 
         // Temporary location for raw (un-instrumented) classes.
         val tmpUninstrumentedClasses = project.objects.directoryProperty().value(
@@ -154,6 +155,7 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
             instrumentingClassPath,
             destinationDirectory,
             tmpUninstrumentedClasses,
+            extension.includeClassDirectories,
           )
         )
 

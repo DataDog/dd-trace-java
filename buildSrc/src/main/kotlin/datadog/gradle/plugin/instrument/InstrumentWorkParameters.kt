@@ -13,4 +13,5 @@ interface InstrumentWorkParameters : WorkParameters {
   val instrumentingClassPath: ConfigurableFileCollection
   val compilerOutputDirectory: DirectoryProperty
   val tmpDirectory: DirectoryProperty
+  val includeClassDirectories: ConfigurableFileCollection
 }
