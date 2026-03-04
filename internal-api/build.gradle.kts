@@ -257,6 +257,7 @@ val excludedClassesInstructionCoverage by extra(
 )
 
 dependencies {
+  api(project(":dd-trace-api"))
   api(libs.slf4j)
   api(project(":components:context"))
   api(project(":components:environment"))

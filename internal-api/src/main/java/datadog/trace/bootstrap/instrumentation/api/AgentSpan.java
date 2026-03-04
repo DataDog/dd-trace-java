@@ -205,7 +205,7 @@ public interface AgentSpan
 
   AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
 
-  MutableSpan getLocalRootSpan();
+  AgentSpan getLocalRootSpan();
 
   TraceConfig traceConfig();
 

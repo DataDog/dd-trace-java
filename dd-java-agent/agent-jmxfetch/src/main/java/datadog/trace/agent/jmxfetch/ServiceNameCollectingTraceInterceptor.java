@@ -2,6 +2,7 @@ package datadog.trace.agent.jmxfetch;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Arrays;
@@ -42,7 +43,7 @@ public class ServiceNameCollectingTraceInterceptor extends AbstractTraceIntercep
   public Collection<? extends MutableSpan> onTraceComplete(
       Collection<? extends MutableSpan> trace) {
     if (!trace.isEmpty()) {
-      MutableSpan rootSpan = trace.iterator().next().getLocalRootSpan();
+      MutableSpan rootSpan = GlobalTracer.get().getLocalRootSpan(trace.iterator().next());
       if (VALID_ENTRY_SPAN_TYPES.contains(rootSpan.getSpanType())) {
         // Not a hard limit, the race here is acceptable to not add locking on every trace report
         if (serviceNamesSize < SERVICE_NAME_LIMIT) {

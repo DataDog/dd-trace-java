@@ -5,6 +5,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 
 /**
@@ -83,6 +84,11 @@ class ExtractedSpan extends ImmutableSpan {
   @Override
   public Integer getSamplingPriority() {
     return this.spanContext.getSamplingPriority();
+  }
+
+  @Override
+  public AgentSpan getLocalRootSpan() {
+    return this;
   }
 
   @Override

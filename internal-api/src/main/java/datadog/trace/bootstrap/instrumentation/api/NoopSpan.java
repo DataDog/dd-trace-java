@@ -6,6 +6,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 
 class NoopSpan extends ImmutableSpan implements AgentSpan {
@@ -81,11 +82,6 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
   @Override
   public TagMap getTags() {
     return TagMap.EMPTY;
-  }
-
-  @Override
-  public AgentSpan getRootSpan() {
-    return this;
   }
 
   @Override

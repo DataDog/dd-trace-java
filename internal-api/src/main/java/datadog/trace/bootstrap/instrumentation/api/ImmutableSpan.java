@@ -189,6 +189,11 @@ public abstract class ImmutableSpan implements AgentSpan {
   }
 
   @Override
+  public AgentSpan setSamplingPriority(int newPriority) {
+    return this;
+  }
+
+  @Override
   public AgentSpan setSamplingPriority(int newPriority, int samplingMechanism) {
     return this;
   }

@@ -16,6 +16,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.Closeable;
+import java.io.IOException;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -69,7 +71,7 @@ public final class AwsHttpClientInstrumentation
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static Closeable methodEnter(
         @Advice.This final Object thiz,
         @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
       final AgentSpan activeSpan = activeSpan();
@@ -91,8 +93,12 @@ public final class AwsHttpClientInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter final AgentScope scope) {
-      scope.close();
+    public static void methodExit(@Advice.Enter final Closeable scope) {
+      try {
+         scope.close();
+      } catch (IOException e) {
+        // ignore. Scope doesn't throw IOException but it is part of the interface signature
+      }
     }
 
     /**

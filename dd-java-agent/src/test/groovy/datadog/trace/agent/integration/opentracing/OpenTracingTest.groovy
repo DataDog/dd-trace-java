@@ -18,7 +18,7 @@ class OpenTracingTest extends Specification {
   }
 
   def "test span/scope interfaces"() {
-    setup:
+    when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.scopeManager().activate(span, false)
 
