@@ -249,7 +249,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void initApplicationSpanIfNotInitialized() {
-    if (applicationSpan != null || isRunningOnDatabricks) {
+    if (applicationSpan != null) {
       return;
     }
 
@@ -329,19 +329,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
       return;
     }
-    initApplicationSpanIfNotInitialized();
 
-    if (applicationSpan == null) {
-      // On Databricks or streaming environments, the application span is not created.
-      // Flush any remaining traces and return.
-      tracer.flush();
-      return;
-    }
+    initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
       applicationSpan.addThrowable(throwable);
