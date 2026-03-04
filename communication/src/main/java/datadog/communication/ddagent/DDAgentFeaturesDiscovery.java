@@ -46,7 +46,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
-  public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
 
@@ -113,8 +112,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
         enableV05Traces
-            ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
-            : new String[] {V04_ENDPOINT, V03_ENDPOINT};
+            ? new String[] {V05_ENDPOINT, V04_ENDPOINT}
+            : new String[] {V04_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -217,7 +216,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint(candidate, e);
       }
     }
-    return V03_ENDPOINT;
+    return V04_ENDPOINT;
   }
 
   private void processInfoResponseHeaders(Response response) {
