@@ -259,43 +259,41 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     log.debug("Starting tracer application span.");
     log.info("Not a databricks span");
-    if (!isRunningOnDatabricks) {
-      AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
+    AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
-      if (applicationStart != null) {
-        String ddTags =
-            Config.get().getGlobalTags().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> e.getKey() + ":" + e.getValue())
-                .collect(Collectors.joining(","));
+    if (applicationStart != null) {
+      String ddTags =
+          Config.get().getGlobalTags().entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .map(e -> e.getKey() + ":" + e.getValue())
+              .collect(Collectors.joining(","));
 
-        builder
-            .withStartTimestamp(applicationStart.time() * 1000)
-            .withTag("application_name", applicationStart.appName())
-            .withTag("djm.tags", ddTags)
-            .withTag("spark_user", applicationStart.sparkUser());
+      builder
+          .withStartTimestamp(applicationStart.time() * 1000)
+          .withTag("application_name", applicationStart.appName())
+          .withTag("djm.tags", ddTags)
+          .withTag("spark_user", applicationStart.sparkUser());
 
-        if (applicationStart.appAttemptId().isDefined()) {
-          builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
-        }
+      if (applicationStart.appAttemptId().isDefined()) {
+        builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
       }
-
-      captureApplicationParameters(builder);
-      captureEmrStepId(builder);
-
-      Optional<OpenlineageParentContext> openlineageParentContext =
-          OpenlineageParentContext.from(sparkConf);
-      // We know we're not in Databricks context
-      if (openlineageParentContext.isPresent()) {
-        captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
-      } else {
-        builder.asChildOf(predeterminedTraceIdContext);
-      }
-
-      applicationSpan = builder.start();
-      setDataJobsSamplingPriority(applicationSpan);
-      applicationSpan.setMeasured(true);
     }
+
+    captureApplicationParameters(builder);
+    captureEmrStepId(builder);
+
+    Optional<OpenlineageParentContext> openlineageParentContext =
+        OpenlineageParentContext.from(sparkConf);
+    // We know we're not in Databricks context
+    if (openlineageParentContext.isPresent()) {
+      captureOpenlineageContextIfPresent(builder, openlineageParentContext.get());
+    } else {
+      builder.asChildOf(predeterminedTraceIdContext);
+    }
+
+    applicationSpan = builder.start();
+    setDataJobsSamplingPriority(applicationSpan);
+    applicationSpan.setMeasured(true);
   }
 
   private void captureOpenlineageContextIfPresent(
@@ -351,21 +349,28 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         applicationSpan != null ? "exists" : "null",
         jobCount);
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
+      log.info(
+          "finishApplicationInDatabricksCheck: isRunningOnDatabricks={}, databricksClusterName={}, applicationSpan={}, jobCount={}",
+          isRunningOnDatabricks,
+          databricksClusterName,
+          applicationSpan != null ? "exists" : "null",
+          jobCount);
       return;
     }
     initApplicationSpanIfNotInitialized();
 
-    if (applicationSpan == null) {
-      // On Databricks or streaming environments, the application span is not created.
-      // Flush any remaining traces and return.
-      log.info(
-          "No application span created, skipping. isRunningOnDatabricks={}", isRunningOnDatabricks);
-      tracer.flush();
-      return;
-    }
+    // if (applicationSpan == null) {
+    //   // On Databricks or streaming environments, the application span is not created.
+    //   // Flush any remaining traces and return.
+    //   log.info(
+    //       "No application span created, skipping. isRunningOnDatabricks={}",
+    // isRunningOnDatabricks);
+    //   tracer.flush();
+    //   return;
+    // }
 
     if (throwable != null) {
       applicationSpan.addThrowable(throwable);
