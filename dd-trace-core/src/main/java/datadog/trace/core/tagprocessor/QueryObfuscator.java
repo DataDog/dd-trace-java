@@ -49,10 +49,8 @@ public final class QueryObfuscator extends TagsPostProcessor {
 
   private String obfuscate(String query) {
     if (pattern != null) {
-      Matcher matcher = pattern.matcher(query);
-      while (matcher.find()) {
-        query = Strings.replace(query, matcher.group(), "<redacted>");
-      }
+      java.util.regex.Matcher matcher = pattern.matcher(query);
+      return matcher.replaceAll("<redacted>");
     }
     return query;
   }
