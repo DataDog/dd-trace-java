@@ -17,6 +17,8 @@ import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
+import com.openai.models.responses.FunctionTool;
+import com.openai.models.responses.Tool;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
@@ -126,6 +128,123 @@ public class ResponseDecorator {
 
     extractPromptFromParams(params)
         .ifPresent(prompt -> span.setTag(CommonTags.REQUEST_PROMPT, prompt));
+
+    List<Map<String, Object>> toolDefinitions = extractToolDefinitionsFromParams(params);
+    if (!toolDefinitions.isEmpty()) {
+      span.setTag(CommonTags.TOOL_DEFINITIONS, toolDefinitions);
+    }
+  }
+
+  private List<Map<String, Object>> extractToolDefinitionsFromParams(ResponseCreateParams params) {
+    try {
+      Optional<List<Tool>> toolsOpt = params.tools();
+      if (toolsOpt.isPresent()) {
+        List<Map<String, Object>> toolDefinitions = new ArrayList<>();
+        for (Tool tool : toolsOpt.get()) {
+          if (!tool.isFunction()) {
+            continue;
+          }
+          Map<String, Object> toolDef = extractFunctionToolDefinition(tool.asFunction());
+          if (toolDef != null) {
+            toolDefinitions.add(toolDef);
+          }
+        }
+        if (!toolDefinitions.isEmpty()) {
+          return toolDefinitions;
+        }
+      }
+    } catch (Throwable ignored) {
+      // fall back to raw JSON if typed extraction is unavailable or fails
+    }
+
+    try {
+      Optional<JsonValue> rawToolsOpt = params._tools().asUnknown();
+      if (!rawToolsOpt.isPresent()) {
+        return Collections.emptyList();
+      }
+      Optional<List<JsonValue>> rawToolListOpt = rawToolsOpt.get().asArray();
+      if (!rawToolListOpt.isPresent()) {
+        return Collections.emptyList();
+      }
+
+      List<Map<String, Object>> toolDefinitions = new ArrayList<>();
+      for (JsonValue rawTool : rawToolListOpt.get()) {
+        Map<String, Object> toolDef = extractFunctionToolDefinition(rawTool);
+        if (toolDef != null) {
+          toolDefinitions.add(toolDef);
+        }
+      }
+      return toolDefinitions;
+    } catch (Throwable ignored) {
+      return Collections.emptyList();
+    }
+  }
+
+  private Map<String, Object> extractFunctionToolDefinition(FunctionTool functionTool) {
+    String name = functionTool.name();
+    if (name == null || name.isEmpty()) {
+      return null;
+    }
+
+    Map<String, Object> toolDef = new HashMap<>();
+    toolDef.put("name", name);
+    functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
+    functionTool
+        .parameters()
+        .ifPresent(parameters -> toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+    return toolDef;
+  }
+
+  private Map<String, Object> extractFunctionToolDefinition(JsonValue rawTool) {
+    Optional<Map<String, JsonValue>> toolObjOpt = rawTool.asObject();
+    if (!toolObjOpt.isPresent()) {
+      return null;
+    }
+
+    Map<String, JsonValue> toolObj = toolObjOpt.get();
+    String type = getJsonString(toolObj.get("type"));
+    if (!"function".equals(type)) {
+      return null;
+    }
+
+    JsonValue functionObjValue = toolObj.get("function");
+    Map<String, JsonValue> functionObj = null;
+    if (functionObjValue != null) {
+      Optional<Map<String, JsonValue>> nestedFunctionOpt = functionObjValue.asObject();
+      if (nestedFunctionOpt.isPresent()) {
+        functionObj = nestedFunctionOpt.get();
+      }
+    }
+
+    String name =
+        functionObj == null
+            ? getJsonString(toolObj.get("name"))
+            : getJsonString(functionObj.get("name"));
+    if (name == null || name.isEmpty()) {
+      return null;
+    }
+
+    Map<String, Object> toolDef = new HashMap<>();
+    toolDef.put("name", name);
+
+    String description =
+        functionObj == null
+            ? getJsonString(toolObj.get("description"))
+            : getJsonString(functionObj.get("description"));
+    if (description != null) {
+      toolDef.put("description", description);
+    }
+
+    JsonValue parameters =
+        functionObj == null ? toolObj.get("parameters") : functionObj.get("parameters");
+    if (parameters != null) {
+      Object schema = jsonValueToObject(parameters);
+      if (schema != null) {
+        toolDef.put("schema", schema);
+      }
+    }
+
+    return toolDef;
   }
 
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
@@ -839,6 +958,45 @@ public class ResponseDecorator {
     }
     Optional<String> asString = value.asString();
     return asString.orElse(null);
+  }
+
+  private Map<String, Object> jsonValueMapToObject(Map<String, JsonValue> map) {
+    Map<String, Object> result = new HashMap<>();
+    for (Map.Entry<String, JsonValue> entry : map.entrySet()) {
+      result.put(entry.getKey(), jsonValueToObject(entry.getValue()));
+    }
+    return result;
+  }
+
+  private Object jsonValueToObject(JsonValue value) {
+    if (value == null) {
+      return null;
+    }
+    Optional<String> str = value.asString();
+    if (str.isPresent()) {
+      return str.get();
+    }
+    Optional<Number> num = value.asNumber();
+    if (num.isPresent()) {
+      return num.get();
+    }
+    Optional<Boolean> bool = value.asBoolean();
+    if (bool.isPresent()) {
+      return bool.get();
+    }
+    Optional<Map<String, JsonValue>> obj = value.asObject();
+    if (obj.isPresent()) {
+      return jsonValueMapToObject(obj.get());
+    }
+    Optional<List<JsonValue>> arr = value.asArray();
+    if (arr.isPresent()) {
+      List<Object> list = new ArrayList<>();
+      for (JsonValue item : arr.get()) {
+        list.add(jsonValueToObject(item));
+      }
+      return list;
+    }
+    return null;
   }
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {
