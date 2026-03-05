@@ -39,4 +39,5 @@ interface CommonTags {
   String CACHE_READ_INPUT_TOKENS = METRIC_PREFIX + "cache_read_input_tokens";
 
   String REQUEST_REASONING = "_ml_obs_request.reasoning";
+  String REQUEST_PROMPT = "_ml_obs_request.prompt";
 }

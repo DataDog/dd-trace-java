@@ -7,6 +7,7 @@ import com.openai.models.ResponsesModel;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseCustomToolCall;
+import com.openai.models.responses.EasyInputMessage;
 import com.openai.models.responses.ResponseFunctionToolCall;
 import com.openai.models.responses.ResponseInputContent;
 import com.openai.models.responses.ResponseInputItem;
@@ -15,6 +16,7 @@ import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
+import com.openai.models.responses.ResponsePrompt;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
@@ -24,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +35,8 @@ public class ResponseDecorator {
   public static final ResponseDecorator DECORATE = new ResponseDecorator();
 
   private static final CharSequence RESPONSES_CREATE = UTF8BytesString.create("createResponse");
+  private static final String IMAGE_FALLBACK_MARKER = "[image]";
+  private static final String FILE_FALLBACK_MARKER = "[file]";
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
@@ -111,13 +116,26 @@ public class ResponseDecorator {
 
     extractReasoningFromParams(params)
         .ifPresent(reasoningMap -> span.setTag(CommonTags.REQUEST_REASONING, reasoningMap));
+
+    extractPromptFromParams(params).ifPresent(prompt -> span.setTag(CommonTags.REQUEST_PROMPT, prompt));
   }
 
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
-    if (item.isMessage()) {
+    if (item.isEasyInputMessage()) {
+      EasyInputMessage message = item.asEasyInputMessage();
+      String role = message.role().asString();
+      String content = extractEasyInputMessageContent(message);
+      if (content == null || content.isEmpty()) {
+        return null;
+      }
+      return LLMObs.LLMMessage.from(role, content);
+    } else if (item.isMessage()) {
       ResponseInputItem.Message message = item.asMessage();
       String role = message.role().asString();
       String content = extractInputMessageContent(message);
+      if (content == null || content.isEmpty()) {
+        return null;
+      }
       return LLMObs.LLMMessage.from(role, content);
     } else if (item.isFunctionCall()) {
       // Function call is mapped to assistant message with tool_calls
@@ -135,6 +153,26 @@ public class ResponseDecorator {
           LLMObs.ToolResult.from("", "function_call_output", callId, result);
       List<LLMObs.ToolResult> toolResults = Collections.singletonList(toolResult);
       return LLMObs.LLMMessage.fromToolResults("user", toolResults);
+    }
+    return null;
+  }
+
+  private String extractEasyInputMessageContent(EasyInputMessage message) {
+    if (message.content().isTextInput()) {
+      String content = message.content().asTextInput();
+      return content == null || content.isEmpty() ? null : content;
+    }
+
+    if (message.content().isResponseInputMessageContentList()) {
+      StringBuilder contentBuilder = new StringBuilder();
+      for (ResponseInputContent content : message.content().asResponseInputMessageContentList()) {
+        String contentPart = extractInputContentText(content);
+        if (contentPart != null) {
+          contentBuilder.append(contentPart);
+        }
+      }
+      String result = contentBuilder.toString();
+      return result.isEmpty() ? null : result;
     }
     return null;
   }
@@ -324,12 +362,33 @@ public class ResponseDecorator {
   private String extractInputMessageContent(ResponseInputItem.Message message) {
     StringBuilder contentBuilder = new StringBuilder();
     for (ResponseInputContent content : message.content()) {
-      if (content.isInputText()) {
-        contentBuilder.append(content.asInputText().text());
+      String contentPart = extractInputContentText(content);
+      if (contentPart != null) {
+        contentBuilder.append(contentPart);
       }
     }
     String result = contentBuilder.toString();
     return result.isEmpty() ? null : result;
+  }
+
+  private String extractInputContentText(ResponseInputContent content) {
+    if (content.isInputText()) {
+      return content.asInputText().text();
+    }
+    if (content.isInputImage()) {
+      return content.asInputImage().imageUrl().orElse(content.asInputImage().fileId().orElse(""));
+    }
+    if (content.isInputFile()) {
+      return content
+          .asInputFile()
+          .fileUrl()
+          .orElse(
+              content
+                  .asInputFile()
+                  .fileId()
+                  .orElse(content.asInputFile().filename().orElse(FILE_FALLBACK_MARKER)));
+    }
+    return null;
   }
 
   private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
@@ -398,6 +457,8 @@ public class ResponseDecorator {
     if (!outputMessages.isEmpty()) {
       span.setTag(CommonTags.OUTPUT, outputMessages);
     }
+
+    enrichInputWithPromptTracking(span, response);
 
     Map<String, Object> metadata = new HashMap<>();
 
@@ -472,6 +533,304 @@ public class ResponseDecorator {
                   CommonTags.REASONING_OUTPUT_TOKENS,
                   usage.outputTokensDetails().reasoningTokens());
             });
+  }
+
+  private void enrichInputWithPromptTracking(AgentSpan span, Response response) {
+    Object promptTag = span.getTag(CommonTags.REQUEST_PROMPT);
+    if (!(promptTag instanceof Map)) {
+      return;
+    }
+
+    Map<String, Object> prompt = new LinkedHashMap<>((Map<String, Object>) promptTag);
+    Map<String, Object> variables = Collections.emptyMap();
+    Object variablesTag = prompt.get("variables");
+    if (variablesTag instanceof Map) {
+      variables = (Map<String, Object>) variablesTag;
+    }
+
+    Map<String, Object> inputMap = new LinkedHashMap<>();
+    Object inputTag = span.getTag(CommonTags.INPUT);
+    if (inputTag instanceof Map) {
+      inputMap.putAll((Map<String, Object>) inputTag);
+    }
+
+    List<LLMObs.LLMMessage> inputMessages = extractInputMessagesForPromptTracking(span, response);
+    if (!inputMessages.isEmpty()) {
+      inputMap.put("messages", inputMessages);
+    }
+
+    List<Map<String, String>> chatTemplate = extractChatTemplate(inputMessages, variables);
+    if (!chatTemplate.isEmpty()) {
+      prompt.put("chat_template", chatTemplate);
+    }
+
+    inputMap.put("prompt", prompt);
+
+    span.setTag(CommonTags.INPUT, inputMap);
+  }
+
+  private List<Map<String, String>> extractChatTemplate(
+      List<LLMObs.LLMMessage> messages, Map<String, Object> variables) {
+    Map<String, String> valueToPlaceholder = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> variable : variables.entrySet()) {
+      if (variable.getValue() == null) {
+        continue;
+      }
+      String valueStr = String.valueOf(variable.getValue());
+      if (valueStr.isEmpty()
+          || IMAGE_FALLBACK_MARKER.equals(valueStr)
+          || FILE_FALLBACK_MARKER.equals(valueStr)) {
+        continue;
+      }
+      valueToPlaceholder.put(valueStr, "{{" + variable.getKey() + "}}");
+    }
+
+    List<String> sortedValues = new ArrayList<>(valueToPlaceholder.keySet());
+    sortedValues.sort((a, b) -> Integer.compare(b.length(), a.length()));
+
+    List<Map<String, String>> chatTemplate = new ArrayList<>();
+    for (LLMObs.LLMMessage message : messages) {
+      String role = message.getRole();
+      String content = message.getContent();
+      if (role == null || role.isEmpty() || content == null || content.isEmpty()) {
+        continue;
+      }
+
+      String templateContent = content;
+      for (String value : sortedValues) {
+        templateContent = templateContent.replace(value, valueToPlaceholder.get(value));
+      }
+
+      Map<String, String> messageMap = new LinkedHashMap<>();
+      messageMap.put("role", role);
+      messageMap.put("content", templateContent);
+      chatTemplate.add(messageMap);
+    }
+    return chatTemplate;
+  }
+
+  private List<LLMObs.LLMMessage> extractInputMessagesForPromptTracking(
+      AgentSpan span, Response response) {
+    List<LLMObs.LLMMessage> messages = new ArrayList<>();
+
+    Object inputTag = span.getTag(CommonTags.INPUT);
+    if (inputTag instanceof List) {
+      for (Object messageObj : (List<?>) inputTag) {
+        if (messageObj instanceof LLMObs.LLMMessage) {
+          messages.add((LLMObs.LLMMessage) messageObj);
+        }
+      }
+    } else if (inputTag instanceof Map) {
+      Object messagesObj = ((Map<?, ?>) inputTag).get("messages");
+      if (messagesObj instanceof List) {
+        for (Object messageObj : (List<?>) messagesObj) {
+          if (messageObj instanceof LLMObs.LLMMessage) {
+            messages.add((LLMObs.LLMMessage) messageObj);
+          }
+        }
+      }
+    }
+
+    if (!messages.isEmpty()) {
+      return messages;
+    }
+
+    response
+        .instructions()
+        .ifPresent(
+            instructions -> {
+              if (instructions.isInputItemList()) {
+                for (ResponseInputItem item : instructions.asInputItemList()) {
+                  LLMObs.LLMMessage message = extractInputItemMessage(item);
+                  if (message != null) {
+                    messages.add(message);
+                  }
+                }
+              } else if (instructions.isString()) {
+                String text = instructions.asString();
+                if (text != null && !text.isEmpty()) {
+                  messages.add(LLMObs.LLMMessage.from("user", text));
+                }
+              }
+            });
+
+    if (!messages.isEmpty()) {
+      return messages;
+    }
+
+    // Fallback for SDK union parsing mismatches: parse raw instructions payload.
+    Optional<JsonValue> rawInstructions = response._instructions().asUnknown();
+    if (rawInstructions.isPresent()) {
+      Optional<List<JsonValue>> rawList = rawInstructions.get().asArray();
+      if (rawList.isPresent()) {
+        for (JsonValue item : rawList.get()) {
+          LLMObs.LLMMessage message = extractMessageFromRawInstruction(item);
+          if (message != null) {
+            messages.add(message);
+          }
+        }
+      }
+    }
+
+    return messages;
+  }
+
+  private LLMObs.LLMMessage extractMessageFromRawInstruction(JsonValue instructionValue) {
+    Optional<Map<String, JsonValue>> objOpt = instructionValue.asObject();
+    if (!objOpt.isPresent()) {
+      return null;
+    }
+    Map<String, JsonValue> obj = objOpt.get();
+    String role = getJsonString(obj.get("role"));
+    if (role == null || role.isEmpty()) {
+      return null;
+    }
+
+    JsonValue contentValue = obj.get("content");
+    if (contentValue == null) {
+      return null;
+    }
+    Optional<List<JsonValue>> contentList = contentValue.asArray();
+    if (!contentList.isPresent()) {
+      return null;
+    }
+
+    StringBuilder contentBuilder = new StringBuilder();
+    for (JsonValue contentItem : contentList.get()) {
+      Optional<Map<String, JsonValue>> contentObjOpt = contentItem.asObject();
+      if (!contentObjOpt.isPresent()) {
+        continue;
+      }
+      Map<String, JsonValue> contentObj = contentObjOpt.get();
+      String type = getJsonString(contentObj.get("type"));
+      if ("input_text".equals(type)) {
+        String text = getJsonString(contentObj.get("text"));
+        if (text != null) {
+          contentBuilder.append(text);
+        }
+      } else if ("input_image".equals(type)) {
+        String imageUrl = getJsonString(contentObj.get("image_url"));
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+          contentBuilder.append(imageUrl);
+        } else {
+          String fileId = getJsonString(contentObj.get("file_id"));
+          contentBuilder.append(fileId == null || fileId.isEmpty() ? IMAGE_FALLBACK_MARKER : fileId);
+        }
+      } else if ("input_file".equals(type)) {
+        String fileUrl = getJsonString(contentObj.get("file_url"));
+        if (fileUrl != null && !fileUrl.isEmpty()) {
+          contentBuilder.append(fileUrl);
+        } else {
+          String fileId = getJsonString(contentObj.get("file_id"));
+          if (fileId != null && !fileId.isEmpty()) {
+            contentBuilder.append(fileId);
+          } else {
+            String filename = getJsonString(contentObj.get("filename"));
+            contentBuilder.append(
+                filename == null || filename.isEmpty() ? FILE_FALLBACK_MARKER : filename);
+          }
+        }
+      }
+    }
+
+    String content = contentBuilder.toString();
+    if (content.isEmpty()) {
+      return null;
+    }
+    return LLMObs.LLMMessage.from(role, content);
+  }
+
+  private Optional<Map<String, Object>> extractPromptFromParams(ResponseCreateParams params) {
+    Optional<ResponsePrompt> promptOpt = params.prompt();
+    if (!promptOpt.isPresent()) {
+      return Optional.empty();
+    }
+
+    ResponsePrompt prompt = promptOpt.get();
+    Map<String, Object> promptMap = new LinkedHashMap<>();
+
+    String id = prompt.id();
+    if (id != null && !id.isEmpty()) {
+      promptMap.put("id", id);
+    }
+    prompt.version().ifPresent(version -> promptMap.put("version", version));
+    prompt
+        .variables()
+        .ifPresent(
+            variables -> {
+              Map<String, Object> normalized = normalizePromptVariables(variables);
+              if (!normalized.isEmpty()) {
+                promptMap.put("variables", normalized);
+              }
+            });
+
+    return promptMap.isEmpty() ? Optional.empty() : Optional.of(promptMap);
+  }
+
+  private Map<String, Object> normalizePromptVariables(ResponsePrompt.Variables variables) {
+    Map<String, Object> normalized = new LinkedHashMap<>();
+    for (Map.Entry<String, JsonValue> entry : variables._additionalProperties().entrySet()) {
+      Object value = normalizePromptVariable(entry.getValue());
+      if (value != null) {
+        normalized.put(entry.getKey(), value);
+      }
+    }
+    return normalized;
+  }
+
+  private Object normalizePromptVariable(JsonValue value) {
+    if (value == null) {
+      return null;
+    }
+
+    Optional<String> asString = value.asString();
+    if (asString.isPresent()) {
+      return asString.get();
+    }
+
+    Optional<Map<String, JsonValue>> asObject = value.asObject();
+    if (!asObject.isPresent()) {
+      return value.toString();
+    }
+
+    Map<String, JsonValue> obj = asObject.get();
+    String type = getJsonString(obj.get("type"));
+    String text = getJsonString(obj.get("text"));
+    if (text != null && !text.isEmpty()) {
+      return text;
+    }
+
+    if ("input_image".equals(type)) {
+      String imageUrl = getJsonString(obj.get("image_url"));
+      if (imageUrl != null && !imageUrl.isEmpty()) {
+        return imageUrl;
+      }
+      String fileId = getJsonString(obj.get("file_id"));
+      return fileId == null || fileId.isEmpty() ? IMAGE_FALLBACK_MARKER : fileId;
+    }
+
+    if ("input_file".equals(type)) {
+      String fileUrl = getJsonString(obj.get("file_url"));
+      if (fileUrl != null && !fileUrl.isEmpty()) {
+        return fileUrl;
+      }
+      String fileId = getJsonString(obj.get("file_id"));
+      if (fileId != null && !fileId.isEmpty()) {
+        return fileId;
+      }
+      String filename = getJsonString(obj.get("filename"));
+      return filename == null || filename.isEmpty() ? FILE_FALLBACK_MARKER : filename;
+    }
+
+    return value.toString();
+  }
+
+  private String getJsonString(JsonValue value) {
+    if (value == null) {
+      return null;
+    }
+    Optional<String> asString = value.asString();
+    return asString.orElse(null);
   }
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {

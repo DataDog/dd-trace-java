@@ -337,73 +337,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
-            if (!(val instanceof List)) {
+            writable.writeString(key, null);
+            if (val instanceof List) {
+              writable.startMap(1);
+              writable.writeString("messages", null);
+              writeLlmMessages((List<?>) val);
+            } else if (key.equals(INPUT) && val instanceof Map) {
+              writeLlmInputMap((Map<?, ?>) val);
+            } else {
               LOGGER.warn(
                   "unexpectedly found incorrect type for LLM span IO {}, expecting list",
                   val.getClass().getName());
               continue;
-            }
-            writable.writeString(key, null);
-            writable.startMap(1);
-            // llm span kind must have llm objects
-            List<LLMObs.LLMMessage> messages = (List<LLMObs.LLMMessage>) val;
-            writable.writeString("messages", null);
-            writable.startArray(messages.size());
-            for (LLMObs.LLMMessage message : messages) {
-              List<LLMObs.ToolCall> toolCalls = message.getToolCalls();
-              List<LLMObs.ToolResult> toolResults = message.getToolResults();
-              boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
-              boolean hasToolResults = null != toolResults && !toolResults.isEmpty();
-              boolean hasContent = message.getContent() != null;
-              int mapSize = 1; // role
-              if (hasContent) mapSize++;
-              if (hasToolCalls) mapSize++;
-              if (hasToolResults) mapSize++;
-              writable.startMap(mapSize);
-              writable.writeUTF8(LLM_MESSAGE_ROLE);
-              writable.writeString(message.getRole(), null);
-              if (hasContent) {
-                writable.writeUTF8(LLM_MESSAGE_CONTENT);
-                writable.writeString(message.getContent(), null);
-              }
-              if (hasToolCalls) {
-                writable.writeUTF8(LLM_MESSAGE_TOOL_CALLS);
-                writable.startArray(toolCalls.size());
-                for (LLMObs.ToolCall toolCall : toolCalls) {
-                  Map<String, Object> arguments = toolCall.getArguments();
-                  boolean hasArguments = null != arguments && !arguments.isEmpty();
-                  writable.startMap(hasArguments ? 4 : 3);
-                  writable.writeUTF8(LLM_TOOL_CALL_NAME);
-                  writable.writeString(toolCall.getName(), null);
-                  writable.writeUTF8(LLM_TOOL_CALL_TYPE);
-                  writable.writeString(toolCall.getType(), null);
-                  writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
-                  writable.writeString(toolCall.getToolId(), null);
-                  if (hasArguments) {
-                    writable.writeUTF8(LLM_TOOL_CALL_ARGUMENTS);
-                    writable.startMap(arguments.size());
-                    for (Map.Entry<String, Object> argument : arguments.entrySet()) {
-                      writable.writeString(argument.getKey(), null);
-                      writable.writeObject(argument.getValue(), null);
-                    }
-                  }
-                }
-              }
-              if (hasToolResults) {
-                writable.writeUTF8(LLM_MESSAGE_TOOL_RESULTS);
-                writable.startArray(toolResults.size());
-                for (LLMObs.ToolResult toolResult : toolResults) {
-                  writable.startMap(4);
-                  writable.writeUTF8(LLM_TOOL_CALL_NAME);
-                  writable.writeString(toolResult.getName(), null);
-                  writable.writeUTF8(LLM_TOOL_CALL_TYPE);
-                  writable.writeString(toolResult.getType(), null);
-                  writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
-                  writable.writeString(toolResult.getToolId(), null);
-                  writable.writeUTF8(LLM_TOOL_RESULT_RESULT);
-                  writable.writeString(toolResult.getResult(), null);
-                }
-              }
             }
           } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
             if (!(val instanceof List)) {
@@ -439,6 +384,86 @@ public class LLMObsSpanMapper implements RemoteMapper {
         } else {
           writable.writeString(key, null);
           writable.writeObject(val, null);
+        }
+      }
+    }
+
+    private void writeLlmInputMap(Map<?, ?> inputMap) {
+      writable.startMap(inputMap.size());
+      for (Map.Entry<?, ?> entry : inputMap.entrySet()) {
+        String inputKey = String.valueOf(entry.getKey());
+        Object inputValue = entry.getValue();
+        writable.writeString(inputKey, null);
+        if ("messages".equals(inputKey) && inputValue instanceof List) {
+          writeLlmMessages((List<?>) inputValue);
+        } else {
+          writable.writeObject(inputValue, null);
+        }
+      }
+    }
+
+    private void writeLlmMessages(List<?> messages) {
+      writable.startArray(messages.size());
+      for (Object messageObj : messages) {
+        if (!(messageObj instanceof LLMObs.LLMMessage)) {
+          writable.writeObject(messageObj, null);
+          continue;
+        }
+
+        LLMObs.LLMMessage message = (LLMObs.LLMMessage) messageObj;
+        List<LLMObs.ToolCall> toolCalls = message.getToolCalls();
+        List<LLMObs.ToolResult> toolResults = message.getToolResults();
+        boolean hasToolCalls = null != toolCalls && !toolCalls.isEmpty();
+        boolean hasToolResults = null != toolResults && !toolResults.isEmpty();
+        boolean hasContent = message.getContent() != null;
+        int mapSize = 1;
+        if (hasContent) mapSize++;
+        if (hasToolCalls) mapSize++;
+        if (hasToolResults) mapSize++;
+        writable.startMap(mapSize);
+        writable.writeUTF8(LLM_MESSAGE_ROLE);
+        writable.writeString(message.getRole(), null);
+        if (hasContent) {
+          writable.writeUTF8(LLM_MESSAGE_CONTENT);
+          writable.writeString(message.getContent(), null);
+        }
+        if (hasToolCalls) {
+          writable.writeUTF8(LLM_MESSAGE_TOOL_CALLS);
+          writable.startArray(toolCalls.size());
+          for (LLMObs.ToolCall toolCall : toolCalls) {
+            Map<String, Object> arguments = toolCall.getArguments();
+            boolean hasArguments = null != arguments && !arguments.isEmpty();
+            writable.startMap(hasArguments ? 4 : 3);
+            writable.writeUTF8(LLM_TOOL_CALL_NAME);
+            writable.writeString(toolCall.getName(), null);
+            writable.writeUTF8(LLM_TOOL_CALL_TYPE);
+            writable.writeString(toolCall.getType(), null);
+            writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
+            writable.writeString(toolCall.getToolId(), null);
+            if (hasArguments) {
+              writable.writeUTF8(LLM_TOOL_CALL_ARGUMENTS);
+              writable.startMap(arguments.size());
+              for (Map.Entry<String, Object> argument : arguments.entrySet()) {
+                writable.writeString(argument.getKey(), null);
+                writable.writeObject(argument.getValue(), null);
+              }
+            }
+          }
+        }
+        if (hasToolResults) {
+          writable.writeUTF8(LLM_MESSAGE_TOOL_RESULTS);
+          writable.startArray(toolResults.size());
+          for (LLMObs.ToolResult toolResult : toolResults) {
+            writable.startMap(4);
+            writable.writeUTF8(LLM_TOOL_CALL_NAME);
+            writable.writeString(toolResult.getName(), null);
+            writable.writeUTF8(LLM_TOOL_CALL_TYPE);
+            writable.writeString(toolResult.getType(), null);
+            writable.writeUTF8(LLM_TOOL_CALL_TOOL_ID);
+            writable.writeString(toolResult.getToolId(), null);
+            writable.writeUTF8(LLM_TOOL_RESULT_RESULT);
+            writable.writeString(toolResult.getResult(), null);
+          }
         }
       }
     }
