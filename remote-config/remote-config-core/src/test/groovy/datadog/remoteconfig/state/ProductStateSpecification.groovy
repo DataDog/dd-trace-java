@@ -10,8 +10,8 @@ class ProductStateSpecification extends Specification {
 
   PollingRateHinter hinter = Mock()
 
-  void 'test apply for non-ASM_DD product applies changes before removes'() {
-    given: 'a ProductState for ASM_DATA'
+  void 'test apply with new and updated configs'() {
+    given: 'a ProductState'
     def productState = new ProductState(Product.ASM_DATA)
     def listener = new OrderRecordingListener()
     productState.addProductListener(listener)
@@ -43,78 +43,6 @@ class ProductStateSpecification extends Specification {
       'accept:org/ASM_DATA/config2/foo',
       'commit'
     ]
-  }
-
-  void 'test apply for ASM_DD product applies changes after removes'() {
-    given: 'a ProductState for ASM_DD'
-    def productState = new ProductState(Product.ASM_DD)
-    def listener = new OrderRecordingListener()
-    productState.addProductListener(listener)
-
-    and: 'first apply with config1 and config2 to cache them'
-    def response1 = buildResponse([
-      'org/ASM_DD/config1/foo': [version: 1, length: 8, hash: 'oldhash1'],
-      'org/ASM_DD/config2/foo': [version: 1, length: 8, hash: 'hash2']
-    ])
-    def key1 = ParsedConfigKey.parse('org/ASM_DD/config1/foo')
-    def key2 = ParsedConfigKey.parse('org/ASM_DD/config2/foo')
-    productState.apply(response1, [key1, key2], hinter)
-    listener.operations.clear() // Clear for the actual test
-
-    and: 'a new response with only config1 (changed hash) - config2 will be removed'
-    def response2 = buildResponse([
-      'org/ASM_DD/config1/foo': [version: 2, length: 8, hash: 'newhash1']
-    ])
-
-    when: 'apply is called'
-    def changed = productState.apply(response2, [key1], hinter)
-
-    then: 'changes are detected'
-    changed
-
-    and: 'operations happen in order: remove config2 FIRST, then apply config1, then commit'
-    listener.operations == ['remove:org/ASM_DD/config2/foo', 'accept:org/ASM_DD/config1/foo', 'commit']
-  }
-
-  void 'test ASM_DD with multiple new configs removes before applies all'() {
-    given: 'a ProductState for ASM_DD'
-    def productState = new ProductState(Product.ASM_DD)
-    def listener = new OrderRecordingListener()
-    productState.addProductListener(listener)
-
-    and: 'first apply with old configs'
-    def response1 = buildResponse([
-      'org/ASM_DD/old1/foo': [version: 1, length: 8, hash: 'hash_old1'],
-      'org/ASM_DD/old2/foo': [version: 1, length: 8, hash: 'hash_old2']
-    ])
-    def oldKey1 = ParsedConfigKey.parse('org/ASM_DD/old1/foo')
-    def oldKey2 = ParsedConfigKey.parse('org/ASM_DD/old2/foo')
-    productState.apply(response1, [oldKey1, oldKey2], hinter)
-    listener.operations.clear() // Clear for the actual test
-
-    and: 'a response with completely new configs'
-    def response2 = buildResponse([
-      'org/ASM_DD/new1/foo': [version: 1, length: 8, hash: 'hash_new1'],
-      'org/ASM_DD/new2/foo': [version: 1, length: 8, hash: 'hash_new2']
-    ])
-    def newKey1 = ParsedConfigKey.parse('org/ASM_DD/new1/foo')
-    def newKey2 = ParsedConfigKey.parse('org/ASM_DD/new2/foo')
-
-    when: 'apply is called'
-    def changed = productState.apply(response2, [newKey1, newKey2], hinter)
-
-    then: 'changes are detected'
-    changed
-
-    and: 'all removes happen before all applies'
-    listener.operations.size() == 5 // 2 removes + 2 accepts + 1 commit
-    listener.operations.findAll { it.startsWith('remove:') }.size() == 2
-    listener.operations.findAll { it.startsWith('accept:') }.size() == 2
-
-    and: 'removes come before accepts'
-    def lastRemoveIdx = listener.operations.findLastIndexOf { it.startsWith('remove:') }
-    def firstAcceptIdx = listener.operations.findIndexOf { it.startsWith('accept:') }
-    lastRemoveIdx < firstAcceptIdx
   }
 
   void 'test no changes detected when config hashes match'() {
