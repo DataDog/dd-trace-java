@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueMapToObject;
+import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueToObject;
+
 import com.openai.core.JsonField;
 import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
@@ -958,45 +961,6 @@ public class ResponseDecorator {
     }
     Optional<String> asString = value.asString();
     return asString.orElse(null);
-  }
-
-  private Map<String, Object> jsonValueMapToObject(Map<String, JsonValue> map) {
-    Map<String, Object> result = new HashMap<>();
-    for (Map.Entry<String, JsonValue> entry : map.entrySet()) {
-      result.put(entry.getKey(), jsonValueToObject(entry.getValue()));
-    }
-    return result;
-  }
-
-  private Object jsonValueToObject(JsonValue value) {
-    if (value == null) {
-      return null;
-    }
-    Optional<String> str = value.asString();
-    if (str.isPresent()) {
-      return str.get();
-    }
-    Optional<Number> num = value.asNumber();
-    if (num.isPresent()) {
-      return num.get();
-    }
-    Optional<Boolean> bool = value.asBoolean();
-    if (bool.isPresent()) {
-      return bool.get();
-    }
-    Optional<Map<String, JsonValue>> obj = value.asObject();
-    if (obj.isPresent()) {
-      return jsonValueMapToObject(obj.get());
-    }
-    Optional<List<JsonValue>> arr = value.asArray();
-    if (arr.isPresent()) {
-      List<Object> list = new ArrayList<>();
-      for (JsonValue item : arr.get()) {
-        list.add(jsonValueToObject(item));
-      }
-      return list;
-    }
-    return null;
   }
 
   private List<LLMObs.LLMMessage> extractResponseOutputMessages(List<ResponseOutputItem> output) {
