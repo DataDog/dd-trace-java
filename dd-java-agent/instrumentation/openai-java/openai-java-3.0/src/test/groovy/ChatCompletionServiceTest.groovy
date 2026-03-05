@@ -147,7 +147,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag, [:])
+    assertChatCompletionTrace(false, outputTag, [:], true)
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -178,7 +178,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(true, outputTag, [stream: true])
+    assertChatCompletionTrace(true, outputTag, [stream: true], true)
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -294,6 +294,13 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata) {
+    assertChatCompletionTrace(isStreaming, outputTagsOut, metadata, false)
+  }
+
+  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata, boolean expectToolDefinitions) {
+    def expectedMetadata = new LinkedHashMap(metadata)
+    expectedMetadata.putIfAbsent("stream", isStreaming)
+
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -312,7 +319,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.span.kind" "llm"
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
-            "_ml_obs_tag.metadata" metadata
+            "_ml_obs_tag.metadata" expectedMetadata
             "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List
             def outputTags = tag("_ml_obs_tag.output")
@@ -324,10 +331,16 @@ class ChatCompletionServiceTest extends OpenAiTest {
               "_ml_obs_metric.input_tokens" Long
               "_ml_obs_metric.output_tokens" Long
               "_ml_obs_metric.total_tokens" Long
+              "_ml_obs_metric.cache_read_input_tokens" Long
             }
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            if (expectToolDefinitions) {
+              "$CommonTags.TOOL_DEFINITIONS" List
+            }
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.ERROR" 0
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/chat/completions"
             "openai.api_base" openAiBaseApi

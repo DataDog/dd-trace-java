@@ -220,6 +220,8 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.ERROR" 0
             if (reasoning != null) {
               "_ml_obs_request.reasoning" reasoning
             }

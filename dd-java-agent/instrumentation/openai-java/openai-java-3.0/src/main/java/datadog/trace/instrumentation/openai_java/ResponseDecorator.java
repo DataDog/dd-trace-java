@@ -8,6 +8,7 @@ import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
 import com.openai.models.ResponsesModel;
 import com.openai.models.responses.EasyInputMessage;
+import com.openai.models.responses.FunctionTool;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseCustomToolCall;
@@ -20,7 +21,6 @@ import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
-import com.openai.models.responses.FunctionTool;
 import com.openai.models.responses.Tool;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -194,7 +194,9 @@ public class ResponseDecorator {
     functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
     functionTool
         .parameters()
-        .ifPresent(parameters -> toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+        .ifPresent(
+            parameters ->
+                toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
     return toolDef;
   }
 
