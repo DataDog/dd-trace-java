@@ -4,19 +4,19 @@ import com.openai.core.JsonField;
 import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
 import com.openai.models.ResponsesModel;
+import com.openai.models.responses.EasyInputMessage;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseCustomToolCall;
-import com.openai.models.responses.EasyInputMessage;
 import com.openai.models.responses.ResponseFunctionToolCall;
 import com.openai.models.responses.ResponseInputContent;
 import com.openai.models.responses.ResponseInputItem;
 import com.openai.models.responses.ResponseOutputItem;
 import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseOutputText;
+import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
-import com.openai.models.responses.ResponsePrompt;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
@@ -117,7 +117,8 @@ public class ResponseDecorator {
     extractReasoningFromParams(params)
         .ifPresent(reasoningMap -> span.setTag(CommonTags.REQUEST_REASONING, reasoningMap));
 
-    extractPromptFromParams(params).ifPresent(prompt -> span.setTag(CommonTags.REQUEST_PROMPT, prompt));
+    extractPromptFromParams(params)
+        .ifPresent(prompt -> span.setTag(CommonTags.REQUEST_PROMPT, prompt));
   }
 
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
@@ -376,7 +377,10 @@ public class ResponseDecorator {
       return content.asInputText().text();
     }
     if (content.isInputImage()) {
-      return content.asInputImage().imageUrl().orElse(content.asInputImage().fileId().orElse(""));
+      return content
+          .asInputImage()
+          .imageUrl()
+          .orElse(content.asInputImage().fileId().orElse(IMAGE_FALLBACK_MARKER));
     }
     if (content.isInputFile()) {
       return content
@@ -613,28 +617,6 @@ public class ResponseDecorator {
       AgentSpan span, Response response) {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
 
-    Object inputTag = span.getTag(CommonTags.INPUT);
-    if (inputTag instanceof List) {
-      for (Object messageObj : (List<?>) inputTag) {
-        if (messageObj instanceof LLMObs.LLMMessage) {
-          messages.add((LLMObs.LLMMessage) messageObj);
-        }
-      }
-    } else if (inputTag instanceof Map) {
-      Object messagesObj = ((Map<?, ?>) inputTag).get("messages");
-      if (messagesObj instanceof List) {
-        for (Object messageObj : (List<?>) messagesObj) {
-          if (messageObj instanceof LLMObs.LLMMessage) {
-            messages.add((LLMObs.LLMMessage) messageObj);
-          }
-        }
-      }
-    }
-
-    if (!messages.isEmpty()) {
-      return messages;
-    }
-
     response
         .instructions()
         .ifPresent(
@@ -667,6 +649,24 @@ public class ResponseDecorator {
           LLMObs.LLMMessage message = extractMessageFromRawInstruction(item);
           if (message != null) {
             messages.add(message);
+          }
+        }
+      }
+    }
+
+    Object inputTag = span.getTag(CommonTags.INPUT);
+    if (inputTag instanceof List) {
+      for (Object messageObj : (List<?>) inputTag) {
+        if (messageObj instanceof LLMObs.LLMMessage) {
+          messages.add((LLMObs.LLMMessage) messageObj);
+        }
+      }
+    } else if (inputTag instanceof Map) {
+      Object messagesObj = ((Map<?, ?>) inputTag).get("messages");
+      if (messagesObj instanceof List) {
+        for (Object messageObj : (List<?>) messagesObj) {
+          if (messageObj instanceof LLMObs.LLMMessage) {
+            messages.add((LLMObs.LLMMessage) messageObj);
           }
         }
       }
@@ -714,7 +714,8 @@ public class ResponseDecorator {
           contentBuilder.append(imageUrl);
         } else {
           String fileId = getJsonString(contentObj.get("file_id"));
-          contentBuilder.append(fileId == null || fileId.isEmpty() ? IMAGE_FALLBACK_MARKER : fileId);
+          contentBuilder.append(
+              fileId == null || fileId.isEmpty() ? IMAGE_FALLBACK_MARKER : fileId);
         }
       } else if ("input_file".equals(type)) {
         String fileUrl = getJsonString(contentObj.get("file_url"));
