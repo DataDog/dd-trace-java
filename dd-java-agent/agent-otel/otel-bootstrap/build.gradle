@@ -28,8 +28,26 @@ configurations {
   }
 }
 
+// Unpack the embeddedClasspath jars into otelUnpackedDir so that OtelShimGradlePlugin can
+// instrument them (e.g. inject the OTel shim).
+def unpackOtelJars = tasks.register('unpackOtelJars', Sync) {
+  exclude 'META-INF/'
+  exclude '**/module-info.class'
+  exclude '**/package-info.class'
+
+  from(configurations.named('embeddedClasspath').map {
+    it.collect {
+      zipTree(it)
+    }
+  })
+  // Note: they are intentionally kept in a separate directory from compileJava's output so that
+  // Gradle's stale-output cleanup on a full rebuild does not delete them before instrumentation.
+  into layout.buildDirectory.dir("otel-unpacked")
+}
+
 buildTimeInstrumentation {
   plugins.addAll('datadog.opentelemetry.tooling.shim.OtelShimGradlePlugin')
+  includeClassDirectories.from(unpackOtelJars)
 }
 
 minimumInstructionCoverage = 0.0
@@ -56,27 +74,6 @@ dependencies {
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
   implementation project(':dd-java-agent:agent-otel:otel-shim')
-
-  // buildTimeInstrumentationPlugin project(path: ':dd-java-agent:agent-otel:otel-tooling', configuration: 'buildTimeInstrumentationToolingPlugins')
-}
-
-// unpack embeddedClasspath to same path as compiled classes so it can get instrumented
-tasks.register('unpackJars', Copy) {
-  dependsOn configurations.named('embeddedClasspath')
-  exclude 'META-INF/'
-  exclude '**/module-info.class'
-  exclude '**/package-info.class'
-
-  from(configurations.named('embeddedClasspath').map {
-    it.collect {
-      zipTree(it)
-    }
-  })
-  into compileJava.destinationDirectory
-}
-
-tasks.named('compileJava') {
-  dependsOn 'unpackJars'
 }
 
 tasks.named("shadowJar", ShadowJar) {
