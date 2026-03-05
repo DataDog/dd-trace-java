@@ -14,9 +14,7 @@ class SpringHelperTest {
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
   void isSpringUsingOnlyMethodParametersTrue() throws Exception {
-    Class<?> clazz =
-        Class.forName(
-            "org.springframework.web.bind.annotation.ControllerMappingReflectiveProcessor");
+    Class<?> clazz = Class.forName("org.springframework.web.client.RestClient");
     Instrumentation inst = mock(Instrumentation.class);
     when(inst.getAllLoadedClasses()).thenReturn(new Class[] {clazz});
     assertTrue(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
