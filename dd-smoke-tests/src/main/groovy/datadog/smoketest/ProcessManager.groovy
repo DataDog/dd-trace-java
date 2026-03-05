@@ -3,7 +3,6 @@ package datadog.smoketest
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.TimeoutException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -108,32 +107,45 @@ abstract class ProcessManager extends Specification {
   }
 
   def cleanupSpec() {
+    Throwable firstFailure = null
     testedProcesses.each { tp ->
-      int maxAttempts = 10
+      if (tp == null) {
+        return  // closure continue — skip null slots
+      }
+
       Integer exitValue
-      for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
-        try {
-          exitValue = tp?.exitValue()
-          break
+      try {
+        exitValue = tp.exitValue()
+      } catch (Throwable ignored) {
+        System.out.println("Destroying instrumented process")
+        tp.destroy()
+
+        if (!tp.waitFor(5, TimeUnit.SECONDS)) {
+          System.out.println("Destroying instrumented process (forced)")
+          tp.destroyForcibly()
+          tp.waitFor(10, TimeUnit.SECONDS)
         }
-        catch (Throwable ignored) {
-          if (attempt == 1) {
-            System.out.println("Destroying instrumented process")
-            tp.destroy()
+
+        try {
+          exitValue = tp.exitValue()
+        } catch (Throwable ignoredAgain) {
+          // Process did not exit even after SIGKILL — record failure but continue
+          // cleaning up any remaining processes before propagating.
+          def failure = new RuntimeException("Instrumented process failed to exit after SIGKILL")
+          if (firstFailure == null) {
+            firstFailure = failure
+          } else {
+            firstFailure.addSuppressed(failure)
           }
-          if (attempt == maxAttempts - 1) {
-            System.out.println("Destroying instrumented process (forced)")
-            tp.destroyForcibly()
-          }
-          sleep 1_000
+          return  // closure continue
         }
       }
 
-      if (exitValue != null) {
-        System.out.println("Instrumented process exited with " + exitValue)
-      } else if (tp != null) {
-        throw new TimeoutException("Instrumented process failed to exit")
-      }
+      System.out.println("Instrumented process exited with " + exitValue)
+    }
+
+    if (firstFailure != null) {
+      throw firstFailure
     }
   }
 
