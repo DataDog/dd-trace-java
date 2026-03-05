@@ -222,32 +222,31 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     'manual.keep' | true     | PrioritySampling.USER_KEEP
   }
 
-  def "cappedRate returns new rate when decreasing"() {
+  def "shouldCap returns false when rate decreases or stays same"() {
     expect:
-    RateByServiceTraceSampler.cappedRate(0.8, 0.4, true) == 0.4
-    RateByServiceTraceSampler.cappedRate(0.8, 0.4, false) == 0.4
-    RateByServiceTraceSampler.cappedRate(0.5, 0.5, true) == 0.5
-    RateByServiceTraceSampler.cappedRate(0.5, 0.5, false) == 0.5
+    !RateByServiceTraceSampler.shouldCap(0.8, 0.4)
+    !RateByServiceTraceSampler.shouldCap(0.5, 0.5)
+    !RateByServiceTraceSampler.shouldCap(0.5, 1.0) // 1.0 <= 0.5 * 2, no cap needed
   }
 
-  def "cappedRate returns new rate when old rate is zero"() {
+  def "shouldCap returns false when old rate is zero"() {
     expect:
-    RateByServiceTraceSampler.cappedRate(0.0, 0.5, true) == 0.5
-    RateByServiceTraceSampler.cappedRate(0.0, 0.5, false) == 0.5
+    !RateByServiceTraceSampler.shouldCap(0.0, 0.5)
+    !RateByServiceTraceSampler.shouldCap(0.0, 1.0)
   }
 
-  def "cappedRate caps increase to 2x when canIncrease"() {
+  def "shouldCap returns true when new rate exceeds 2x old rate"() {
     expect:
-    RateByServiceTraceSampler.cappedRate(0.1, 1.0, true) == 0.2
-    RateByServiceTraceSampler.cappedRate(0.2, 1.0, true) == 0.4
-    RateByServiceTraceSampler.cappedRate(0.4, 1.0, true) == 0.8
-    RateByServiceTraceSampler.cappedRate(0.4, 0.5, true) == 0.5
+    RateByServiceTraceSampler.shouldCap(0.1, 1.0)
+    RateByServiceTraceSampler.shouldCap(0.2, 0.8)
+    RateByServiceTraceSampler.shouldCap(0.1, 0.3)
   }
 
-  def "cappedRate holds old rate when canIncrease is false"() {
+  def "cappedRate returns 2x old rate"() {
     expect:
-    RateByServiceTraceSampler.cappedRate(0.1, 1.0, false) == 0.1
-    RateByServiceTraceSampler.cappedRate(0.2, 0.8, false) == 0.2
+    RateByServiceTraceSampler.cappedRate(0.1) == 0.2
+    RateByServiceTraceSampler.cappedRate(0.2) == 0.4
+    RateByServiceTraceSampler.cappedRate(0.4) == 0.8
   }
 
   def "ramp-up caps rate increases at 2x per interval"() {
@@ -349,6 +348,43 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
     then: "rate doubles to 0.4"
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.4) < tolerance
+  }
+
+  def "cooldown not reset by blocked increase"() {
+    setup:
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
+    long currentTime = 1_000_000_000L
+    serviceSampler.nanoTimeSupplier = { -> currentTime }
+    def tolerance = 0.01
+
+    // Set initial low rate
+    String response = '{"rate_by_service": {"service:foo,env:bar":0.01}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    expect:
+    Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.01) < tolerance
+
+    when: "wait for cooldown, apply increase: 0.01 -> 0.02"
+    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    response = '{"rate_by_service": {"service:foo,env:bar":1.0}}'
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    then: "rate is capped at 2x = 0.02"
+    Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.02) < tolerance
+
+    when: "before cooldown elapses, send another increase - rate should be held and lastCapped NOT reset"
+    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    then: "rate stays at 0.02 (cooldown)"
+    Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.02) < tolerance
+
+    when: "wait remaining half of cooldown from the original cap - should allow next ramp-up"
+    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2
+    serviceSampler.onResponse("traces", serializer.fromJson(response))
+
+    then: "rate doubles to 0.04 because lastCapped was NOT reset by the blocked increase"
+    Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.04) < tolerance
   }
 
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {

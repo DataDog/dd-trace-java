@@ -25,6 +25,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;
+  private static final double MAX_RATE_INCREASE_FACTOR = 2.0;
   static final long RAMP_UP_INTERVAL_NANOS = 1_000_000_000L;
 
   private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
@@ -66,14 +67,12 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return span.getTag("env", "");
   }
 
-  static double cappedRate(double oldRate, double newRate, boolean canIncrease) {
-    if (newRate <= oldRate || oldRate == 0) {
-      return newRate;
-    }
-    if (!canIncrease) {
-      return oldRate;
-    }
-    return Math.min(oldRate * 2, newRate);
+  static boolean shouldCap(double oldRate, double newRate) {
+    return oldRate != 0 && newRate > oldRate * MAX_RATE_INCREASE_FACTOR;
+  }
+
+  static double cappedRate(double oldRate) {
+    return oldRate * MAX_RATE_INCREASE_FACTOR;
   }
 
   @Override
@@ -106,30 +105,35 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
       if (envAndService.isFallback()) {
         double oldRate = currentSnapshot.getFallbackSampler().getSampleRate();
-        double effective = cappedRate(oldRate, rate, canIncrease);
-        if (effective != rate) {
+        if (canIncrease && shouldCap(oldRate, rate)) {
+          rate = cappedRate(oldRate);
           anyCapped = true;
+        } else if (!canIncrease && shouldCap(oldRate, rate)) {
+          rate = oldRate;
         }
-        fallbackSampler = RateByServiceTraceSampler.createRateSampler(effective);
+        fallbackSampler = RateByServiceTraceSampler.createRateSampler(rate);
       } else {
         double oldRate =
             currentSnapshot
                 .getSampler(envAndService.lowerEnv, envAndService.lowerService)
                 .getSampleRate();
-        double effective = cappedRate(oldRate, rate, canIncrease);
-        if (effective != rate) {
+        if (canIncrease && shouldCap(oldRate, rate)) {
+          rate = cappedRate(oldRate);
           anyCapped = true;
+        } else if (!canIncrease && shouldCap(oldRate, rate)) {
+          rate = oldRate;
         }
+        final double effectiveRate = rate;
         Map<String, RateSampler> serviceRates =
             updatedEnvServiceRates.computeIfAbsent(
                 envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
 
         serviceRates.computeIfAbsent(
             envAndService.lowerService,
-            service -> RateByServiceTraceSampler.createRateSampler(effective));
+            service -> RateByServiceTraceSampler.createRateSampler(effectiveRate));
       }
     }
-    if (anyCapped) {
+    if (canIncrease && anyCapped) {
       lastCappedNanos = now;
     }
     serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler);
