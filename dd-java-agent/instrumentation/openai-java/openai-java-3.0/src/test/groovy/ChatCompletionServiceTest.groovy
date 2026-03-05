@@ -6,7 +6,6 @@ import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.models.chat.completions.ChatCompletion
 import com.openai.models.chat.completions.ChatCompletionChunk
-import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -94,7 +93,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   def "create async chat/completion test withRawResponse"() {
-    CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
+    CompletableFuture<HttpResponseFor<ChatCompletion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().create(params)
     }
 
