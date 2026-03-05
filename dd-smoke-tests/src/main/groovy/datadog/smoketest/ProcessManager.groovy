@@ -3,6 +3,7 @@ package datadog.smoketest
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -109,29 +110,33 @@ abstract class ProcessManager extends Specification {
 
   def cleanupSpec() {
     testedProcesses.each { tp ->
-      int maxAttempts = 10
       Integer exitValue
-      for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
-        try {
-          exitValue = tp?.exitValue()
-          break
+      if (tp == null) {
+        return
+      }
+
+      try {
+        exitValue = tp.exitValue()
+      } catch (Throwable ignored) {
+        System.out.println("Destroying instrumented process")
+        tp.destroy()
+
+        if (!tp.waitFor(5, TimeUnit.SECONDS)) {
+          System.out.println("Destroying instrumented process (forced)")
+          tp.destroyForcibly()
+          tp.waitFor(10, TimeUnit.SECONDS)
         }
-        catch (Throwable ignored) {
-          if (attempt == 1) {
-            System.out.println("Destroying instrumented process")
-            tp.destroy()
-          }
-          if (attempt == maxAttempts - 1) {
-            System.out.println("Destroying instrumented process (forced)")
-            tp.destroyForcibly()
-          }
-          sleep 1_000
+
+        try {
+          exitValue = tp.exitValue()
+        } catch (Throwable ignoredAgain) {
+          // No-op.
         }
       }
 
       if (exitValue != null) {
         System.out.println("Instrumented process exited with " + exitValue)
-      } else if (tp != null) {
+      } else {
         throw new TimeoutException("Instrumented process failed to exit")
       }
     }
