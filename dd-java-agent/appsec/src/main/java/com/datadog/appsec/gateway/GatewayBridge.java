@@ -26,6 +26,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
@@ -42,6 +43,8 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
@@ -847,6 +850,7 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
+    AgentSpan span = (AgentSpan) spanInfo;
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
@@ -861,8 +865,11 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
-      traceSeg.setTagTop("_dd.appsec.enabled", 1);
-      traceSeg.setTagTop("_dd.runtime_family", "jvm");
+      // Set AppSec tags on the service-entry span (where detection occurs).
+      // When an inferred proxy span is present, InferredProxySpan.finish() will copy
+      // these tags to the inferred proxy span as required by RFC-1081.
+      span.setMetric("_dd.appsec.enabled", 1);
+      span.setTag("_dd.runtime_family", "jvm");
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
@@ -882,17 +889,22 @@ public class GatewayBridge {
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
-        traceSeg.setTagTop("appsec.event", true);
-        traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+
+        span.setTag("appsec.event", true);
+
+        String peerAddress = ctx.getPeerAddress();
+        span.setTag("network.client.ip", peerAddress);
 
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
-          traceSeg.setTagTop("actor.ip", clientIp);
+          span.setTag("actor.ip", clientIp.toString());
         }
 
-        // Report AppSec events via "_dd.appsec.json" tag
+        // Report AppSec events on the service-entry span; also stored in meta_struct on the
+        // root span via setDataTop for agent processing
         AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+        span.setTag("_dd.appsec.json", wrapper);
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
@@ -929,6 +941,18 @@ public class GatewayBridge {
         writeResponseHeaders(
             ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
+      // For blocking responses the normal response-header collection is bypassed; write the
+      // content-type and content-length that were determined when the blocking action was raised.
+      String blockingContentType = ctx.getBlockingResponseContentType();
+      if (blockingContentType != null) {
+        traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
+        Integer blockingContentLength = ctx.getBlockingResponseContentLength();
+        if (blockingContentLength != null) {
+          traceSeg.setTagTop(
+              "http.response.headers.content-length", String.valueOf(blockingContentLength));
+        }
+      }
+
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
@@ -1177,7 +1201,6 @@ public class GatewayBridge {
 
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
-
     if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
       return NoopFlow.INSTANCE;
     }
@@ -1230,7 +1253,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -1263,7 +1288,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -1275,6 +1302,26 @@ public class GatewayBridge {
       downstreamSampler = new ApiSecurityDownstreamSamplerImpl();
     }
     return downstreamSampler;
+  }
+
+  private static void maybeRecordBlockingContentType(AppSecRequestContext ctx, Flow<?> flow) {
+    Flow.Action action = flow.getAction();
+    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+      return;
+    }
+    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+    BlockingContentType bct = rba.getBlockingContentType();
+    if (bct == BlockingContentType.NONE) {
+      return; // redirect — no response body
+    }
+    List<String> acceptValues = ctx.getRequestHeaders().get("accept");
+    String acceptHeader =
+        (acceptValues == null || acceptValues.isEmpty()) ? null : acceptValues.get(0);
+    BlockingActionHelper.TemplateType tt =
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+    byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
+    ctx.setBlockingResponseContentType(BlockingActionHelper.getContentType(tt));
+    ctx.setBlockingResponseContentLength(template.length);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(
