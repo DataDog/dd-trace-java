@@ -5,8 +5,8 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -65,7 +65,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable Long startTime,
-      @Nullable TestExecutionHistory testExecutionHistory);
+      @Nullable TestExecutionTracker testExecutionTracker);
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
@@ -74,7 +74,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   void onTestFinish(
       TestKey descriptor,
       @Nullable Long endTime,
-      @Nullable TestExecutionHistory testExecutionHistory);
+      @Nullable TestExecutionTracker testExecutionTracker);
 
   void onTestIgnore(
       SuiteKey suiteDescriptor,
@@ -86,7 +86,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable String reason,
-      @Nullable TestExecutionHistory testExecutionHistory);
+      @Nullable TestExecutionTracker testExecutionTracker);
 
   @Nonnull
   TestExecutionPolicy executionPolicy(

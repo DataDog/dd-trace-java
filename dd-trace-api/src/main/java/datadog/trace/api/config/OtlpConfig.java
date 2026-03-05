@@ -10,6 +10,7 @@ public final class OtlpConfig {
   public static final String OTLP_METRICS_ENDPOINT = "otlp.metrics.endpoint";
   public static final String OTLP_METRICS_HEADERS = "otlp.metrics.headers";
   public static final String OTLP_METRICS_PROTOCOL = "otlp.metrics.protocol";
+  public static final String OTLP_METRICS_COMPRESSION = "otlp.metrics.compression";
   public static final String OTLP_METRICS_TIMEOUT = "otlp.metrics.timeout";
   public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otlp.metrics.temporality.preference";
@@ -18,6 +19,11 @@ public final class OtlpConfig {
     GRPC,
     HTTP_PROTOBUF,
     HTTP_JSON
+  }
+
+  public enum Compression {
+    NONE,
+    GZIP
   }
 
   public enum Temporality {

@@ -842,6 +842,17 @@ class GatewayBridgeSpecification extends DDSpecification {
   }
 
 
+  void 'request method URI callback called twice with different URIs does not throw'() {
+    // Reproduces: https://github.com/DataDog/dd-trace-java/issues/10700
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/b'))
+
+    then:
+    noExceptionThrown()
+    ctx.data.savedRawURI == '/a'
+  }
+
   void 'response_start produces appsec context and publishes event'() {
     eventDispatcher.getDataSubscribers({
       KnownAddresses.RESPONSE_STATUS in it

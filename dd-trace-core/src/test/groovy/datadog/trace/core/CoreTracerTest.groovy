@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -476,7 +477,7 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
-    TagsPostProcessorFactory.withAddBaseService(true)
+    TagsPostProcessorFactory.withAddInternalTags(true)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
@@ -491,7 +492,7 @@ class CoreTracerTest extends DDCoreSpecification {
     span2.finish()
     then:
     span2.getServiceName() == "dd_service_name"
-    span2.getTags()["version"] == "1.0.0"
+    span2.getTags()["version"]?.toString() == "1.0.0"
 
     cleanup:
     tracer?.close()
@@ -592,7 +593,7 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer?.close()
   }
 
-  def "service name source is nullified when using one-parameter setServiceName"() {
+  def "service name source is marked as manual when using one-parameter setServiceName"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
@@ -604,7 +605,7 @@ class CoreTracerTest extends DDCoreSpecification {
 
     then:
     span.getServiceName() == "another"
-    span.getTag(DDTags.DD_SVC_SRC) == null
+    span.getTag(DDTags.DD_SVC_SRC) == ServiceNameSources.MANUAL
     cleanup:
     tracer?.close()
   }

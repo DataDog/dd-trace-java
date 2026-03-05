@@ -5,6 +5,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.ASMHelper;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -24,6 +25,8 @@ import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
+import com.datadog.debugger.util.SpringHelper;
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -61,6 +64,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -79,7 +83,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
-  private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
+  private static final String INSTRUMENTATION_FAILS = "Instrumentation failed for %s: %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
@@ -90,6 +94,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanDecorationProbe.class,
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
+  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
 
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
 
@@ -258,6 +263,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return null;
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
+      checkMethodParameters(classNode);
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
@@ -271,9 +277,49 @@ public class DebuggerTransformer implements ClassFileTransformer {
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
     } catch (Throwable ex) {
       LOGGER.warn("Cannot transform: ", ex);
-      reportInstrumentationFails(definitions, fullyQualifiedClassName);
+      reportInstrumentationFails(definitions, fullyQualifiedClassName, ex.toString());
     }
     return null;
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
+   * method parameters (javac -parameters) strip this attribute once retransformed
+   * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
+   * if no attribute found.
+   * Note: Even if the attribute is preserved when transforming at load time, the fact that we have
+   * instrumented the class, we will retransform for removing the instrumentation and then the
+   * attribute is stripped. That's why we are preventing it even at load time.
+   */
+  private void checkMethodParameters(ClassNode classNode) {
+    if (JAVA_AT_LEAST_19) {
+      // bug is fixed since JDK19, no need to perform check
+      return;
+    }
+    boolean isRecord = ASMHelper.isRecord(classNode);
+    // capping scanning of methods to 100 to avoid generated class with thousand of methods
+    // assuming that in those first 100 methods there is at least one with at least one parameter
+    for (int methodIdx = 0; methodIdx < classNode.methods.size() && methodIdx < 100; methodIdx++) {
+      MethodNode methodNode = classNode.methods.get(methodIdx);
+      int argumentCount = Type.getArgumentCount(methodNode.desc);
+      if (argumentCount == 0) {
+        continue;
+      }
+      if (isRecord && methodNode.name.equals("<init>")) {
+        // skip record constructors, cannot rely on them because of the canonical one
+        // use the equals method for this
+        continue;
+      }
+      if (methodNode.parameters != null
+          && !methodNode.parameters.isEmpty()
+          && SpringHelper.isSpringUsingOnlyMethodParameters(DebuggerAgent.getInstrumentation())) {
+        throw new RuntimeException(
+            "Method Parameters attribute detected, instrumentation not supported");
+      } else {
+        // we found at leat a method with one parameter if name is not present we can stop there
+        break;
+      }
+    }
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
@@ -492,7 +538,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.accept(visitor);
     } catch (Throwable t) {
       LOGGER.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
-      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
+      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath), t.toString());
       return null;
     }
     byte[] data = writer.toByteArray();
@@ -616,8 +662,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     // on a separate class files because probe was set on an inner/top-level class
   }
 
-  private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
-    String msg = String.format(INSTRUMENTATION_FAILS, className);
+  private void reportInstrumentationFails(
+      List<ProbeDefinition> definitions, String className, String errorMsg) {
+    String msg = String.format(INSTRUMENTATION_FAILS, className, errorMsg);
     reportErrorForAllProbes(definitions, msg);
   }
 

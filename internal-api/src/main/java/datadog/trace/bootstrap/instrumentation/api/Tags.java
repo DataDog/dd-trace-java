@@ -164,9 +164,13 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+  public static final String VERSION = "version";
 
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";
+
+  /** AI Guard force tracer to keep the trace */
+  public static final String AI_GUARD_KEEP = "ai_guard.keep";
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
