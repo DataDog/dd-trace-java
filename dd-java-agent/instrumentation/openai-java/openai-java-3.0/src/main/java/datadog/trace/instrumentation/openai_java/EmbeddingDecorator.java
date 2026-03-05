@@ -28,15 +28,15 @@ public class EmbeddingDecorator {
     if (params == null) {
       return;
     }
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    Optional<String> modelName = params.model()._value().asString();
+    modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     if (!llmObsEnabled) {
       return;
     }
+
+    // Keep model_name stable on error paths where no response is available.
+    modelName.ifPresent(str -> span.setTag(CommonTags.MODEL_NAME, str));
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_EMBEDDING_SPAN_KIND);
 

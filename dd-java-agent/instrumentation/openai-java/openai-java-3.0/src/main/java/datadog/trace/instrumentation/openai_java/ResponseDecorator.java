@@ -56,6 +56,13 @@ public class ResponseDecorator {
       return;
     }
 
+    // Keep model_name/output/metadata shape stable on error paths where no response is available.
+    if (modelName != null && !modelName.isEmpty()) {
+      span.setTag(CommonTags.MODEL_NAME, modelName);
+    }
+    span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+    span.setTag(CommonTags.METADATA, new HashMap<String, Object>());
+
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
 
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();

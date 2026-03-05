@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CompletionDecorator {
@@ -27,15 +28,19 @@ public class CompletionDecorator {
       return;
     }
 
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    Optional<String> modelName = params.model()._value().asString();
+    modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     if (!llmObsEnabled) {
       return;
     }
+
+    // Keep model_name and output shape stable on error paths where no response is available.
+    modelName.ifPresent(
+        str -> {
+          span.setTag(CommonTags.MODEL_NAME, str);
+          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+        });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     params
