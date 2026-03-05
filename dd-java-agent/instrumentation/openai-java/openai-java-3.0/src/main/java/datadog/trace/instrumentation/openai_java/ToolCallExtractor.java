@@ -106,7 +106,7 @@ public class ToolCallExtractor {
     return null;
   }
 
-  private static Map<String, Object> parseArguments(String argumentsJson) {
+  static Map<String, Object> parseArguments(String argumentsJson) {
     try {
       return MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
     } catch (Exception e) {

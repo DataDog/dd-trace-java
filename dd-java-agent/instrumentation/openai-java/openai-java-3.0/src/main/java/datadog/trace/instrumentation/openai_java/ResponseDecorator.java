@@ -352,7 +352,7 @@ public class ResponseDecorator {
           }
 
           if (callId != null && name != null && argumentsStr != null) {
-            Map<String, Object> arguments = parseJsonString(argumentsStr);
+            Map<String, Object> arguments = ToolCallExtractor.parseArguments(argumentsStr);
             LLMObs.ToolCall toolCall =
                 LLMObs.ToolCall.from(name, "function_call", callId, arguments);
             return LLMObs.LLMMessage.from("assistant", null, Collections.singletonList(toolCall));
@@ -412,81 +412,6 @@ public class ResponseDecorator {
     }
 
     return null;
-  }
-
-  private Map<String, Object> parseJsonString(String jsonStr) {
-    if (jsonStr == null || jsonStr.isEmpty()) {
-      return Collections.emptyMap();
-    }
-    try {
-      jsonStr = jsonStr.trim();
-      if (!jsonStr.startsWith("{") || !jsonStr.endsWith("}")) {
-        return Collections.emptyMap();
-      }
-
-      Map<String, Object> result = new HashMap<>();
-      String content = jsonStr.substring(1, jsonStr.length() - 1).trim();
-
-      if (content.isEmpty()) {
-        return result;
-      }
-
-      // Parse JSON manually, respecting quoted strings
-      List<String> pairs = splitByCommaRespectingQuotes(content);
-
-      for (String pair : pairs) {
-        int colonIdx = pair.indexOf(':');
-        if (colonIdx > 0) {
-          String key = pair.substring(0, colonIdx).trim();
-          String value = pair.substring(colonIdx + 1).trim();
-
-          // Remove quotes from key
-          key = removeQuotes(key);
-          // Remove quotes from value
-          value = removeQuotes(value);
-
-          result.put(key, value);
-        }
-      }
-
-      return result;
-    } catch (Exception e) {
-      return Collections.emptyMap();
-    }
-  }
-
-  private List<String> splitByCommaRespectingQuotes(String str) {
-    List<String> result = new ArrayList<>();
-    StringBuilder current = new StringBuilder();
-    boolean inQuotes = false;
-
-    for (int i = 0; i < str.length(); i++) {
-      char c = str.charAt(i);
-
-      if (c == '"') {
-        inQuotes = !inQuotes;
-        current.append(c);
-      } else if (c == ',' && !inQuotes) {
-        result.add(current.toString());
-        current = new StringBuilder();
-      } else {
-        current.append(c);
-      }
-    }
-
-    if (current.length() > 0) {
-      result.add(current.toString());
-    }
-
-    return result;
-  }
-
-  private String removeQuotes(String str) {
-    str = str.trim();
-    if (str.startsWith("\"") && str.endsWith("\"") && str.length() >= 2) {
-      return str.substring(1, str.length() - 1);
-    }
-    return str;
   }
 
   private String extractInputMessageContent(ResponseInputItem.Message message) {
