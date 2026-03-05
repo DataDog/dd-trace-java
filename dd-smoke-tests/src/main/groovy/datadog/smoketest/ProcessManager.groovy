@@ -98,7 +98,7 @@ abstract class ProcessManager extends Specification {
         def exitCode = curProc.exitValue()
         def logFile = logFilePaths[idx]
 
-        throw new RuntimeException("Process exited abormally - exitCode:${exitCode}; logFile=${logFile}")
+        throw new RuntimeException("Process exited abnormally - exitCode:${exitCode}; logFile=${logFile}")
       }
     }
   }
@@ -109,12 +109,13 @@ abstract class ProcessManager extends Specification {
   }
 
   def cleanupSpec() {
+    Throwable firstFailure = null
     testedProcesses.each { tp ->
-      Integer exitValue
       if (tp == null) {
-        return
+        return  // closure continue — skip null slots
       }
 
+      Integer exitValue
       try {
         exitValue = tp.exitValue()
       } catch (Throwable ignored) {
@@ -130,15 +131,23 @@ abstract class ProcessManager extends Specification {
         try {
           exitValue = tp.exitValue()
         } catch (Throwable ignoredAgain) {
-          // No-op.
+          // Process did not exit even after SIGKILL — record failure but continue
+          // cleaning up any remaining processes before propagating.
+          def failure = new RuntimeException("Instrumented process failed to exit after SIGKILL")
+          if (firstFailure == null) {
+            firstFailure = failure
+          } else {
+            firstFailure.addSuppressed(failure)
+          }
+          return  // closure continue
         }
       }
 
-      if (exitValue != null) {
-        System.out.println("Instrumented process exited with " + exitValue)
-      } else {
-        throw new TimeoutException("Instrumented process failed to exit")
-      }
+      System.out.println("Instrumented process exited with " + exitValue)
+    }
+
+    if (firstFailure != null) {
+      throw firstFailure
     }
   }
 
