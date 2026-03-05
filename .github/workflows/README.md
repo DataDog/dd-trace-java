@@ -123,6 +123,19 @@ _Action:_
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
 
+### enforce-groovy-migration [🔗](enforce-groovy-migration.yaml)
+
+_Trigger:_ When creating or updating a pull request targeting `master`, or when labels are updated.
+
+_Actions:_
+
+* Fail the PR if a new Groovy test file is added to a module listed in [`.github/g2j-migrated-modules.txt`](../g2j-migrated-modules.txt) (hard enforcement),
+* Post a warning comment on the PR if a new Groovy test file is added to any other non-exempt module (soft warning). Instrumentation (`dd-java-agent/instrumentation/`) and smoke-test (`dd-smoke-tests/`) modules are exempt from this warning.
+
+_Recovery:_ Re-write the Groovy test files in Java / JUnit 5. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+
+_Notes:_ The migrated modules list is always read from `master`. Add a new entry to `.github/g2j-migrated-modules.txt` each time a module is migrated to Java / JUnit 5.
+
 ## Code Quality and Security
 
 ### analyze-changes [🔗](analyze-changes.yaml)
