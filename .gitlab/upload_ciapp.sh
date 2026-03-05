@@ -75,13 +75,14 @@ coverage_upload() {
         datadog-ci coverage upload --ignored-paths=./test-published-dependencies .
 }
 
-# Add dd_tags[test.final_status] property to each testcase before upload
 add_final_status_tags() {
+    echo "Add dd_tags[test.final_status] property to each testcase before upload"
     local xsl_file
     xsl_file="$(dirname "$0")/add_final_status.xsl"
     find ./results -name '*.xml' | while read -r xml_file; do
         local tmp_file
         tmp_file="$(mktemp)"
+        echo "Fixing $xml_file"
         if xsltproc --output "$tmp_file" "$xsl_file" "$xml_file" 2>/dev/null; then
             mv "$tmp_file" "$xml_file"
         else
