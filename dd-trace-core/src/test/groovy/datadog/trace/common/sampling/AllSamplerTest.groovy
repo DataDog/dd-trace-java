@@ -1,3 +1,4 @@
+// This comment should not trigger the g2j workflow.
 package datadog.trace.common.sampling
 
 import datadog.trace.core.DDSpan
