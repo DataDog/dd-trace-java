@@ -82,10 +82,15 @@ add_final_status_tags() {
     find ./results -name '*.xml' | while read -r xml_file; do
         local tmp_file
         tmp_file="$(mktemp)"
-        echo "Fixing $xml_file"
         if xsltproc --output "$tmp_file" "$xsl_file" "$xml_file" 2>/dev/null; then
+            echo "before $xml_file"
+            cat $xml_file
+            echo "after $tmp_file"
+            cat $tmp_file
             mv "$tmp_file" "$xml_file"
         else
+            echo Fail $xml_file
+            xsltproc --output "$tmp_file" "$xsl_file" "$xml_file"
             rm -f "$tmp_file"
         fi
     done
