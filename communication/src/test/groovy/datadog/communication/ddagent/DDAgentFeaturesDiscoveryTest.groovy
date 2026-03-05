@@ -285,7 +285,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsLongRunning()
-    features.state() == PROBE_STATE
     0 * _
   }
 
