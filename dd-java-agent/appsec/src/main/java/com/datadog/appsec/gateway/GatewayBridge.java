@@ -26,6 +26,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
@@ -42,6 +43,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
@@ -929,6 +931,18 @@ public class GatewayBridge {
         writeResponseHeaders(
             ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
+      // For blocking responses the normal response-header collection is bypassed; write the
+      // content-type and content-length that were determined when the blocking action was raised.
+      String blockingContentType = ctx.getBlockingResponseContentType();
+      if (blockingContentType != null) {
+        traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
+        Integer blockingContentLength = ctx.getBlockingResponseContentLength();
+        if (blockingContentLength != null) {
+          traceSeg.setTagTop(
+              "http.response.headers.content-length", String.valueOf(blockingContentLength));
+        }
+      }
+
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
@@ -1230,7 +1244,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -1263,7 +1279,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -1275,6 +1293,26 @@ public class GatewayBridge {
       downstreamSampler = new ApiSecurityDownstreamSamplerImpl();
     }
     return downstreamSampler;
+  }
+
+  private static void maybeRecordBlockingContentType(AppSecRequestContext ctx, Flow<?> flow) {
+    Flow.Action action = flow.getAction();
+    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+      return;
+    }
+    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+    BlockingContentType bct = rba.getBlockingContentType();
+    if (bct == BlockingContentType.NONE) {
+      return; // redirect — no response body
+    }
+    List<String> acceptValues = ctx.getRequestHeaders().get("accept");
+    String acceptHeader =
+        (acceptValues == null || acceptValues.isEmpty()) ? null : acceptValues.get(0);
+    BlockingActionHelper.TemplateType tt =
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+    byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
+    ctx.setBlockingResponseContentType(BlockingActionHelper.getContentType(tt));
+    ctx.setBlockingResponseContentLength(template.length);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(
