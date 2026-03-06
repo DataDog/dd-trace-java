@@ -22,8 +22,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
 import datadog.metrics.agent.AgentMeter;
@@ -1143,26 +1141,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public void closePrevious(boolean finishSpan) {
     if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
-      final Context previous = Context.root().swap();
-      if (finishSpan) {
-        final AgentSpan span = AgentSpan.fromContext(previous);
-        if (span != null) {
-          span.finish();
-        }
-      }
-    } else {
-      scopeManager.closePrevious(finishSpan);
+      throw new IllegalStateException(
+          "closePrevious must not be called when context swap based logic is enabled");
     }
+    scopeManager.closePrevious(finishSpan);
   }
 
   @Override
-  public ContextScope activateNext(AgentSpan span) {
+  public AgentScope activateNext(AgentSpan span) {
     if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
-      span.swap();
-      return Context.current().attach();
-    } else {
-      return scopeManager.activateNext(span);
+      throw new IllegalStateException(
+          "activateNext must not be called when context swap based logic is enabled");
     }
+    return scopeManager.activateNext(span);
   }
 
   public TagInterceptor getTagInterceptor() {

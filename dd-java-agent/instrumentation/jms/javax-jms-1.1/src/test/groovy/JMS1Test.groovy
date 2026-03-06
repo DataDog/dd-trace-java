@@ -1061,6 +1061,7 @@ class JMSContextSwapForkedTest extends JMS1V0Test {
 
   @Override
   boolean testUnclosedScopeFinished() {
+    //TODO: This need to be removed when the Context manager will support it
     false
   }
 }

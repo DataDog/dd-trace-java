@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import datadog.context.ContextScope;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -183,7 +182,7 @@ public class AgentTracer {
    *
    * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
    */
-  public static ContextScope activateNext(final AgentSpan span) {
+  public static AgentScope activateNext(final AgentSpan span) {
     return get().activateNext(span);
   }
 
@@ -368,7 +367,7 @@ public class AgentTracer {
 
     void closePrevious(boolean finishSpan);
 
-    ContextScope activateNext(AgentSpan span);
+    AgentScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
 
@@ -549,7 +548,7 @@ public class AgentTracer {
     public void closePrevious(final boolean finishSpan) {}
 
     @Override
-    public ContextScope activateNext(final AgentSpan span) {
+    public AgentScope activateNext(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
