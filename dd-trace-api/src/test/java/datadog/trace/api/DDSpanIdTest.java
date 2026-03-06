@@ -98,7 +98,6 @@ class DDSpanIdTest {
     try {
       parsedId = DDSpanId.fromHex(hexId, start, length, lowerCaseOnly);
     } catch (NumberFormatException ignored) {
-      // Validate behavior through parsedId remaining null.
     }
 
     if (expectedId == null) {
