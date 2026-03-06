@@ -20,6 +20,9 @@ tasks.named("jar", Jar) {
 
 dependencies {
   implementation project(':dd-trace-api')
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   implementation 'org.apache.commons:commons-math3:3.6.1'
   implementation libs.lz4
   implementation libs.aircompressor
