@@ -11161,7 +11161,7 @@
         "aliases": []
       }
     ],
-    "MESSAGING_CONTEXT_SWAP_ENABLED": [
+    "DD_MESSAGING_CONTEXT_SWAP_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
