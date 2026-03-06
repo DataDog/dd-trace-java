@@ -135,6 +135,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
               "$DDTags.PATHWAY_HASH" { String }
             }
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -366,6 +367,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -435,6 +437,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }

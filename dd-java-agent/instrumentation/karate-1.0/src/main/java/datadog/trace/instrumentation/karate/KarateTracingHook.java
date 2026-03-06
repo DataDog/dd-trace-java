@@ -18,7 +18,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -120,9 +120,9 @@ public class KarateTracingHook implements RuntimeHook {
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
               && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
-        TestExecutionHistory executionHistory =
-            (TestExecutionHistory)
-                sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
+        TestExecutionTracker executionTracker =
+            (TestExecutionTracker)
+                sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -133,7 +133,7 @@ public class KarateTracingHook implements RuntimeHook {
             categories,
             TestSourceData.UNKNOWN,
             skipReason.getDescription(),
-            executionHistory);
+            executionTracker);
         return false;
       }
     }
@@ -148,7 +148,7 @@ public class KarateTracingHook implements RuntimeHook {
         categories,
         TestSourceData.UNKNOWN,
         null,
-        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE));
+        (TestExecutionTracker) sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE));
     return true;
   }
 
@@ -166,10 +166,10 @@ public class KarateTracingHook implements RuntimeHook {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
 
-    TestExecutionHistory executionHistory =
-        (TestExecutionHistory) sr.magicVariables.get(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE);
+    TestExecutionTracker executionTracker =
+        (TestExecutionTracker) sr.magicVariables.get(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionHistory);
+        testDescriptor, null, executionTracker);
 
     Boolean runHooksManually = manualFeatureHooks.remove(sr.featureRuntime);
     if (runHooksManually != null && runHooksManually) {

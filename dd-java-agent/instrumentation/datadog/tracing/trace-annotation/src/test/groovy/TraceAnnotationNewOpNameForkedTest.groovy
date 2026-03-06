@@ -27,6 +27,7 @@ class TraceAnnotationNewOpNameForkedTest extends InstrumentationSpecification {
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
+            serviceNameSource "m"
             defaultTags()
           }
         }
@@ -49,6 +50,7 @@ class TraceAnnotationNewOpNameForkedTest extends InstrumentationSpecification {
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
+            serviceNameSource "m"
             defaultTags()
           }
         }

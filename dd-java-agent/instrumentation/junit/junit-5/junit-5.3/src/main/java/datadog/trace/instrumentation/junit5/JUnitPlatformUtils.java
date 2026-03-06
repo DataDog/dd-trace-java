@@ -148,12 +148,14 @@ public abstract class JUnitPlatformUtils {
     }
   }
 
-  public static String getParameters(MethodSource methodSource, String displayName) {
-    if (methodSource.getMethodParameterTypes() == null
-        || methodSource.getMethodParameterTypes().isEmpty()) {
-      return null;
+  public static String getParameters(
+      TestDescriptor testDescriptor, MethodSource methodSource, String displayName) {
+    if (isDynamicTest(testDescriptor)
+        || (methodSource.getMethodParameterTypes() != null
+            && !methodSource.getMethodParameterTypes().isEmpty())) {
+      return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
     }
-    return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
+    return null;
   }
 
   @Nullable
@@ -164,7 +166,7 @@ public abstract class JUnitPlatformUtils {
       String testSuiteName = methodSource.getClassName();
       String testName = methodSource.getMethodName();
       String displayName = testDescriptor.getDisplayName();
-      String testParameters = getParameters(methodSource, displayName);
+      String testParameters = getParameters(testDescriptor, methodSource, displayName);
       return new TestIdentifier(testSuiteName, testName, testParameters);
 
     } else {
@@ -238,6 +240,12 @@ public abstract class JUnitPlatformUtils {
     List<UniqueId.Segment> segments = uniqueId.getSegments();
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "test-template".equals(lastSegment.getType());
+  }
+
+  public static boolean isDynamicTest(TestDescriptor testDescriptor) {
+    // retries add a "retry-attempt" segment at the end of the uniqueId, so the "dynamic-test"
+    // segment might not be found in position (segments.size() - 1)
+    return getIDSegmentValue(testDescriptor, "dynamic-test") != null;
   }
 
   public static boolean isRetry(TestDescriptor testDescriptor) {

@@ -4,6 +4,7 @@ kind: mergequeue # https://datadoghq.atlassian.net/wiki/x/XgUQug
 enable: true
 merge_method: squash
 skip_labels: true
+gitlab_check_enable: true
 branches:
   master:
     allow_skip_checks: true

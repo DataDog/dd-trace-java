@@ -114,7 +114,7 @@ public class ExceptionProbeInstrumentationTest {
       instr.removeTransformer(currentTransformer);
     }
     ProbeRateLimiter.setSamplerSupplier(null);
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
   }
 
   @Test

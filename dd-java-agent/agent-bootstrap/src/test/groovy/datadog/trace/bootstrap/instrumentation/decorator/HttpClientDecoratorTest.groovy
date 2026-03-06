@@ -72,7 +72,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
       if (renameService) {
-        1 * span.setServiceName(req.url.host)
+        1 * span.setServiceName(req.url.host, _)
       }
       1 * span.traceConfig() >> AgentTracer.traceConfig()
     }
@@ -147,7 +147,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (expectedServiceName) {
-      1 * span.setServiceName(expectedServiceName)
+      1 * span.setServiceName(expectedServiceName, _)
     }
     if (url != null) {
       1 * span.setResourceName(_, _)

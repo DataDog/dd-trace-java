@@ -52,6 +52,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.final_status" : "fail",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest-3.0.8",
@@ -59,6 +60,7 @@
       "test.source.file" : "dummy_source_path",
       "test.status" : "fail",
       "test.suite" : "org.example.TestFailed",
+      "test.test_management.attempt_to_fix_passed" : "false",
       "test.test_management.is_attempt_to_fix" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -85,209 +87,6 @@
 }, {
   "content" : {
     "duration" : ${content_duration_3},
-    "error" : 1,
-    "meta" : {
-      "_dd.profiling.ctx" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "scalatest",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "env" : "none",
-      "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_2},
-      "error.type" : "org.scalatest.exceptions.TestFailedException",
-      "language" : "jvm",
-      "library_version" : ${content_meta_library_version},
-      "runtime-id" : ${content_meta_runtime_id},
-      "span.kind" : "test",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "test.framework" : "scalatest",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.is_retry" : "true",
-      "test.module" : "scalatest-3.0.8",
-      "test.name" : "Example.add adds two numbers",
-      "test.retry_reason" : "attempt_to_fix",
-      "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
-      "test.suite" : "org.example.TestFailed",
-      "test.test_management.is_attempt_to_fix" : "true",
-      "test.type" : "test",
-      "test_session.name" : "session-name"
-    },
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "process_id" : ${content_metrics_process_id}
-    },
-    "name" : "scalatest.test",
-    "parent_id" : ${content_parent_id},
-    "resource" : "org.example.TestFailed.Example.add adds two numbers",
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "span_id" : ${content_span_id_2},
-    "start" : ${content_start_3},
-    "test_module_id" : ${content_test_module_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "trace_id" : ${content_trace_id_2}
-  },
-  "type" : "test",
-  "version" : 2
-}, {
-  "content" : {
-    "duration" : ${content_duration_4},
-    "error" : 1,
-    "meta" : {
-      "_dd.profiling.ctx" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "scalatest",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "env" : "none",
-      "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_3},
-      "error.type" : "org.scalatest.exceptions.TestFailedException",
-      "language" : "jvm",
-      "library_version" : ${content_meta_library_version},
-      "runtime-id" : ${content_meta_runtime_id},
-      "span.kind" : "test",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "test.framework" : "scalatest",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.is_retry" : "true",
-      "test.module" : "scalatest-3.0.8",
-      "test.name" : "Example.add adds two numbers",
-      "test.retry_reason" : "attempt_to_fix",
-      "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
-      "test.suite" : "org.example.TestFailed",
-      "test.test_management.is_attempt_to_fix" : "true",
-      "test.type" : "test",
-      "test_session.name" : "session-name"
-    },
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "process_id" : ${content_metrics_process_id}
-    },
-    "name" : "scalatest.test",
-    "parent_id" : ${content_parent_id},
-    "resource" : "org.example.TestFailed.Example.add adds two numbers",
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "span_id" : ${content_span_id_3},
-    "start" : ${content_start_4},
-    "test_module_id" : ${content_test_module_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "trace_id" : ${content_trace_id_3}
-  },
-  "type" : "test",
-  "version" : 2
-}, {
-  "content" : {
-    "duration" : ${content_duration_5},
-    "error" : 1,
-    "meta" : {
-      "_dd.profiling.ctx" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "scalatest",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "env" : "none",
-      "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_4},
-      "error.type" : "org.scalatest.exceptions.TestFailedException",
-      "language" : "jvm",
-      "library_version" : ${content_meta_library_version},
-      "runtime-id" : ${content_meta_runtime_id},
-      "span.kind" : "test",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "test.framework" : "scalatest",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.is_retry" : "true",
-      "test.module" : "scalatest-3.0.8",
-      "test.name" : "Example.add adds two numbers",
-      "test.retry_reason" : "attempt_to_fix",
-      "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
-      "test.suite" : "org.example.TestFailed",
-      "test.test_management.is_attempt_to_fix" : "true",
-      "test.type" : "test",
-      "test_session.name" : "session-name"
-    },
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_5},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "process_id" : ${content_metrics_process_id}
-    },
-    "name" : "scalatest.test",
-    "parent_id" : ${content_parent_id},
-    "resource" : "org.example.TestFailed.Example.add adds two numbers",
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "span_id" : ${content_span_id_4},
-    "start" : ${content_start_5},
-    "test_module_id" : ${content_test_module_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "trace_id" : ${content_trace_id_4}
-  },
-  "type" : "test",
-  "version" : 2
-}, {
-  "content" : {
-    "duration" : ${content_duration_6},
-    "error" : 1,
-    "meta" : {
-      "_dd.profiling.ctx" : "test",
-      "_dd.tracer_host" : ${content_meta__dd_tracer_host},
-      "component" : "scalatest",
-      "dummy_ci_tag" : "dummy_ci_tag_value",
-      "env" : "none",
-      "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack_5},
-      "error.type" : "org.scalatest.exceptions.TestFailedException",
-      "language" : "jvm",
-      "library_version" : ${content_meta_library_version},
-      "runtime-id" : ${content_meta_runtime_id},
-      "span.kind" : "test",
-      "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "test.final_status" : "fail",
-      "test.framework" : "scalatest",
-      "test.framework_version" : ${content_meta_test_framework_version},
-      "test.has_failed_all_retries" : "true",
-      "test.is_retry" : "true",
-      "test.module" : "scalatest-3.0.8",
-      "test.name" : "Example.add adds two numbers",
-      "test.retry_reason" : "attempt_to_fix",
-      "test.source.file" : "dummy_source_path",
-      "test.status" : "fail",
-      "test.suite" : "org.example.TestFailed",
-      "test.test_management.attempt_to_fix_passed" : "false",
-      "test.test_management.is_attempt_to_fix" : "true",
-      "test.type" : "test",
-      "test_session.name" : "session-name"
-    },
-    "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_6},
-      "_dd.profiling.enabled" : 0,
-      "_dd.trace_span_attribute_schema" : 0,
-      "process_id" : ${content_metrics_process_id}
-    },
-    "name" : "scalatest.test",
-    "parent_id" : ${content_parent_id},
-    "resource" : "org.example.TestFailed.Example.add adds two numbers",
-    "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "span_id" : ${content_span_id_5},
-    "start" : ${content_start_6},
-    "test_module_id" : ${content_test_module_id},
-    "test_session_id" : ${content_test_session_id},
-    "test_suite_id" : ${content_test_suite_id},
-    "trace_id" : ${content_trace_id_5}
-  },
-  "type" : "test",
-  "version" : 2
-}, {
-  "content" : {
-    "duration" : ${content_duration_7},
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_2},
@@ -309,7 +108,7 @@
       "test_session.name" : "session-name"
     },
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_7},
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_3},
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id}
@@ -317,14 +116,14 @@
     "name" : "scalatest.test_session",
     "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "start" : ${content_start_7},
+    "start" : ${content_start_3},
     "test_session_id" : ${content_test_session_id}
   },
   "type" : "test_session_end",
   "version" : 1
 }, {
   "content" : {
-    "duration" : ${content_duration_8},
+    "duration" : ${content_duration_4},
     "error" : 0,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid_3},
@@ -342,12 +141,12 @@
       "test_session.name" : "session-name"
     },
     "metrics" : {
-      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_8}
+      "_dd.host.vcpu_count" : ${content_metrics__dd_host_vcpu_count_4}
     },
     "name" : "scalatest.test_module",
     "resource" : "scalatest-3.0.8",
     "service" : "worker.org.gradle.process.internal.worker.gradleworkermain",
-    "start" : ${content_start_8},
+    "start" : ${content_start_4},
     "test_module_id" : ${content_test_module_id},
     "test_session_id" : ${content_test_session_id}
   },

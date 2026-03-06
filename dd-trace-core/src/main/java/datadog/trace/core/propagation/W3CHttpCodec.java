@@ -17,6 +17,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -70,7 +71,9 @@ class W3CHttpCodec {
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      String traceparent = W3CTraceParent.from(context);
+      String traceparent =
+          W3CTraceParent.from(
+              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 

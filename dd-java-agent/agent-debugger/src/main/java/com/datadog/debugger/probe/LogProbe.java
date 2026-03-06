@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -323,6 +324,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private transient Consumer<Snapshot> snapshotProcessor;
   protected transient Map<DDTraceId, AtomicInteger> budget =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
+  protected transient Sampler sampler;
+  protected transient Sampler errorSampler;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -408,6 +411,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         builder.sampling,
         builder.captureExpressions);
     this.snapshotProcessor = builder.snapshotProcessor;
+    initSamplers();
   }
 
   public LogProbe copy() {
@@ -450,6 +454,17 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     return sampling;
   }
 
+  public void initSamplers() {
+    double rate =
+        sampling != null
+            ? sampling.getEventsPerSecond()
+            : (isCaptureSnapshot()
+                ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
+                : ProbeRateLimiter.DEFAULT_LOG_RATE);
+    sampler = ProbeRateLimiter.createSampler(rate);
+    errorSampler = ProbeRateLimiter.createSampler(1.0); // errors are always sampled at 1/s rate
+  }
+
   public List<CaptureExpression> getCaptureExpressions() {
     return captureExpressions;
   }
@@ -487,7 +502,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(id);
+      return ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
     }
     return true;
   }
@@ -552,8 +567,13 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
+    // if condition has error and no capture Snapshot, the error is reported using errorSampler
+    // at 1/s rate instead of the log template one
+    Sampler localSampler =
+        logStatus.hasConditionErrors && !isCaptureSnapshot() ? errorSampler : sampler;
     boolean sampled =
-        !logStatus.getDebugSessionStatus().isDisabled() && ProbeRateLimiter.tryProbe(id);
+        !logStatus.getDebugSessionStatus().isDisabled()
+            && ProbeRateLimiter.tryProbe(localSampler, isCaptureSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()

@@ -68,7 +68,7 @@ internal object MuzzleVersionUtils {
   /**
    * Select a random set of versions to test
    */
-  private val RANGE_COUNT_LIMIT = 25
+  internal val RANGE_COUNT_LIMIT = 25
 
   /**
    * Select a random set of versions to test, limiting the range for efficiency.

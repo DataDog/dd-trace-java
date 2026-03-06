@@ -136,6 +136,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -410,6 +411,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -477,6 +479,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "DeleteMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }

@@ -6,8 +6,8 @@ import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
@@ -59,7 +59,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable Long startTime,
-      @Nullable TestExecutionHistory testExecutionHistory) {
+      @Nullable TestExecutionTracker testExecutionTracker) {
     // do nothing
   }
 
@@ -75,7 +75,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @Override
   public void onTestFinish(
-      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionHistory executionHistory) {
+      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionTracker executionTracker) {
     // do nothing
   }
 
@@ -90,7 +90,7 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable String reason,
-      @Nullable TestExecutionHistory testExecutionHistory) {
+      @Nullable TestExecutionTracker testExecutionTracker) {
     // do nothing
   }
 

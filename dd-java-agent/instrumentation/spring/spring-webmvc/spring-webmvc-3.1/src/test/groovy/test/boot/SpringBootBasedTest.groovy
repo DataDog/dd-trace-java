@@ -517,8 +517,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           parent()
           tags {
             "$Tags.COMPONENT" "aws-apigateway"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_URL" "api.example.com/success"
+            "$Tags.HTTP_URL" "https://api.example.com/success"
             "$Tags.HTTP_ROUTE" "/success"
             "stage" "test"
             "_dd.inferred_span" 1
@@ -536,6 +537,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "runtime-id" String
             "thread.id" Number
             "thread.name" String
+            serviceNameSource "inferred_proxy"
           }
         }
         // Server span should be a child of the inferred proxy span

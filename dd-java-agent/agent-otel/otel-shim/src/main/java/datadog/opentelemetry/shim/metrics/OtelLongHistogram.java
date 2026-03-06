@@ -91,8 +91,7 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
     public LongHistogram build() {
       return new OtelLongHistogram(
           meter.registerStorage(
-              builder.descriptor(),
-              descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
     }
   }
 }

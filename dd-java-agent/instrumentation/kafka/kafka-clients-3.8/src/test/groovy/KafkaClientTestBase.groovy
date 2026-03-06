@@ -907,6 +907,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
+      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
@@ -929,6 +930,11 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
+        if (isV0) {
+          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
+          // this is a buggy behaviour that could not be easily fixed.
+          serviceNameSource "java-kafka"
+        }
         defaultTags()
       }
     }
@@ -978,6 +984,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
+      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -993,6 +1000,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
+        }
+        if (isV0) {
+          serviceNameSource "java-kafka"
         }
         defaultTags(distributedRootSpan)
       }

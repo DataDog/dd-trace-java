@@ -86,7 +86,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       executionContext.setSuppressFailures(executionPolicy.suppressFailures());
 
       scenarioRuntime.magicVariables.putIfAbsent(
-          KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
+          KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
     }
 
     @Advice.OnMethodExit
@@ -109,7 +109,7 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       while (executionPolicy.applicable()) {
         ScenarioRuntime retry =
             new ScenarioRuntime(scenarioRuntime.featureRuntime, scenarioRuntime.scenario);
-        retry.magicVariables.put(KarateUtils.EXECUTION_HISTORY_MAGICVARIABLE, executionPolicy);
+        retry.magicVariables.put(KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
         retry.run();
         retry.featureRuntime.result.addResult(retry.result);
         finalResult = retry.result;

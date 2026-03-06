@@ -9,6 +9,7 @@ import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -49,6 +50,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final AgentSpan span;
   private final String spanKind;
   private final ContextScope scope;
+  private final boolean hasSessionId;
 
   private boolean finished = false;
 
@@ -70,52 +72,53 @@ public class DDLLMObsSpan implements LLMObsSpan {
             .withServiceName(serviceName)
             .withSpanType(DDSpanTypes.LLMOBS);
 
-    this.span = spanBuilder.start();
+    span = spanBuilder.start();
 
     // set UST (unified service tags, env, service, version)
-    this.span.setTag(ENV, wellKnownTags.getEnv());
-    this.span.setTag(SERVICE, wellKnownTags.getService());
-    this.span.setTag(VERSION, wellKnownTags.getVersion());
-    this.span.setTag(DDTRACE_VERSION, DDTraceApiInfo.VERSION);
+    span.setTag(ENV, wellKnownTags.getEnv());
+    span.setTag(SERVICE, wellKnownTags.getService());
+    span.setTag(VERSION, wellKnownTags.getVersion());
+    span.setTag(DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
-    this.span.setTag(SPAN_KIND, kind);
-    this.spanKind = kind;
-    this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    if (sessionId != null && !sessionId.isEmpty()) {
-      this.span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
+    span.setTag(SPAN_KIND, kind);
+    spanKind = kind;
+    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
+    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    if (this.hasSessionId) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
 
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
-      if (parent.getTraceId() != this.span.getTraceId()) {
+      if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
             "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
             parent.getTraceId(),
             parent.getSpanId(),
-            this.span.getTraceId(),
-            this.span.getSpanId());
+            span.getTraceId(),
+            span.getSpanId());
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
       }
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    this.scope = LLMObsContext.attach(this.span.context());
+    span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
+    scope = LLMObsContext.attach(span.context());
   }
 
   @Override
   public String toString() {
     return super.toString()
         + ", trace_id="
-        + this.span.context().getTraceId()
+        + span.context().getTraceId()
         + ", span_id="
-        + this.span.context().getSpanId()
+        + span.context().getSpanId()
         + ", ml_app="
-        + this.span.getTag(LLMObsTags.ML_APP)
+        + span.getTag(LLMObsTags.ML_APP)
         + ", service="
-        + this.span.getServiceName()
+        + span.getServiceName()
         + ", span_kind="
-        + this.span.getTag(SPAN_KIND);
+        + span.getTag(SPAN_KIND);
   }
 
   @Override
@@ -124,10 +127,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
       return;
     }
     if (inputData != null && !inputData.isEmpty()) {
-      this.span.setTag(INPUT, inputData);
+      span.setTag(INPUT, inputData);
     }
     if (outputData != null && !outputData.isEmpty()) {
-      this.span.setTag(OUTPUT, outputData);
+      span.setTag(OUTPUT, outputData);
     }
   }
 
@@ -138,24 +141,24 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     boolean wrongSpanKind = false;
     if (inputData != null && !inputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(this.spanKind)) {
+      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
         wrongSpanKind = true;
         annotateIO(
             Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData)),
             null);
       } else {
-        this.span.setTag(INPUT, inputData);
+        span.setTag(INPUT, inputData);
       }
     }
     if (outputData != null && !outputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(this.spanKind)) {
+      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
         wrongSpanKind = true;
         annotateIO(
             null,
             Collections.singletonList(
                 LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData)));
       } else {
-        this.span.setTag(OUTPUT, outputData);
+        span.setTag(OUTPUT, outputData);
       }
     }
     if (wrongSpanKind) {
@@ -171,7 +174,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     Object value = span.getTag(METADATA);
     if (value == null) {
-      this.span.setTag(METADATA, new HashMap<>(metadata));
+      span.setTag(METADATA, new HashMap<>(metadata));
       return;
     }
 
@@ -181,7 +184,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       LOGGER.debug(
           "unexpected instance type for metadata {}, overwriting for now",
           value.getClass().getName());
-      this.span.setTag(METADATA, new HashMap<>(metadata));
+      span.setTag(METADATA, new HashMap<>(metadata));
     }
   }
 
@@ -191,7 +194,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       return;
     }
     for (Map.Entry<String, Number> entry : metrics.entrySet()) {
-      this.span.setMetric(LLMOBS_METRIC_PREFIX + entry.getKey(), entry.getValue().doubleValue());
+      span.setMetric(LLMOBS_METRIC_PREFIX + entry.getKey(), entry.getValue().doubleValue());
     }
   }
 
@@ -200,7 +203,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
+    span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
   }
 
   @Override
@@ -208,7 +211,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
+    span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
   }
 
   @Override
@@ -216,7 +219,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
+    span.setMetric(LLMOBS_METRIC_PREFIX + key, value);
   }
 
   @Override
@@ -226,7 +229,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     if (tags != null && !tags.isEmpty()) {
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
-        this.span.setTag(LLMOBS_TAG_PREFIX + entry.getKey(), entry.getValue());
+        span.setTag(LLMOBS_TAG_PREFIX + entry.getKey(), entry.getValue());
       }
     }
   }
@@ -236,7 +239,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + key, value);
+    span.setTag(LLMOBS_TAG_PREFIX + key, value);
   }
 
   @Override
@@ -244,7 +247,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + key, value);
+    span.setTag(LLMOBS_TAG_PREFIX + key, value);
   }
 
   @Override
@@ -252,7 +255,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + key, value);
+    span.setTag(LLMOBS_TAG_PREFIX + key, value);
   }
 
   @Override
@@ -260,7 +263,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + key, value);
+    span.setTag(LLMOBS_TAG_PREFIX + key, value);
   }
 
   @Override
@@ -268,7 +271,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setTag(LLMOBS_TAG_PREFIX + key, value);
+    span.setTag(LLMOBS_TAG_PREFIX + key, value);
   }
 
   @Override
@@ -276,7 +279,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.setError(error);
+    span.setError(error);
   }
 
   @Override
@@ -287,8 +290,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (errorMessage == null || errorMessage.isEmpty()) {
       return;
     }
-    this.span.setError(true);
-    this.span.setErrorMessage(errorMessage);
+    span.setError(true);
+    span.setErrorMessage(errorMessage);
   }
 
   @Override
@@ -299,8 +302,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (throwable == null) {
       return;
     }
-    this.span.setError(true);
-    this.span.addThrowable(throwable);
+    span.setError(true);
+    span.addThrowable(throwable);
   }
 
   @Override
@@ -308,18 +311,27 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    this.span.finish();
-    this.scope.close();
-    this.finished = true;
+    span.finish();
+    scope.close();
+    finished = true;
+    boolean isRootSpan = span.getLocalRootSpan() == span;
+    LLMObsMetricCollector.get()
+        .recordSpanFinished(
+            LLM_OBS_INSTRUMENTATION_NAME,
+            spanKind,
+            isRootSpan,
+            false,
+            span.isError(),
+            hasSessionId);
   }
 
   @Override
   public DDTraceId getTraceId() {
-    return this.span.getTraceId();
+    return span.getTraceId();
   }
 
   @Override
   public long getSpanId() {
-    return this.span.getSpanId();
+    return span.getSpanId();
   }
 }

@@ -11,6 +11,7 @@ import static utils.TestHelper.setFieldInConfig;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.MoshiHelper;
@@ -64,7 +65,7 @@ public class CapturingTestBase {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
     Assertions.assertFalse(DebuggerContext.isInProbe());
     Redaction.clearUserDefinedTypes();
   }
@@ -354,10 +355,9 @@ public class CapturingTestBase {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
 
-    for (LogProbe probe : configuration.getLogProbes()) {
-      if (probe.getSampling() != null) {
-        ProbeRateLimiter.setRate(
-            probe.getId(), probe.getSampling().getEventsPerSecond(), probe.isCaptureSnapshot());
+    for (ProbeDefinition probe : configuration.getDefinitions()) {
+      if (probe instanceof Sampled) {
+        ((Sampled) probe).initSamplers();
       }
     }
     if (configuration.getSampling() != null) {

@@ -5,11 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.trace.api.TagMap;
+import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.endpoint.EndpointResolver;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

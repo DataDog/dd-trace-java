@@ -1,0 +1,40 @@
+name: Enforce Datadog Merge Queue
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, enqueued]
+    branches:
+      - master
+  merge_group:
+
+jobs:
+  enforce_datadog_merge_queue:
+    name: Merge queue check
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for OIDC token federation
+    steps:
+      - name: Block GitHub merge queue
+        if: github.event_name == 'merge_group'
+        run: |
+          echo "Merge is handled by the Datadog merge queue system. Use the /merge command to enqueue your PR for merging."
+          exit 1
+      - name: Get OIDC token
+        if: github.event.action == 'enqueued'
+        uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.enforce-datadog-merge-queue.comment-pr
+      - name: Post /merge comment
+        if: github.event.action == 'enqueued'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # 8.0.0
+        with:
+          github-token: ${{ steps.octo-sts.outputs.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '/merge'
+            });
