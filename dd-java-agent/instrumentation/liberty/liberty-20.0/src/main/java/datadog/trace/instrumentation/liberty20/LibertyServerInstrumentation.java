@@ -125,8 +125,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+      request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
       if (ActiveSubsystems.APPSEC_ACTIVE) {

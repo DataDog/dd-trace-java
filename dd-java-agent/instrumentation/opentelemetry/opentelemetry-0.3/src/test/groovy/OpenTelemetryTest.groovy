@@ -3,7 +3,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.GlobalTracer
-import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.core.propagation.PropagationTags
 
 import static datadog.trace.api.TracePropagationStyle.NONE

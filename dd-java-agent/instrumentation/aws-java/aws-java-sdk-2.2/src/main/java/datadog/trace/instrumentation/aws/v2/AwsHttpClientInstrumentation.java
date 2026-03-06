@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.Closeable;
@@ -95,7 +94,7 @@ public final class AwsHttpClientInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(@Advice.Enter final Closeable scope) {
       try {
-         scope.close();
+        scope.close();
       } catch (IOException e) {
         // ignore. Scope doesn't throw IOException but it is part of the interface signature
       }

@@ -1,6 +1,5 @@
 package datadog.smoketest.loginjection;
 
-import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
 import datadog.trace.api.TraceConfig;
@@ -57,40 +56,28 @@ public abstract class BaseApplication {
   public void firstTracedMethod() {
     doLog("INSIDE FIRST SPAN");
     System.out.println(
-        "FIRSTTRACEID "
-            + GlobalTracer.get().getTraceId()
-            + " "
-            + GlobalTracer.get().getSpanId());
+        "FIRSTTRACEID " + GlobalTracer.get().getTraceId() + " " + GlobalTracer.get().getSpanId());
   }
 
   @Trace
   public void secondTracedMethod() {
     doLog("INSIDE SECOND SPAN");
     System.out.println(
-        "SECONDTRACEID "
-            + GlobalTracer.get().getTraceId()
-            + " "
-            + GlobalTracer.get().getSpanId());
+        "SECONDTRACEID " + GlobalTracer.get().getTraceId() + " " + GlobalTracer.get().getSpanId());
   }
 
   @Trace
   public void thirdTracedMethod() {
     doLog("INSIDE THIRD SPAN");
     System.out.println(
-        "THIRDTRACEID "
-            + GlobalTracer.get().getTraceId()
-            + " "
-            + GlobalTracer.get().getSpanId());
+        "THIRDTRACEID " + GlobalTracer.get().getTraceId() + " " + GlobalTracer.get().getSpanId());
   }
 
   @Trace
   public void forthTracedMethod() {
     doLog("INSIDE FORTH SPAN");
     System.out.println(
-        "FORTHTRACEID "
-            + GlobalTracer.get().getTraceId()
-            + " "
-            + GlobalTracer.get().getSpanId());
+        "FORTHTRACEID " + GlobalTracer.get().getTraceId() + " " + GlobalTracer.get().getSpanId());
   }
 
   private static boolean waitForCondition(Supplier<Boolean> condition) throws InterruptedException {

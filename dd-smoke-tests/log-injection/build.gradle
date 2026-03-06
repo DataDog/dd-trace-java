@@ -91,6 +91,7 @@ tasks.named('processLoggingResources') {
 
 dependencies {
   implementation project(':dd-trace-api')
+  implementation project(':internal-api') // For TraceConfig reflection hack
 
   compileOnly libs.slf4j
   compileOnly 'log4j:log4j:1.2.17'

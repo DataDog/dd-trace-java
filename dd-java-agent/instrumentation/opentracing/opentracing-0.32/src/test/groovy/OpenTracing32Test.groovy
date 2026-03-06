@@ -3,7 +3,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
@@ -33,7 +32,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
 class OpenTracing32Test extends InstrumentationSpecification {
 
@@ -166,7 +164,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
 
   def "test scopemanager"() {
     setup:
-    AgentTracer.TracerAPI internalTracer = tracer.tracer.tracer
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
 

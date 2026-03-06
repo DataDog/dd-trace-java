@@ -1,10 +1,8 @@
 package datadog.trace.api.config;
 
 /**
- *
- * These keys represent settings that should be configured via system
- * properties, environment variables, or config properties file. See online documentation for
- * details.
+ * These keys represent settings that should be configured via system properties, environment
+ * variables, or config properties file. See online documentation for details.
  *
  * @see TraceInstrumentationConfig for instrumentation specific configuration
  */

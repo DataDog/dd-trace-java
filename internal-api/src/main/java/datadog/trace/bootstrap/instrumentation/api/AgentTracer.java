@@ -359,14 +359,12 @@ public class AgentTracer {
     AgentScope.Continuation captureSpan(AgentSpan span);
 
     /**
-     * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
-     * asynchronous boundaries.
+     * Checks whether asynchronous propagation is enabled, meaning this context will propagate
+     * across asynchronous boundaries.
      */
     boolean isAsyncPropagationEnabled();
 
-    /**
-     * Enables or disables asynchronous propagation for the active span.
-     */
+    /** Enables or disables asynchronous propagation for the active span. */
     void setAsyncPropagationEnabled(boolean asyncPropagationEnabled);
 
     void checkpointActiveForRollback();

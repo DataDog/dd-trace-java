@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.logback;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
-import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.util.Arrays;

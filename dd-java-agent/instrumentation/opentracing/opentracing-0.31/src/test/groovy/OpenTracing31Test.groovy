@@ -3,7 +3,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.interceptor.MutableSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
@@ -28,7 +27,6 @@ import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
 class OpenTracing31Test extends InstrumentationSpecification {
 
@@ -156,7 +154,6 @@ class OpenTracing31Test extends InstrumentationSpecification {
 
   def "test scopemanager"() {
     setup:
-    AgentTracer.TracerAPI internalTracer = tracer.tracer.tracer
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
 

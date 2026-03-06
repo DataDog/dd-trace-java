@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.log4j2;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.io.PrintWriter;

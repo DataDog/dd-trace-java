@@ -1296,7 +1296,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return ((WithAgentSpan) span).asAgentSpan();
     }
 
-    throw new IllegalArgumentException("Provided span with type: " + span.getClass() + " is not convertible");
+    throw new IllegalArgumentException(
+        "Provided span with type: " + span.getClass() + " is not convertible");
   }
 
   @Override

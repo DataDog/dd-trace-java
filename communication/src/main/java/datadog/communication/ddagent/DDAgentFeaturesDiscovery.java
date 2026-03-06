@@ -111,9 +111,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
-        enableV05Traces
-            ? new String[] {V05_ENDPOINT, V04_ENDPOINT}
-            : new String[] {V04_ENDPOINT};
+        enableV05Traces ? new String[] {V05_ENDPOINT, V04_ENDPOINT} : new String[] {V04_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }

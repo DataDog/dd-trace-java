@@ -23,7 +23,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
-import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.sampling.Sampler;

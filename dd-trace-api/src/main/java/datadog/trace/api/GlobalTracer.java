@@ -55,8 +55,7 @@ public class GlobalTracer {
         }
       };
 
-  private static final Tracer.Blackhole NO_OP_BLACKHOLE = () -> {
-  };
+  private static final Tracer.Blackhole NO_OP_BLACKHOLE = () -> {};
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;

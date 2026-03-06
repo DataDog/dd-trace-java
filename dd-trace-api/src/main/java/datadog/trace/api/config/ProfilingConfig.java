@@ -1,8 +1,7 @@
 package datadog.trace.api.config;
 
 /**
- *
- * <p>Configure via system properties, environment variables, or config properties file. See online
+ * Configure via system properties, environment variables, or config properties file. See online
  * documentation for details.
  */
 public final class ProfilingConfig {

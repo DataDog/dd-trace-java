@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.api.CorrelationIdentifier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
