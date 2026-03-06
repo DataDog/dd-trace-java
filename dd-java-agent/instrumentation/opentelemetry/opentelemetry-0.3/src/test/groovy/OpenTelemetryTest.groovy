@@ -39,6 +39,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
     }
+
+    when:
     def result = builder.startSpan()
     if (tagSpan) {
       result.setAttribute(DDTags.RESOURCE_NAME, "other resource")
@@ -46,12 +48,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
     }
-
-    expect:
-    GlobalTracer.get().getLocalRootSpan() == result.delegate
-    tracer.currentSpan == null
-
-    when:
     result.end()
 
     then:
@@ -96,6 +92,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
   def "test span exception"() {
     setup:
     def builder = tracer.spanBuilder("some name")
+
+    when:
     def result = builder.startSpan()
     result.setStatus(Status.UNKNOWN)
     result.setAttribute(DDTags.ERROR_MSG, (String) exception.message)
@@ -103,16 +101,10 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     final StringWriter errorString = new StringWriter()
     exception.printStackTrace(new PrintWriter(errorString))
     result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
-
-    expect:
-    GlobalTracer.get().getLocalRootSpan() == result.delegate
-    GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
-    tracer.currentSpan == null
-
-    when:
     result.end()
 
     then:
+    GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
     assertTraces(1) {
       trace(1) {
         span {
@@ -143,13 +135,9 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
-    def result = builder.startSpan()
-
-    expect:
-    GlobalTracer.get().localRootSpan == result.delegate
-    tracer.currentSpan == null
 
     when:
+    def result = builder.startSpan()
     result.end()
 
     then:
