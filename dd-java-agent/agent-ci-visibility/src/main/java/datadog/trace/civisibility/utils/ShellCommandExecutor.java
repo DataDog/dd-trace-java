@@ -1,9 +1,9 @@
 package datadog.trace.civisibility.utils;
 
 import datadog.communication.util.IOUtils;
+import datadog.trace.api.Tracer;
 import datadog.trace.api.civisibility.telemetry.tag.ExitCode;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.io.ByteArrayInputStream;
@@ -98,7 +98,7 @@ public class ShellCommandExecutor {
     Process p = null;
 
     // mute tracing to prevent process instrumentation from creating a span for the forked process
-    try (TraceScope scope = AgentTracer.get().muteTracing()) {
+    try (Tracer.Blackhole scope = AgentTracer.get().muteTracing()) {
       ProcessBuilder processBuilder = new ProcessBuilder(command);
       processBuilder.directory(executionFolder);
 

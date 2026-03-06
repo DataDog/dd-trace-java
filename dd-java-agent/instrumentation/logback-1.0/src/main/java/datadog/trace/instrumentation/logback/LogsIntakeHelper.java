@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.logback;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
-import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -32,11 +32,11 @@ public class LogsIntakeHelper {
       thrownLog.put("extendedStackTrace", stackTraceString);
       log.put("thrown", thrownLog);
     }
-    String traceId = CorrelationIdentifier.getTraceId();
+    String traceId = GlobalTracer.get().getTraceId();
     if (traceId != null && !traceId.equals("0")) {
       log.put("dd.trace_id", traceId);
     }
-    String spanId = CorrelationIdentifier.getSpanId();
+    String spanId = GlobalTracer.get().getSpanId();
     if (spanId != null && !spanId.equals("0")) {
       log.put("dd.span_id", spanId);
     }

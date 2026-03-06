@@ -76,7 +76,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "response body propagated in case of non-200 response"() {
@@ -109,20 +109,19 @@ class DDAgentApiTest extends DDCoreSpecification {
         put("v0.4/traces") {
           response.status(404).send()
         }
-
-        put("v0.3/traces") {
+        put("v0.5/traces") {
           response.status(404).send()
         }
       }
     }
     def client = createAgentApi(agent.address.toString())[1]
-    Payload payload = prepareTraces("v0.3/traces", [])
+    Payload payload = prepareTraces("v0.5/traces", [])
     expect:
     def clientResponse = client.sendSerializedTraces(payload)
     !clientResponse.success()
     clientResponse.status().present
     clientResponse.status().asInt == 404
-    agent.getLastRequest().path == "/v0.3/traces"
+    agent.getLastRequest().path == "/v0.4/traces"
 
     cleanup:
     agent.close()
@@ -130,6 +129,7 @@ class DDAgentApiTest extends DDCoreSpecification {
 
   def "content is sent as MSGPACK"() {
     setup:
+    def agentVersion = "v0.4/traces"
     def agent = httpServer {
       handlers {
         put(agentVersion) {
@@ -210,7 +210,6 @@ class DDAgentApiTest extends DDCoreSpecification {
         it.@durationNano = 10
       }
     }
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.4/traces"]
   }
 
   def "Api ResponseListeners see 200 responses"() {
@@ -248,39 +247,39 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
-  def "Api Downgrades to v3 if v0.4 not available"() {
+  def "Api Downgrades to v0.4 if v0.5 not available"() {
     setup:
     def v3Agent = httpServer {
       handlers {
-        put("v0.3/traces") {
+        put("v0.4/traces") {
           def status = request.contentLength > 0 ? 200 : 500
           response.status(status).send()
         }
       }
     }
     def client = createAgentApi(v3Agent.address.toString())[1]
-    def payload = prepareTraces("v0.4/traces", [])
+    def payload = prepareTraces("v0.5/traces", [])
     expect:
     client.sendSerializedTraces(payload).success()
-    v3Agent.getLastRequest().path == "/v0.3/traces"
+    v3Agent.getLastRequest().path == "/v0.4/traces"
 
     cleanup:
     v3Agent.close()
   }
 
-  def "Api Downgrades to v3 if timeout exceeded (#delayTrace, #badPort)"() {
+  def "Api Downgrades to v0.4 if timeout exceeded (#delayTrace, #badPort)"() {
     // This test is unfortunately only exercising the read timeout, not the connect timeout.
     setup:
     def agent = httpServer {
       handlers {
-        put("v0.3/traces") {
+        put("v0.4/traces") {
           def status = request.contentLength > 0 ? 200 : 500
           response.status(status).send()
         }
-        put("v0.4/traces") {
+        put("v0.5/traces") {
           Thread.sleep(delayTrace)
           def status = request.contentLength > 0 ? 200 : 500
           response.status(status).send()
@@ -289,7 +288,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
     def port = badPort ? 999 : agent.address.port
     def client = createAgentApi("http://" + agent.address.host + ":" + port)[1]
-    def payload = prepareTraces("v0.4/traces", [])
+    def payload = prepareTraces("v0.5/traces", [])
     def result = client.sendSerializedTraces(payload)
 
     expect:
@@ -303,10 +302,10 @@ class DDAgentApiTest extends DDCoreSpecification {
 
     where:
     endpointVersion | delayTrace | badPort
-    "v0.4"          | 0          | false
-    "v0.3"          | 0          | true
-    "v0.4"          | 500        | false
-    "v0.3"          | 30000      | false
+    "v0.5"          | 0          | false
+    "v0.4"          | 0          | true
+    "v0.5"          | 500        | false
+    "v0.4"          | 30000      | false
   }
 
   def "verify content length"() {

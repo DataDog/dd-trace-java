@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.api.scopemanager.ScopeListener
-import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.test.DDCoreSpecification
@@ -734,7 +733,7 @@ class ScopeManagerTest extends DDCoreSpecification {
   }
 
   @Shared
-  TraceScope.Continuation continuation = null
+  AgentScope.Continuation continuation = null
 
   @Shared
   AtomicInteger iteration = new AtomicInteger(0)
@@ -759,7 +758,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       if (iter & 1) {
         Thread.sleep(1)
       }
-      TraceScope s = continuation.activate()
+      AgentScope s = continuation.activate()
       assert scopeManager.active() == s
       if (iter & 2) {
         Thread.sleep(1)

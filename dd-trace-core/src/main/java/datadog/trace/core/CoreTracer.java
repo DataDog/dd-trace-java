@@ -70,6 +70,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
@@ -83,7 +84,6 @@ import datadog.trace.common.sampling.TraceSamplingRules;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.common.writer.ddintake.DDIntakeTraceInterceptor;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
@@ -544,64 +544,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  @Deprecated
-  private CoreTracer(
-      final Config config,
-      final String serviceName,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      final Writer writer,
-      final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
-      final SingleSpanSampler singleSpanSampler,
-      final HttpCodec.Injector injector,
-      final HttpCodec.Extractor extractor,
-      final Map<String, Object> localRootSpanTags,
-      final TagMap defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final Map<String, String> baggageMapping,
-      final int partialFlushMinSpans,
-      final HealthMetrics healthMetrics,
-      final TagInterceptor tagInterceptor,
-      final boolean strictTraceWrites,
-      final InstrumentationGateway instrumentationGateway,
-      final TimeSource timeSource,
-      final DataStreamsMonitoring dataStreamsMonitoring,
-      final ProfilingContextIntegration profilingContextIntegration,
-      final boolean reportInTracerFlare,
-      final boolean pollForTracingConfiguration,
-      final boolean injectBaggageAsTags,
-      final boolean flushOnClose) {
-    this(
-        config,
-        serviceName,
-        sharedCommunicationObjects,
-        writer,
-        idGenerationStrategy,
-        sampler,
-        singleSpanSampler,
-        injector,
-        extractor,
-        TagMap.fromMap(localRootSpanTags),
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        baggageMapping,
-        partialFlushMinSpans,
-        healthMetrics,
-        tagInterceptor,
-        strictTraceWrites,
-        instrumentationGateway,
-        null,
-        timeSource,
-        dataStreamsMonitoring,
-        profilingContextIntegration,
-        reportInTracerFlare,
-        pollForTracingConfiguration,
-        injectBaggageAsTags,
-        flushOnClose);
-  }
-
   // These field names must be stable to ensure the builder api is stable.
   private CoreTracer(
       final Config config,
@@ -897,7 +839,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
                 final ServiceDiscovery serviceDiscovery = serviceDiscoveryFactory.get();
                 if (serviceDiscovery != null) {
                   // JNA can do ldconfig and other commands. Those are hidden since internal.
-                  try (final TraceScope blackhole = muteTracing()) {
+                  try (final Blackhole blackhole = muteTracing()) {
                     serviceDiscovery.writeTracerMetadata(config);
                   }
                 }
@@ -1321,8 +1263,41 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public TraceScope muteTracing() {
+  public Blackhole muteTracing() {
     return activateSpan(blackholeSpan());
+  }
+
+  @Override
+  public MutableSpan getActiveMutableSpan() {
+    return activeSpan();
+  }
+
+  @Override
+  public MutableSpan getLocalRootSpan() {
+    return getLocalRootSpan(activeSpan());
+  }
+
+  @Override
+  public MutableSpan getLocalRootSpan(MutableSpan mutableSpan) {
+    if (mutableSpan instanceof AgentSpan) {
+      return ((AgentSpan) mutableSpan).getLocalRootSpan();
+    }
+
+    return mutableSpan;
+  }
+
+  @Override
+  public MutableSpan toMutableSpan(Object span) throws IllegalArgumentException {
+    if (span == null) {
+      throw new IllegalArgumentException("Provide span is null");
+    }
+
+    if (span instanceof WithAgentSpan) {
+      return ((WithAgentSpan) span).asAgentSpan();
+    }
+
+    throw new IllegalArgumentException(
+        "Provided span with type: " + span.getClass() + " is not convertible");
   }
 
   @Override

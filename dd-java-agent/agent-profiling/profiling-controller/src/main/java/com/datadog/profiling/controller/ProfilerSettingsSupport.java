@@ -5,11 +5,11 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
+import datadog.trace.api.Tracer;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -231,7 +231,7 @@ public abstract class ProfilerSettingsSupport {
   private String getSELinuxStatus() {
     String value = "Not present";
     if (OperatingSystem.isLinux()) {
-      try (final TraceScope scope = AgentTracer.get().muteTracing()) {
+      try (Tracer.Blackhole scope = AgentTracer.get().muteTracing()) {
         ProcessBuilder pb = new ProcessBuilder("getenforce");
         Process process = pb.start();
         // wait for at most 500ms for the process to finish

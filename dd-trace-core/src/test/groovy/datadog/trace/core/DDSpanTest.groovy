@@ -306,9 +306,6 @@ class DDSpanTest extends DDCoreSpecification {
     expect:
     root.localRootSpan == root
     child.localRootSpan == root
-    // Checking for backward compatibility method names
-    root.rootSpan == root
-    child.rootSpan == root
 
     cleanup:
     child.finish()

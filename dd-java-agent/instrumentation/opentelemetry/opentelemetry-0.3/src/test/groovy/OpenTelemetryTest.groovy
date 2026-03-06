@@ -2,13 +2,12 @@ import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.api.GlobalTracer
 import datadog.trace.core.propagation.PropagationTags
 
 import static datadog.trace.api.TracePropagationStyle.NONE
 import static datadog.trace.api.sampling.PrioritySampling.*
 import static datadog.trace.api.sampling.SamplingMechanism.*
-import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
 import io.opentelemetry.OpenTelemetry
@@ -40,6 +39,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
     }
+
+    when:
     def result = builder.startSpan()
     if (tagSpan) {
       result.setAttribute(DDTags.RESOURCE_NAME, "other resource")
@@ -47,13 +48,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
     }
-
-    expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    tracer.currentSpan == null
-
-    when:
     result.end()
 
     then:
@@ -98,6 +92,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
   def "test span exception"() {
     setup:
     def builder = tracer.spanBuilder("some name")
+
+    when:
     def result = builder.startSpan()
     result.setStatus(Status.UNKNOWN)
     result.setAttribute(DDTags.ERROR_MSG, (String) exception.message)
@@ -105,17 +101,10 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     final StringWriter errorString = new StringWriter()
     exception.printStackTrace(new PrintWriter(errorString))
     result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
-
-    expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    (result as MutableSpan).isError() == (exception != null)
-    tracer.currentSpan == null
-
-    when:
     result.end()
 
     then:
+    GlobalTracer.get().toMutableSpan(result).isError() == (exception != null)
     assertTraces(1) {
       trace(1) {
         span {
@@ -146,14 +135,9 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       def ctx = new ExtractedContext(DDTraceId.ONE, linkId, SAMPLER_DROP, null, PropagationTags.factory().empty(), NONE)
       builder.addLink(tracer.converter.toSpanContext(ctx))
     }
-    def result = builder.startSpan()
-
-    expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    tracer.currentSpan == null
 
     when:
+    def result = builder.startSpan()
     result.end()
 
     then:
@@ -190,7 +174,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     def scope = tracer.withSpan(span)
 
     expect:
-    scope instanceof TraceScope
     tracer.currentSpan.delegate == scope.delegate.span()
 
     when:
@@ -227,37 +210,6 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     tracer.currentSpan == null
     _ * TEST_PROFILING_CONTEXT_INTEGRATION._
     0 * _
-  }
-
-  def "test continuation"() {
-    setup:
-    def span = tracer.spanBuilder("some name").startSpan()
-    TraceScope scope = tracer.withSpan(span)
-
-    expect:
-    tracer.currentSpan.delegate == span.delegate
-
-    when:
-    def continuation = scope.capture()
-
-    then:
-    continuation instanceof TraceScope.Continuation
-
-    when:
-    scope.close()
-
-    then:
-    tracer.currentSpan == null
-
-    when:
-    scope = continuation.activate()
-
-    then:
-    tracer.currentSpan.delegate == span.delegate
-
-    cleanup:
-    scope.close()
-    span.end()
   }
 
   def "test inject extract"() {

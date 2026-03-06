@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.log4j2;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.logging.intake.LogsIntake;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -64,11 +64,11 @@ public class DatadogAppender extends AbstractAppender {
     if (appLogsCollectionEnabled) {
       // skip log source for now as this is expensive
       // will be later introduce with Log Origin and optimisations
-      String traceId = CorrelationIdentifier.getTraceId();
+      String traceId = GlobalTracer.get().getTraceId();
       if (traceId != null && !traceId.equals("0")) {
         log.put("dd.trace_id", traceId);
       }
-      String spanId = CorrelationIdentifier.getSpanId();
+      String spanId = GlobalTracer.get().getSpanId();
       if (spanId != null && !spanId.equals("0")) {
         log.put("dd.span_id", spanId);
       }

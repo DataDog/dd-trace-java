@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.log;
 
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -15,8 +16,8 @@ public abstract class LogContextScopeListener implements ScopeListener, WithGlob
   @Override
   public void afterScopeActivated() {
     if (AgentTracer.traceConfig().isLogsInjectionEnabled()) {
-      add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+      add(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+      add(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
     }
   }
 

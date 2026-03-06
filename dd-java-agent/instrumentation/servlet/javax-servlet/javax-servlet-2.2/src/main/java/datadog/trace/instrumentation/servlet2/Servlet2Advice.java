@@ -10,6 +10,7 @@ import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -63,9 +64,9 @@ public class Servlet2Advice {
 
     httpServletRequest.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
