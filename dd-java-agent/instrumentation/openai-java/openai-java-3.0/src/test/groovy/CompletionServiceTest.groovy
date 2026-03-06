@@ -166,6 +166,7 @@ class CompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
             "$CommonTags.ERROR" 0
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/completions"

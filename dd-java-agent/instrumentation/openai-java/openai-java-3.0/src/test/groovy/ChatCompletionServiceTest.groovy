@@ -340,6 +340,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
               "$CommonTags.TOOL_DEFINITIONS" List
             }
             "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
             "$CommonTags.ERROR" 0
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/chat/completions"

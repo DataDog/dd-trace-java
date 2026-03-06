@@ -65,6 +65,7 @@ class EmbeddingServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
             "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
             "$CommonTags.ERROR" 0
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.total_tokens" Long

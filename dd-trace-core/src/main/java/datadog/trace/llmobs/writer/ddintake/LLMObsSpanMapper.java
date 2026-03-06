@@ -70,6 +70,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METRICS = "metrics".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TAGS = "tags".getBytes(StandardCharsets.UTF_8);
+  private static final String LLMOBS_LANGUAGE_TAG = "language:jvm";
 
   private static final byte[] LLM_MESSAGE_ROLE = "role".getBytes(StandardCharsets.UTF_8);
   private static final byte[] LLM_MESSAGE_CONTENT = "content".getBytes(StandardCharsets.UTF_8);
@@ -293,7 +294,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // write tags (10)
       writable.writeUTF8(TAGS);
       writable.startArray(tagsSize + 1);
-      writable.writeString("language:jvm", null);
+      writable.writeString(LLMOBS_LANGUAGE_TAG, null);
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();

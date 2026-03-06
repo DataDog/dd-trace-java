@@ -19,6 +19,7 @@ interface CommonTags {
   String MODEL_PROVIDER = TAG_PREFIX + LLMObsTags.MODEL_PROVIDER;
 
   String ML_APP = TAG_PREFIX + LLMObsTags.ML_APP;
+  String INTEGRATION = TAG_PREFIX + "integration";
   String VERSION = TAG_PREFIX + "version";
   String SOURCE = TAG_PREFIX + "source";
 
