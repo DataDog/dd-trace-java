@@ -4,6 +4,7 @@ import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -96,6 +97,7 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
       span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
       span.setTag(CommonTags.VERSION, wellKnownTags.getVersion());
+      span.setTag(CommonTags.DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
       span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
       span.setTag(CommonTags.SOURCE, "integration");

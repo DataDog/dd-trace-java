@@ -221,6 +221,7 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.ml_app" String
             "$CommonTags.INTEGRATION" "openai"
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
             "$CommonTags.SOURCE" "integration"
             "$CommonTags.ERROR" 0
             if (reasoning != null) {

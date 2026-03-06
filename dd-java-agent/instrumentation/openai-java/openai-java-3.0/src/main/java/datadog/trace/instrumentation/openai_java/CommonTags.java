@@ -21,6 +21,7 @@ interface CommonTags {
   String ML_APP = TAG_PREFIX + LLMObsTags.ML_APP;
   String INTEGRATION = TAG_PREFIX + "integration";
   String VERSION = TAG_PREFIX + "version";
+  String DDTRACE_VERSION = TAG_PREFIX + "ddtrace.version";
   String SOURCE = TAG_PREFIX + "source";
 
   String ERROR = TAG_PREFIX + "error";

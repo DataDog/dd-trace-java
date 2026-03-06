@@ -336,6 +336,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
             if (expectToolDefinitions) {
               "$CommonTags.TOOL_DEFINITIONS" List
             }
