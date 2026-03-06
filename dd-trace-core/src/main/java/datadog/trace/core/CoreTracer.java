@@ -22,6 +22,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
 import datadog.metrics.agent.AgentMeter;
@@ -35,6 +37,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -1139,12 +1142,27 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void closePrevious(boolean finishSpan) {
-    scopeManager.closePrevious(finishSpan);
+    if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      final Context previous = Context.root().swap();
+      if (finishSpan) {
+        final AgentSpan span = AgentSpan.fromContext(previous);
+        if (span != null) {
+          span.finish();
+        }
+      }
+    } else {
+      scopeManager.closePrevious(finishSpan);
+    }
   }
 
   @Override
-  public AgentScope activateNext(AgentSpan span) {
-    return scopeManager.activateNext(span);
+  public ContextScope activateNext(AgentSpan span) {
+    if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      span.swap();
+      return Context.current().attach();
+    } else {
+      return scopeManager.activateNext(span);
+    }
   }
 
   public TagInterceptor getTagInterceptor() {
