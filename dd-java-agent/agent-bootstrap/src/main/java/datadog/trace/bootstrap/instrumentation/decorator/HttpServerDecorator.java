@@ -174,6 +174,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extracted = startInferredProxySpan(parentContext, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Register service-entry span with inferred proxy span (if present) so that premature
+    // finish calls from child spans (e.g., Spring MVC handler) are deferred until the
+    // service-entry span finishes (after the response status is known).
+    registerServiceEntrySpanInInferredProxy(parentContext, span);
     // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
@@ -191,6 +195,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return extracted;
     }
     return span.start(extracted);
+  }
+
+  private void registerServiceEntrySpanInInferredProxy(
+      Context parentContext, AgentSpan serviceEntrySpan) {
+    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
+    if (inferredProxy != null) {
+      inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
+    }
   }
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
