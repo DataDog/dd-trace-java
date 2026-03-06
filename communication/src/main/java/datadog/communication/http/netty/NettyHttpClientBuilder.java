@@ -2,6 +2,7 @@ package datadog.communication.http.netty;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.client.HttpClientFacade;
+import datadog.communication.http.client.HttpClientFacadeBuilder;
 import datadog.communication.http.client.HttpTransport;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -9,7 +10,8 @@ import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
 
 /** Builder used to configure and create {@link NettyHttpClient}. */
-public final class NettyHttpClientBuilder {
+public final class NettyHttpClientBuilder
+    implements HttpClientFacadeBuilder<NettyHttpClientBuilder> {
   private HttpTransport transport = HttpTransport.TCP;
   private String unixDomainSocketPath;
   private String namedPipe;
@@ -28,21 +30,25 @@ public final class NettyHttpClientBuilder {
   private EventLoopGroup eventLoopGroup;
   private boolean closeEventLoopGroupOnClose = true;
 
+  @Override
   public NettyHttpClientBuilder transport(HttpTransport transport) {
     this.transport = transport;
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder unixDomainSocketPath(@Nullable String unixDomainSocketPath) {
     this.unixDomainSocketPath = unixDomainSocketPath;
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder namedPipe(@Nullable String namedPipe) {
     this.namedPipe = namedPipe;
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder connectTimeoutMillis(long connectTimeoutMillis) {
     this.connectTimeoutMillis = connectTimeoutMillis;
     return this;
@@ -58,6 +64,7 @@ public final class NettyHttpClientBuilder {
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder requestTimeoutMillis(long requestTimeoutMillis) {
     this.requestTimeoutMillis = requestTimeoutMillis;
     return this;
@@ -68,10 +75,12 @@ public final class NettyHttpClientBuilder {
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder proxy(String proxyHost, int proxyPort) {
     return proxy(proxyHost, proxyPort, null, null);
   }
 
+  @Override
   public NettyHttpClientBuilder proxy(
       String proxyHost,
       int proxyPort,
@@ -84,6 +93,7 @@ public final class NettyHttpClientBuilder {
     return this;
   }
 
+  @Override
   public NettyHttpClientBuilder retryPolicyFactory(HttpRetryPolicy.Factory retryPolicyFactory) {
     this.retryPolicyFactory = retryPolicyFactory;
     return this;
@@ -106,6 +116,7 @@ public final class NettyHttpClientBuilder {
     return this;
   }
 
+  @Override
   public HttpClientFacade build() {
     validate();
 

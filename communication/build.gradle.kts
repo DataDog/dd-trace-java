@@ -30,9 +30,11 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.junit.platform.suite)
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
+  testImplementation(libs.jnr.unixsocket)
   testImplementation(
     group = "com.squareup.okhttp3",
     name = "mockwebserver",

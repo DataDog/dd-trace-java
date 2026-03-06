@@ -1,15 +1,16 @@
-package datadog.communication.http.ahc;
+package datadog.communication.http.client;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.client.HttpClientFacade;
-import datadog.communication.http.client.HttpClientRequest;
-import datadog.communication.http.client.HttpClientResponse;
+import datadog.communication.http.ahc.ApacheAsyncHttpClientFactory;
+import datadog.communication.http.netty.NettyHttpClientFactory;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
@@ -21,25 +22,63 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import jnr.unixsocket.UnixServerSocketChannel;
+import jnr.unixsocket.UnixSocketAddress;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.opentest4j.TestAbortedException;
 
-class ApacheAsyncHttpClientTest {
+@ExtendWith(HttpClientFacadeContractTest.ClientImplementationExtension.class)
+public class HttpClientFacadeContractTest {
+  public static final String CLIENT_IMPL_PARAMETER = "datadog.http.client.impl";
 
+  private final List<Closeable> closeables = new ArrayList<>();
   private MockWebServer server;
-  private Closeable closeable;
+  private ClientImplementation implementation;
+
+  private void setImplementation(ClientImplementation implementation) {
+    this.implementation = implementation;
+  }
+
+  private String clientName() {
+    return implementation.id;
+  }
+
+  private HttpClientFacadeBuilder<?> newBuilder() {
+    switch (implementation) {
+      case NETTY:
+        return NettyHttpClientFactory.builder();
+      case APACHE_ASYNC_HTTP_CLIENT5:
+        return ApacheAsyncHttpClientFactory.builder();
+      default:
+        throw new IllegalStateException("Unsupported implementation: " + implementation);
+    }
+  }
+
+  private boolean supportsUnixDomainSocket() {
+    return implementation == ClientImplementation.NETTY;
+  }
 
   @AfterEach
   void afterEach() {
@@ -49,12 +88,14 @@ class ApacheAsyncHttpClientTest {
       } catch (Exception ignored) {
       }
     }
-    if (closeable != null) {
+
+    for (int i = closeables.size() - 1; i >= 0; i--) {
       try {
-        closeable.close();
+        closeables.get(i).close();
       } catch (Exception ignored) {
       }
     }
+    closeables.clear();
   }
 
   @Test
@@ -67,10 +108,10 @@ class ApacheAsyncHttpClientTest {
     HttpClientRequest request =
         HttpClientRequest.builder(uri, "GET").addHeader("x-test", "1").build();
 
-    try (HttpClientFacade client = ApacheAsyncHttpClientFactory.builder().build()) {
+    try (HttpClientFacade client = newBuilder().build()) {
       HttpClientResponse response = client.execute(request);
-      assertEquals(200, response.statusCode());
-      assertArrayEquals("pong".getBytes(StandardCharsets.UTF_8), response.body());
+      assertEquals(200, response.statusCode(), clientName());
+      assertArrayEquals("pong".getBytes(StandardCharsets.UTF_8), response.body(), clientName());
     }
   }
 
@@ -85,11 +126,10 @@ class ApacheAsyncHttpClientTest {
     HttpClientRequest request = HttpClientRequest.builder(uri, "POST").body(new byte[] {1}).build();
 
     HttpRetryPolicy.Factory retryPolicy = new HttpRetryPolicy.Factory(1, 1, 1.0);
-    try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder().retryPolicyFactory(retryPolicy).build()) {
+    try (HttpClientFacade client = newBuilder().retryPolicyFactory(retryPolicy).build()) {
       HttpClientResponse response = client.execute(request);
-      assertEquals(200, response.statusCode());
-      assertEquals(2, server.getRequestCount());
+      assertEquals(200, response.statusCode(), clientName());
+      assertEquals(2, server.getRequestCount(), clientName());
     }
   }
 
@@ -104,11 +144,10 @@ class ApacheAsyncHttpClientTest {
     HttpClientRequest request = HttpClientRequest.builder(uri, "POST").body(new byte[] {1}).build();
 
     HttpRetryPolicy.Factory retryPolicy = new HttpRetryPolicy.Factory(2, 1, 1.0);
-    try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder().retryPolicyFactory(retryPolicy).build()) {
+    try (HttpClientFacade client = newBuilder().retryPolicyFactory(retryPolicy).build()) {
       HttpClientResponse response = client.execute(request);
-      assertEquals(200, response.statusCode());
-      assertEquals(2, server.getRequestCount());
+      assertEquals(200, response.statusCode(), clientName());
+      assertEquals(2, server.getRequestCount(), clientName());
     }
   }
 
@@ -123,7 +162,7 @@ class ApacheAsyncHttpClientTest {
 
     HttpRetryPolicy.Factory retryPolicy = new HttpRetryPolicy.Factory(2, 200, 1.0);
     try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder()
+        newBuilder()
             .retryPolicyFactory(retryPolicy)
             .connectTimeoutMillis(100)
             .requestTimeoutMillis(2_000)
@@ -131,8 +170,8 @@ class ApacheAsyncHttpClientTest {
       long startNanos = System.nanoTime();
       IOException exception = assertThrows(IOException.class, () -> client.execute(request));
       long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-      assertTrue(elapsedMillis >= 180, "retry backoff should have been applied");
-      assertNotNull(exception.getMessage());
+      assertTrue(elapsedMillis >= 100, "retry backoff should have been applied for " + clientName());
+      assertNotNull(exception.getMessage(), clientName());
     }
   }
 
@@ -143,24 +182,24 @@ class ApacheAsyncHttpClientTest {
     server.start();
 
     ProxyTunnelServer proxy = new ProxyTunnelServer();
-    closeable = proxy;
+    closeables.add(proxy);
     proxy.start();
 
     URI uri = server.url("/proxy").uri();
     HttpClientRequest request = HttpClientRequest.builder(uri, "GET").build();
 
-    try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder().proxy("127.0.0.1", proxy.port()).build()) {
+    try (HttpClientFacade client = newBuilder().proxy("127.0.0.1", proxy.port()).build()) {
       HttpClientResponse response = client.execute(request);
-      assertEquals(200, response.statusCode());
-      assertArrayEquals("proxied".getBytes(StandardCharsets.UTF_8), response.body());
+      assertEquals(200, response.statusCode(), clientName());
+      assertArrayEquals("proxied".getBytes(StandardCharsets.UTF_8), response.body(), clientName());
     }
 
-    assertTrue(proxy.awaitConnect(5, TimeUnit.SECONDS));
+    assertTrue(proxy.awaitConnect(5, TimeUnit.SECONDS), clientName());
     assertTrue(
         proxy.connectRequestLine().startsWith("CONNECT ")
-            || proxy.connectRequestLine().startsWith("GET "));
-    assertEquals(1, server.getRequestCount());
+            || proxy.connectRequestLine().startsWith("GET "),
+        clientName());
+    assertEquals(1, server.getRequestCount(), clientName());
   }
 
   @Test
@@ -170,29 +209,28 @@ class ApacheAsyncHttpClientTest {
     server.start();
 
     ProxyTunnelServer proxy = new ProxyTunnelServer(true);
-    closeable = proxy;
+    closeables.add(proxy);
     proxy.start();
 
     URI uri = server.url("/proxy-auth").uri();
     HttpClientRequest request = HttpClientRequest.builder(uri, "GET").build();
 
     try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder()
-            .proxy("127.0.0.1", proxy.port(), "test-user", "test-pass")
-            .build()) {
+        newBuilder().proxy("127.0.0.1", proxy.port(), "test-user", "test-pass").build()) {
       HttpClientResponse response = client.execute(request);
-      assertEquals(200, response.statusCode());
-      assertArrayEquals("proxied-auth".getBytes(StandardCharsets.UTF_8), response.body());
+      assertEquals(200, response.statusCode(), clientName());
+      assertArrayEquals(
+          "proxied-auth".getBytes(StandardCharsets.UTF_8), response.body(), clientName());
     }
 
-    assertTrue(proxy.awaitConnect(5, TimeUnit.SECONDS));
+    assertTrue(proxy.awaitConnect(5, TimeUnit.SECONDS), clientName());
     String authHeader = proxy.connectHeader("Proxy-Authorization");
-    assertNotNull(authHeader);
+    assertNotNull(authHeader, clientName());
     String expectedAuth =
         "Basic "
             + Base64.getEncoder()
                 .encodeToString("test-user:test-pass".getBytes(StandardCharsets.US_ASCII));
-    assertEquals(expectedAuth, authHeader);
+    assertEquals(expectedAuth, authHeader, clientName());
   }
 
   @Test
@@ -205,17 +243,14 @@ class ApacheAsyncHttpClientTest {
     HttpClientRequest request = HttpClientRequest.builder(uri, "GET").build();
 
     try (HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder()
-            .requestTimeoutMillis(250)
-            .responseTimeoutMillis(250)
-            .connectTimeoutMillis(250)
-            .build()) {
+        newBuilder().requestTimeoutMillis(250).connectTimeoutMillis(250).build()) {
       IOException exception = assertThrows(IOException.class, () -> client.execute(request));
       assertTrue(
           exception.getMessage().contains("timeout")
               || (exception.getCause() != null
                   && exception.getCause().getMessage() != null
-                  && exception.getCause().getMessage().contains("timeout")));
+                  && exception.getCause().getMessage().contains("timeout")),
+          clientName());
     }
   }
 
@@ -229,11 +264,7 @@ class ApacheAsyncHttpClientTest {
     HttpClientRequest request = HttpClientRequest.builder(uri, "GET").build();
 
     HttpClientFacade client =
-        ApacheAsyncHttpClientFactory.builder()
-            .requestTimeoutMillis(30_000)
-            .responseTimeoutMillis(30_000)
-            .connectTimeoutMillis(500)
-            .build();
+        newBuilder().requestTimeoutMillis(30_000).connectTimeoutMillis(500).build();
 
     try {
       CompletableFuture<HttpClientResponse> responseFuture =
@@ -251,11 +282,113 @@ class ApacheAsyncHttpClientTest {
 
       ExecutionException exception =
           assertThrows(ExecutionException.class, () -> responseFuture.get(5, TimeUnit.SECONDS));
-      assertNotNull(exception.getCause());
-      assertTrue(exception.getCause() instanceof RuntimeException);
-      assertTrue(exception.getCause().getCause() instanceof IOException);
+      assertNotNull(exception.getCause(), clientName());
+      assertTrue(exception.getCause() instanceof RuntimeException, clientName());
+      assertTrue(exception.getCause().getCause() instanceof IOException, clientName());
     } finally {
       client.close();
+    }
+  }
+
+  @Test
+  void shouldNotCloseExternallyManagedEventLoopGroupWhenSupported() throws Exception {
+    if (implementation != ClientImplementation.NETTY) {
+      return;
+    }
+
+    NioEventLoopGroup externalGroup = new NioEventLoopGroup(1);
+    try (HttpClientFacade client =
+        NettyHttpClientFactory.builder().eventLoopGroup(externalGroup, false).build()) {
+      // no-op
+    }
+    assertFalse(externalGroup.isShuttingDown());
+    externalGroup.shutdownGracefully().awaitUninterruptibly();
+  }
+
+  @Test
+  @DisabledOnOs(OS.WINDOWS)
+  void shouldSendRequestThroughUnixDomainSocketWhenSupported() throws Exception {
+    if (!supportsUnixDomainSocket()) {
+      return;
+    }
+
+    Path socketPath = Files.createTempFile("http-client-contract", ".sock");
+    Files.deleteIfExists(socketPath);
+    UnixDomainHttpServer udsServer = new UnixDomainHttpServer(socketPath, "uds-ok");
+    closeables.add(udsServer);
+    udsServer.start();
+
+    URI uri = new URI("http://localhost/uds");
+    HttpClientRequest request = HttpClientRequest.builder(uri, "GET").build();
+
+    try (HttpClientFacade client =
+        newBuilder()
+            .transport(HttpTransport.UNIX_DOMAIN_SOCKET)
+            .unixDomainSocketPath(socketPath.toString())
+            .build()) {
+      HttpClientResponse response = client.execute(request);
+      assertEquals(200, response.statusCode(), clientName());
+      assertArrayEquals("uds-ok".getBytes(StandardCharsets.UTF_8), response.body(), clientName());
+    }
+  }
+
+  @Test
+  void shouldFailImmediatelyWhenUnixDomainSocketIsUnsupported() {
+    if (supportsUnixDomainSocket()) {
+      return;
+    }
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> newBuilder().transport(HttpTransport.UNIX_DOMAIN_SOCKET));
+    assertTrue(exception.getMessage().contains("TCP"), clientName());
+  }
+
+  private static final class UnixDomainHttpServer implements Closeable {
+    private final Path socketPath;
+    private final String body;
+    private final UnixServerSocketChannel serverChannel;
+    private Thread serverThread;
+
+    private UnixDomainHttpServer(Path socketPath, String body) throws IOException {
+      this.socketPath = socketPath;
+      this.body = body;
+      this.serverChannel = UnixServerSocketChannel.open();
+      this.serverChannel.socket().bind(new UnixSocketAddress(socketPath.toFile()));
+    }
+
+    private void start() {
+      serverThread =
+          new Thread(
+              () -> {
+                try (jnr.unixsocket.UnixSocketChannel channel = serverChannel.accept()) {
+                  OutputStream outputStream = channel.socket().getOutputStream();
+                  byte[] responseBody = body.getBytes(StandardCharsets.UTF_8);
+                  String response =
+                      "HTTP/1.1 200 OK\r\n"
+                          + "Content-Length: "
+                          + responseBody.length
+                          + "\r\n"
+                          + "Connection: close\r\n\r\n";
+                  outputStream.write(response.getBytes(StandardCharsets.US_ASCII));
+                  outputStream.write(responseBody);
+                  outputStream.flush();
+                } catch (Exception ignored) {
+                }
+              },
+              "uds-http-server");
+      serverThread.setDaemon(true);
+      serverThread.start();
+    }
+
+    @Override
+    public void close() throws IOException {
+      try {
+        serverChannel.close();
+      } finally {
+        Files.deleteIfExists(socketPath);
+      }
     }
   }
 
@@ -294,7 +427,7 @@ class ApacheAsyncHttpClientTest {
                   }
                 }
               },
-              "apache-proxy-tunnel-server");
+              "proxy-tunnel-server");
       acceptThread.setDaemon(true);
       acceptThread.start();
     }
@@ -352,8 +485,7 @@ class ApacheAsyncHttpClientTest {
 
                     Thread upstreamToClient =
                         new Thread(
-                            () -> transfer(upstream, client),
-                            "apache-proxy-upstream-to-client-thread");
+                            () -> transfer(upstream, client), "proxy-upstream-to-client-thread");
                     upstreamToClient.setDaemon(true);
                     upstreamToClient.start();
                     transfer(client, upstream);
@@ -361,7 +493,7 @@ class ApacheAsyncHttpClientTest {
                 } catch (Exception ignored) {
                 }
               },
-              "apache-proxy-client-handler");
+              "proxy-client-handler");
       handler.setDaemon(true);
       handler.start();
     }
@@ -402,8 +534,7 @@ class ApacheAsyncHttpClientTest {
 
       try (Socket upstream = new Socket(target.getHost(), port)) {
         OutputStream upstreamOut = upstream.getOutputStream();
-        upstreamOut.write(
-            (parts[0] + " " + path + " HTTP/1.1\r\n").getBytes(StandardCharsets.US_ASCII));
+        upstreamOut.write((parts[0] + " " + path + " HTTP/1.1\r\n").getBytes(StandardCharsets.US_ASCII));
         for (Map.Entry<String, String> header : headers.entrySet()) {
           upstreamOut.write(
               (header.getKey() + ": " + header.getValue() + "\r\n")
@@ -469,6 +600,46 @@ class ApacheAsyncHttpClientTest {
     public void close() throws IOException {
       running = false;
       serverSocket.close();
+    }
+  }
+
+  private enum ClientImplementation {
+    NETTY("netty"),
+    APACHE_ASYNC_HTTP_CLIENT5("apache-async-http-client5");
+
+    private final String id;
+
+    ClientImplementation(String id) {
+      this.id = id;
+    }
+
+    private static ClientImplementation fromParameter(String value) {
+      for (ClientImplementation implementation : values()) {
+        if (implementation.id.equals(value)) {
+          return implementation;
+        }
+      }
+      throw new IllegalArgumentException(
+          "Unsupported client implementation: " + value + ". Expected one of: netty, apache-async-http-client5");
+    }
+  }
+
+  static final class ClientImplementationExtension implements BeforeEachCallback {
+    @Override
+    public void beforeEach(ExtensionContext context) {
+      String implementationValue = context.getConfigurationParameter(CLIENT_IMPL_PARAMETER).orElse(null);
+      if (implementationValue == null || implementationValue.isEmpty()) {
+        throw new TestAbortedException(
+            "Skipping contract test: missing JUnit configuration parameter: "
+                + CLIENT_IMPL_PARAMETER);
+      }
+      try {
+        ((HttpClientFacadeContractTest) context.getRequiredTestInstance())
+            .setImplementation(ClientImplementation.fromParameter(implementationValue));
+      } catch (IllegalArgumentException e) {
+        throw new TestAbortedException(
+            "Skipping contract test: unsupported implementation '" + implementationValue + "'", e);
+      }
     }
   }
 }

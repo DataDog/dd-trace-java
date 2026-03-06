@@ -48,6 +48,13 @@ public class HttpRetryPolicy implements AutoCloseable {
   private static final int MAX_ALLOWED_WAIT_TIME_SECONDS = 10;
   private static final int RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS = 401;
 
+  public interface Response {
+    int code();
+
+    @Nullable
+    String header(String name);
+  }
+
   private int retriesLeft;
   private long delay;
   private boolean interrupted;
@@ -82,6 +89,10 @@ public class HttpRetryPolicy implements AutoCloseable {
   }
 
   public boolean shouldRetry(@Nullable okhttp3.Response response) {
+    return shouldRetry(response == null ? null : new OkHttpResponseAdapter(response));
+  }
+
+  public boolean shouldRetry(@Nullable Response response) {
     if (retriesLeft == 0) {
       return false;
     }
@@ -114,6 +125,10 @@ public class HttpRetryPolicy implements AutoCloseable {
   }
 
   private long getRateLimitResetTime(okhttp3.Response response) {
+    return getRateLimitResetTime(new OkHttpResponseAdapter(response));
+  }
+
+  private long getRateLimitResetTime(Response response) {
     String rateLimitHeader = response.header(X_RATELIMIT_RESET_HTTP_HEADER);
     if (rateLimitHeader == null) {
       return RATE_LIMIT_RESET_TIME_UNDEFINED;
@@ -179,6 +194,24 @@ public class HttpRetryPolicy implements AutoCloseable {
 
     public HttpRetryPolicy create() {
       return new HttpRetryPolicy(maxRetries, initialDelay, delayFactor, retryInterrupts);
+    }
+  }
+
+  private static final class OkHttpResponseAdapter implements Response {
+    private final okhttp3.Response delegate;
+
+    private OkHttpResponseAdapter(okhttp3.Response delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public int code() {
+      return delegate.code();
+    }
+
+    @Override
+    public @Nullable String header(String name) {
+      return delegate.header(name);
     }
   }
 }

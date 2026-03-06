@@ -2,12 +2,14 @@ package datadog.communication.http.ahc;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.client.HttpClientFacade;
+import datadog.communication.http.client.HttpClientFacadeBuilder;
 import datadog.communication.http.client.HttpTransport;
 import javax.annotation.Nullable;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 
 /** Builder used to configure and create {@link ApacheAsyncHttpClient}. */
-public final class ApacheAsyncHttpClientBuilder {
+public final class ApacheAsyncHttpClientBuilder
+    implements HttpClientFacadeBuilder<ApacheAsyncHttpClientBuilder> {
   private HttpTransport transport = HttpTransport.TCP;
   private long connectTimeoutMillis = 10_000;
   private long requestTimeoutMillis = 10_000;
@@ -20,16 +22,41 @@ public final class ApacheAsyncHttpClientBuilder {
   private CloseableHttpAsyncClient client;
   private boolean closeClientOnClose = true;
 
+  @Override
   public ApacheAsyncHttpClientBuilder transport(HttpTransport transport) {
+    if (transport != HttpTransport.TCP) {
+      throw new IllegalArgumentException(
+          "Apache async client supports only TCP transport, got: " + transport);
+    }
     this.transport = transport;
     return this;
   }
 
+  @Override
+  public ApacheAsyncHttpClientBuilder unixDomainSocketPath(@Nullable String unixDomainSocketPath) {
+    if (unixDomainSocketPath != null && !unixDomainSocketPath.isEmpty()) {
+      throw new UnsupportedOperationException(
+          "Apache async client does not support Unix Domain Socket transport");
+    }
+    return this;
+  }
+
+  @Override
+  public ApacheAsyncHttpClientBuilder namedPipe(@Nullable String namedPipe) {
+    if (namedPipe != null && !namedPipe.isEmpty()) {
+      throw new UnsupportedOperationException(
+          "Apache async client does not support named pipe transport");
+    }
+    return this;
+  }
+
+  @Override
   public ApacheAsyncHttpClientBuilder connectTimeoutMillis(long connectTimeoutMillis) {
     this.connectTimeoutMillis = connectTimeoutMillis;
     return this;
   }
 
+  @Override
   public ApacheAsyncHttpClientBuilder requestTimeoutMillis(long requestTimeoutMillis) {
     this.requestTimeoutMillis = requestTimeoutMillis;
     return this;
@@ -40,10 +67,12 @@ public final class ApacheAsyncHttpClientBuilder {
     return this;
   }
 
+  @Override
   public ApacheAsyncHttpClientBuilder proxy(String proxyHost, int proxyPort) {
     return proxy(proxyHost, proxyPort, null, null);
   }
 
+  @Override
   public ApacheAsyncHttpClientBuilder proxy(
       String proxyHost,
       int proxyPort,
@@ -56,6 +85,7 @@ public final class ApacheAsyncHttpClientBuilder {
     return this;
   }
 
+  @Override
   public ApacheAsyncHttpClientBuilder retryPolicyFactory(
       HttpRetryPolicy.Factory retryPolicyFactory) {
     this.retryPolicyFactory = retryPolicyFactory;
@@ -69,6 +99,7 @@ public final class ApacheAsyncHttpClientBuilder {
     return this;
   }
 
+  @Override
   public HttpClientFacade build() {
     validate();
     return new ApacheAsyncHttpClient(
