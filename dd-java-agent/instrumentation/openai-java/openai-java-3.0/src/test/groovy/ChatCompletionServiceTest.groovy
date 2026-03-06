@@ -147,7 +147,18 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag, [:], true)
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, outputTag, [:], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    (toolDefinitions[0].schema.properties as Map).containsKey("school")
+    (toolDefinitions[0].schema.properties as Map).containsKey("grades")
+    (toolDefinitions[0].schema.properties as Map).containsKey("clubs")
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -178,7 +189,12 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(true, outputTag, [stream: true], true)
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(true, outputTag, [stream: true], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -294,10 +310,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata) {
-    assertChatCompletionTrace(isStreaming, outputTagsOut, metadata, false)
+    assertChatCompletionTrace(isStreaming, outputTagsOut, metadata, false, null)
   }
 
-  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata, boolean expectToolDefinitions) {
+  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata, boolean expectToolDefinitions, List<Map<String, Object>> toolDefinitionsOut) {
     def expectedMetadata = new LinkedHashMap(metadata)
     expectedMetadata.putIfAbsent("stream", isStreaming)
 
@@ -339,6 +355,10 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "$CommonTags.DDTRACE_VERSION" String
             if (expectToolDefinitions) {
               "$CommonTags.TOOL_DEFINITIONS" List
+              def toolDefinitions = tag("$CommonTags.TOOL_DEFINITIONS")
+              if (toolDefinitionsOut != null && toolDefinitions != null) {
+                toolDefinitionsOut.addAll(toolDefinitions)
+              }
             }
             "$CommonTags.SOURCE" "integration"
             "$CommonTags.INTEGRATION" "openai"

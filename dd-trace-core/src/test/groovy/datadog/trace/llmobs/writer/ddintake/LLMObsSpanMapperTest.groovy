@@ -40,11 +40,29 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
 
-    def inputMessages = [LLMObs.LLMMessage.from("user", "Hello, what's the weather like?")]
+    def toolCall = LLMObs.ToolCall.from("get_weather", "function_call", "call_123", [location: "San Francisco"])
+    def toolResult = LLMObs.ToolResult.from("get_weather", "function_call_output", "call_123", '{"temperature":"72F"}')
+    def inputMessages = [
+      LLMObs.LLMMessage.from("user", "Hello, what's the weather like?"),
+      LLMObs.LLMMessage.from("assistant", null, [toolCall], [toolResult])
+    ]
     def outputMessages = [LLMObs.LLMMessage.from("assistant", "I'll help you check the weather.")]
-    llmSpan.setTag("_ml_obs_tag.input", inputMessages)
+    llmSpan.setTag("_ml_obs_tag.input", [
+      messages: inputMessages,
+      prompt: [
+        id: "prompt_123",
+        version: "1",
+        variables: [city: "San Francisco"],
+        chat_template: [[role: "user", content: "Hello, what's the weather like in {{city}}?"]]
+      ]
+    ])
     llmSpan.setTag("_ml_obs_tag.output", outputMessages)
     llmSpan.setTag("_ml_obs_tag.metadata", [temperature: 0.7, max_tokens: 100])
+    llmSpan.setTag("_ml_obs_tag.tool_definitions", [[
+      name: "get_weather",
+      description: "Get weather by city",
+      schema: [type: "object", properties: [city: [type: "string"]]]
+    ]])
     llmSpan.setError(true)
     llmSpan.setTag(DDTags.ERROR_MSG, "boom")
     llmSpan.setTag(DDTags.ERROR_TYPE, "java.lang.IllegalStateException")
@@ -123,12 +141,29 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanData["meta"]["input"]["messages"][0]["content"] == "Hello, what's the weather like?"
     spanData["meta"]["input"]["messages"][0].containsKey("role")
     spanData["meta"]["input"]["messages"][0]["role"] == "user"
+    spanData["meta"]["input"]["messages"][1]["role"] == "assistant"
+    !spanData["meta"]["input"]["messages"][1].containsKey("content")
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["name"] == "get_weather"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["type"] == "function_call"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["tool_id"] == "call_123"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["arguments"] == [location: "San Francisco"]
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["name"] == "get_weather"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["type"] == "function_call_output"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["tool_id"] == "call_123"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["result"] == '{"temperature":"72F"}'
+    spanData["meta"]["input"]["prompt"]["id"] == "prompt_123"
+    spanData["meta"]["input"]["prompt"]["version"] == "1"
+    spanData["meta"]["input"]["prompt"]["variables"] == [city: "San Francisco"]
+    spanData["meta"]["input"]["prompt"]["chat_template"] == [[role: "user", content: "Hello, what's the weather like in {{city}}?"]]
     spanData["meta"].containsKey("output")
     spanData["meta"]["output"].containsKey("messages")
     spanData["meta"]["output"]["messages"][0].containsKey("content")
     spanData["meta"]["output"]["messages"][0]["content"] == "I'll help you check the weather."
     spanData["meta"]["output"]["messages"][0].containsKey("role")
     spanData["meta"]["output"]["messages"][0]["role"] == "assistant"
+    spanData["meta"]["tool_definitions"][0]["name"] == "get_weather"
+    spanData["meta"]["tool_definitions"][0]["description"] == "Get weather by city"
+    spanData["meta"]["tool_definitions"][0]["schema"] == [type: "object", properties: [city: [type: "string"]]]
     spanData["meta"].containsKey("metadata")
 
     spanData.containsKey("metrics")
