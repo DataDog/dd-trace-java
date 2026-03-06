@@ -6,32 +6,28 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
-import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.DDSpanContext;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Post-processes HTTP spans to update resource names based on inferred endpoints.
+ * Post-processes HTTP spans to resolve and tag the {@code http.endpoint} for APM trace metrics.
  *
- * <p>This processor implements the trace resource renaming feature by:
+ * <p>Implements the endpoint inference strategy from RFC-1051: tags the span with {@code
+ * http.endpoint} (computed from the URL) so that stats buckets can be aggregated per endpoint. This
+ * processor does <em>not</em> overwrite the span's resource name — resource renaming is the
+ * backend's responsibility.
  *
- * <ul>
- *   <li>Using EndpointResolver to determine the best endpoint (route or simplified URL)
- *   <li>Combining HTTP method with the endpoint to create a resource name (e.g., "GET
- *       /users/{param:int}")
- *   <li>Updating the span's resource name only when an endpoint is available
- * </ul>
- *
- * <p>The processor respects the endpoint resolution logic:
+ * <p>Resolution logic:
  *
  * <ul>
- *   <li>If alwaysSimplifiedEndpoint=true, always compute from URL
- *   <li>If http.route exists and is eligible, use it
- *   <li>Otherwise, compute simplified endpoint from URL
+ *   <li>If {@code http.route} is eligible, use it as the endpoint (no {@code http.endpoint} tag
+ *       added)
+ *   <li>Otherwise, compute a simplified endpoint from {@code http.url} and tag the span with {@code
+ *       http.endpoint}
+ *   <li>If {@code alwaysSimplifiedEndpoint=true}, always compute from URL regardless of route
  * </ul>
  */
 public class HttpEndpointPostProcessor extends TagsPostProcessor {
@@ -93,15 +89,10 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
       // Pass unsafeTags directly - it's safe to use at this point since span is finished
       String endpoint = endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
 
-      if (endpoint != null && !endpoint.isEmpty()) {
-        // Combine method and endpoint into resource name using cached join
-        CharSequence resourceName = HttpResourceNames.join(httpMethod, endpoint);
-        spanContext.setResourceName(
-            resourceName, ResourceNamePriorities.HTTP_SERVER_RESOURCE_RENAMING);
-
+      if (endpoint != null) {
         log.debug(
-            "Updated resource name to '{}' for span {} (method={}, route={}, url={})",
-            resourceName,
+            "Resolved endpoint '{}' for span {} (method={}, route={}, url={})",
+            endpoint,
             spanContext.getSpanId(),
             httpMethod,
             httpRoute,
