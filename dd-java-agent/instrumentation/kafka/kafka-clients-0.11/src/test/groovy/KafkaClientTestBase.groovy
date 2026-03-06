@@ -1149,6 +1149,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
     recs.hasNext()
     recs.next().value() == "test-dsm-consume-transaction"
+    !recs.hasNext()
 
     // The consume span is created by TracingIterator when iterating over records
     // Find the consumer span with the DSM transaction tags
