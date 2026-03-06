@@ -1,8 +1,10 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
@@ -11,7 +13,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
@@ -148,13 +149,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      final Request.Builder requestBuilder =
-          new Request.Builder().url(agentBaseUrl.resolve("info").url());
-      final String containerId = ContainerInfo.get().getContainerId();
-      if (containerId != null) {
-        requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
-      }
-      try (Response response = client.newCall(requestBuilder.build()).execute()) {
+      final Request request =
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+      try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
           fallback = !processInfoResponse(newState, response.body().string());
@@ -199,11 +196,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (Response response =
           client
               .newCall(
-                  new Request.Builder()
-                      .put(
-                          OkHttpUtils.msgpackRequestBodyOf(
-                              singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .url(agentBaseUrl.resolve(candidate))
+                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+                      .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
         if (response.code() != 404) {

@@ -25,6 +25,11 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
 
   private static volatile boolean shutdownHookRegistered = false;
 
+  private static long spanStartTimeMs = 0L;
+  private static long connectedTimeMs = 0L;
+  private static long submittedTimeMs = 0L;
+  private static long runningTimeMs = 0L;
+
   public static synchronized void createLauncherSpan(Object launcher) {
     if (launcherSpan != null) {
       return;
@@ -40,6 +45,10 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     setLauncherConfigTags(span, launcher);
     captureEmrStepId(span);
+    spanStartTimeMs = System.currentTimeMillis();
+    connectedTimeMs = 0L;
+    submittedTimeMs = 0L;
+    runningTimeMs = 0L;
     launcherSpan = span;
 
     if (!shutdownHookRegistered) {
@@ -52,6 +61,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
                       AgentSpan s = launcherSpan;
                       if (s != null) {
                         log.info("Finishing spark.launcher span from shutdown hook");
+                        setTimingMetrics(s);
                         s.finish();
                         launcherSpan = null;
                       }
@@ -70,6 +80,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
       span.setTag(DDTags.ERROR_TYPE, "Spark Launcher Failed");
       span.setTag(DDTags.ERROR_MSG, errorMessage);
     }
+    setTimingMetrics(span);
     span.finish();
     launcherSpan = null;
   }
@@ -82,8 +93,24 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     if (throwable != null) {
       span.addThrowable(throwable);
     }
+    setTimingMetrics(span);
     span.finish();
     launcherSpan = null;
+  }
+
+  private static void setTimingMetrics(AgentSpan span) {
+    if (spanStartTimeMs <= 0L) {
+      return;
+    }
+    if (connectedTimeMs > 0L) {
+      span.setMetric("spark.launcher.time_to_connected_ms", connectedTimeMs - spanStartTimeMs);
+    }
+    if (submittedTimeMs > 0L) {
+      span.setMetric("spark.launcher.time_to_submitted_ms", submittedTimeMs - spanStartTimeMs);
+    }
+    if (runningTimeMs > 0L) {
+      span.setMetric("spark.launcher.time_to_running_ms", runningTimeMs - spanStartTimeMs);
+    }
   }
 
   @Override
@@ -93,6 +120,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
       AgentSpan span = launcherSpan;
       if (span != null) {
         span.setTag("spark.launcher.app_state", state.toString());
+        recordStateTimestamp(state);
 
         String appId = handle.getAppId();
         if (appId != null) {
@@ -128,6 +156,23 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
           span.setTag("spark.app_id", appId);
           span.setTag("app_id", appId);
         }
+      }
+    }
+  }
+
+  private static void recordStateTimestamp(SparkAppHandle.State state) {
+    long now = System.currentTimeMillis();
+    if (state == SparkAppHandle.State.CONNECTED) {
+      if (connectedTimeMs == 0L) {
+        connectedTimeMs = now;
+      }
+    } else if (state == SparkAppHandle.State.SUBMITTED) {
+      if (submittedTimeMs == 0L) {
+        submittedTimeMs = now;
+      }
+    } else if (state == SparkAppHandle.State.RUNNING) {
+      if (runningTimeMs == 0L) {
+        runningTimeMs = now;
       }
     }
   }
