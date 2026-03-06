@@ -1,5 +1,6 @@
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -1496,5 +1497,13 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     return false
+  }
+}
+
+class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED, "true")
   }
 }

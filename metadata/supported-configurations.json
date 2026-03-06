@@ -11160,6 +11160,14 @@
         "default": "2000",
         "aliases": []
       }
+    ],
+    "MESSAGING_CONTEXT_SWAP_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
     ]
   },
   "deprecations": {}

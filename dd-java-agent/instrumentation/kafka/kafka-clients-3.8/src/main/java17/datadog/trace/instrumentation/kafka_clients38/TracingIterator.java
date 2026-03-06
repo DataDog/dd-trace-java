@@ -9,6 +9,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -16,6 +18,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -61,7 +64,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     boolean moreRecords = delegateIterator.hasNext();
     if (!moreRecords) {
       // no more records, use this as a signal to close the last iteration scope
-      closePrevious(true);
+      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        final AgentSpan span = spanFromContext(getRootContext().swap());
+        if (span != null) {
+          span.finishWithEndToEnd();
+        }
+      } else {
+        closePrevious(true);
+      }
     }
     return moreRecords;
   }
@@ -75,7 +85,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
-      closePrevious(true);
+      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        final AgentSpan prevSpan = spanFromContext(getRootContext().swap());
+        if (prevSpan != null) {
+          prevSpan.finishWithEndToEnd();
+        }
+      } else {
+        closePrevious(true);
+      }
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
@@ -125,7 +142,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group, bootstrapServers);
-        activateNext(span);
+        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+          final AgentSpan previous = spanFromContext(span.swap());
+          if (previous != null) {
+            previous.finishWithEndToEnd();
+          }
+        } else {
+          activateNext(span);
+        }
         if (null != queueSpan) {
           queueSpan.finish();
         }

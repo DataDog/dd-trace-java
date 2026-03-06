@@ -97,7 +97,7 @@ public final class JMSMessageConsumerInstrumentation
         final AgentSpan span = spanFromContext(getRootContext().swap());
         if (span != null) {
           CONSUMER_DECORATE.beforeFinish(span);
-          span.finish();
+          span.finishWithEndToEnd();
         }
       } else {
         closePrevious(finishSpan);
@@ -178,7 +178,7 @@ public final class JMSMessageConsumerInstrumentation
         final AgentSpan previous = spanFromContext(span.swap());
         if (previous != null) {
           CONSUMER_DECORATE.beforeFinish(previous);
-          previous.finish();
+          previous.finishWithEndToEnd();
         }
       } else {
         activateNext(span); // scope is left open until next message or it times out
@@ -210,7 +210,7 @@ public final class JMSMessageConsumerInstrumentation
           final AgentSpan span = spanFromContext(getRootContext().swap());
           if (span != null) {
             CONSUMER_DECORATE.beforeFinish(span);
-            span.finish();
+            span.finishWithEndToEnd();
           }
         } else {
           closePrevious(finishSpan);
