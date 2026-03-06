@@ -523,6 +523,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.HTTP_ROUTE" "/success"
             "stage" "test"
             "_dd.inferred_span" 1
+            "$Tags.HTTP_STATUS" SUCCESS.status
+            "$Tags.HTTP_USER_AGENT" String
             // Standard tags that are automatically added
             "_dd.agent_psr" Number
             "_dd.base_service" String
