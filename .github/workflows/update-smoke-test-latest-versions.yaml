@@ -1,0 +1,158 @@
+name: Update smoke test latest versions
+on:
+  schedule:
+    - cron: "0 5 * * 0"
+  workflow_dispatch:
+
+jobs:
+  update-smoke-test-latest-versions:
+    runs-on: ubuntu-latest
+    name: Update smoke test latest versions
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC token federation
+    steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.update-smoke-test-latest-versions.create-pr
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+
+      - name: Define branch name
+        id: define-branch
+        run: |
+          DATE=$(date +'%Y%m%d')
+          echo "branch=ci/update-smoke-test-latest-versions-${DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch latest Gradle version
+        id: gradle
+        run: |
+          VERSION=$(curl -sf https://services.gradle.org/versions/current | jq -r '.version')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "::error::Failed to fetch latest Gradle version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest Gradle version: $VERSION"
+
+      - name: Fetch latest stable Maven version
+        id: maven
+        run: |
+          METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml)
+          # Get all versions, filter out alpha/beta/rc, take the latest
+          VERSION=$(echo "$METADATA" \
+            | xmllint --xpath '//versions/version/text()' - 2>/dev/null \
+            | tr ' ' '\n' \
+            | grep -v -E '(alpha|beta|rc)' \
+            | sort -V \
+            | tail -1)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Failed to fetch latest stable Maven version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest stable Maven version: $VERSION"
+
+      - name: Fetch latest stable Maven Surefire version
+        id: surefire
+        run: |
+          METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml)
+          # Get all versions, filter out alpha/beta, take the latest
+          VERSION=$(echo "$METADATA" \
+            | xmllint --xpath '//versions/version/text()' - 2>/dev/null \
+            | tr ' ' '\n' \
+            | grep -v -E '(alpha|beta)' \
+            | sort -V \
+            | tail -1)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Failed to fetch latest stable Maven Surefire version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Latest stable Maven Surefire version: $VERSION"
+
+      - name: Update properties files
+        env:
+          GRADLE_VERSION: ${{ steps.gradle.outputs.version }}
+          MAVEN_VERSION: ${{ steps.maven.outputs.version }}
+          SUREFIRE_VERSION: ${{ steps.surefire.outputs.version }}
+        run: |
+          printf '%s\n' \
+            "# Pinned \"latest\" versions for CI Visibility Gradle smoke tests." \
+            "# Updated automatically by the update-smoke-test-latest-versions workflow." \
+            "gradle.version=${GRADLE_VERSION}" \
+            > dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties
+
+          printf '%s\n' \
+            "# Pinned \"latest\" versions for CI Visibility Maven smoke tests." \
+            "# Updated automatically by the update-smoke-test-latest-versions workflow." \
+            "maven.version=${MAVEN_VERSION}" \
+            "maven-surefire.version=${SUREFIRE_VERSION}" \
+            > dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [[ -z "$(git status -s)" ]]; then
+            echo "No changes to commit."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create commit
+        if: steps.check-changes.outputs.has_changes == 'true'
+        id: create-commit
+        run: |
+          git add dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties \
+                  dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
+          git commit -m "chore: Update smoke test latest tool versions"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        with:
+          token: "${{ steps.octo-sts.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+          commits: "${{ steps.create-commit.outputs.commit }}"
+
+      - name: Create pull request
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+        run: |
+          gh pr create --title "Update smoke test latest tool versions" \
+            --base master \
+            --head ${{ steps.define-branch.outputs.branch }} \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "$(cat <<'EOF'
+          # What Does This Do
+
+          This PR updates the pinned "latest" tool versions used by CI Visibility smoke tests:
+          - Gradle: ${{ steps.gradle.outputs.version }}
+          - Maven: ${{ steps.maven.outputs.version }}
+          - Maven Surefire: ${{ steps.surefire.outputs.version }}
+
+          # Motivation
+
+          Keep smoke tests running against the latest stable versions of build tools.
+
+          # Contributor Checklist
+
+          - [ ] Verify smoke tests pass with the new versions
+          EOF
+          )"

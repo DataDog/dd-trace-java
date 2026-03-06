@@ -171,6 +171,14 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
+### update-smoke-test-latest-versions [🔗](update-smoke-test-latest-versions.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR updating the pinned "latest" tool versions (Gradle, Maven, Maven Surefire) used by CI Visibility smoke tests.
+
+_Recovery:_ Manually trigger the action again.
+
 ### update-jmxfetch-submodule [🔗](update-jmxfetch-submodule.yaml)
 
 _Trigger:_ Monthly or manually
