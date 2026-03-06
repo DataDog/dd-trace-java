@@ -42,6 +42,8 @@ jafar = "0.16.0"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
+netty = "4.1.122.Final"
+apache-httpclient5 = "5.5"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -122,6 +124,10 @@ jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
+netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty" }
+netty-handler = { module = "io.netty:netty-handler", version.ref = "netty" }
+netty-handler-proxy = { module = "io.netty:netty-handler-proxy", version.ref = "netty" }
+apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "apache-httpclient5" }
 
 # Cryptography
 cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.ref = "cafe_crypto" }

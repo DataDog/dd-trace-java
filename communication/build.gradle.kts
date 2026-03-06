@@ -20,6 +20,10 @@ dependencies {
   api(libs.okio)
   api(libs.okhttp)
   api(libs.moshi)
+  implementation(libs.netty.codec.http)
+  implementation(libs.netty.handler)
+  implementation(libs.netty.handler.proxy)
+  implementation(libs.apache.httpclient5)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
   implementation(project(":products:metrics:metrics-lib"))
