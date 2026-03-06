@@ -118,11 +118,11 @@ abstract class ProcessManager extends Specification {
       try {
         exitValue = tp.exitValue()
       } catch (Throwable ignored) {
-        System.out.println("Destroying instrumented process")
+        System.err.println("Destroying instrumented process")
         tp.destroy()
 
         if (!tp.waitFor(5, TimeUnit.SECONDS)) {
-          System.out.println("Destroying instrumented process (forced)")
+          System.err.println("Destroying instrumented process (forced)")
           tp.destroyForcibly()
           tp.waitFor(10, TimeUnit.SECONDS)
         }
@@ -142,7 +142,7 @@ abstract class ProcessManager extends Specification {
         }
       }
 
-      System.out.println("Instrumented process exited with " + exitValue)
+      System.err.println("Instrumented process exited with " + exitValue)
     }
 
     if (firstFailure != null) {
