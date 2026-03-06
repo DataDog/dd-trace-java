@@ -639,7 +639,7 @@ public class ConfigurationUpdaterTest {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     if (JavaVirtualMachine.isJavaVersion(17)) {
       // on JDK 17 introduced Spring6 class
-      Class<?> springClass = Class.forName("org.springframework.web.client.RestClient");
+      Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
     } else {
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
