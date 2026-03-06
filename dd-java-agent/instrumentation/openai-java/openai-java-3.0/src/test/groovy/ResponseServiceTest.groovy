@@ -224,13 +224,13 @@ class ResponseServiceTest extends OpenAiTest {
   }
 
   private void assertResponseTrace(
-    boolean isStreaming,
-    String reqModel,
-    String respModel,
-    Map reasoning,
-    List inputTagsOut,
-    List outputTagsOut,
-    Map<String, Object> metadataOut) {
+  boolean isStreaming,
+  String reqModel,
+  String respModel,
+  Map reasoning,
+  List inputTagsOut,
+  List outputTagsOut,
+  Map<String, Object> metadataOut) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()

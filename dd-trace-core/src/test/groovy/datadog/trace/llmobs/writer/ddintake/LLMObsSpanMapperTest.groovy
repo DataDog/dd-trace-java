@@ -58,11 +58,13 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     ])
     llmSpan.setTag("_ml_obs_tag.output", outputMessages)
     llmSpan.setTag("_ml_obs_tag.metadata", [temperature: 0.7, max_tokens: 100])
-    llmSpan.setTag("_ml_obs_tag.tool_definitions", [[
-      name: "get_weather",
-      description: "Get weather by city",
-      schema: [type: "object", properties: [city: [type: "string"]]]
-    ]])
+    llmSpan.setTag("_ml_obs_tag.tool_definitions", [
+      [
+        name: "get_weather",
+        description: "Get weather by city",
+        schema: [type: "object", properties: [city: [type: "string"]]]
+      ]
+    ])
     llmSpan.setError(true)
     llmSpan.setTag(DDTags.ERROR_MSG, "boom")
     llmSpan.setTag(DDTags.ERROR_TYPE, "java.lang.IllegalStateException")

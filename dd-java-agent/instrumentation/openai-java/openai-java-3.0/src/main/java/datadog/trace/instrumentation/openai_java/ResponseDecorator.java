@@ -710,6 +710,10 @@ public class ResponseDecorator {
       }
     }
 
+    if (!messages.isEmpty()) {
+      return messages;
+    }
+
     Object inputTag = span.getTag(CommonTags.INPUT);
     if (inputTag instanceof List) {
       for (Object messageObj : (List<?>) inputTag) {
