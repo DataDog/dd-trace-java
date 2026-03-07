@@ -59,6 +59,36 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("empty-instrumentation-linter") {
+      id = "dd-trace-java.empty-instrumentation-linter"
+      implementationClass = "datadog.gradle.plugin.lint.EmptyInstrumentationLinter"
+    }
+
+    create("unnecessary-else-linter") {
+      id = "dd-trace-java.unnecessary-else-linter"
+      implementationClass = "datadog.gradle.plugin.lint.UnnecessaryElseLinter"
+    }
+
+    create("naming-convention-linter") {
+      id = "dd-trace-java.naming-convention-linter"
+      implementationClass = "datadog.gradle.plugin.lint.NamingConventionLinter"
+    }
+
+    create("javadoc-linter") {
+      id = "dd-trace-java.javadoc-linter"
+      implementationClass = "datadog.gradle.plugin.lint.JavadocLinter"
+    }
+
+    create("copy-paste-detector") {
+      id = "dd-trace-java.copy-paste-detector"
+      implementationClass = "datadog.gradle.plugin.lint.CopyPasteDetectorPlugin"
+    }
+
+    create("assertj-preference-linter") {
+      id = "dd-trace-java.assertj-preference-linter"
+      implementationClass = "datadog.gradle.plugin.lint.AssertJPreferenceLinter"
+    }
   }
 }
 

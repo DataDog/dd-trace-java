@@ -7,6 +7,10 @@ java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
 java.lang.String#replaceFirst(java.lang.String,java.lang.String)
 
+@defaultMessage Use String.indexOf/substring/contains for performance. Regex creates objects on every call.
+java.util.regex.Pattern#compile(java.lang.String)
+java.util.regex.Pattern#compile(java.lang.String, int)
+
 # can initialize java.util.logging when ACCP is installed, prefer RandomUtils instead
 java.util.UUID#randomUUID()
 
@@ -50,3 +54,11 @@ java.lang.reflect.Field#setLong(java.lang.Object,long)
 java.lang.reflect.Field#setFloat(java.lang.Object,float)
 java.lang.reflect.Field#setDouble(java.lang.Object,double)
 java.lang.invoke.MethodHandles.Lookup#unreflectSetter(java.lang.reflect.Field)
+
+# avoid unnecessary boxing of primitives — use primitive types directly
+@defaultMessage Avoid unnecessary boxing. Use primitive types (long, int, double) instead of boxed types when possible.
+java.lang.Long#valueOf(long)
+java.lang.Integer#valueOf(int)
+java.lang.Double#valueOf(double)
+java.lang.Float#valueOf(float)
+java.lang.Boolean#valueOf(boolean)

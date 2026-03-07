@@ -1,0 +1,31 @@
+[files]
+extend-exclude = [
+  "build/",
+  "workspace/",
+  ".gradle/",
+  "gradle.lockfile",
+  "settings-gradle.lockfile",
+  "LICENSE-3rdparty.csv",
+  "*.jar",
+  "*.class",
+  "*.so",
+  "*.dylib",
+]
+extend-include = [
+  "*.java",
+  "*.kt",
+  "*.groovy",
+  "*.md",
+  "*.yaml",
+  "*.yml",
+  "*.gradle",
+  "*.gradle.kts",
+]
+
+[default.extend-words]
+ot = "ot"
+ba = "ba"
+nd = "nd"
+crate = "crate"
+hashi = "hashi"
+pullrequest = "pullrequest"
