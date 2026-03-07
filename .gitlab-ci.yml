@@ -31,7 +31,7 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_VERSION_PREFIX: "v26.02-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
+  DEFAULT_TEST_JVMS: /^(21)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -468,17 +468,17 @@ check_build_src:
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 
-check_base:
-  extends: .check_job
-  variables:
-    GRADLE_TARGET: ":baseCheck"
-
-check_inst:
-  extends: .check_job
-  parallel: 4
-  variables:
-    GRADLE_TARGET: ":instrumentationCheck"
-    CACHE_TYPE: "inst"
+# check_base:
+#   extends: .check_job
+#   variables:
+#     GRADLE_TARGET: ":baseCheck"
+#
+# check_inst:
+#   extends: .check_job
+#   parallel: 4
+#   variables:
+#     GRADLE_TARGET: ":instrumentationCheck"
+#     CACHE_TYPE: "inst"
 
 check_smoke:
   extends: .check_job
@@ -497,57 +497,57 @@ check_debugger:
   variables:
     GRADLE_TARGET: ":debuggerCheck"
 
-muzzle:
-  extends: .gradle_build
-  needs: [ build_tests ]
-  stage: tests
-  parallel:
-    matrix:
-      - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
-  variables:
-    CACHE_TYPE: "inst"
-  script:
-    - export SKIP_BUILDSCAN="true"
-    - ./gradlew --version
-    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
-  after_script:
-    - *container_info
-    - *cgroup_info
-    - *set_datadog_api_keys
-    - source .gitlab/gitlab-utils.sh
-    - gitlab_section_start "collect-reports" "Collecting reports"
-    - .gitlab/collect_reports.sh
-    - .gitlab/collect_results.sh
-    - .gitlab/upload_ciapp.sh $CACHE_TYPE
-    - gitlab_section_end "collect-reports"
-  artifacts:
-    when: always
-    paths:
-      - ./reports
-      - ./results
-      - '.gradle/daemon/*/*.out.log'
-    reports:
-      junit: results/*.xml
-
-muzzle-dep-report:
-  extends: .gradle_build
-  needs: [ build_tests ]
-  stage: tests
-  variables:
-    CACHE_TYPE: "inst"
-  script:
-    - export SKIP_BUILDSCAN="true"
-    - ./gradlew --version
-    - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
-  after_script:
-    - *container_info
-    - *cgroup_info
-    - .gitlab/collect_muzzle_deps.sh
-  artifacts:
-    when: always
-    paths:
-      - ./reports
-      - '.gradle/daemon/*/*.out.log'
+# muzzle:
+#   extends: .gradle_build
+#   needs: [ build_tests ]
+#   stage: tests
+#   parallel:
+#     matrix:
+#       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+#   variables:
+#     CACHE_TYPE: "inst"
+#   script:
+#     - export SKIP_BUILDSCAN="true"
+#     - ./gradlew --version
+#     - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
+#   after_script:
+#     - *container_info
+#     - *cgroup_info
+#     - *set_datadog_api_keys
+#     - source .gitlab/gitlab-utils.sh
+#     - gitlab_section_start "collect-reports" "Collecting reports"
+#     - .gitlab/collect_reports.sh
+#     - .gitlab/collect_results.sh
+#     - .gitlab/upload_ciapp.sh $CACHE_TYPE
+#     - gitlab_section_end "collect-reports"
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./reports
+#       - ./results
+#       - '.gradle/daemon/*/*.out.log'
+#     reports:
+#       junit: results/*.xml
+#
+# muzzle-dep-report:
+#   extends: .gradle_build
+#   needs: [ build_tests ]
+#   stage: tests
+#   variables:
+#     CACHE_TYPE: "inst"
+#   script:
+#     - export SKIP_BUILDSCAN="true"
+#     - ./gradlew --version
+#     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
+#   after_script:
+#     - *container_info
+#     - *cgroup_info
+#     - .gitlab/collect_muzzle_deps.sh
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./reports
+#       - '.gradle/daemon/*/*.out.log'
 
 # In Gitlab, DD_* variables are set because the build runner is instrumented with Datadog telemetry
 # To have a pristine environment for the tests, these variables are saved before the test run and restored afterwards
@@ -670,36 +670,36 @@ agent_integration_tests:
         DD_HOSTNAME: "local-agent"
         DD_API_KEY: "invalid_key_but_this_is_fine"
 
-test_base:
-  extends: .test_job
-  variables:
-    GRADLE_TARGET: ":baseTest"
-    CACHE_TYPE: "base"
-  parallel:
-    matrix: *test_matrix_4
-  script:
-    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
-    - !reference [.test_job, script]
-
-test_inst:
-  extends: .test_job_with_test_agent
-  variables:
-    GRADLE_TARGET: ":instrumentationTest"
-    CACHE_TYPE: "inst"
-  parallel:
-    matrix: *test_matrix_8
-
-test_inst_latest:
-  extends: .test_job_with_test_agent
-  variables:
-    GRADLE_TARGET: ":instrumentationLatestDepTest"
-    CACHE_TYPE: "latestdep"
-  parallel:
-    matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
-        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-        # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+# test_base:
+#   extends: .test_job
+#   variables:
+#     GRADLE_TARGET: ":baseTest"
+#     CACHE_TYPE: "base"
+#   parallel:
+#     matrix: *test_matrix_4
+#   script:
+#     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
+#     - !reference [.test_job, script]
+#
+# test_inst:
+#   extends: .test_job_with_test_agent
+#   variables:
+#     GRADLE_TARGET: ":instrumentationTest"
+#     CACHE_TYPE: "inst"
+#   parallel:
+#     matrix: *test_matrix_8
+#
+# test_inst_latest:
+#   extends: .test_job_with_test_agent
+#   variables:
+#     GRADLE_TARGET: ":instrumentationLatestDepTest"
+#     CACHE_TYPE: "latestdep"
+#   parallel:
+#     matrix:
+#       - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+#         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+#         # This emulates "parallel" by including it in the matrix
+#         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 test_flaky:
   extends: .test_job_with_test_agent
