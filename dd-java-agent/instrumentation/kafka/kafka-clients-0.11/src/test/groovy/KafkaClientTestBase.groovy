@@ -1,5 +1,6 @@
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -1148,6 +1149,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
     recs.hasNext()
     recs.next().value() == "test-dsm-consume-transaction"
+    !recs.hasNext()
 
     // The consume span is created by TracingIterator when iterating over records
     // Find the consumer span with the DSM transaction tags
@@ -1496,5 +1498,13 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     return false
+  }
+}
+
+class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED, "true")
   }
 }

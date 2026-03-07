@@ -9,6 +9,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
@@ -24,6 +26,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -90,7 +93,15 @@ public final class JMSMessageConsumerInstrumentation
       }
 
       boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-      closePrevious(finishSpan);
+      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        final AgentSpan span = spanFromContext(getRootContext().swap());
+        if (span != null) {
+          CONSUMER_DECORATE.beforeFinish(span);
+          span.finishWithEndToEnd();
+        }
+      } else {
+        closePrevious(finishSpan);
+      }
       if (finishSpan) {
         consumerState.finishTimeInQueueSpan(false);
       }
@@ -163,7 +174,15 @@ public final class JMSMessageConsumerInstrumentation
 
       CONSUMER_DECORATE.onError(span, throwable);
 
-      activateNext(span); // scope is left open until next message or it times out
+      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        final AgentSpan previous = spanFromContext(span.swap());
+        if (previous != null) {
+          CONSUMER_DECORATE.beforeFinish(previous);
+          previous.finishWithEndToEnd();
+        }
+      } else {
+        activateNext(span); // scope is left open until next message or it times out
+      }
       JMSLogger.logIterationSpan(span);
 
       SessionState sessionState = consumerState.getSessionState();
@@ -187,7 +206,15 @@ public final class JMSMessageConsumerInstrumentation
               .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-        closePrevious(finishSpan);
+        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+          final AgentSpan span = spanFromContext(getRootContext().swap());
+          if (span != null) {
+            CONSUMER_DECORATE.beforeFinish(span);
+            span.finishWithEndToEnd();
+          }
+        } else {
+          closePrevious(finishSpan);
+        }
         if (finishSpan) {
           consumerState.finishTimeInQueueSpan(true);
         }

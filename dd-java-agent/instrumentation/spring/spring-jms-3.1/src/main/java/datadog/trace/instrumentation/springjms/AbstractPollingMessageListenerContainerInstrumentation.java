@@ -2,13 +2,17 @@ package datadog.trace.instrumentation.springjms;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import java.util.Map;
 import javax.jms.MessageConsumer;
@@ -55,7 +59,14 @@ public class AbstractPollingMessageListenerContainerInstrumentation
               .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-        closePrevious(finishSpan);
+        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+          final AgentSpan span = spanFromContext(getRootContext().swap());
+          if (span != null) {
+            span.finishWithEndToEnd();
+          }
+        } else {
+          closePrevious(finishSpan);
+        }
         if (finishSpan) {
           consumerState.finishTimeInQueueSpan(false);
         }

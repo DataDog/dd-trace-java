@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
+import datadog.trace.api.config.TraceInstrumentationConfig
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
@@ -571,6 +572,14 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   @Override
   int version() {
     1
+  }
+}
+
+class SqsClientV0ContextSwapForkedTest extends SqsClientV0Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED, "true")
   }
 }
 

@@ -58,6 +58,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
@@ -212,6 +213,7 @@ public class InstrumenterConfig {
   private final boolean apiSecurityEndpointCollectionEnabled;
 
   private final boolean appLogsCollectionEnabled;
+  private final boolean messagingContextSwapEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -363,6 +365,8 @@ public class InstrumenterConfig {
 
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+
+    messagingContextSwapEnabled = configProvider.getBoolean(MESSAGING_CONTEXT_SWAP_ENABLED, false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -682,6 +686,10 @@ public class InstrumenterConfig {
     return appLogsCollectionEnabled;
   }
 
+  public boolean isMessagingContextSwapEnabled() {
+    return messagingContextSwapEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
@@ -801,6 +809,8 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
+        + ", messagingContextSwapEnabled="
+        + messagingContextSwapEnabled
         + '}';
   }
 }
