@@ -81,6 +81,15 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
     * Switch to `IntelliJ IDEA CE 2021.2.3`.
 </details>
 
+## AI-assisted development
+
+This project includes documentation and configurations to help you use AI coding assistants effectively.
+
+Check [AI Tools Integration Guide](docs/ai-tools-integration-guide.md) for information about:
+* Project-specific AI context and conventions
+* How to use AI tools with dd-trace-java
+* Best practices for AI-assisted contributions
+
 ## Pull request guidelines
 
 ### Draft first
