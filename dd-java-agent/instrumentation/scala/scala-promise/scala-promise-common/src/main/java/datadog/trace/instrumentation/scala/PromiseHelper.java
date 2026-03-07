@@ -4,10 +4,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
+import datadog.context.Context;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
@@ -97,15 +99,16 @@ public class PromiseHelper {
    * @return the current or updated state
    */
   public static <K> State executeCaptureSpan(
-      ContextStore<Try, AgentSpan> tryStore,
+      ContextStore<Try, Context> tryStore,
       Try<?> resolved,
       ContextStore<K, State> taskStore,
       K task,
       State state) {
-    final AgentSpan span = tryStore.get(resolved);
-    if (span != null) {
+    final Context context = tryStore.get(resolved);
+    if (context != null) {
+      final AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
       // Check if the new Span is the same as the currently stored one
-      if (null != state && state.getSpan() == span) {
+      if (null != span && null != state && state.getSpan() == span) {
         return state;
       }
       AgentScope.Continuation continuation = captureSpan(span);
