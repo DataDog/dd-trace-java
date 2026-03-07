@@ -4,6 +4,7 @@ import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class ExecutionSettingsRequest implements Signal {
 
@@ -47,7 +48,7 @@ public class ExecutionSettingsRequest implements Signal {
 
   @Override
   public int hashCode() {
-    return Objects.hash(moduleName, jvmInfo);
+    return HashingUtils.hash(moduleName, jvmInfo);
   }
 
   @Override

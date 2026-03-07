@@ -1,7 +1,6 @@
 package com.datadog.iast.model;
 
-import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
+import datadog.trace.util.HashingUtils;
 import com.datadog.iast.model.json.SourceIndex;
 import com.datadog.iast.util.Ranged;
 import java.util.HashSet;
@@ -11,6 +10,8 @@ import java.util.StringJoiner;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 
 public final class Range implements Ranged {
 
@@ -68,7 +69,7 @@ public final class Range implements Ranged {
 
   @Override
   public int hashCode() {
-    return Objects.hash(start, length, source);
+    return HashingUtils.hash(start, length, source);
   }
 
   public boolean isValid() {

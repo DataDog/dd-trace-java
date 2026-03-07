@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class LanguageSpecifics {
   @Json(name = "access_modifiers")
@@ -70,7 +71,7 @@ public class LanguageSpecifics {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(accessModifiers, annotations, superClass, interfaces, returnType);
+    return HashingUtils.hash(accessModifiers, annotations, superClass, interfaces, returnType);
   }
 
   @Generated

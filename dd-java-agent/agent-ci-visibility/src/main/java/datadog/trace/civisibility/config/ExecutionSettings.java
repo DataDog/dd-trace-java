@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import datadog.trace.util.HashingUtils;
 
 /** Settings and tests data received from the backend. */
 public class ExecutionSettings {
@@ -277,7 +278,7 @@ public class ExecutionSettings {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         itrEnabled,
         codeCoverageEnabled,
         testSkippingEnabled,

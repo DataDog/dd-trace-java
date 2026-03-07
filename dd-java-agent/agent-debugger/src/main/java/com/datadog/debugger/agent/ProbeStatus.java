@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import datadog.trace.util.HashingUtils;
 
 /** Stores status information of probes for a service */
 public class ProbeStatus {
@@ -88,7 +89,7 @@ public class ProbeStatus {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(ddSource, service, message, diagnostics);
+    return HashingUtils.hash(ddSource, service, message, diagnostics);
   }
 
   @Generated
@@ -167,7 +168,7 @@ public class ProbeStatus {
 
     @Override
     public int hashCode() {
-      return Objects.hash(probeId, probeVersion, runtimeId, status, exception);
+      return HashingUtils.hash(probeId, probeVersion, runtimeId, status, exception);
     }
 
     @Override
@@ -227,7 +228,7 @@ public class ProbeStatus {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(type, message, stacktrace);
+      return HashingUtils.hash(type, message, stacktrace);
     }
 
     @Generated

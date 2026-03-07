@@ -6,6 +6,7 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.util.RandomUtils;
 import java.io.IOException;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class CrashLog {
   private static final int VERSION = 0;
@@ -90,7 +91,7 @@ public final class CrashLog {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         uuid,
         timestamp,
         incomplete,

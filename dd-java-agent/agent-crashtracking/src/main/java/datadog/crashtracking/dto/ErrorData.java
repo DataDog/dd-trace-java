@@ -2,6 +2,7 @@ package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class ErrorData {
   @Json(name = "is_crash")
@@ -39,6 +40,6 @@ public final class ErrorData {
 
   @Override
   public int hashCode() {
-    return Objects.hash(isCrash, kind, message, sourceType, stack);
+    return HashingUtils.hash(isCrash, kind, message, sourceType, stack);
   }
 }

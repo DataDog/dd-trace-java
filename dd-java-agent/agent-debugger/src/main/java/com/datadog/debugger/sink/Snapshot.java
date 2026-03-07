@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Data class representing all data collected at a probe location */
 public class Snapshot {
@@ -277,7 +278,7 @@ public class Snapshot {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(entry, lines, _return, caughtExceptions);
+      return HashingUtils.hash(entry, lines, _return, caughtExceptions);
     }
 
     @Generated
@@ -329,7 +330,7 @@ public class Snapshot {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(id, name);
+      return HashingUtils.hash(id, name);
     }
 
     @Generated

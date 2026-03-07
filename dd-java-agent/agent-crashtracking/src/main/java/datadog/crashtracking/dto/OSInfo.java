@@ -3,6 +3,7 @@ package datadog.crashtracking.dto;
 import com.squareup.moshi.Json;
 import datadog.environment.SystemProperties;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class OSInfo {
   public final String architecture;
@@ -37,7 +38,7 @@ public final class OSInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(architecture, bitness, osType, version);
+    return HashingUtils.hash(architecture, bitness, osType, version);
   }
 
   public static OSInfo current() {

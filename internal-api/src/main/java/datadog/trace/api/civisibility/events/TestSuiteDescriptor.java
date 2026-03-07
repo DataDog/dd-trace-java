@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.events;
 
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class TestSuiteDescriptor {
   private final String testSuiteName;
@@ -26,7 +27,7 @@ public final class TestSuiteDescriptor {
 
   @Override
   public int hashCode() {
-    return Objects.hash(testSuiteName, testClass);
+    return HashingUtils.hash(testSuiteName, testClass);
   }
 
   @Override

@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class SpanProbe extends ProbeDefinition {
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
@@ -31,7 +32,7 @@ public class SpanProbe extends ProbeDefinition {
   @Generated
   @Override
   public int hashCode() {
-    int result = Objects.hash(language, id, version, tagMap, where, evaluateAt);
+    int result = HashingUtils.hash(language, id, version, tagMap, where, evaluateAt);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

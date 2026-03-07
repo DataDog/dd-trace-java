@@ -1,7 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class ExecutionsByDuration {
   public final long durationMillis;
@@ -34,7 +34,7 @@ public final class ExecutionsByDuration {
 
   @Override
   public int hashCode() {
-    return Objects.hash(durationMillis, executions);
+    return HashingUtils.hash(durationMillis, executions);
   }
 
   public static class Serializer {

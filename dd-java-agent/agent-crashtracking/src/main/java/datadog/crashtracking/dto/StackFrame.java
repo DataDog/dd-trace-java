@@ -3,6 +3,7 @@ package datadog.crashtracking.dto;
 import com.squareup.moshi.Json;
 import datadog.crashtracking.buildid.BuildInfo;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public final class StackFrame {
 
@@ -59,6 +60,6 @@ public final class StackFrame {
 
   @Override
   public int hashCode() {
-    return Objects.hash(path, line, function, buildId, buildIdType, fileType, relativeAddress);
+    return HashingUtils.hash(path, line, function, buildId, buildIdType, fileType, relativeAddress);
   }
 }

@@ -5,6 +5,7 @@ import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class ModuleExecutionResult extends ModuleSignal {
 
@@ -99,7 +100,7 @@ public class ModuleExecutionResult extends ModuleSignal {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         sessionId,
         moduleId,
         coverageEnabled,

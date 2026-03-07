@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import datadog.trace.util.HashingUtils;
 
 public class ParsedConfigKey implements ConfigKey {
 
@@ -90,6 +91,6 @@ public class ParsedConfigKey implements ConfigKey {
 
   @Override
   public int hashCode() {
-    return Objects.hash(originalKey);
+    return HashingUtils.hash(originalKey);
   }
 }

@@ -4,6 +4,7 @@ import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Represents any literal/constant in expression language */
 public class Literal<ConstantType>
@@ -51,6 +52,6 @@ public class Literal<ConstantType>
 
   @Override
   public int hashCode() {
-    return Objects.hash(value);
+    return HashingUtils.hash(value);
   }
 }

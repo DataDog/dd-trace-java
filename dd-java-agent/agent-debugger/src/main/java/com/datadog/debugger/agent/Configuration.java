@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import datadog.trace.util.HashingUtils;
 
 /**
  * Stores debugger configuration for a service with: - Probe definitions - filters (allow/deny) -
@@ -57,7 +58,7 @@ public class Configuration {
     @Generated
     @Override
     public int hashCode() {
-      return Objects.hash(packagePrefixes, classes);
+      return HashingUtils.hash(packagePrefixes, classes);
     }
   }
 
@@ -188,7 +189,7 @@ public class Configuration {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(service, probes, allowList, denyList, sampling);
+    return HashingUtils.hash(service, probes, allowList, denyList, sampling);
   }
 
   public static Configuration.Builder builder() {

@@ -1,13 +1,13 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import java.security.ProtectionDomain;
-import java.util.Objects;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import datadog.trace.util.HashingUtils;
 
 /** {@link AgentBuilder.RawMatcher} that logs and swallows exceptions while matching. */
 public class FailSafeRawMatcher implements AgentBuilder.RawMatcher {
@@ -73,6 +73,6 @@ public class FailSafeRawMatcher implements AgentBuilder.RawMatcher {
 
   @Override
   public int hashCode() {
-    return Objects.hash(typeMatcher, classLoaderMatcher);
+    return HashingUtils.hash(typeMatcher, classLoaderMatcher);
   }
 }

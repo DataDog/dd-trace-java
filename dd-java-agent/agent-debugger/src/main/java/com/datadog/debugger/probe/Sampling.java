@@ -1,6 +1,7 @@
 package com.datadog.debugger.probe;
 
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Stores sampling configuration */
 public class Sampling {
@@ -65,7 +66,7 @@ public class Sampling {
 
   @Override
   public int hashCode() {
-    return Objects.hash(coolDownInSeconds, eventsPerSecond);
+    return HashingUtils.hash(coolDownInSeconds, eventsPerSecond);
   }
 
   @Override

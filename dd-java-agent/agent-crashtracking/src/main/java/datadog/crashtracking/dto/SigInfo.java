@@ -2,6 +2,7 @@ package datadog.crashtracking.dto;
 
 import com.squareup.moshi.Json;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 public class SigInfo {
   @Json(name = "si_signo")
@@ -40,6 +41,6 @@ public class SigInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(number, name, address, code, action);
+    return HashingUtils.hash(number, name, address, code, action);
   }
 }

@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.Type;
+import datadog.trace.util.HashingUtils;
 
 /** Stores definition of a metric probe */
 public class MetricProbe extends ProbeDefinition {
@@ -192,7 +193,7 @@ public class MetricProbe extends ProbeDefinition {
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(language, id, version, tagMap, where, evaluateAt, kind, metricName, value);
+        HashingUtils.hash(language, id, version, tagMap, where, evaluateAt, kind, metricName, value);
     result = 31 * result + Arrays.hashCode(tags);
     return result;
   }

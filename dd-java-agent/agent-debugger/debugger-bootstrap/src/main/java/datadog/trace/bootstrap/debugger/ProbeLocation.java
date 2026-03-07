@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.debugger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import datadog.trace.util.HashingUtils;
 
 /** Probe location information used in ProbeDetails class */
 public class ProbeLocation {
@@ -50,7 +51,7 @@ public class ProbeLocation {
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, method, file, lines);
+    return HashingUtils.hash(type, method, file, lines);
   }
 
   @Override
