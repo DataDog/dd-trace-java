@@ -1,12 +1,19 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueMapToObject;
+import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueToObject;
+
+import com.openai.core.JsonValue;
 import com.openai.helpers.ChatCompletionAccumulator;
+import com.openai.models.FunctionDefinition;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionFunctionTool;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
+import com.openai.models.chat.completions.ChatCompletionTool;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -31,19 +38,24 @@ public class ChatCompletionDecorator {
       AgentSpan span, ChatCompletionCreateParams params, boolean stream) {
     span.setResourceName(CHAT_COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/chat/completions");
+    if (params == null) {
+      return;
+    }
+    Optional<String> modelName = params.model()._value().asString();
+    modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+
     if (!llmObsEnabled) {
       return;
     }
 
+    // Keep model_name and output shape stable on error paths where no response is available.
+    modelName.ifPresent(
+        str -> {
+          span.setTag(CommonTags.MODEL_NAME, str);
+          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+        });
+
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
-    if (params == null) {
-      return;
-    }
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     span.setTag(
         CommonTags.INPUT,
@@ -55,9 +67,7 @@ public class ChatCompletionDecorator {
     // maxTokens is deprecated but integration tests missing to provide maxCompletionTokens
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
     params.temperature().ifPresent(v -> metadata.put("temperature", v));
-    if (stream) {
-      metadata.put("stream", true);
-    }
+    metadata.put("stream", stream);
     params
         .streamOptions()
         .ifPresent(
@@ -72,6 +82,92 @@ public class ChatCompletionDecorator {
     params.n().ifPresent(v -> metadata.put("n", v));
     params.seed().ifPresent(v -> metadata.put("seed", v));
     span.setTag(CommonTags.METADATA, metadata);
+    params
+        .toolChoice()
+        .ifPresent(
+            toolChoice -> {
+              String choice = null;
+              if (toolChoice.isAuto()) {
+                choice = "auto";
+              } else if (toolChoice.isAllowedToolChoice()) {
+                choice = "allowed_tools";
+              } else if (toolChoice.isNamedToolChoice()) {
+                choice = "function";
+              } else if (toolChoice.isNamedToolChoiceCustom()) {
+                choice = "custom";
+              }
+              if (choice != null) {
+                metadata.put("tool_choice", choice);
+              }
+            });
+
+    List<ChatCompletionTool> tools = params.tools().orElse(Collections.emptyList());
+    if (!tools.isEmpty()) {
+      span.setTag(CommonTags.TOOL_DEFINITIONS, extractToolDefinitions(tools));
+    }
+  }
+
+  private List<Map<String, Object>> extractToolDefinitions(List<ChatCompletionTool> tools) {
+    List<Map<String, Object>> toolDefinitions = new ArrayList<>();
+    for (ChatCompletionTool tool : tools) {
+      if (tool.isFunction()) {
+        Map<String, Object> toolDef = extractFunctionToolDef(tool.asFunction());
+        if (toolDef != null) {
+          toolDefinitions.add(toolDef);
+        }
+      }
+    }
+    return toolDefinitions;
+  }
+
+  private static Map<String, Object> extractFunctionToolDef(ChatCompletionFunctionTool funcTool) {
+    // Try typed access first (works when built programmatically)
+    Optional<FunctionDefinition> funcDefOpt = funcTool._function().asKnown();
+    if (funcDefOpt.isPresent()) {
+      FunctionDefinition funcDef = funcDefOpt.get();
+      Map<String, Object> toolDef = new HashMap<>();
+      toolDef.put("name", funcDef.name());
+      funcDef.description().ifPresent(desc -> toolDef.put("description", desc));
+      funcDef
+          .parameters()
+          .ifPresent(
+              params ->
+                  toolDef.put("schema", jsonValueMapToObject(params._additionalProperties())));
+      return toolDef;
+    }
+
+    // Fall back to raw JSON extraction (when deserialized from HTTP request)
+    Optional<JsonValue> rawOpt = funcTool._function().asUnknown();
+    if (!rawOpt.isPresent()) {
+      return null;
+    }
+    Optional<Map<String, JsonValue>> objOpt = rawOpt.get().asObject();
+    if (!objOpt.isPresent()) {
+      return null;
+    }
+    Map<String, JsonValue> obj = objOpt.get();
+    JsonValue nameValue = obj.get("name");
+    if (nameValue == null) {
+      return null;
+    }
+    Optional<String> nameOpt = nameValue.asString();
+    if (!nameOpt.isPresent()) {
+      return null;
+    }
+    Map<String, Object> toolDef = new HashMap<>();
+    toolDef.put("name", nameOpt.get());
+    JsonValue descValue = obj.get("description");
+    if (descValue != null) {
+      descValue.asString().ifPresent(desc -> toolDef.put("description", desc));
+    }
+    JsonValue paramsValue = obj.get("parameters");
+    if (paramsValue != null) {
+      Object schema = jsonValueToObject(paramsValue);
+      if (schema != null) {
+        toolDef.put("schema", schema);
+      }
+    }
+    return toolDef;
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
@@ -97,12 +193,13 @@ public class ChatCompletionDecorator {
   }
 
   public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
-    if (!llmObsEnabled) {
-      return;
-    }
     String modelName = completion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
 
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
@@ -117,6 +214,10 @@ public class ChatCompletionDecorator {
               span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
               span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
               span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+              usage
+                  .promptTokensDetails()
+                  .flatMap(details -> details.cachedTokens())
+                  .ifPresent(v -> span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, v));
             });
   }
 
@@ -127,7 +228,7 @@ public class ChatCompletionDecorator {
     if (roleOpt.isPresent()) {
       role = String.valueOf(roleOpt.get());
     }
-    String content = msg.content().orElse(null);
+    String content = msg.content().orElse("");
 
     Optional<List<ChatCompletionMessageToolCall>> toolCallsOpt = msg.toolCalls();
     if (toolCallsOpt.isPresent() && !toolCallsOpt.get().isEmpty()) {

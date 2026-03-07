@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class CompletionDecorator {
@@ -23,20 +24,25 @@ public class CompletionDecorator {
   public void withCompletionCreateParams(AgentSpan span, CompletionCreateParams params) {
     span.setResourceName(COMPLETIONS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/completions");
-    if (!llmObsEnabled) {
-      return;
-    }
-
-    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     if (params == null) {
       return;
     }
 
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+    Optional<String> modelName = params.model()._value().asString();
+    modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+
+    if (!llmObsEnabled) {
+      return;
+    }
+
+    // Keep model_name and output shape stable on error paths where no response is available.
+    modelName.ifPresent(
+        str -> {
+          span.setTag(CommonTags.MODEL_NAME, str);
+          span.setTag(CommonTags.OUTPUT, Collections.singletonList(LLMObs.LLMMessage.from("", "")));
+        });
+
+    span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
     params
         .prompt()
         .flatMap(p -> p.string())
@@ -44,7 +50,7 @@ public class CompletionDecorator {
             input ->
                 span.setTag(
                     CommonTags.INPUT,
-                    Collections.singletonList(LLMObs.LLMMessage.from(null, input))));
+                    Collections.singletonList(LLMObs.LLMMessage.from("", input))));
 
     Map<String, Object> metadata = new HashMap<>();
     params.maxTokens().ifPresent(v -> metadata.put("max_tokens", v));
@@ -61,17 +67,17 @@ public class CompletionDecorator {
   }
 
   public void withCompletion(AgentSpan span, Completion completion) {
-    if (!llmObsEnabled) {
-      return;
-    }
-
     String modelName = completion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    if (!llmObsEnabled) {
+      return;
+    }
+
     List<LLMObs.LLMMessage> output =
         completion.choices().stream()
-            .map(v -> LLMObs.LLMMessage.from(null, v.text()))
+            .map(v -> LLMObs.LLMMessage.from("", v.text()))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
@@ -86,10 +92,6 @@ public class CompletionDecorator {
   }
 
   public void withCompletions(AgentSpan span, List<Completion> completions) {
-    if (!llmObsEnabled) {
-      return;
-    }
-
     if (completions.isEmpty()) {
       return;
     }
@@ -98,6 +100,10 @@ public class CompletionDecorator {
     String modelName = firstCompletion.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
 
     Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
     for (Completion completion : completions) {
@@ -115,7 +121,7 @@ public class CompletionDecorator {
     List<LLMObs.LLMMessage> output =
         textByChoiceIndex.entrySet().stream()
             .sorted(Map.Entry.comparingByKey())
-            .map(entry -> LLMObs.LLMMessage.from(null, entry.getValue().toString()))
+            .map(entry -> LLMObs.LLMMessage.from("", entry.getValue().toString()))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
