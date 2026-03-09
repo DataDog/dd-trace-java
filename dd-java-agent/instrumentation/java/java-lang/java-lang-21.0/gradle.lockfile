@@ -116,7 +116,6 @@ org.slf4j:slf4j-api:1.7.30=buildTimeInstrumentationPlugin,compileClasspath,muzzl
 org.slf4j:slf4j-api:1.7.32=testCompileClasspath
 org.slf4j:slf4j-api:2.0.17=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:1.7.30=testRuntimeClasspath
-org.slf4j:slf4j-simple:1.7.30=testRuntimeClasspath
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=buildTimeInstrumentationPlugin,muzzleTooling,runtimeClasspath,testRuntimeClasspath
 org.spockframework:spock-bom:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath
