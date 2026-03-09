@@ -1,5 +1,7 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
+
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -47,15 +49,15 @@ public final class MetricKey {
       List<UTF8BytesString> peerTags,
       CharSequence httpMethod,
       CharSequence httpEndpoint) {
-    this.resource = utf8(RESOURCE_CACHE, resource);
-    this.service = utf8(SERVICE_CACHE, service);
-    this.serviceSource = utf8(SERVICE_SOURCE_CACHE, serviceSource);
-    this.operationName = utf8(OPERATION_CACHE, operationName);
+    this.resource = resource == null ? EMPTY : utf8(RESOURCE_CACHE, resource);
+    this.service = service == null ? EMPTY : utf8(SERVICE_CACHE, service);
+    this.serviceSource = serviceSource == null ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
+    this.operationName = operationName == null ? EMPTY : utf8(OPERATION_CACHE, operationName);
     this.type = utf8(TYPE_CACHE, type);
     this.httpStatusCode = httpStatusCode;
     this.synthetics = synthetics;
     this.isTraceRoot = isTraceRoot;
-    this.spanKind = utf8(KIND_CACHE, spanKind);
+    this.spanKind = null == spanKind ? EMPTY : utf8(KIND_CACHE, spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
     this.httpMethod = httpMethod == null ? null : utf8(HTTP_METHOD_CACHE, httpMethod);
     this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
@@ -77,9 +79,7 @@ public final class MetricKey {
   }
   
   static UTF8BytesString utf8(DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
-	if ( charSeq == null ) {
-	  return UTF8BytesString.EMPTY;
-	} else if ( charSeq instanceof UTF8BytesString ) {
+	if ( charSeq instanceof UTF8BytesString ) {
 	  return (UTF8BytesString)charSeq;
 	} else {
 	  return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
