@@ -14,6 +14,7 @@ import datadog.trace.api.llmobs.noop.NoOpLLMObsSpan;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +76,7 @@ class LLMObsTest {
     Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");
     LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", args);
-    List<LLMObs.ToolCall> toolCalls = List.of(toolCall);
+    List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
 
     LLMObs.LLMMessage message =
         LLMObs.LLMMessage.from("assistant", "Let me check the weather", toolCalls);
