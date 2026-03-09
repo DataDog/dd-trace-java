@@ -4,8 +4,10 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,7 +26,8 @@ class JsonMapperTest {
 
   @ParameterizedTest(name = "test mapping to JSON object: {0}")
   @MethodSource("testMappingToJsonObjectArguments")
-  void testMappingToJsonObject(String testCase, Map<String, Object> input, String expected)
+  void testMappingToJsonObject(
+      @SuppressWarnings("unused") String testCase, Map<String, Object> input, String expected)
       throws IOException {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
@@ -42,7 +45,7 @@ class JsonMapperTest {
         if (expectedValue instanceof UnsupportedType) {
           assertEquals(expectedValue.toString(), parsedValue);
         } else if (expectedValue instanceof Float) {
-          assertTrue(parsedValue instanceof Double);
+          assertInstanceOf(Double.class, parsedValue);
           assertEquals((Float) expectedValue, (Double) parsedValue, 0.001);
         } else {
           assertEquals(expectedValue, parsedValue);
@@ -74,15 +77,15 @@ class JsonMapperTest {
     complexMap.put("key8", new UnsupportedType());
 
     return Stream.of(
-        Arguments.of("null input", null, "{}"),
-        Arguments.of("empty map", new HashMap<>(), "{}"),
-        Arguments.of("single entry", singleEntry, "{\"key1\":\"value1\"}"),
-        Arguments.of("two entries", twoEntries, "{\"key1\":\"value1\",\"key2\":\"value2\"}"),
-        Arguments.of(
+        arguments("null input", null, "{}"),
+        arguments("empty map", new HashMap<>(), "{}"),
+        arguments("single entry", singleEntry, "{\"key1\":\"value1\"}"),
+        arguments("two entries", twoEntries, "{\"key1\":\"value1\",\"key2\":\"value2\"}"),
+        arguments(
             "quoted entries",
             quotedEntries,
             "{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}"),
-        Arguments.of(
+        arguments(
             "complex map",
             complexMap,
             "{\"key1\":null,\"key2\":\"bar\",\"key3\":3,\"key4\":3456789123,\"key5\":3.142,\"key6\":3.141592653589793,\"key7\":true,\"key8\":\"toString\"}"));
@@ -96,8 +99,7 @@ class JsonMapperTest {
   }
 
   static Stream<Arguments> testMappingToMapFromEmptyJsonObjectArguments() {
-    return Stream.of(
-        Arguments.of((Object) null), Arguments.of("null"), Arguments.of(""), Arguments.of("{}"));
+    return Stream.of(arguments((Object) null), arguments("null"), arguments(""), arguments("{}"));
   }
 
   @ParameterizedTest(name = "test mapping to Map from non-object JSON: {0}")
@@ -118,11 +120,11 @@ class JsonMapperTest {
 
   static Stream<Arguments> testMappingIterableToJsonArrayArguments() {
     return Stream.of(
-        Arguments.of(null, "[]"),
-        Arguments.of(new ArrayList<>(), "[]"),
-        Arguments.of(Arrays.asList("value1"), "[\"value1\"]"),
-        Arguments.of(Arrays.asList("value1", "value2"), "[\"value1\",\"value2\"]"),
-        Arguments.of(Arrays.asList("va\"lu\"e1", "value2"), "[\"va\\\"lu\\\"e1\",\"value2\"]"));
+        arguments(null, "[]"),
+        arguments(new ArrayList<>(), "[]"),
+        arguments(Arrays.asList("value1"), "[\"value1\"]"),
+        arguments(Arrays.asList("value1", "value2"), "[\"value1\",\"value2\"]"),
+        arguments(Arrays.asList("va\"lu\"e1", "value2"), "[\"va\\\"lu\\\"e1\",\"value2\"]"));
   }
 
   @ParameterizedTest(name = "test mapping array to JSON array: {0}")
@@ -138,11 +140,11 @@ class JsonMapperTest {
 
   static Stream<Arguments> testMappingArrayToJsonArrayArguments() {
     return Stream.of(
-        Arguments.of("null input", (Object) null, "[]"),
-        Arguments.of("empty array", new String[] {}, "[]"),
-        Arguments.of("single element", new String[] {"value1"}, "[\"value1\"]"),
-        Arguments.of("two elements", new String[] {"value1", "value2"}, "[\"value1\",\"value2\"]"),
-        Arguments.of(
+        arguments("null input", (Object) null, "[]"),
+        arguments("empty array", new String[] {}, "[]"),
+        arguments("single element", new String[] {"value1"}, "[\"value1\"]"),
+        arguments("two elements", new String[] {"value1", "value2"}, "[\"value1\",\"value2\"]"),
+        arguments(
             "escaped quotes",
             new String[] {"va\"lu\"e1", "value2"},
             "[\"va\\\"lu\\\"e1\",\"value2\"]"));
@@ -156,8 +158,7 @@ class JsonMapperTest {
   }
 
   static Stream<Arguments> testMappingToListFromEmptyJsonObjectArguments() {
-    return Stream.of(
-        Arguments.of((Object) null), Arguments.of("null"), Arguments.of(""), Arguments.of("[]"));
+    return Stream.of(arguments((Object) null), arguments("null"), arguments(""), arguments("[]"));
   }
 
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
@@ -169,20 +170,20 @@ class JsonMapperTest {
 
   static Stream<Arguments> testMappingToJsonStringArguments() {
     return Stream.of(
-        Arguments.of((Object) null, ""),
-        Arguments.of("", ""),
-        Arguments.of(String.valueOf((char) 4096), "\"\\u1000\""),
-        Arguments.of(String.valueOf((char) 256), "\"\\u0100\""),
-        Arguments.of(String.valueOf((char) 128), "\"\\u0080\""),
-        Arguments.of("\b", "\"\\b\""),
-        Arguments.of("\t", "\"\\t\""),
-        Arguments.of("\n", "\"\\n\""),
-        Arguments.of("\f", "\"\\f\""),
-        Arguments.of("\r", "\"\\r\""),
-        Arguments.of("\"", "\"\\\"\""),
-        Arguments.of("/", "\"\\/\""),
-        Arguments.of("\\", "\"\\\\\""),
-        Arguments.of("a", "\"a\""));
+        arguments((Object) null, ""),
+        arguments("", ""),
+        arguments(String.valueOf((char) 4096), "\"\\u1000\""),
+        arguments(String.valueOf((char) 256), "\"\\u0100\""),
+        arguments(String.valueOf((char) 128), "\"\\u0080\""),
+        arguments("\b", "\"\\b\""),
+        arguments("\t", "\"\\t\""),
+        arguments("\n", "\"\\n\""),
+        arguments("\f", "\"\\f\""),
+        arguments("\r", "\"\\r\""),
+        arguments("\"", "\"\\\"\""),
+        arguments("/", "\"\\/\""),
+        arguments("\\", "\"\\\\\""),
+        arguments("a", "\"a\""));
   }
 
   private static class UnsupportedType {
