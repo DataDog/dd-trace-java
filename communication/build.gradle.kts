@@ -24,6 +24,8 @@ dependencies {
   implementation(libs.netty.handler)
   implementation(libs.netty.handler.proxy)
   implementation(libs.apache.httpclient5)
+  implementation(libs.jetty.httpclient)
+  implementation(libs.jetty.unixsocket)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
   implementation(project(":products:metrics:metrics-lib"))

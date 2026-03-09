@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.client.ahc.ApacheAsyncHttpClientBuilder;
+import datadog.communication.http.client.jetty.JettyHttpClientBuilder;
 import datadog.communication.http.client.netty.NettyHttpClientBuilder;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.Closeable;
@@ -44,6 +45,7 @@ public class HttpClientContractTest {
   public static final String CLIENT_IMPL_PARAMETER = "datadog.http.client.impl";
   public static final String NETTY = "netty";
   public static final String AHC = "ahc";
+  public static final String JETTY = "jetty";
 
   private final List<Closeable> closeables = new ArrayList<>();
   private MockWebServer server;
@@ -58,11 +60,15 @@ public class HttpClientContractTest {
   }
   
   private boolean supportsUnixDomainSocket() {
-    return isNetty();
+    return isNetty() || isJetty();
   }
 
   private boolean isNetty() {
     return clientName().equals(NettyHttpClientBuilder.class.getSimpleName());
+  }
+
+  private boolean isJetty() {
+    return clientName().equals(JettyHttpClientBuilder.class.getSimpleName());
   }
 
   @AfterEach
@@ -337,6 +343,10 @@ public class HttpClientContractTest {
         case AHC:
           ((HttpClientContractTest) context.getRequiredTestInstance())
               .useBuilder(new ApacheAsyncHttpClientBuilder());
+          break;
+        case JETTY:
+          ((HttpClientContractTest) context.getRequiredTestInstance())
+              .useBuilder(new JettyHttpClientBuilder());
           break;
         default:
           throw new IllegalStateException("Unsupported implementation: " + implementationValue);
