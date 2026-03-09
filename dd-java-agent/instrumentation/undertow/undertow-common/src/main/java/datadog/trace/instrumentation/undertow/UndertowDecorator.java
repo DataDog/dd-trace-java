@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.naming.SpanNaming;
@@ -29,6 +30,11 @@ public class UndertowDecorator
   public static final AttachmentKey<AgentScope.Continuation> DATADOG_UNDERTOW_CONTINUATION =
       attachmentStore.putIfAbsent(
           "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(AgentScope.Continuation.class));
+
+  @SuppressWarnings("unchecked")
+  public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
+      attachmentStore.putIfAbsent(
+          "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
   public static final CharSequence UNDERTOW_REQUEST =

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
@@ -9,6 +10,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
@@ -36,6 +38,7 @@ import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -100,9 +103,10 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod().and(named("basicPublish")).and(takesArguments(6)),
-        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice");
+        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice",
+        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishContextPropagationAdvice");
     transformer.applyAdvice(
         isMethod().and(named("basicGet")).and(takesArgument(0, String.class)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice");
@@ -153,7 +157,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final Channel channel,
         @Advice.Argument(0) final String exchange,
         @Advice.Argument(1) final String routingKey,
-        @Advice.Argument(value = 4, readOnly = false) AMQP.BasicProperties props,
+        @Advice.Argument(4) final AMQP.BasicProperties props,
         @Advice.Argument(5) final byte[] body) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
@@ -169,46 +173,11 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       PRODUCER_DECORATE.onPublish(span, exchange, routingKey);
       span.setTag("message.size", body == null ? 0 : body.length);
 
-      // This is the internal behavior when props are null.  We're just doing it earlier now.
-      if (props == null) {
-        props = MessageProperties.MINIMAL_BASIC;
-      }
-      final Integer deliveryMode = props.getDeliveryMode();
+      final Integer deliveryMode = props != null ? props.getDeliveryMode() : null;
       if (deliveryMode != null) {
         span.setTag("amqp.delivery_mode", deliveryMode);
       }
 
-      Config config = Config.get();
-      if (config.isRabbitPropagationEnabled()
-          && !config.isRabbitPropagationDisabledForDestination(exchange)) {
-        // We need to copy the BasicProperties and provide a header map we can modify
-        Map<String, Object> headers = props.getHeaders();
-        headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
-        if (TIME_IN_QUEUE_ENABLED) {
-          RabbitDecorator.injectTimeInQueueStart(headers);
-        }
-        DataStreamsTags tags =
-            createWithExchange(
-                "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
-        DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-        defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
-        props =
-            new AMQP.BasicProperties(
-                props.getContentType(),
-                props.getContentEncoding(),
-                headers,
-                props.getDeliveryMode(),
-                props.getPriority(),
-                props.getCorrelationId(),
-                props.getReplyTo(),
-                props.getExpiration(),
-                props.getMessageId(),
-                props.getTimestamp(),
-                props.getType(),
-                props.getUserId(),
-                props.getAppId(),
-                props.getClusterId());
-      }
       return activateSpan(span);
     }
 
@@ -223,6 +192,53 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       scope.close();
       scope.span().finish();
       CallDepthThreadLocalMap.reset(Channel.class);
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ChannelPublishContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(0) final String exchange,
+        @Advice.Argument(1) final String routingKey,
+        @Advice.Argument(value = 4, readOnly = false) AMQP.BasicProperties props,
+        @Advice.Argument(5) final byte[] body) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      Config config = Config.get();
+      if (!config.isRabbitPropagationEnabled()
+          || config.isRabbitPropagationDisabledForDestination(exchange)) return;
+      // This is the internal behavior when props are null.  We're just doing it earlier now.
+      if (props == null) {
+        props = MessageProperties.MINIMAL_BASIC;
+      }
+      // We need to copy the BasicProperties and provide a header map we can modify
+      Map<String, Object> headers = props.getHeaders();
+      headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
+      if (TIME_IN_QUEUE_ENABLED) {
+        RabbitDecorator.injectTimeInQueueStart(headers);
+      }
+      DataStreamsTags tags =
+          createWithExchange(
+              "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+      defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
+      props =
+          new AMQP.BasicProperties(
+              props.getContentType(),
+              props.getContentEncoding(),
+              headers,
+              props.getDeliveryMode(),
+              props.getPriority(),
+              props.getCorrelationId(),
+              props.getReplyTo(),
+              props.getExpiration(),
+              props.getMessageId(),
+              props.getTimestamp(),
+              props.getType(),
+              props.getUserId(),
+              props.getAppId(),
+              props.getClusterId());
     }
   }
 

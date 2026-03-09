@@ -1,12 +1,14 @@
 package datadog.trace.instrumentation.jms;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
@@ -17,6 +19,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -53,15 +56,18 @@ public final class JMSMessageProducerInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("send").and(takesArgument(0, named(namespace + ".jms.Message"))).and(isPublic()),
-        JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
-    transformer.applyAdvice(
+        JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice",
+        JMSMessageProducerInstrumentation.class.getName() + "$ProducerContextPropagationAdvice");
+    transformer.applyAdvices(
         named("send")
             .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
             .and(takesArgument(1, named(namespace + ".jms.Message")))
             .and(isPublic()),
-        JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");
+        JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice",
+        JMSMessageProducerInstrumentation.class.getName()
+            + "$ProducerWithDestinationContextPropagationAdvice");
   }
 
   public static class ProducerAdvice {
@@ -112,16 +118,8 @@ public final class JMSMessageProducerInstrumentation
         }
       }
 
-      if (JMSDecorator.canInject(message)) {
-        if (Config.get().isJmsPropagationEnabled()
-            && (null == producerState || !producerState.isPropagationDisabled())) {
-          defaultPropagator().inject(span, message, SETTER);
-        }
-        if (TIME_IN_QUEUE_ENABLED) {
-          if (null != producerState) {
-            SETTER.injectTimeInQueue(message, producerState);
-          }
-        }
+      if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED && null != producerState) {
+        SETTER.injectTimeInQueue(message, producerState);
       }
       return activateSpan(span);
     }
@@ -137,6 +135,25 @@ public final class JMSMessageProducerInstrumentation
       scope.close();
       scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ProducerContextPropagationAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+        if (null == producerState || !producerState.isPropagationDisabled()) {
+          defaultPropagator().inject(span, message, SETTER);
+        }
+      }
     }
   }
 
@@ -171,17 +188,12 @@ public final class JMSMessageProducerInstrumentation
         }
       }
 
-      if (JMSDecorator.canInject(message)) {
-        if (Config.get().isJmsPropagationEnabled()
-            && !Config.get().isJmsPropagationDisabledForDestination(destinationName))
-          defaultPropagator().inject(span, message, SETTER);
-        if (TIME_IN_QUEUE_ENABLED) {
-          MessageProducerState producerState =
-              InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                  .get(producer);
-          if (null != producerState) {
-            SETTER.injectTimeInQueue(message, producerState);
-          }
+      if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState);
         }
       }
       return activateSpan(span);
@@ -198,6 +210,24 @@ public final class JMSMessageProducerInstrumentation
       scope.close();
       scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ProducerWithDestinationContextPropagationAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(0) final Destination destination,
+        @Advice.Argument(1) final Message message) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
+        String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+        if (!Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
+          defaultPropagator().inject(span, message, SETTER);
+        }
+      }
     }
   }
 }
