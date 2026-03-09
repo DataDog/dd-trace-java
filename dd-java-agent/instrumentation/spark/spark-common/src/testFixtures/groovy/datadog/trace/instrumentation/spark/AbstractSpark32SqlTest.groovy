@@ -1310,7 +1310,13 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         }
 
         def normalizedActual = normalizeNodeIds(actualParsed, actualToNormalized)
-        AbstractSpark24SqlTest.assertSQLPlanEquals(expectedParsed, normalizedActual, names[i])
+
+        // Normalize environment-dependent column ref IDs (#N, #NL) and plan_id values
+        // which vary across test runs and environments
+        def normalizedExpected = normalizeColumnRefs(expectedParsed)
+        normalizedActual = normalizeColumnRefs(normalizedActual)
+
+        AbstractSpark24SqlTest.assertSQLPlanEquals(normalizedExpected, normalizedActual, names[i])
       }
     }
   }
@@ -1350,6 +1356,17 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         }
       }
       return plan
+    }
+    return plan
+  }
+
+  private static Object normalizeColumnRefs(Object plan) {
+    if (plan instanceof String) {
+      return plan.replaceAll(/#\d+L?/, '#N').replaceAll(/plan_id=\d+/, 'plan_id=N')
+    } else if (plan instanceof List) {
+      return plan.collect { normalizeColumnRefs(it) }
+    } else if (plan instanceof Map) {
+      return plan.collectEntries { k, v -> [k, normalizeColumnRefs(v)] }
     }
     return plan
   }
