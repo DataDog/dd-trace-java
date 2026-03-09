@@ -59,13 +59,13 @@ public class AbstractPollingMessageListenerContainerInstrumentation
               .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          closePrevious(finishSpan);
+        } else {
           final AgentSpan span = spanFromContext(getRootContext().swap());
           if (span != null) {
             span.finishWithEndToEnd();
           }
-        } else {
-          closePrevious(finishSpan);
         }
         if (finishSpan) {
           consumerState.finishTimeInQueueSpan(false);

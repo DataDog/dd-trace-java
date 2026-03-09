@@ -260,6 +260,6 @@ class JMS2ContextSwapForkedTest extends JMS2Test {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig(TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED, "true")
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

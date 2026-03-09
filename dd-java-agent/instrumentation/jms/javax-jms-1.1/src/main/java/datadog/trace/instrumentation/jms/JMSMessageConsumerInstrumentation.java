@@ -93,14 +93,14 @@ public final class JMSMessageConsumerInstrumentation
       }
 
       boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(finishSpan);
+      } else {
         final AgentSpan span = spanFromContext(getRootContext().swap());
         if (span != null) {
           CONSUMER_DECORATE.beforeFinish(span);
           span.finishWithEndToEnd();
         }
-      } else {
-        closePrevious(finishSpan);
       }
       if (finishSpan) {
         consumerState.finishTimeInQueueSpan(false);
@@ -174,14 +174,14 @@ public final class JMSMessageConsumerInstrumentation
 
       CONSUMER_DECORATE.onError(span, throwable);
 
-      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        activateNext(span); // scope is left open until next message or it times out
+      } else {
         final AgentSpan previous = spanFromContext(span.swap());
         if (previous != null) {
           CONSUMER_DECORATE.beforeFinish(previous);
           previous.finishWithEndToEnd();
         }
-      } else {
-        activateNext(span); // scope is left open until next message or it times out
       }
       JMSLogger.logIterationSpan(span);
 
@@ -206,14 +206,14 @@ public final class JMSMessageConsumerInstrumentation
               .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
-        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          closePrevious(finishSpan);
+        } else {
           final AgentSpan span = spanFromContext(getRootContext().swap());
           if (span != null) {
             CONSUMER_DECORATE.beforeFinish(span);
             span.finishWithEndToEnd();
           }
-        } else {
-          closePrevious(finishSpan);
         }
         if (finishSpan) {
           consumerState.finishTimeInQueueSpan(true);

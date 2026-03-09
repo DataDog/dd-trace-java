@@ -1,4 +1,4 @@
-import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGING_CONTEXT_SWAP_ENABLED
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import datadog.trace.agent.test.asserts.ListWriterAssert
@@ -1056,7 +1056,7 @@ class JMS1V0Test extends JMS1Test {
 class JMSContextSwapForkedTest extends JMS1V0Test {
   @Override
   protected void configurePreAgent() {
-    injectSysConfig(MESSAGING_CONTEXT_SWAP_ENABLED, "true")
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 
   @Override

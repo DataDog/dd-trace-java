@@ -1140,7 +1140,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void closePrevious(boolean finishSpan) {
-    if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
           "closePrevious must not be called when context swap based logic is enabled");
     }
@@ -1149,7 +1149,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentScope activateNext(AgentSpan span) {
-    if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
           "activateNext must not be called when context swap based logic is enabled");
     }

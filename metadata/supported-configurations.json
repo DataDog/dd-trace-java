@@ -11161,11 +11161,11 @@
         "aliases": []
       }
     ],
-    "DD_MESSAGING_CONTEXT_SWAP_ENABLED": [
+    "DD_LEGACY_CONTEXT_MANAGER_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": []
       }
     ]

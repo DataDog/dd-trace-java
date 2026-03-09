@@ -30,13 +30,13 @@ public class TracingListIterator extends TracingIterator
     boolean moreRecords = delegateIterator.hasPrevious();
     if (!moreRecords) {
       // no more records, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
         final AgentSpan span = spanFromContext(getRootContext().swap());
         if (span != null) {
           span.finishWithEndToEnd();
         }
-      } else {
-        closePrevious(true);
       }
     }
     return moreRecords;

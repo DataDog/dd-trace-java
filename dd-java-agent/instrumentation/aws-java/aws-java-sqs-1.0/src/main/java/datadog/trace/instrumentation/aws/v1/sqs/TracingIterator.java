@@ -46,7 +46,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     boolean moreMessages = delegate.hasNext();
     if (!moreMessages) {
       // no more messages, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         final AgentSpan span = spanFromContext(getRootContext().swap());
         if (span != null) {
           span.finishWithEndToEnd();
@@ -67,13 +67,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
   protected void startNewMessageSpan(Message message) {
     try {
-      if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
         final AgentSpan prevSpan = spanFromContext(getRootContext().swap());
         if (prevSpan != null) {
           prevSpan.finishWithEndToEnd();
         }
-      } else {
-        closePrevious(true);
       }
       if (message != null) {
         AgentSpan queueSpan = null;
@@ -109,13 +109,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
-        if (InstrumenterConfig.get().isMessagingContextSwapEnabled()) {
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          activateNext(span);
+        } else {
           final AgentSpan previous = spanFromContext(span.swap());
           if (previous != null) {
             previous.finishWithEndToEnd();
           }
-        } else {
-          activateNext(span);
         }
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
