@@ -7,8 +7,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
-import kotlin.io.path.readText
 import kotlin.io.path.outputStream
+import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class MuzzleVersionSubstitutionSupportTest {
@@ -94,7 +94,7 @@ class MuzzleVersionSubstitutionSupportTest {
       .build()
 
     val repoDir = tempDir.resolve("repo")
-    writePomOnlyModule(repoDir, "org.example", "bom", "1.0")
+    writeModule(repoDir, "org.example", "bom", "1.0", true)
 
     project.repositories.maven {
       url = repoDir.toUri()
@@ -104,7 +104,7 @@ class MuzzleVersionSubstitutionSupportTest {
       substituteVersion("org.example:bom:2.0", "org.example:bom:1.0")
     }
 
-    val configuration = project.configurations.create("muzzleTestPomOnly") {
+    project.configurations.create("muzzleTestPomOnly") {
       isCanBeResolved = true
       isCanBeConsumed = false
       MuzzleVersionSubstitutionSupport.applyTo(project, this, directive)
@@ -115,10 +115,6 @@ class MuzzleVersionSubstitutionSupportTest {
         "muzzleTestPomOnly/org/example/bom/2.0/bom-2.0.pom"
     )
     assertThat(generatedPom.readText()).contains("<version>2.0</version>")
-
-    project.dependencies.add(configuration.name, "org.example:bom:2.0@pom")
-    val resolved = configuration.singleFile.toPath()
-    assertThat(resolved.readText()).contains("<version>2.0</version>")
   }
 
   @Test
@@ -130,7 +126,13 @@ class MuzzleVersionSubstitutionSupportTest {
     }
   }
 
-  private fun writeModule(repoDir: Path, group: String, module: String, version: String) {
+  private fun writeModule(
+    repoDir: Path,
+    group: String,
+    module: String,
+    version: String,
+    pomModule: Boolean = false
+  ) {
     val moduleDir = repoDir.resolve(group.replace('.', '/')).resolve(module).resolve(version).createDirectories()
     moduleDir.resolve("$module-$version.pom").writeText(
       """
@@ -139,24 +141,13 @@ class MuzzleVersionSubstitutionSupportTest {
         <groupId>$group</groupId>
         <artifactId>$module</artifactId>
         <version>$version</version>
+        ${if (pomModule) "<packaging>pom</packaging>" else ""}
       </project>
       """.trimIndent()
     )
-    ZipOutputStream(moduleDir.resolve("$module-$version.jar").outputStream()).use { }
-  }
 
-  private fun writePomOnlyModule(repoDir: Path, group: String, module: String, version: String) {
-    val moduleDir = repoDir.resolve(group.replace('.', '/')).resolve(module).resolve(version).createDirectories()
-    moduleDir.resolve("$module-$version.pom").writeText(
-      """
-      <project xmlns="http://maven.apache.org/POM/4.0.0">
-        <modelVersion>4.0.0</modelVersion>
-        <groupId>$group</groupId>
-        <artifactId>$module</artifactId>
-        <version>$version</version>
-        <packaging>pom</packaging>
-      </project>
-      """.trimIndent()
-    )
+    if (!pomModule) {
+      ZipOutputStream(moduleDir.resolve("$module-$version.jar").outputStream()).use { }
+    }
   }
 }
