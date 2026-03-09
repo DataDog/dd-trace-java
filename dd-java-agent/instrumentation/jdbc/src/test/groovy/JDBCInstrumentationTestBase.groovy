@@ -948,7 +948,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connectionPoolName | exhaustPoolForMillis | expectException
     "hikari"           | 500                  | false
     "dbcp2"            | 500                  | false
-    "hikari"           | 1500                 | true
+    "hikari"           | 6000                 | true
     "dbcp2"            | 1500                 | true
   }
 
