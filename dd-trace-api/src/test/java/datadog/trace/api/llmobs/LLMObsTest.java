@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpan;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +47,7 @@ class LLMObsTest {
 
   @Test
   void testToolCallCreationAndGetters() {
-    Map<String, Object> arguments = new HashMap<String, Object>();
+    Map<String, Object> arguments = new HashMap<>();
     arguments.put("location", "New York");
     arguments.put("unit", "celsius");
 
@@ -71,11 +72,10 @@ class LLMObsTest {
 
   @Test
   void testLLMMessageCreationWithToolCalls() {
-    Map<String, Object> args = new HashMap<String, Object>();
+    Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");
     LLMObs.ToolCall toolCall = LLMObs.ToolCall.from("get_weather", "function", "tool-123", args);
-    List<LLMObs.ToolCall> toolCalls = new ArrayList<LLMObs.ToolCall>();
-    toolCalls.add(toolCall);
+    List<LLMObs.ToolCall> toolCalls = List.of(toolCall);
 
     LLMObs.LLMMessage message =
         LLMObs.LLMMessage.from("assistant", "Let me check the weather", toolCalls);
@@ -101,12 +101,12 @@ class LLMObsTest {
 
   @Test
   void testLLMMessageWithMultipleToolCalls() {
-    Map<String, Object> weatherArgs = new HashMap<String, Object>();
+    Map<String, Object> weatherArgs = new HashMap<>();
     weatherArgs.put("location", "New York");
     LLMObs.ToolCall toolCall1 =
         LLMObs.ToolCall.from("get_weather", "function", "tool-1", weatherArgs);
 
-    Map<String, Object> stockArgs = new HashMap<String, Object>();
+    Map<String, Object> stockArgs = new HashMap<>();
     stockArgs.put("symbol", "AAPL");
     LLMObs.ToolCall toolCall2 =
         LLMObs.ToolCall.from("get_stock_price", "function", "tool-2", stockArgs);
@@ -167,7 +167,7 @@ class LLMObsTest {
   void testDefaultNoOpEvaluationProcessorBehavior() {
     assertDoesNotThrow(
         () -> {
-          Map<String, Object> emptyTags = new HashMap<String, Object>();
+          Map<String, Object> emptyTags = new HashMap<>();
           LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
           LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
           LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
@@ -178,7 +178,7 @@ class LLMObsTest {
   @Test
   void testEvaluationSubmissionWithVariousScoreValues() {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> tags = new HashMap<String, Object>();
+    Map<String, Object> tags = new HashMap<>();
     tags.put("category", "test");
     tags.put("version", "1.0");
 
@@ -194,7 +194,7 @@ class LLMObsTest {
   @Test
   void testEvaluationSubmissionWithCategoricalValues() {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> tags = new HashMap<String, Object>();
+    Map<String, Object> tags = new HashMap<>();
     tags.put("evaluator", "human");
     tags.put("context", "production");
 
@@ -209,7 +209,7 @@ class LLMObsTest {
   @Test
   void testEvaluationSubmissionWithEmptyTags() {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
-    Map<String, Object> emptyTags = new HashMap<String, Object>();
+    Map<String, Object> emptyTags = new HashMap<>();
 
     assertDoesNotThrow(
         () -> {
@@ -220,27 +220,32 @@ class LLMObsTest {
 
   @Test
   void testSpanCreationWithCustomFactoryReturnsActualSpans() throws Exception {
-    TestSpan llmSpanResult = new TestSpan("llm");
-    TestSpan agentSpanResult = new TestSpan("agent");
-    TestSpan toolSpanResult = new TestSpan("tool");
-    TestSpan taskSpanResult = new TestSpan("task");
-    TestSpan workflowSpanResult = new TestSpan("workflow");
-    TestSpan embeddingSpanResult = new TestSpan("embedding");
-    TestSpan retrievalSpanResult = new TestSpan("retrieval");
+    LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
+    LLMObs.LLMObsEvalProcessor mockEvalProcessor = mock(LLMObs.LLMObsEvalProcessor.class);
+    LLMObsSpan mockLLMSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockAgentSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockToolSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockTaskSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockWorkflowSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockEmbeddingSpan = mock(LLMObsSpan.class);
+    LLMObsSpan mockRetrievalSpan = mock(LLMObsSpan.class);
 
-    RecordingSpanFactory spanFactory =
-        new RecordingSpanFactory(
-            llmSpanResult,
-            agentSpanResult,
-            toolSpanResult,
-            taskSpanResult,
-            workflowSpanResult,
-            embeddingSpanResult,
-            retrievalSpanResult);
-    RecordingEvalProcessor evalProcessor = new RecordingEvalProcessor();
+    when(mockFactory.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1"))
+        .thenReturn(mockLLMSpan);
+    when(mockFactory.startAgentSpan("agent-task", "my-app", "session-1")).thenReturn(mockAgentSpan);
+    when(mockFactory.startToolSpan("weather-tool", "my-app", "session-1")).thenReturn(mockToolSpan);
+    when(mockFactory.startTaskSpan("summarize-task", "my-app", "session-1"))
+        .thenReturn(mockTaskSpan);
+    when(mockFactory.startWorkflowSpan("data-workflow", "my-app", "session-1"))
+        .thenReturn(mockWorkflowSpan);
+    when(mockFactory.startEmbeddingSpan(
+            "text-embed", "my-app", "openai", "text-embedding-ada-002", "session-1"))
+        .thenReturn(mockEmbeddingSpan);
+    when(mockFactory.startRetrievalSpan("document-retrieval", "my-app", "session-1"))
+        .thenReturn(mockRetrievalSpan);
 
-    setStaticField("SPAN_FACTORY", spanFactory);
-    setStaticField("EVAL_PROCESSOR", evalProcessor);
+    setStaticField("SPAN_FACTORY", mockFactory);
+    setStaticField("EVAL_PROCESSOR", mockEvalProcessor);
 
     LLMObsSpan llmSpan =
         LLMObs.startLLMSpan("chat-completion", "gpt-4", "openai", "my-app", "session-1");
@@ -254,73 +259,21 @@ class LLMObsTest {
     LLMObsSpan retrievalSpan =
         LLMObs.startRetrievalSpan("document-retrieval", "my-app", "session-1");
 
-    Map<String, Object> scoreTags = new HashMap<String, Object>();
+    Map<String, Object> scoreTags = new HashMap<>();
     scoreTags.put("test", "value");
     LLMObs.SubmitEvaluation(llmSpan, "accuracy", 0.95, scoreTags);
 
-    Map<String, Object> categoricalTags = new HashMap<String, Object>();
+    Map<String, Object> categoricalTags = new HashMap<>();
     categoricalTags.put("reviewer", "human");
     LLMObs.SubmitEvaluation(agentSpan, "quality", "excellent", "eval-app", categoricalTags);
 
-    assertEquals(1, spanFactory.startLLMSpanCalls);
-    assertEquals("chat-completion", spanFactory.startLLMSpanName);
-    assertEquals("gpt-4", spanFactory.startLLMSpanModelName);
-    assertEquals("openai", spanFactory.startLLMSpanModelProvider);
-    assertEquals("my-app", spanFactory.startLLMSpanMlApp);
-    assertEquals("session-1", spanFactory.startLLMSpanSessionId);
-
-    assertEquals(1, spanFactory.startAgentSpanCalls);
-    assertEquals("agent-task", spanFactory.startAgentSpanName);
-    assertEquals("my-app", spanFactory.startAgentSpanMlApp);
-    assertEquals("session-1", spanFactory.startAgentSpanSessionId);
-
-    assertEquals(1, spanFactory.startToolSpanCalls);
-    assertEquals("weather-tool", spanFactory.startToolSpanName);
-    assertEquals("my-app", spanFactory.startToolSpanMlApp);
-    assertEquals("session-1", spanFactory.startToolSpanSessionId);
-
-    assertEquals(1, spanFactory.startTaskSpanCalls);
-    assertEquals("summarize-task", spanFactory.startTaskSpanName);
-    assertEquals("my-app", spanFactory.startTaskSpanMlApp);
-    assertEquals("session-1", spanFactory.startTaskSpanSessionId);
-
-    assertEquals(1, spanFactory.startWorkflowSpanCalls);
-    assertEquals("data-workflow", spanFactory.startWorkflowSpanName);
-    assertEquals("my-app", spanFactory.startWorkflowSpanMlApp);
-    assertEquals("session-1", spanFactory.startWorkflowSpanSessionId);
-
-    assertEquals(1, spanFactory.startEmbeddingSpanCalls);
-    assertEquals("text-embed", spanFactory.startEmbeddingSpanName);
-    assertEquals("my-app", spanFactory.startEmbeddingSpanMlApp);
-    assertEquals("openai", spanFactory.startEmbeddingSpanModelProvider);
-    assertEquals("text-embedding-ada-002", spanFactory.startEmbeddingSpanModelName);
-    assertEquals("session-1", spanFactory.startEmbeddingSpanSessionId);
-
-    assertEquals(1, spanFactory.startRetrievalSpanCalls);
-    assertEquals("document-retrieval", spanFactory.startRetrievalSpanName);
-    assertEquals("my-app", spanFactory.startRetrievalSpanMlApp);
-    assertEquals("session-1", spanFactory.startRetrievalSpanSessionId);
-
-    assertEquals(1, evalProcessor.submitScoreWithoutAppCalls);
-    assertSame(llmSpanResult, evalProcessor.submitScoreWithoutAppSpan);
-    assertEquals("accuracy", evalProcessor.submitScoreWithoutAppLabel);
-    assertEquals(0.95, evalProcessor.submitScoreWithoutAppValue, 0.0);
-    assertEquals(scoreTags, evalProcessor.submitScoreWithoutAppTags);
-
-    assertEquals(1, evalProcessor.submitCategoricalWithAppCalls);
-    assertSame(agentSpanResult, evalProcessor.submitCategoricalWithAppSpan);
-    assertEquals("quality", evalProcessor.submitCategoricalWithAppLabel);
-    assertEquals("excellent", evalProcessor.submitCategoricalWithAppValue);
-    assertEquals("eval-app", evalProcessor.submitCategoricalWithAppMlApp);
-    assertEquals(categoricalTags, evalProcessor.submitCategoricalWithAppTags);
-
-    assertSame(llmSpanResult, llmSpan);
-    assertSame(agentSpanResult, agentSpan);
-    assertSame(toolSpanResult, toolSpan);
-    assertSame(taskSpanResult, taskSpan);
-    assertSame(workflowSpanResult, workflowSpan);
-    assertSame(embeddingSpanResult, embeddingSpan);
-    assertSame(retrievalSpanResult, retrievalSpan);
+    assertSame(mockLLMSpan, llmSpan);
+    assertSame(mockAgentSpan, agentSpan);
+    assertSame(mockToolSpan, toolSpan);
+    assertSame(mockTaskSpan, taskSpan);
+    assertSame(mockWorkflowSpan, workflowSpan);
+    assertSame(mockEmbeddingSpan, embeddingSpan);
+    assertSame(mockRetrievalSpan, retrievalSpan);
 
     assertNotSame(NoOpLLMObsSpan.INSTANCE, llmSpan);
     assertNotSame(NoOpLLMObsSpan.INSTANCE, agentSpan);
@@ -329,36 +282,30 @@ class LLMObsTest {
     assertNotSame(NoOpLLMObsSpan.INSTANCE, workflowSpan);
     assertNotSame(NoOpLLMObsSpan.INSTANCE, embeddingSpan);
     assertNotSame(NoOpLLMObsSpan.INSTANCE, retrievalSpan);
+
+    verify(mockEvalProcessor).SubmitEvaluation(mockLLMSpan, "accuracy", 0.95, scoreTags);
+    verify(mockEvalProcessor)
+        .SubmitEvaluation(mockAgentSpan, "quality", "excellent", "eval-app", categoricalTags);
   }
 
   @Test
   void testSpanCreationWithNullParametersUsingCustomFactory() throws Exception {
-    TestSpan mockSpan = new TestSpan("shared");
-    RecordingSpanFactory spanFactory =
-        new RecordingSpanFactory(
-            mockSpan, mockSpan, mockSpan, mockSpan, mockSpan, mockSpan, mockSpan);
+    LLMObs.LLMObsSpanFactory mockFactory = mock(LLMObs.LLMObsSpanFactory.class);
+    LLMObsSpan mockSpan = mock(LLMObsSpan.class);
 
-    setStaticField("SPAN_FACTORY", spanFactory);
+    when(mockFactory.startLLMSpan("test-span", "gpt-4", "openai", null, null)).thenReturn(mockSpan);
+    when(mockFactory.startEmbeddingSpan("embed-span", null, null, null, null)).thenReturn(mockSpan);
+
+    setStaticField("SPAN_FACTORY", mockFactory);
 
     LLMObsSpan llmSpan = LLMObs.startLLMSpan("test-span", "gpt-4", "openai", null, null);
     LLMObsSpan embeddingSpan = LLMObs.startEmbeddingSpan("embed-span", null, null, null, null);
 
-    assertEquals(1, spanFactory.startLLMSpanCalls);
-    assertEquals("test-span", spanFactory.startLLMSpanName);
-    assertEquals("gpt-4", spanFactory.startLLMSpanModelName);
-    assertEquals("openai", spanFactory.startLLMSpanModelProvider);
-    assertNull(spanFactory.startLLMSpanMlApp);
-    assertNull(spanFactory.startLLMSpanSessionId);
-
-    assertEquals(1, spanFactory.startEmbeddingSpanCalls);
-    assertEquals("embed-span", spanFactory.startEmbeddingSpanName);
-    assertNull(spanFactory.startEmbeddingSpanMlApp);
-    assertNull(spanFactory.startEmbeddingSpanModelProvider);
-    assertNull(spanFactory.startEmbeddingSpanModelName);
-    assertNull(spanFactory.startEmbeddingSpanSessionId);
-
     assertSame(mockSpan, llmSpan);
     assertSame(mockSpan, embeddingSpan);
+
+    verify(mockFactory).startLLMSpan("test-span", "gpt-4", "openai", null, null);
+    verify(mockFactory).startEmbeddingSpan("embed-span", null, null, null, null);
   }
 
   private static void setStaticField(String fieldName, Object value) throws Exception {
@@ -371,267 +318,5 @@ class LLMObsTest {
     Field field = LLMObs.class.getDeclaredField(fieldName);
     field.setAccessible(true);
     return field.get(null);
-  }
-
-  private static class RecordingSpanFactory implements LLMObs.LLMObsSpanFactory {
-    private final LLMObsSpan llmSpan;
-    private final LLMObsSpan agentSpan;
-    private final LLMObsSpan toolSpan;
-    private final LLMObsSpan taskSpan;
-    private final LLMObsSpan workflowSpan;
-    private final LLMObsSpan embeddingSpan;
-    private final LLMObsSpan retrievalSpan;
-
-    private int startLLMSpanCalls;
-    private String startLLMSpanName;
-    private String startLLMSpanModelName;
-    private String startLLMSpanModelProvider;
-    private String startLLMSpanMlApp;
-    private String startLLMSpanSessionId;
-
-    private int startAgentSpanCalls;
-    private String startAgentSpanName;
-    private String startAgentSpanMlApp;
-    private String startAgentSpanSessionId;
-
-    private int startToolSpanCalls;
-    private String startToolSpanName;
-    private String startToolSpanMlApp;
-    private String startToolSpanSessionId;
-
-    private int startTaskSpanCalls;
-    private String startTaskSpanName;
-    private String startTaskSpanMlApp;
-    private String startTaskSpanSessionId;
-
-    private int startWorkflowSpanCalls;
-    private String startWorkflowSpanName;
-    private String startWorkflowSpanMlApp;
-    private String startWorkflowSpanSessionId;
-
-    private int startEmbeddingSpanCalls;
-    private String startEmbeddingSpanName;
-    private String startEmbeddingSpanMlApp;
-    private String startEmbeddingSpanModelProvider;
-    private String startEmbeddingSpanModelName;
-    private String startEmbeddingSpanSessionId;
-
-    private int startRetrievalSpanCalls;
-    private String startRetrievalSpanName;
-    private String startRetrievalSpanMlApp;
-    private String startRetrievalSpanSessionId;
-
-    private RecordingSpanFactory(
-        LLMObsSpan llmSpan,
-        LLMObsSpan agentSpan,
-        LLMObsSpan toolSpan,
-        LLMObsSpan taskSpan,
-        LLMObsSpan workflowSpan,
-        LLMObsSpan embeddingSpan,
-        LLMObsSpan retrievalSpan) {
-      this.llmSpan = llmSpan;
-      this.agentSpan = agentSpan;
-      this.toolSpan = toolSpan;
-      this.taskSpan = taskSpan;
-      this.workflowSpan = workflowSpan;
-      this.embeddingSpan = embeddingSpan;
-      this.retrievalSpan = retrievalSpan;
-    }
-
-    @Override
-    public LLMObsSpan startLLMSpan(
-        String spanName, String modelName, String modelProvider, String mlApp, String sessionId) {
-      startLLMSpanCalls++;
-      startLLMSpanName = spanName;
-      startLLMSpanModelName = modelName;
-      startLLMSpanModelProvider = modelProvider;
-      startLLMSpanMlApp = mlApp;
-      startLLMSpanSessionId = sessionId;
-      return llmSpan;
-    }
-
-    @Override
-    public LLMObsSpan startAgentSpan(String spanName, String mlApp, String sessionId) {
-      startAgentSpanCalls++;
-      startAgentSpanName = spanName;
-      startAgentSpanMlApp = mlApp;
-      startAgentSpanSessionId = sessionId;
-      return agentSpan;
-    }
-
-    @Override
-    public LLMObsSpan startToolSpan(String spanName, String mlApp, String sessionId) {
-      startToolSpanCalls++;
-      startToolSpanName = spanName;
-      startToolSpanMlApp = mlApp;
-      startToolSpanSessionId = sessionId;
-      return toolSpan;
-    }
-
-    @Override
-    public LLMObsSpan startTaskSpan(String spanName, String mlApp, String sessionId) {
-      startTaskSpanCalls++;
-      startTaskSpanName = spanName;
-      startTaskSpanMlApp = mlApp;
-      startTaskSpanSessionId = sessionId;
-      return taskSpan;
-    }
-
-    @Override
-    public LLMObsSpan startWorkflowSpan(String spanName, String mlApp, String sessionId) {
-      startWorkflowSpanCalls++;
-      startWorkflowSpanName = spanName;
-      startWorkflowSpanMlApp = mlApp;
-      startWorkflowSpanSessionId = sessionId;
-      return workflowSpan;
-    }
-
-    @Override
-    public LLMObsSpan startEmbeddingSpan(
-        String spanName, String mlApp, String modelProvider, String modelName, String sessionId) {
-      startEmbeddingSpanCalls++;
-      startEmbeddingSpanName = spanName;
-      startEmbeddingSpanMlApp = mlApp;
-      startEmbeddingSpanModelProvider = modelProvider;
-      startEmbeddingSpanModelName = modelName;
-      startEmbeddingSpanSessionId = sessionId;
-      return embeddingSpan;
-    }
-
-    @Override
-    public LLMObsSpan startRetrievalSpan(String spanName, String mlApp, String sessionId) {
-      startRetrievalSpanCalls++;
-      startRetrievalSpanName = spanName;
-      startRetrievalSpanMlApp = mlApp;
-      startRetrievalSpanSessionId = sessionId;
-      return retrievalSpan;
-    }
-  }
-
-  private static class RecordingEvalProcessor implements LLMObs.LLMObsEvalProcessor {
-    private int submitScoreWithoutAppCalls;
-    private LLMObsSpan submitScoreWithoutAppSpan;
-    private String submitScoreWithoutAppLabel;
-    private double submitScoreWithoutAppValue;
-    private Map<String, Object> submitScoreWithoutAppTags;
-
-    private int submitCategoricalWithAppCalls;
-    private LLMObsSpan submitCategoricalWithAppSpan;
-    private String submitCategoricalWithAppLabel;
-    private String submitCategoricalWithAppValue;
-    private String submitCategoricalWithAppMlApp;
-    private Map<String, Object> submitCategoricalWithAppTags;
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
-      submitScoreWithoutAppCalls++;
-      submitScoreWithoutAppSpan = llmObsSpan;
-      submitScoreWithoutAppLabel = label;
-      submitScoreWithoutAppValue = scoreValue;
-      submitScoreWithoutAppTags = tags;
-    }
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan,
-        String label,
-        double scoreValue,
-        String mlApp,
-        Map<String, Object> tags) {}
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {}
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan,
-        String label,
-        String categoricalValue,
-        String mlApp,
-        Map<String, Object> tags) {
-      submitCategoricalWithAppCalls++;
-      submitCategoricalWithAppSpan = llmObsSpan;
-      submitCategoricalWithAppLabel = label;
-      submitCategoricalWithAppValue = categoricalValue;
-      submitCategoricalWithAppMlApp = mlApp;
-      submitCategoricalWithAppTags = tags;
-    }
-  }
-
-  private static class TestSpan implements LLMObsSpan {
-    private final String name;
-
-    private TestSpan(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void annotateIO(
-        List<LLMObs.LLMMessage> inputMessages, List<LLMObs.LLMMessage> outputMessages) {}
-
-    @Override
-    public void annotateIO(String inputData, String outputData) {}
-
-    @Override
-    public void setMetadata(Map<String, Object> metadata) {}
-
-    @Override
-    public void setMetrics(Map<String, Number> metrics) {}
-
-    @Override
-    public void setMetric(CharSequence key, int value) {}
-
-    @Override
-    public void setMetric(CharSequence key, long value) {}
-
-    @Override
-    public void setMetric(CharSequence key, double value) {}
-
-    @Override
-    public void setTags(Map<String, Object> tags) {}
-
-    @Override
-    public void setTag(String key, String value) {}
-
-    @Override
-    public void setTag(String key, boolean value) {}
-
-    @Override
-    public void setTag(String key, int value) {}
-
-    @Override
-    public void setTag(String key, long value) {}
-
-    @Override
-    public void setTag(String key, double value) {}
-
-    @Override
-    public void setError(boolean error) {}
-
-    @Override
-    public void setErrorMessage(String errorMessage) {}
-
-    @Override
-    public void addThrowable(Throwable throwable) {}
-
-    @Override
-    public void finish() {}
-
-    @Override
-    public DDTraceId getTraceId() {
-      return DDTraceId.ZERO;
-    }
-
-    @Override
-    public long getSpanId() {
-      return 0;
-    }
-
-    @Override
-    public String toString() {
-      return "TestSpan{" + "name='" + name + '\'' + '}';
-    }
   }
 }
