@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.undertow;
 
-import static datadog.context.Context.root;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
@@ -120,7 +120,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       }
 
       Context parentContext = exchange.getAttachment(PARENT_CONTEXT_KEY);
-      if (parentContext == null) parentContext = root();
+      if (parentContext == null) parentContext = getRootContext();
       final Context context = DECORATE.startSpan(exchange, parentContext);
       scope = context.attach();
       final AgentSpan span = spanFromContext(context);
