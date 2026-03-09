@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import okhttp3.ResponseBody;
 
-/** OkHttp-based implementation of HttpResponse. */
+/** This class implements {@link HttpResponse} using OkHttp 3. */
 public final class OkHttpResponse implements HttpResponse {
   private final okhttp3.Response delegate;
 
@@ -15,58 +16,48 @@ public final class OkHttpResponse implements HttpResponse {
     this.delegate = delegate;
   }
 
-  /**
-   * Wraps an okhttp3.Response.
-   *
-   * @param okResponse the OkHttp Response to wrap
-   * @return wrapped HttpResponse
-   */
-  static HttpResponse wrap(okhttp3.Response okResponse) {
+  static @Nullable HttpResponse wrap(@Nullable okhttp3.Response okResponse) {
     if (okResponse == null) {
       return null;
     }
     return new OkHttpResponse(okResponse);
   }
 
-  /**
-   * Unwraps to get the underlying okhttp3.Response.
-   *
-   * @return the underlying okhttp3.Response
-   */
+  // TODO Remove if not used
   okhttp3.Response unwrap() {
-    return delegate;
+    return this.delegate;
   }
 
   @Override
   public int code() {
-    return delegate.code();
+    return this.delegate.code();
   }
 
   @Override
   public boolean isSuccessful() {
-    return delegate.isSuccessful();
+    return this.delegate.isSuccessful();
   }
 
   @Override
   public String header(String name) {
-    // OkHttp's header() returns the LAST value, but our API expects the FIRST
-    List<String> values = delegate.headers(name);
+    // OkHttp's header() returns the last value, but the HTTP API expects the first
+    List<String> values = this.delegate.headers(name);
     return values.isEmpty() ? null : values.get(0);
   }
 
   @Override
   public List<String> headers(String name) {
-    return delegate.headers(name);
+    return this.delegate.headers(name);
   }
 
   @Override
   public Set<String> headerNames() {
-    return delegate.headers().names();
+    return this.delegate.headers().names();
   }
 
   @Override
   public InputStream body() {
-    okhttp3.ResponseBody body = delegate.body();
+    okhttp3.ResponseBody body = this.delegate.body();
     if (body == null) {
       return null;
     }
@@ -75,13 +66,13 @@ public final class OkHttpResponse implements HttpResponse {
 
   @Override
   public String bodyAsString() throws IOException {
-    ResponseBody body = delegate.body();
+    ResponseBody body = this.delegate.body();
     return body == null ? "" : body.string();
   }
 
   @Override
   public void close() {
-    okhttp3.ResponseBody body = delegate.body();
+    okhttp3.ResponseBody body = this.delegate.body();
     if (body != null) {
       body.close();
     }

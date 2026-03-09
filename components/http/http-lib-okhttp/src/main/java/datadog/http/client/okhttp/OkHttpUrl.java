@@ -3,10 +3,10 @@ package datadog.http.client.okhttp;
 import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
-/** OkHttp-based implementation of HttpUrl that wraps okhttp3.HttpUrl. */
+/** This class implements {@link HttpUrl} using OkHttp 3. */
 public final class OkHttpUrl implements HttpUrl {
-
   private final okhttp3.HttpUrl delegate;
 
   private OkHttpUrl(okhttp3.HttpUrl delegate) {
@@ -19,14 +19,13 @@ public final class OkHttpUrl implements HttpUrl {
    * @param url the URL string to parse
    * @return the parsed HttpUrl
    * @throws IllegalArgumentException if the URL is malformed
-   * @throws NullPointerException if url is null
    */
   public static HttpUrl parse(String url) {
     okhttp3.HttpUrl parsed = okhttp3.HttpUrl.parse(url);
     if (parsed == null) {
       throw new IllegalArgumentException("Invalid URL: " + url);
     }
-    return wrap(parsed);
+    return new OkHttpUrl(parsed);
   }
 
   /**
@@ -36,16 +35,10 @@ public final class OkHttpUrl implements HttpUrl {
    * @return the HttpUrl related to the URI
    */
   public static HttpUrl from(URI uri) {
-    return wrap(okhttp3.HttpUrl.get(uri));
+    return parse(uri.toString());
   }
 
-  /**
-   * Wraps an okhttp3.HttpUrl.
-   *
-   * @param httpUrl the HttpUrl to wrap
-   * @return wrapped HttpUrl
-   */
-  static HttpUrl wrap(okhttp3.HttpUrl httpUrl) {
+  static @Nullable HttpUrl wrap(@Nullable okhttp3.HttpUrl httpUrl) {
     if (httpUrl == null) {
       return null;
     }
@@ -58,38 +51,38 @@ public final class OkHttpUrl implements HttpUrl {
    * @return the underlying okhttp3.HttpUrl
    */
   public okhttp3.HttpUrl unwrap() {
-    return delegate;
+    return this.delegate;
   }
 
   @Override
   public String url() {
-    return delegate.toString();
+    return this.delegate.toString();
   }
 
   @Override
   public String scheme() {
-    return delegate.scheme();
+    return this.delegate.scheme();
   }
 
   @Override
   public String host() {
-    return delegate.uri().getHost();
+    return this.delegate.uri().getHost();
   }
 
   @Override
   public int port() {
-    return delegate.port();
+    return this.delegate.port();
   }
 
   @Override
   public HttpUrl resolve(String path) {
-    okhttp3.HttpUrl resolved = delegate.resolve(path);
+    okhttp3.HttpUrl resolved = this.delegate.resolve(path);
     return wrap(resolved);
   }
 
   @Override
   public HttpUrl.Builder newBuilder() {
-    return new Builder(delegate.newBuilder());
+    return new Builder(this.delegate.newBuilder());
   }
 
   @Override
@@ -102,17 +95,16 @@ public final class OkHttpUrl implements HttpUrl {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     OkHttpUrl that = (OkHttpUrl) o;
-    return delegate.equals(that.delegate);
+    return this.delegate.equals(that.delegate);
   }
 
   @Override
   public int hashCode() {
-    return delegate.hashCode();
+    return this.delegate.hashCode();
   }
 
-  /** Builder for OkHttpUrl. */
+  /** This class implements {@link HttpUrl.Builder} using OkHttp 3. */
   public static final class Builder implements HttpUrl.Builder {
-
     private final okhttp3.HttpUrl.Builder delegate;
 
     Builder(okhttp3.HttpUrl.Builder delegate) {
@@ -149,7 +141,7 @@ public final class OkHttpUrl implements HttpUrl {
     }
 
     @Override
-    public HttpUrl.Builder addQueryParameter(String name, String value) {
+    public HttpUrl.Builder addQueryParameter(String name, @Nullable String value) {
       this.delegate.addQueryParameter(name, value);
       return this;
     }

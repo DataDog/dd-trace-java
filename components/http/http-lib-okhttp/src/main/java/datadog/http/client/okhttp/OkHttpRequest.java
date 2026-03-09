@@ -5,10 +5,10 @@ import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpUrl;
 import datadog.http.client.okhttp.OkHttpClient.OkHttpListener;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.List;
+import javax.annotation.Nullable;
 
-/** OkHttp-based implementation of HttpRequest. */
+/** This class implements {@link datadog.http.client.HttpRequest} using OkHttp 3. */
 public final class OkHttpRequest implements HttpRequest {
   private final okhttp3.Request delegate;
 
@@ -16,24 +16,13 @@ public final class OkHttpRequest implements HttpRequest {
     this.delegate = delegate;
   }
 
-  /**
-   * Wraps an okhttp3.Request.
-   *
-   * @param okRequest the OkHttp Request to wrap
-   * @return wrapped HttpRequest
-   */
-  static HttpRequest wrap(okhttp3.Request okRequest) {
+  static @Nullable HttpRequest wrap(@Nullable okhttp3.Request okRequest) {
     if (okRequest == null) {
       return null;
     }
     return new OkHttpRequest(okRequest);
   }
 
-  /**
-   * Unwraps to get the underlying okhttp3.Request.
-   *
-   * @return the underlying okhttp3.Request
-   */
   okhttp3.Request unwrap() {
     return this.delegate;
   }
@@ -63,7 +52,7 @@ public final class OkHttpRequest implements HttpRequest {
     return OkHttpRequestBody.wrap(this.delegate.body());
   }
 
-  /** Builder for OkHttpRequest. */
+  /** This class implements {@link HttpRequest.Builder} using OkHttp 3. */
   public static final class Builder implements HttpRequest.Builder {
     private final okhttp3.Request.Builder delegate;
 

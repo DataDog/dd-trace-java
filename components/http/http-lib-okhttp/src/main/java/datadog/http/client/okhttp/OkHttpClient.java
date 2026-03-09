@@ -6,7 +6,6 @@ import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestListener;
 import datadog.http.client.HttpResponse;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.Proxy;
@@ -15,6 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Credentials;
@@ -23,7 +23,9 @@ import okhttp3.EventListener;
 import okhttp3.Request;
 import okhttp3.Response;
 
-/** OkHttp-based implementation that wraps okhttp3.OkHttpClient. Compatible with Java 8+. */
+/**
+ * This class in an implementation of {@link HttpClient} based on OkHttp 3, compatible with Java 8+.
+ */
 public final class OkHttpClient implements HttpClient {
   private final okhttp3.OkHttpClient delegate;
 
@@ -34,13 +36,10 @@ public final class OkHttpClient implements HttpClient {
   @Override
   public HttpResponse execute(HttpRequest request) throws IOException {
     Objects.requireNonNull(request, "request");
-
     if (!(request instanceof OkHttpRequest)) {
       throw new IllegalArgumentException("HttpRequest must be OkHttpRequest implementation");
     }
-
     okhttp3.Request okRequest = ((OkHttpRequest) request).unwrap();
-
     okhttp3.Response okResponse = this.delegate.newCall(okRequest).execute();
     return OkHttpResponse.wrap(okResponse);
   }
@@ -48,33 +47,38 @@ public final class OkHttpClient implements HttpClient {
   @Override
   public CompletableFuture<HttpResponse> executeAsync(HttpRequest request) {
     Objects.requireNonNull(request, "request");
-
     if (!(request instanceof OkHttpRequest)) {
       throw new IllegalArgumentException("HttpRequest must be OkHttpRequest implementation");
     }
 
     okhttp3.Request okRequest = ((OkHttpRequest) request).unwrap();
     CompletableFuture<HttpResponse> future = new CompletableFuture<>();
-
     // Note: OkHttpListener (via EventListener) already handles HttpRequestListener callbacks
     this.delegate
         .newCall(okRequest)
         .enqueue(
             new Callback() {
               @Override
-              public void onResponse(@NonNull Call call, @NonNull Response response) {
+              public void onResponse(Call call, Response response) {
                 future.complete(OkHttpResponse.wrap(response));
               }
 
               @Override
-              public void onFailure(@NonNull Call call, @NonNull IOException e) {
+              public void onFailure(Call call, IOException e) {
                 future.completeExceptionally(e);
               }
             });
-
     return future;
   }
 
+  /**
+   * This class bridges OkHttp's {@link EventListener} with the {@link HttpRequestListener}
+   * interface.
+   *
+   * <p>The listener is attached to OkHttp requests as a tag and retrieved during call execution to
+   * track request start, completion, and failure events. Response headers are captured during the
+   * call lifecycle and provided to the listener upon successful completion.
+   */
   static class OkHttpListener extends EventListener {
     private final HttpRequestListener listener;
     private Response response;
@@ -84,7 +88,7 @@ public final class OkHttpClient implements HttpClient {
       return listener == null ? NONE : listener;
     }
 
-    static OkHttpListener wrap(HttpRequestListener listener) {
+    static @Nullable OkHttpListener wrap(@Nullable HttpRequestListener listener) {
       if (listener == null) {
         return null;
       }
@@ -102,7 +106,7 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public void responseHeadersEnd(@NonNull Call call, @NonNull Response response) {
+    public void responseHeadersEnd(Call call, Response response) {
       this.response = response;
     }
 
@@ -113,17 +117,15 @@ public final class OkHttpClient implements HttpClient {
     }
 
     @Override
-    public void callFailed(Call call, @NonNull IOException ioe) {
+    public void callFailed(Call call, IOException ioe) {
       Request request = call.request();
       this.listener.onRequestFailure(OkHttpRequest.wrap(request), ioe);
     }
   }
 
-  /** Builder for OkHttpClient. */
+  /** Builder for {@link OkHttpClient} instances. */
   public static final class Builder implements HttpClient.Builder {
-
     private final okhttp3.OkHttpClient.Builder delegate;
-    private HttpRequestListener eventListener;
 
     public Builder() {
       this.delegate = new okhttp3.OkHttpClient.Builder();
@@ -138,7 +140,7 @@ public final class OkHttpClient implements HttpClient {
       // as instrumentation tests are injecting an old OkHttp3 version
       // where such methods were not introduced
       long timeoutMillis = timeout.toMillis();
-      delegate
+      this.delegate
           .connectTimeout(timeoutMillis, MILLISECONDS)
           .readTimeout(timeoutMillis, MILLISECONDS)
           .writeTimeout(timeoutMillis, MILLISECONDS);
@@ -147,13 +149,13 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder proxy(Proxy proxy) {
-      delegate.proxy(proxy);
+      this.delegate.proxy(proxy);
       return this;
     }
 
     @Override
-    public HttpClient.Builder proxyAuthenticator(String username, String password) {
-      delegate.proxyAuthenticator(
+    public HttpClient.Builder proxyAuthenticator(String username, @Nullable String password) {
+      this.delegate.proxyAuthenticator(
           (route, response) -> {
             String credential = Credentials.basic(username, password == null ? "" : password);
             return response
@@ -194,7 +196,7 @@ public final class OkHttpClient implements HttpClient {
       // and note this limitation in documentation
       if (executor instanceof ExecutorService) {
         Dispatcher dispatcher = new Dispatcher((ExecutorService) executor);
-        delegate.dispatcher(dispatcher);
+        this.delegate.dispatcher(dispatcher);
       }
       // If not an ExecutorService, we can't configure it directly in OkHttp
       return this;
