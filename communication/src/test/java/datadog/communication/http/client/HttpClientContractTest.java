@@ -10,9 +10,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.ahc.ApacheAsyncHttpClientFactory;
-import datadog.communication.http.netty.NettyHttpClientBuilder;
-import datadog.communication.http.netty.NettyHttpClientFactory;
+import datadog.communication.http.client.ahc.ApacheAsyncHttpClientBuilder;
+import datadog.communication.http.client.netty.NettyHttpClientBuilder;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.Closeable;
 import java.io.IOException;
@@ -277,7 +276,7 @@ public class HttpClientContractTest {
 
     NioEventLoopGroup externalGroup = new NioEventLoopGroup(1);
     try (HttpClient ignored =
-        NettyHttpClientFactory.builder().eventLoopGroup(externalGroup, false).build()) {
+        new NettyHttpClientBuilder().eventLoopGroup(externalGroup, false).build()) {
       // no-op
     }
     assertFalse(externalGroup.isShuttingDown());
@@ -333,11 +332,11 @@ public class HttpClientContractTest {
       switch (implementationValue) {
         case NETTY:
           ((HttpClientContractTest) context.getRequiredTestInstance())
-              .useBuilder(NettyHttpClientFactory.builder());
+              .useBuilder(new NettyHttpClientBuilder());
           break;
         case AHC:
           ((HttpClientContractTest) context.getRequiredTestInstance())
-              .useBuilder(ApacheAsyncHttpClientFactory.builder());
+              .useBuilder(new ApacheAsyncHttpClientBuilder());
           break;
         default:
           throw new IllegalStateException("Unsupported implementation: " + implementationValue);

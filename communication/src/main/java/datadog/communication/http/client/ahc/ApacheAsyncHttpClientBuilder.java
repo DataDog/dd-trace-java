@@ -1,4 +1,4 @@
-package datadog.communication.http.ahc;
+package datadog.communication.http.client.ahc;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.client.HttpClient;

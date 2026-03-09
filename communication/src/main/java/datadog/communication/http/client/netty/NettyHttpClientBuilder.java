@@ -1,4 +1,4 @@
-package datadog.communication.http.netty;
+package datadog.communication.http.client.netty;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.client.HttpClient;

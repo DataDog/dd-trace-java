@@ -1,4 +1,4 @@
-package datadog.communication.http.netty;
+package datadog.communication.http.client.netty;
 
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
