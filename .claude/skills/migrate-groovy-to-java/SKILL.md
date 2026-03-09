@@ -21,3 +21,4 @@ When converting Groovy code to Java code, make sure that:
 - Do not wrap checked exceptions and throw a Runtime exception; prefer adding a throws clause at method declaration
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
+- When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
