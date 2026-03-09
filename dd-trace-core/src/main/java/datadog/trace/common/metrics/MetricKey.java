@@ -13,7 +13,7 @@ import java.util.Objects;
 public final class MetricKey {
   static final DDCache<String, UTF8BytesString> RESOURCE_CACHE = DDCaches.newFixedSizeCache(32);
   static final DDCache<String, UTF8BytesString> SERVICE_CACHE = DDCaches.newFixedSizeCache(8);
-  static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE = DDCaches.newFixedSizeCache(4);
+  static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE = DDCaches.newFixedSizeCache(16);
   static final DDCache<String, UTF8BytesString> OPERATION_CACHE = DDCaches.newFixedSizeCache(64);
   static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
   static final DDCache<String, UTF8BytesString> KIND_CACHE = DDCaches.newFixedSizeCache(8);
@@ -57,8 +57,8 @@ public final class MetricKey {
     this.isTraceRoot = isTraceRoot;
     this.spanKind = utf8(KIND_CACHE, spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
-    this.httpMethod = utf8(HTTP_METHOD_CACHE, httpMethod);
-    this.httpEndpoint = utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
+    this.httpMethod = httpMethod == null ? null : utf8(HTTP_METHOD_CACHE, httpMethod);
+    this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
     
     int tmpHash = 0;
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
