@@ -7,6 +7,9 @@ muzzle {
     module = "kafka-schema-registry-client"
     versions = "[4.1.0,)"
     excludeDependency "org.codehaus.jackson:jackson-mapper-asl" // missing on some releases
+
+    excludeDependency "org.eclipse.jetty:jetty-bom" // broken upstream POM references missing 9.4.59
+
     assertInverse = true
   }
 }
