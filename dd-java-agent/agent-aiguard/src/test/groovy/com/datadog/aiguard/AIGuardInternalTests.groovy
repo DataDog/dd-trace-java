@@ -344,6 +344,57 @@ class AIGuardInternalTests extends DDSpecification {
     messages << [[], null]
   }
 
+  void 'test evaluate with sds findings'() {
+    given:
+    final sdsFindings = [
+      [
+        rule_display_name: 'Credit Card Number',
+        rule_tag: 'credit_card',
+        category: 'pii',
+        matched_text: '4111111111111111',
+        location: [start_index: 10, end_index_exclusive: 26, path: 'messages[0].content[0].text']
+      ],
+      [
+        rule_display_name: 'Social Security Number',
+        rule_tag: 'ssn',
+        category: 'pii',
+        matched_text: '123-45-6789',
+        location: [start_index: 30, end_index_exclusive: 41, path: 'messages[1].tool_calls[0].function.arguments']
+      ]
+    ]
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine', sds_findings: sdsFindings]]])
+    Map<String, Object> receivedMeta
+
+    when:
+    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
+    receivedMeta.sds == sdsFindings
+  }
+
+  void 'test evaluate with empty sds findings'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine', sds_findings: sdsFindings]]])
+    Map<String, Object> receivedMeta
+
+    when:
+    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
+    !receivedMeta.containsKey('sds')
+
+    where:
+    sdsFindings << [null, []]
+  }
+
   void 'test missing tool name'() {
     given:
     final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Just do it']]])
