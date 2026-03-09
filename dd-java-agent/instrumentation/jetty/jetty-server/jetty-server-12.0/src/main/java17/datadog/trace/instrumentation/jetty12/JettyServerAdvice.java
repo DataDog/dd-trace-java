@@ -21,24 +21,14 @@ public class JettyServerAdvice {
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final HttpChannelState channel,
-        @Advice.Local("parentScope") ContextScope parentScope) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.This final HttpChannelState channel) {
       Request req = channel.getRequest();
       if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
         return; // re-entry: HandleAdvice will attach existing context
       }
       Context parentContext = DECORATE.extract(req);
       req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      parentScope = parentContext.attach();
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) {
-        parentScope.close();
-      }
     }
   }
 

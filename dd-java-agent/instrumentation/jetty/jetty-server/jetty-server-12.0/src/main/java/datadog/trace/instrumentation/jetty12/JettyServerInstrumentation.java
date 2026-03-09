@@ -48,8 +48,9 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         named("onRequest").and(takesArguments(1)),
-        packageName + ".JettyServerAdvice$ContextTrackingAdvice",
-        packageName + ".JettyServerAdvice$HandleAdvice");
+        packageName + ".JettyServerAdvice$HandleAdvice",
+        // note this is last while it should be first because this instrumentation advices on exit
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice");
     transformer.applyAdvice(
         named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }
