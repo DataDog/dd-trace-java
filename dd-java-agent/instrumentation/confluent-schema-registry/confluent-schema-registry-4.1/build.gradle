@@ -7,6 +7,13 @@ muzzle {
     module = "kafka-schema-registry-client"
     versions = "[4.1.0,)"
     excludeDependency "org.codehaus.jackson:jackson-mapper-asl" // missing on some releases
+
+    // https://packages.confluent.io/maven/io/confluent/common-parent/7.5.13/common-parent-7.5.13.pom (and several others)
+    // ship a broken jetty.version=9.4.59 property, referencing a Jetty BOM that does not exist.
+    // Substitute with the closest real release.
+    // Remove once Confluent publishes a fixed common-parent POM.
+    substituteVersion "org.eclipse.jetty:jetty-bom:9.4.59", "org.eclipse.jetty:jetty-bom:9.4.58.v20250814"
+
     assertInverse = true
   }
 }
@@ -27,4 +34,3 @@ dependencies {
 
   latestDepTestImplementation group: 'io.confluent', name: 'kafka-avro-serializer', version: '+'
 }
-

@@ -58,6 +58,8 @@ Declare necessary dependencies under `compileOnly` configuration so they do not 
 Muzzle directives are applied at build time from the `build.gradle` file.
 OpenTelemetry provides some [Muzzle documentation](https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/main/docs/contributing/muzzle.md).
 Muzzle directives check for a range of framework versions that are safe to load the instrumentation.
+Directives can also add repositories, append dependencies, exclude transitive dependencies, and substitute resolved
+dependency coordinates for others when upstream metadata is wrong. Multiple substitutions can be declared per directive.
 
 See this excerpt as an example from [rediscala](../dd-java-agent/instrumentation/rediscala-1.8/build.gradle):
 
@@ -75,6 +77,14 @@ muzzle {
     module = "rediscala_2.12"
     versions = "[1.8.0,)"
     assertInverse = true
+  }
+
+  pass {
+    group = "org.example"
+    module = "demo"
+    versions = "[2.0,)"
+    substituteVersion "org.example:demo-helper:2.0", "org.example:demo-helper:1.9"
+    substituteVersion "org.example:demo-utils:3.1", "org.example:demo-utils:3.0"
   }
 }
 ```

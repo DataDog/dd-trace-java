@@ -23,6 +23,7 @@ open class MuzzleDirective : Serializable {
   var additionalDependencies: MutableList<String> = ArrayList()
   internal var additionalRepositories: MutableList<Triple<String, String, String>> = ArrayList()
   internal var excludedDependencies: MutableList<String> = ArrayList()
+  internal var versionSubstitutions: MutableList<VersionSubstitution> = ArrayList()
   var assertPass: Boolean = false
   var assertInverse: Boolean = false
   var skipFromReport: Boolean = false
@@ -62,6 +63,16 @@ open class MuzzleDirective : Serializable {
    */
   fun excludeDependency(excludeString: String) {
     excludedDependencies.add(excludeString)
+  }
+
+  /**
+   * Replaces an exact dependency coordinate during muzzle Gradle resolution.
+   *
+   * Both parameters must be in `group:module:version` form.
+   * May be called multiple times to register multiple substitutions.
+   */
+  fun substituteVersion(requested: String, target: String) {
+    versionSubstitutions.add(VersionSubstitution.parse(requested, target))
   }
 
   /**
