@@ -37,6 +37,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".JettyDecorator",
       packageName + ".RequestURIDataAdapter",
       packageName + ".JettyServerAdvice",
+      packageName + ".JettyServerAdvice$ContextTrackingAdvice",
       packageName + ".JettyServerAdvice$HandleAdvice",
       packageName + ".JettyServerAdvice$ResetAdvice",
       packageName + ".JettyRunnableWrapper"
@@ -45,8 +46,10 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("onRequest").and(takesArguments(1)), packageName + ".JettyServerAdvice$HandleAdvice");
+    transformer.applyAdvices(
+        named("onRequest").and(takesArguments(1)),
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice",
+        packageName + ".JettyServerAdvice$HandleAdvice");
     transformer.applyAdvice(
         named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }

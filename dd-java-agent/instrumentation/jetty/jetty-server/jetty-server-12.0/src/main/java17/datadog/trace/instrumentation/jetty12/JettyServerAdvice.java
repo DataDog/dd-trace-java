@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.jetty12;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty12.JettyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -13,6 +17,31 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.internal.HttpChannelState;
 
 public class JettyServerAdvice {
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.This final HttpChannelState channel,
+        @Advice.Local("parentScope") ContextScope parentScope) {
+      Request req = channel.getRequest();
+      if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+        return; // re-entry: HandleAdvice will attach existing context
+      }
+      Context parentContext = DECORATE.extract(req);
+      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+      if (parentScope != null) {
+        parentScope.close();
+      }
+    }
+  }
+
   public static class HandleAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
@@ -28,7 +57,9 @@ public class JettyServerAdvice {
         }
       }
 
-      final Context parentContext = DECORATE.extract(req);
+      final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      final Context parentContext =
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
       final Context context = DECORATE.startSpan(req, parentContext);
       try (final ContextScope ignored = context.attach()) {
         final AgentSpan span = fromContext(context);
