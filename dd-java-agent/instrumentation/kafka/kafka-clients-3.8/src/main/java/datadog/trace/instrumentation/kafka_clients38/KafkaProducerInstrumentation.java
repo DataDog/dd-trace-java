@@ -45,6 +45,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.Utils",
       packageName + ".AvroSchemaExtractor",
+      packageName + ".ProducerContextPropagationAdvice",
     };
   }
 
@@ -55,13 +56,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(isPublic())
             .and(named("send"))
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
-        packageName + ".ProducerAdvice");
+        packageName + ".ProducerAdvice",
+        packageName + ".ProducerContextPropagationAdvice");
 
     transformer.applyAdvice(
         isMethod()
