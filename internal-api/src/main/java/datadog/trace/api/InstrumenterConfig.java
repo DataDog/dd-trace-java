@@ -809,7 +809,7 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
-        + ", messagingContextSwapEnabled="
+        + ", legacyContextManagerEnabled="
         + legacyContextManagerEnabled
         + '}';
   }
