@@ -62,42 +62,14 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
       return;
     }
 
-    // Extract HTTP tags
-    Object httpMethodObj = unsafeTags.get(HTTP_METHOD);
-    Object httpRouteObj = unsafeTags.get(HTTP_ROUTE);
-    Object httpUrlObj = unsafeTags.get(HTTP_URL);
-
-    log.debug(
-        "Processing tags for span {}: httpMethod={}, httpRoute={}, httpUrl={}",
-        spanContext.getSpanId(),
-        httpMethodObj,
-        httpRouteObj,
-        httpUrlObj);
-
-    if (httpMethodObj == null) {
-      // Not an HTTP span, skip processing
-      log.debug("No HTTP method found, skipping HTTP endpoint post processing");
+    if (unsafeTags.getObject(HTTP_METHOD) == null) {
       return;
     }
 
     try {
-      String httpMethod = httpMethodObj.toString();
-      String httpRoute = httpRouteObj != null ? httpRouteObj.toString() : null;
-      String httpUrl = httpUrlObj != null ? httpUrlObj.toString() : null;
-
-      // Resolve endpoint using EndpointResolver
-      // Pass unsafeTags directly - it's safe to use at this point since span is finished
-      String endpoint = endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
-
-      if (endpoint != null) {
-        log.debug(
-            "Resolved endpoint '{}' for span {} (method={}, route={}, url={})",
-            endpoint,
-            spanContext.getSpanId(),
-            httpMethod,
-            httpRoute,
-            httpUrl);
-      }
+      String httpRoute = unsafeTags.getString(HTTP_ROUTE);
+      String httpUrl = unsafeTags.getString(HTTP_URL);
+      endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
     } catch (Throwable t) {
       log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
     }
