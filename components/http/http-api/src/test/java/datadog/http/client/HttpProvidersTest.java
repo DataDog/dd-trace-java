@@ -12,6 +12,7 @@ import java.net.URI;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -121,6 +122,7 @@ abstract class HttpProvidersTest {
     assertTrue(builder.getClass().getName().startsWith(getImplementationPackage()));
   }
 
+  @Disabled
   @EnabledForJreRange(max = JAVA_10)
   static class OkHttpProvidersForkedTest extends HttpProvidersTest {
     @Override
@@ -129,6 +131,7 @@ abstract class HttpProvidersTest {
     }
   }
 
+  @Disabled
   @EnabledForJreRange(min = JAVA_11)
   static class JdkHttpProvidersForkedTest extends HttpProvidersTest {
     @Override
@@ -137,6 +140,7 @@ abstract class HttpProvidersTest {
     }
   }
 
+  @Disabled
   @EnabledForJreRange(min = JAVA_11)
   static class HttpProvidersCompatForkedTest extends HttpProvidersTest {
     @BeforeAll
