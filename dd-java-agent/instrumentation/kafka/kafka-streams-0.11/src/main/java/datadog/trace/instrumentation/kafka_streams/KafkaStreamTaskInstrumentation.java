@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.kafka_streams;
 
+import static datadog.context.Context.root;
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
@@ -29,17 +31,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import java.util.Map;
@@ -115,7 +118,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         KafkaStreamTaskInstrumentation.class.getName() + "$UnwrapIterableAdvice");
 
     // Before 2.7
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("updateProcessorContext"))
             .and(
@@ -124,9 +127,10 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
             .and(
                 takesArgument(
                     1, named("org.apache.kafka.streams.processor.internals.ProcessorNode"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$ContextPropagationAdvice",
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice");
     // After 2.7
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("updateProcessorContext"))
             .and(
@@ -136,6 +140,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
                 takesArgument(
                     2,
                     named("org.apache.kafka.streams.processor.internals.ProcessorRecordContext"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$ContextPropagationAdvice27",
         KafkaStreamTaskInstrumentation.class.getName() + "$StartSpanAdvice27");
 
     transformer.applyAdvice(
@@ -216,6 +221,48 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     }
   }
 
+  /** Context propagation for updateProcessorContext before 2.7 (StampedRecord). */
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(0) final StampedRecord record,
+        @Advice.Local("ctxScope") ContextScope scope) {
+      if (record == null || record.partition() == -1 || record.offset() == -1) {
+        return;
+      }
+      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        scope = defaultPropagator().extract(root(), record, SR_GETTER).attach();
+      }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
+      if (scope != null) scope.close();
+    }
+  }
+
+  /** Context propagation for updateProcessorContext after 2.7 (ProcessorRecordContext). */
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice27 {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(2) final ProcessorRecordContext record,
+        @Advice.Local("ctxScope") ContextScope scope) {
+      if (record == null || record.partition() == -1 || record.offset() == -1) {
+        return;
+      }
+      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
+        scope = defaultPropagator().extract(root(), record, PR_GETTER).attach();
+      }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
+      if (scope != null) scope.close();
+    }
+  }
+
   /** Very similar to StartSpanAdvice27, but with a different argument type for record. */
   public static class StartSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -231,44 +278,37 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext =
-            extractContextAndGetSpanContext(record, SR_GETTER);
-        long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-          span = startSpan(KAFKA_CONSUME, extractedContext);
-        } else {
-          queueSpan =
-              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
-          BROKER_DECORATE.afterStart(queueSpan);
-          BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-          span = startSpan(KAFKA_CONSUME, queueSpan.context());
-          BROKER_DECORATE.beforeFinish(queueSpan);
-          // The queueSpan will be finished after inner span has been activated to ensure that
-          // spans are written out together by TraceStructureWriter when running in strict mode
-        }
-
-        String applicationId = null;
-        if (streamTaskContext != null) {
-          applicationId = streamTaskContext.getApplicationId();
-        }
-        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
-
-        final long payloadSize =
-            traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
-        } else {
-          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-            Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
-            dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
-          }
-        }
+      long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
+      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+        span = startSpan(KAFKA_CONSUME);
       } else {
-        span = startSpan(KAFKA_CONSUME, null);
+        queueSpan = startSpan(KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        BROKER_DECORATE.afterStart(queueSpan);
+        BROKER_DECORATE.onTimeInQueue(queueSpan, record);
+        span = startSpan(KAFKA_CONSUME, queueSpan.context());
+        BROKER_DECORATE.beforeFinish(queueSpan);
+        // The queueSpan will be finished after inner span has been activated to ensure that
+        // spans are written out together by TraceStructureWriter when running in strict mode
+      }
+
+      String applicationId = null;
+      if (streamTaskContext != null) {
+        applicationId = streamTaskContext.getApplicationId();
+      }
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+
+      final long payloadSize =
+          traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
+      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
+      } else {
+        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+          DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
+          dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
+        }
       }
 
       CONSUMER_DECORATE.afterStart(span);
@@ -302,50 +342,43 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span, queueSpan = null;
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
-      if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        final AgentSpanContext extractedContext =
-            extractContextAndGetSpanContext(record, PR_GETTER);
-        long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
-        if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-          span = startSpan(KAFKA_CONSUME, extractedContext);
-        } else {
-          queueSpan =
-              startSpan(KAFKA_DELIVER, extractedContext, MILLISECONDS.toMicros(timeInQueueStart));
-          BROKER_DECORATE.afterStart(queueSpan);
-          BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-          span = startSpan(KAFKA_CONSUME, queueSpan.context());
-          BROKER_DECORATE.beforeFinish(queueSpan);
-          // The queueSpan will be finished after inner span has been activated to ensure that
-          // spans are written out together by TraceStructureWriter when running in strict mode
-        }
-
-        String applicationId = null;
-        if (streamTaskContext != null) {
-          applicationId = streamTaskContext.getApplicationId();
-        }
-        DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
-
-        long payloadSize = 0;
-        // we have to go through Object to get the RecordMetadata here because the class of `record`
-        // only implements it after 2.7 (and this class is only used if v >= 2.7)
-        if ((Object) record instanceof RecordMetadata) { // should always be true
-          RecordMetadata metadata = (RecordMetadata) (Object) record;
-          payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
-        }
-
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
-        } else {
-          if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-            Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-            DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
-            dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
-          }
-        }
+      long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
+      if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+        span = startSpan(KAFKA_CONSUME);
       } else {
-        span = startSpan(KAFKA_CONSUME, null);
+        queueSpan = startSpan(KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        BROKER_DECORATE.afterStart(queueSpan);
+        BROKER_DECORATE.onTimeInQueue(queueSpan, record);
+        span = startSpan(KAFKA_CONSUME, queueSpan.context());
+        BROKER_DECORATE.beforeFinish(queueSpan);
+        // The queueSpan will be finished after inner span has been activated to ensure that
+        // spans are written out together by TraceStructureWriter when running in strict mode
+      }
+
+      String applicationId = null;
+      if (streamTaskContext != null) {
+        applicationId = streamTaskContext.getApplicationId();
+      }
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+
+      long payloadSize = 0;
+      // we have to go through Object to get the RecordMetadata here because the class of `record`
+      // only implements it after 2.7 (and this class is only used if v >= 2.7)
+      if ((Object) record instanceof RecordMetadata) { // should always be true
+        RecordMetadata metadata = (RecordMetadata) (Object) record;
+        payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
+      }
+
+      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
+      } else {
+        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
+          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+          DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
+          dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
+        }
       }
 
       CONSUMER_DECORATE.afterStart(span);
