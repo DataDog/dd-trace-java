@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 /**
  * Common builder contract for facade HTTP clients, independent from the underlying implementation.
  */
-public interface HttpClientFacadeBuilder<B extends HttpClientFacadeBuilder<B>> {
+public interface HttpClientBuilder<B extends HttpClientBuilder<B>> {
 
   B transport(HttpTransport transport);
 
@@ -25,5 +25,5 @@ public interface HttpClientFacadeBuilder<B extends HttpClientFacadeBuilder<B>> {
 
   B retryPolicyFactory(HttpRetryPolicy.Factory retryPolicyFactory);
 
-  HttpClientFacade build();
+  HttpClient build();
 }

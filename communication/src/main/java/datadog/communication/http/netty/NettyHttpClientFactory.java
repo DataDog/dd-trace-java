@@ -1,6 +1,6 @@
 package datadog.communication.http.netty;
 
-import datadog.communication.http.client.HttpClientFacade;
+import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpClientFactory;
 
 /** Factory entry-point for Netty-backed clients. */
@@ -20,7 +20,7 @@ public final class NettyHttpClientFactory implements HttpClientFactory {
   }
 
   @Override
-  public HttpClientFacade create() {
+  public HttpClient create() {
     return builder.build();
   }
 }

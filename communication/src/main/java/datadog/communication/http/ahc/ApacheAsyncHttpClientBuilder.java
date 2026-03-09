@@ -1,15 +1,15 @@
 package datadog.communication.http.ahc;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.client.HttpClientFacade;
-import datadog.communication.http.client.HttpClientFacadeBuilder;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpClientBuilder;
 import datadog.communication.http.client.HttpTransport;
 import javax.annotation.Nullable;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 
 /** Builder used to configure and create {@link ApacheAsyncHttpClient}. */
 public final class ApacheAsyncHttpClientBuilder
-    implements HttpClientFacadeBuilder<ApacheAsyncHttpClientBuilder> {
+    implements HttpClientBuilder<ApacheAsyncHttpClientBuilder> {
   private HttpTransport transport = HttpTransport.TCP;
   private long connectTimeoutMillis = 10_000;
   private long requestTimeoutMillis = 10_000;
@@ -100,7 +100,7 @@ public final class ApacheAsyncHttpClientBuilder
   }
 
   @Override
-  public HttpClientFacade build() {
+  public HttpClient build() {
     validate();
     return new ApacheAsyncHttpClient(
         transport,

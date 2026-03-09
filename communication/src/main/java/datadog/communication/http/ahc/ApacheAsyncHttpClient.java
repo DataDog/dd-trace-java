@@ -1,7 +1,7 @@
 package datadog.communication.http.ahc;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.client.HttpClientFacade;
+import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpClientRequest;
 import datadog.communication.http.client.HttpClientResponse;
 import datadog.communication.http.client.HttpTransport;
@@ -32,7 +32,7 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.util.Timeout;
 
-final class ApacheAsyncHttpClient implements HttpClientFacade {
+final class ApacheAsyncHttpClient implements HttpClient {
   private final long requestTimeoutMillis;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
   private final CloseableHttpAsyncClient client;

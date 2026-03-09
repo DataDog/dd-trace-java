@@ -3,7 +3,7 @@ package datadog.communication.http.netty;
 import datadog.common.socket.NamedPipeSocketFactory;
 import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.client.HttpClientFacade;
+import datadog.communication.http.client.HttpClient;
 import datadog.communication.http.client.HttpClientRequest;
 import datadog.communication.http.client.HttpClientResponse;
 import datadog.communication.http.client.HttpTransport;
@@ -57,7 +57,7 @@ import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import javax.net.SocketFactory;
 
-final class NettyHttpClient implements HttpClientFacade {
+final class NettyHttpClient implements HttpClient {
   private final HttpTransport transport;
   private final long connectTimeoutMillis;
   private final long readTimeoutMillis;

@@ -1,8 +1,8 @@
 package datadog.communication.http.netty;
 
 import datadog.communication.http.HttpRetryPolicy;
-import datadog.communication.http.client.HttpClientFacade;
-import datadog.communication.http.client.HttpClientFacadeBuilder;
+import datadog.communication.http.client.HttpClient;
+import datadog.communication.http.client.HttpClientBuilder;
 import datadog.communication.http.client.HttpTransport;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 /** Builder used to configure and create {@link NettyHttpClient}. */
 public final class NettyHttpClientBuilder
-    implements HttpClientFacadeBuilder<NettyHttpClientBuilder> {
+    implements HttpClientBuilder<NettyHttpClientBuilder> {
   private HttpTransport transport = HttpTransport.TCP;
   private String unixDomainSocketPath;
   private String namedPipe;
@@ -117,7 +117,7 @@ public final class NettyHttpClientBuilder
   }
 
   @Override
-  public HttpClientFacade build() {
+  public HttpClient build() {
     validate();
 
     ThreadFactory threadFactory = new DefaultThreadFactory(threadNamePrefix, daemonThreads);
