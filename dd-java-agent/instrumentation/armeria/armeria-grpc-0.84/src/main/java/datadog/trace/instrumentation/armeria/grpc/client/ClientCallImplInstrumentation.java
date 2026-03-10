@@ -126,9 +126,8 @@ public final class ClientCallImplInstrumentation
   @AppliesOn(CONTEXT_TRACKING)
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(
-        @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Metadata headers) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+    public static void before(@Advice.Argument(1) Metadata headers) {
+      AgentSpan span = activeSpan();
       if (span == null) {
         return;
       }
