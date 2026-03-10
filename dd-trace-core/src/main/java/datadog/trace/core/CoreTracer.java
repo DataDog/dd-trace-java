@@ -35,6 +35,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -1139,11 +1140,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void closePrevious(boolean finishSpan) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "closePrevious must not be called when context swap based logic is enabled");
+    }
     scopeManager.closePrevious(finishSpan);
   }
 
   @Override
   public AgentScope activateNext(AgentSpan span) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "activateNext must not be called when context swap based logic is enabled");
+    }
     return scopeManager.activateNext(span);
   }
 
