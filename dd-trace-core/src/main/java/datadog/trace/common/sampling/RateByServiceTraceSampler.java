@@ -4,13 +4,14 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
-import java.util.function.LongSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +29,18 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   private static final double MAX_RATE_INCREASE_FACTOR = 2.0;
   static final long RAMP_UP_INTERVAL_NANOS = 1_000_000_000L;
 
+  private final TimeSource timeSource;
+
   private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
   private long lastCappedNanos;
-  LongSupplier nanoTimeSupplier = System::nanoTime;
+
+  public RateByServiceTraceSampler() {
+    this(SystemTimeSource.INSTANCE);
+  }
+
+  RateByServiceTraceSampler(TimeSource timeSource) {
+    this.timeSource = timeSource;
+  }
 
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
@@ -87,7 +97,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
 
     final RateSamplersByEnvAndService currentSnapshot = serviceRates;
-    final long now = nanoTimeSupplier.getAsLong();
+    final long now = timeSource.getNanoTicks();
     final boolean canIncrease =
         lastCappedNanos == 0 || (now - lastCappedNanos) >= RAMP_UP_INTERVAL_NANOS;
     boolean anyCapped = false;
@@ -105,11 +115,13 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
       if (envAndService.isFallback()) {
         double oldRate = currentSnapshot.getFallbackSampler().getSampleRate();
-        if (canIncrease && shouldCap(oldRate, rate)) {
-          rate = cappedRate(oldRate);
-          anyCapped = true;
-        } else if (!canIncrease && shouldCap(oldRate, rate)) {
-          rate = oldRate;
+        if (shouldCap(oldRate, rate)) {
+          if (canIncrease) {
+            rate = cappedRate(oldRate);
+            anyCapped = true;
+          } else {
+            rate = oldRate;
+          }
         }
         fallbackSampler = RateByServiceTraceSampler.createRateSampler(rate);
       } else {
@@ -117,11 +129,13 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
             currentSnapshot
                 .getSampler(envAndService.lowerEnv, envAndService.lowerService)
                 .getSampleRate();
-        if (canIncrease && shouldCap(oldRate, rate)) {
-          rate = cappedRate(oldRate);
-          anyCapped = true;
-        } else if (!canIncrease && shouldCap(oldRate, rate)) {
-          rate = oldRate;
+        if (shouldCap(oldRate, rate)) {
+          if (canIncrease) {
+            rate = cappedRate(oldRate);
+            anyCapped = true;
+          } else {
+            rate = oldRate;
+          }
         }
         final double effectiveRate = rate;
         Map<String, RateSampler> serviceRates =

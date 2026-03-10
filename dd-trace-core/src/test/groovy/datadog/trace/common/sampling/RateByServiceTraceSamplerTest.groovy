@@ -2,6 +2,7 @@ package datadog.trace.common.sampling
 
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.time.ControllableTimeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -251,9 +252,9 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
   def "ramp-up caps rate increases at 2x per interval"() {
     setup:
-    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
-    long currentTime = 1_000_000_000L
-    serviceSampler.nanoTimeSupplier = { -> currentTime }
+    def time = new ControllableTimeSource()
+    time.set(1_000_000_000L)
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time)
     def tolerance = 0.01
 
     // Set initial rate to 0.1
@@ -264,7 +265,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.1) < tolerance
 
     when: "agent restart sends rate 1.0, first interval"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     response = '{"rate_by_service": {"service:foo,env:bar":1.0, "service:,env:":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
@@ -273,7 +274,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getFallbackSampler().sampleRate - 0.2) < tolerance
 
     when: "second interval"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate doubles to 0.4"
@@ -281,7 +282,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getFallbackSampler().sampleRate - 0.4) < tolerance
 
     when: "third interval"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate doubles to 0.8"
@@ -289,7 +290,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getFallbackSampler().sampleRate - 0.8) < tolerance
 
     when: "fourth interval"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate reaches target 1.0 (2x=1.6 > 1.0)"
@@ -299,9 +300,9 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
   def "ramp-down applies immediately"() {
     setup:
-    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
-    long currentTime = 1_000_000_000L
-    serviceSampler.nanoTimeSupplier = { -> currentTime }
+    def time = new ControllableTimeSource()
+    time.set(1_000_000_000L)
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time)
     def tolerance = 0.01
 
     // Set initial rate to 0.8
@@ -319,9 +320,9 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
   def "rate increase blocked during cooldown"() {
     setup:
-    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
-    long currentTime = 1_000_000_000L
-    serviceSampler.nanoTimeSupplier = { -> currentTime }
+    def time = new ControllableTimeSource()
+    time.set(1_000_000_000L)
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time)
     def tolerance = 0.01
 
     // Set initial rate to 0.1
@@ -329,7 +330,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     when: "rate jumps, first capped increase"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     response = '{"rate_by_service": {"service:foo,env:bar":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
@@ -343,7 +344,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.2) < tolerance
 
     when: "after cooldown elapsed"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate doubles to 0.4"
@@ -352,9 +353,9 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
 
   def "cooldown not reset by blocked increase"() {
     setup:
-    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler()
-    long currentTime = 1_000_000_000L
-    serviceSampler.nanoTimeSupplier = { -> currentTime }
+    def time = new ControllableTimeSource()
+    time.set(1_000_000_000L)
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time)
     def tolerance = 0.01
 
     // Set initial low rate
@@ -365,7 +366,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.01) < tolerance
 
     when: "wait for cooldown, apply increase: 0.01 -> 0.02"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS
+    time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS)
     response = '{"rate_by_service": {"service:foo,env:bar":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
@@ -373,14 +374,14 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.02) < tolerance
 
     when: "before cooldown elapses, send another increase - rate should be held and lastCapped NOT reset"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2
+    time.advance((long) (RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2))
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate stays at 0.02 (cooldown)"
     Math.abs(serviceSampler.serviceRates.getSampler("bar", "foo").sampleRate - 0.02) < tolerance
 
     when: "wait remaining half of cooldown from the original cap - should allow next ramp-up"
-    currentTime += RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2
+    time.advance((long) (RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2))
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     then: "rate doubles to 0.04 because lastCapped was NOT reset by the blocked increase"
