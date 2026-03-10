@@ -91,6 +91,17 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
+  /**
+   * Runs tag/baggage processing with optional serialization of span links into legacy {@code
+   * _dd.span_links} string tag.
+   *
+   * <p>Callers that need structured span links can pass {@code false} and consume links from {@link
+   * Metadata#getSpanLinks()}.
+   */
+  default void processTagsAndBaggage(MetadataConsumer consumer, boolean spanLinksAsTag) {
+    processTagsAndBaggage(consumer);
+  }
+
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
   T setSamplingPriority(

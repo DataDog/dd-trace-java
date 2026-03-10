@@ -321,7 +321,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, "0.5", true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -380,7 +380,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, "0.5", true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -512,7 +512,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
 
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion("0.5")
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics)
@@ -610,7 +610,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
 
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion("0.5")
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
@@ -677,7 +677,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def writer = DDAgentWriter.builder()
       .agentHost(agent.address.host)
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion("0.5")
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
@@ -711,7 +711,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def statsd = Mock(StatsDClient)
     def healthMetrics = new TracerHealthMetrics(statsd, 100, TimeUnit.MILLISECONDS)
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion("0.5")
       .agentApi(api).monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
     healthMetrics.start()

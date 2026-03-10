@@ -31,7 +31,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.featuresDiscovery(config)
 
     then:
-    1 * config.traceAgentV05Enabled >> false
+    1 * config.traceAgentProtocolVersion >> '0.4'
     1 * config.tracerMetricsEnabled >> false
     sco.featuresDiscovery != null
 

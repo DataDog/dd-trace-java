@@ -50,6 +50,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
+  public static final String V1_ENDPOINT = "v1.0/traces";
 
   public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
   public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
@@ -107,15 +108,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       OkHttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
-      boolean enableV05Traces,
+      String traceAgentProtocolVersion,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
-        enableV05Traces
-            ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
-            : new String[] {V04_ENDPOINT, V03_ENDPOINT};
+        "1.0".equals(traceAgentProtocolVersion)
+            ? new String[] {V1_ENDPOINT, V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+            : ("0.5".equals(traceAgentProtocolVersion)
+                ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+                : new String[] {V04_ENDPOINT, V03_ENDPOINT});
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }

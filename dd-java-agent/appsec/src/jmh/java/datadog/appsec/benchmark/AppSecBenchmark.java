@@ -187,7 +187,7 @@ public class AppSecBenchmark {
 
   static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
-      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), false, false);
+      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), "0.4", false);
     }
 
     @Override

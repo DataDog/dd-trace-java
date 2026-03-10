@@ -108,6 +108,8 @@ public final class TracerConfig {
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
+  public static final String TRACE_AGENT_PROTOCOL_VERSION = "trace.agent.protocol.version";
+
   public static final String CLIENT_IP_ENABLED = "trace.client-ip.enabled";
 
   public static final String TRACE_128_BIT_TRACEID_GENERATION_ENABLED =
