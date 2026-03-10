@@ -44,7 +44,7 @@ public final class PromiseObjectInstrumentation
         Context existing = contextStore.get(resolved);
         Try<T> next =
             PromiseHelper.getTry(
-                resolved, span, existing != null ? AgentSpan.fromContext(existing) : null);
+                resolved, span, AgentSpan.fromContext(existing));
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;
