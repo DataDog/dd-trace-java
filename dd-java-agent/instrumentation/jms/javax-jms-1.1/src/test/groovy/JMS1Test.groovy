@@ -11,6 +11,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import datadog.trace.test.util.Flaky
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
@@ -255,6 +256,7 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     DestinationType.TEMPORARY_TOPIC | _
   }
 
+  @Flaky(value = "Race condition: TEMPORARY_TOPIC consumer trace for message3 may complete before acknowledge() is called", suites = ["JMS1V1ForkedTest"])
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
     def destination = destinationType.create(session)
