@@ -1,11 +1,14 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
+import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -16,6 +19,7 @@ import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -44,17 +48,21 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
-        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice");
+        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice",
+        GoogleHttpClientInstrumentation.class.getName()
+            + "$GoogleHttpClientContextPropagationAdvice");
 
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(isPublic())
             .and(named("executeAsync"))
             .and(takesArguments(1))
             .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
-        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice");
+        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice",
+        GoogleHttpClientInstrumentation.class.getName()
+            + "$GoogleHttpClientContextPropagationAdvice");
   }
 
   public static class GoogleHttpClientAdvice {
@@ -116,6 +124,18 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
       } finally {
         scope.close();
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class GoogleHttpClientContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.This HttpRequest request) {
+      AgentSpan span = activeSpan();
+      if (span == null) {
+        return;
+      }
+      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
     }
   }
 }
