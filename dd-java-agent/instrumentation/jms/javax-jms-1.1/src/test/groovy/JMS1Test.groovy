@@ -11,7 +11,6 @@ import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.Flaky
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
@@ -256,7 +255,6 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     DestinationType.TEMPORARY_TOPIC | _
   }
 
-  @Flaky(value = "Race condition: TEMPORARY_TOPIC consumer trace for message3 may complete before acknowledge() is called", suites = ["JMS1V1ForkedTest"])
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
     def destination = destinationType.create(session)
@@ -278,8 +276,10 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // only two consume traces will be finished at this point
-    assertTraces(5) {
+    // At least two consume traces will be finished at this point (3 producer + 2 consumer = 5).
+    // The 3rd consumer trace may also be finished early due to the scope iteration keep-alive
+    // cleanup firing before acknowledge() is called, so we tolerate 5 or 6 traces here.
+    assertTraces(5, true) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
