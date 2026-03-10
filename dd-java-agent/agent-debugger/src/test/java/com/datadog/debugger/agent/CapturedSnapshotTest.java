@@ -24,6 +24,7 @@ import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
+import static utils.TestClassFileHelper.getClassFileBytes;
 import static utils.TestHelper.getFixtureContent;
 import static utils.TestHelper.setFieldInConfig;
 
@@ -32,6 +33,8 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.Types;
+import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
@@ -3073,6 +3076,44 @@ public class CapturedSnapshotTest extends CapturingTestBase {
           "Instrumentation failed for com.datadog.debugger.MyRecord1: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     }
+  }
+
+  /*
+   * Regression test for: DatadogClassLoader attempted duplicate class definition for
+   * com.datadog.debugger.instrumentation.Types (LinkageError).
+   *
+   * When a CodeOriginProbe matches the agent's Types class (by FQN or simple name), and Types
+   * is being loaded for the first time by DatadogClassLoader, DebuggerTransformer.transform() is
+   * invoked as a ClassFileTransformer. Inside performInstrumentation(), CodeOriginInstrumenter
+   * accesses the static field Types.DEBUGGER_CONTEXT_TYPE, triggering a re-entrant loadClass()
+   * call for Types on the same thread. Because Java's synchronized is reentrant and Types is not
+   * yet registered in the JVM (defineClass hasn't completed), findLoadedClass() returns null and
+   * defineClass is called a second time, producing the LinkageError.
+   */
+  @Test
+  public void noInstrumentationForAgentClasses() throws Exception {
+    // Install a CodeOriginProbe targeting the agent's Types class by FQN.
+    // This simulates a probe accidentally matching an agent class (e.g. via simple-name fallback
+    // in TransformerDefinitionMatcher when a user class is also named "Types").
+    CodeOriginProbe probe =
+        new CodeOriginProbe(
+            PROBE_ID,
+            true,
+            Where.of("com.datadog.debugger.instrumentation.Types", "descriptorToSignature", null));
+    installProbes(probe);
+    byte[] typeBytes = getClassFileBytes(Types.class);
+    // transform() proceeds to performInstrumentation(), which calls
+    // CodeOriginInstrumenter.codeOriginCall() → accesses Types.DEBUGGER_CONTEXT_TYPE.
+    // In production (when Types is not yet loaded), this re-enters DatadogClassLoader.loadClass()
+    // and triggers LinkageError: duplicate class definition for Types.
+    byte[] result =
+        currentTransformer.transform(
+            Types.class.getClassLoader(),
+            "com/datadog/debugger/instrumentation/Types",
+            null,
+            null,
+            typeBytes);
+    assertNull(result);
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
