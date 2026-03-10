@@ -275,6 +275,13 @@ object PekkoHttpTestWebServer {
   ): HttpRequest => Future[HttpResponse] = { request =>
     Future {
       syncHandler(request)
+    }.recover { case e: Exception =>
+      // Recover from exceptions to return a proper HTTP response instead of a
+      // failed Future. When the Future fails, the span completion depends on
+      // async continuation cleanup which can race with the test's trace assertion,
+      // causing flaky timeouts waiting for the trace to be written.
+      HttpResponse(status = EXCEPTION.getStatus, entity = e.getMessage)
+        .withDefaultHeaders(defaultHeader)
     }
   }
 
