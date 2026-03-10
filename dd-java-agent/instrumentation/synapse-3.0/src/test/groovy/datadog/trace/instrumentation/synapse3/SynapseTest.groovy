@@ -220,29 +220,30 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     assert traces.size() >= 2
     Collections.sort(traces, SORT_TRACES_BY_NAMES)
 
-    // Find the proxy trace (contains the StockQuoteProxy span) and the forwarded server trace
+    // Find the proxy trace (contains the StockQuoteProxy span) and the forwarded server trace.
+    // Synapse can produce extra internal spans within these traces, so we match by resource name
+    // rather than requiring exact span counts.
     def proxyTrace = traces.find { trace ->
       trace.any {
         it.resourceName.toString() == "POST /services/StockQuoteProxy"
       }
     }
     def serverTrace = traces.find { trace ->
-      trace.every { it.resourceName.toString() == "POST /services/SimpleStockQuoteService" } && trace != proxyTrace
+      trace.any { it.resourceName.toString() == "POST /services/SimpleStockQuoteService" } && trace != proxyTrace
     }
     assert proxyTrace != null : "Expected a trace with StockQuoteProxy span, found: ${traces.collect { t -> t.collect { it.resourceName } }}"
     assert serverTrace != null : "Expected a trace with SimpleStockQuoteService server span, found: ${traces.collect { t -> t.collect { it.resourceName } }}"
 
-    // Verify the proxy trace has 2 spans: proxy server + client
-    assert proxyTrace.size() == 2
+    // Verify key spans exist in the proxy trace
     def proxyServerSpan = proxyTrace.find { it.resourceName.toString() == "POST /services/StockQuoteProxy" }
     def clientChildSpan = proxyTrace.find { it.resourceName.toString() == "POST /services/SimpleStockQuoteService" }
-    assert proxyServerSpan != null
-    assert clientChildSpan != null
-    assert clientChildSpan.traceId == serverTrace[0].traceId
+    assert proxyServerSpan != null : "Expected proxy server span in proxy trace, found: ${proxyTrace.collect { it.resourceName }}"
+    assert clientChildSpan != null : "Expected client span in proxy trace, found: ${proxyTrace.collect { it.resourceName }}"
 
-    // Verify the forwarded server trace
-    assert serverTrace.size() == 1
-    assert serverTrace[0].resourceName.toString() == "POST /services/SimpleStockQuoteService"
+    // Verify distributed tracing: client span propagated the trace to the server
+    def serverSpanInServerTrace = serverTrace.find { it.resourceName.toString() == "POST /services/SimpleStockQuoteService" }
+    assert serverSpanInServerTrace != null : "Expected server span in server trace, found: ${serverTrace.collect { it.resourceName }}"
+    assert clientChildSpan.traceId == serverSpanInServerTrace.traceId
 
     statusCode == 200
   }
