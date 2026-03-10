@@ -1234,7 +1234,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
+  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncTest", "PekkoHttpServerInstrumentationAsyncHttp2Test"])
   def "test exception"() {
     setup:
     def method = "GET"
