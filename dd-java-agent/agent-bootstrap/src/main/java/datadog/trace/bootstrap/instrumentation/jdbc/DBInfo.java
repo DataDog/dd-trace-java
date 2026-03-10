@@ -257,7 +257,9 @@ public final class DBInfo {
 
   @Override
   public int hashCode() {
-    int hash = HashingUtils.hash(type, subtype);
+    int hash = 0;
+    hash = HashingUtils.addToHash(hash, type);
+    hash = HashingUtils.addToHash(hash, subtype);
     hash = HashingUtils.addToHash(hash, fullPropagationSupport);
     hash = HashingUtils.addToHash(hash, url);
     hash = HashingUtils.addToHash(hash, user);
@@ -266,6 +268,7 @@ public final class DBInfo {
     hash = HashingUtils.addToHash(hash, host);
     hash = HashingUtils.addToHash(hash, port);
     hash = HashingUtils.addToHash(hash, warehouse);
-    return HashingUtils.addToHash(hash, schema);
+    hash = HashingUtils.addToHash(hash, schema);
+    return hash;
   }
 }
