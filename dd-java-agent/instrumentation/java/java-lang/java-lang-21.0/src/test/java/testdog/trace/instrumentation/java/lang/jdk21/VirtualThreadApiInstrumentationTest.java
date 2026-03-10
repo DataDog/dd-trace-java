@@ -6,7 +6,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
@@ -96,7 +95,6 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
   @Test
   void testNestedVirtualThreads() throws InterruptedException, TimeoutException {
     Thread.Builder.OfVirtual threadBuilder = Thread.ofVirtual();
-    CountDownLatch latch = new CountDownLatch(3);
 
     new Runnable() {
       @Trace(operationName = "parent")
@@ -117,20 +115,25 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
                               @Trace(operationName = "great-great-child")
                               @Override
                               public void run() {
+                                try {
+                                  // Deterministic reproduction: delay the innermost thread to
+                                  // simulate slow span closure. Without
+                                  // blockUntilChildSpansFinished, this delay causes assertTraces
+                                  // to run before this span is written.
+                                  Thread.sleep(200);
+                                } catch (InterruptedException e) {
+                                  Thread.currentThread().interrupt();
+                                }
                                 System.out.println("complete");
-                                latch.countDown();
                               }
                             });
-                        latch.countDown();
                       }
                     });
-                latch.countDown();
               }
             });
+        blockUntilChildSpansFinished(3);
       }
     }.run();
-
-    latch.await();
 
     assertTraces(
         trace(
