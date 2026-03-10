@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Map;
 import java.util.Objects;
 
@@ -93,7 +94,7 @@ public final class Configurations {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return HashingUtils.hash(
         osPlatform,
         osArchitecture,
         osVersion,
