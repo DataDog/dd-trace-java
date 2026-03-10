@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
@@ -12,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -61,7 +63,7 @@ public class ApacheHttpAsyncClientInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(4))
@@ -69,7 +71,8 @@ public class ApacheHttpAsyncClientInstrumentation
             .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
             .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
-        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
+        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice",
+        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice");
   }
 
   public static class ClientAdvice {
@@ -101,6 +104,16 @@ public class ApacheHttpAsyncClientInstrumentation
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();
+      }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ClientContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final HttpAsyncRequestProducer requestProducer) {
+      if (requestProducer instanceof DelegatingRequestProducer) {
+        ((DelegatingRequestProducer) requestProducer).setInjectContext(true);
       }
     }
   }
