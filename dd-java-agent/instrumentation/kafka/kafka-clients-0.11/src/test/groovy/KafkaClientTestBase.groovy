@@ -835,7 +835,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer.close()
   }
 
-  @Flaky("Repeatedly fails with a partition set to 1 but expects 0 https://github.com/DataDog/dd-trace-java/issues/3864")
+  @Flaky("Non-deterministic ordering of batch consumer traces causes assertion failures (partition mismatch or consumer span parentId mismatch) https://github.com/DataDog/dd-trace-java/issues/3864")
   def "test spring kafka template produce and batch consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
