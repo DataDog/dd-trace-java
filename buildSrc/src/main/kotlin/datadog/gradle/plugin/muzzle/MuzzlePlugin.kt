@@ -185,6 +185,8 @@ class MuzzlePlugin : Plugin<Project> {
         }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {
+        MuzzleExcludedDependencySupport.applyTo(instrumentationProject, this, muzzleDirective, versionArtifact)
+
         if (!muzzleDirective.isCoreJdk && versionArtifact != null) {
           val depId = buildString {
             append("${versionArtifact.groupId}:${versionArtifact.artifactId}:${versionArtifact.version}")

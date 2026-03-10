@@ -110,6 +110,7 @@ internal object MuzzleMavenRepoUtils {
         module = muzzleDirective.module
         versions = version.toString()
         assertPass = !muzzleDirective.assertPass
+        additionalRepositories = muzzleDirective.additionalRepositories
         excludedDependencies = muzzleDirective.excludedDependencies
         includeSnapshots = muzzleDirective.includeSnapshots
       }
