@@ -17,10 +17,15 @@ import org.apache.http.protocol.HttpContext;
 public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   final AgentSpan span;
   final HttpAsyncRequestProducer delegate;
+  boolean injectContext = false;
 
   public DelegatingRequestProducer(final AgentSpan span, final HttpAsyncRequestProducer delegate) {
     this.span = span;
     this.delegate = delegate;
+  }
+
+  public void setInjectContext(boolean injectContext) {
+    this.injectContext = injectContext;
   }
 
   @Override
@@ -32,7 +37,9 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   public HttpRequest generateRequest() throws IOException, HttpException {
     final HttpRequest request = delegate.generateRequest();
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
-    DECORATE.injectContext(current().with(span), request, SETTER);
+    if (injectContext) {
+      DECORATE.injectContext(current().with(span), request, SETTER);
+    }
     return request;
   }
 
