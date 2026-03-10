@@ -96,10 +96,10 @@ public final class JMSMessageConsumerInstrumentation
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(finishSpan);
       } else {
-        final AgentSpan span = spanFromContext(getRootContext().swap());
-        if (span != null) {
-          CONSUMER_DECORATE.beforeFinish(span);
-          span.finishWithEndToEnd();
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          CONSUMER_DECORATE.beforeFinish(previousSpan);
+          previousSpan.finishWithEndToEnd();
         }
       }
       if (finishSpan) {
@@ -177,10 +177,10 @@ public final class JMSMessageConsumerInstrumentation
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         activateNext(span); // scope is left open until next message or it times out
       } else {
-        final AgentSpan previous = spanFromContext(span.swap());
-        if (previous != null) {
-          CONSUMER_DECORATE.beforeFinish(previous);
-          previous.finishWithEndToEnd();
+        final AgentSpan previousSpan = spanFromContext(span.swap());
+        if (previousSpan != null) {
+          CONSUMER_DECORATE.beforeFinish(previousSpan);
+          previousSpan.finishWithEndToEnd();
         }
       }
       JMSLogger.logIterationSpan(span);
@@ -209,10 +209,10 @@ public final class JMSMessageConsumerInstrumentation
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           closePrevious(finishSpan);
         } else {
-          final AgentSpan span = spanFromContext(getRootContext().swap());
-          if (span != null) {
-            CONSUMER_DECORATE.beforeFinish(span);
-            span.finishWithEndToEnd();
+          final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+          if (previousSpan != null) {
+            CONSUMER_DECORATE.beforeFinish(previousSpan);
+            previousSpan.finishWithEndToEnd();
           }
         }
         if (finishSpan) {

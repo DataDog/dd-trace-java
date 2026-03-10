@@ -49,9 +49,9 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
       } else {
-        final AgentSpan span = spanFromContext(getRootContext().swap());
-        if (span != null) {
-          span.finishWithEndToEnd();
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
         }
       }
     }
@@ -69,10 +69,10 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
-      } else {
-        final AgentSpan prevSpan = spanFromContext(getRootContext().swap());
-        if (prevSpan != null) {
-          prevSpan.finishWithEndToEnd();
+      } else if (message == null) { // previous message span was the last
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
         }
       }
       if (message != null) {
@@ -112,9 +112,9 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           activateNext(span);
         } else {
-          final AgentSpan previous = spanFromContext(span.swap());
-          if (previous != null) {
-            previous.finishWithEndToEnd();
+          final AgentSpan previousSpan = spanFromContext(span.swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
           }
         }
         if (queueSpan != null) {

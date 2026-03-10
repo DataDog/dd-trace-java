@@ -62,9 +62,9 @@ public class AbstractPollingMessageListenerContainerInstrumentation
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           closePrevious(finishSpan);
         } else {
-          final AgentSpan span = spanFromContext(getRootContext().swap());
-          if (span != null) {
-            span.finishWithEndToEnd();
+          final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
           }
         }
         if (finishSpan) {
