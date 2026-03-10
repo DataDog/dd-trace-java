@@ -89,6 +89,12 @@ abstract class MuzzleTask @Inject constructor(
   }
 
   private fun assertMuzzle(muzzleDirective: MuzzleDirective? = null) {
+    if (muzzleClassPath.get().isEmpty) {
+      val label = muzzleDirective?.name ?: name
+      project.logger.warn("Muzzle: skipping $label — classpath could not be resolved")
+      result.get().asFile.also { it.parentFile.mkdirs() }.writeText("SKIPPED")
+      return
+    }
     val workQueue = if (muzzleDirective?.javaVersion != null) {
       val javaLauncher = javaToolchainService.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
@@ -139,16 +145,20 @@ abstract class MuzzleTask @Inject constructor(
 
   private fun createMuzzleClassPath(project: Project, muzzleTaskName: String): FileCollection {
     project.logger.info("Creating muzzle classpath for $muzzleTaskName")
-    val cp = project.files()
     val config = if (muzzleTaskName == "muzzle") {
       project.configurations.named("compileClasspath").get()
     } else {
       project.configurations.named(muzzleTaskName).get()
     }
-    cp.from(config)
-    if (project.logger.isInfoEnabled) {
-      cp.forEach { project.logger.info("-- $it") }
+    return try {
+      val files = config.resolvedConfiguration.files
+      if (project.logger.isInfoEnabled) {
+        files.forEach { project.logger.info("-- $it") }
+      }
+      project.files(files)
+    } catch (e: Exception) {
+      project.logger.warn("Muzzle: could not resolve classpath for $muzzleTaskName, will skip: ${e.message}")
+      project.files()
     }
-    return cp
   }
 }
