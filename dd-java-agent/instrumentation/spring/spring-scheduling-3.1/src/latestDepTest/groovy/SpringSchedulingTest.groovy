@@ -28,6 +28,8 @@ class SpringSchedulingTest extends InstrumentationSpecification {
     def scheduledTaskEndpoint = context.getBean(ScheduledTasksEndpoint)
 
     task.blockUntilExecute()
+    // Capture cron tasks before closing the context (endpoint is unavailable after close).
+    def cronTasks = scheduledTaskEndpoint.scheduledTasks().getCron()
     // Close the context immediately after the first execution to prevent a second cron
     // firing before assertions complete, which would produce extra traces and cause flakiness.
     context.close()
@@ -59,7 +61,7 @@ class SpringSchedulingTest extends InstrumentationSpecification {
     }
     and:
     assert scheduledTaskEndpoint != null
-    scheduledTaskEndpoint.scheduledTasks().getCron().each {
+    cronTasks.each {
       it.getRunnable().getTarget() == TriggerTask.getName()
     }
   }
