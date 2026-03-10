@@ -162,6 +162,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
 
   private volatile boolean wafBlocked;
+  private volatile String blockingResponseContentType;
+  private volatile Integer blockingResponseContentLength;
   private volatile boolean wafErrors;
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
@@ -235,6 +237,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafBlocked() {
     return wafBlocked;
+  }
+
+  public void setBlockingResponseContentType(String contentType) {
+    this.blockingResponseContentType = contentType;
+  }
+
+  public String getBlockingResponseContentType() {
+    return blockingResponseContentType;
+  }
+
+  public void setBlockingResponseContentLength(Integer contentLength) {
+    this.blockingResponseContentLength = contentLength;
+  }
+
+  public Integer getBlockingResponseContentLength() {
+    return blockingResponseContentLength;
   }
 
   public void setWafErrors() {
@@ -413,11 +431,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different raw URI for given request context");
+    if (this.savedRawURI == null) {
+      this.savedRawURI = savedRawURI;
     }
-    this.savedRawURI = savedRawURI;
   }
 
   public String getRoute() {

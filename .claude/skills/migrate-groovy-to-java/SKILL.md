@@ -5,16 +5,19 @@ description: migrate test groovy files to java
 
 Migrate test Groovy files to Java using JUnit 5
 
-1. List all groovy files of the current gradle module
-2. convert groovy files to Java using Junit 5
-3. make sure the tests are still passing after migration
-4. remove groovy files
+1. List all Groovy files of the current Gradle module
+2. Convert Groovy files to Java using JUnit 5
+3. Make sure the tests are still passing after migration and that the test count has not changed
+4. Remove Groovy files
+5. Add the migrated module path(s) to `.github/g2j-migrated-modules.txt`
 
-When converting groovy code to java code make sure that:
-- the Java code generated is compatible with JDK 8
-- when translating Spock test, favor using `@CsvSource` with `|` delimiters
-- when using a `@MethodSource`, use the test method name, and suffix it with `_arguments`
-- when converting tuples, create light dedicated structure instead to keep the typing system
+When converting Groovy code to Java code, make sure that:
+- The Java code generated is compatible with JDK 8
+- When translating Spock tests, favor using `@CsvSource` with `|` delimiters
+- When using `@MethodSource`, name the arguments method by appending `Arguments` using camelCase to the test method name (e.g. `testMethodArguments`) and return a `Stream` of arguments using `Stream.of(...)` and `arguments(...)` with static import.
+- Ensure parameterized test names are human-readable (i.e. no hashcodes); instead add a description string as the first `Arguments.arguments(...)` value or index the test case
+- When converting tuples, create a light dedicated structure instead to keep the typing system
 - Instead of checking a state and throwing an exception, use JUnit asserts
-- Do not wrap checked exception and throwing a Runtime exception, prefer adding a throws clause at method declaration
+- Do not wrap checked exceptions and throw a Runtime exception; prefer adding a throws clause at method declaration
 - Do not mark local variables `final`
+- Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
