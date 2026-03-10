@@ -57,10 +57,9 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
+    public static Context enter(
         @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local("taskScope") AgentScope taskScope,
-        @Advice.Local("checkpointContext") Context checkpointContext) {
+        @Advice.Local("taskScope") AgentScope taskScope) {
 
       // do this before checkpointing, as the envelope's task scope may already be active
       taskScope =
@@ -70,15 +69,15 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
         checkpointActiveForRollback();
+        return null;
       } else {
-        checkpointContext = getCurrentContext().swap();
+        return getCurrentContext().swap();
       }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Local("taskScope") AgentScope taskScope,
-        @Advice.Local("checkpointContext") Context checkpointContext) {
+        @Advice.Local("taskScope") AgentScope taskScope, @Advice.Enter Context checkpointContext) {
 
       if (checkpointContext == null) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.
