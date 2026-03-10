@@ -221,7 +221,11 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     Collections.sort(traces, SORT_TRACES_BY_NAMES)
 
     // Find the proxy trace (contains the StockQuoteProxy span) and the forwarded server trace
-    def proxyTrace = traces.find { trace -> trace.any { it.resourceName.toString() == "POST /services/StockQuoteProxy" } }
+    def proxyTrace = traces.find { trace ->
+      trace.any {
+        it.resourceName.toString() == "POST /services/StockQuoteProxy"
+      }
+    }
     def serverTrace = traces.find { trace ->
       trace.every { it.resourceName.toString() == "POST /services/SimpleStockQuoteService" } && trace != proxyTrace
     }
