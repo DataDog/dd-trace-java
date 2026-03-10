@@ -128,7 +128,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
-  private final Map<Long, Integer> acc2stage = new HashMap<>();
+  private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
 
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
@@ -644,7 +644,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     for (AccumulableInfo info :
         JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
-      acc2stage.put(info.id(), stageId);
+      accumulatorToStageID.put(info.id(), stageId);
     }
 
     Properties prop = stageProperties.remove(stageSpanKey);
@@ -676,7 +676,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, acc2stage, stageMetric, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
