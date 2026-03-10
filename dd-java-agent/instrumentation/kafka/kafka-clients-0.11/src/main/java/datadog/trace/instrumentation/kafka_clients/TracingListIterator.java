@@ -33,9 +33,9 @@ public class TracingListIterator extends TracingIterator
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
       } else {
-        final AgentSpan span = spanFromContext(getRootContext().swap());
-        if (span != null) {
-          span.finishWithEndToEnd();
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
         }
       }
     }
