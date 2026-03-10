@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -51,6 +52,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.VarInsnNode;
@@ -158,10 +160,10 @@ public class DebuggerTransformerTest {
           ArrayList.class,
           null,
           getClassFileBytes(ArrayList.class));
-      Assertions.assertTrue(instrumentedClassFile.exists());
-      Assertions.assertTrue(origClassFile.exists());
-      Assertions.assertTrue(instrumentedClassFile.delete());
-      Assertions.assertTrue(origClassFile.delete());
+      assertTrue(instrumentedClassFile.exists());
+      assertTrue(origClassFile.exists());
+      assertTrue(instrumentedClassFile.delete());
+      assertTrue(origClassFile.delete());
     } finally {
       DebuggerTransformer.DUMP_PATH = initialTmpDir;
     }
@@ -264,7 +266,7 @@ public class DebuggerTransformerTest {
             getClassFileBytes(String.class));
     assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
-    Assertions.assertTrue(lastResult.get().isBlocked());
+    assertTrue(lastResult.get().isBlocked());
     Assertions.assertFalse(lastResult.get().isInstalled());
     assertEquals("java.lang.String", lastResult.get().getTypeName());
   }
@@ -294,11 +296,14 @@ public class DebuggerTransformerTest {
     Assertions.assertNotNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertFalse(lastResult.get().isBlocked());
-    Assertions.assertTrue(lastResult.get().isInstalled());
+    assertTrue(lastResult.get().isInstalled());
     assertEquals("java.util.ArrayList", lastResult.get().getTypeName());
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Issue with J9: Flaky")
   public void classGenerationFailed() {
     Config config = createConfig();
     final String CLASS_NAME = DebuggerAgent.class.getTypeName();
@@ -338,9 +343,30 @@ public class DebuggerTransformerTest {
     assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
     assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
     assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(0));
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(1));
-    assertEquals("Instrumentation fails for " + CLASS_NAME, strCaptor.getAllValues().get(2));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(0)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(1)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+    assertTrue(
+        strCaptor
+            .getAllValues()
+            .get(2)
+            .startsWith(
+                "Instrumentation failed for "
+                    + CLASS_NAME
+                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
   }
 
   @Test

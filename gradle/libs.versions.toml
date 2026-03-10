@@ -7,7 +7,7 @@ forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.37.0"
+ddprof = "1.38.0"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -38,7 +38,7 @@ jmh = "1.37"
 
 # Profiling
 jmc = "8.1.0"
-jafar = "0.14.2"
+jafar = "0.16.0"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
@@ -52,7 +52,7 @@ cafe_crypto = "0.1.0"
 commons = "3.2"
 guava = "[16.0,20.0]" # Last version to support Java 7
 javaparser = "3.24.4"
-jctools = "3.3.0"
+jctools = "4.0.6"
 lz4 = "1.7.1"
 
 # Logging
@@ -133,7 +133,7 @@ commons-math = { module = "org.apache.commons:commons-math3", version.ref = "com
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
-jctools = { module = "org.jctools:jctools-core", version.ref = "jctools" }
+jctools = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 
 # Logging

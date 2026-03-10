@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -139,7 +139,7 @@ public class TracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
 
     if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
       AgentSpan span = AgentTracer.activeSpan();
@@ -171,11 +171,11 @@ public class TracingListener implements EngineExecutionListener {
             .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestExecutionHistory executionHistory =
-        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestExecutionTracker executionTracker =
+        TestEventsHandlerHolder.getExecutionTracker(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.JUNIT5)
-        .onTestFinish(testDescriptor, null, executionHistory);
+        .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   @Override
@@ -253,7 +253,7 @@ public class TracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             reason,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
 
     if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
       AgentSpan span = AgentTracer.activeSpan();

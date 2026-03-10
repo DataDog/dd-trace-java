@@ -60,6 +60,7 @@ out/
 
 # Others #
 ##########
+/dumps
 /logs/*
 /bin
 /out

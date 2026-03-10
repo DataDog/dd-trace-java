@@ -43,8 +43,7 @@ class OpenTelemetry147ActivationByOtelRfcNameForkedTest extends OpenTelemetry147
 
   @Override
   boolean shouldBeInjected() {
-    // TODO: true when OTel metrics fully implemented
-    return false
+    return true
   }
 }
 

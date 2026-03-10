@@ -276,6 +276,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
+    captureEmrStepId(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -328,11 +329,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
       return;
     }
+
     initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
@@ -1208,6 +1210,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+  }
+
+  private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
+    String stepId = EmrUtils.getEmrStepId();
+    if (stepId != null) {
+      builder.withTag("emr_step_id", stepId);
+    }
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {

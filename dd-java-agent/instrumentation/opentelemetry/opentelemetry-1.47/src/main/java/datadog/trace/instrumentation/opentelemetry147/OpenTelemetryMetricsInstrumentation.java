@@ -10,6 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import io.opentelemetry.api.metrics.MeterProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -31,8 +32,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
 
   @Override
   protected boolean defaultEnabled() {
-    // TODO: return InstrumenterConfig.get().isMetricsOtelEnabled(); when fully implemented
-    return false;
+    return InstrumenterConfig.get().isMetricsOtelEnabled();
   }
 
   @Override
