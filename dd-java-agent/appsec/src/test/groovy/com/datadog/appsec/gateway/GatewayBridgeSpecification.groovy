@@ -18,6 +18,8 @@ import datadog.trace.api.appsec.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -186,13 +188,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
     1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
-    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
-    1 * traceSegment.setTagTop('appsec.event', true)
+    1 * spanInfo.setMetric("_dd.appsec.enabled", 1)
+    1 * spanInfo.setTag("_dd.runtime_family", "jvm")
+    1 * spanInfo.setTag('appsec.event', true)
+    1 * spanInfo.setTag('network.client.ip', '2001::1')
+    1 * spanInfo.setTag('actor.ip', '1.1.1.1')
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
-    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
-    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
-    1 * traceSegment.setTagTop('network.client.ip', '2001::1')
     1 * mockAppSecCtx.isWafBlocked()
     1 * mockAppSecCtx.hasWafErrors()
     1 * mockAppSecCtx.getWafTimeouts()
@@ -222,7 +223,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
-    1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
+    1 * spanInfo.setTag('actor.ip', '8.8.8.8')
   }
 
   void 'bridge can collect headers'() {
@@ -841,6 +842,17 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, reqCtx, _ as DataBundle, false)
   }
 
+
+  void 'request method URI callback called twice with different URIs does not throw'() {
+    // Reproduces: https://github.com/DataDog/dd-trace-java/issues/10700
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/b'))
+
+    then:
+    noExceptionThrown()
+    ctx.data.savedRawURI == '/a'
+  }
 
   void 'response_start produces appsec context and publishes event'() {
     eventDispatcher.getDataSubscribers({
@@ -1624,6 +1636,60 @@ class GatewayBridgeSpecification extends DDSpecification {
       final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
       assert body['test'] == 'this is a test'
     }
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to application/json'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'application/json')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.JSON, null).length))
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to text/html'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'text/html,application/xhtml+xml')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html;charset=utf-8')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.HTML, null).length))
   }
 
   static toLowerCaseHeaders(final Map<String, List<String>> headers) {

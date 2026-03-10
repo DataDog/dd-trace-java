@@ -15,11 +15,14 @@ import net.bytebuddy.asm.Advice;
 public class HeadersAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(@Advice.Return(readOnly = false) HttpHeaders headers) {
-    // Note: adding duplicate keys will throw an IllegalArgumentException so we need to dedupe
-    // case insensitively
-    final Map<String, List<String>> headerMap = new TreeMap<>(CASE_INSENSITIVE_ORDER);
-    headerMap.putAll(headers.map());
-    DECORATE.injectContext(getCurrentContext(), headerMap, SETTER);
-    headers = HttpHeaders.of(headerMap, KEEP);
+    // Check if we should be injecting context into the headers first
+    if (DECORATE.isContextInjectionAllowed()) {
+      // Note: adding duplicate keys will throw an IllegalArgumentException so we need to dedupe
+      // case insensitively
+      final Map<String, List<String>> headerMap = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+      headerMap.putAll(headers.map());
+      DECORATE.injectContext(getCurrentContext(), headerMap, SETTER);
+      headers = HttpHeaders.of(headerMap, KEEP);
+    }
   }
 }
