@@ -52,6 +52,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.VarInsnNode;
@@ -300,6 +301,9 @@ public class DebuggerTransformerTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Issue with J9: Flaky")
   public void classGenerationFailed() {
     Config config = createConfig();
     final String CLASS_NAME = DebuggerAgent.class.getTypeName();

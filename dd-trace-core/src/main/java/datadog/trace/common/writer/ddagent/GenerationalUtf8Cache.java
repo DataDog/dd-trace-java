@@ -74,7 +74,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   private static final int MAX_EDEN_PROBES = 4;
   private static final int MAX_TENURED_PROBES = 8;
 
-  private static final int MIN_PROMOTION_TRESHOLD = 2;
+  private static final int MIN_PROMOTION_THRESHOLD = 2;
   private static final int INITIAL_PROMOTION_THRESHOLD = 16;
 
   private static final double SCORE_DECAY = 0.5D;
@@ -169,7 +169,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     recalibrate(this.tenuredEntries);
 
     int totalPromotions = this.promotions + this.earlyPromotions;
-    if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_TRESHOLD) {
+    if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_THRESHOLD) {
       this.promotionThreshold /= PROMOTION_THRESHOLD_ADJ_FACTOR;
     } else if (totalPromotions > this.tenuredEvictions / 2) {
       this.promotionThreshold *= PROMOTION_THRESHOLD_ADJ_FACTOR;
