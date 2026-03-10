@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.akkahttp106;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
 
@@ -27,11 +26,6 @@ public class SingleRequestAdvice {
     final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    if (request != null) {
-      DECORATE.injectContext(getCurrentContext().with(span), request, headers);
-      // Request is immutable, so we have to assign new value once we update headers
-      request = headers.getRequest();
-    }
     return activateSpan(span);
   }
 
