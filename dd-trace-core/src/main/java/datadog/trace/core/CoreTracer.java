@@ -1255,10 +1255,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         }
       }
 
-      trace = new ArrayList<>(interceptedTrace.size());
-      for (final MutableSpan span : interceptedTrace) {
-        if (span instanceof DDSpan) {
-          trace.add((DDSpan) span);
+      // DQH - common case is that the list is that we return the same list (usually unaltered)
+      // In that case, there's no need to copy into a new list
+      if ( interceptedTrace != trace ) {
+        trace = new ArrayList<>(interceptedTrace.size());
+        for (final MutableSpan span : interceptedTrace) {
+          if (span instanceof DDSpan) {
+            trace.add((DDSpan) span);
+          }
         }
       }
     }
