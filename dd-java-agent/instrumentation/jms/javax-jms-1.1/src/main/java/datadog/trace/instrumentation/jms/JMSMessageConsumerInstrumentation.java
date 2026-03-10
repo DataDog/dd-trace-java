@@ -98,7 +98,6 @@ public final class JMSMessageConsumerInstrumentation
       } else {
         final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
         if (previousSpan != null) {
-          CONSUMER_DECORATE.beforeFinish(previousSpan);
           previousSpan.finishWithEndToEnd();
         }
       }
@@ -179,7 +178,6 @@ public final class JMSMessageConsumerInstrumentation
       } else {
         final AgentSpan previousSpan = spanFromContext(span.swap());
         if (previousSpan != null) {
-          CONSUMER_DECORATE.beforeFinish(previousSpan);
           previousSpan.finishWithEndToEnd();
         }
       }
