@@ -88,7 +88,8 @@ public class SparkSQLUtils {
     return null;
   }
 
-  private static Set<Integer> stageIdsForPlan(SparkPlanInfo info, Map<Long, Integer> accumulatorToStageID) {
+  private static Set<Integer> stageIdsForPlan(
+      SparkPlanInfo info, Map<Long, Integer> accumulatorToStageID) {
     Set<Integer> stageIds = new HashSet<>();
 
     Collection<SQLMetricInfo> metrics =

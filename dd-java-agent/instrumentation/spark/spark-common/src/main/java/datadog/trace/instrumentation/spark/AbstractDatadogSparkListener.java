@@ -676,7 +676,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(
+          span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
