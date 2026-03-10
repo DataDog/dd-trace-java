@@ -19,6 +19,8 @@ dependencies {
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.3.0'
   implementation libs.moshi
 
+  compileOnly project(':dd-java-agent:agent-bootstrap')
+  testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
