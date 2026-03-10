@@ -12,7 +12,6 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.Flaky
 import groovy.text.GStringTemplateEngine
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -31,7 +30,6 @@ import spock.lang.Shared
 import java.lang.reflect.Field
 import java.util.concurrent.TimeUnit
 
-@Flaky("Occasionally times out when receiving traces")
 abstract class SynapseTest extends VersionedNamingTestBase {
 
   String expectedServiceName() {
@@ -327,7 +325,6 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   }
 }
 
-@Flaky("Occasionally times out when receiving traces")
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
 
@@ -337,7 +334,6 @@ class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamin
   }
 }
 
-@Flaky("Occasionally times out when receiving traces")
 class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
 
   @Override
