@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akkahttp106;
 
-import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
