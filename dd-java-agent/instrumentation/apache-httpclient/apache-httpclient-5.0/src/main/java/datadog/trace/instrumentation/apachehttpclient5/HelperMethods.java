@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
@@ -41,13 +42,18 @@ public class HelperMethods {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
 
-    final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
-    // AWS calls are often signed, so we can't add headers without breaking the signature.
-    if (!awsClientCall) {
-      DECORATE.injectContext(current().with(span), request, SETTER);
-    }
-
     return scope;
+  }
+
+  public static void doInjectContext(final HttpRequest request) {
+    if (request.containsHeader("amz-sdk-invocation-id")) {
+      return;
+    }
+    final AgentSpan span = activeSpan();
+    if (span == null) {
+      return;
+    }
+    DECORATE.injectContext(current().with(span), request, SETTER);
   }
 
   public static void doMethodExit(
