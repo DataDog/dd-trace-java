@@ -157,7 +157,7 @@ class SparkAggregatedTaskMetrics {
                 try {
                   // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
                   // versions
-                  hist.accept((Long) acc.value());
+                  hist.accept(((Number) acc.value()).doubleValue());
                   externalAccumulableHistograms.put(acc.id(), hist);
                 } catch (ClassCastException ignored) {
                 }
