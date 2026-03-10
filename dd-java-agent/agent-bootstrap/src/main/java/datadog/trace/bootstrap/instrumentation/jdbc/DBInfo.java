@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 
 public final class DBInfo {
@@ -256,17 +257,15 @@ public final class DBInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
-        type,
-        subtype,
-        fullPropagationSupport,
-        url,
-        user,
-        instance,
-        db,
-        host,
-        port,
-        warehouse,
-        schema);
+    int hash = HashingUtils.hash(type, subtype);
+    hash = HashingUtils.addToHash(hash, fullPropagationSupport);
+    hash = HashingUtils.addToHash(hash, url);
+    hash = HashingUtils.addToHash(hash, user);
+    hash = HashingUtils.addToHash(hash, instance);
+    hash = HashingUtils.addToHash(hash, db);
+    hash = HashingUtils.addToHash(hash, host);
+    hash = HashingUtils.addToHash(hash, port);
+    hash = HashingUtils.addToHash(hash, warehouse);
+    return HashingUtils.addToHash(hash, schema);
   }
 }
