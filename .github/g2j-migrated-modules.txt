@@ -1,0 +1,9 @@
+# This file lists modules that have been migrated from Groovy to Java / JUnit 5.
+# New *.groovy files under any src/<*test*>/groovy/ path
+# in these modules will fail the 'enforce-groovy-migration' PR check.
+#
+# After a module is migrated, add it on a new line here.
+# Use the filesystem path prefix as seen below.
+
+buildSrc/call-site-instrumentation-plugin
+components/json

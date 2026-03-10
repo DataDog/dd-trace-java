@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.Limits;
@@ -62,14 +63,20 @@ public class MoshiSnapshotHelper {
   public static final String LOCATION = "location";
   public static final String MESSAGE = "message";
   public static final String STACKTRACE = "stacktrace";
-  private static final Duration TIME_OUT = Duration.ofMillis(200);
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
+    private final Duration captureTimeOut;
+
+    public SnapshotJsonFactory(Duration captureTimeOut) {
+      this.captureTimeOut = captureTimeOut;
+    }
+
     @Override
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
       if (Types.equals(type, Snapshot.Captures.class)) {
         return new CapturesAdapter(
             moshi,
+            captureTimeOut,
             new CapturedContextAdapter(
                 moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi)));
       }
@@ -88,12 +95,15 @@ public class MoshiSnapshotHelper {
   }
 
   public static class CapturesAdapter extends JsonAdapter<Snapshot.Captures> {
+    protected final Duration captureTimeOut;
     protected final JsonAdapter<CapturedContext> capturedContextAdapter;
     protected final JsonAdapter<Map<Integer, CapturedContext>> linesAdapter;
     protected final JsonAdapter<List<CapturedContext.CapturedThrowable>> caughtExceptionsAdapter;
 
-    public CapturesAdapter(Moshi moshi, JsonAdapter<CapturedContext> capturedContextAdapter) {
+    public CapturesAdapter(
+        Moshi moshi, Duration captureTimeout, JsonAdapter<CapturedContext> capturedContextAdapter) {
       this.capturedContextAdapter = capturedContextAdapter;
+      this.captureTimeOut = captureTimeout;
       linesAdapter =
           moshi.adapter(
               Types.newParameterizedType(Map.class, Integer.class, CapturedContext.class));
@@ -109,7 +119,7 @@ public class MoshiSnapshotHelper {
         return;
       }
       jsonWriter.setTag(
-          TimeoutChecker.class, new TimeoutChecker(System.currentTimeMillis(), TIME_OUT));
+          TimeoutChecker.class, new TimeoutChecker(System.currentTimeMillis(), captureTimeOut));
       jsonWriter.beginObject();
       jsonWriter.name(ENTRY);
       capturedContextAdapter.toJson(jsonWriter, captures.getEntry());
@@ -149,7 +159,9 @@ public class MoshiSnapshotHelper {
       }
       TimeoutChecker timeoutChecker = jsonWriter.tag(TimeoutChecker.class);
       if (timeoutChecker == null) {
-        timeoutChecker = new TimeoutChecker(TIME_OUT);
+        Duration timeout =
+            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
+        timeoutChecker = new TimeoutChecker(timeout);
       }
       // need to 'freeze' the context before serializing it
       capturedContext.freeze(timeoutChecker);

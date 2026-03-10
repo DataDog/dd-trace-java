@@ -339,11 +339,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
       return;
     }
+
     initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
