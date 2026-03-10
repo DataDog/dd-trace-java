@@ -39,7 +39,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     return StringUtils.padHexLower(id, size)
   }
 
-  def "inject http headers"() {
+  def "inject http headers [#traceId #samplingPriority]"() {
     setup:
     HttpCodec.Injector injector = B3HttpCodec.newCombinedInjector(tracePropagationB3Padding())
     def writer = new ListWriter()
