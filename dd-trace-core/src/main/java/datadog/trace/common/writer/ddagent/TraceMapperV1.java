@@ -91,17 +91,25 @@ public final class TraceMapperV1 implements TraceMapper {
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
     encodeField(writable, 2, firstSpan.getOrigin()); // TODO double check
     // attributes = 3, a collection of key to value pairs common in all `spans`
-    encodeAttributes(
-        writable,
-        3,
-        Collections.emptyMap(),
-        Collections.emptyMap()); // TODO double check if something useful can be added
+    encodeAttributes(writable, 3, buildChunkAttributes(trace), Collections.emptyMap());
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
     encodeField(writable, 6, firstSpan.getTraceId().to128BitBytes());
     // samplingMechanism = 7
     encodeField(writable, 7, parseSamplingMechanism(meta.getTags()));
+  }
+
+  private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
+    if (trace.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    CoreSpan<?> localRoot = trace.get(0).getLocalRootSpan();
+    CharSequence service = localRoot == null ? null : localRoot.getServiceName();
+    if (service == null) {
+      return Collections.emptyMap();
+    }
+    return Collections.singletonMap("service", service);
   }
 
   private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {

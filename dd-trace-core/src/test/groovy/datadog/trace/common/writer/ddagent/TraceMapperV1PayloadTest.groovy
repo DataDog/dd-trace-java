@@ -556,7 +556,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
 
     Integer priority = null
     String origin = null
-    int chunkAttributesCount = -1
+    Map<String, Object> chunkAttributes = null
     byte[] traceId = null
     Integer samplingMechanism = null
     List<TraceGenerator.PojoSpan> decodedSpans = null
@@ -571,7 +571,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           origin = readStreamingString(unpacker, stringTable)
           break
         case 3:
-          chunkAttributesCount = unpacker.unpackArrayHeader()
+          chunkAttributes = readAttributes(unpacker, stringTable)
           break
         case 4:
           decodedSpans = verifySpans(unpacker, expectedTrace, stringTable)
@@ -591,14 +591,16 @@ class TraceMapperV1PayloadTest extends DDSpecification {
 
     assertNotNull(priority)
     assertNotNull(origin)
+    assertNotNull(chunkAttributes)
     assertNotNull(decodedSpans)
     assertNotNull(traceId)
     assertNotNull(samplingMechanism)
-    assertEquals(0, chunkAttributesCount)
 
     TraceGenerator.PojoSpan firstSpan = expectedTrace.get(0)
     assertEquals(firstSpan.samplingPriority(), priority)
     assertEqualsWithNullAsEmpty(firstSpan.getOrigin(), origin)
+    assertEquals(1, chunkAttributes.size())
+    assertEqualsWithNullAsEmpty(firstSpan.getLocalRootSpan().getServiceName(), chunkAttributes.get("service"))
     assertArrayEquals(firstSpan.getTraceId().to128BitBytes(), traceId)
     assertEquals(expectedSamplingMechanism(firstSpan.getTags()), samplingMechanism)
   }
@@ -843,7 +845,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
         readStreamingString(unpacker, stringTable)
         break
       case 3:
-        unpacker.unpackArrayHeader()
+        readAttributes(unpacker, stringTable)
         break
       case 4:
         int spanCount = unpacker.unpackArrayHeader()
@@ -851,10 +853,16 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           skipSpan(unpacker, stringTable)
         }
         break
+      case 5:
+        unpacker.unpackBoolean()
+        break
       case 6:
         int len = unpacker.unpackBinaryHeader()
         byte[] ignored = new byte[len]
         unpacker.readPayload(ignored)
+        break
+      case 7:
+        unpacker.unpackInt()
         break
       default:
         Assertions.fail("Unexpected chunk field id while skipping: " + fieldId)
