@@ -25,8 +25,12 @@ class SpringSchedulingTest extends InstrumentationSpecification {
     setup:
     def context = new AnnotationConfigApplicationContext(TriggerTaskConfig, SchedulingConfig)
     def task = context.getBean(TriggerTask)
+    def scheduledTaskEndpoint = context.getBean(ScheduledTasksEndpoint)
 
     task.blockUntilExecute()
+    // Close the context immediately after the first execution to prevent a second cron
+    // firing before assertions complete, which would produce extra traces and cause flakiness.
+    context.close()
 
     expect:
     assert task != null
@@ -54,13 +58,10 @@ class SpringSchedulingTest extends InstrumentationSpecification {
       }
     }
     and:
-    def scheduledTaskEndpoint = context.getBean(ScheduledTasksEndpoint)
     assert scheduledTaskEndpoint != null
     scheduledTaskEndpoint.scheduledTasks().getCron().each {
       it.getRunnable().getTarget() == TriggerTask.getName()
     }
-    cleanup:
-    context.close()
   }
 
   def "schedule interval test"() {
