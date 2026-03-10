@@ -87,7 +87,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
-      } else {
+      } else if (val == null) { // previous message span was the last
         final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
         if (previousSpan != null) {
           previousSpan.finishWithEndToEnd();
