@@ -44,10 +44,7 @@ public final class PromiseObjectInstrumentation
             InstrumentationContext.get(Try.class, Context.class);
         final Context existing = contextStore.get(resolved);
         Try<T> next =
-            PromiseHelper.getTry(
-                resolved,
-                span,
-                existing != null ? Java8BytecodeBridge.spanFromContext(existing) : null);
+            PromiseHelper.getTry(resolved, span, Java8BytecodeBridge.spanFromContext(existing));
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;

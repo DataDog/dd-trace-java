@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.scala;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 
 import datadog.context.Context;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
@@ -104,25 +104,21 @@ public class PromiseHelper {
       ContextStore<K, State> taskStore,
       K task,
       State state) {
-    final Context context = tryStore.get(resolved);
-    if (context != null) {
-      final AgentSpan span = Java8BytecodeBridge.spanFromContext(context);
-      // Check if the new Span is the same as the currently stored one
-      if (null != span && null != state && state.getSpan() == span) {
-        return state;
-      }
-      AgentScope.Continuation continuation = captureSpan(span);
-      AgentScope.Continuation existing = null;
-      if (null != state) {
-        existing = state.getAndResetContinuation();
-      } else {
-        state = State.FACTORY.create();
-        taskStore.put(task, state);
-      }
-      state.setOrCancelContinuation(continuation);
-      if (null != existing) {
-        existing.cancel();
-      }
+    final AgentSpan span = spanFromContext(tryStore.get(resolved));
+    if (span != null && state.getSpan() == span) {
+      return state;
+    }
+    AgentScope.Continuation continuation = captureSpan(span);
+    AgentScope.Continuation existing = null;
+    if (null != state) {
+      existing = state.getAndResetContinuation();
+    } else {
+      state = State.FACTORY.create();
+      taskStore.put(task, state);
+    }
+    state.setOrCancelContinuation(continuation);
+    if (null != existing) {
+      existing.cancel();
     }
     return state;
   }
