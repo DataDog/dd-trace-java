@@ -2,6 +2,7 @@ package datadog.remoteconfig.state;
 
 import datadog.remoteconfig.Product;
 import datadog.remoteconfig.ReportableException;
+import datadog.trace.util.HashingUtils;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -90,6 +91,6 @@ public class ParsedConfigKey implements ConfigKey {
 
   @Override
   public int hashCode() {
-    return Objects.hash(originalKey);
+    return HashingUtils.hash(originalKey);
   }
 }

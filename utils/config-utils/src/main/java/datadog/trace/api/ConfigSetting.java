@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -132,7 +133,7 @@ public final class ConfigSetting {
 
   @Override
   public int hashCode() {
-    return Objects.hash(key, value, origin, seqId, configId);
+    return HashingUtils.addToHash(HashingUtils.hash(key, value, origin, seqId), configId);
   }
 
   @Override
