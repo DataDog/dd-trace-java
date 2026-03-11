@@ -101,8 +101,8 @@ class OT31ApiTest extends DDSpecification {
     def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
     def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(spanId)}" +
       (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "") +
-      (contextPriority == UNSET ? ";t.ksr:1" : "") +
-      ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
+      ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}" +
+      (contextPriority == UNSET ? ";t.ksr:1" : "")
     def expectedTextMap = [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
@@ -114,11 +114,11 @@ class OT31ApiTest extends DDSpecification {
     if (propagatedPriority > 0) {
       datadogTags << "_dd.p.dm=-$effectiveSamplingMechanism"
     }
-    if (contextPriority == UNSET) {
-      datadogTags << "_dd.p.ksr=1"
-    }
     if (traceId.toHighOrderLong() != 0) {
       datadogTags << "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+    }
+    if (contextPriority == UNSET) {
+      datadogTags << "_dd.p.ksr=1"
     }
     if (!datadogTags.empty) {
       expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
