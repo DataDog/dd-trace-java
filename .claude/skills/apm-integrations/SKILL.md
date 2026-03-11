@@ -121,6 +121,7 @@ Exit method:
 
 - **No logger fields** in the Advice class or the Instrumentation class (loggers only in helpers/decorators)
 - **No code in the Advice constructor** — it is never called
+- **Do not use lambdas in advice methods** — they create synthetic classes that will be missing from helper declarations
 - **No references** to other methods in the same Advice class or in the InstrumenterModule class
 - **No `InstrumentationContext.get()`** outside of Advice code
 - **No `inline=false`** in production code (only for debugging; must be removed before committing)
