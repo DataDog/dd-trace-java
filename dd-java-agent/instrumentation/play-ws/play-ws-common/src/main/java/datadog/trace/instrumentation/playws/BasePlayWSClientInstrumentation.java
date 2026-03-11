@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
@@ -16,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -69,11 +67,7 @@ public abstract class BasePlayWSClientInstrumentation extends InstrumenterModule
   public static class ClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Request request) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext(), request, SETTER);
     }
   }
 }

@@ -4,6 +4,7 @@ import static datadog.context.Context.current;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.apache.http.HttpException;
@@ -15,17 +16,20 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
-  final AgentSpan span;
+  AgentSpan span;
   final HttpAsyncRequestProducer delegate;
   boolean injectContext = false;
 
-  public DelegatingRequestProducer(final AgentSpan span, final HttpAsyncRequestProducer delegate) {
-    this.span = span;
+  public DelegatingRequestProducer(final HttpAsyncRequestProducer delegate) {
     this.delegate = delegate;
   }
 
   public void setInjectContext(boolean injectContext) {
     this.injectContext = injectContext;
+  }
+
+  public void setSpan(final AgentSpan span) {
+    this.span = span;
   }
 
   @Override
@@ -38,7 +42,11 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
     final HttpRequest request = delegate.generateRequest();
     DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
     if (injectContext) {
-      DECORATE.injectContext(current().with(span), request, SETTER);
+      Context receiver = current();
+      if (span != null) {
+        receiver = receiver.with(span);
+      }
+      DECORATE.injectContext(receiver, request, SETTER);
     }
     return request;
   }

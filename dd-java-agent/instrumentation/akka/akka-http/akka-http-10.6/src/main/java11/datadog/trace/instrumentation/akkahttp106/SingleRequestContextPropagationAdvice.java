@@ -15,16 +15,13 @@ public class SingleRequestContextPropagationAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void methodEnter(
       @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+    if (request == null) {
+      return;
+    }
     final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
         new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
-    if (headers.hadSpan()) {
-      return;
-    }
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      return;
-    }
-    DECORATE.injectContext(getCurrentContext().with(span), request, headers);
+
+    DECORATE.injectContext(getCurrentContext(), request, headers);
     request = headers.getRequest();
   }
 }

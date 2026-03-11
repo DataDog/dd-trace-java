@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
@@ -49,11 +48,7 @@ public class HelperMethods {
     if (request.containsHeader("amz-sdk-invocation-id")) {
       return;
     }
-    final AgentSpan span = activeSpan();
-    if (span == null) {
-      return;
-    }
-    DECORATE.injectContext(current().with(span), request, SETTER);
+    DECORATE.injectContext(current(), request, SETTER);
   }
 
   public static void doMethodExit(

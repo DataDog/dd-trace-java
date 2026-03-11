@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.akkahttp;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
@@ -66,8 +65,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
 
   public static class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+    public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
       /*
       Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
       we cast 'wider net' and avoid instrumenting twice.
@@ -113,15 +111,11 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+      if (request == null) {
+        return;
+      }
       final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
-      if (headers.hadSpan()) {
-        return;
-      }
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(getCurrentContext().with(span), request, headers);
+      DECORATE.injectContext(getCurrentContext(), request, headers);
       request = headers.getRequest();
     }
   }

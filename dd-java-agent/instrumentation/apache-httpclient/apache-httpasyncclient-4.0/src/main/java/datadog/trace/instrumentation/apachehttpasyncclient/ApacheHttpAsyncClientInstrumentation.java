@@ -71,23 +71,37 @@ public class ApacheHttpAsyncClientInstrumentation
             .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
             .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
-        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice",
-        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice");
+        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice",
+        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ClientContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer) {
+      final DelegatingRequestProducer delegatingRequestProducer =
+          new DelegatingRequestProducer(requestProducer);
+      delegatingRequestProducer.setInjectContext(true);
+      requestProducer = delegatingRequestProducer;
+    }
   }
 
   public static class ClientAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
         @Advice.Argument(2) HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
+      if (!(requestProducer instanceof DelegatingRequestProducer)) {
+        requestProducer = new DelegatingRequestProducer(requestProducer);
+      }
+
       final AgentScope.Continuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
-
-      requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
+      ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
       futureCallback =
           new TraceContinuedFutureCallback<>(
               parentContinuation, clientSpan, context, futureCallback);
@@ -104,16 +118,6 @@ public class ApacheHttpAsyncClientInstrumentation
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();
-      }
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ClientContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final HttpAsyncRequestProducer requestProducer) {
-      if (requestProducer instanceof DelegatingRequestProducer) {
-        ((DelegatingRequestProducer) requestProducer).setInjectContext(true);
       }
     }
   }
