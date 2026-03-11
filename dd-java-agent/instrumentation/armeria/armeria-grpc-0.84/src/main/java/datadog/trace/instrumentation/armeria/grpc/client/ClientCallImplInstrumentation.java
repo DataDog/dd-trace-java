@@ -20,6 +20,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -127,11 +128,7 @@ public final class ClientCallImplInstrumentation
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.Argument(1) Metadata headers) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(span, headers, SETTER);
+      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
     }
   }
 

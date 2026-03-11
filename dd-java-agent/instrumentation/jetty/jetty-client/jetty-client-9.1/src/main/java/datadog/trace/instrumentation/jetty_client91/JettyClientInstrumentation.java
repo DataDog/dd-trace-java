@@ -111,11 +111,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Request request) {
-      AgentSpan span = InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext(), request, SETTER);
     }
   }
 }

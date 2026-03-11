@@ -131,10 +131,6 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class GoogleHttpClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.This HttpRequest request) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
       DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
     }
   }

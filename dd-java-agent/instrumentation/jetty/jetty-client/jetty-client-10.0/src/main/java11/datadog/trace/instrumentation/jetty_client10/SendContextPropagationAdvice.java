@@ -6,8 +6,6 @@ import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SE
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.DECORATE;
 
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.client.api.Request;
 
@@ -15,10 +13,6 @@ import org.eclipse.jetty.client.api.Request;
 public class SendContextPropagationAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void methodEnter(@Advice.Argument(0) final Request request) {
-    AgentSpan span = InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
-    if (span == null) {
-      return;
-    }
-    DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
+    DECORATE.injectContext(getCurrentContext(), request, SETTER);
   }
 }

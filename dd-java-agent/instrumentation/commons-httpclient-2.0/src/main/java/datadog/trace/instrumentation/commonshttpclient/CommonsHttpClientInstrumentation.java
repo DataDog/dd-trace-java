@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.commonshttpclient;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
@@ -106,10 +105,6 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
       DECORATE.injectContext(getCurrentContext().with(span), httpMethod, SETTER);
     }
   }

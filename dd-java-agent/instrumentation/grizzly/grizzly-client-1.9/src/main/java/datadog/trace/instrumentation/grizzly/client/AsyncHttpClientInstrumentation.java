@@ -73,11 +73,7 @@ public final class AsyncHttpClientInstrumentation
   public static class ExecuteContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final Request request) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
+      DECORATE.injectContext(getCurrentContext(), request, SETTER);
     }
   }
 }

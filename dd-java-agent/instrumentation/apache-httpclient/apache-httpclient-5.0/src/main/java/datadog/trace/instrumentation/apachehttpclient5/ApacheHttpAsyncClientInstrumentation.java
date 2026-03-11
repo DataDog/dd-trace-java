@@ -87,8 +87,20 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
             .and(takesArgument(2, named("org.apache.hc.core5.http.nio.HandlerFactory")))
             .and(takesArgument(3, named("org.apache.hc.core5.http.protocol.HttpContext")))
             .and(takesArgument(4, named("org.apache.hc.core5.concurrent.FutureCallback"))),
-        this.getClass().getName() + "$ClientAdvice",
-        this.getClass().getName() + "$ClientContextPropagationAdvice");
+        this.getClass().getName() + "$ClientContextPropagationAdvice",
+        this.getClass().getName() + "$ClientAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ClientContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer) {
+      final DelegatingRequestProducer delegatingRequestProducer =
+          new DelegatingRequestProducer(requestProducer);
+      delegatingRequestProducer.setInjectContext(true);
+      requestProducer = delegatingRequestProducer;
+    }
   }
 
   public static class ClientAdvice {
@@ -108,7 +120,11 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         context = new BasicHttpContext();
       }
 
-      requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
+      if (!(requestProducer instanceof DelegatingRequestProducer)) {
+        requestProducer = new DelegatingRequestProducer(requestProducer);
+      }
+
+      ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
       futureCallback =
           new TraceContinuedFutureCallback<>(
               parentContinuation, clientSpan, context, futureCallback);
@@ -133,16 +149,6 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         }
       } finally {
         scope.close();
-      }
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ClientContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final AsyncRequestProducer requestProducer) {
-      if (requestProducer instanceof DelegatingRequestProducer) {
-        ((DelegatingRequestProducer) requestProducer).setInjectContext(true);
       }
     }
   }

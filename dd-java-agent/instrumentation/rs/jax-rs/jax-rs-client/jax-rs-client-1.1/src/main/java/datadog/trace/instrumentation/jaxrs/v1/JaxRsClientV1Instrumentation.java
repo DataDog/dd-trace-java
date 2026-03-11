@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
@@ -103,11 +102,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
   public static class HandleContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final ClientRequest request) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
-        return;
-      }
-      DECORATE.injectContext(getCurrentContext().with(span), request.getHeaders(), SETTER);
+      DECORATE.injectContext(getCurrentContext(), request.getHeaders(), SETTER);
     }
   }
 }
