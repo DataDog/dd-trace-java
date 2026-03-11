@@ -98,6 +98,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public AgentSpan onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
+    span.setTag("rpc.grpc.status_code", status.getCode().value());
     span.setTag("status.description", status.getDescription());
     return span.setError(
         SERVER_ERROR_STATUSES.get(status.getCode().value()), ErrorPriorities.HTTP_SERVER_DECORATOR);

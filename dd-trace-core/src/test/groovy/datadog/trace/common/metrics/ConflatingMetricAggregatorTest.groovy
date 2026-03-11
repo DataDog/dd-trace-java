@@ -1484,10 +1484,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.publish([
       new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 100, 0)
       .setTag(SPAN_KIND, "server")
-      .setTag("grpc.status.code", "OK"),
+      .setTag("rpc.grpc.status_code", 0),
       new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 50, 0)
       .setTag(SPAN_KIND, "server")
-      .setTag("grpc.status.code", "NOT_FOUND"),
+      .setTag("rpc.grpc.status_code", 5),
       new SimpleSpan("service", "http.request", "GET /api", "web", true, false, false, 0, 75, 200)
       .setTag(SPAN_KIND, "server")
     ])
@@ -1510,7 +1510,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       [],
       null,
       null,
-      "OK"
+      "0"
       ), _)
     1 * writer.add(new MetricKey(
       "grpc.service/Method",
@@ -1525,7 +1525,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       [],
       null,
       null,
-      "NOT_FOUND"
+      "5"
       ), _)
     1 * writer.add(new MetricKey(
       "GET /api",

@@ -116,6 +116,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
+    span.setTag("rpc.grpc.status_code", status.getCode().value());
     span.setTag("status.description", status.getDescription());
 
     // TODO why is there a mismatch between client / server for calling the onError method?

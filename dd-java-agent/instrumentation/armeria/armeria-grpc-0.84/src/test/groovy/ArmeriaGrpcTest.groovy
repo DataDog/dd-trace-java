@@ -182,6 +182,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
@@ -221,6 +222,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -319,6 +321,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
+            "rpc.grpc.status_code" status.code.value()
             "status.description" description
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
@@ -343,6 +346,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
+            "rpc.grpc.status_code" status.code.value()
             "status.description" description
             "canceled" { true } // 1.0.0 handles cancellation incorrectly so accesting any value
             if (status.cause != null) {
@@ -432,6 +436,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" status.code.name()
             "grpc.status.code" status.code.name()
+            "rpc.grpc.status_code" status.code.value()
             if (status.description != null) {
               "status.description" status.description
             }
@@ -459,6 +464,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             errorTags error.class, error.message
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
+            "rpc.grpc.status_code" status.code.value()
             "status.description"  { it == null || String}
             "canceled" { true } // 1.0.0 handles cancellation incorrectly so accesting any value
             if ({ isDataStreamsEnabled() }) {
@@ -574,6 +580,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -650,6 +657,7 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {

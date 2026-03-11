@@ -284,6 +284,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
         "grpc.status.code" { String }
+        "rpc.grpc.status_code" { Integer }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }

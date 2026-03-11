@@ -178,6 +178,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             "request.type" "example.Helloworld\$Response"
             "response.type" "example.Helloworld\$Response"
             peerServiceFrom(Tags.RPC_SERVICE)
@@ -215,6 +216,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "rpc.grpc.status_code" 0
             defaultTags(true)
           }
         }

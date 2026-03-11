@@ -80,7 +80,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
-  private static final String GRPC_STATUS_TAG = "grpc.status.code";
+  private static final String GRPC_STATUS_TAG = "rpc.grpc.status_code";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
       unmodifiableSet(
