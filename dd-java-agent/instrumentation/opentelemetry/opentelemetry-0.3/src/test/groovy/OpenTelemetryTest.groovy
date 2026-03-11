@@ -271,24 +271,38 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     httpPropagator.inject(context, textMap, new TextMapSetter())
 
     then:
-    def expectedTraceparent = "00-${span.delegate.traceId.toHexStringPadded(32)}" +
-      "-${DDSpanId.toHexStringPadded(span.delegate.spanId)}" +
+    def traceId = span.delegate.traceId as DDTraceId
+    def spanId = span.delegate.spanId
+    def expectedTraceparent = "00-${traceId.toHexStringPadded(32)}" +
+      "-${DDSpanId.toHexStringPadded(spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
-    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(span.delegate.spanId)}"
-    def expectedDatadogTags = null
+    def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(spanId)}"
+    def datadogTags = []
     if (propagatedMechanism != UNKNOWN) {
-      expectedDatadogTags = "_dd.p.dm=-" + propagatedMechanism
-      expectedTracestate+= ";t.dm:-" + propagatedMechanism
+      datadogTags << "_dd.p.dm=-" + propagatedMechanism
+      expectedTracestate += ";t.dm:-" + propagatedMechanism
+    }
+    if (traceId.toHighOrderLong() != 0) {
+      expectedTracestate += ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
+    }
+    if (contextPriority == UNSET) {
+      expectedTracestate += ";t.ksr:1"
+    }
+    if (traceId.toHighOrderLong() != 0) {
+      datadogTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
+    }
+    if (contextPriority == UNSET) {
+      datadogTags << "_dd.p.ksr=1"
     }
     def expectedTextMap = [
-      "x-datadog-trace-id"         : "$span.delegate.traceId",
-      "x-datadog-parent-id"        : "$span.delegate.spanId",
+      "x-datadog-trace-id"         : "$traceId",
+      "x-datadog-parent-id"        : "$spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
       "traceparent"                : expectedTraceparent,
       "tracestate"                 : expectedTracestate,
     ]
-    if (expectedDatadogTags != null) {
-      expectedTextMap.put("x-datadog-tags", expectedDatadogTags)
+    if (!datadogTags.empty) {
+      expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
     }
     textMap == expectedTextMap
 
