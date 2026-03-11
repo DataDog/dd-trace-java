@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -55,7 +56,7 @@ public class TestIdentifier {
 
   @Override
   public int hashCode() {
-    return Objects.hash(fqn, parameters);
+    return HashingUtils.hash(fqn, parameters);
   }
 
   @Override
