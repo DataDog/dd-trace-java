@@ -83,23 +83,23 @@ public final class TraceMapperV1 implements TraceMapper {
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     CoreSpan<?> firstSpan = trace.get(0);
     firstSpan.processTagsAndBaggage(spanMetadata, false);
-    Metadata meta = spanMetadata.metadata;
+    Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
     writable.startMap(6);
 
     // priority = 1, the sampling priority of the trace
-    encodeField(writable, 1, meta.samplingPriority()); // TODO double check
+    encodeField(writable, 1, firstSpanMeta.samplingPriority()); // TODO double check
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
     encodeField(writable, 2, firstSpan.getOrigin()); // TODO double check
     // attributes = 3, a collection of key to value pairs common in all `spans`
     encodeAttributes(writable, 3, buildChunkAttributes(trace), emptyMap());
     // spans = 4, a list of spans in this chunk
-    encodeSpans(writable, 4, trace);
+    encodeSpans(writable, 4, trace, firstSpanMeta);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
     encodeField(writable, 6, firstSpan.getTraceId().to128BitBytes());
     // samplingMechanism = 7
-    encodeField(writable, 7, parseSamplingMechanism(meta.getTags()));
+    encodeField(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
   }
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
@@ -114,7 +114,11 @@ public final class TraceMapperV1 implements TraceMapper {
     return singletonMap("service", service);
   }
 
-  private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {
+  private void encodeSpans(
+      Writable writable,
+      int fieldId,
+      List<? extends CoreSpan<?>> spans,
+      Metadata firstSpanMetadata) {
     int spansCount = spans.size();
 
     writable.writeInt(fieldId);
@@ -123,8 +127,13 @@ public final class TraceMapperV1 implements TraceMapper {
     for (int i = 0; i < spansCount; i++) {
       final CoreSpan<?> span = spans.get(i);
 
-      span.processTagsAndBaggage(spanMetadata, false);
-      Metadata meta = spanMetadata.metadata;
+      Metadata meta;
+      if (i == 0) {
+        meta = firstSpanMetadata;
+      } else {
+        span.processTagsAndBaggage(spanMetadata, false);
+        meta = spanMetadata.metadata;
+      }
       TagMap tags = meta.getTags();
       Map<String, Object> metaStruct = span.getMetaStruct();
 

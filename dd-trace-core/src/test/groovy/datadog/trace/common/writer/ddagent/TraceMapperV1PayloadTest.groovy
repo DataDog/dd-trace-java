@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.TraceGenerator
+import datadog.trace.core.MetadataConsumer
 import datadog.trace.test.util.DDSpecification
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
@@ -284,6 +285,54 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals("", links[1].tracestate)
     assertEquals(0L, links[1].flags)
     assertEquals([:], links[1].attributes)
+  }
+
+  def "test first span tags are processed once"() {
+    setup:
+    def firstSpan = new CountingPojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [(Tags.HTTP_URL): "http://localhost:7777/"],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    def secondSpan = new CountingPojoSpan(
+      "service-a",
+      "operation-b",
+      "resource-b",
+      DDTraceId.ONE,
+      456L,
+      123L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [(Tags.HTTP_URL): "http://localhost:7777/"],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+
+    when:
+    serializeMappedPayload(mapper, [[firstSpan, secondSpan]])
+
+    then:
+    assertEquals(1, firstSpan.processTagsAndBaggageCount)
+    assertEquals(1, secondSpan.processTagsAndBaggageCount)
   }
 
   def "test missing span links encode empty links"() {
@@ -1336,6 +1385,52 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       Payload payload = mapper.newPayload().withBody(messageCount, buffer)
       payloadBytes = serializePayload(payload)
       mapper.reset()
+    }
+  }
+
+  private static class CountingPojoSpan extends TraceGenerator.PojoSpan {
+    int processTagsAndBaggageCount = 0
+
+    CountingPojoSpan(
+    String serviceName,
+    String operationName,
+    CharSequence resourceName,
+    DDTraceId traceId,
+    long spanId,
+    long parentId,
+    long start,
+    long duration,
+    int error,
+    Map<String, String> baggage,
+    Map<String, Object> tags,
+    CharSequence type,
+    boolean measured,
+    int samplingPriority,
+    int statusCode,
+    CharSequence origin) {
+      super(
+      serviceName,
+      operationName,
+      resourceName,
+      traceId,
+      spanId,
+      parentId,
+      start,
+      duration,
+      error,
+      baggage,
+      tags,
+      type,
+      measured,
+      samplingPriority,
+      statusCode,
+      origin)
+    }
+
+    @Override
+    void processTagsAndBaggage(MetadataConsumer consumer) {
+      processTagsAndBaggageCount++
+      super.processTagsAndBaggage(consumer)
     }
   }
 
