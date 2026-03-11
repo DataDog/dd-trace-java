@@ -15,8 +15,7 @@ import scala.concurrent.Future;
 
 public class SingleRequestAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
-      @Advice.Argument(value = 0)  final HttpRequest request) {
+  public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
     final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
         new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
     if (headers.hadSpan()) {
