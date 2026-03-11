@@ -92,6 +92,7 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   }
 
   @AppliesOn(CONTEXT_TRACKING)
+  @SuppressFBWarnings("UC_USELESS_OBJECT")
   public static class ClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(

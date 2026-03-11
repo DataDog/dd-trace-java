@@ -15,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -111,7 +112,13 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Request request) {
-      DECORATE.injectContext(getCurrentContext(), request, SETTER);
+      final AgentSpan span =
+          InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
+      Context destination = getCurrentContext();
+      if (span != null) {
+        destination = destination.with(span);
+      }
+      DECORATE.injectContext(destination, request, SETTER);
     }
   }
 }
