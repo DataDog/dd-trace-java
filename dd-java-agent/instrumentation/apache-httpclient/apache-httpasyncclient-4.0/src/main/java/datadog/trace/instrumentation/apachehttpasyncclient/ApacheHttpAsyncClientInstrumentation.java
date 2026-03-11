@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -76,6 +77,7 @@ public class ApacheHttpAsyncClientInstrumentation
   }
 
   @AppliesOn(CONTEXT_TRACKING)
+  @SuppressFBWarnings("UC_USELESS_OBJECT")
   public static class ClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
@@ -87,6 +89,7 @@ public class ApacheHttpAsyncClientInstrumentation
     }
   }
 
+  @SuppressFBWarnings("UC_USELESS_OBJECT")
   public static class ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
