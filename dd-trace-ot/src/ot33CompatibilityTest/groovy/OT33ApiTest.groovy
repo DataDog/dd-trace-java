@@ -90,6 +90,7 @@ class OT33ApiTest extends DDSpecification {
     def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
     def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(spanId)}" +
       (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "") +
+      (contextPriority == UNSET ? ";t.ksr:1" : "") +
       ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
     def expectedTextMap = [
       "x-datadog-trace-id"         : context.toTraceId(),
