@@ -2,11 +2,13 @@ package datadog.trace.api.gateway;
 
 import static datadog.context.ContextKey.named;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_SERVER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 
@@ -46,6 +48,10 @@ public class InferredProxySpan implements ImplicitContextKeyed {
 
   private final Map<String, String> headers;
   private AgentSpan span;
+  // Service-entry span registered at startSpan() time; used to guard against premature finishing
+  // by child spans (e.g., Spring MVC handler spans) before the response status is known.
+  private AgentSpan registeredServiceEntrySpan;
+  private boolean phasedFinished;
 
   public static InferredProxySpan fromHeaders(Map<String, String> values) {
     return new InferredProxySpan(values);
@@ -191,31 +197,75 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
   }
 
+  /**
+   * Registers the service-entry span for this inferred proxy span. This allows {@link
+   * #finish(AgentSpan)} to distinguish between premature finish calls from child handler spans
+   * (e.g., Spring MVC) and the final finish call from the service-entry span after the response is
+   * written.
+   */
+  public void registerServiceEntrySpan(AgentSpan serviceEntrySpan) {
+    this.registeredServiceEntrySpan = serviceEntrySpan;
+  }
+
   public void finish() {
     finish(null);
   }
 
   /**
-   * Finishes this inferred proxy span and copies AppSec tags from the service-entry span to this
-   * span as required by RFC-1081. AppSec detection occurs in the service-entry span context, so its
-   * tags must be propagated to the inferred proxy span for endpoint correlation.
+   * Finishes this inferred proxy span, copying relevant tags from the given span.
    *
-   * @param serviceEntrySpan the service-entry child span, or null if not available
+   * <p>When a service-entry span is registered (via {@link #registerServiceEntrySpan}), this method
+   * distinguishes between two callers:
+   *
+   * <ul>
+   *   <li><b>Non-service-entry caller</b> (e.g., Spring MVC handler span): copies available tags
+   *       (AppSec) and calls {@link AgentSpan#phasedFinish()} to record duration without
+   *       publishing. The span stays alive so HTTP tags can be added later.
+   *   <li><b>Service-entry caller</b>: copies all tags including HTTP status/error/useragent, then
+   *       publishes the span (via {@link AgentSpan#publish()} if phasedFinished, or {@link
+   *       AgentSpan#finish()} otherwise).
+   * </ul>
+   *
+   * @param callerSpan the span calling finish, used to copy tags and determine caller type
    */
-  public void finish(AgentSpan serviceEntrySpan) {
-    if (this.span != null) {
-      copyAppSecTagsFromServiceEntry(serviceEntrySpan);
-      this.span.finish();
-      this.span = null;
+  public void finish(AgentSpan callerSpan) {
+    if (this.span == null) {
+      return;
     }
+
+    boolean isServiceEntryOrFallback =
+        registeredServiceEntrySpan == null
+            || callerSpan == null
+            || callerSpan == registeredServiceEntrySpan;
+
+    if (isServiceEntryOrFallback) {
+      // Final call: copy all tags (AppSec + HTTP status/error/useragent) and close the span
+      copyTagsFromServiceEntry(callerSpan);
+      if (phasedFinished) {
+        this.span.publish();
+      } else {
+        this.span.finish();
+      }
+      this.span = null;
+      this.registeredServiceEntrySpan = null;
+      this.phasedFinished = false;
+    } else if (!phasedFinished) {
+      // First non-service-entry call (e.g., Spring MVC handler span fires beforeFinish() before
+      // the response is written): copy available tags (AppSec) and phase-finish to record
+      // duration, but keep the span alive so the service-entry call can add HTTP tags later.
+      copyTagsFromServiceEntry(callerSpan);
+      this.span.phasedFinish();
+      this.phasedFinished = true;
+    }
+    // If already phasedFinished and caller is not service-entry: ignore duplicate calls
   }
 
   /**
-   * Copies AppSec tags from the service-entry span to this inferred proxy span as required by
-   * RFC-1081: the inferred span must carry {@code _dd.appsec.enabled} and {@code _dd.appsec.json}
-   * so that security activity can be correlated with the API Gateway endpoint.
+   * Copies relevant tags from the service-entry span to this inferred proxy span. This includes
+   * AppSec tags required by RFC-1081, plus HTTP tags that are only known after the request
+   * completes ({@code http.status_code}, {@code error}, {@code http.useragent}).
    */
-  private void copyAppSecTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
+  private void copyTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
     if (serviceEntrySpan == null || serviceEntrySpan == this.span) {
       return;
     }
@@ -228,6 +278,18 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
     if (appsecJson != null) {
       this.span.setTag("_dd.appsec.json", appsecJson.toString());
+    }
+
+    short statusCode = serviceEntrySpan.getHttpStatusCode();
+    if (statusCode > 0) {
+      this.span.setHttpStatusCode(statusCode);
+      boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
+      this.span.setError(isError, HTTP_SERVER_DECORATOR);
+    }
+
+    Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
+    if (userAgent != null) {
+      this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
     }
   }
 
