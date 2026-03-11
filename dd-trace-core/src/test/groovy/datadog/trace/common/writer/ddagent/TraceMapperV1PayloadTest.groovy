@@ -13,8 +13,10 @@ import static org.msgpack.core.MessageFormat.STR8
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.DDSpanId
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
@@ -123,6 +125,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     int payloadFieldCount = unpacker.unpackMapHeader()
     Set<Integer> payloadFieldsSeen = new HashSet<>()
     int chunkCount = -1
+    Map<String, Object> payloadAttributes = null
 
     for (int i = 0; i < payloadFieldCount; i++) {
       int fieldId = unpacker.unpackInt()
@@ -139,7 +142,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           readStreamingString(unpacker, stringTable)
           break
         case 10:
-          assertEquals(0, unpacker.unpackArrayHeader())
+          payloadAttributes = readAttributes(unpacker, stringTable)
           break
         case 11:
           chunkCount = unpacker.unpackArrayHeader()
@@ -155,6 +158,13 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals(10, payloadFieldCount)
     assertEquals((2..11).toSet(), payloadFieldsSeen)
     assertEquals(1, chunkCount)
+    assertNotNull(payloadAttributes)
+    if (ProcessTags.tagsForSerialization == null) {
+      assertEquals(0, payloadAttributes.size())
+    } else {
+      assertEquals(1, payloadAttributes.size())
+      assertEquals(ProcessTags.tagsForSerialization.toString(), payloadAttributes.get(DDTags.PROCESS_TAGS))
+    }
   }
 
   def "test sampling mechanism normalization from _dd.p.dm"() {
@@ -828,8 +838,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
         readStreamingString(unpacker, stringTable)
         break
       case 10:
-        int attrArray = unpacker.unpackArrayHeader()
-        assertEquals(0, attrArray)
+        readAttributes(unpacker, stringTable)
         break
       default:
         Assertions.fail("Unexpected payload field id while skipping: " + fieldId)

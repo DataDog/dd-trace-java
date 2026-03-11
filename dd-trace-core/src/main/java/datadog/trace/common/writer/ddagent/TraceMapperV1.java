@@ -1,6 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 
 import datadog.common.container.ContainerInfo;
 import datadog.communication.ddagent.TracerVersion;
@@ -11,6 +13,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -24,7 +27,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,7 +93,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
     encodeField(writable, 2, firstSpan.getOrigin()); // TODO double check
     // attributes = 3, a collection of key to value pairs common in all `spans`
-    encodeAttributes(writable, 3, buildChunkAttributes(trace), Collections.emptyMap());
+    encodeAttributes(writable, 3, buildChunkAttributes(trace), emptyMap());
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
@@ -102,14 +104,14 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
     if (trace.isEmpty()) {
-      return Collections.emptyMap();
+      return emptyMap();
     }
     CoreSpan<?> localRoot = trace.get(0).getLocalRootSpan();
     CharSequence service = localRoot == null ? null : localRoot.getServiceName();
     if (service == null) {
-      return Collections.emptyMap();
+      return emptyMap();
     }
-    return Collections.singletonMap("service", service);
+    return singletonMap("service", service);
   }
 
   private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {
@@ -180,7 +182,7 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeField(writable, 2, link.spanId());
       Map<String, Object> attributes = new LinkedHashMap<>();
       attributes.putAll(link.attributes().asMap());
-      encodeAttributes(writable, 3, attributes, Collections.emptyMap());
+      encodeAttributes(writable, 3, attributes, emptyMap());
       encodeField(writable, 4, link.traceState());
       encodeField(writable, 5, link.traceFlags() & 0xFF);
     }
@@ -522,26 +524,34 @@ public final class TraceMapperV1 implements TraceMapper {
 
     // containerID = 2, the string ID of the container where the tracer is running
     encodeField(headerWriter, 2, ContainerInfo.get().getContainerId());
+
     // languageName = 3, the string language name of the tracer
     encodeField(headerWriter, 3, "java"); // TODO: check java or jvm?
+
     // languageVersion = 4, the string language version of the tracer
     encodeField(headerWriter, 4, JavaVirtualMachine.getLangVersion());
+
     // tracerVersion = 5, the string version of the tracer
     encodeField(headerWriter, 5, TracerVersion.TRACER_VERSION);
+
     // runtimeID = 6, the V4 string UUID representation of a tracer session
     encodeField(headerWriter, 6, cfg.getRuntimeId());
+
     // env=7, the optional `env` string tag that set with the tracer
     encodeField(headerWriter, 7, cfg.getEnv());
+
     // hostname = 8, the optional string hostname of where the tracer is running
     encodeField(headerWriter, 8, cfg.getHostName());
+
     // appVersion = 9, the optional string `version` tag for the application set in the tracer
     encodeField(headerWriter, 9, cfg.getVersion());
+
     // attributes = 10, a collection of key to value pairs common in all `chunks`
-    encodeAttributes(
-        headerWriter,
-        10,
-        Collections.emptyMap(),
-        Collections.emptyMap()); // TODO check useful attrs.
+    CharSequence processTags = ProcessTags.getTagsForSerialization();
+    Map<String, Object> tags =
+        processTags != null ? singletonMap(DDTags.PROCESS_TAGS, processTags) : emptyMap();
+    encodeAttributes(headerWriter, 10, tags, emptyMap());
+
     // chunks = 11, a list of trace `chunks`, value is written by PayloadV1
     headerWriter.writeInt(11);
 
