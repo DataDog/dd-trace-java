@@ -7,6 +7,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -257,6 +258,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
+    // Use a very short scope iteration keep-alive so the 3rd consumer span is always
+    // cleaned up before we assert, making the test deterministic (6 traces, not 5 or 6).
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1")
     def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
@@ -276,22 +280,8 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // At least two consume traces will be finished at this point (3 producer + 2 consumer = 5).
-    // The 3rd consumer trace may also be finished early due to the scope iteration keep-alive
-    // cleanup firing before acknowledge() is called, so we tolerate 5 or 6 traces here.
-    assertTraces(5, true) {
-      producerTraceWithNaming(it, destination)
-      producerTraceWithNaming(it, destination)
-      producerTraceWithNaming(it, destination)
-      consumerTraceWithNaming(it, destination, trace(0)[0])
-      consumerTraceWithNaming(it, destination, trace(1)[0])
-    }
-
-    when:
-    receivedMessage3.acknowledge()
-
-    then:
-    // now the last consume trace will also be finished
+    // All 6 traces (3 producer + 3 consumer) are finished because the short
+    // scope iteration keep-alive ensures the 3rd consumer span is cleaned up promptly.
     assertTraces(6) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)

@@ -49,11 +49,7 @@ class ListWriterAssert {
     try {
       writer.waitForTraces(expectedSize)
       def array = writer.toArray()
-      if (ignoreAdditionalTraces) {
-        assert array.length >= expectedSize
-      } else {
-        assert array.length == expectedSize
-      }
+      assert array.length == expectedSize
       def traces = (Arrays.asList(array) as List<List<DDSpan>>)
       Collections.sort(traces, traceSorter)
       def asserter = new ListWriterAssert(traces)
