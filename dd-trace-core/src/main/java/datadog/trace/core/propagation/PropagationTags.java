@@ -130,6 +130,14 @@ public abstract class PropagationTags {
 
   public abstract String getDebugPropagation();
 
+  /**
+   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
+   * was applied when making an agent-based or rule-based sampling decision.
+   *
+   * @param rate the formatted sampling rate string (up to 6 significant digits, no trailing zeros)
+   */
+  public abstract void updateKnuthSamplingRate(String rate);
+
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
     fillTagMap(result);

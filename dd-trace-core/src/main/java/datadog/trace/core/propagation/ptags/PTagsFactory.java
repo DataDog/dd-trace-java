@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -89,6 +90,9 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile int traceSource;
     private volatile String debugPropagation;
+
+    // extracted Knuth sampling rate tag for easier updates
+    private volatile TagValue knuthSamplingRateTagValue;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -266,6 +270,20 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public void updateKnuthSamplingRate(String rate) {
+      TagValue newValue = rate == null ? null : TagValue.from(rate);
+      if (!java.util.Objects.equals(knuthSamplingRateTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+      }
+      knuthSamplingRateTagValue = newValue;
+    }
+
+    TagValue getKnuthSamplingRateTagValue() {
+      return knuthSamplingRateTagValue;
+    }
+
+    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -390,6 +408,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, KNUTH_SAMPLING_RATE_TAG, knuthSamplingRateTagValue);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
