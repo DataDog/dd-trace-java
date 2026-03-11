@@ -105,7 +105,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      DECORATE.injectContext(getCurrentContext().with(span), httpMethod, SETTER);
+      DECORATE.injectContext(getCurrentContext(), httpMethod, SETTER);
     }
   }
 }
