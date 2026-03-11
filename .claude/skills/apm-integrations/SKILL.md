@@ -17,9 +17,9 @@ Write a new APM end-to-end integration for dd-trace-java, based on library instr
 
 Before writing any code, read all three files in full:
 
-1. `docs/how_instrumentations_work.md` — full reference (types, methods, advice, helpers, context stores, decorators)
-2. `docs/add_new_instrumentation.md` — step-by-step walkthrough
-3. `docs/how_to_test.md` — test types and how to run them
+1. [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) — full reference (types, methods, advice, helpers, context stores, decorators)
+2. [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md) — step-by-step walkthrough
+3. [`docs/how_to_test.md`](docs/how_to_test.md) — test types and how to run them
 
 These files are the single source of truth. Reference them while implementing.
 
