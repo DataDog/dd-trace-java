@@ -46,3 +46,6 @@ Or our reference documents:
 Datadog will generally release a new minor version during the first full week of every month.
 
 See [release.md](docs/releases.md) for more information.
+
+## See Also
+For Java & Kotlin developers we recommend the [Datadog plugin for IntelliJ IDEA](https://plugins.jetbrains.com/plugin/19495-datadog?noRedirect=true) which integrates [Error Tracking](https://docs.datadoghq.com/ide_plugins/idea/error_tracking/), [Logs](https://docs.datadoghq.com/ide_plugins/idea/logs/), [Live Debugger](https://docs.datadoghq.com/ide_plugins/idea/live_debugger/), and [Code Security](https://docs.datadoghq.com/ide_plugins/idea/code_security/) into your IDE.
