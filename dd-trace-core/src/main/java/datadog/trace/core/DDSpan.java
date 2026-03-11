@@ -664,10 +664,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     // Use %.6g format: up to 6 significant digits, no trailing zeros
     // This matches Go's strconv.FormatFloat(rate, 'g', 6, 64) and Python's f"{rate:.6g}"
     String formatted = String.format("%.6g", rate);
-    // Remove trailing zeros after decimal point
+    // Remove trailing zeros after decimal point (avoid forbidden String#replaceAll)
     if (formatted.contains(".")) {
-      formatted = formatted.replaceAll("0+$", "");
-      formatted = formatted.replaceAll("\\.$", "");
+      int end = formatted.length();
+      while (end > 0 && formatted.charAt(end - 1) == '0') {
+        end--;
+      }
+      if (end > 0 && formatted.charAt(end - 1) == '.') {
+        end--;
+      }
+      formatted = formatted.substring(0, end);
     }
     return formatted;
   }
