@@ -7,6 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.BROKER_DECORATE;
@@ -18,6 +20,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.amazonaws.services.sqs.model.Message;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -43,7 +46,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     boolean moreMessages = delegate.hasNext();
     if (!moreMessages) {
       // no more messages, use this as a signal to close the last iteration scope
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
     }
     return moreMessages;
   }
@@ -57,7 +67,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
   protected void startNewMessageSpan(Message message) {
     try {
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else if (message == null) { // previous message span was the last
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
       if (message != null) {
         AgentSpan queueSpan = null;
         if (batchContext == null) {
@@ -92,7 +109,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
-        activateNext(span);
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          activateNext(span);
+        } else {
+          final AgentSpan previousSpan = spanFromContext(span.swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
+          }
+        }
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();
