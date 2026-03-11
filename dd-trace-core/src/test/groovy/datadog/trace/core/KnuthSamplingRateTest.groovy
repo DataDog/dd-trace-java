@@ -2,7 +2,6 @@ package datadog.trace.core
 
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
-import datadog.trace.common.sampling.RuleBasedTraceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -13,8 +12,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 
 class KnuthSamplingRateTest extends DDCoreSpecification {
   static serializer = DDAgentApi.RESPONSE_ADAPTER

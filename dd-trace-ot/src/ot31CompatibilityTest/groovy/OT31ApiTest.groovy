@@ -113,6 +113,9 @@ class OT31ApiTest extends DDSpecification {
     if (propagatedPriority > 0) {
       datadogTags << "_dd.p.dm=-$effectiveSamplingMechanism"
     }
+    if (contextPriority == UNSET) {
+      datadogTags << "_dd.p.ksr=1"
+    }
     if (traceId.toHighOrderLong() != 0) {
       datadogTags << "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
     }
