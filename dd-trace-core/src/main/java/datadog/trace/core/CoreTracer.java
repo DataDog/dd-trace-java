@@ -1171,11 +1171,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void checkpointActiveForRollback() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "checkpointActiveForRollback must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.checkpointActiveForRollback();
   }
 
   @Override
   public void rollbackActiveToCheckpoint() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "rollbackActiveToCheckpoint must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.rollbackActiveToCheckpoint();
   }
 
