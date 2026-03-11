@@ -130,6 +130,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "baz",
       [],
       null,
+      null,
       null
       ), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
@@ -174,6 +175,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "baz",
       [],
+      null,
       null,
       null
       ), _) >> { MetricKey key, AggregateMetric value ->
@@ -226,7 +228,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       kind,
       [],
       httpMethod,
-      httpEndpoint
+      httpEndpoint,
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
@@ -287,6 +290,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "client",
       [UTF8BytesString.create("country:france")],
       null,
+      null,
       null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
@@ -303,6 +307,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "client",
       [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
+      null,
       null,
       null
       ), { AggregateMetric aggregateMetric ->
@@ -349,6 +354,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       kind,
       expectedPeerTags,
+      null,
       null,
       null
       ), { AggregateMetric aggregateMetric ->
@@ -400,6 +406,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "baz",
       [],
+      null,
       null,
       null
       ), { AggregateMetric value ->
@@ -459,6 +466,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "baz",
       [],
       null,
+      null,
       null
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
@@ -474,6 +482,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "baz",
       [],
+      null,
       null,
       null
       ), { AggregateMetric value ->
@@ -528,7 +537,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
       })
@@ -568,7 +578,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
@@ -584,7 +595,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/orders/:id"
+      "/api/orders/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
@@ -600,7 +612,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "POST",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 3
       })
@@ -663,7 +676,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
@@ -679,7 +693,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "POST",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
@@ -695,7 +710,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 3
       })
@@ -711,7 +727,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/orders/:id"
+      "/api/orders/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 4
       })
@@ -763,6 +780,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       null,
+      null,
       null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
@@ -779,7 +797,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
@@ -829,6 +848,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       null,
+      null,
       null
       ), { AggregateMetric value ->
         value.getHitCount() == 2 && value.getDuration() == 2 * duration
@@ -844,6 +864,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "server",
       [],
+      null,
       null,
       null
       ), { AggregateMetric value ->
@@ -895,6 +916,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "baz",
         [],
         null,
+        null,
         null
         ), _) >> { MetricKey key, AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
@@ -911,6 +933,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "baz",
       [],
+      null,
       null,
       null
       ), _)
@@ -960,6 +983,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "baz",
         [],
         null,
+        null,
         null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
@@ -994,6 +1018,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         "baz",
         [],
         null,
+        null,
         null
         ), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
@@ -1010,6 +1035,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "baz",
       [],
+      null,
       null,
       null
       ), _)
@@ -1058,6 +1084,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         false,
         "quux",
         [],
+        null,
         null,
         null
         ), { AggregateMetric value ->
@@ -1116,6 +1143,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         true,
         "garply",
         [],
+        null,
         null,
         null
         ), { AggregateMetric value ->
@@ -1283,6 +1311,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "",
       [],
       null,
+      null,
       null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
@@ -1336,6 +1365,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       false,
       "server",
       [],
+      null,
       null,
       null
       ), { AggregateMetric aggregateMetric ->
@@ -1391,7 +1421,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "GET",
-      "/api/users/:id"
+      "/api/users/:id",
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
       })
@@ -1408,7 +1439,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       "POST",
-      "/api/orders"
+      "/api/orders",
+      null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 200
       })
@@ -1425,10 +1457,91 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "server",
       [],
       null,
+      null,
       null
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 150
       })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should include grpc status code in metric key for rpc spans"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 100, 0)
+      .setTag(SPAN_KIND, "server")
+      .setTag("grpc.status.code", "OK"),
+      new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 50, 0)
+      .setTag(SPAN_KIND, "server")
+      .setTag("grpc.status.code", "NOT_FOUND"),
+      new SimpleSpan("service", "http.request", "GET /api", "web", true, false, false, 0, 75, 200)
+      .setTag(SPAN_KIND, "server")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(3, _, _)
+    1 * writer.add(new MetricKey(
+      "grpc.service/Method",
+      "service",
+      "grpc.server",
+      null,
+      "rpc",
+      0,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null,
+      "OK"
+      ), _)
+    1 * writer.add(new MetricKey(
+      "grpc.service/Method",
+      "service",
+      "grpc.server",
+      null,
+      "rpc",
+      0,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null,
+      "NOT_FOUND"
+      ), _)
+    1 * writer.add(new MetricKey(
+      "GET /api",
+      "service",
+      "http.request",
+      null,
+      "web",
+      200,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null,
+      null
+      ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
