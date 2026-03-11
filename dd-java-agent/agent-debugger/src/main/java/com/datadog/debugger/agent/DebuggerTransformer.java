@@ -96,17 +96,18 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
   private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
-  private static final List<String> SKIPPED_PACKAGES =
-      Arrays.asList(
-          "com/datadog/debugger/agent/",
-          "com/datadog/debugger/codeorigin/",
-          "com/datadog/debugger/exception/",
-          "com/datadog/debugger/instrumentation/",
-          "com/datadog/debugger/probe/",
-          "com/datadog/debugger/sink/",
-          "com/datadog/debugger/symbol/",
-          "com/datadog/debugger/uploader/",
-          "com/datadog/debugger/util/");
+  private static final String[] SKIPPED_PACKAGES =
+      new String[] {
+        "com/datadog/debugger/agent/",
+        "com/datadog/debugger/codeorigin/",
+        "com/datadog/debugger/exception/",
+        "com/datadog/debugger/instrumentation/",
+        "com/datadog/debugger/probe/",
+        "com/datadog/debugger/sink/",
+        "com/datadog/debugger/symbol/",
+        "com/datadog/debugger/uploader/",
+        "com/datadog/debugger/util/"
+      };
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -345,8 +346,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // skip classes/packages that are part of debugger agent to avoid
       // LinkageError: attempted duplicate class definition
       // while retransforming a class used by instrumentation
-      for (int i = 0; i < SKIPPED_PACKAGES.size(); i++) {
-        if (classFilePath.startsWith(SKIPPED_PACKAGES.get(i))) {
+      for (int i = 0; i < SKIPPED_PACKAGES.length; i++) {
+        if (classFilePath.startsWith(SKIPPED_PACKAGES[i])) {
           return true;
         }
       }
