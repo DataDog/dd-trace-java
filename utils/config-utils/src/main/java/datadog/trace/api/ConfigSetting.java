@@ -133,7 +133,13 @@ public final class ConfigSetting {
 
   @Override
   public int hashCode() {
-    return HashingUtils.addToHash(HashingUtils.hash(key, value, origin, seqId), configId);
+    int hash = 0;
+    hash = HashingUtils.addToHash(hash, key);
+    hash = HashingUtils.addToHash(hash, value);
+    hash = HashingUtils.addToHash(hash, origin);
+    hash = HashingUtils.addToHash(hash, seqId);
+    hash = HashingUtils.addToHash(hash, configId);
+    return hash;
   }
 
   @Override
