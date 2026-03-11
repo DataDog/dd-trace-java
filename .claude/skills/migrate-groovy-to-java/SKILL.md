@@ -13,8 +13,8 @@ Migrate test Groovy files to Java using JUnit 5
 
 When converting Groovy code to Java code, make sure that:
 - The Java code generated is compatible with JDK 8
-- When translating Spock tests, favor using `@CsvSource` with `|` delimiters
-- When using `@MethodSource`, name the arguments method by appending `Arguments` using camelCase to the test method name (e.g. `testMethodArguments`) and return a `Stream` of arguments using `Stream.of(...)` and `arguments(...)` with static import.
+- When translating Spock tests, favor using @TableTest. See detailed instructions in the "TableTest Usage" section of this document.
+- When usage of `@TableTest` impossible, use `@MethodSource`, and name the arguments method by appending `Arguments` using camelCase to the test method name (e.g. `testMethodArguments`) and return a `Stream` of arguments using `Stream.of(...)` and `arguments(...)` with static import.
 - Ensure parameterized test names are human-readable (i.e. no hashcodes); instead add a description string as the first `Arguments.arguments(...)` value or index the test case
 - When converting tuples, create a light dedicated structure instead to keep the typing system
 - Instead of checking a state and throwing an exception, use JUnit asserts
@@ -22,3 +22,28 @@ When converting Groovy code to Java code, make sure that:
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
+
+TableTest usage
+  Dependency, if missing add:
+    - Groovy: testImplementation libs.tabletest
+    - Kotlin: testImplementation(libs.tabletest)
+
+  Import: `import org.tabletest.junit.TableTest;`
+
+  JDK 8 rules:
+    - No text blocks.
+    - @TableTest must use String[] annotation array syntax: `@TableTest({ "a | b", "1 | 2" })`
+
+  Spock `where:` → @TableTest:
+    - First row = header (column names = method parameters).
+    - Add `scenario` column as first column (display name, not a method parameter).
+    - Use `|` delimiter; align columns so pipes line up vertically.
+    - Prefer single quotes for strings with special chars (e.g., `'a|b'`, `'[]'`).
+    - Blank cell = null (object types); `''` = empty string.
+    - Collections: `[a, b]` = List/array, `{a, b}` = Set, `[k: v]` = Map.
+
+  Mixed eligibility:
+    - Simple rows ⇒ @TableTest; complex rows (mocks, builders) ⇒ separate `@Test`(s) or small `@MethodSource`.
+
+  Do NOT use @TableTest when:
+    - Majority of rows require complex objects or custom converters.
