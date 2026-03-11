@@ -257,6 +257,22 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void constructorFirstLine() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot02";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
+    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID2, CLASS_NAME, line);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "f").get();
+    assertEquals(42, result);
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink).addError(probeIdCaptor.capture(), strCaptor.capture());
+    assertEquals(LINE_PROBE_ID2.getId(), probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals(
+        "Cannot instrument the first line of a constructor", strCaptor.getAllValues().get(0));
+  }
+
+  @Test
   public void overloadedConstructor() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
     TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "<init>", "()");
