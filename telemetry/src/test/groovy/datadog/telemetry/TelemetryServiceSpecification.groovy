@@ -447,7 +447,7 @@ class TelemetryServiceSpecification extends DDSpecification {
 
     then: 'app-started'
     testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().instrumentationConfigId(id)
-    testHttpClient.assertNoMosreRequests()
+    testHttpClient.assertNoMoreRequests()
 
     where:
     id << ["foo", null, ""]
