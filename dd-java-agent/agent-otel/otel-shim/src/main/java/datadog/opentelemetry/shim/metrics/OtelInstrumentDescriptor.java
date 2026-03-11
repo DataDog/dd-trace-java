@@ -1,16 +1,17 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Locale;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** Uniquely describes an instrument for the Meter that created it. */
 public final class OtelInstrumentDescriptor {
-  private final String instrumentName;
+  private final UTF8BytesString instrumentName;
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
-  @Nullable private final String description;
-  @Nullable private final String unit;
+  @Nullable private final UTF8BytesString description;
+  @Nullable private final UTF8BytesString unit;
 
   OtelInstrumentDescriptor(
       String instrumentName,
@@ -18,14 +19,14 @@ public final class OtelInstrumentDescriptor {
       boolean longValues,
       @Nullable String description,
       @Nullable String unit) {
-    this.instrumentName = instrumentName;
+    this.instrumentName = UTF8BytesString.create(instrumentName);
     this.instrumentType = instrumentType;
     this.longValues = longValues;
-    this.description = description;
-    this.unit = unit;
+    this.description = UTF8BytesString.create(description);
+    this.unit = UTF8BytesString.create(unit);
   }
 
-  public String getName() {
+  public UTF8BytesString getName() {
     return instrumentName;
   }
 
@@ -38,12 +39,12 @@ public final class OtelInstrumentDescriptor {
   }
 
   @Nullable
-  public String getDescription() {
+  public UTF8BytesString getDescription() {
     return description;
   }
 
   @Nullable
-  public String getUnit() {
+  public UTF8BytesString getUnit() {
     return unit;
   }
 
@@ -54,7 +55,7 @@ public final class OtelInstrumentDescriptor {
     }
 
     OtelInstrumentDescriptor that = (OtelInstrumentDescriptor) o;
-    return instrumentName.equalsIgnoreCase(that.instrumentName)
+    return instrumentName.toString().equalsIgnoreCase(that.instrumentName.toString())
         && instrumentType == that.instrumentType
         && longValues == that.longValues
         && Objects.equals(description, that.description)
@@ -63,7 +64,7 @@ public final class OtelInstrumentDescriptor {
 
   @Override
   public int hashCode() {
-    int result = instrumentName.toLowerCase(Locale.ROOT).hashCode();
+    int result = instrumentName.toString().toLowerCase(Locale.ROOT).hashCode();
     result = 31 * result + instrumentType.hashCode();
     result = 31 * result + Boolean.hashCode(longValues);
     result = 31 * result + Objects.hashCode(description);
