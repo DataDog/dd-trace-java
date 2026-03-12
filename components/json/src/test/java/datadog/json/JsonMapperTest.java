@@ -104,12 +104,12 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario      | Input               | Expected                          ",
-    "null input    |                     | '[]'                              ",
-    "empty list    | []                  | '[]'                              ",
-    "single value  | [value1]            | '[\"value1\"]'                    ",
-    "two values    | [value1, value2]    | '[\"value1\",\"value2\"]'         ",
-    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
+    "Scenario      | Input                | Expected                          ",
+    "null input    |                      | '[]'                              ",
+    "empty list    | []                   | '[]'                              ",
+    "single value  | [value1]             | '[\"value1\"]'                    ",
+    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'         ",
+    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]' "
   })
   @ParameterizedTest(name = "test mapping iterable to JSON array: {0}")
   void testMappingIterableToJsonArray(List<String> input, String expected) throws IOException {
@@ -152,29 +152,32 @@ class JsonMapperTest {
   }
 
   // Using `@MethodSource` as special chars not supported by `@TableTest` (yet?).
+  @TableTest({
+    "Scenario      | input  | expected   ",
+    " null value   |        | ''         ",
+    " empty string | ''     | ''         ",
+    " \\b          | '\b'   | '\"\\b\"'  ",
+    " \\t          | '\t'   | '\"\\t\"'  ",
+    " \\f          | '\f'   | '\"\\f\"'  ",
+    " a            | 'a'    | '\"a\"'    ",
+    " /            | '/'    | '\"\\/\"'  ",
+  })
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonStringArguments")
-  void testMappingToJsonString(String input, String expected) {
+  void testMappingToJsonString(@Scenario String ignoredScenario, String input, String expected) {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
   }
 
   static Stream<Arguments> testMappingToJsonStringArguments() {
     return Stream.of(
-        arguments(null, ""),
-        arguments("", ""),
-        arguments(String.valueOf((char) 4096), "\"\\u1000\""),
-        arguments(String.valueOf((char) 256), "\"\\u0100\""),
-        arguments(String.valueOf((char) 128), "\"\\u0080\""),
-        arguments("\b", "\"\\b\""),
-        arguments("\t", "\"\\t\""),
-        arguments("\n", "\"\\n\""),
-        arguments("\f", "\"\\f\""),
-        arguments("\r", "\"\\r\""),
-        arguments("\"", "\"\\\"\""),
-        arguments("/", "\"\\/\""),
-        arguments("\\", "\"\\\\\""),
-        arguments("a", "\"a\""));
+        arguments("char #4096", String.valueOf((char) 4096), "\"\\u1000\""),
+        arguments("char #256", String.valueOf((char) 256), "\"\\u0100\""),
+        arguments("char #128", String.valueOf((char) 128), "\"\\u0080\""),
+        arguments("\\n", "\n", "\"\\n\""),
+        arguments("\\r", "\r", "\"\\r\""),
+        arguments("\"", "\"", "\"\\\"\""),
+        arguments("\\", "\\", "\"\\\\\""));
   }
 
   private static class UnsupportedType {
