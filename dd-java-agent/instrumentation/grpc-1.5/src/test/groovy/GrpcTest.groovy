@@ -13,6 +13,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
@@ -173,7 +174,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.port
             "status.code" "OK"
             "grpc.status.code" "OK"
-            "rpc.grpc.status_code" 0
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {
@@ -213,7 +214,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
-            "rpc.grpc.status_code" 0
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -319,7 +320,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
-            "rpc.grpc.status_code" status.code.value()
+            "$InstrumentationTags.GRPC_STATUS_CODE" status.code.value()
             "status.description" description
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
@@ -344,7 +345,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
-            "rpc.grpc.status_code" status.code.value()
+            "$InstrumentationTags.GRPC_STATUS_CODE" status.code.value()
             "status.description" description
             if (status.cause != null) {
               errorTags status.cause.class, status.cause.message
@@ -428,7 +429,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.PEER_PORT" server.port
             "status.code" "UNKNOWN"
             "grpc.status.code" "UNKNOWN"
-            "rpc.grpc.status_code" 2
+            "$InstrumentationTags.GRPC_STATUS_CODE" 2
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             "status.description" { it == null || String}
@@ -453,7 +454,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "${status.code.name()}"
             "grpc.status.code" "${status.code.name()}"
-            "rpc.grpc.status_code" status.code.value()
+            "$InstrumentationTags.GRPC_STATUS_CODE" status.code.value()
             "status.description"  { it == null || String}
             errorTags error.class, error.message
             if ({ isDataStreamsEnabled() }) {
@@ -560,7 +561,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
-            "rpc.grpc.status_code" 0
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -628,7 +629,7 @@ abstract class GrpcTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "grpc.status.code" "OK"
-            "rpc.grpc.status_code" 0
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             "request.type" "example.Helloworld\$Request"
             "response.type" "example.Helloworld\$Response"
             if ({ isDataStreamsEnabled() }) {

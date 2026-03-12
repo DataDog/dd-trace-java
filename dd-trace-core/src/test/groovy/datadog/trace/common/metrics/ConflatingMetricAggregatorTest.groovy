@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -1484,10 +1485,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.publish([
       new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 100, 0)
       .setTag(SPAN_KIND, "server")
-      .setTag("rpc.grpc.status_code", 0),
+      .setTag(InstrumentationTags.GRPC_STATUS_CODE, 0),
       new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 50, 0)
       .setTag(SPAN_KIND, "server")
-      .setTag("rpc.grpc.status_code", 5),
+      .setTag(InstrumentationTags.GRPC_STATUS_CODE, 5),
       new SimpleSpan("service", "http.request", "GET /api", "web", true, false, false, 0, 75, 200)
       .setTag(SPAN_KIND, "server")
     ])

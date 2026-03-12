@@ -27,6 +27,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
@@ -284,7 +285,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
         "grpc.status.code" { String }
-        "rpc.grpc.status_code" { Integer }
+        "$InstrumentationTags.GRPC_STATUS_CODE" { Integer }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }

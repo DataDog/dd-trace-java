@@ -30,6 +30,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -80,7 +81,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
-  private static final String GRPC_STATUS_TAG = "rpc.grpc.status_code";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
       unmodifiableSet(
@@ -331,7 +331,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     CharSequence spanType = span.getType();
     String grpcStatusCode = null;
     if (spanType != null && RPC.contentEquals(spanType)) {
-      Object grpcStatusObj = span.unsafeGetTag(GRPC_STATUS_TAG);
+      Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
     MetricKey newKey =

@@ -10,6 +10,7 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
@@ -98,7 +99,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   public AgentSpan onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
-    span.setTag("rpc.grpc.status_code", status.getCode().value());
+    span.setTag(InstrumentationTags.GRPC_STATUS_CODE, status.getCode().value());
     span.setTag("status.description", status.getDescription());
     return span.setError(
         SERVER_ERROR_STATUSES.get(status.getCode().value()), ErrorPriorities.HTTP_SERVER_DECORATOR);

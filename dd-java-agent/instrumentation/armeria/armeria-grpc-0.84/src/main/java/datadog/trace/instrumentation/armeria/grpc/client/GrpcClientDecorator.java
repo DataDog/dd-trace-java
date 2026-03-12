@@ -15,6 +15,7 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -116,7 +117,7 @@ public class GrpcClientDecorator extends ClientDecorator {
 
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
-    span.setTag("rpc.grpc.status_code", status.getCode().value());
+    span.setTag(InstrumentationTags.GRPC_STATUS_CODE, status.getCode().value());
     span.setTag("status.description", status.getDescription());
 
     // TODO why is there a mismatch between client / server for calling the onError method?
