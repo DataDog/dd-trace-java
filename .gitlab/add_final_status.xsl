@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+We're using not-that-ideal XSLT here as this change, because it must be done over 17+ repos.
+It's a workaround until this gets integrated into a better place, such as datadog-ci or the backend.
+* ticket: https://datadoghq.atlassian.net/browse/APMSP-2610
+* RFC: https://docs.google.com/document/d/1OaX_h09fCXWmK_1ADrwvilt8Yt5h4WjC7UUAdS3Y3uw/edit?pli=1&tab=t.0#heading=h.tfy5viz7rz2
+-->
+
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
   <!-- Identity transform: copy everything as-is by default -->
