@@ -71,7 +71,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
       TagMap tags = metadata.getTags();
 
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+      final boolean writeSamplingPriority =
+          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
       int metaSize =
           metadata.getBaggage().size()
