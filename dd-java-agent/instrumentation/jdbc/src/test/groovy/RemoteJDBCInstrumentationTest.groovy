@@ -1169,7 +1169,7 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
       "SELECT sql_fulltext FROM v\$sql " +
       "WHERE sql_fulltext LIKE '%1729%' AND sql_fulltext LIKE '%dddbs%' " +
       "AND ROWNUM = 1"
-    )
+      )
     assert rs.next() : "Instrumented Oracle query not found in v\$sql — DBM comment may be missing"
     def sqlText = rs.getString(1)
     // dddbs and dddb should both carry the PDB/service name, not the generic "oracle" type string
