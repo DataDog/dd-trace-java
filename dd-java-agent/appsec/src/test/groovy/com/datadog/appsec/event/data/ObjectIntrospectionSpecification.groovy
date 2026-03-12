@@ -507,13 +507,16 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     def result = convert(input, ctx) as Map
 
     then:
-    // The accessible field 'name' must be preserved
+    // The accessible field 'name' must be preserved regardless of JVM version
     result['name'] == 'test'
-    // The inaccessible-field object must NOT expose toString() — it should be an empty Map
-    // (all fields of java.lang.ref.SoftReference/Reference are inaccessible without --add-opens)
-    // Before fix: result['ref'] == "java.lang.ref.SoftReference@..." (false WAF positive)
-    // After fix:  result['ref'] == [:] (empty map — object present, no accessible fields)
-    result['ref'] == [:]
+    // The inaccessible-field object must NOT expose toString() to the WAF.
+    // On JDK 8 and JDK 9-15 (--illegal-access=permit default), java.lang.ref fields are
+    // accessible so result['ref'] is a non-empty Map. On JDK 16+ strict module enforcement,
+    // result['ref'] is an empty Map [:] since all Reference fields are inaccessible.
+    // Before fix (any version where fields are inaccessible): result['ref'] is a String
+    //   e.g. "java.lang.ref.SoftReference@..." — a false WAF positive.
+    // After fix: result['ref'] is always a Map, never a String.
+    result['ref'] instanceof Map
   }
 
   static class WrapperWithSoftRef {
