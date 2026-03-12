@@ -140,7 +140,7 @@ public abstract class BaseIntegrationTest {
     }
     datadogAgentServer.shutdown();
     statsDServer.close();
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
     LOG.info("===== Ending {} ====", testInfo.getDisplayName());
   }
 

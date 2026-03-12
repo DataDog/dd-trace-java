@@ -101,4 +101,5 @@ public class DDTags {
   public static final String DECISION_MAKER_RESOURCE = "_dd.dm.resource";
   public static final String PROCESS_TAGS = "_dd.tags.process";
   public static final String DD_INTEGRATION = "_dd.integration";
+  public static final String DD_SVC_SRC = "_dd.svc_src";
 }

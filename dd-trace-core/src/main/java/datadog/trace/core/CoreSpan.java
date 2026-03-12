@@ -9,6 +9,10 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
+  default CharSequence getServiceNameSource() {
+    return null;
+  }
+
   CharSequence getOperationName();
 
   CharSequence getResourceName();

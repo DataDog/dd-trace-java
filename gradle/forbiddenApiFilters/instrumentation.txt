@@ -1,0 +1,4 @@
+# Forbid using AgentSpan#setServiceName(String) in instrumentation modules
+# Use AgentSpan#setServiceName(String, CharSequence) instead to track the source of the service name
+@defaultMessage Use AgentSpan#setServiceName(String, CharSequence) instead to track the source of the service name. The source should typically be the instrumentation name.
+datadog.trace.bootstrap.instrumentation.api.AgentSpan#setServiceName(java.lang.String)

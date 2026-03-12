@@ -12,6 +12,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
@@ -158,6 +159,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       capture(
           OTLP_METRICS_PROTOCOL,
           getOtelOtlpProperty("metrics", "protocol", "dd." + OTLP_METRICS_PROTOCOL));
+      capture(
+          OTLP_METRICS_COMPRESSION,
+          getOtelOtlpProperty("metrics", "compression", "dd." + OTLP_METRICS_COMPRESSION));
       capture(
           OTLP_METRICS_TIMEOUT,
           getOtelOtlpProperty("metrics", "timeout", "dd." + OTLP_METRICS_TIMEOUT));

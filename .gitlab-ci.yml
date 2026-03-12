@@ -26,12 +26,12 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v26.01-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_VERSION_PREFIX: "v26.02-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -62,7 +62,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -70,7 +69,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
-      # - "stable"
+      - "tip"
     CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -147,12 +146,12 @@ default:
   stage: build
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 2
-    GRADLE_MEM_MIN: 1G
-    GRADLE_MEM_MAX: 3G
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 10Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 4G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -199,11 +198,11 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
-    # for weird reasons, gradle will always "chmod 700" the .gradle folder
-    # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
+    # for weird reasons, Gradle will always "chmod 700" the .gradle folder
+    # with Gitlab caching, .gradle is always owned by root and thus Gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
     - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
     - cp -r .gradle .gradle-copy
@@ -297,11 +296,6 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM_MIN: 1G
-    GRADLE_MEM_MAX: 4G
-    GRADLE_WORKERS: 3
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
   parallel:
     matrix:
       - GRADLE_TARGET: ":baseTest"
@@ -382,12 +376,10 @@ spotless:
   stage: tests
   needs: []
   variables:
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
+    GRADLE_MEMORY_MAX: 6G
   script:
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-XX:MaxRAMPercentage=80.0 -XX:MaxMetaspaceSize=512m'"
     - ./gradlew --version
-    - ./gradlew spotlessCheck --no-daemon --parallel
+    - ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
   extends: .gradle_build
@@ -450,12 +442,16 @@ test_published_artifacts:
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh --destination ./check_reports --move
+    - .gitlab/collect_results.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./check_reports
+      - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
   retry:
     max: 2
     when:
@@ -468,6 +464,7 @@ test_published_artifacts:
 
 check_build_src:
   extends: .check_job
+  needs: []
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 
@@ -516,15 +513,21 @@ muzzle:
   after_script:
     - *container_info
     - *cgroup_info
+    - *set_datadog_api_keys
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
+    - .gitlab/collect_results.sh
+    - .gitlab/upload_ciapp.sh $CACHE_TYPE
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./reports
+      - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
 
 muzzle-dep-report:
   extends: .gradle_build
@@ -568,12 +571,6 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
-    KUBERNETES_CPU_REQUEST: 10
-    GRADLE_WORKERS: 4
-    GRADLE_MEM_MIN: 1G
-    GRADLE_MEM_MAX: 3G
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -589,6 +586,8 @@ muzzle-dep-report:
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *gitlab_base_ref_params
     - >
@@ -597,7 +596,7 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM_MIN -Xmx$GRADLE_MEM_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
@@ -688,7 +687,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -697,7 +696,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
+      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -749,7 +748,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "stable" version is LTS v25
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
     matrix: *test_matrix
 

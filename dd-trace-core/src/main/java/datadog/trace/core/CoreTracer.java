@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.INFERRED_PROXY_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.TRACING_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
@@ -34,6 +35,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -67,6 +70,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
@@ -249,8 +253,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void updatePreferredServiceName(String serviceName) {
-    dynamicConfig.current().setPreferredServiceName(serviceName).apply();
+  public void updatePreferredServiceName(String serviceName, CharSequence source) {
+    dynamicConfig.current().setPreferredServiceNameAndSource(serviceName, source).apply();
     ServiceNameCollector.get().addService(serviceName);
   }
 
@@ -1136,11 +1140,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void closePrevious(boolean finishSpan) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "closePrevious must not be called when context swap based logic is enabled");
+    }
     scopeManager.closePrevious(finishSpan);
   }
 
   @Override
   public AgentScope activateNext(AgentSpan span) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "activateNext must not be called when context swap based logic is enabled");
+    }
     return scopeManager.activateNext(span);
   }
 
@@ -1159,11 +1171,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void checkpointActiveForRollback() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "checkpointActiveForRollback must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.checkpointActiveForRollback();
   }
 
   @Override
   public void rollbackActiveToCheckpoint() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "rollbackActiveToCheckpoint must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.rollbackActiveToCheckpoint();
   }
 
@@ -1867,6 +1887,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
 
       String parentServiceName = null;
+      CharSequence serviceNameSource = MANUAL;
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing, and we are starting the first
       // root span, parentContext will be null at this point.
@@ -1884,6 +1905,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         rootSpanTags = null;
         rootSpanTagsNeedsIntercept = false;
         parentServiceName = ddsc.getServiceName();
+        serviceNameSource = ddsc.getServiceNameSource();
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
@@ -1977,10 +1999,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // since a split by tag (i.e. servlet context) might have happened on it.
       if (!tracer.allowInferredServices) {
         final DDSpan rootSpan = parentTraceCollector.getRootSpan();
-        serviceName = rootSpan != null ? rootSpan.getServiceName() : null;
+        if (rootSpan != null) {
+          serviceName = rootSpan.getServiceName();
+          serviceNameSource = rootSpan.getServiceNameSource();
+        } else {
+          serviceName = null;
+        }
       }
       if (serviceName == null) {
-        serviceName = traceConfig.getPreferredServiceName();
+        final Pair<String, CharSequence> serviceNameAndSource =
+            traceConfig.getPreferredServiceNameAndSource();
+        ;
+        if (serviceNameAndSource != null && serviceNameAndSource.hasLeft()) {
+          serviceName = serviceNameAndSource.getLeft();
+          serviceNameSource = serviceNameAndSource.getRight();
+        }
       }
       Map<String, Object> contextualTags = null;
       if (parentServiceName == null) {
@@ -1992,6 +2025,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           // We can try to see if we can find one from the thread context classloader
           if (serviceName == null) {
             serviceName = contextualInfo.getServiceName();
+            if (serviceName != null) {
+              serviceNameSource = contextualInfo.getServiceNameSource();
+            }
           }
           contextualTags = contextualInfo.getTags();
         }
@@ -2000,6 +2036,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         // it could be on the initial snapshot but may be overridden to null and service name
         // cannot be null
         serviceName = tracer.serviceName;
+        // do not mark as manual when the service name is coming from the tracer default
+        serviceNameSource = null;
       }
 
       if (operationName == null) {
@@ -2033,6 +2071,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               spanId,
               parentSpanId,
               parentServiceName,
+              serviceNameSource,
               serviceName,
               operationName,
               resourceName,
@@ -2061,6 +2100,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
+      // remove version here since will be done later on the postProcessor.
+      // it will allow knowing if it will be set manually or not
+      context.removeTag(Tags.VERSION);
       return context;
     }
   }
@@ -2224,9 +2266,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
         result.put("env", config.getEnv());
-      }
-      if (!config.getVersion().isEmpty()) {
-        result.put("version", config.getVersion());
       }
       if (config.isDataJobsEnabled()) {
         result.put(DJM_ENABLED, 1);

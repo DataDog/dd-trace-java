@@ -1,8 +1,10 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
@@ -11,7 +13,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
@@ -46,12 +47,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
-  public static final String V3_ENDPOINT = "v0.3/traces";
-  public static final String V4_ENDPOINT = "v0.4/traces";
-  public static final String V5_ENDPOINT = "v0.5/traces";
+  public static final String V03_ENDPOINT = "v0.3/traces";
+  public static final String V04_ENDPOINT = "v0.4/traces";
+  public static final String V05_ENDPOINT = "v0.5/traces";
 
-  public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
-  public static final String V7_CONFIG_ENDPOINT = "v0.7/config";
+  public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
+  public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
@@ -72,8 +73,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
-  private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
+  private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
+  private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
@@ -113,8 +114,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
         enableV05Traces
-            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
-            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+            ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
+            : new String[] {V04_ENDPOINT, V03_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -151,13 +152,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      final Request.Builder requestBuilder =
-          new Request.Builder().url(agentBaseUrl.resolve("info").url());
-      final String containerId = ContainerInfo.get().getContainerId();
-      if (containerId != null) {
-        requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
-      }
-      try (Response response = client.newCall(requestBuilder.build()).execute()) {
+      final Request request =
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+      try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
           fallback = !processInfoResponse(newState, response.body().string());
@@ -202,11 +199,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (Response response =
           client
               .newCall(
-                  new Request.Builder()
-                      .put(
-                          OkHttpUtils.msgpackRequestBodyOf(
-                              singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .url(agentBaseUrl.resolve(candidate))
+                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+                      .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
         if (response.code() != 404) {
@@ -217,7 +211,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint(candidate, e);
       }
     }
-    return V3_ENDPOINT;
+    return V03_ENDPOINT;
   }
 
   private void processInfoResponseHeaders(Response response) {

@@ -19,6 +19,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 @AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+
   public SpringApplicationInstrumentation() {
     super("spring-boot");
   }
@@ -60,7 +61,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
 
       final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName);
+        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
         ProcessTags.addTag("springboot.application", applicationName);
       }
       if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
@@ -89,7 +90,7 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
 
       final String applicationName = environment.getProperty("spring.application.name");
       if (applicationName != null && !applicationName.isEmpty()) {
-        AgentTracer.get().updatePreferredServiceName(applicationName);
+        AgentTracer.get().updatePreferredServiceName(applicationName, "spring-boot");
         ProcessTags.addTag("springboot.application", applicationName);
       }
       if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {

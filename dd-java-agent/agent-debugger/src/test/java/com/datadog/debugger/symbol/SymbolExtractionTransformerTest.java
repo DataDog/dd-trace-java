@@ -85,9 +85,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 2, 20, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 2, 2, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "2-2");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 20, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 4, 20, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "4-15", "17-17", "19-20");
@@ -154,9 +154,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-6");
@@ -185,9 +185,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 28, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "4-4");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 28, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 28, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "6-21", "23-24", "27-28");
@@ -256,9 +256,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 18, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 18, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 18, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-12", "14-15", "18-18");
@@ -331,9 +331,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 15, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 15, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 15, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-15");
@@ -380,9 +380,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 13, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 13, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-11", "13-13");
@@ -429,9 +429,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 10, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 10, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 10, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-10");
@@ -464,9 +464,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 11, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 11, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-9", "11-11");
@@ -501,7 +501,7 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 23, SOURCE_FILE, 6, 2);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 23, SOURCE_FILE, 6, 2);
     assertSymbol(
         classScope.getSymbols().get(0),
         SymbolType.STATIC_FIELD,
@@ -515,8 +515,8 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         0);
     assertScope(
-        classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 5, 17, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "5-5", "17-17");
+        classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 17, 17, SOURCE_FILE, 0, 0);
+    assertLineRanges(classScope.getScopes().get(0), "17-17");
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 14, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "8-10", "14-14");
@@ -601,9 +601,9 @@ class SymbolExtractionTransformerTest {
     Reflect.on(testClass).call("main", "1").get();
     assertEquals(2, symbolSinkMock.jarScopes.get(0).getScopes().size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-6");
@@ -618,7 +618,7 @@ class SymbolExtractionTransformerTest {
         "com.datadog.debugger.symboltest.SymbolExtraction10$Inner",
         5);
     Scope innerClassScope = symbolSinkMock.jarScopes.get(0).getScopes().get(1);
-    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE, 2, 1);
+    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 10, 13, SOURCE_FILE, 2, 1);
     assertSymbol(
         innerClassScope.getSymbols().get(0),
         SymbolType.FIELD,
@@ -626,8 +626,8 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         0);
     assertScope(
-        innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 9, 10, SOURCE_FILE, 0, 0);
-    assertLineRanges(innerClassScope.getScopes().get(0), "9-10");
+        innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 10, 10, SOURCE_FILE, 0, 0);
+    assertLineRanges(innerClassScope.getScopes().get(0), "10-10");
     Scope addToMethod = innerClassScope.getScopes().get(1);
     assertScope(addToMethod, ScopeType.METHOD, "addTo", 12, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(addToMethod, "12-13");
@@ -656,11 +656,11 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 1);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 11, SOURCE_FILE, 2, 1);
     assertSymbol(
         classScope.getSymbols().get(0), SymbolType.FIELD, "field1", Integer.TYPE.getTypeName(), 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 4, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-4");
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
+    assertLineRanges(classScope.getScopes().get(0), "4-4");
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 11, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "6-9", "11-11");
@@ -693,9 +693,9 @@ class SymbolExtractionTransformerTest {
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 20, SOURCE_FILE, 7, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 6, 6, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "6-6");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 8, 20, SOURCE_FILE, 7, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "8-13");
@@ -936,21 +936,21 @@ class SymbolExtractionTransformerTest {
         null,
         null);
     Scope initMethodScope = classScope.getScopes().get(0);
-    assertScope(initMethodScope, ScopeType.METHOD, "<init>", 10, 10, SOURCE_FILE, 0, 3);
+    assertScope(initMethodScope, ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 3);
     assertSymbol(
         initMethodScope.getSymbols().get(0),
         SymbolType.ARG,
         "firstName",
         String.class.getTypeName(),
-        10);
+        0);
     assertSymbol(
         initMethodScope.getSymbols().get(1),
         SymbolType.ARG,
         "lastName",
         String.class.getTypeName(),
-        10);
+        0);
     assertSymbol(
-        initMethodScope.getSymbols().get(2), SymbolType.ARG, "age", Integer.TYPE.getTypeName(), 10);
+        initMethodScope.getSymbols().get(2), SymbolType.ARG, "age", Integer.TYPE.getTypeName(), 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 13, 13, SOURCE_FILE, 0, 1);
     Scope toStringMethodScope = classScope.getScopes().get(2);
@@ -1002,7 +1002,7 @@ class SymbolExtractionTransformerTest {
     }
     assertEquals(2, symbolSinkMock.jarScopes.size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 0, 17, SOURCE_FILE, 4, 1);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 17, SOURCE_FILE, 4, 1);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1016,7 +1016,7 @@ class SymbolExtractionTransformerTest {
         "Companion",
         CLASS_NAME + "$Companion",
         0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
     Scope f1MethodScope = classScope.getScopes().get(1);
     assertScope(f1MethodScope, ScopeType.METHOD, "f1", 6, 6, SOURCE_FILE, 0, 1);
     assertSymbol(
@@ -1029,7 +1029,7 @@ class SymbolExtractionTransformerTest {
 
     Scope companionClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
     assertScope(
-        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 0, 23, SOURCE_FILE, 3, 0);
+        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 22, 23, SOURCE_FILE, 3, 0);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1041,8 +1041,8 @@ class SymbolExtractionTransformerTest {
         companionClassScope.getScopes().get(0),
         ScopeType.METHOD,
         "<init>",
-        20,
-        20,
+        0,
+        0,
         SOURCE_FILE,
         0,
         0);

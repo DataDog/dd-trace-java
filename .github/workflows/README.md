@@ -36,13 +36,26 @@ _Action:_ Check the pull request did not introduce unexpected label.
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
+### enforce-datadog-merge-queue [🔗](enforce-datadog-merge-queue.yaml)
+
+_Trigger:_ When creating or updating a pull request, or when a pull request is added to GitHub merge queue.
+
+_Actions:_
+
+* Pass the `Merge queue check` status check on pull requests so they remain in a mergeable state,
+* When a pull request is enqueued in GitHub merge queue, post a `/merge` comment to trigger the Datadog merge queue,
+* Fail the `Merge queue check` status check on merge groups to prevent GitHub from merging directly.
+
+_Recovery:_ The workflow is expected to fail to block GitHub merge queue.
+This redirects GitHub's "Merge when ready" button to the Datadog merge queue system.
+
 ### create-release-branch [🔗](create-release-branch.yaml)
 
 _Trigger:_ When a git tag matching the pattern "vM.N.0" is pushed (e.g. for a minor release).
 
-_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x").
+_Action:_ Create a release branch that corresponds to the pushed tag (e.g. "release/vM.N.x"). Then open a PR against the release branch that pins system tests.
 
-_Recovery:_ Manually create the branch from the "vM.N.0" git tag.
+_Recovery:_ Manually create the release branch from the "vM.N.0" git tag, and pin system tests to this branch by running the `./tooling/update_system_test_reference.sh` script.
 
 ### draft-release-notes-on-tag [🔗](draft-release-notes-on-tag.yaml)
 
@@ -109,6 +122,19 @@ _Action:_
 * Close all those issues.
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
+
+### enforce-groovy-migration [🔗](enforce-groovy-migration.yaml)
+
+_Trigger:_ When creating or updating a pull request targeting `master`, or when labels are updated.
+
+_Actions:_
+
+* Fail the PR if a new Groovy test file is added to a module listed in [`.github/g2j-migrated-modules.txt`](../g2j-migrated-modules.txt) (hard enforcement),
+* Post a warning comment on the PR if a new Groovy test file is added to any other non-exempt module (soft warning). Instrumentation (`dd-java-agent/instrumentation/`) and smoke-test (`dd-smoke-tests/`) modules are exempt from this warning.
+
+_Recovery:_ Re-write the Groovy test files in Java / JUnit 5. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+
+_Notes:_ The migrated modules list is always read from `master`. Add a new entry to `.github/g2j-migrated-modules.txt` each time a module is migrated to Java / JUnit 5.
 
 ## Code Quality and Security
 

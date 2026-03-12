@@ -13,6 +13,11 @@ class NoOpHistogram implements Histogram {
   }
 
   @Override
+  public double getSum() {
+    return 0;
+  }
+
+  @Override
   public boolean isEmpty() {
     return true;
   }
@@ -53,6 +58,6 @@ class NoOpHistogram implements Histogram {
 
   @Override
   public ByteBuffer serialize() {
-    return null;
+    return ByteBuffer.allocate(0);
   }
 }

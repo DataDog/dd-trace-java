@@ -5,7 +5,7 @@ import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
@@ -40,8 +40,8 @@ public class FailedTestReplayExceptionDebugger extends AbstractExceptionDebugger
     if (testContext == null) {
       return false;
     }
-    TestExecutionHistory executionHistory = testContext.get(TestExecutionHistory.class);
-    return executionHistory != null && executionHistory.failedTestReplayApplicable();
+    TestExecutionTracker executionTracker = testContext.get(TestExecutionTracker.class);
+    return executionTracker != null && executionTracker.failedTestReplayApplicable();
   }
 
   @Override

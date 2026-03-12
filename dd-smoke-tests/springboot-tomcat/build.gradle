@@ -7,8 +7,8 @@ plugins {
 
 ext {
   serverName = 'tomcat'
-  serverModule = 'tomcat-8'
-  serverVersion = '8.5.84'
+  serverModule = 'tomcat-9'
+  serverVersion = '9.0.115'
   serverExtension = 'zip'
 }
 
@@ -18,7 +18,7 @@ description = 'SpringBoot Tomcat Smoke Tests.'
 
 repositories {
   ivy {
-    url = 'https://archive.apache.org/dist'
+    url = 'https://dlcdn.apache.org'
     patternLayout {
       artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
     }

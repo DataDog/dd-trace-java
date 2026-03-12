@@ -8,6 +8,7 @@ class VirtualThreadStartTest extends AbstractConcurrentTest {
     return ['virtualThreadStart']
   }
 
+  @Flaky("Sometimes fails on CI with: Condition not satisfied after 30.00 seconds and 31 attempts")
   def 'test Thread.startVirtualThread() runnable'() {
     expect:
     receivedCorrectTrace()

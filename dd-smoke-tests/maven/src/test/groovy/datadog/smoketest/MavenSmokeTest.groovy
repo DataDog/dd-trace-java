@@ -140,7 +140,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def exitCode = whenRunningMavenBuild([:], [], [:])
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(11), mockBackend.waitForCoverages(3))
 
     where:
     projectName                                 | mavenVersion

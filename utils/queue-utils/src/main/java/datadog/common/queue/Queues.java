@@ -5,6 +5,9 @@ import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.varhandle.MpscVarHandleArrayQueue;
+import org.jctools.queues.varhandle.SpmcVarHandleArrayQueue;
+import org.jctools.queues.varhandle.SpscVarHandleArrayQueue;
 
 /**
  * A utility class for creating various high-performance queue implementations used for inter-thread
@@ -35,7 +38,7 @@ public final class Queues {
    */
   public static <E> MessagePassingQueue<E> mpscArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
-      return new MpscArrayQueueVarHandle<>(requestedCapacity);
+      return new MpscVarHandleArrayQueue<>(requestedCapacity);
     }
     return new MpscArrayQueue<>(requestedCapacity);
   }
@@ -50,7 +53,7 @@ public final class Queues {
    */
   public static <E> MessagePassingQueue<E> spmcArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
-      return new SpmcArrayQueueVarHandle<>(requestedCapacity);
+      return new SpmcVarHandleArrayQueue<>(requestedCapacity);
     } else {
       return new SpmcArrayQueue<>(requestedCapacity);
     }
@@ -68,9 +71,9 @@ public final class Queues {
   public static <E> MessagePassingBlockingQueue<E> mpscBlockingConsumerArrayQueue(
       int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
-      return new MpscBlockingConsumerArrayQueueVarHandle<>(requestedCapacity);
+      return new MpscBlockingConsumerVarHandleArrayQueue<>(requestedCapacity);
     }
-    return new MpscBlockingConsumerArrayQueueDelegate<>(requestedCapacity);
+    return new MpscBlockingConsumerArrayQueue<>(requestedCapacity);
   }
 
   /**
@@ -82,7 +85,7 @@ public final class Queues {
    */
   public static <E> MessagePassingQueue<E> spscArrayQueue(int requestedCapacity) {
     if (CAN_USE_VARHANDLES) {
-      return new SpscArrayQueueVarHandle<>(requestedCapacity);
+      return new SpscVarHandleArrayQueue<>(requestedCapacity);
     }
     return new SpscArrayQueue<>(requestedCapacity);
   }

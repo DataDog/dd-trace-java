@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.synapse3;
 
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Request;
 import static datadog.trace.instrumentation.synapse3.ExtractAdapter.Response;

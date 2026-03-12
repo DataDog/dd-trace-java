@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -119,7 +119,8 @@ public class SpockTracingListener implements EngineExecutionListener {
   private void testMethodExecutionStarted(TestDescriptor testDescriptor, MethodSource testSource) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, testSource, displayName);
     List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
 
@@ -135,7 +136,7 @@ public class SpockTracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
   }
 
   private void testCaseExecutionFinished(
@@ -160,11 +161,11 @@ public class SpockTracingListener implements EngineExecutionListener {
             .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestExecutionHistory executionHistory =
-        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestExecutionTracker executionTracker =
+        TestEventsHandlerHolder.getExecutionTracker(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.SPOCK)
-        .onTestFinish(testDescriptor, null, executionHistory);
+        .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   @Override
@@ -221,7 +222,8 @@ public class SpockTracingListener implements EngineExecutionListener {
       final TestDescriptor testDescriptor, final MethodSource methodSource, final String reason) {
     TestDescriptor suiteDescriptor = SpockUtils.getSpecDescriptor(testDescriptor);
     String displayName = testDescriptor.getDisplayName();
-    String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, methodSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestSourceData testSourceData = SpockUtils.toTestSourceData(testDescriptor);
@@ -238,6 +240,6 @@ public class SpockTracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             reason,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
   }
 }

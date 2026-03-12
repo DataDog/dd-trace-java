@@ -10,6 +10,7 @@ import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -72,12 +73,15 @@ class AIGuardInternalTests extends DDSpecification {
   protected static final PROMPT = TOOL_OUTPUT + [AIGuard.Message.message('assistant', '2 + 2 is 5'), AIGuard.Message.message('user', '')]
 
   protected AgentSpan span
+  protected AgentSpan localRootSpan
 
   void setup() {
     injectEnvConfig('SERVICE', 'ai_guard_test')
     injectEnvConfig('ENV', 'test')
 
     span = Mock(AgentSpan)
+    localRootSpan = Mock(AgentSpan)
+    span.getLocalRootSpan() >> localRootSpan
     final builder = Mock(AgentTracer.SpanBuilder) {
       start() >> span
     }
@@ -185,6 +189,7 @@ class AIGuardInternalTests extends DDSpecification {
 
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
+    1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
@@ -337,6 +342,57 @@ class AIGuardInternalTests extends DDSpecification {
 
     where:
     messages << [[], null]
+  }
+
+  void 'test evaluate with sds findings'() {
+    given:
+    final sdsFindings = [
+      [
+        rule_display_name: 'Credit Card Number',
+        rule_tag: 'credit_card',
+        category: 'pii',
+        matched_text: '4111111111111111',
+        location: [start_index: 10, end_index_exclusive: 26, path: 'messages[0].content[0].text']
+      ],
+      [
+        rule_display_name: 'Social Security Number',
+        rule_tag: 'ssn',
+        category: 'pii',
+        matched_text: '123-45-6789',
+        location: [start_index: 30, end_index_exclusive: 41, path: 'messages[1].tool_calls[0].function.arguments']
+      ]
+    ]
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine', sds_findings: sdsFindings]]])
+    Map<String, Object> receivedMeta
+
+    when:
+    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
+    receivedMeta.sds == sdsFindings
+  }
+
+  void 'test evaluate with empty sds findings'() {
+    given:
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine', sds_findings: sdsFindings]]])
+    Map<String, Object> receivedMeta
+
+    when:
+    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
+      receivedMeta = it[1] as Map<String, Object>
+      return span
+    }
+    !receivedMeta.containsKey('sds')
+
+    where:
+    sdsFindings << [null, []]
   }
 
   void 'test missing tool name'() {
