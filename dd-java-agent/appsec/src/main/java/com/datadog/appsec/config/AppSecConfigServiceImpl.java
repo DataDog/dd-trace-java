@@ -21,6 +21,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SHI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SQLI;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_RASP_SSRF;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_REQUEST_BLOCKING;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_SESSION_FINGERPRINT;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRACE_TAGGING_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
@@ -114,6 +115,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private boolean defaultConfigActivated;
 
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
+  private final AtomicBoolean subscribedToSCA = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final Set<String> ignoredConfigKeys =
@@ -121,6 +123,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
+  private volatile AppSecSCAConfig currentSCAConfig;
+  private AppSecSCAInstrumentationUpdater scaInstrumentationUpdater;
 
   public AppSecConfigServiceImpl(
       Config tracerConfig,
@@ -135,6 +139,33 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
+  /**
+   * Sets the Instrumentation instance for SCA hot instrumentation. Must be called before {@link
+   * #maybeSubscribeConfigPolling()} for SCA to work.
+   *
+   * @param instrumentation the Java Instrumentation API instance
+   */
+  public void setInstrumentation(java.lang.instrument.Instrumentation instrumentation) {
+    if (instrumentation == null) {
+      log.debug("Instrumentation is null, SCA hot instrumentation will not be available");
+      return;
+    }
+
+    if (!instrumentation.isRetransformClassesSupported()) {
+      log.warn(
+          "SCA requires retransformation support, but it's not available in this JVM. "
+              + "SCA vulnerability detection will not work.");
+      return;
+    }
+
+    try {
+      this.scaInstrumentationUpdater = new AppSecSCAInstrumentationUpdater(instrumentation);
+      log.debug("SCA instrumentation updater initialized successfully");
+    } catch (Exception e) {
+      log.debug("Failed to initialize SCA instrumentation updater", e);
+    }
+  }
+
   private void subscribeConfigurationPoller() {
     // see also close() method
     subscribeAsmFeatures();
@@ -144,6 +175,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     } else {
       log.debug("Will not subscribe to ASM, ASM_DD and ASM_DATA (AppSec custom rules in use)");
     }
+
+    subscribeSCA();
 
     this.configurationPoller.addConfigurationEndListener(applyRemoteConfigListener);
   }
@@ -356,6 +389,68 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.addCapabilities(CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE);
   }
 
+  /**
+   * Subscribes to SCA configuration from Remote Config. Receives instrumentation targets for
+   * vulnerability detection in third-party dependencies.
+   *
+   * <p>TODO: Remove debugging URL support once backend properly implements
+   */
+  private void subscribeSCA() {
+    if (subscribedToSCA.compareAndSet(false, true)) {
+      log.debug("Subscribing to DEBUG Remote Config product");
+      this.configurationPoller.addListener(
+          Product.DEBUG,
+          AppSecSCAConfigDeserializer.INSTANCE,
+          (configKey, newConfig, hinter) -> {
+            if (newConfig == null) {
+              log.debug("Received removal for SCA config key: {}", configKey);
+              currentSCAConfig = null;
+              triggerSCAInstrumentationUpdate(null);
+            } else {
+              log.debug(
+                  "Received SCA config update for key: {} - vulnerabilities: {}",
+                  configKey,
+                  newConfig.vulnerabilities != null ? newConfig.vulnerabilities.size() : 0);
+              currentSCAConfig = newConfig;
+              triggerSCAInstrumentationUpdate(newConfig);
+            }
+          });
+      this.configurationPoller.addCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
+      log.info("Successfully subscribed to SCA Remote Config product");
+    }
+  }
+
+  /** Unsubscribes from SCA Remote Config product and clears current configuration. */
+  private void unsubscribeSCA() {
+    if (subscribedToSCA.compareAndSet(true, false)) {
+      log.debug("Unsubscribing from DEBUG Remote Config product");
+      this.configurationPoller.removeListeners(Product.DEBUG);
+      this.configurationPoller.removeCapabilities(CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION);
+      currentSCAConfig = null;
+      log.info("Successfully unsubscribed from SCA Remote Config product");
+    }
+  }
+
+  /**
+   * Triggers SCA instrumentation update when configuration changes.
+   *
+   * @param newConfig the new SCA configuration, or null to remove instrumentation
+   */
+  private void triggerSCAInstrumentationUpdate(AppSecSCAConfig newConfig) {
+    if (scaInstrumentationUpdater == null) {
+      log.debug(
+          "SCA instrumentation updater not initialized. "
+              + "Call setInstrumentation() before subscribing to enable SCA.");
+      return;
+    }
+
+    try {
+      scaInstrumentationUpdater.onConfigUpdate(newConfig);
+    } catch (Exception e) {
+      log.debug("Error updating SCA instrumentation", e);
+    }
+  }
+
   private void distributeSubConfigurations(
       String key, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     maybeInitializeDefaultConfig();
@@ -558,6 +653,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
     this.configurationPoller.removeListeners(Product.ASM_FEATURES);
+    unsubscribeSCA();
     this.configurationPoller.removeConfigurationEndListener(applyRemoteConfigListener);
     this.subscribedToRulesAndData.set(false);
     this.configurationPoller.stop();

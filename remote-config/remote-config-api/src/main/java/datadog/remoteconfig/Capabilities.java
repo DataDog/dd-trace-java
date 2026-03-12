@@ -47,4 +47,6 @@ public interface Capabilities {
   long CAPABILITY_ASM_EXTENDED_DATA_COLLECTION = 1L << 44;
   long CAPABILITY_APM_TRACING_MULTICONFIG = 1L << 45;
   long CAPABILITY_FFE_FLAG_CONFIGURATION_RULES = 1L << 46;
+  // Supply Chain Analysis - Vulnerability Detection via dynamic instrumentation
+  long CAPABILITY_ASM_SCA_VULNERABILITY_DETECTION = 1L << 47;
 }

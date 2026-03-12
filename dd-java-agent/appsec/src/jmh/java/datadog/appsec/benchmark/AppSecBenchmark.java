@@ -74,7 +74,8 @@ public class AppSecBenchmark {
     sharedCommunicationObjects.setFeaturesDiscovery(
         new StubDDAgentFeaturesDiscovery(sharedCommunicationObjects.agentHttpClient));
 
-    AppSecSystem.start(ss, sharedCommunicationObjects);
+    // Pass null for Instrumentation since SCA is not needed for this benchmark
+    AppSecSystem.start(null, ss, sharedCommunicationObjects);
     uri = new URIDefaultDataAdapter(new URI("http://localhost:8080/test"));
   }
 
