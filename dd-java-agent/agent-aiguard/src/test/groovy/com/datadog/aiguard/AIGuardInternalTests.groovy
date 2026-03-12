@@ -210,11 +210,13 @@ class AIGuardInternalTests extends DDSpecification {
       error.action == suite.action
       error.reason == suite.reason
       error.tags == suite.tags
+      error.sds == []
     } else {
       error == null
       eval.action == suite.action
       eval.reason == suite.reason
       eval.tags == suite.tags
+      eval.sds == []
     }
     assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
@@ -366,7 +368,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -374,6 +376,7 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     receivedMeta.sds == sdsFindings
+    result.sds == sdsFindings
   }
 
   void 'test evaluate with empty sds findings'() {
@@ -382,7 +385,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -390,9 +393,31 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     !receivedMeta.containsKey('sds')
+    result.sds == (sdsFindings ?: [])
 
     where:
     sdsFindings << [null, []]
+  }
+
+  void 'test evaluate with sds findings in abort error'() {
+    given:
+    final sdsFindings = [
+      [
+        rule_display_name: 'Credit Card Number',
+        rule_tag: 'credit_card',
+        category: 'pii',
+        matched_text: '4111111111111111',
+        location: [start_index: 10, end_index_exclusive: 26, path: 'messages[0].content[0].text']
+      ]
+    ]
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ABORT', reason: 'PII detected', tags: ['pii'], sds_findings: sdsFindings, is_blocking_enabled: true]]])
+
+    when:
+    aiguard.evaluate(PROMPT, new AIGuard.Options().block(true))
+
+    then:
+    final error = thrown(AIGuard.AIGuardAbortError)
+    error.sds == sdsFindings
   }
 
   void 'test missing tool name'() {
