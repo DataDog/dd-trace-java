@@ -1250,7 +1250,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // object into the List.
 
       // There is still a risk that a TraceInterceptor holds onto the provided
-      // List and modifies it later on, but we cannot safeguard against 
+      // List and modifies it later on, but we cannot safeguard against
       // every possible misuse.
       Collection<? extends MutableSpan> interceptedTrace = originalTrace;
       int originalModCount = originalTrace.modCount();
