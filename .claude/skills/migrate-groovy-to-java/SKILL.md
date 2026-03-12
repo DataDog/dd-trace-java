@@ -1,6 +1,9 @@
 ---
 name: migrate-groovy-to-java
-description: migrate test groovy files to java
+description: >
+  Converts Spock/Groovy test files in a Gradle module to equivalent JUnit 5 Java tests.
+  Use when asked to "migrate groovy", "convert groovy to java", "g2j", or when a module
+  has .groovy test files that need to be replaced with .java equivalents.
 ---
 
 Migrate test Groovy files to Java using JUnit 5
@@ -18,6 +21,8 @@ When converting Groovy code to Java code, make sure that:
 - Ensure parameterized test names are human-readable (i.e. no hashcodes); instead add a description string as the first `Arguments.arguments(...)` value or index the test case
 - When converting tuples, create a light dedicated structure instead to keep the typing system
 - Instead of checking a state and throwing an exception, use JUnit asserts
+- Instead of using `assertTrue(a.equals(b))` or `assertFalse(a.equals(b))`, use `assertEquals(expected, actual)` and `assertNotEquals(unexpected, actual)`
+- Import frequently used types rather than using fully-qualified names inline, to improve readability
 - Do not wrap checked exceptions and throw a Runtime exception; prefer adding a throws clause at method declaration
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
