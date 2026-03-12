@@ -80,12 +80,6 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.cxf', name:'cxf-rt-transports-http-jetty', version: '+'
 }
 
-configurations.named('latestDepTestRuntimeClasspath') {
-  resolutionStrategy {
-    force libs.slf4j
-  }
-}
-
 configurations.named('cxf3LatestDepTestRuntimeClasspath') {
   resolutionStrategy {
     force libs.slf4j

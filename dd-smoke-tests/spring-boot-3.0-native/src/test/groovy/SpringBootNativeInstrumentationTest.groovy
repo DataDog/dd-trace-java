@@ -1,7 +1,14 @@
+import static org.openjdk.jmc.common.item.Attribute.attr
+import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT
+
 import datadog.smoketest.AbstractServerSmokeTest
 import datadog.trace.agent.test.utils.PortUtils
 import okhttp3.Request
+import org.openjdk.jmc.common.item.IAttribute
+import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
+import org.openjdk.jmc.common.item.IItemIterable
+import org.openjdk.jmc.common.item.IMemberAccessor
 import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.flightrecorder.internal.InvalidJfrFileException
 import spock.lang.Shared
@@ -44,6 +51,8 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
       // enable improved trace.annotation span names
       '-Ddd.trace.annotations.legacy.tracing.enabled=false',
       "--server.port=${httpPort}",
+      '-Ddd.profiling.scrub.enabled=true',
+      '-Ddd.profiling.scrub.fail-open=true',
       '-Ddd.profiling.upload.period=1',
       '-Ddd.profiling.start-force-first=true',
       "-Ddd.profiling.debug.dump_path=${testJfrDir}",
@@ -111,30 +120,79 @@ class SpringBootNativeInstrumentationTest extends AbstractServerSmokeTest {
     udpMessage.get(1, TimeUnit.SECONDS) contains "service:smoke-test-java-app,version:99,env:smoketest"
   }
 
+  def "check JFR scrubbing of system properties"() {
+    setup:
+    def conditions = new PollingConditions(initialDelay: 2, timeout: 6)
+
+    when:
+    // ensure at least one JFR dump has been produced
+    conditions.eventually {
+      assert countJfrs() > 0
+    }
+
+    then:
+    // walk the debug dump directory and verify JFR files contain system property events
+    boolean foundSystemProps = false
+    boolean allScrubbed = true
+    Files.walkFileTree(testJfrDir, new SimpleFileVisitor<Path>() {
+      @Override
+      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        if (!file.toString().endsWith(".jfr")) {
+          return FileVisitResult.CONTINUE
+        }
+        try {
+          IItemCollection events = JfrLoaderToolkit.loadEvents(file.toFile())
+          IItemCollection sysPropEvents = events.apply(ItemFilters.type("jdk.InitialSystemProperty"))
+          if (!sysPropEvents.hasItems()) {
+            return FileVisitResult.CONTINUE
+          }
+          foundSystemProps = true
+          IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT)
+          for (IItemIterable itemIterable : sysPropEvents) {
+            IMemberAccessor<String, IItem> accessor = valueAttr.getAccessor(itemIterable.getType())
+            for (IItem item : itemIterable) {
+              String value = accessor.getMember(item)
+              if (value != null && !value.isEmpty()) {
+                if (!value.chars().allMatch(c -> c == (int) 'x' as char)) {
+                  allScrubbed = false
+                }
+              }
+            }
+          }
+        } catch (InvalidJfrFileException ignored) {
+          // incomplete recording at process exit
+        }
+        return FileVisitResult.CONTINUE
+      }
+    })
+    foundSystemProps
+    allScrubbed
+  }
+
   int countJfrs() {
     AtomicInteger jfrCount = new AtomicInteger(0)
     Files.walkFileTree(testJfrDir, new SimpleFileVisitor<Path>() {
-        @Override
-        FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-          return FileVisitResult.CONTINUE
-        }
+      @Override
+      FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+        return FileVisitResult.CONTINUE
+      }
 
-        @Override
-        FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          if (file.toString().endsWith(".jfr")) {
-            try {
-              IItemCollection events = JfrLoaderToolkit.loadEvents(file.toFile())
-              if (events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems()) {
-                jfrCount.incrementAndGet()
-                return FileVisitResult.SKIP_SIBLINGS
-              }
-            } catch (InvalidJfrFileException ignored) {
-              // the recording captured at process exit might be incomplete
+      @Override
+      FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        if (file.toString().endsWith(".jfr")) {
+          try {
+            IItemCollection events = JfrLoaderToolkit.loadEvents(file.toFile())
+            if (events.apply(ItemFilters.type("jdk.ExecutionSample")).hasItems()) {
+              jfrCount.incrementAndGet()
+              return FileVisitResult.SKIP_SIBLINGS
             }
+          } catch (InvalidJfrFileException ignored) {
+            // the recording captured at process exit might be incomplete
           }
-          return FileVisitResult.CONTINUE
         }
-      })
+        return FileVisitResult.CONTINUE
+      }
+    })
     return jfrCount.get()
   }
 

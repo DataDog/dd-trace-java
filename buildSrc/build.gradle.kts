@@ -78,6 +78,7 @@ dependencies {
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
+  implementation("org.eclipse.aether", "aether-transport-file", "1.1.0")
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
@@ -103,9 +104,12 @@ testing {
   @Suppress("UnstableApiUsage")
   suites {
     val test by getting(JvmTestSuite::class) {
+      dependencies {
+        implementation(libs.assertj.core)
+      }
       targets.configureEach {
         testTask.configure {
-          enabled = project.hasProperty("runBuildSrcTests")
+          enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
         }
       }
     }

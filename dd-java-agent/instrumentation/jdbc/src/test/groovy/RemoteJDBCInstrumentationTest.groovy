@@ -223,6 +223,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     postgres?.close()
     mysql?.close()
     sqlserver?.close()
+    oracle?.close()
   }
 
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {

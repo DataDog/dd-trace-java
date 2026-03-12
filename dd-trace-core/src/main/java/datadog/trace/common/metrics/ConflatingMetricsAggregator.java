@@ -331,6 +331,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getResourceName(),
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
+            span.getServiceNameSource(),
             span.getType(),
             span.getHttpStatusCode(),
             isSynthetic(span),

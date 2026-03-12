@@ -20,9 +20,9 @@ class LLMObsMetricCollectorTest extends DDSpecification {
 
   def "record and drain span finished metrics"() {
     when:
-    collector.recordSpanFinished("openai", "llm", true, true, false)
-    collector.recordSpanFinished("openai", "llm", false, true, false)
-    collector.recordSpanFinished("anthropic", "embedding", true, false, true)
+    collector.recordSpanFinished("openai", "llm", true, true, false, false)
+    collector.recordSpanFinished("openai", "llm", false, true, false, true)
+    collector.recordSpanFinished("anthropic", "embedding", true, false, true, false)
     collector.prepareMetrics()
     def metrics = collector.drain()
 
@@ -39,7 +39,8 @@ class LLMObsMetricCollectorTest extends DDSpecification {
       'span_kind:llm',
       'is_root_span:1',
       'autoinstrumented:1',
-      'error:0'
+      'error:0',
+      'has_session_id:0'
     ].sort()
 
     def metric2 = metrics[1]
@@ -52,7 +53,8 @@ class LLMObsMetricCollectorTest extends DDSpecification {
       'span_kind:llm',
       'is_root_span:0',
       'autoinstrumented:1',
-      'error:0'
+      'error:0',
+      'has_session_id:1'
     ].toSet()
 
     def metric3 = metrics[2]
@@ -65,7 +67,8 @@ class LLMObsMetricCollectorTest extends DDSpecification {
       'span_kind:embedding',
       'is_root_span:1',
       'autoinstrumented:0',
-      'error:1'
+      'error:1',
+      'has_session_id:0'
     ].toSet()
   }
 }

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.execution;
 
+import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 
@@ -12,7 +13,8 @@ public class Regular implements TestExecutionPolicy {
 
   @Override
   public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    return new ExecutionOutcomeImpl(false, true, false, false, null, status);
+    return new ExecutionOutcomeImpl(
+        false, true, ExecutionAggregation.NONE.withExecution(status), null, status);
   }
 
   @Override

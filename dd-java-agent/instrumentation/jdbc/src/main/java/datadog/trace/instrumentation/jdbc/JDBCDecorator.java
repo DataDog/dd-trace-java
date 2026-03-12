@@ -11,6 +11,7 @@ import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import datadog.trace.core.propagation.W3CTraceParent;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -402,7 +402,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   protected void postProcessServiceAndOperationName(
       AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
     if (namingEntry.getService() != null) {
-      span.setServiceName(namingEntry.getService());
+      span.setServiceName(namingEntry.getService(), component());
     }
     span.setOperationName(namingEntry.getOperation());
   }

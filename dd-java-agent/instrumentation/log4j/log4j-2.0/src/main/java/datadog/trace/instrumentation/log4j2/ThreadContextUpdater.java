@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.log4j2;
 
-import datadog.trace.agent.tooling.log.LogContextScopeListener;
+import datadog.trace.bootstrap.instrumentation.log.LogContextScopeListener;
 import org.apache.logging.log4j.ThreadContext;
 
 public class ThreadContextUpdater extends LogContextScopeListener {

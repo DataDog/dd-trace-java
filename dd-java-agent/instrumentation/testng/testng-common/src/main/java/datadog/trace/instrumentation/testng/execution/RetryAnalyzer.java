@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.testng.execution;
 
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -55,7 +55,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     return suppressFailures;
   }
 
-  public TestExecutionHistory getExecutionHistory() {
+  public TestExecutionTracker getExecutionTracker() {
     return executionPolicy;
   }
 }

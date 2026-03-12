@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
+import datadog.trace.api.config.TraceInstrumentationConfig
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
@@ -135,6 +136,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
               "$DDTags.PATHWAY_HASH" { String }
             }
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -366,6 +368,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -435,6 +438,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -568,6 +572,14 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   @Override
   int version() {
     1
+  }
+}
+
+class SqsClientV0ContextSwapForkedTest extends SqsClientV0Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
 

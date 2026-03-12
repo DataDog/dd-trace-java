@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -581,8 +582,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public final DDSpan setServiceName(final String serviceName) {
-    context.setServiceName(serviceName);
+    setServiceName(serviceName, MANUAL);
     return this;
+  }
+
+  @Override
+  public void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+    context.setServiceName(serviceName, source);
+  }
+
+  @Override
+  public CharSequence getServiceNameSource() {
+    return context.getServiceNameSource();
   }
 
   @Override

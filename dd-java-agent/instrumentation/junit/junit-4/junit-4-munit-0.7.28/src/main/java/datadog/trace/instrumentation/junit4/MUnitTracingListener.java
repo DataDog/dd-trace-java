@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,10 +19,10 @@ public class MUnitTracingListener extends TracingListener {
 
   public static final String FRAMEWORK_NAME = "munit";
   public static final String FRAMEWORK_VERSION = getVersion();
-  private final ContextStore<Description, TestExecutionHistory> executionHistories;
+  private final ContextStore<Description, TestExecutionTracker> executionTrackers;
 
-  public MUnitTracingListener(ContextStore<Description, TestExecutionHistory> executionHistories) {
-    this.executionHistories = executionHistories;
+  public MUnitTracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
+    this.executionTrackers = executionTrackers;
   }
 
   public static String getVersion() {
@@ -88,16 +88,16 @@ public class MUnitTracingListener extends TracingListener {
             categories,
             JUnit4Utils.toTestSourceData(description),
             null,
-            executionHistories.get(description));
+            executionTrackers.get(description));
   }
 
   @Override
   public void testFinished(final Description description) {
     TestDescriptor testDescriptor = MUnitUtils.toTestDescriptor(description);
-    TestExecutionHistory executionHistory = executionHistories.get(description);
+    TestExecutionTracker executionTracker = executionTrackers.get(description);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.MUNIT)
-        .onTestFinish(testDescriptor, null, executionHistory);
+        .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   // same callback is executed both for test cases and test suites (for setup/teardown errors)
@@ -182,7 +182,7 @@ public class MUnitTracingListener extends TracingListener {
           .onTestSkip(testDescriptor, null);
       TestEventsHandlerHolder.HANDLERS
           .get(TestFrameworkInstrumentation.MUNIT)
-          .onTestFinish(testDescriptor, null, executionHistories.get(description));
+          .onTestFinish(testDescriptor, null, executionTrackers.get(description));
 
     } else if (testClass != null) {
       TestSuiteDescriptor suiteDescriptor = MUnitUtils.toSuiteDescriptor(description);
@@ -247,7 +247,7 @@ public class MUnitTracingListener extends TracingListener {
             categories,
             JUnit4Utils.toTestSourceData(description),
             null,
-            executionHistories.get(description));
+            executionTrackers.get(description));
   }
 
   private static boolean isSuiteContainingChildren(final Description description) {

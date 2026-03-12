@@ -1,11 +1,31 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public abstract class ClientDecorator extends BaseDecorator {
+  // Deliberately not volatile, reading a stale null and creating an extra Entry is safe
+  private TagMap.Entry cachedSpanKindEntry = null;
 
   protected abstract String service();
+
+  /** Caches span kind entry to reduce allocation */
+  private final TagMap.Entry spanKindEntry() {
+    // DQH - I considered moving the creation of the TagMap.Entry into a ClientDecorator
+    // constructor, but that introduces a subtle ordering requirement.
+
+    // If the spanKind method refers to a static that isn't yet initialized,
+    // then spanKind will return null when the Decorator singleton is being constructed.
+
+    // Such an ordering problem did occur with similar changes in BaseDecorator, so I've
+    // decided to be cautious here, too.
+    TagMap.Entry kindEntry = cachedSpanKindEntry;
+    if (kindEntry == null) {
+      cachedSpanKindEntry = kindEntry = TagMap.Entry.create(Tags.SPAN_KIND, spanKind());
+    }
+    return kindEntry;
+  }
 
   protected String spanKind() {
     return Tags.SPAN_KIND_CLIENT;
@@ -13,10 +33,11 @@ public abstract class ClientDecorator extends BaseDecorator {
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    if (service() != null) {
-      span.setServiceName(service());
+    final String service = service();
+    if (service != null) {
+      span.setServiceName(service, component());
     }
-    span.setTag(Tags.SPAN_KIND, spanKind());
+    span.setTag(spanKindEntry());
 
     // Generate metrics for all client spans.
     span.setMeasured(true);

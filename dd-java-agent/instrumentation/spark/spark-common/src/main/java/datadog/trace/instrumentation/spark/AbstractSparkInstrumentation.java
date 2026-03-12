@@ -106,6 +106,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       if (AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), throwable, 0, null);
+      } else {
+        SparkLauncherListener.finishSpanWithThrowable(throwable);
       }
     }
   }
