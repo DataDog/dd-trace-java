@@ -1230,10 +1230,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     // run early tag postprocessors before publishing to the metrics writer since peer / base
     // service are needed
-    
+
     // DQH - Using forEach avoids ArrayList$Iter allocation
     writtenTrace.forEach(DDSpan::processServiceTags);
-    
+
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
     TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();
