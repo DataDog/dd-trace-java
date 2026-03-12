@@ -151,7 +151,6 @@ class JsonMapperTest {
     assertEquals(emptyList(), parsed);
   }
 
-  // Using `@MethodSource` as special chars not supported by `@TableTest` (yet?).
   @TableTest({
     "Scenario      | input  | expected   ",
     " null value   |        | ''         ",
