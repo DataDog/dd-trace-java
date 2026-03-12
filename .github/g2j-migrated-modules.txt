@@ -7,3 +7,4 @@
 
 buildSrc/call-site-instrumentation-plugin
 components/json
+dd-trace-api

@@ -1,3 +1,6 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -60,6 +63,10 @@ abstract class JMS1Test extends VersionedNamingTestBase {
   abstract String operationForProducer()
 
   abstract String operationForConsumer()
+
+  boolean testUnclosedScopeFinished() {
+    true
+  }
 
   def setupSpec() {
     broker.start()
@@ -164,6 +171,7 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "closing #destinationType session should close and finish any pending scopes"() {
     setup:
+    assumeTrue(testUnclosedScopeFinished())
     def destination = destinationType.create(session)
     def localSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
     def producer = localSession.createProducer(destination)
@@ -1042,6 +1050,19 @@ class JMS1V0Test extends JMS1Test {
   @Override
   String operationForConsumer() {
     "jms.consume"
+  }
+}
+
+class JMSContextSwapForkedTest extends JMS1V0Test {
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+
+  @Override
+  boolean testUnclosedScopeFinished() {
+    //TODO: This need to be removed when the Context manager will support it
+    false
   }
 }
 

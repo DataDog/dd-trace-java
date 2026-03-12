@@ -1,15 +1,9 @@
 package datadog.smoketest
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import datadog.trace.util.ComparableVersion
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
 import org.gradle.internal.impldep.org.apache.commons.io.FileUtils
-import org.gradle.util.GradleVersion
 import org.junit.jupiter.api.Assumptions
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -138,16 +132,12 @@ class AbstractGradleTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestGradleVersion() {
-    OkHttpClient client = new OkHttpClient()
-    Request request = new Request.Builder().url("https://services.gradle.org/versions/current").build()
-    try (Response response = client.newCall(request).execute()) {
-      if (!response.successful) {
-        return GradleVersion.current().version
-      }
-      def responseBody = response.body().string()
-      ObjectMapper mapper = new ObjectMapper()
-      JsonNode root = mapper.readTree(responseBody)
-      return root.get("version").asText()
+    def properties = new Properties()
+    def stream = AbstractGradleTest.classLoader.getResourceAsStream("latest-tool-versions.properties")
+    if (stream == null) {
+      throw new IllegalStateException("Could not find latest-tool-versions.properties on classpath")
     }
+    stream.withCloseable { properties.load(it) }
+    return properties.getProperty("gradle.version")
   }
 }

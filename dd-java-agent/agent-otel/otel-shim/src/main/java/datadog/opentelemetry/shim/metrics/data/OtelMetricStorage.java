@@ -5,6 +5,7 @@ import datadog.opentelemetry.shim.metrics.OtelInstrumentType;
 import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
@@ -89,7 +90,7 @@ public final class OtelMetricStorage {
     return new OtelMetricStorage(descriptor, () -> new OtelHistogramSketch(bucketBoundaries));
   }
 
-  public String getInstrumentName() {
+  public UTF8BytesString getInstrumentName() {
     return descriptor.getName();
   }
 
