@@ -77,7 +77,7 @@ do
   sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-  
+
   # Add dd_tags[test.final_status] property to each testcase
   xsl_file="$(dirname "$0")/add_final_status.xsl"
   tmp_file="$(mktemp)"
