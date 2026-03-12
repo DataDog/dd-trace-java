@@ -275,13 +275,15 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     TextMessage receivedMessage2 = consumer.receive()
     receivedMessage2.acknowledge()
     TextMessage receivedMessage3 = consumer.receive()
+    receivedMessage3.acknowledge()
 
     then:
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // All 6 traces (3 producer + 3 consumer) are finished because the short
-    // scope iteration keep-alive ensures the 3rd consumer span is cleaned up promptly.
+    // All 6 traces (3 producer + 3 consumer) are finished because acknowledge()
+    // has been called and the short scope iteration keep-alive ensures the 3rd
+    // consumer span is cleaned up promptly.
     assertTraces(6) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
@@ -292,7 +294,6 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     }
 
     cleanup:
-    receivedMessage3.acknowledge()
     producer.close()
     consumer.close()
     clientSession.close()
