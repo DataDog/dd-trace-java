@@ -151,11 +151,17 @@ dsm-kafka-consumer-benchmark:
   variables:
     BP_KAFKA_SCENARIO_DIR: consumer-benchmark
 
-# Ensure artifacts are published before running
-linux-java-spring-petclinic-microbenchmark:
+# Ensure artifacts are published before running benchmarks
+linux-java-spring-petclinic-microbenchmark-load:
   needs: ["publish-artifacts-to-s3"]
 
-linux-java-insecure-bank-microbenchmark:
+linux-java-spring-petclinic-microbenchmark-startup:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-insecure-bank-microbenchmark-load:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-insecure-bank-microbenchmark-startup:
   needs: ["publish-artifacts-to-s3"]
 
 linux-java-dacapo-microbenchmark:
