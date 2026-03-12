@@ -302,15 +302,13 @@ public final class ObjectIntrospection {
             log.error("Unable to get field value", e);
             // TODO: Use invalid object
           }
-        } else {
-          // This field is inaccessible (Strongly Encapsulated Internal class on Java 9+).
-          // Skip it and continue with the remaining fields — other accessible fields on the
-          // same object may still contain useful data for WAF inspection. Do NOT call
-          // obj.toString() here: JDK internal toString() representations (e.g.
-          // "class java.lang.Object") can match legitimate WAF phrase_match rules and
-          // produce false positives (e.g. crs-944-130 java_code_injection).
-          continue;
         }
+        // This field is inaccessible (Strongly Encapsulated Internal class on Java 9+).
+        // Skip it and continue with the remaining fields — other accessible fields on the
+        // same object may still contain useful data for WAF inspection. Do NOT call
+        // obj.toString() here: JDK internal toString() representations (e.g.
+        // "class java.lang.Object") can match legitimate WAF phrase_match rules and
+        // produce false positives (e.g. crs-944-130 java_code_injection).
       }
     }
 
