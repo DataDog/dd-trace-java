@@ -105,20 +105,23 @@ public class PromiseHelper {
       K task,
       State state) {
     final AgentSpan span = spanFromContext(tryStore.get(resolved));
-    if (span != null && state.getSpan() == span) {
-      return state;
-    }
-    AgentScope.Continuation continuation = captureSpan(span);
-    AgentScope.Continuation existing = null;
-    if (null != state) {
-      existing = state.getAndResetContinuation();
-    } else {
-      state = State.FACTORY.create();
-      taskStore.put(task, state);
-    }
-    state.setOrCancelContinuation(continuation);
-    if (null != existing) {
-      existing.cancel();
+    if (span != null) {
+      // Check if the new Span is the same as the currently stored one
+      if (null != state && state.getSpan() == span) {
+        return state;
+      }
+      AgentScope.Continuation continuation = captureSpan(span);
+      AgentScope.Continuation existing = null;
+      if (null != state) {
+        existing = state.getAndResetContinuation();
+      } else {
+        state = State.FACTORY.create();
+        taskStore.put(task, state);
+      }
+      state.setOrCancelContinuation(continuation);
+      if (null != existing) {
+        existing.cancel();
+      }
     }
     return state;
   }
