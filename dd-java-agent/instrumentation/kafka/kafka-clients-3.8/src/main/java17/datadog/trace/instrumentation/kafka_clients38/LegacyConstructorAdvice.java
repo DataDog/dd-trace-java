@@ -57,9 +57,7 @@ public class LegacyConstructorAdvice {
         InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
       }
       KafkaConfigHelper.storePendingConsumerConfig(
-          state,
-          normalizedConsumerGroup,
-          KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 

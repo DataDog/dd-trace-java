@@ -100,7 +100,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata",
+    return singletonMap(
+        "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
@@ -141,9 +142,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
       MetadataState metadataState =
-          InstrumentationContext.get(
-                  Metadata.class, MetadataState.class)
-              .get(metadata);
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
       String clusterId = metadataState != null ? metadataState.clusterId : null;
 
       // Set cluster ID for Schema Registry instrumentation
@@ -268,15 +267,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(0) ProducerConfig producerConfig) {
       if (Config.get().isDataStreamsEnabled()) {
         MetadataState state =
-            InstrumentationContext.get(
-                    Metadata.class,
-                    MetadataState.class)
-                .get(metadata);
+            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
         if (state == null) {
           state = new MetadataState();
-          InstrumentationContext.get(
-                  Metadata.class, MetadataState.class)
-              .put(metadata, state);
+          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
         }
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));

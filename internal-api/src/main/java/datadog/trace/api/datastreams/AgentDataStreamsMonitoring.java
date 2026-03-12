@@ -20,10 +20,7 @@ public interface AgentDataStreamsMonitoring
    * @param config the configuration key-value pairs
    */
   void reportKafkaConfig(
-      String type,
-      String kafkaClusterId,
-      String consumerGroup,
-      Map<String, String> config);
+      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config);
 
   /**
    * Tracks Schema Registry usage for Data Streams Monitoring.

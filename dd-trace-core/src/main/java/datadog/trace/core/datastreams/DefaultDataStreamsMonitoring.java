@@ -295,10 +295,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void reportKafkaConfig(
-      String type,
-      String kafkaClusterId,
-      String consumerGroup,
-      Map<String, String> config) {
+      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
     KafkaConfigReport report =
         new KafkaConfigReport(
             type,
