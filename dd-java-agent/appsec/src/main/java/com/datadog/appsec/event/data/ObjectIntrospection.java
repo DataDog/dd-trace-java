@@ -303,10 +303,13 @@ public final class ObjectIntrospection {
             // TODO: Use invalid object
           }
         } else {
-          // One of fields is inaccessible, might be it's Strongly Encapsulated Internal class
-          // consider it as integral object without introspection
-          // TODO: Use invalid object
-          return obj.toString();
+          // This field is inaccessible (Strongly Encapsulated Internal class on Java 9+).
+          // Skip it and continue with the remaining fields — other accessible fields on the
+          // same object may still contain useful data for WAF inspection. Do NOT call
+          // obj.toString() here: JDK internal toString() representations (e.g.
+          // "class java.lang.Object") can match legitimate WAF phrase_match rules and
+          // produce false positives (e.g. crs-944-130 java_code_injection).
+          continue;
         }
       }
     }
