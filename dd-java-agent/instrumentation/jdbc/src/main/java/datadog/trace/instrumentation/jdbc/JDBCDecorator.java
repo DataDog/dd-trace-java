@@ -205,11 +205,20 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public String getDbService(final DBInfo dbInfo) {
-    String dbService = null;
-    if (null != dbInfo) {
-      dbService = dbService(dbInfo.getType(), dbInstance(dbInfo));
+    if (null == dbInfo) {
+      return null;
     }
-    return dbService;
+    if (dbInfo.getInstance() != null) {
+      return dbInfo.getInstance();
+    }
+    return dbService(dbInfo.getType(), null);
+  }
+
+  public String getDbInstance(final DBInfo dbInfo) {
+    if (null == dbInfo) {
+      return null;
+    }
+    return dbInstance(dbInfo);
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
