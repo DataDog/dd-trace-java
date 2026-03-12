@@ -74,5 +74,6 @@ description = "dd-trace-api"
 dependencies {
   api(libs.slf4j)
   testImplementation(libs.guava)
+  testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
 }

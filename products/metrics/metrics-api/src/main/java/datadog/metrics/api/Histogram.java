@@ -5,6 +5,8 @@ import java.util.List;
 
 public interface Histogram {
 
+  double getSum();
+
   double getCount();
 
   boolean isEmpty();
