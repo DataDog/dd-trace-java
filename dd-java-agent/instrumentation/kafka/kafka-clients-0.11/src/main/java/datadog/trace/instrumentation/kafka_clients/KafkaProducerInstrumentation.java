@@ -91,7 +91,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "MetadataState",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
       packageName + ".AvroSchemaExtractor",
     };
   }
@@ -99,7 +99,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.apache.kafka.clients.Metadata",
-        "MetadataState");
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
   @Override

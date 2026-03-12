@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class KafkaConfigHelperTest extends Specification {
 
-  def "extractConsumerConfigFromMap filters sensitive keys"() {
+  def "extractConsumerConfigFromMap includes allowed keys with values and masks others"() {
     given:
     def rawConfig = [
       "bootstrap.servers"    : "localhost:9092",
@@ -13,7 +13,8 @@ class KafkaConfigHelperTest extends Specification {
       "ssl.key.password"     : "secret456",
       "ssl.truststore.password": "secret789",
       "sasl.jaas.config"     : "org.apache.kafka.common.security.plain.PlainLoginModule required;",
-      "auto.offset.reset"    : "earliest"
+      "auto.offset.reset"    : "earliest",
+      "some.unknown.key"     : "unknown-value"
     ] as Map<String, Object>
 
     when:
@@ -23,16 +24,17 @@ class KafkaConfigHelperTest extends Specification {
     result["bootstrap.servers"] == "localhost:9092"
     result["group.id"] == "my-group"
     result["auto.offset.reset"] == "earliest"
-    !result.containsKey("ssl.keystore.password")
-    !result.containsKey("ssl.key.password")
-    !result.containsKey("ssl.truststore.password")
-    !result.containsKey("sasl.jaas.config")
+    result["ssl.keystore.password"] == KafkaConfigHelper.MASKED_VALUE
+    result["ssl.key.password"] == KafkaConfigHelper.MASKED_VALUE
+    result["ssl.truststore.password"] == KafkaConfigHelper.MASKED_VALUE
+    result["sasl.jaas.config"] == KafkaConfigHelper.MASKED_VALUE
+    result["some.unknown.key"] == KafkaConfigHelper.MASKED_VALUE
   }
 
-  def "all sensitive keys are filtered"() {
+  def "non-allowed keys are masked, not dropped"() {
     given:
     def rawConfig = [:] as Map<String, Object>
-    KafkaConfigHelper.SENSITIVE_KEYS.each { key ->
+    ["ssl.keystore.password", "ssl.key.password", "sasl.jaas.config", "custom.key"].each { key ->
       rawConfig[key] = "secret-value"
     }
     rawConfig["bootstrap.servers"] = "localhost:9092"
@@ -41,11 +43,32 @@ class KafkaConfigHelperTest extends Specification {
     def result = KafkaConfigHelper.extractConsumerConfigFromMap(rawConfig)
 
     then:
-    result.size() == 1
+    result.size() == 5
     result["bootstrap.servers"] == "localhost:9092"
+    result["ssl.keystore.password"] == KafkaConfigHelper.MASKED_VALUE
+    result["ssl.key.password"] == KafkaConfigHelper.MASKED_VALUE
+    result["sasl.jaas.config"] == KafkaConfigHelper.MASKED_VALUE
+    result["custom.key"] == KafkaConfigHelper.MASKED_VALUE
   }
 
-  def "null values are converted to empty string"() {
+  def "all allowed keys are captured with their actual values"() {
+    given:
+    def rawConfig = [:] as Map<String, Object>
+    KafkaConfigHelper.ALLOWED_KEYS.each { key ->
+      rawConfig[key] = "test-value"
+    }
+
+    when:
+    def result = KafkaConfigHelper.extractConsumerConfigFromMap(rawConfig)
+
+    then:
+    result.size() == KafkaConfigHelper.ALLOWED_KEYS.size()
+    KafkaConfigHelper.ALLOWED_KEYS.each { key ->
+      assert result[key] == "test-value"
+    }
+  }
+
+  def "null values are converted to empty string for allowed keys"() {
     given:
     def rawConfig = [
       "bootstrap.servers": "localhost:9092",
