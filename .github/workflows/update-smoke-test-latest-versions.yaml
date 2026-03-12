@@ -85,6 +85,11 @@ jobs:
           MAVEN_VERSION: ${{ steps.maven.outputs.version }}
           SUREFIRE_VERSION: ${{ steps.surefire.outputs.version }}
         run: |
+          echo "Writing resolved versions to properties files:"
+          echo "  Gradle:         ${GRADLE_VERSION}"
+          echo "  Maven:          ${MAVEN_VERSION}"
+          echo "  Maven Surefire: ${SUREFIRE_VERSION}"
+
           printf '%s\n' \
             "# Pinned \"latest\" versions for CI Visibility Gradle smoke tests." \
             "# Updated automatically by the update-smoke-test-latest-versions workflow." \
@@ -102,9 +107,14 @@ jobs:
         id: check-changes
         run: |
           if [[ -z "$(git status -s)" ]]; then
-            echo "No changes to commit."
+            echo "No changes detected — pinned versions are already up to date."
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
+            echo "Changes detected in the following files:"
+            git status -s
+            echo ""
+            echo "Diff:"
+            git diff
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
