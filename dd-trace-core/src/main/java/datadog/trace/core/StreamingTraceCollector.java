@@ -4,7 +4,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 
@@ -72,7 +71,7 @@ public class StreamingTraceCollector extends TraceCollector {
       tracer.onRootSpanPublished(rootSpan);
     }
     healthMetrics.onFinishSpan();
-    tracer.write(Collections.singletonList(span));
+    tracer.write(TraceList.of(span));
     return PublishState.WRITTEN;
   }
 

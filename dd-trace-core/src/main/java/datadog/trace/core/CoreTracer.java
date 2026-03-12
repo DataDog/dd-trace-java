@@ -1202,7 +1202,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    *
    * @param trace a list of the spans related to the same trace
    */
-  void write(final List<DDSpan> trace) {
+  void write(final TraceList trace) {
     if (trace.isEmpty() || !trace.get(0).traceConfig().isTraceEnabled()) {
       return;
     }
@@ -1239,9 +1239,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  private List<DDSpan> interceptCompleteTrace(List<DDSpan> trace) {
-    if (!interceptors.isEmpty() && !trace.isEmpty()) {
-      Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
+  private List<DDSpan> interceptCompleteTrace(TraceList originalTrace) {
+    if (!interceptors.isEmpty() && !originalTrace.isEmpty()) {
+      // Using TraceList to optimize the common case where the interceptors,
+      // don't alter the list.  If the interceptors just return the provided
+      // List, then no need to copy to another List.
+
+      // As an extra precaution, also check the modCount before and after on
+      // the TraceList, since TraceInterceptor could put some other type of
+      // object into the List.
+
+      // There is still a risk that a TraceInterceptor holds onto the provided
+      // List and modifies it later on, but we cannot safeguard against 
+      // every possible misuse.
+      Collection<? extends MutableSpan> interceptedTrace = originalTrace;
+      int originalModCount = originalTrace.modCount();
+
       for (final TraceInterceptor interceptor : interceptors) {
         try {
           // If one TraceInterceptor throws an exception, then continue with the next one
@@ -1255,18 +1268,20 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         }
       }
 
-      // DQH - common case is that the list is that we return the same list (usually unaltered)
-      // In that case, there's no need to copy into a new list
-      if ( interceptedTrace != trace ) {
-        trace = new ArrayList<>(interceptedTrace.size());
+      if (interceptedTrace != originalTrace || originalTrace.modCount() != originalModCount) {
+        TraceList trace = new TraceList(interceptedTrace.size());
         for (final MutableSpan span : interceptedTrace) {
           if (span instanceof DDSpan) {
             trace.add((DDSpan) span);
           }
         }
+        return trace;
+      } else {
+        return originalTrace;
       }
+    } else {
+      return originalTrace;
     }
-    return trace;
   }
 
   @Override
