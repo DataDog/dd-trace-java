@@ -52,7 +52,7 @@ TableTest usage
 
   Mixed eligibility:
     - Prefer combining `@TableTest` + `@MethodSource` on one `@ParameterizedTest` when only some cases are complex.
-    - Use `@MethodSource`-only only when tabular representation is not practical for the test.
+    - Use `@MethodSource` only when tabular representation is not practical for the test.
 
   Do NOT use @TableTest when:
     - Majority of rows require complex objects or custom converters.

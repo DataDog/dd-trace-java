@@ -64,7 +64,7 @@ Cleanup:
 
 Mixed eligibility:
 - Prefer combining `@TableTest` + `@MethodSource` on one `@ParameterizedTest` when only some cases are complex.
-- Use `@MethodSource`-only only when tabular representation is not practical for the test.
+- Use `@MethodSource` only when tabular representation is not practical for the test.
 
 Do NOT convert when:
 - Most rows require complex builders/mocks.
@@ -73,7 +73,3 @@ Do NOT convert when:
 Test command (exact):
 ./gradlew :path:to:module:test --rerun-tasks 2>&1 | tail -20
 - If BUILD FAILED: cat path/to/module/build/test-results/test/TEST-*.xml
-
-Never:
-- --info
-- extra gradle runs just to “confirm”
