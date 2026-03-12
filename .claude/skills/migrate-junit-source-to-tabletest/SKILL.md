@@ -16,13 +16,17 @@ Dependency:
   - Groovy: testImplementation libs.tabletest
   - Kotlin: testImplementation(libs.tabletest)
 
-Import:
-- Ensure: import org.tabletest.junit.TableTest;
+Import: `import org.tabletest.junit.TableTest;`
 
 JDK 8 rules:
 - No text blocks.
 - @TableTest must use String[] annotation array syntax:
-  @TableTest({ "a | b", "1 | 2" })
+  ```
+  @TableTest({
+   "a | b",
+   "1 | 2"
+  })
+  ```
 
 Table formatting rules (mandatory):
 - Always include a header row (parameter names).
@@ -64,11 +68,9 @@ Cleanup:
 
 Mixed eligibility:
 - Prefer combining `@TableTest` + `@MethodSource` on one `@ParameterizedTest` when only some cases are complex.
-- Use `@MethodSource` only when tabular representation is not practical for the test.
 
 Do NOT convert when:
 - Most rows require complex builders/mocks.
-- Parameters are arrays (String[], int[]) — keep @MethodSource (or refactor to List to convert).
 
 Test command (exact):
 ./gradlew :path:to:module:test --rerun-tasks 2>&1 | tail -20

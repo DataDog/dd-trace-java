@@ -40,7 +40,13 @@ TableTest usage
 
   JDK 8 rules:
     - No text blocks.
-    - @TableTest must use String[] annotation array syntax: `@TableTest({ "a | b", "1 | 2" })`
+    - @TableTest must use String[] annotation array syntax:
+    ```
+    @TableTest({
+      "a | b",
+      "1 | 2"
+    })
+    ```
 
   Spock `where:` → @TableTest:
     - First row = header (column names = method parameters).
