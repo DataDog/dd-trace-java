@@ -44,8 +44,8 @@ jobs:
           METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml)
           # Get all versions, filter out alpha/beta/rc, take the latest
           VERSION=$(echo "$METADATA" \
-            | xmllint --xpath '//versions/version/text()' - 2>/dev/null \
-            | tr ' ' '\n' \
+            | grep -o '<version>[^<]*</version>' \
+            | sed 's/<[^>]*>//g' \
             | grep -v -E '(alpha|beta|rc)' \
             | sort -V \
             | tail -1)
@@ -62,8 +62,8 @@ jobs:
           METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml)
           # Get all versions, filter out alpha/beta, take the latest
           VERSION=$(echo "$METADATA" \
-            | xmllint --xpath '//versions/version/text()' - 2>/dev/null \
-            | tr ' ' '\n' \
+            | grep -o '<version>[^<]*</version>' \
+            | sed 's/<[^>]*>//g' \
             | grep -v -E '(alpha|beta)' \
             | sort -V \
             | tail -1)
