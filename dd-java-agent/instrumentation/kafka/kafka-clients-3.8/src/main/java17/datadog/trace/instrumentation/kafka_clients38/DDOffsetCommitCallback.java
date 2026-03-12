@@ -37,8 +37,7 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
         Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
         if (consumerMetadata != null) {
           MetadataState metadataState =
-              InstrumentationContext.get(Metadata.class, MetadataState.class)
-                  .get(consumerMetadata);
+              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
           clusterId = metadataState != null ? metadataState.clusterId : null;
         }
       }

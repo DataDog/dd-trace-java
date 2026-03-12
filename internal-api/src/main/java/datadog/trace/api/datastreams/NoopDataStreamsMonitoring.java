@@ -68,10 +68,7 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
 
   @Override
   public void reportKafkaConfig(
-      String type,
-      String kafkaClusterId,
-      String consumerGroup,
-      Map<String, String> config) {}
+      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {}
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}

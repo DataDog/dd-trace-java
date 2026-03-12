@@ -49,7 +49,8 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata",
+    return singletonMap(
+        "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 

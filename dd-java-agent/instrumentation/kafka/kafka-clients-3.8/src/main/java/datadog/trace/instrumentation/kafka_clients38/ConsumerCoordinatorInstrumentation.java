@@ -27,7 +27,8 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>(2);
-    contextStores.put("org.apache.kafka.clients.Metadata",
+    contextStores.put(
+        "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",

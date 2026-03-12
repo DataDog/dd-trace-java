@@ -18,7 +18,10 @@ public class KafkaConfigHelper {
 
   static final String MASKED_VALUE = "****";
 
-  /** Config keys that are safe to capture with their values. Other keys are captured with masked values. */
+  /**
+   * Config keys that are safe to capture with their values. Other keys are captured with masked
+   * values.
+   */
   static final Set<String> ALLOWED_KEYS =
       new HashSet<>(
           Arrays.asList(
@@ -89,8 +92,7 @@ public class KafkaConfigHelper {
               "default.api.timeout.ms"));
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
-  public static void storePendingProducerConfig(
-      MetadataState state, Map<String, String> config) {
+  public static void storePendingProducerConfig(MetadataState state, Map<String, String> config) {
     state.setPendingConfig(new PendingConfig("producer", "", config));
     log.debug("Stored pending producer config (cluster ID not yet known)");
   }
