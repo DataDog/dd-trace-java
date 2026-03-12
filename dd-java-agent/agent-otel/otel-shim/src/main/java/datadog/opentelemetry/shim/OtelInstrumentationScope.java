@@ -1,33 +1,34 @@
 package datadog.opentelemetry.shim;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** Instrumentation scopes have a mandatory name, optional version, and optional schema URL. */
 public final class OtelInstrumentationScope {
 
-  private final String scopeName;
-  @Nullable private final String scopeVersion;
-  @Nullable private final String schemaUrl;
+  private final UTF8BytesString scopeName;
+  @Nullable private final UTF8BytesString scopeVersion;
+  @Nullable private final UTF8BytesString schemaUrl;
 
   public OtelInstrumentationScope(
       String scopeName, @Nullable String scopeVersion, @Nullable String schemaUrl) {
-    this.scopeName = scopeName;
-    this.scopeVersion = scopeVersion;
-    this.schemaUrl = schemaUrl;
+    this.scopeName = UTF8BytesString.create(scopeName);
+    this.scopeVersion = UTF8BytesString.create(scopeVersion);
+    this.schemaUrl = UTF8BytesString.create(schemaUrl);
   }
 
-  public String getName() {
+  public UTF8BytesString getName() {
     return scopeName;
   }
 
   @Nullable
-  public String getVersion() {
+  public UTF8BytesString getVersion() {
     return scopeVersion;
   }
 
   @Nullable
-  public String getSchemaUrl() {
+  public UTF8BytesString getSchemaUrl() {
     return schemaUrl;
   }
 
