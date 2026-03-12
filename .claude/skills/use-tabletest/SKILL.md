@@ -48,6 +48,10 @@ C) @MethodSource (convert only if values are representable as strings)
   - List: [a, b, ...]
   - Set: {a, b, ...}
   - Map: [k: v, ...]
+- `@TableTest` and `@MethodSource` may be combined on the same `@ParameterizedTest` when most cases are tabular but a few cases require programmatic setup.
+- In combined mode, keep table-friendly cases in `@TableTest`, and put only non-tabular/complex cases in `@MethodSource`.
+- If `@TableTest` is not viable for the test at all, use `@MethodSource` only.
+- For `@MethodSource`, name the arguments method `<testMethodName>Arguments` (camelCase, e.g. `testMethodArguments`) and return `Stream<Arguments>` using `Stream.of(...)` and `arguments(...)` with static import.
 - Blank cell = null (non-primitive).
 - '' = empty string.
 - For String params that start with '[' or '{', quote to avoid collection parsing (prefer '[]'/'{}').
@@ -59,9 +63,8 @@ Cleanup:
 - Delete now-unused @MethodSource provider methods and unused imports.
 
 Mixed eligibility:
-- If only a few cases need complex construction, split:
-  - Simple cases ⇒ @TableTest
-  - Complex cases ⇒ separate @Test(s) (descriptive names) OR keep a small @MethodSource.
+- Prefer combining `@TableTest` + `@MethodSource` on one `@ParameterizedTest` when only some cases are complex.
+- Use `@MethodSource`-only only when tabular representation is not practical for the test.
 
 Do NOT convert when:
 - Most rows require complex builders/mocks.
