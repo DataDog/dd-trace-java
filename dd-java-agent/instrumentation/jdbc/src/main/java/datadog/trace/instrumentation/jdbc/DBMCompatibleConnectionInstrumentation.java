@@ -132,7 +132,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
           DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbInfo.getType());
       sql =
           SQLCommenter.inject(
-              sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
+              sql, dbService, dbInfo.getType(), dbInfo.getHost(), DECORATE.getDbInstance(dbInfo), null, append);
       return inputSql;
     }
 
