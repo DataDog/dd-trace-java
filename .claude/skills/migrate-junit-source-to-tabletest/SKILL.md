@@ -1,5 +1,5 @@
 ---
-name: use-tabletest
+name: migrate-junit-source-to-tabletest
 description: Convert JUnit 5 @MethodSource/@CsvSource/@ValueSource parameterized tests to @TableTest (JDK8)
 ---
 Goal: Migrate JUnit 5 parameterized tests using @MethodSource/@CsvSource/@ValueSource to @TableTest with minimal churn and passing tests.
