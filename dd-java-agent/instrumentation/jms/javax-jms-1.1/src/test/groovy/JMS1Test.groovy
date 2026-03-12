@@ -258,9 +258,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
-    // Use a very short scope iteration keep-alive so the 3rd consumer span is always
-    // cleaned up before we assert, making the test deterministic (6 traces, not 5 or 6).
-    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1")
+    // Use a long scope iteration keep-alive to prevent early cleanup of the 3rd
+    // consumer span, ensuring exactly 5 traces before acknowledge (not 6).
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "10000")
     def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
@@ -275,15 +275,26 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     TextMessage receivedMessage2 = consumer.receive()
     receivedMessage2.acknowledge()
     TextMessage receivedMessage3 = consumer.receive()
-    receivedMessage3.acknowledge()
 
     then:
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // All 6 traces (3 producer + 3 consumer) are finished because acknowledge()
-    // has been called and the short scope iteration keep-alive ensures the 3rd
-    // consumer span is cleaned up promptly.
+    // only two consume traces will be finished at this point because message 3
+    // has not been acknowledged and the long keep-alive prevents early cleanup
+    assertTraces(5) {
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      producerTraceWithNaming(it, destination)
+      consumerTraceWithNaming(it, destination, trace(0)[0])
+      consumerTraceWithNaming(it, destination, trace(1)[0])
+    }
+
+    when:
+    receivedMessage3.acknowledge()
+
+    then:
+    // now the last consume trace will also be finished
     assertTraces(6) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
