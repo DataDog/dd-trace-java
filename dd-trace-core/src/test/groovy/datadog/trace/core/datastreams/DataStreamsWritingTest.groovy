@@ -382,7 +382,9 @@ class DataStreamsWritingTest extends DDCoreSpecification {
             def configSize = unpacker.unpackMapHeader()
             Map<String, String> configEntries = [:]
             configSize.times {
-              configEntries[unpacker.unpackString()] = unpacker.unpackString()
+              def ck = unpacker.unpackString()
+              def cv = unpacker.unpackString()
+              configEntries[ck] = cv
             }
             assert configEntries["bootstrap.servers"] == "localhost:9092"
             assert configEntries["acks"] == "all"
