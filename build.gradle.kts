@@ -11,7 +11,7 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.2.1"
+  id("com.diffplug.spotless") version "8.3.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("com.github.spotbugs") version "6.4.8"
   id("de.thetaphi.forbiddenapis") version "3.10"
@@ -27,32 +27,6 @@ val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
-
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
-
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
-  java {
-    googleJavaFormat("1.34.1")
-  }
-  kotlin {
-    ktlint("1.8.0")
-  }
-  scala {
-    scalafmt("3.10.2")
-  }
-  groovy {
-    greclipse()
-  }
-  kotlinGradle {
-    ktlint("1.8.0")
-  }
-  groovyGradle {
-    greclipse()
-  }
-}
 
 // List of projects to exclude from processing by Spotless.
 val spotlessExcludedProjects = setOf(":dd-java-agent:agent-jmxfetch")
@@ -116,7 +90,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.java", "app*/**/*.java")
           targetExclude(commonExcludes)
-          googleJavaFormat("1.34.1")
+          googleJavaFormat("1.35.0")
         }
       }
 
