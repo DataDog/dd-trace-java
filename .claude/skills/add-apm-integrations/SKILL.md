@@ -1,6 +1,6 @@
 ---
-name: apm-integrations
-description: Write a new library instrumentation end-to-end.
+name: add-apm-integrations
+description: Write a new library instrumentation end-to-end. Use when the user ask to add a new APM integration or a library instrumentation.
 context: fork
 allowed-tools:
   - Bash
