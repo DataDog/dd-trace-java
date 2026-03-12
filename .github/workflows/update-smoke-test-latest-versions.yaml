@@ -3,9 +3,6 @@ on:
   schedule:
     - cron: "0 5 * * 0"
   workflow_dispatch:
-  pull_request: # TODO: Remove before merging
-    paths:
-      - '.github/workflows/update-smoke-test-latest-versions.yaml'
 
 jobs:
   update-smoke-test-latest-versions:
@@ -16,7 +13,6 @@ jobs:
       id-token: write # Required for OIDC token federation
     steps:
       - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
-        if: github.event_name != 'pull_request'
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
@@ -26,7 +22,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
       - name: Define branch name
-        if: github.event_name != 'pull_request'
         id: define-branch
         run: |
           DATE=$(date +'%Y%m%d')
@@ -119,13 +114,13 @@ jobs:
           fi
 
       - name: Configure git
-        if: github.event_name != 'pull_request' && steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Create commit
-        if: github.event_name != 'pull_request' && steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true'
         id: create-commit
         run: |
           git add dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties \
@@ -134,7 +129,7 @@ jobs:
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Push changes
-        if: github.event_name != 'pull_request' && steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true'
         uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
@@ -145,7 +140,7 @@ jobs:
           commits: "${{ steps.create-commit.outputs.commit }}"
 
       - name: Create pull request
-        if: github.event_name != 'pull_request' && steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
         run: |
