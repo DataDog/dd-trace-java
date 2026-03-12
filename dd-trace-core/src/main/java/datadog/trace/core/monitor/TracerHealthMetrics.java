@@ -85,6 +85,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder scopeCloseErrors = new LongAdder();
   private final LongAdder userScopeCloseErrors = new LongAdder();
 
+  private final LongAdder pendingWriteAround = new LongAdder();
+
   private final LongAdder longRunningTracesWrite = new LongAdder();
   private final LongAdder longRunningTracesDropped = new LongAdder();
   private final LongAdder longRunningTracesExpired = new LongAdder();
@@ -296,6 +298,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onPendingWriteAround() {
+    pendingWriteAround.increment();
+  }
+
+  @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
     longRunningTracesWrite.add(write);
     longRunningTracesDropped.add(dropped);
@@ -473,6 +480,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(
             target.statsd, "scope.user.close.error", target.userScopeCloseErrors, NO_TAGS);
 
+        reportIfChanged(target.statsd, "pending.write_around", target.pendingWriteAround, NO_TAGS);
+
         reportIfChanged(
             target.statsd, "long-running.write", target.longRunningTracesWrite, NO_TAGS);
         reportIfChanged(
@@ -601,6 +610,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + scopeCloseErrors.sum()
         + "\nuserScopeCloseErrors="
         + userScopeCloseErrors.sum()
+        + "\n"
+        + "\npendingWriteAround="
+        + pendingWriteAround.sum()
         + "\n"
         + "\nlongRunningTracesWrite="
         + longRunningTracesWrite.sum()
