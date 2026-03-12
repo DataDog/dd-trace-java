@@ -16,21 +16,77 @@ import org.slf4j.LoggerFactory;
 public class KafkaConfigHelper {
   private static final Logger log = LoggerFactory.getLogger(KafkaConfigHelper.class);
 
-  /** Config keys that must never be captured because they may contain secrets. */
-  static final Set<String> SENSITIVE_KEYS =
+  static final String MASKED_VALUE = "****";
+
+  /** Config keys that are safe to capture with their values. Other keys are captured with masked values. */
+  static final Set<String> ALLOWED_KEYS =
       new HashSet<>(
           Arrays.asList(
-              "ssl.keystore.password",
-              "ssl.key.password",
-              "ssl.truststore.password",
-              "ssl.keystore.key",
-              "ssl.keystore.certificate.chain",
-              "ssl.truststore.certificates",
-              "sasl.jaas.config",
-              "sasl.oauthbearer.client.credentials.client.secret",
-              "sasl.oauthbearer.assertion.private.key.passphrase",
-              "sasl.oauthbearer.assertion.private.key.file",
-              "sasl.oauthbearer.assertion.file"));
+              // Common client configs
+              "bootstrap.servers",
+              "client.id",
+              "client.dns.lookup",
+              "client.rack",
+              "metadata.max.age.ms",
+              "metadata.max.idle.ms",
+              "request.timeout.ms",
+              "connections.max.idle.ms",
+              "reconnect.backoff.ms",
+              "reconnect.backoff.max.ms",
+              "retry.backoff.ms",
+              "retry.backoff.max.ms",
+              "send.buffer.bytes",
+              "receive.buffer.bytes",
+              "socket.connection.setup.timeout.ms",
+              "socket.connection.setup.timeout.max.ms",
+              "security.protocol",
+              "metrics.sample.window.ms",
+              "metrics.num.samples",
+              "metrics.recording.level",
+              // Producer configs
+              "batch.size",
+              "acks",
+              "linger.ms",
+              "buffer.memory",
+              "max.request.size",
+              "max.block.ms",
+              "compression.type",
+              "delivery.timeout.ms",
+              "enable.idempotence",
+              "max.in.flight.requests.per.connection",
+              "transaction.timeout.ms",
+              "transactional.id",
+              "retries",
+              "partitioner.class",
+              "partitioner.ignore.keys",
+              "partitioner.adaptive.partitioning.enable",
+              "partitioner.availability.timeout.ms",
+              "key.serializer",
+              "value.serializer",
+              // Consumer configs
+              "group.id",
+              "group.instance.id",
+              "group.protocol",
+              "group.remote.assignor",
+              "max.poll.records",
+              "max.poll.interval.ms",
+              "session.timeout.ms",
+              "heartbeat.interval.ms",
+              "enable.auto.commit",
+              "auto.commit.interval.ms",
+              "auto.offset.reset",
+              "partition.assignment.strategy",
+              "fetch.min.bytes",
+              "fetch.max.bytes",
+              "fetch.max.wait.ms",
+              "max.partition.fetch.bytes",
+              "check.crcs",
+              "key.deserializer",
+              "value.deserializer",
+              "exclude.internal.topics",
+              "isolation.level",
+              "allow.auto.create.topics",
+              "default.api.timeout.ms"));
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingProducerConfig(
@@ -91,11 +147,12 @@ public class KafkaConfigHelper {
   private static Map<String, String> convertToStringMap(Map<String, ?> config) {
     Map<String, String> result = new LinkedHashMap<>();
     for (Map.Entry<String, ?> entry : config.entrySet()) {
-      if (SENSITIVE_KEYS.contains(entry.getKey())) {
-        continue;
+      if (ALLOWED_KEYS.contains(entry.getKey())) {
+        Object value = entry.getValue();
+        result.put(entry.getKey(), value != null ? String.valueOf(value) : "");
+      } else {
+        result.put(entry.getKey(), MASKED_VALUE);
       }
-      Object value = entry.getValue();
-      result.put(entry.getKey(), value != null ? String.valueOf(value) : "");
     }
     return result;
   }
