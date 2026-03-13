@@ -71,7 +71,7 @@ public class StreamingTraceCollector extends TraceCollector {
       tracer.onRootSpanPublished(rootSpan);
     }
     healthMetrics.onFinishSpan();
-    tracer.write(TraceList.of(span));
+    tracer.write(SpanList.of(span));
     return PublishState.WRITTEN;
   }
 

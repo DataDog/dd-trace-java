@@ -1219,7 +1219,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    *
    * @param trace a list of the spans related to the same trace
    */
-  void write(final TraceList trace) {
+  void write(final SpanList trace) {
     if (trace.isEmpty() || !trace.get(0).traceConfig().isTraceEnabled()) {
       return;
     }
@@ -1256,7 +1256,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
-  private List<DDSpan> interceptCompleteTrace(TraceList originalTrace) {
+  private List<DDSpan> interceptCompleteTrace(SpanList originalTrace) {
     if (!interceptors.isEmpty() && !originalTrace.isEmpty()) {
       // Using TraceList to optimize the common case where the interceptors,
       // don't alter the list.  If the interceptors just return the provided
@@ -1285,8 +1285,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         }
       }
 
-      if (interceptedTrace != originalTrace || originalTrace.modCount() != originalModCount) {
-        TraceList trace = new TraceList(interceptedTrace.size());
+      if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+    	return SpanList.EMPTY;
+      } else if (interceptedTrace != originalTrace || originalTrace.modCount() != originalModCount) {
+        SpanList trace = new SpanList(interceptedTrace.size());
         for (final MutableSpan span : interceptedTrace) {
           if (span instanceof DDSpan) {
             trace.add((DDSpan) span);

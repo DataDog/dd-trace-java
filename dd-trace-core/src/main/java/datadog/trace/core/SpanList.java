@@ -3,16 +3,16 @@ package datadog.trace.core;
 import java.util.ArrayList;
 
 /** ArrayList that exposes modCount to allow for an optimization in TraceInterceptor handling */
-final class TraceList extends ArrayList<DDSpan> {
-  static final TraceList EMPTY = new TraceList(0);
+final class SpanList extends ArrayList<DDSpan> {
+  static final SpanList EMPTY = new SpanList(0);
 
-  static final TraceList of(DDSpan span) {
-    TraceList list = new TraceList(1);
+  static final SpanList of(DDSpan span) {
+    SpanList list = new SpanList(1);
     list.add(span);
     return list;
   }
 
-  TraceList(int capacity) {
+  SpanList(int capacity) {
     super(capacity);
   }
 
