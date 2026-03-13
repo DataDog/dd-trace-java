@@ -28,6 +28,9 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
               .withStringValue(String.format("{\"%s\": \"%s\"}", key, value)));
     } else {
       String existing = carrier.get(DATADOG_KEY).getStringValue();
+      if (existing == null) {
+        return;
+      }
       int closingBrace = existing.lastIndexOf('}');
       if (closingBrace >= 0) {
         String updated =
