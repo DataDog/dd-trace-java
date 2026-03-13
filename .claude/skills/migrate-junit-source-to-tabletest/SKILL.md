@@ -12,9 +12,8 @@ Process (do in this order):
 5) Run module tests once and verify "BUILD SUCCESSFUL". If failed, inspect JUnit XML report.
 
 Dependency:
-- If missing, add:
-  - Groovy: testImplementation libs.tabletest
-  - Kotlin: testImplementation(libs.tabletest)
+- @TableTest should be in `gradle/java_deps.gradle` as `testImplementation libs.tabletest` where Java modules inherit it via `gradle/java.gradle`.
+- As a fallback, add module-specific `testImplementation(libs.tabletest)` or `testImplementation libs.tabletest`.
 
 Import: `import org.tabletest.junit.TableTest;`
 

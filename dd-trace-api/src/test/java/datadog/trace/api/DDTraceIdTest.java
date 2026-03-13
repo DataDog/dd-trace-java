@@ -159,18 +159,18 @@ class DDTraceIdTest {
   }
 
   @TableTest({
-    "scenario             | hexId               | start | length | lowerCaseOnly",
-    "null string          |                     | 0     | 0      | true         ",
-    "empty string         | ''                  | 0     | 0      | true         ",
-    "out of bound length  | '123456789abcdef0'  | 0     | 17     | true         ",
-    "out of bound end     | '123456789abcdef0'  | 7     | 10     | true         ",
-    "out of bound start   | '123456789abcdef0'  | 17    | 0      | true         ",
-    "invalid minus one    | '-1'                | 0     | 1      | true         ",
-    "invalid minus a      | '-a'                | 0     | 1      | true         ",
-    "invalid character    | '123abcg'           | 0     | 7      | true         ",
-    "invalid upper case A | 'A'                 | 0     | 1      | true         ",
-    "invalid upper case   | '123ABC'            | 0     | 6      | true         ",
-    "too long             | '111111111111111111111111111111111' | 0 | 33 | true"
+    "scenario             | hexId                               | start | length | lowerCaseOnly",
+    "null string          |                                     | 0     | 0      | true         ",
+    "empty string         | ''                                  | 0     | 0      | true         ",
+    "out of bound length  | '123456789abcdef0'                  | 0     | 17     | true         ",
+    "out of bound end     | '123456789abcdef0'                  | 7     | 10     | true         ",
+    "out of bound start   | '123456789abcdef0'                  | 17    | 0      | true         ",
+    "invalid minus one    | '-1'                                | 0     | 1      | true         ",
+    "invalid minus a      | '-a'                                | 0     | 1      | true         ",
+    "invalid character    | '123abcg'                           | 0     | 7      | true         ",
+    "invalid upper case A | 'A'                                 | 0     | 1      | true         ",
+    "invalid upper case   | '123ABC'                            | 0     | 6      | true         ",
+    "too long             | '111111111111111111111111111111111' | 0     | 33     | true         "
   })
   @ParameterizedTest
   void failParsingIllegal128BitIdHexadecimalStringRepresentationFromPartialString(
