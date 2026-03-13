@@ -4,13 +4,10 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
 
 import datadog.context.Context;
-import datadog.context.propagation.Propagator;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -48,12 +45,10 @@ public class SqsInterceptor implements ExecutionInterceptor {
         return request;
       }
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(request.messageAttributes());
       defaultPropagator().inject(ctx, messageAttributes, SETTER);
-      dsmPropagator.inject(ctx, messageAttributes, SETTER);
 
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
@@ -64,7 +59,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
         return request;
       }
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
@@ -72,7 +66,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
         defaultPropagator().inject(ctx, messageAttributes, SETTER);
-        dsmPropagator.inject(ctx, messageAttributes, SETTER);
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
       }
 
