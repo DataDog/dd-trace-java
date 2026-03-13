@@ -7,6 +7,7 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -257,6 +258,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
+    // Use a long scope iteration keep-alive to prevent early cleanup of the 3rd
+    // consumer span, ensuring exactly 5 traces before acknowledge (not 6).
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "10000")
     def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
@@ -276,7 +280,8 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // only two consume traces will be finished at this point
+    // only two consume traces will be finished at this point because message 3
+    // has not been acknowledged and the long keep-alive prevents early cleanup
     assertTraces(5) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
@@ -300,7 +305,6 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     }
 
     cleanup:
-    receivedMessage3.acknowledge()
     producer.close()
     consumer.close()
     clientSession.close()

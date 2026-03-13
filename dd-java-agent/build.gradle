@@ -150,6 +150,12 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
       relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
       relocate 'okhttp3', 'datadog.okhttp3'
       relocate 'okio', 'datadog.okio'
+
+      // embed an extra copy of our otel-shim for drop-in/extension support
+      // extensions are remapped to avoid classpath conflicts; use same mapping here
+      relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
+      relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'
+      relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
     }
 
     if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
@@ -362,6 +368,8 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  // embed an extra copy of our otel-shim for drop-in/extension support
+  shadowInclude project(path: ':dd-java-agent:agent-otel:otel-shim')
   shadowInclude project(path: ':products:feature-flagging:feature-flagging-bootstrap')
 
   // Includes for the shared internal shadow jar
