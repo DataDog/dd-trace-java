@@ -5,6 +5,9 @@ import static java.util.Collections.emptySet;
 
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.AnnotatedElement;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /** Use standard API to work with JPMS modules on Java9+. */
@@ -30,6 +33,34 @@ public final class JDK9ModuleAccess {
         (Set) extraReads,
         emptyMap(),
         emptyMap(),
+        emptySet(),
+        emptyMap());
+  }
+
+  /** Exports packages from a named module to a classloader's unnamed module. */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static void addModuleExports(
+      Instrumentation inst,
+      String moduleName,
+      String[] packageNames,
+      ClassLoader targetClassLoader) {
+    java.util.Optional<Module> optModule = ModuleLayer.boot().findModule(moduleName);
+    if (!optModule.isPresent()) {
+      return;
+    }
+    Module module = optModule.get();
+    Module unnamedModule = targetClassLoader.getUnnamedModule();
+
+    Map<String, Set<Module>> extraExports = new HashMap<>();
+    for (String packageName : packageNames) {
+      extraExports.put(packageName, Collections.singleton(unnamedModule));
+    }
+
+    inst.redefineModule(
+        module,
+        (Set) emptySet(),
+        (Map) extraExports,
+        (Map) emptyMap(),
         emptySet(),
         emptyMap());
   }
