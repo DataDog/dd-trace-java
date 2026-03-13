@@ -7,6 +7,13 @@ repositories {
     maven {
       url project.rootProject.property("mavenRepositoryProxy")
       allowInsecureProtocol = true
+      content {
+        // TODO: For unknown reasons `org.tabletest` artifacts resolved as invalid jars via `mavenRepositoryProxy`.
+        // Build is failing with message: `error reading .gradle/caches/.../tabletest-junit-1.2.0.jar; zip END header not found`
+        // Revisit this place once `org.tabletest` artifacts will be updated, there is a chance that issue will be fixed.
+        // Temporary exclude it here so Gradle resolves it directly from mavenCentral().
+        excludeGroup "org.tabletest"
+      }
     }
   }
   mavenCentral()
