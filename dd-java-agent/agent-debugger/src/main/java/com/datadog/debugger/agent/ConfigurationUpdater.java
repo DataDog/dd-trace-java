@@ -63,9 +63,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     Method getAnnotatedTypesMethod = null;
     if (JAVA_AT_LEAST_16) {
       try {
-        Class<?> recordClass = Class.forName("java.lang.Record");
+        Class<?> recordClass = Class.forName("java.lang.Record", true, null);
         getRecordComponentsMethod = recordClass.getClass().getDeclaredMethod("getRecordComponents");
-        Class<?> recordComponentClass = Class.forName("java.lang.reflect.RecordComponent");
+        Class<?> recordComponentClass =
+            Class.forName("java.lang.reflect.RecordComponent", true, null);
         getAnnotatedTypesMethod = recordComponentClass.getDeclaredMethod("getAnnotatedType");
       } catch (Exception e) {
         LOGGER.debug("Exception initializing reflection constants", e);
