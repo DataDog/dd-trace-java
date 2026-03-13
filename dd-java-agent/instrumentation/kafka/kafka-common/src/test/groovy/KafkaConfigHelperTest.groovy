@@ -1,5 +1,4 @@
-package datadog.trace.instrumentation.kafka_common
-
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper
 import spock.lang.Specification
 
 class KafkaConfigHelperTest extends Specification {
