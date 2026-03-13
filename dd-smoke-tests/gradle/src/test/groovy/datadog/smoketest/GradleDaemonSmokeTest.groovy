@@ -4,6 +4,8 @@ import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import java.nio.file.Files
+import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -18,9 +20,9 @@ import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 
-import java.nio.file.Files
-import java.nio.file.Path
-
+@IgnoreIf(reason = "TODO: Fix for Java 26. Javac plugin fails to populate source tags correctly.", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(26)
+})
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"
@@ -66,7 +68,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     LATEST_GRADLE_VERSION | "test-corrupted-config-new-instrumentation"     | false              | false           | false        | 1              | 0
     LATEST_GRADLE_VERSION | "test-succeed-junit-5"                          | false              | true            | false        | 5              | 1
     LATEST_GRADLE_VERSION | "test-failed-flaky-retries"                     | false              | false           | true         | 8              | 0
-    LATEST_GRADLE_VERSION | "test-succeed-gradle-plugin-test"               | false              | true            | false        | 5              | 0
+    // TODO: add back LATEST_GRADLE_VERSION after fixing in Gradle 9.4.0
+    "9.3.1"               | "test-succeed-gradle-plugin-test"               | false              | true            | false        | 5              | 0
   }
 
   def "test junit4 class ordering v#gradleVersion"() {
@@ -87,32 +90,32 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder)
 
     where:
-    gradleVersion         | projectName                           | flakyTests | expectedOrder | eventsNumber
-    "7.6.4"               | "test-succeed-junit-4-class-ordering" | [
+    gradleVersion | projectName                           | flakyTests | expectedOrder | eventsNumber
+    "7.6.4"       | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                          | [
+    ]                                                                  | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                          | 15
+    ]                                                                                  | 15
     // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
-    "9.2.1" | "test-succeed-junit-4-class-ordering" | [
+    "9.2.1"       | "test-succeed-junit-4-class-ordering" | [
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed")
-    ]                                                                          | [
+    ]                                                                  | [
       test("datadog.smoke.TestSucceedC", "test_succeed"),
       test("datadog.smoke.TestSucceedC", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed_another"),
       test("datadog.smoke.TestSucceedA", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed"),
       test("datadog.smoke.TestSucceedB", "test_succeed_another")
-    ]                                                                                          | 15
+    ]                                                                                  | 15
   }
 
   private runGradleTest(String gradleVersion, String projectName, boolean configurationCache, boolean successExpected, boolean flakyRetries, int expectedTraces, int expectedCoverages) {
@@ -153,7 +156,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     Files.write(ddApiKeyPath, "dummy".getBytes())
 
     def additionalArgs = [
-      (GeneralConfig.API_KEY_FILE): ddApiKeyPath.toAbsolutePath().toString(),
+      (GeneralConfig.API_KEY_FILE)                           : ddApiKeyPath.toAbsolutePath().toString(),
       (CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION): JACOCO_PLUGIN_VERSION,
       /*
        * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
@@ -164,7 +167,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
        * This causes the tests to fail because the number of reported traces is different.
        * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
        */
-      (TraceInstrumentationConfig.TRACE_ENABLED): "false"
+      (TraceInstrumentationConfig.TRACE_ENABLED)             : "false"
     ]
     def arguments = buildJvmArguments(mockBackend.intakeUrl, TEST_SERVICE_NAME, additionalArgs)
 

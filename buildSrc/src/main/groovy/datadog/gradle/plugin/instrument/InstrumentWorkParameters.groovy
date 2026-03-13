@@ -14,4 +14,5 @@ interface InstrumentWorkParameters extends WorkParameters {
   ConfigurableFileCollection getInstrumentingClassPath()
   DirectoryProperty getCompilerOutputDirectory()
   DirectoryProperty getTmpDirectory()
+  ConfigurableFileCollection getIncludeClassDirectories()
 }

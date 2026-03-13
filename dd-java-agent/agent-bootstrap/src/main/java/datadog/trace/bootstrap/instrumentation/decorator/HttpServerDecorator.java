@@ -174,6 +174,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extracted = startInferredProxySpan(parentContext, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Register service-entry span with inferred proxy span (if present) so that premature
+    // finish calls from child spans (e.g., Spring MVC handler) are deferred until the
+    // service-entry span finishes (after the response status is known).
+    registerServiceEntrySpanInInferredProxy(parentContext, span);
+    // Reset service name inherited from inferred proxy parent: the inferred span uses the
+    // gateway domain name as service name, but the service-entry span should identify
+    // the application (configured DD_SERVICE), not the upstream gateway.
+    resetServiceNameIfUnderInferredProxy(parentContext, span);
     // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
@@ -191,6 +199,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return extracted;
     }
     return span.start(extracted);
+  }
+
+  private void registerServiceEntrySpanInInferredProxy(
+      Context parentContext, AgentSpan serviceEntrySpan) {
+    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
+    if (inferredProxy != null) {
+      inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
+    }
+  }
+
+  private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
+    if (InferredProxySpan.fromContext(parentContext) != null) {
+      span.setServiceName(Config.get().getServiceName());
+    }
   }
 
   private final DataStreamsTransactionTracker.TransactionSourceReader
@@ -586,16 +608,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   protected void finishInferredProxySpan(Context context) {
-    InferredProxySpan span;
-    if ((span = InferredProxySpan.fromContext(context)) != null) {
-      span.finish();
+    InferredProxySpan inferredProxySpan;
+    if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
+      inferredProxySpan.finish(AgentSpan.fromContext(context));
     }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
-    if (span.getLocalRootSpan() != span) {
+    AgentSpan localRoot = span.getLocalRootSpan();
+
+    // Check if the local root is an inferred proxy span
+    boolean hasInferredProxyParent =
+        localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
+
+    // Only proceed if this is the root span OR if we have an inferred proxy parent
+    if (localRoot != span && !hasInferredProxyParent) {
       return;
     }
+
     CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {

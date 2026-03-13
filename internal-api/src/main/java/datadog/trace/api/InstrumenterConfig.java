@@ -59,6 +59,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
@@ -218,6 +219,7 @@ public class InstrumenterConfig {
   private final boolean apiSecurityEndpointCollectionEnabled;
 
   private final boolean appLogsCollectionEnabled;
+  private final boolean legacyContextManagerEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -375,6 +377,8 @@ public class InstrumenterConfig {
 
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+
+    legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -706,6 +710,10 @@ public class InstrumenterConfig {
     return appLogsCollectionEnabled;
   }
 
+  public boolean isLegacyContextManagerEnabled() {
+    return legacyContextManagerEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
@@ -831,6 +839,8 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
+        + ", legacyContextManagerEnabled="
+        + legacyContextManagerEnabled
         + '}';
   }
 }

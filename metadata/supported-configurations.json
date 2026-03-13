@@ -11176,6 +11176,14 @@
         "default": "2000",
         "aliases": []
       }
+    ],
+    "DD_LEGACY_CONTEXT_MANAGER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
     ]
   },
   "deprecations": {}

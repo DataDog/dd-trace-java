@@ -7,6 +7,12 @@ plugins {
 repositories {
   maven {
     url = 'https://resources.knopflerfish.org/repo/maven2/release'
+    // Restrict this repository to Knopflerfish artifacts only.
+    // Without this filter, Gradle may probe this host for unrelated dependencies
+    // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
+    content {
+      includeGroup 'org.knopflerfish.kf6'
+    }
   }
 }
 

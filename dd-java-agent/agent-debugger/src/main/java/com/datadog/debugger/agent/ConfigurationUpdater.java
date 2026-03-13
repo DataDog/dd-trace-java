@@ -206,33 +206,40 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     List<Class<?>> result = new ArrayList<>();
     for (Class<?> changedClass : changedClasses) {
-      Method[] declaredMethods = changedClass.getDeclaredMethods();
       boolean addClass = true;
-      // capping scanning of methods to 100 to avoid generated class with thousand of methods
-      // assuming that in those first 100 methods there is at least one with at least one parameter
-      for (int methodIdx = 0; methodIdx < declaredMethods.length && methodIdx < 100; methodIdx++) {
-        Method method = declaredMethods[methodIdx];
-        Parameter[] parameters = method.getParameters();
-        if (parameters.length == 0) {
-          continue;
-        }
-        if (parameters[0].isNamePresent()) {
-          if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
-            return changedClasses;
+      try {
+        Method[] declaredMethods = changedClass.getDeclaredMethods();
+        // capping scanning of methods to 100 to avoid generated class with thousand of methods
+        // assuming that in those first 100 methods there is at least one with at least one
+        // parameter
+        for (int methodIdx = 0;
+            methodIdx < declaredMethods.length && methodIdx < 100;
+            methodIdx++) {
+          Method method = declaredMethods[methodIdx];
+          Parameter[] parameters = method.getParameters();
+          if (parameters.length == 0) {
+            continue;
           }
-          LOGGER.debug(
-              "Detecting method parameter: method={} param={}, Skipping retransforming this class",
-              method.getName(),
-              parameters[0].getName());
-          // skip the class: compiled with -parameters
-          reportError(
-              changes,
-              "Method Parameters detected, instrumentation not supported for "
-                  + changedClass.getTypeName());
-          addClass = false;
+          if (parameters[0].isNamePresent()) {
+            if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
+              return changedClasses;
+            }
+            LOGGER.debug(
+                "Detecting method parameter: method={} param={}, Skipping retransforming this class",
+                method.getName(),
+                parameters[0].getName());
+            // skip the class: compiled with -parameters
+            reportError(
+                changes,
+                "Method Parameters detected, instrumentation not supported for "
+                    + changedClass.getTypeName());
+            addClass = false;
+          }
+          // we found at leat a method with one parameter if name is not present we can stop there
+          break;
         }
-        // we found at leat a method with one parameter if name is not present we can stop there
-        break;
+      } catch (Exception e) {
+        LOGGER.debug("Exception scanning method parameters", e);
       }
       if (addClass) {
         result.add(changedClass);

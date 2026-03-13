@@ -57,8 +57,12 @@ public class SymbolExtractor {
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
-        classStartLine = Math.min(classStartLine, scope.getStartLine());
-        classEndLine = Math.max(classEndLine, scope.getEndLine());
+        if (scope.getStartLine() > 0) {
+          classStartLine = Math.min(classStartLine, scope.getStartLine());
+        }
+        if (scope.getEndLine() > 0) {
+          classEndLine = Math.max(classEndLine, scope.getEndLine());
+        }
       }
       List<Symbol> fields = extractFields(classNode);
       LanguageSpecifics classSpecifics =
@@ -505,7 +509,18 @@ public class SymbolExtractor {
       node = node.getNext();
     }
     lineNo.sort(Integer::compareTo);
-    int startLine = lineNo.isEmpty() ? 0 : lineNo.get(0);
+    if (methodNode.name.equals("<init>") && !lineNo.isEmpty()) {
+      // for constructors we are dropping the first line because it is not instrumentable:
+      // it needs to call the super or this before
+      lineNo.remove(0);
+    }
+    int startLine;
+    if (lineNo.isEmpty()) {
+      startLine = 0;
+      maxLine = 0;
+    } else {
+      startLine = lineNo.get(0);
+    }
     List<Scope.LineRange> ranges = buildRanges(lineNo);
     return new MethodLineInfo(startLine, maxLine, map, ranges);
   }

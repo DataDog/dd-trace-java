@@ -7,7 +7,7 @@ forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.37.0"
+ddprof = "1.38.0"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -70,6 +70,7 @@ junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
+tabletest = "1.2.0"
 testcontainers = "1.21.4"
 
 [libraries]
@@ -161,6 +162,7 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
+tabletest = { module = "org.tabletest:tabletest-junit", version.ref = "tabletest" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 
