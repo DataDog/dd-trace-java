@@ -22,6 +22,8 @@ public final class MetricKey {
   static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE = DDCaches.newFixedSizeCache(8);
   static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
       DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
+      DDCaches.newFixedSizeCache(32);
 
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
@@ -36,6 +38,7 @@ public final class MetricKey {
   private final List<UTF8BytesString> peerTags;
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
+  private final UTF8BytesString grpcStatusCode;
 
   public MetricKey(
       CharSequence resource,
@@ -49,7 +52,8 @@ public final class MetricKey {
       CharSequence spanKind,
       List<UTF8BytesString> peerTags,
       CharSequence httpMethod,
-      CharSequence httpEndpoint) {
+      CharSequence httpEndpoint,
+      CharSequence grpcStatusCode) {
     this.resource = null == resource ? EMPTY : utf8(RESOURCE_CACHE, resource);
     this.service = null == service ? EMPTY : utf8(SERVICE_CACHE, service);
     this.serviceSource = null == serviceSource ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
@@ -62,6 +66,8 @@ public final class MetricKey {
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
     this.httpMethod = httpMethod == null ? null : utf8(HTTP_METHOD_CACHE, httpMethod);
     this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
+    this.grpcStatusCode =
+        grpcStatusCode == null ? null : utf8(GRPC_STATUS_CODE_CACHE, grpcStatusCode);
 
     int tmpHash = 0;
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
@@ -76,6 +82,7 @@ public final class MetricKey {
     tmpHash = HashingUtils.addToHash(tmpHash, this.serviceSource);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpEndpoint);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpMethod);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.grpcStatusCode);
     this.hash = tmpHash;
   }
 
@@ -135,6 +142,10 @@ public final class MetricKey {
     return httpEndpoint;
   }
 
+  public UTF8BytesString getGrpcStatusCode() {
+    return grpcStatusCode;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -154,7 +165,8 @@ public final class MetricKey {
           && peerTags.equals(metricKey.peerTags)
           && Objects.equals(serviceSource, metricKey.serviceSource)
           && Objects.equals(httpMethod, metricKey.httpMethod)
-          && Objects.equals(httpEndpoint, metricKey.httpEndpoint);
+          && Objects.equals(httpEndpoint, metricKey.httpEndpoint)
+          && Objects.equals(grpcStatusCode, metricKey.grpcStatusCode);
     }
     return false;
   }
