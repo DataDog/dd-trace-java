@@ -533,21 +533,21 @@ public abstract class AIGuard {
    * <p>Example usage:
    *
    * <pre>{@code
-   * // Use default options (non-blocking)
+   * // Use default options (follows remote is_blocking_enabled setting)
    * var result = AIGuard.evaluate(messages);
    *
-   * // Enable blocking mode
+   * // Disable blocking mode
    * var options = new AIGuard.Options()
-   *     .block(true);
+   *     .block(false);
    * var result = AIGuard.evaluate(messages, options);
    * }</pre>
    */
   public static final class Options {
 
-    /** Default options with blocking disabled. */
-    public static final Options DEFAULT = new Options().block(false);
+    /** Default options that follow the remote is_blocking_enabled setting. */
+    public static final Options DEFAULT = new Options().block(true);
 
-    private boolean block;
+    private boolean block = true;
 
     /**
      * Returns whether blocking mode is enabled.
