@@ -45,10 +45,12 @@ public class SqsInterceptor implements ExecutionInterceptor {
         return request;
       }
 
-      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(request.messageAttributes());
-      defaultPropagator().inject(ctx, messageAttributes, SETTER);
+      if (!messageAttributes.containsKey(DATADOG_KEY)) {
+        Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+        defaultPropagator().inject(ctx, messageAttributes, SETTER);
+      }
 
       return request.toBuilder().messageAttributes(messageAttributes).build();
 
@@ -59,13 +61,15 @@ public class SqsInterceptor implements ExecutionInterceptor {
         return request;
       }
 
-      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
       for (SendMessageBatchRequestEntry entry : request.entries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
-        defaultPropagator().inject(ctx, messageAttributes, SETTER);
+        if (!messageAttributes.containsKey(DATADOG_KEY)) {
+          Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+          defaultPropagator().inject(ctx, messageAttributes, SETTER);
+        }
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
       }
 
