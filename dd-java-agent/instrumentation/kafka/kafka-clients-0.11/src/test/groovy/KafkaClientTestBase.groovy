@@ -923,14 +923,17 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           queueSpan(it, trace(0)[2])
         }
       } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[6], 0..0)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[4], 0..1)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[2], 0..1)
+        // Consumer traces are sorted by random span ID, so we can't assume a fixed
+        // mapping between consumer trace index and producer span index. Instead, find
+        // the actual parent producer span for each consumer trace dynamically.
+        def producerSpans = [trace(0)[2], trace(0)[4], trace(0)[6]]
+        (1..3).each { traceIdx ->
+          def consumerSpanParentId = trace(traceIdx)[0].parentId
+          def parentProducerSpan = producerSpans.find { it.spanId == consumerSpanParentId }
+          assert parentProducerSpan != null : "Consumer trace $traceIdx has no matching producer span"
+          trace(1) {
+            consumerSpan(it, consumerProperties, parentProducerSpan, 0..1)
+          }
         }
       }
     }
