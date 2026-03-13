@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
@@ -50,6 +51,7 @@ public class SqsInterceptor extends RequestHandler2 {
       // a kind of ImmutableMap
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(smRequest.getMessageAttributes());
+      defaultPropagator().inject(context, messageAttributes, SETTER);
       dsmPropagator.inject(context, messageAttributes, SETTER);
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
@@ -65,6 +67,7 @@ public class SqsInterceptor extends RequestHandler2 {
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.getMessageAttributes());
+        defaultPropagator().inject(context, messageAttributes, SETTER);
         dsmPropagator.inject(context, messageAttributes, SETTER);
         entry.setMessageAttributes(messageAttributes);
       }

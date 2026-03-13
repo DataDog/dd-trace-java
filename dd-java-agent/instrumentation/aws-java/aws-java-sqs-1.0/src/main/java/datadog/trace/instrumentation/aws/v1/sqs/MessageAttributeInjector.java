@@ -14,13 +14,28 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
   @Override
   public void set(
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
-    if (carrier.size() < 10
-        && !carrier.containsKey(DATADOG_KEY)
-        && Config.get().isSqsInjectDatadogAttributeEnabled()) {
-      String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
+    if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
+      return;
+    }
+    if (!carrier.containsKey(DATADOG_KEY)) {
+      if (carrier.size() >= 10) {
+        return;
+      }
       carrier.put(
           DATADOG_KEY,
-          new MessageAttributeValue().withDataType("String").withStringValue(jsonPathway));
+          new MessageAttributeValue()
+              .withDataType("String")
+              .withStringValue(String.format("{\"%s\": \"%s\"}", key, value)));
+    } else {
+      String existing = carrier.get(DATADOG_KEY).getStringValue();
+      int closingBrace = existing.lastIndexOf('}');
+      if (closingBrace >= 0) {
+        String updated =
+            existing.substring(0, closingBrace) + String.format(", \"%s\": \"%s\"}", key, value);
+        carrier.put(
+            DATADOG_KEY,
+            new MessageAttributeValue().withDataType("String").withStringValue(updated));
+      }
     }
   }
 }

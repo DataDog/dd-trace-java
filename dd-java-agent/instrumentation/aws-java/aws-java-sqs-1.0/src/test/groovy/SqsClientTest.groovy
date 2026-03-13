@@ -278,10 +278,15 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
       client.sendMessage(queueUrl, 'sometext')
     })
     def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {/* consume to create message spans */ }
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
 
     then:
     def sendSpan
-    assertTraces(1) {
+    assertTraces(2) {
       trace(2) {
         basicSpan(it, 'parent')
         span {
@@ -306,7 +311,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
-            if (isDataStreamsEnabled()) {
+            if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
             serviceNameSource("java-aws-sdk")
@@ -314,6 +319,30 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
           }
         }
         sendSpan = span(1)
+      }
+      trace(1) {
+        span {
+          serviceName expectedService("SQS", "ReceiveMessage")
+          operationName expectedOperation("SQS", "ReceiveMessage")
+          resourceName "SQS.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
+            "aws.operation" "ReceiveMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTags(true)
+          }
+        }
       }
     }
 

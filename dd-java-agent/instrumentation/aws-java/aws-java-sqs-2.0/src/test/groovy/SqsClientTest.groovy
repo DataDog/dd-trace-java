@@ -230,9 +230,15 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     })
     def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
 
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
+    messages.forEach {/* consume to create message spans */ }
+
     then:
     def sendSpan
-    assertTraces(1) {
+    assertTraces(2) {
       trace(2) {
         basicSpan(it, 'parent')
         span {
@@ -256,7 +262,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
-            if (isDataStreamsEnabled()) {
+            if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
@@ -265,6 +271,31 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
           }
         }
         sendSpan = span(1)
+      }
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTags(true)
+          }
+        }
       }
     }
 
