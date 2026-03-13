@@ -253,25 +253,26 @@ check-maven-proxy-artifact:
         fi
       }
 
-      ARTIFACT_PATH="org/tabletest/tabletest-junit/1.2.0/tabletest-junit-1.2.0.jar"
       RESULT=0
+      for VERSION in 1.1.0 1.2.0 1.2.1; do
+        ARTIFACT_PATH="org/tabletest/tabletest-junit/${VERSION}/tabletest-junit-${VERSION}.jar"
+        echo "=== Version ${VERSION}: Downloading from Magic Mirror proxy ==="
+        curl --fail --location --silent --show-error --output "tabletest-junit-${VERSION}-proxy.jar" "${MAVEN_REPOSITORY_PROXY}${ARTIFACT_PATH}" \
+          && check_jar "proxy ${VERSION}" "tabletest-junit-${VERSION}-proxy.jar" \
+          || RESULT=1
 
-      echo "=== Downloading from Magic Mirror proxy ==="
-      curl --fail --location --silent --show-error --output tabletest-junit-proxy.jar "${MAVEN_REPOSITORY_PROXY}${ARTIFACT_PATH}" \
-        && check_jar "proxy" tabletest-junit-proxy.jar \
-        || RESULT=1
-
-      echo "=== Downloading from Maven Central ==="
-      curl --fail --location --silent --show-error --output tabletest-junit-central.jar "https://repo1.maven.org/maven2/${ARTIFACT_PATH}" \
-        && check_jar "central" tabletest-junit-central.jar \
-        || RESULT=1
+        echo "=== Version ${VERSION}: Downloading from Maven Central ==="
+        curl --fail --location --silent --show-error --output "tabletest-junit-${VERSION}-central.jar" "https://repo1.maven.org/maven2/${ARTIFACT_PATH}" \
+          && check_jar "central ${VERSION}" "tabletest-junit-${VERSION}-central.jar" \
+          || RESULT=1
+      done
 
       exit $RESULT
   artifacts:
     when: always
     paths:
-      - tabletest-junit-proxy.jar
-      - tabletest-junit-central.jar
+      - tabletest-junit-*-proxy.jar
+      - tabletest-junit-*-central.jar
 
 maven-central-pre-release-check:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
