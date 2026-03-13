@@ -4,8 +4,6 @@ import datadog.trace.util.JDK9ModuleAccess;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
-import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +33,8 @@ public class CompilerModuleExporter implements ClassFileTransformer {
   };
 
   private final Instrumentation inst;
-  private final Set<ClassLoader> exportedClassLoaders =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final ConcurrentHashMap<ClassLoader, Boolean> exportedClassLoaders =
+      new ConcurrentHashMap<>();
 
   public CompilerModuleExporter(Instrumentation inst) {
     this.inst = inst;
@@ -49,18 +47,19 @@ public class CompilerModuleExporter implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
       byte[] classfileBuffer) {
-    if (loader != null
-        && className != null
-        && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)
-        && exportedClassLoaders.add(loader)) {
-      try {
-        JDK9ModuleAccess.exportModuleToUnnamedModule(
-            inst, "jdk.compiler", COMPILER_PACKAGES, loader);
-        LOGGER.debug("Exported jdk.compiler to classloader {}", loader);
-      } catch (Throwable e) {
-        LOGGER.debug("Could not export jdk.compiler packages for compiler plugin", e);
-      }
+    if (loader != null && className != null && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)) {
+      exportedClassLoaders.computeIfAbsent(loader, this::exportJdkCompilerModule);
     }
     return null; // no bytecode modification
+  }
+
+  private Boolean exportJdkCompilerModule(ClassLoader loader) {
+    try {
+      JDK9ModuleAccess.exportModuleToUnnamedModule(inst, "jdk.compiler", COMPILER_PACKAGES, loader);
+      LOGGER.debug("Exported jdk.compiler to classloader {}", loader);
+    } catch (Throwable e) {
+      LOGGER.debug("Could not export jdk.compiler packages for compiler plugin", e);
+    }
+    return Boolean.TRUE;
   }
 }

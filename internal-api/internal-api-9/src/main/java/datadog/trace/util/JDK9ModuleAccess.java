@@ -58,6 +58,6 @@ public final class JDK9ModuleAccess {
       extraExports.put(packageName, target);
     }
 
-    inst.redefineModule(module, emptySet(), (Map) extraExports, emptyMap(), emptySet(), emptyMap());
+    inst.redefineModule(module, emptySet(), extraExports, emptyMap(), emptySet(), emptyMap());
   }
 }
