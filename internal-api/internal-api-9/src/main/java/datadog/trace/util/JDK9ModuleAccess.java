@@ -44,20 +44,20 @@ public final class JDK9ModuleAccess {
       String moduleName,
       String[] packageNames,
       ClassLoader targetClassLoader) {
-    java.util.Optional<Module> optModule = ModuleLayer.boot().findModule(moduleName);
+    java.util.Optional<java.lang.Module> optModule = java.lang.ModuleLayer.boot().findModule(moduleName);
     if (!optModule.isPresent()) {
       return;
     }
-    Module module = optModule.get();
-    Module unnamedModule = targetClassLoader.getUnnamedModule();
+    java.lang.Module module = optModule.get();
+    java.lang.Module unnamedModule = targetClassLoader.getUnnamedModule();
 
-    Set<Module> target = Collections.singleton(unnamedModule);
-    Map<String, Set<Module>> extraExports = new HashMap<>();
+    Set<java.lang.Module> target = Collections.singleton(unnamedModule);
+    Map<String, Set<java.lang.Module>> extraExports = new HashMap<>();
     for (String packageName : packageNames) {
       extraExports.put(packageName, target);
     }
 
     inst.redefineModule(
-        module, (Set) emptySet(), (Map) extraExports, (Map) emptyMap(), emptySet(), emptyMap());
+        module, emptySet(), (Map) extraExports, emptyMap(), emptySet(), emptyMap());
   }
 }
