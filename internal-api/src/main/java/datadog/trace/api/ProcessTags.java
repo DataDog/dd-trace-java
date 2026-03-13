@@ -182,6 +182,7 @@ public class ProcessTags {
         Lazy.stringListForm = null;
         Lazy.utf8ListForm = null;
       }
+      BaseHash.recalcBaseHash();
     }
   }
 
@@ -242,6 +243,7 @@ public class ProcessTags {
       empty();
       enabled = config.isExperimentalPropagateProcessTagsEnabled();
       Lazy.TAGS.putAll(Lazy.loadTags(config));
+      BaseHash.recalcBaseHash();
     }
   }
 }
