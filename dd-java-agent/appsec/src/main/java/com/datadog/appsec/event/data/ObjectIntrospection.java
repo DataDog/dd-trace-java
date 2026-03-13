@@ -290,6 +290,9 @@ public final class ObjectIntrospection {
         if (f.getType().getName().equals("groovy.lang.MetaClass")) {
           continue;
         }
+        if (isLoggingType(f.getType())) {
+          continue;
+        }
         String name = f.getName();
         if (ignoredFieldName(name)) {
           continue;
@@ -313,6 +316,20 @@ public final class ObjectIntrospection {
     }
 
     return newMap;
+  }
+
+  private static boolean isLoggingType(final Class<?> type) {
+    switch (type.getName()) {
+      case "org.slf4j.Logger":
+      case "org.apache.logging.log4j.Logger":
+      case "org.apache.logging.log4j.core.Logger":
+      case "java.util.logging.Logger":
+      case "org.apache.commons.logging.Log":
+      case "ch.qos.logback.classic.Logger":
+        return true;
+      default:
+        return false;
+    }
   }
 
   private static boolean ignoredFieldName(final String name) {
