@@ -44,7 +44,8 @@ public final class JDK9ModuleAccess {
       String moduleName,
       String[] packageNames,
       ClassLoader targetClassLoader) {
-    java.util.Optional<java.lang.Module> optModule = java.lang.ModuleLayer.boot().findModule(moduleName);
+    java.util.Optional<java.lang.Module> optModule =
+        java.lang.ModuleLayer.boot().findModule(moduleName);
     if (!optModule.isPresent()) {
       return;
     }
@@ -57,7 +58,6 @@ public final class JDK9ModuleAccess {
       extraExports.put(packageName, target);
     }
 
-    inst.redefineModule(
-        module, emptySet(), (Map) extraExports, emptyMap(), emptySet(), emptyMap());
+    inst.redefineModule(module, emptySet(), (Map) extraExports, emptyMap(), emptySet(), emptyMap());
   }
 }
