@@ -17,6 +17,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -40,6 +41,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -86,17 +89,29 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.Utils",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
       packageName + ".AvroSchemaExtractor",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+    return singletonMap(
+        "org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+        KafkaProducerInstrumentation.class.getName() + "$ProducerConstructorAdvice");
+
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
@@ -124,7 +139,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+      MetadataState metadataState =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      String clusterId = metadataState != null ? metadataState.clusterId : null;
 
       // Set cluster ID for Schema Registry instrumentation
       if (clusterId != null) {
@@ -225,6 +242,24 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+    }
+  }
+
+  public static class ProducerConstructorAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureConfiguration(
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.Argument(0) ProducerConfig producerConfig) {
+      if (Config.get().isDataStreamsEnabled()) {
+        MetadataState state =
+            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+        if (state == null) {
+          state = new MetadataState();
+          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
+        }
+        KafkaConfigHelper.storePendingProducerConfig(
+            state, KafkaConfigHelper.extractProducerConfig(producerConfig));
+      }
     }
   }
 
