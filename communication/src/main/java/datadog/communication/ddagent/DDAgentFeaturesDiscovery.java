@@ -232,7 +232,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
       final Object endpointObj = map.get("endpoints");
-      if (endpointObj == null) {
+      if (!(endpointObj instanceof List)) {
         log.debug("Bad response received from the agent. Ignoring it.");
         return false;
       }
