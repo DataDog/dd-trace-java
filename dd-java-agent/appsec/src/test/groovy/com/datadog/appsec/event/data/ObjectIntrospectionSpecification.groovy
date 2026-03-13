@@ -488,6 +488,30 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('"unicode: \\u0041"')          || 'unicode: A'
   }
 
+  void 'logging framework fields are excluded from introspection'() {
+    given: 'a DTO with a logger instance field alongside regular fields'
+    // Reproduces the false positive in crs-944-130: an instance logger field on the request
+    // body DTO causes ObjectIntrospection to traverse logging framework internals (Log4j,
+    // Jackson TypeCache), eventually hitting java.lang.Class.toString() = "class java.lang.Object"
+    // which matches the WAF phrase_match rule. Skipping logging-typed fields cuts the traversal
+    // at the root and eliminates the false positive without discarding other useful fields.
+    def input = new DtoWithLogger()
+
+    when:
+    def result = convert(input, ctx) as Map
+
+    then:
+    result['userId'] == 'user123'
+    result['payload'] == 'data'
+    !result.containsKey('logger')
+  }
+
+  static class DtoWithLogger {
+    String userId = 'user123'
+    java.util.logging.Logger logger = java.util.logging.Logger.getLogger('test')
+    String payload = 'data'
+  }
+
   void 'objects with inaccessible JDK fields skip those fields rather than expose toString()'() {
     given: '''An object with two fields: one normal, one holding a java.lang.ref.SoftReference.
              java.lang.ref is NOT opened in the test JVM (only java.lang and java.util are),
