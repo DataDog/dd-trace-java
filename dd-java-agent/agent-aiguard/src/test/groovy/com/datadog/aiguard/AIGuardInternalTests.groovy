@@ -222,6 +222,51 @@ class AIGuardInternalTests extends DDSpecification {
     suite << TestSuite.build()
   }
 
+  void 'test evaluate block defaults to remote is_blocking_enabled'() {
+    given:
+    def request
+    final call = Mock(Call) {
+      execute() >> {
+        return mockResponse(
+          request,
+          200,
+          [data: [attributes: [action: 'DENY', reason: 'Nope', tags: ['deny_everything'], is_blocking_enabled: remoteBlocking]]]
+          )
+      }
+    }
+    final client = Mock(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    when:
+    Throwable error = null
+    AIGuard.Evaluation eval = null
+    try {
+      eval = aiguard.evaluate(TOOL_CALL, options)
+    } catch (Throwable e) {
+      error = e
+    }
+
+    then:
+    if (shouldBlock) {
+      error instanceof AIGuard.AIGuardAbortError
+      error.action == DENY
+    } else {
+      error == null
+      eval.action == DENY
+    }
+
+    where:
+    options                            | remoteBlocking | shouldBlock
+    AIGuard.Options.DEFAULT            | true           | true
+    AIGuard.Options.DEFAULT            | false          | false
+    new AIGuard.Options().block(false) | true           | false
+  }
+
   void 'test evaluate with API errors'() {
     given:
     final errors = [[status: 400, title: 'Bad request']]
