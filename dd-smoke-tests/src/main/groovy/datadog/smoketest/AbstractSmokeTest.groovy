@@ -124,7 +124,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
         def body = request.getBody()
         if (body.length && decode) {
           try {
-            DecodedMessage message = Decoder.decode(body)
+            DecodedMessage message = Decoder.decodeV05(body)
             assert message.getTraces().size() == count
             def traces = message.traces
             decode(traces)

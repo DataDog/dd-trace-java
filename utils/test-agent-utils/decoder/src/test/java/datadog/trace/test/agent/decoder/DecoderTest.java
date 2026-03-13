@@ -18,10 +18,10 @@ import org.junit.jupiter.api.Test;
 public class DecoderTest {
 
   @Test
-  public void decode() throws Throwable {
+  public void decodeV05() throws Throwable {
     String resourceName = "/greeting.msgpack";
     byte[] buffer = readResourceFile(resourceName);
-    DecodedMessage message = Decoder.decode(buffer);
+    DecodedMessage message = Decoder.decodeV05(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
     List<DecodedSpan> spans = traces.get(0).getSpans();
@@ -53,7 +53,7 @@ public class DecoderTest {
   }
 
   @Test
-  public void decode04() throws Throwable {
+  public void decodeV04() throws Throwable {
     byte[] buffer = readResourceFile("/webflux.04.msgpack");
 
     DecodedMessage message = Decoder.decodeV04(buffer);
@@ -129,7 +129,7 @@ public class DecoderTest {
   @Test
   public void sortByStart() throws Throwable {
     byte[] buffer = readResourceFile("/greeting.msgpack");
-    DecodedMessage message = Decoder.decode(buffer);
+    DecodedMessage message = Decoder.decodeV05(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
     final List<DecodedSpan> spans = traces.get(0).getSpans();
