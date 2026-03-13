@@ -1211,7 +1211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return dataStreamsMonitoring;
   }
 
-  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
+  private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
   /**
    * We use the sampler to know if the trace has to be reported/written. The sampler is called on
@@ -1257,49 +1257,57 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   private List<DDSpan> interceptCompleteTrace(SpanList originalTrace) {
-    if (!interceptors.isEmpty() && !originalTrace.isEmpty()) {
-      // Using TraceList to optimize the common case where the interceptors,
-      // don't alter the list.  If the interceptors just return the provided
-      // List, then no need to copy to another List.
+    return interceptCompleteTrace(interceptors, originalTrace);
+  }
 
-      // As an extra precaution, also check the modCount before and after on
-      // the TraceList, since TraceInterceptor could put some other type of
-      // object into the List.
-
-      // There is still a risk that a TraceInterceptor holds onto the provided
-      // List and modifies it later on, but we cannot safeguard against
-      // every possible misuse.
-      Collection<? extends MutableSpan> interceptedTrace = originalTrace;
-      int originalModCount = originalTrace.modCount();
-
-      for (final TraceInterceptor interceptor : interceptors) {
-        try {
-          // If one TraceInterceptor throws an exception, then continue with the next one
-          interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
-        } catch (Throwable e) {
-          String interceptorName = interceptor.getClass().getName();
-          rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
-        }
-        if (interceptedTrace == null) {
-          interceptedTrace = emptyList();
-        }
-      }
-
-      if (interceptedTrace == null || interceptedTrace.isEmpty()) {
-    	return SpanList.EMPTY;
-      } else if (interceptedTrace != originalTrace || originalTrace.modCount() != originalModCount) {
-        SpanList trace = new SpanList(interceptedTrace.size());
-        for (final MutableSpan span : interceptedTrace) {
-          if (span instanceof DDSpan) {
-            trace.add((DDSpan) span);
-          }
-        }
-        return trace;
-      } else {
-        return originalTrace;
-      }
-    } else {
+  static final List<DDSpan> interceptCompleteTrace(
+      SortedSet<TraceInterceptor> interceptors, SpanList originalTrace) {
+    if (interceptors.isEmpty()) {
       return originalTrace;
+    }
+    if (originalTrace.isEmpty()) {
+      return SpanList.EMPTY;
+    }
+
+    // Using TraceList to optimize the common case where the interceptors,
+    // don't alter the list.  If the interceptors just return the provided
+    // List, then no need to copy to another List.
+
+    // As an extra precaution, also check the modCount before and after on
+    // the TraceList, since TraceInterceptor could put some other type of
+    // object into the List.
+
+    // There is still a risk that a TraceInterceptor holds onto the provided
+    // List and modifies it later on, but we cannot safeguard against
+    // every possible misuse.
+    Collection<? extends MutableSpan> interceptedTrace = originalTrace;
+    int originalModCount = originalTrace.modCount();
+
+    for (final TraceInterceptor interceptor : interceptors) {
+      try {
+        // If one TraceInterceptor throws an exception, then continue with the next one
+        interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+      } catch (Throwable e) {
+        String interceptorName = interceptor.getClass().getName();
+        rlLog.warn("Throwable raised in TraceInterceptor {}", interceptorName, e);
+      }
+      if (interceptedTrace == null) {
+        interceptedTrace = emptyList();
+      }
+    }
+
+    if (interceptedTrace == null || interceptedTrace.isEmpty()) {
+      return SpanList.EMPTY;
+    } else if (interceptedTrace == originalTrace && originalTrace.modCount() == originalModCount) {
+      return originalTrace;
+    } else {
+      SpanList trace = new SpanList(interceptedTrace.size());
+      for (final MutableSpan span : interceptedTrace) {
+        if (span instanceof DDSpan) {
+          trace.add((DDSpan) span);
+        }
+      }
+      return trace;
     }
   }
 
