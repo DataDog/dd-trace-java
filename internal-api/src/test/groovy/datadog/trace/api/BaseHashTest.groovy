@@ -17,7 +17,7 @@ class BaseHashTest extends DDSpecification {
 
   def cleanup() {
     // restore the default enablement
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    removeSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED)
     ProcessTags.reset()
   }
 
