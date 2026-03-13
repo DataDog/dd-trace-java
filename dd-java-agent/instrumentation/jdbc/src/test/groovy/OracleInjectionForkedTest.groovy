@@ -21,16 +21,18 @@ abstract class OracleInjectionTestBase extends InstrumentationSpecification {
   }
 
   static query = "SELECT 1"
-  // Oracle URL with SID "BENEDB"
-  static oracleUrl = "jdbc:oracle:thin:@localhost:1521:BENEDB"
-  // Expected: dddbs should be the SID, not the generic "oracle" type.
-  // Note: the URL parser lowercases the full URL before extraction, so the SID is lowercase.
-  static serviceInjection = "ddps='my_service_name',dddbs='benedb',ddh='localhost',dddb='benedb'"
 
-  TestConnection createOracleConnection() {
+  // Note: the URL parser lowercases the full URL before extraction, so identifiers are lowercase.
+  static sidUrl = "jdbc:oracle:thin:@localhost:1521:BENEDB"
+  static serviceNameUrl = "jdbc:oracle:thin:@//localhost:1521/MYSERVICE"
+
+  static sidInjection = "ddps='my_service_name',dddbs='benedb',ddh='localhost',dddb='benedb'"
+  static serviceNameInjection = "ddps='my_service_name',dddbs='myservice',ddh='localhost',dddb='myservice'"
+
+  TestConnection createOracleConnection(String url) {
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
-    metadata.setURL(oracleUrl)
+    metadata.setURL(url)
     connection.setMetaData(metadata)
     return connection
   }
@@ -40,21 +42,24 @@ class OracleInjectionForkedTest extends OracleInjectionTestBase {
 
   def "Oracle prepared statement injects instance name in dddbs and dddb"() {
     setup:
-    def connection = createOracleConnection()
+    def connection = createOracleConnection(url)
 
     when:
     def statement = connection.prepareStatement(query) as TestPreparedStatement
     statement.execute()
 
     then:
-    // dddbs must be the Oracle SID "BENEDB", not the generic type "oracle"
-    // dddb must also be present with the SID value
-    assert statement.sql == "/*${serviceInjection}*/ ${query}"
+    statement.sql == "/*${expected}*/ ${query}"
+
+    where:
+    url            | expected
+    sidUrl         | sidInjection
+    serviceNameUrl | serviceNameInjection
   }
 
   def "Oracle single statement injects instance name in dddbs and dddb"() {
     setup:
-    def connection = createOracleConnection()
+    def connection = createOracleConnection(url)
 
     when:
     def statement = connection.createStatement() as TestStatement
@@ -62,8 +67,11 @@ class OracleInjectionForkedTest extends OracleInjectionTestBase {
 
     then:
     // Oracle uses v$session.action for trace context, so no traceparent in comment
-    // dddbs must be the Oracle SID "BENEDB", not the generic type "oracle"
-    // dddb must also be present with the SID value
-    assert statement.sql == "/*${serviceInjection}*/ ${query}"
+    statement.sql == "/*${expected}*/ ${query}"
+
+    where:
+    url            | expected
+    sidUrl         | sidInjection
+    serviceNameUrl | serviceNameInjection
   }
 }

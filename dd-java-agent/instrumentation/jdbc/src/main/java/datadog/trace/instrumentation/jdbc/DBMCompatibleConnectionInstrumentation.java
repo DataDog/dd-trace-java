@@ -136,7 +136,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
               dbService,
               dbInfo.getType(),
               dbInfo.getHost(),
-              DECORATE.getDbInstance(dbInfo),
+              DECORATE.isOracle(dbInfo) ? DECORATE.getDbInstance(dbInfo) : dbInfo.getDb(),
               null,
               append);
       return inputSql;
