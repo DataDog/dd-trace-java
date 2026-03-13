@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -10,6 +11,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.WellKnownTags
+import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 import java.nio.ByteBuffer
@@ -25,8 +28,8 @@ class SerializingMetricWriterTest extends DDSpecification {
 
   def "should produce correct message #iterationIndex with process tags enabled #withProcessTags" () {
     setup:
-    if (withProcessTags) {
-      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    if (!withProcessTags) {
+      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     }
     ProcessTags.reset()
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
@@ -45,6 +48,9 @@ class SerializingMetricWriterTest extends DDSpecification {
     then:
     sink.validatedInput()
 
+    cleanup:
+    removeSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED)
+    ProcessTags.reset()
 
     where:
     content << [
@@ -136,8 +142,108 @@ class SerializingMetricWriterTest extends DDSpecification {
     withProcessTags << [true, false]
   }
 
+  def "ServiceSource optional in the payload"() {
+    setup:
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
-  class ValidatingSink implements Sink {
+    // Create keys with different combinations of HTTP fields
+    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null)
+
+    def content = [
+      Pair.of(keyWithNoSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+    ]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+  }
+
+  def "HTTPMethod and HTTPEndpoint fields are optional in payload"() {
+    setup:
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
+
+    // Create keys with different combinations of HTTP fields
+    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders")
+    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null)
+
+    def content = [
+      Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithMethodOnly, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithEndpointOnly, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithNeither, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L)))
+    ]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+    // Test passes if validation in ValidatingSink succeeds
+    // ValidatingSink verifies that map size matches actual number of fields
+    // and that HTTPMethod/HTTPEndpoint are only present when non-empty
+  }
+
+  def "add git sha commit info when supplied is #userSupplied"() {
+    setup:
+    if (userSupplied != null) {
+      CapturedEnvironment.get().properties.put(DD_GIT_COMMIT_SHA, userSupplied)
+    }
+    SerializingMetricWriter.GitLazyInfo.reset()
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
+
+    // Create keys with different combinations of HTTP fields
+    def key = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users")
+
+    def content = [Pair.of(key, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+
+    cleanup:
+    CapturedEnvironment.get().properties.remove(DD_GIT_COMMIT_SHA)
+    SerializingMetricWriter.GitLazyInfo.reset()
+
+    where:
+    userSupplied << [null, "123456"]
+  }
+
+  static class ValidatingSink implements Sink {
 
     private final WellKnownTags wellKnownTags
     private final long startTimeNanos
@@ -161,7 +267,9 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      assert mapSize == (7 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0))
+      String gitCommitSha = GitInfoProvider.INSTANCE.getGitInfo()?.getCommit()?.getSha()
+      assert mapSize == (7 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
+      + (gitCommitSha != null ? 1 : 0))
       assert unpacker.unpackString() == "RuntimeID"
       assert unpacker.unpackString() == wellKnownTags.getRuntimeId() as String
       assert unpacker.unpackString() == "Sequence"
@@ -177,6 +285,10 @@ class SerializingMetricWriterTest extends DDSpecification {
       if (Config.get().isExperimentalPropagateProcessTagsEnabled()) {
         assert unpacker.unpackString() == "ProcessTags"
         assert unpacker.unpackString() == ProcessTags.tagsForSerialization as String
+      }
+      if (gitCommitSha != null) {
+        assert unpacker.unpackString() == "GitCommitSha"
+        assert unpacker.unpackString() == gitCommitSha
       }
       assert unpacker.unpackString() == "Stats"
       int outerLength = unpacker.unpackArrayHeader()

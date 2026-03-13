@@ -7,6 +7,8 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
 
@@ -39,6 +41,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
   private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
+  private static final byte[] GIT_COMMIT_SHA = "GitCommitSha".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
@@ -49,6 +52,26 @@ public final class SerializingMetricWriter implements MetricWriter {
   private final Sink sink;
   private final GrowableBuffer buffer;
   private long sequence = 0;
+
+  static class GitLazyInfo {
+    static GitLazyInfo INSTANCE = new GitLazyInfo();
+    final UTF8BytesString commitSha;
+
+    private GitLazyInfo() {
+      final GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+      if (gitInfo != null && gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null) {
+        commitSha = UTF8BytesString.create(gitInfo.getCommit().getSha());
+      } else {
+        commitSha = null;
+      }
+    }
+
+    // @VisibleForTesting
+    static void reset() {
+      GitInfoProvider.INSTANCE.invalidateCache();
+      INSTANCE = new GitLazyInfo();
+    }
+  }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
@@ -65,7 +88,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   public void startBucket(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
-    writer.startMap(7 + (writeProcessTags ? 1 : 0));
+    final UTF8BytesString gitSha = GitLazyInfo.INSTANCE.commitSha;
+    final boolean writeGitCommitSha = gitSha != null;
+    writer.startMap(7 + (writeProcessTags ? 1 : 0) + (writeGitCommitSha ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);
     writer.writeUTF8(wellKnownTags.getRuntimeId());
@@ -88,6 +113,11 @@ public final class SerializingMetricWriter implements MetricWriter {
     if (writeProcessTags) {
       writer.writeUTF8(PROCESS_TAGS);
       writer.writeUTF8(processTags);
+    }
+
+    if (writeGitCommitSha) {
+      writer.writeUTF8(GIT_COMMIT_SHA);
+      writer.writeUTF8(gitSha);
     }
 
     writer.writeUTF8(STATS);
