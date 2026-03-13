@@ -6,11 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.Set;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -18,16 +18,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 class IdGenerationStrategyTest {
 
   @ParameterizedTest(name = "generate id with {1} and {0} bits")
-  @CsvSource(
-      value = {
-        "false|RANDOM",
-        "false|SEQUENTIAL",
-        "false|SECURE_RANDOM",
-        "true|RANDOM",
-        "true|SEQUENTIAL",
-        "true|SECURE_RANDOM"
-      },
-      delimiter = '|')
+  @CsvSource({
+    "false,RANDOM",
+    "false,SEQUENTIAL",
+    "false,SECURE_RANDOM",
+    "true,RANDOM",
+    "true,SEQUENTIAL",
+    "true,SECURE_RANDOM"
+  })
   void generateIdWithStrategyAndBitSize(
       boolean traceId128BitGenerationEnabled, String strategyName) {
     IdGenerationStrategy strategy =
@@ -37,10 +35,9 @@ class IdGenerationStrategyTest {
     for (int index = 0; index <= 32768; index++) {
       DDTraceId traceId = strategy.generateTraceId();
       assertNotNull(traceId);
-      assertFalse(traceId.equals(null));
-      assertFalse(traceId.equals("foo"));
+      assertNotEquals(null, traceId);
+      assertNotEquals("foo", traceId);
       assertNotEquals(DDTraceId.ZERO, traceId);
-      assertTrue(traceId.equals(traceId));
 
       int expectedHash =
           (int)
@@ -61,7 +58,7 @@ class IdGenerationStrategyTest {
     assertNull(IdGenerationStrategy.fromName(strategyName));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void exceptionCreatedOnSecureRandomStrategy() {
     ExceptionInInitializerError error =
         assertThrows(
@@ -77,7 +74,7 @@ class IdGenerationStrategyTest {
     assertEquals("SecureRandom init exception", error.getCause().getMessage());
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   void secureRandomIdsWillAlwaysBeNonZero() {
     ScriptedSecureRandom random = new ScriptedSecureRandom(new long[] {0L, 47L, 0L, 11L});
     CallCounter providerCallCounter = new CallCounter();
