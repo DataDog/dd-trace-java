@@ -218,62 +218,6 @@ default:
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
-check-maven-proxy-artifact:
-  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
-  stage: .pre
-  rules:
-    - when: on_success
-  script:
-    - |
-      check_jar() {
-        local label="$1" file="$2"
-        echo "--- Checking: ${label} ---"
-        local size
-        size=$(wc -c < "${file}")
-        echo "File size: ${size} bytes"
-        if [ "${size}" -eq 0 ]; then
-          echo "ERROR: file is empty"
-          return 1
-        fi
-        local magic
-        magic=$(head -c 4 "${file}" | od -A n -t x1 | tr -d ' \n')
-        local type
-        type=$(file "${file}")
-        echo "File magic bytes: ${magic}  |  file: ${type}"
-        if [ "${magic}" = "504b0304" ]; then
-          echo "OK: valid JAR/ZIP magic bytes"
-        else
-          echo "ERROR: not a valid JAR/ZIP file (expected 504b0304, got ${magic})"
-          if echo "${type}" | grep -qi "xml\|html\|text"; then
-            echo "--- File content ---"
-            cat "${file}"
-            echo "--- End of content ---"
-          fi
-          return 1
-        fi
-      }
-
-      RESULT=0
-      for VERSION in 1.1.0 1.2.0 1.2.1; do
-        ARTIFACT_PATH="org/tabletest/tabletest-junit/${VERSION}/tabletest-junit-${VERSION}.jar"
-        echo "=== Version ${VERSION}: Downloading from Magic Mirror proxy ==="
-        curl --fail --location --silent --show-error --output "tabletest-junit-${VERSION}-proxy.jar" "${MAVEN_REPOSITORY_PROXY}${ARTIFACT_PATH}" \
-          && check_jar "proxy ${VERSION}" "tabletest-junit-${VERSION}-proxy.jar" \
-          || RESULT=1
-
-        echo "=== Version ${VERSION}: Downloading from Maven Central ==="
-        curl --fail --location --silent --show-error --output "tabletest-junit-${VERSION}-central.jar" "https://repo1.maven.org/maven2/${ARTIFACT_PATH}" \
-          && check_jar "central ${VERSION}" "tabletest-junit-${VERSION}-central.jar" \
-          || RESULT=1
-      done
-
-      exit $RESULT
-  artifacts:
-    when: always
-    paths:
-      - tabletest-junit-*-proxy.jar
-      - tabletest-junit-*-central.jar
-
 maven-central-pre-release-check:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
