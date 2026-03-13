@@ -12,20 +12,20 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class IdGenerationStrategyTest {
 
-  @ParameterizedTest(name = "generate id with {1} and {0} bits")
-  @CsvSource({
-    "false,RANDOM",
-    "false,SEQUENTIAL",
-    "false,SECURE_RANDOM",
-    "true,RANDOM",
-    "true,SEQUENTIAL",
-    "true,SECURE_RANDOM"
+  @TableTest({
+    "scenario                 | traceId128BitGenerationEnabled | strategyName ",
+    "random-64-bit            | false                          | RANDOM       ",
+    "sequential-64-bit        | false                          | SEQUENTIAL   ",
+    "secure-random-64-bit     | false                          | SECURE_RANDOM",
+    "random-128-bit           | true                           | RANDOM       ",
+    "sequential-128-bit       | true                           | SEQUENTIAL   ",
+    "secure-random-128-bit    | true                           | SECURE_RANDOM"
   })
+  @ParameterizedTest(name = "generate id with {1} and {0} bits")
   void generateIdWithStrategyAndBitSize(
       boolean traceId128BitGenerationEnabled, String strategyName) {
     IdGenerationStrategy strategy =
@@ -52,8 +52,13 @@ class IdGenerationStrategyTest {
     }
   }
 
+  @TableTest({
+    "scenario          | strategyName",
+    "some-strategy     | SOME        ",
+    "unknown-strategy  | UNKNOWN     ",
+    "plural-strategies | STRATEGIES  "
+  })
   @ParameterizedTest(name = "return null for non existing strategy {0}")
-  @ValueSource(strings = {"SOME", "UNKNOWN", "STRATEGIES"})
   void returnNullForNonExistingStrategy(String strategyName) {
     assertNull(IdGenerationStrategy.fromName(strategyName));
   }

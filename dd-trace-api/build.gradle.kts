@@ -75,5 +75,6 @@ dependencies {
   api(libs.slf4j)
   testImplementation(libs.guava)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.tabletest)
   testImplementation(project(":utils:test-utils"))
 }
