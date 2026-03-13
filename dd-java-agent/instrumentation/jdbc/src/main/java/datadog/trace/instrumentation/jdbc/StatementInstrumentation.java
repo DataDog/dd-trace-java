@@ -146,9 +146,19 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             appendComment = true;
           }
 
-          String dbService = DECORATE.getDbService(dbInfo);
-          if (dbService != null) {
-            dbService = traceConfig(span).getServiceMapping().getOrDefault(dbService, dbService);
+          final String dbService;
+          final String dbName;
+          if (isOracle) {
+            String oracleService = DECORATE.getDbService(dbInfo);
+            if (oracleService != null) {
+              oracleService =
+                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+            }
+            dbService = oracleService;
+            dbName = DECORATE.getDbInstance(dbInfo);
+          } else {
+            dbService = span.getServiceName();
+            dbName = dbInfo.getDb();
           }
           sql =
               SQLCommenter.inject(
@@ -156,7 +166,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   dbService,
                   dbInfo.getType(),
                   dbInfo.getHost(),
-                  DECORATE.getDbInstance(dbInfo),
+                  dbName,
                   injectTraceInComment ? traceParent : null,
                   appendComment);
         }

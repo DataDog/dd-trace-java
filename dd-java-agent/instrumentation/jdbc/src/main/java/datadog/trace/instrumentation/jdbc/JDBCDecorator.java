@@ -208,10 +208,15 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (null == dbInfo) {
       return null;
     }
-    if (dbInfo.getInstance() != null) {
-      return dbInfo.getInstance();
+    // For Oracle, the URL parser sets instance (SID/service name) but never db.
+    // Without this, dddbs defaults to the generic type string "oracle" which breaks
+    // DBM trace correlation. Other databases (e.g. SQL Server) rely on the type-based
+    // service name for DBM correlation and must not be changed here.
+    if ("oracle".equals(dbInfo.getType()) && dbInfo.getInstance() != null) {
+      String service = dbClientService(dbInfo.getInstance());
+      return service != null ? service : dbInfo.getInstance();
     }
-    return dbService(dbInfo.getType(), null);
+    return dbService(dbInfo.getType(), dbInstance(dbInfo));
   }
 
   public String getDbInstance(final DBInfo dbInfo) {
