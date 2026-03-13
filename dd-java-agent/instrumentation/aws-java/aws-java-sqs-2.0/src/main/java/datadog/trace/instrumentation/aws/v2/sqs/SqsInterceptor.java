@@ -61,13 +61,13 @@ public class SqsInterceptor implements ExecutionInterceptor {
         return request;
       }
 
+      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
       List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
       for (SendMessageBatchRequestEntry entry : request.entries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.messageAttributes());
         if (!messageAttributes.containsKey(DATADOG_KEY)) {
-          Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
           defaultPropagator().inject(ctx, messageAttributes, SETTER);
         }
         entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());

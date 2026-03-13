@@ -59,11 +59,11 @@ public class SqsInterceptor extends RequestHandler2 {
       String queueUrl = smbRequest.getQueueUrl();
       if (queueUrl == null) return request;
 
+      Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.getMessageAttributes());
         if (!messageAttributes.containsKey(DATADOG_KEY)) {
-          Context context = newContext(request, queueUrl);
           defaultPropagator().inject(context, messageAttributes, SETTER);
         }
         entry.setMessageAttributes(messageAttributes);
