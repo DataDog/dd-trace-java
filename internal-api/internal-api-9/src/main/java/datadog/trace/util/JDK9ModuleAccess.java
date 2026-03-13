@@ -37,9 +37,9 @@ public final class JDK9ModuleAccess {
         emptyMap());
   }
 
-  /** Exports packages from a named module to a classloader's unnamed module. */
+  /** Exports specific packages of a named module to a classloader's unnamed module. */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public static void addModuleExports(
+  public static void exportModuleToUnnamedModule(
       Instrumentation inst,
       String moduleName,
       String[] packageNames,
@@ -51,9 +51,10 @@ public final class JDK9ModuleAccess {
     Module module = optModule.get();
     Module unnamedModule = targetClassLoader.getUnnamedModule();
 
+    Set<Module> target = Collections.singleton(unnamedModule);
     Map<String, Set<Module>> extraExports = new HashMap<>();
     for (String packageName : packageNames) {
-      extraExports.put(packageName, Collections.singleton(unnamedModule));
+      extraExports.put(packageName, target);
     }
 
     inst.redefineModule(

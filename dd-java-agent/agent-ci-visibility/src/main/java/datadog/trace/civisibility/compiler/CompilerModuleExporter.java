@@ -54,8 +54,9 @@ public class CompilerModuleExporter implements ClassFileTransformer {
         && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)
         && exportedClassLoaders.add(loader)) {
       try {
-        JDK9ModuleAccess.addModuleExports(inst, "jdk.compiler", COMPILER_PACKAGES, loader);
-        LOGGER.debug("Exported jdk.compiler packages to classloader {}", loader);
+        JDK9ModuleAccess.exportModuleToUnnamedModule(
+            inst, "jdk.compiler", COMPILER_PACKAGES, loader);
+        LOGGER.debug("Exported jdk.compiler to classloader {}", loader);
       } catch (Throwable e) {
         LOGGER.debug("Could not export jdk.compiler packages for compiler plugin", e);
       }
