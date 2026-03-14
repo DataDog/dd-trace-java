@@ -25,19 +25,20 @@ public class EmbeddingDecorator {
   public void withEmbeddingCreateParams(AgentSpan span, EmbeddingCreateParams params) {
     span.setResourceName(EMBEDDINGS_CREATE);
     span.setTag(CommonTags.OPENAI_REQUEST_ENDPOINT, "/v1/embeddings");
+    if (params == null) {
+      return;
+    }
+    Optional<String> modelName = params.model()._value().asString();
+    modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
+
     if (!llmObsEnabled) {
       return;
     }
 
+    // Keep model_name stable on error paths where no response is available.
+    modelName.ifPresent(str -> span.setTag(CommonTags.MODEL_NAME, str));
+
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_EMBEDDING_SPAN_KIND);
-    if (params == null) {
-      return;
-    }
-    params
-        .model()
-        ._value()
-        .asString()
-        .ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     span.setTag(CommonTags.INPUT, embeddingDocuments(params.input()));
 
@@ -59,13 +60,13 @@ public class EmbeddingDecorator {
   }
 
   public void withCreateEmbeddingResponse(AgentSpan span, CreateEmbeddingResponse response) {
-    if (!llmObsEnabled) {
-      return;
-    }
-
     String modelName = response.model();
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    if (!llmObsEnabled) {
+      return;
+    }
 
     if (!response.data().isEmpty()) {
       int embeddingCount = response.data().size();

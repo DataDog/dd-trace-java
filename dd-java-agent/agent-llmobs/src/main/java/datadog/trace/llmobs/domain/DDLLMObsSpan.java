@@ -2,6 +2,7 @@ package datadog.trace.llmobs.domain;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -39,6 +40,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
+  private static final String DDTRACE_VERSION = LLMOBS_TAG_PREFIX + "ddtrace.version";
   private static final String ENV = LLMOBS_TAG_PREFIX + "env";
 
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
@@ -76,6 +78,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(ENV, wellKnownTags.getEnv());
     span.setTag(SERVICE, wellKnownTags.getService());
     span.setTag(VERSION, wellKnownTags.getVersion());
+    span.setTag(DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;

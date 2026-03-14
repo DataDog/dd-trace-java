@@ -23,7 +23,10 @@ class ResponseServiceTest extends OpenAiTest {
     expect:
     resp != null
     and:
-    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == false
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -38,7 +41,10 @@ class ResponseServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == false
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -55,7 +61,10 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == true
 
     where:
     scenario     | params
@@ -76,7 +85,11 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true, "o4-mini", "o4-mini-2025-04-16", [effort: "medium",  summary: "detailed"])
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "o4-mini", "o4-mini-2025-04-16", [effort: "medium",  summary: "detailed"], null, null, metadata)
+    and:
+    metadata.stream == true
+    metadata.reasoning == [effort: "medium",  summary: "detailed"]
 
     where:
     responseCreateParams << [responseCreateParamsWithReasoning(false), responseCreateParamsWithReasoning(true)]
@@ -93,7 +106,10 @@ class ResponseServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == true
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -107,7 +123,10 @@ class ResponseServiceTest extends OpenAiTest {
     responseFuture.get()
 
     expect:
-    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == false
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -122,7 +141,10 @@ class ResponseServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == false
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -137,7 +159,10 @@ class ResponseServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == true
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -155,7 +180,10 @@ class ResponseServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "gpt-3.5-turbo", "gpt-3.5-turbo-0125", null, null, null, metadata)
+    and:
+    metadata.stream == true
 
     where:
     params << [responseCreateParams(false), responseCreateParams(true)]
@@ -173,8 +201,17 @@ class ResponseServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> inputTags = []
-    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags)
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags, null, metadata)
     and:
+    metadata.stream == true
+    inputTags.size() == 3
+    inputTags[1].toolCalls.size() == 1
+    inputTags[1].toolCalls[0].name == "get_weather"
+    inputTags[1].toolCalls[0].type == "function_call"
+    inputTags[1].toolCalls[0].arguments == [location: "San Francisco, CA"]
+    inputTags[2].toolResults.size() == 1
+    inputTags[2].toolResults[0].type == "function_call_output"
     !inputTags.isEmpty()
     inputTags[2].toolResults[0].result == '{"temperature": "72°F", "conditions": "sunny", "humidity": "65%"}'
 
@@ -183,10 +220,17 @@ class ResponseServiceTest extends OpenAiTest {
   }
 
   private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
-    assertResponseTrace(isStreaming, reqModel, respModel, reasoning, null)
+    assertResponseTrace(isStreaming, reqModel, respModel, reasoning, null, null, null)
   }
 
-  private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning, List inputTagsOut) {
+  private void assertResponseTrace(
+  boolean isStreaming,
+  String reqModel,
+  String respModel,
+  Map reasoning,
+  List inputTagsOut,
+  List outputTagsOut,
+  Map<String, Object> metadataOut) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -206,12 +250,20 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
             "_ml_obs_tag.metadata" Map
+            def metadata = tag("_ml_obs_tag.metadata")
+            if (metadataOut != null && metadata != null) {
+              metadataOut.putAll(metadata)
+            }
             "_ml_obs_tag.input" List
             def inputTags = tag("_ml_obs_tag.input")
             if (inputTagsOut != null && inputTags != null) {
               inputTagsOut.addAll(inputTags)
             }
             "_ml_obs_tag.output" List
+            def outputTags = tag("_ml_obs_tag.output")
+            if (outputTagsOut != null && outputTags != null) {
+              outputTagsOut.addAll(outputTags)
+            }
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.output_tokens" Long
             "_ml_obs_metric.total_tokens" Long
@@ -219,7 +271,11 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_metric.cache_read_input_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
+            "$CommonTags.INTEGRATION" "openai"
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.ERROR" 0
             if (reasoning != null) {
               "_ml_obs_request.reasoning" reasoning
             }
