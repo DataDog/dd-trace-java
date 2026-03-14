@@ -42,6 +42,10 @@ jafar = "0.16.0"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
+netty = "4.1.122.Final"
+apache-httpclient5 = "5.5"
+jetty-httpclient = "9.4.56.v20240826"
+jetty-unixsocket = "9.4.56.v20240826"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -123,6 +127,12 @@ jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
 jnr-unixsocket = { module = "com.github.jnr:jnr-unixsocket", version.ref = "jnr-unixsocket"}
+netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty" }
+netty-handler = { module = "io.netty:netty-handler", version.ref = "netty" }
+netty-handler-proxy = { module = "io.netty:netty-handler-proxy", version.ref = "netty" }
+apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "apache-httpclient5" }
+jetty-httpclient = { module = "org.eclipse.jetty:jetty-client", version.ref = "jetty-httpclient" }
+jetty-unixsocket = { module = "org.eclipse.jetty:jetty-unixsocket", version.ref = "jetty-unixsocket" }
 
 # Cryptography
 cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.ref = "cafe_crypto" }
@@ -156,6 +166,7 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "jun
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit5" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+junit-platform-suite = { module = "org.junit.platform:junit-platform-suite", version.ref = "junit-platform" }
 mokito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mokito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Spock for mocking:
