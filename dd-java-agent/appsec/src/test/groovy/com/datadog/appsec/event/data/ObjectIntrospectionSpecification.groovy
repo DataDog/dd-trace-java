@@ -164,7 +164,9 @@ class ObjectIntrospectionSpecification extends DDSpecification {
   void 'max number of elements is honored'() {
     setup:
     def m = [:]
-    128.times { m[it] = 'b' }
+    128.times {
+      m[it] = 'b'
+    }
 
     when:
     def result1 = convert([['a'] * 255], ctx)[0]
@@ -184,7 +186,9 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     // Build a nested array 22 levels deep
     Object[] objArray = new Object[1]
     def p = objArray
-    22.times { p = p[0] = new Object[1] }
+    22.times {
+      p = p[0] = new Object[1]
+    }
 
     when:
     // Invoke conversion with context
@@ -208,7 +212,9 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     // Build a nested list 22 levels deep
     def list = []
     def p = list
-    22.times { p << []; p = p[0] }
+    22.times {
+      p << []; p = p[0]
+    }
 
     when:
     // Invoke conversion with context
@@ -232,7 +238,9 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     // Build a nested map 22 levels deep under key 'a'
     def map = [:]
     def p = map
-    22.times { p['a'] = [:]; p = p['a'] }
+    22.times {
+      p['a'] = [:]; p = p['a']
+    }
 
     when:
     // Invoke conversion with context
@@ -413,7 +421,9 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     setup:
     // Create deeply nested JSON
     final json = JsonOutput.toJson(
-    (1..(MAX_DEPTH + 1)).inject([:], { result, i -> [("child_$i".toString()) : result] })
+    (1..(MAX_DEPTH + 1)).inject([:], {
+      result, i -> [("child_$i".toString()) : result]
+    })
     )
 
     when:
@@ -476,6 +486,66 @@ class ObjectIntrospectionSpecification extends DDSpecification {
     MAPPER.readTree('"\\\\"')                      || '\\'
     MAPPER.readTree('"\\"quotes\\""')              || '"quotes"'
     MAPPER.readTree('"unicode: \\u0041"')          || 'unicode: A'
+  }
+
+  void 'logging framework fields are excluded from introspection'() {
+    given: 'a DTO with a logger instance field alongside regular fields'
+    // Reproduces the false positive in crs-944-130: an instance logger field on the request
+    // body DTO causes ObjectIntrospection to traverse logging framework internals (Log4j,
+    // Jackson TypeCache), eventually hitting java.lang.Class.toString() = "class java.lang.Object"
+    // which matches the WAF phrase_match rule. Skipping logging-typed fields cuts the traversal
+    // at the root and eliminates the false positive without discarding other useful fields.
+    def input = new DtoWithLogger()
+
+    when:
+    def result = convert(input, ctx) as Map
+
+    then:
+    result['userId'] == 'user123'
+    result['payload'] == 'data'
+    !result.containsKey('logger')
+  }
+
+  static class DtoWithLogger {
+    String userId = 'user123'
+    java.util.logging.Logger logger = java.util.logging.Logger.getLogger('test')
+    String payload = 'data'
+  }
+
+  void 'objects with inaccessible JDK fields skip those fields rather than expose toString()'() {
+    given: '''An object with two fields: one normal, one holding a java.lang.ref.SoftReference.
+             java.lang.ref is NOT opened in the test JVM (only java.lang and java.util are),
+             so trySetAccessible() returns false for SoftReference's own fields on Java 9+.
+
+             Bug: ObjectIntrospection fell back to obj.toString() when any field was inaccessible,
+             exposing internal JDK string representations to the WAF and discarding all other
+             accessible fields on the same object. For example, java.lang.Class.toString() produces
+             "class java.lang.Object" which matches WAF phrase_match rule crs-944-130
+             (java_code_injection) — a false positive causing a CPU spike.
+
+             Fix: skip inaccessible fields (continue) instead of aborting the whole object.
+             Accessible fields on the same object are still reported to the WAF.'''
+    def input = new WrapperWithSoftRef()
+
+    when:
+    def result = convert(input, ctx) as Map
+
+    then:
+    // The accessible field 'name' must be preserved regardless of JVM version
+    result['name'] == 'test'
+    // The inaccessible-field object must NOT expose toString() to the WAF.
+    // On JDK 8 and JDK 9-15 (--illegal-access=permit default), java.lang.ref fields are
+    // accessible so result['ref'] is a non-empty Map. On JDK 16+ strict module enforcement,
+    // result['ref'] is an empty Map [:] since all Reference fields are inaccessible.
+    // Before fix (any version where fields are inaccessible): result['ref'] is a String
+    //   e.g. "java.lang.ref.SoftReference@..." — a false WAF positive.
+    // After fix: result['ref'] is always a Map, never a String.
+    result['ref'] instanceof Map
+  }
+
+  static class WrapperWithSoftRef {
+    String name = 'test'
+    java.lang.ref.SoftReference<String> ref = new java.lang.ref.SoftReference<>("test")
   }
 
   void 'iterable json objects'() {

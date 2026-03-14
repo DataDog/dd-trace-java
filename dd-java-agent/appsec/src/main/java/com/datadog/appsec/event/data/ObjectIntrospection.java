@@ -290,6 +290,9 @@ public final class ObjectIntrospection {
         if (f.getType().getName().equals("groovy.lang.MetaClass")) {
           continue;
         }
+        if (isLoggingType(f.getType())) {
+          continue;
+        }
         String name = f.getName();
         if (ignoredFieldName(name)) {
           continue;
@@ -302,16 +305,31 @@ public final class ObjectIntrospection {
             log.error("Unable to get field value", e);
             // TODO: Use invalid object
           }
-        } else {
-          // One of fields is inaccessible, might be it's Strongly Encapsulated Internal class
-          // consider it as integral object without introspection
-          // TODO: Use invalid object
-          return obj.toString();
         }
+        // This field is inaccessible (Strongly Encapsulated Internal class on Java 9+).
+        // Skip it and continue with the remaining fields — other accessible fields on the
+        // same object may still contain useful data for WAF inspection. Do NOT call
+        // obj.toString() here: JDK internal toString() representations (e.g.
+        // "class java.lang.Object") can match legitimate WAF phrase_match rules and
+        // produce false positives (e.g. crs-944-130 java_code_injection).
       }
     }
 
     return newMap;
+  }
+
+  private static boolean isLoggingType(final Class<?> type) {
+    switch (type.getName()) {
+      case "org.slf4j.Logger":
+      case "org.apache.logging.log4j.Logger":
+      case "org.apache.logging.log4j.core.Logger":
+      case "java.util.logging.Logger":
+      case "org.apache.commons.logging.Log":
+      case "ch.qos.logback.classic.Logger":
+        return true;
+      default:
+        return false;
+    }
   }
 
   private static boolean ignoredFieldName(final String name) {
