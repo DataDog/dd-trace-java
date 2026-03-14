@@ -6,6 +6,7 @@ import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.SpanList
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
@@ -188,7 +189,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
     when:
     DDSpan span = (DDSpan) tracer.startSpan("test", "test")
     span.phasedFinish()
-    tracer.write([span])
+    tracer.write(SpanList.of(span))
 
     then:
     notThrown(Throwable)

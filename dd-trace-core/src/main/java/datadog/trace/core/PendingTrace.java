@@ -327,7 +327,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     if (!spans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
-        final List<DDSpan> trace;
+        final SpanList trace;
         int completedSpans = 0;
         synchronized (this) {
           if (!isPartial) {
@@ -346,10 +346,10 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
           // count(s) will be incremented, and any new spans added during the period that the count
           // was negative will be written by someone even if we don't write them right now.
           if (size > 0 && (!isPartial || size >= tracer.getPartialFlushMinSpans())) {
-            trace = new ArrayList<>(size);
+            trace = new SpanList(size);
             completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
-            trace = EMPTY;
+            trace = SpanList.EMPTY;
           }
         }
         if (!trace.isEmpty()) {
