@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
@@ -145,13 +146,27 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             appendComment = true;
           }
 
+          final String dbService;
+          final String dbName;
+          if (isOracle) {
+            String oracleService = DECORATE.getDbService(dbInfo);
+            if (oracleService != null) {
+              oracleService =
+                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+            }
+            dbService = oracleService;
+            dbName = DECORATE.getDbInstance(dbInfo);
+          } else {
+            dbService = span.getServiceName();
+            dbName = dbInfo.getDb();
+          }
           sql =
               SQLCommenter.inject(
                   sql,
-                  span.getServiceName(),
+                  dbService,
                   dbInfo.getType(),
                   dbInfo.getHost(),
-                  dbInfo.getDb(),
+                  dbName,
                   injectTraceInComment ? traceParent : null,
                   appendComment);
         }
