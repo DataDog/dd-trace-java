@@ -1094,14 +1094,19 @@ public class DDSpanContext
   }
 
   public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      List<AgentSpanLink> links,
+      boolean spanLinksAsTag) {
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
 
-      String linksTag = DDSpanLink.toTag(links);
-      if (linksTag != null) {
-        unsafeTags.put(SPAN_LINKS, linksTag);
+      if (spanLinksAsTag) {
+        String linksTag = DDSpanLink.toTag(links);
+        if (linksTag != null) {
+          unsafeTags.put(SPAN_LINKS, linksTag);
+        }
       }
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
@@ -1128,7 +1133,8 @@ public class DDSpanContext
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,
-              ProcessTags.getTagsForSerialization()));
+              ProcessTags.getTagsForSerialization(),
+              links));
     }
   }
 

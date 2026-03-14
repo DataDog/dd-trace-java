@@ -79,6 +79,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           "endpoints": [
             "/v0.4/traces",
             "/v0.5/traces",
+            "/v1.0/traces",
             "/telemetry/proxy/",
             "/evp_proxy/v2/"
           ],
@@ -124,7 +125,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
         def body = request.getBody()
         if (body.length && decode) {
           try {
-            DecodedMessage message = Decoder.decode(body)
+            DecodedMessage message = Decoder.decodeV05(body)
             assert message.getTraces().size() == count
             def traces = message.traces
             decode(traces)
@@ -139,6 +140,29 @@ abstract class AbstractSmokeTest extends ProcessManager {
         traceCount.addAndGet(count)
         lastTraceRequestHeaders = request.headers
         println("Received v0.5 traces: " + countString)
+        response.status(200).send()
+      }
+      prefix("/v1.0/traces") {
+        def countString = request.getHeader("X-Datadog-Trace-Count")
+        int count = countString != null ? Integer.parseInt(countString) : 0
+        def body = request.getBody()
+        if (body.length && decode) {
+          try {
+            DecodedMessage message = Decoder.decodeV1(body)
+            assert message.getTraces().size() == count
+            def traces = message.traces
+            decode(traces)
+            decodeTraces.addAll(traces)
+          } catch (Throwable t) {
+            println("=== Failure during message v1.0 decoding ===")
+            t.printStackTrace(System.out)
+            traceDecodingFailure = t
+            throw t
+          }
+        }
+        traceCount.addAndGet(count)
+        lastTraceRequestHeaders = request.headers
+        println("Received v1.0 traces: " + countString)
         response.status(200).send()
       }
       prefix("/v0.6/stats") {

@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.api.internal.util.LongStringUtils;
+import java.nio.ByteBuffer;
 
 /**
  * Class encapsulating the id used for TraceIds.
@@ -102,4 +103,14 @@ public abstract class DDTraceId {
    *     <code>0</code> for 64-bit {@link DDTraceId} only.
    */
   public abstract long toHighOrderLong();
+
+  /**
+   * @return High-order and low-order bits as bytes array.
+   */
+  public byte[] to128BitBytes() {
+    ByteBuffer buffer = ByteBuffer.allocate(16);
+    buffer.putLong(toHighOrderLong());
+    buffer.putLong(toLong());
+    return buffer.array();
+  }
 }
