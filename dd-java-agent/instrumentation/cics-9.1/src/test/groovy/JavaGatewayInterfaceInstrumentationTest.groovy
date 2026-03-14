@@ -62,6 +62,7 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
     }
 
     then:
+    TEST_WRITER.waitForTraces(1)
     assertTraces(1) {
       trace(1) {
         span(0) {
