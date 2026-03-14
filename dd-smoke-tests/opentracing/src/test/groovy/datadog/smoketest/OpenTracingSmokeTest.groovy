@@ -1,7 +1,6 @@
 package datadog.smoketest
 
 import datadog.smoketest.opentracing.OTWithAgentApplication
-import datadog.smoketest.opentracing.OTWithoutAgentApplication
 import spock.util.concurrent.PollingConditions
 
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -26,18 +25,6 @@ abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
     waitForTraceCount(1, conditions)
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0
-  }
-}
-
-class OTWithoutAgentTest extends OpenTracingSmokeTest {
-  @Override
-  ProcessBuilder createProcessBuilder() {
-    List<String> command = baseCommand()
-    command.removeAll { it.startsWith("-javaagent") }
-    command.add(OTWithoutAgentApplication.name)
-
-    ProcessBuilder processBuilder = new ProcessBuilder(command)
-    processBuilder.directory(new File(buildDirectory))
   }
 }
 

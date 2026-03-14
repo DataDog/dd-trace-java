@@ -7,8 +7,8 @@ import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
 
+import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import java.io.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public class ProcessSupervisor implements Closeable {
   private void startProcessAndWait() throws Exception {
     if (currentProcess == null) {
       log.debug("Starting process: [{}]", imageName);
-      try (TraceScope ignored = AgentTracer.get().muteTracing()) {
+      try (Tracer.Blackhole ignored = AgentTracer.get().muteTracing()) {
         currentProcess = processBuilder.start();
       }
       currentHealth = HEALTHY;

@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.opentelemetry;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentelemetry.common.AttributeValue;
 import io.opentelemetry.trace.EndSpanOptions;
 import io.opentelemetry.trace.Event;
@@ -15,7 +13,7 @@ import io.opentelemetry.trace.Status;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
+public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
   private final TypeConverter converter;
 
@@ -118,132 +116,6 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   @Override
   public boolean isRecording() {
     return delegate.getTraceId().toLong() != 0;
-  }
-
-  @Override
-  public long getStartTime() {
-    return delegate.getStartTime();
-  }
-
-  @Override
-  public long getDurationNano() {
-    return delegate.getDurationNano();
-  }
-
-  @Override
-  public CharSequence getOperationName() {
-    return delegate.getOperationName();
-  }
-
-  @Override
-  public MutableSpan setOperationName(final CharSequence serviceName) {
-    return delegate.setOperationName(serviceName);
-  }
-
-  @Override
-  public String getServiceName() {
-    return delegate.getServiceName();
-  }
-
-  @Override
-  @SuppressForbidden
-  public MutableSpan setServiceName(final String serviceName) {
-    return delegate.setServiceName(serviceName);
-  }
-
-  @Override
-  public CharSequence getResourceName() {
-    return delegate.getResourceName();
-  }
-
-  @Override
-  public MutableSpan setResourceName(final CharSequence resourceName) {
-    return delegate.setResourceName(resourceName);
-  }
-
-  @Override
-  public Integer getSamplingPriority() {
-    return delegate.getSamplingPriority();
-  }
-
-  @Override
-  public MutableSpan setSamplingPriority(final int newPriority) {
-    return delegate.setSamplingPriority(newPriority);
-  }
-
-  @Override
-  public String getSpanType() {
-    return delegate.getSpanType();
-  }
-
-  @Override
-  public MutableSpan setSpanType(final CharSequence type) {
-    return delegate.setSpanType(type);
-  }
-
-  @Override
-  public Map<String, Object> getTags() {
-    return delegate.getTags();
-  }
-
-  @Override
-  public Object getTag(String key) {
-    return delegate.getTag(key);
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final String value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final boolean value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final Number value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final int value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final long value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final float value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final double value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public boolean isError() {
-    return delegate.isError();
-  }
-
-  @Override
-  public MutableSpan setError(final boolean value) {
-    return delegate.setError(value);
-  }
-
-  @Override
-  public MutableSpan getRootSpan() {
-    return delegate.getRootSpan();
-  }
-
-  @Override
-  public MutableSpan getLocalRootSpan() {
-    return delegate.getLocalRootSpan();
   }
 
   @Override

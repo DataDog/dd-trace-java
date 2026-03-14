@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
@@ -45,7 +44,7 @@ public class OTScopeManager implements ScopeManager {
     return new OTScope(new FakeScope(agentSpan), false, converter);
   }
 
-  static class OTScope implements Scope, TraceScope {
+  static class OTScope implements Scope {
     private final AgentScope delegate;
     private final boolean finishSpanOnClose;
     private final TypeConverter converter;

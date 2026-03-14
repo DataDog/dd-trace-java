@@ -84,11 +84,6 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
   }
 
   @Override
-  public AgentSpan getRootSpan() {
-    return this;
-  }
-
-  @Override
   public short getHttpStatusCode() {
     return 0;
   }

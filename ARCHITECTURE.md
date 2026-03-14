@@ -271,13 +271,6 @@ Shared utilities, each in its own submodule:
   forked test configuration.
 - `test-agent-utils` — Message decoders for parsing v04/v05 binary protocol frames in tests.
 
-### `dd-trace-ot/`
-
-Legacy OpenTracing compatibility library. Publishes a standalone JAR artifact (`dd-trace-ot.jar`)
-that implements the `io.opentracing.Tracer` interface by wrapping the Datadog `CoreTracer`.
-This is a pure library for manual instrumentation only — there is no auto-instrumentation or
-bytecode advice.
-
 ### `dd-smoke-tests/`
 
 End-to-end smoke tests. Each boots a real application with the agent jar and verifies traces, spans,

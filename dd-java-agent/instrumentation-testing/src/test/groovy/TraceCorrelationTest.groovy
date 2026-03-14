@@ -1,8 +1,9 @@
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.api.CorrelationIdentifier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
+
+import datadog.trace.api.GlobalTracer
 
 class TraceCorrelationTest extends InstrumentationSpecification {
 
@@ -12,16 +13,16 @@ class TraceCorrelationTest extends InstrumentationSpecification {
     def scope = TEST_TRACER.activateManualSpan(span)
 
     then:
-    CorrelationIdentifier.traceId == (span.traceId.toHighOrderLong() == 0 ? span.traceId.toString() : span.traceId.toHexString())
-    CorrelationIdentifier.spanId == span.spanId.toString()
+    GlobalTracer.get().traceId == (span.traceId.toHighOrderLong() == 0 ? span.traceId.toString() : span.traceId.toHexString())
+    GlobalTracer.get().spanId == span.spanId.toString()
 
     when:
     scope.close()
     span.finish()
 
     then:
-    CorrelationIdentifier.traceId == "0"
-    CorrelationIdentifier.spanId == "0"
+    GlobalTracer.get().traceId == "0"
+    GlobalTracer.get().spanId == "0"
   }
 }
 class Trace128bitCorrelationTest extends TraceCorrelationTest {

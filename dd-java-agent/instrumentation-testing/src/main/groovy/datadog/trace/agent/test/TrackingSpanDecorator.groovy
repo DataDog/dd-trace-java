@@ -226,11 +226,6 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  MutableSpan getRootSpan() {
-    return delegate.getRootSpan()
-  }
-
-  @Override
   AgentSpan setError(boolean error, byte priority) {
     return delegate.setError(error, priority)
   }
@@ -371,7 +366,7 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
-  MutableSpan setSamplingPriority(int newPriority) {
+  AgentSpan setSamplingPriority(int newPriority) {
     return delegate.setSamplingPriority(newPriority)
   }
 

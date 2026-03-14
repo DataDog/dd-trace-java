@@ -1,8 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.context.NoopTraceScope;
-import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -31,23 +30,32 @@ public class GlobalTracer {
         }
 
         @Override
-        public TraceScope muteTracing() {
-          return NoopTraceScope.INSTANCE;
+        public Blackhole muteTracing() {
+          return NO_OP_BLACKHOLE;
         }
 
         @Override
-        public TraceScope.Continuation captureActiveSpan() {
-          return NoopTraceScope.NoopContinuation.INSTANCE;
+        public MutableSpan getActiveMutableSpan() {
+          return null;
         }
 
         @Override
-        public boolean isAsyncPropagationEnabled() {
-          return false;
+        public MutableSpan getLocalRootSpan() {
+          return null;
         }
 
         @Override
-        public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
+        public MutableSpan getLocalRootSpan(MutableSpan mutableSpan) {
+          return null;
+        }
+
+        @Override
+        public MutableSpan toMutableSpan(Object span) throws IllegalArgumentException {
+          return null;
+        }
       };
+
+  private static final Tracer.Blackhole NO_OP_BLACKHOLE = () -> {};
 
   private static final Collection<Callback> installationCallbacks = new ArrayList<>();
   private static Tracer provider = NO_OP;

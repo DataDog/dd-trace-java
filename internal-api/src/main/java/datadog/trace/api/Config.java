@@ -706,7 +706,6 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.config.inversion.ConfigHelper;
-import datadog.trace.context.TraceScope;
 import datadog.trace.util.ConfigStrings;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
@@ -5685,7 +5684,7 @@ public class Config {
     }
 
     // Try hostname command
-    try (final TraceScope scope = AgentTracer.get().muteTracing();
+    try (final Tracer.Blackhole scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(
                 new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {

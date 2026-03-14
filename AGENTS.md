@@ -13,7 +13,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed module descriptions.
 dd-java-agent/            Main agent (shadow jar, instrumentations, product modules)
 dd-trace-api/             Public API & configuration constants
 dd-trace-core/            Core tracing engine (spans, propagation, writer)
-dd-trace-ot/              Legacy OpenTracing compatibility library
 internal-api/             Internal shared API across modules
 components/               Shared low-level components (context, environment, json)
 products/                 Sub-products (feature flagging, metrics)
