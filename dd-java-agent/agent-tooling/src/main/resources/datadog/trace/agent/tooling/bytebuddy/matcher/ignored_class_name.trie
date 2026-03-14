@@ -44,6 +44,9 @@
 1 io.opentelemetry.javaagent.*
 1 java.*
 0 java.lang.ClassLoader
+0 java.lang.foreign.*
+0 jdk.internal.foreign.*
+0 jdk.internal.loader.*
 # allow exception profiling instrumentation
 0 java.lang.Exception
 0 java.lang.Error
