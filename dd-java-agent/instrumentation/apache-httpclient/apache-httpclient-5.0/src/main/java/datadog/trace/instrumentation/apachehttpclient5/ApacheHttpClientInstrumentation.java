@@ -7,10 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -69,6 +71,15 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    // used to mark when a request has been instrumented.
+    // We don't count depth like we usually do, because sub-requests can be spawned and need to be
+    // traced
+    return Collections.singletonMap(
+        "org.apache.hc.core5.http.ClassicHttpRequest", "java.lang.Boolean");
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -116,17 +127,13 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
-      }
+      return HelperMethods.doMethodEnter(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), request);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(0) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
@@ -139,17 +146,13 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final ClassicHttpRequest request) {
-      try {
-        return HelperMethods.doMethodEnter(host, request);
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
-      }
+      return HelperMethods.doMethodEnter(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(1) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
@@ -170,24 +173,21 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
             Object handler) {
-      try {
-        final AgentScope scope = HelperMethods.doMethodEnter(host, request);
-        // Wrap the handler so we capture the status code
-        if (null != scope && handler instanceof HttpClientResponseHandler) {
-          handler =
-              new WrappingStatusSettingResponseHandler(
-                  scope.span(), (HttpClientResponseHandler) handler);
-        }
-        return scope;
-      } catch (BlockingException e) {
-        HelperMethods.onBlockingRequest();
-        // re-throw blocking exceptions
-        throw e;
+      final AgentScope scope =
+          HelperMethods.doMethodEnter(
+              InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class), host, request);
+      // Wrap the handler so we capture the status code
+      if (null != scope && handler instanceof HttpClientResponseHandler) {
+        handler =
+            new WrappingStatusSettingResponseHandler(
+                scope.span(), (HttpClientResponseHandler) handler);
       }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
+        @Advice.Argument(1) final ClassicHttpRequest request,
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
