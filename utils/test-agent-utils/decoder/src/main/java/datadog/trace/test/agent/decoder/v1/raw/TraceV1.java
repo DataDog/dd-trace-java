@@ -5,7 +5,9 @@ import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ValueType;
 
@@ -69,10 +71,16 @@ public class TraceV1 implements DecodedTrace {
       throws IOException {
     int fieldCount = unpacker.unpackMapHeader();
     DecodedSpan[] spans = new DecodedSpan[0];
+    Integer samplingPriority = null;
+    long traceId = 0;
 
     for (int i = 0; i < fieldCount; i++) {
       int fieldId = unpacker.unpackInt();
       switch (fieldId) {
+        case 1:
+          // chunk sampling priority
+          samplingPriority = unpacker.unpackInt();
+          break;
         case 2:
           // origin (streaming string)
           SpanV1.unpackStreamingString(unpacker, stringTable);
@@ -82,7 +90,10 @@ public class TraceV1 implements DecodedTrace {
           skipAttributes(unpacker, stringTable);
           break;
         case 4:
-          spans = SpanV1.unpackSpans(unpacker, stringTable);
+          spans = SpanV1.unpackSpans(unpacker, stringTable, traceId);
+          break;
+        case 6:
+          traceId = unpackTraceId(unpacker);
           break;
         default:
           // numeric or binary fields that don't affect the string table.
@@ -91,7 +102,55 @@ public class TraceV1 implements DecodedTrace {
       }
     }
 
-    return new TraceV1(spans);
+    return new TraceV1(withChunkFields(spans, traceId, samplingPriority));
+  }
+
+  private static long unpackTraceId(MessageUnpacker unpacker) throws IOException {
+    int payloadSize = unpacker.unpackBinaryHeader();
+    byte[] payload = unpacker.readPayload(payloadSize);
+    if (payloadSize < Long.BYTES) {
+      return 0;
+    }
+    long id = 0;
+    for (int i = payloadSize - Long.BYTES; i < payloadSize; i++) {
+      id = (id << 8) | (payload[i] & 0xffL);
+    }
+    return id;
+  }
+
+  private static DecodedSpan[] withChunkFields(
+      DecodedSpan[] spans, long traceId, Integer samplingPriority) {
+    if (spans.length == 0) {
+      return spans;
+    }
+    final long normalizedTraceId = traceId;
+    final Integer normalizedPriority = samplingPriority;
+    DecodedSpan[] updated = new DecodedSpan[spans.length];
+    for (int i = 0; i < spans.length; i++) {
+      DecodedSpan span = spans[i];
+      final Map<String, Number> metrics = new HashMap<>(span.getMetrics());
+      if (normalizedPriority != null
+          && span.getParentId() == 0
+          && !metrics.containsKey("_sampling_priority_v1")) {
+        metrics.put("_sampling_priority_v1", normalizedPriority);
+      }
+      updated[i] =
+          new SpanV1(
+              span.getService(),
+              span.getName(),
+              span.getResource(),
+              normalizedTraceId == 0 ? span.getTraceId() : normalizedTraceId,
+              span.getSpanId(),
+              span.getParentId(),
+              span.getStart(),
+              span.getDuration(),
+              span.getError(),
+              span.getType(),
+              metrics,
+              span.getMeta(),
+              span.getMetaStruct());
+    }
+    return updated;
   }
 
   private static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)

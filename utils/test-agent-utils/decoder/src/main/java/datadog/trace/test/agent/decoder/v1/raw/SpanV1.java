@@ -2,11 +2,14 @@ package datadog.trace.test.agent.decoder.v1.raw;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.Value;
 import org.msgpack.value.ValueType;
 
 /**
@@ -59,6 +62,11 @@ public class SpanV1 implements DecodedSpan {
    * @return array of decoded spans
    */
   static DecodedSpan[] unpackSpans(MessageUnpacker unpacker, List<String> stringTable) {
+    return unpackSpans(unpacker, stringTable, 0);
+  }
+
+  static DecodedSpan[] unpackSpans(
+      MessageUnpacker unpacker, List<String> stringTable, long traceId) {
     try {
       int size = unpacker.unpackArrayHeader();
       if (size < 0) {
@@ -66,7 +74,7 @@ public class SpanV1 implements DecodedSpan {
       }
       DecodedSpan[] spans = new DecodedSpan[size];
       for (int i = 0; i < size; i++) {
-        spans[i] = unpack(unpacker, stringTable);
+        spans[i] = unpack(unpacker, stringTable, traceId);
       }
       return spans;
     } catch (Throwable t) {
@@ -86,6 +94,10 @@ public class SpanV1 implements DecodedSpan {
    * @return the decoded span
    */
   static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
+    return unpack(unpacker, stringTable, 0);
+  }
+
+  static SpanV1 unpack(MessageUnpacker unpacker, List<String> stringTable, long traceId) {
     try {
       int mapSize = unpacker.unpackMapHeader();
 
@@ -104,6 +116,7 @@ public class SpanV1 implements DecodedSpan {
       int spanKind = 0;
       Map<String, String> meta = new HashMap<>();
       Map<String, Number> metrics = new HashMap<>();
+      Map<String, Object> metaStruct = new HashMap<>();
 
       for (int i = 0; i < mapSize; i++) {
         int fieldId = unpacker.unpackInt();
@@ -135,7 +148,7 @@ public class SpanV1 implements DecodedSpan {
             error = unpacker.unpackBoolean() ? 1 : 0;
             break;
           case SPAN_FIELD_ATTRIBUTES:
-            unpackAttributes(unpacker, stringTable, meta, metrics);
+            unpackAttributes(unpacker, stringTable, meta, metrics, metaStruct);
             break;
           case SPAN_FIELD_TYPE:
             type = unpackStreamingString(unpacker, stringTable);
@@ -181,13 +194,20 @@ public class SpanV1 implements DecodedSpan {
         meta.put("span.kind", getSpanKindString(spanKind));
       }
 
-      // Note: traceId is not present in V1.0 span format (it's at trace chunk level)
-      // We use 0 as a placeholder
-      long traceId = 0;
-
       return new SpanV1(
-          service, name, resource, traceId, spanId, parentId, start, duration, error, type, metrics,
-          meta, null);
+          service,
+          name,
+          resource,
+          traceId,
+          spanId,
+          parentId,
+          start,
+          duration,
+          error,
+          type,
+          metrics,
+          meta,
+          metaStruct.isEmpty() ? null : metaStruct);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -250,7 +270,8 @@ public class SpanV1 implements DecodedSpan {
       MessageUnpacker unpacker,
       List<String> stringTable,
       Map<String, String> meta,
-      Map<String, Number> metrics)
+      Map<String, Number> metrics,
+      Map<String, Object> metaStruct)
       throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     // Array contains triplets (key, type, value), so size must be divisible by 3
@@ -285,8 +306,9 @@ public class SpanV1 implements DecodedSpan {
           metrics.put(key, intValue);
           break;
         case BYTES_VALUE_TYPE:
-          // Skip binary data
-          unpacker.skipValue();
+          int payloadSize = unpacker.unpackBinaryHeader();
+          byte[] payload = unpacker.readPayload(payloadSize);
+          metaStruct.put(key, decodeObject(payload));
           break;
         case ARRAY_VALUE_TYPE:
           // Skip array values
@@ -334,6 +356,51 @@ public class SpanV1 implements DecodedSpan {
       return whole;
     }
     return value;
+  }
+
+  private static Object decodeObject(final byte[] input) {
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(input);
+    try {
+      final Value value = unpacker.unpackValue();
+      return convertValueToObject(value);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to decode object.", e);
+    }
+  }
+
+  private static Object convertValueToObject(final Value value) {
+    switch (value.getValueType()) {
+      case NIL:
+        return null;
+      case BOOLEAN:
+        return value.asBooleanValue().getBoolean();
+      case INTEGER:
+        return value.asIntegerValue().toLong();
+      case FLOAT:
+        return value.asFloatValue().toFloat();
+      case BINARY:
+        return value.asBinaryValue().asByteArray();
+      case STRING:
+        return value.asStringValue().asString();
+      case ARRAY:
+        final List<Value> array = value.asArrayValue().list();
+        final List<Object> result = new ArrayList<>(array.size());
+        for (final Value element : array) {
+          result.add(convertValueToObject(element));
+        }
+        return result;
+      case MAP:
+        final Map<Value, Value> map = value.asMapValue().map();
+        final Map<String, Object> resultMap = new HashMap<>(map.size());
+        for (final Map.Entry<Value, Value> entry : map.entrySet()) {
+          resultMap.put(
+              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+        }
+        return resultMap;
+      default:
+        throw new IllegalArgumentException(
+            "Failed to convert value to object. Unexpected value type " + value.getValueType());
+    }
   }
 
   private final String service;
