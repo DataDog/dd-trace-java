@@ -64,7 +64,6 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
       "datadog.opentelemetry.shim.metrics.OtelMeter",
       "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
       "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
-      "datadog.opentelemetry.shim.metrics.OtelInstrument",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
       "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",

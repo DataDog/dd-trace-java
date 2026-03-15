@@ -3,6 +3,7 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;

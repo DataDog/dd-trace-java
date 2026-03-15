@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage.newHistogramStorage;
 import static java.util.stream.Collectors.toList;
 
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.relocate.api.RatelimitedLogger;
