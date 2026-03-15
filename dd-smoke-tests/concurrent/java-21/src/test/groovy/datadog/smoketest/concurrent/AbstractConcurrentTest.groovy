@@ -65,7 +65,7 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   }
 
   protected void receivedCorrectTrace() {
-    waitForTrace(defaultPoll, checkTrace())
+    waitForTrace(hangedPoll, checkTrace())
     assert traceCount.get() == 1
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
     assert testedProcess.exitValue() == 0
