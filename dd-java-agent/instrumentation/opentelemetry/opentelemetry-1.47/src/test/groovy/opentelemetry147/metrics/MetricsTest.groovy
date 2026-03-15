@@ -2,7 +2,7 @@ package opentelemetry147.metrics
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope
 import datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider
 import datadog.opentelemetry.shim.metrics.data.OtelDoublePoint

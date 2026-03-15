@@ -4,9 +4,9 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope;
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
 import datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor;
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;

@@ -1,6 +1,6 @@
 package datadog.opentelemetry.shim.metrics.export;
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 
 public interface OtelMetricsVisitor {
   /** Visits a meter created by the OpenTelemetry API. */

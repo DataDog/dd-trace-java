@@ -18,6 +18,8 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'
 }

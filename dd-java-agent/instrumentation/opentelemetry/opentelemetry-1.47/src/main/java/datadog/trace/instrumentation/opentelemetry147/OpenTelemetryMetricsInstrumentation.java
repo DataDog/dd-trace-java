@@ -61,7 +61,6 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.opentelemetry.shim.OtelInstrumentationScope",
       "datadog.opentelemetry.shim.metrics.OtelMeter",
       "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
       "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
