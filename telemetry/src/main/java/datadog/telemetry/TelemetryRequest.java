@@ -103,7 +103,7 @@ public class TelemetryRequest {
   public void writeProducts() {
     try {
       requestBody.writeProducts(
-          InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
+          InstrumenterConfig.get().getAppSecActivation() == ProductActivation.FULLY_ENABLED,
           InstrumenterConfig.get().isProfilingEnabled(),
           Config.get().isDynamicInstrumentationEnabled());
     } catch (IOException e) {
