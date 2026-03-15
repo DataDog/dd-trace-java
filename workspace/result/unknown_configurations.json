@@ -1,0 +1,67 @@
+{
+  "lang": "java",
+  "unknown": [
+    {
+      "key": "DD_CIVISIBILITY_JVM_INFO_CACHE_SIZE",
+      "version": "A",
+      "reason": "Configuration is read into Config (ciVisibilityJvmInfoCacheSize) but no runtime usage sites were found; JVM info caching currently uses DD_CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE in CachingJvmInfoFactory."
+    },
+    {
+      "key": "DD_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL",
+      "version": "A",
+      "reason": "Configuration is read into Config (dynamicInstrumentationPollInterval) but no runtime usage sites were found in the repository (only getter exists)."
+    },
+    {
+      "key": "DD_APPSEC_REPORTING_INBAND",
+      "version": "A",
+      "reason": "AppSec in-band reporting flag (`appsec.reporting.inband`): this setting is read into `Config` but (in this repository) has no runtime usage sites beyond the getter, so changing it currently has no effect. Default: false."
+    },
+    {
+      "key": "DD_APPSEC_REPORT_TIMEOUT",
+      "version": "A",
+      "reason": "AppSec report timeout in seconds (`appsec.report.timeout`): read into `Config` as a max timeout (default 60s) and a derived min timeout (`min(max, 5)`), but (in this repository) there are no runtime usage sites beyond getters, so changing it currently has no effect."
+    },
+    {
+      "key": "DD_TRACE_AXIS2_TRANSPORT_ENABLED",
+      "version": "A",
+      "reason": "Axis2 transport toggle: this key is currently not consulted by the tracer. Axis2 transport instrumentation is always installed as part of the `axis2` integration/module (see `Axis2Module` including `AxisTransportInstrumentation`); to disable it, disable the `axis2` integration instead."
+    },
+    {
+      "key": "DD_TRACE_FILEITEMITERATOR_ENABLED",
+      "version": "A",
+      "reason": "Commons FileUpload `FileItemIterator` IAST instrumentation toggle: this key is currently not consulted by the tracer. The `FileItemIterator` instrumentation is installed as part of the `commons-fileupload` module when IAST + that integration are enabled."
+    },
+    {
+      "key": "DD_TRACE_FILEITEMSTREAM_ENABLED",
+      "version": "A",
+      "reason": "Commons FileUpload `FileItemStream` IAST instrumentation toggle: this key is currently not consulted by the tracer. The `FileItemStream` instrumentation is installed as part of the `commons-fileupload` module when IAST + that integration are enabled."
+    },
+    {
+      "key": "DD_TRACE_FILEITEM_ENABLED",
+      "version": "A",
+      "reason": "Commons FileUpload `FileItem` IAST instrumentation toggle: this key is currently not consulted by the tracer. The `FileItem` instrumentation is installed as part of the `commons-fileupload` module when IAST + that integration are enabled."
+    },
+    {
+      "key": "DD_TRACE_FORCEMANUALKEEPTAGINTERCEPTOR_ENABLED",
+      "version": "A",
+      "reason": "Rule flag `ForceManualKeepTagInterceptor`: currently has no effect in this repository. Manual keep is always honored when the `manual.keep` tag is set (TagInterceptor calls `span.forceKeep()` without consulting the rule flag), and no code path checks the `FORCE_MANUAL_KEEP` feature toggle."
+    },
+    {
+      "key": "DD_TRACE_GOOGLE_PUBSUB_PUBLISHER_ENABLED",
+      "version": "A",
+      "reason": "Google Pub/Sub publisher toggle: this key is currently not consulted by the tracer. Publisher instrumentation is always installed as part of the `google-pubsub` integration/module; to disable it, disable the `google-pubsub` integration instead."
+    },
+    {
+      "key": "DD_TRACE_GOOGLE_PUBSUB_RECEIVER_ENABLED",
+      "version": "A",
+      "reason": "Google Pub/Sub receiver toggle: this key is currently not consulted by the tracer. Receiver instrumentations are always installed as part of the `google-pubsub` integration/module; to disable them, disable the `google-pubsub` integration instead."
+    },
+    {
+      "key": "DD_TRACE_HTTPCLIENT_REDIRECT_ENABLED",
+      "version": "A",
+      "reason": "HttpClient redirect propagation support: this key is currently not consulted by the tracer. The redirect header-copying instrumentation (`ApacheHttpClientRedirectInstrumentation`) is always installed as part of the `httpasyncclient` / `apache-httpasyncclient` integration/module."
+    }
+  ]
+}
+
+
