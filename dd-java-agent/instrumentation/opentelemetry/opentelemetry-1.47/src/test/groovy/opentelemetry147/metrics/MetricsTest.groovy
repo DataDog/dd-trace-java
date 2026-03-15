@@ -442,7 +442,7 @@ class MetricsTest extends InstrumentationSpecification {
     }
 
     @Override
-    void visitPoint(Attributes attributes, OtelPoint point) {
+    void visitPoint(Object attributes, OtelPoint point) {
       def key = scopeName + ':' + instrumentName
       if (!attributes.isEmpty()) {
         key = key + '@' + attributes.asMap()
