@@ -1,9 +1,10 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;

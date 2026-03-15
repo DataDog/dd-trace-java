@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics;
+package datadog.trace.bootstrap.otel.metrics;
 
 public enum OtelInstrumentType {
   // same order as io.opentelemetry.sdk.metrics.InstrumentType

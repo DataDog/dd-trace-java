@@ -1,12 +1,13 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.opentelemetry.shim.metrics.data.OtelMetricStorage.newHistogramStorage;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 
 import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.common.Attributes;
