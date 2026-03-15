@@ -78,3 +78,24 @@ Code running in the agent's `premain` phase must **not** use:
 - `javax.management.*` — causes class loading issues
 
 See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
+
+## Developer Tools
+
+### MCP Tools
+
+* Datadog MCP defaults: When using Datadog MCP tools (CI pipelines, tests, flaky tests, coverage, PR insights), default to the repository `github.com/DataDog/dd-trace-java` (or `https://github.com/DataDog/dd-trace-java` for PR-related tools) unless the user specifies a different repository. Use the current git branch and latest commit SHA as context when relevant.
+
+### GitHub Tools
+
+- When interacting with GitHub (github.com), ALWAYS use `gh` on the command line.
+- If `gh` CLI is not installed or there are authentication or configuration problems, check the document: [AI Tools Integration Guide - GitHub CLI](docs/ai-tools-integration-guide.md#github-cli-gh)
+
+### GitLab Tools
+
+- When interacting with GitLab (gitlab.ddbuild.io), ALWAYS use `glab` on the command line.
+- If `glab` CLI is not installed or there are authentication or configuration problems, check the document: [AI Tools Integration Guide - GitLab CLI](docs/ai-tools-integration-guide.md#gitlab-cli-glab)
+
+### Handling the Pull Request and CI
+
+- If the request relates to CI status for a branch or PR, MUST ALWAYS try the Datadog MCP first.
+- Use local GitLab/GitHub tools as a fallback/support for the Datadog MCP when interacting with GitLab/GitHub CI.
