@@ -797,15 +797,43 @@ test_smoke_semeru8_debugger:
 aggregate_test_counts:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: test-summary
-  # Note: No explicit 'needs' or 'dependencies' required
-  # By default, GitLab CI automatically downloads artifacts from ALL jobs in previous stages
-  # This job collects test_counts_*.json files from all test/check jobs via stage ordering
+  # Disable automatic artifact download from all prior stages.
+  # This job only needs test_counts_*.json files from test jobs.
+  dependencies: []
+  variables:
+    TEST_COUNTS_DOWNLOAD_PARALLEL: "8"
   rules:
     - if: '$POPULATE_CACHE'
       when: never
     - when: always
   script:
     - *set_datadog_api_keys
+    - mkdir -p test_counts_aggregate
+    - |
+      set -euo pipefail
+      # Paginate through pipeline jobs (GitLab API caps per_page at 100).
+      # Filter by name to only fetch jobs extending .test_job that generate test_counts files.
+      page=1
+      while true; do
+        body=$(curl --silent --show-error --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/jobs?per_page=100&page=$page")
+        echo "$body" | jq -r '.[] | select(.stage=="tests" and (.name | test("^(test_|agent_integration_tests)"))) | .id'
+        [ "$(echo "$body" | jq 'length')" -lt 100 ] && break
+        page=$((page + 1))
+      done \
+      | parallel --no-run-if-empty --jobs "$TEST_COUNTS_DOWNLOAD_PARALLEL" --halt now,fail=1 '
+          http_code=$(curl --silent --show-error --location --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+            --output "test_counts_aggregate/test_counts_{}.json" \
+            --write-out "%{http_code}" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/{}/artifacts/test_counts_{}.json")
+          if [ "$http_code" = "404" ]; then
+            echo "No test_counts artifact for job {} (job may have failed before after_script)" >&2
+            rm -f "test_counts_aggregate/test_counts_{}.json"
+          elif [ "$http_code" != "200" ]; then
+            echo "Error: HTTP $http_code downloading test_counts for job {}" >&2
+            exit 1
+          fi
+        '
     - .gitlab/aggregate_test_counts.sh
   artifacts:
     when: always
