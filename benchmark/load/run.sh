@@ -27,8 +27,16 @@ fi
 
 source "${UTILS_DIR}/update-java-version.sh" 17
 
+# Optional second argument to run a specific app for load benchmarks (i.e. "petclinic" or "insecure-bank")
+app_filter=${2:-""}
+
 for app in *; do
   if [[ ! -d "${app}" ]]; then
+    continue
+  fi
+
+  # Skip if app filter is specified and doesn't match
+  if [[ -n "${app_filter}" ]] && [[ "${app}" != "${app_filter}" ]]; then
     continue
   fi
 
@@ -43,10 +51,10 @@ for app in *; do
   # Using profiler variants for healthcheck as they are the slowest
   if [ "${app}" == "petclinic" ]; then
     HEALTHCHECK_URL=http://localhost:8082
-    REPETITIONS_COUNT=2
+    REPETITIONS_COUNT=5
   elif [ "${app}" == "insecure-bank" ]; then
     HEALTHCHECK_URL=http://localhost:8082/login
-    REPETITIONS_COUNT=2
+    REPETITIONS_COUNT=5
   else
     echo "Unknown app ${app}"
     exit 1
