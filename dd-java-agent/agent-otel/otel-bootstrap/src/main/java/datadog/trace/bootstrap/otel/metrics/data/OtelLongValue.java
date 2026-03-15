@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
 final class OtelLongValue extends OtelAggregator {
   private volatile long value;

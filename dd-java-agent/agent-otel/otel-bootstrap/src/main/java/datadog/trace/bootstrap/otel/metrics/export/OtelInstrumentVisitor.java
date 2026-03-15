@@ -1,6 +1,6 @@
-package datadog.opentelemetry.shim.metrics.export;
+package datadog.trace.bootstrap.otel.metrics.export;
 
-import datadog.opentelemetry.shim.metrics.data.OtelPoint;
+import datadog.trace.bootstrap.otel.metrics.data.OtelPoint;
 
 public interface OtelInstrumentVisitor {
   /** Visits a data point collected by the instrument. */

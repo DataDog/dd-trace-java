@@ -1,11 +1,11 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
-import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
+import datadog.trace.bootstrap.otel.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;

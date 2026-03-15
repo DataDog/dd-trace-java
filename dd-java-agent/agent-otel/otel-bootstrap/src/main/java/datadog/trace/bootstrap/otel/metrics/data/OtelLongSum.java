@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
 import java.util.concurrent.atomic.LongAdder;
 

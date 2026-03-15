@@ -1,7 +1,7 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.metrics.export.OtelMetricsVisitor;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;

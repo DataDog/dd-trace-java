@@ -1,6 +1,6 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 
 /** Ensure all instruments implement the same equivalency. */
 abstract class OtelInstrument {
