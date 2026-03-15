@@ -2,14 +2,16 @@ package com.datadog.profiling.ddprof;
 
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
@@ -20,7 +22,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT;
@@ -47,6 +48,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LATENCY_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LIVEHEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
@@ -67,10 +71,15 @@ public class DatadogProfilerConfig {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
 
   public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
-        PROFILING_DATADOG_PROFILER_CPU_ENABLED,
-        PROFILING_DATADOG_PROFILER_CPU_ENABLED_DEFAULT);
+    // profiling.ddprof.cpu.enabled takes precedence over the umbrella profiling.cpu.enabled
+    Boolean ddprofCpu =
+        configProvider.getBoolean(
+            PROFILING_DATADOG_PROFILER_CPU_ENABLED,
+            normalizeKey(PROFILING_DATADOG_PROFILER_CPU_ENABLED));
+    if (ddprofCpu != null) {
+      return ddprofCpu;
+    }
+    return configProvider.getBoolean(PROFILING_CPU_ENABLED, PROFILING_CPU_ENABLED_DEFAULT);
   }
 
   public static String getLibPath(ConfigProvider configProvider) {
@@ -120,8 +129,23 @@ public class DatadogProfilerConfig {
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
     boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
     boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
-    boolean enabledByDefault = !disableUnlessOptedIn;
-    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
+    // profiling.ddprof.wall.enabled takes precedence over the umbrella profiling.latency.enabled
+    Boolean ddprofWall =
+        configProvider.getBoolean(
+            PROFILING_DATADOG_PROFILER_WALL_ENABLED,
+            normalizeKey(PROFILING_DATADOG_PROFILER_WALL_ENABLED));
+    if (ddprofWall != null) {
+      return ddprofWall;
+    }
+    Boolean umbrella = configProvider.getBoolean(PROFILING_LATENCY_ENABLED);
+    if (umbrella != null) {
+      // Umbrella can serve as an explicit opt-in (e.g. on J9 where wall is off by default),
+      // but wall-clock still requires tracing (context filter depends on span contexts)
+      // and is not enabled in ultra-minimal mode or on J9.
+      // Use profiling.ddprof.wall.enabled=true to bypass all these guards.
+      return umbrella && !disableUnlessOptedIn;
+    }
+    return !disableUnlessOptedIn;
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {
@@ -193,13 +217,29 @@ public class DatadogProfilerConfig {
     // JVMTI Allocation Sampler is available since Java 11
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
-
+      // Priority: profiling.ddprof.alloc.enabled > profiling.alloc.enabled >
+      //           profiling.allocation.enabled > default
+      Boolean ddprofAlloc =
+          configProvider.getBoolean(
+              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED,
+              normalizeKey(PROFILING_DATADOG_PROFILER_ALLOC_ENABLED));
+      if (ddprofAlloc != null) {
+        if (!dflt && ddprofAlloc) {
+          log.warn(
+              "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+        }
+        return ddprofAlloc;
+      }
+      Boolean newUmbrella = configProvider.getBoolean(PROFILING_ALLOC_ENABLED);
+      if (newUmbrella != null) {
+        if (!dflt && newUmbrella) {
+          log.warn(
+              "Allocation profiling was enabled although it is not considered stable on this JVM version.");
+        }
+        return newUmbrella;
+      }
+      // Fall back to old umbrella / default
+      boolean enableDdprofAlloc = configProvider.getBoolean(PROFILING_ALLOCATION_ENABLED, dflt);
       if (!dflt && enableDdprofAlloc) {
         log.warn(
             "Allocation profiling was enabled although it is not considered stable on this JVM version.");
@@ -226,17 +266,25 @@ public class DatadogProfilerConfig {
 
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
     boolean isSafe = isJmethodIDSafe();
-    boolean enableDdprofMemleak =
-        getBoolean(
-            configProvider,
+    // Priority: profiling.ddprof.liveheap.enabled (+ deprecated memleak alias) >
+    //           profiling.liveheap.enabled > default
+    Boolean ddprofLiveheap =
+        configProvider.getBoolean(
             PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
-    if (!isSafe && enableDdprofMemleak) {
+            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED,
+            normalizeKey(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED));
+    boolean enable;
+    if (ddprofLiveheap != null) {
+      enable = ddprofLiveheap;
+    } else {
+      enable =
+          configProvider.getBoolean(PROFILING_LIVEHEAP_ENABLED, PROFILING_LIVEHEAP_ENABLED_DEFAULT);
+    }
+    if (!isSafe && enable) {
       log.warn(
           "Memory leak profiling was enabled although it is not considered stable on this JVM version.");
     }
-    return enableDdprofMemleak;
+    return enable;
   }
 
   public static boolean isMemoryLeakProfilingEnabled() {
