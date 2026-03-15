@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = "io.github.openfeign"
+    module = "feign-core"
+    versions = "[10.0.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.github.openfeign', name: 'feign-core', version: '10.0.0'
+
+  testImplementation group: 'io.github.openfeign', name: 'feign-core', version: '10.0.0'
+  testImplementation project(':dd-java-agent:testing')
+
+  latestDepTestImplementation group: 'io.github.openfeign', name: 'feign-core', version: '+'
+}
