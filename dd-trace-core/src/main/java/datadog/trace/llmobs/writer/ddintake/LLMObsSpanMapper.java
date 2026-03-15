@@ -300,7 +300,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeString(spanKind, null);
 
       for (Map.Entry<String, String> error : errorInfo.entrySet()) {
-        writable.writeUTF8(error.getKey().getBytes());
+        writable.writeUTF8(error.getKey().getBytes(StandardCharsets.UTF_8));
         writable.writeString(error.getValue(), null);
       }
 
