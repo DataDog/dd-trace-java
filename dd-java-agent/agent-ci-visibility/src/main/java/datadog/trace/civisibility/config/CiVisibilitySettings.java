@@ -22,6 +22,22 @@ public class CiVisibilitySettings {
           EarlyFlakeDetectionSettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null,
+          false);
+
+  public static final CiVisibilitySettings REQUEST_ERROR =
+      new CiVisibilitySettings(
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          EarlyFlakeDetectionSettings.DEFAULT,
+          TestManagementSettings.DEFAULT,
+          null,
           true);
 
   private final boolean itrEnabled;

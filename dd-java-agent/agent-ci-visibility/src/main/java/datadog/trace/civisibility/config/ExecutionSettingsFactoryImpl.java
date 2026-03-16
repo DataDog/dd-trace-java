@@ -312,8 +312,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
 
     } catch (Exception e) {
-      LOGGER.warn("Error while obtaining CI Visibility settings", e);
-      return CiVisibilitySettings.DEFAULT;
+      LOGGER.error("Error while obtaining CI Visibility settings", e);
+      return CiVisibilitySettings.REQUEST_ERROR;
     }
   }
 
