@@ -87,7 +87,7 @@ do
   echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
   xsl_file="$(dirname "$0")/add_final_status.xsl"
   tmp_file="$(mktemp)"
-  xsltproc --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  xsltproc --huge --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   mv "$tmp_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
 
 done <   <(find "${TEST_RESULT_DIRS[@]}" -name \*.xml -print0)
