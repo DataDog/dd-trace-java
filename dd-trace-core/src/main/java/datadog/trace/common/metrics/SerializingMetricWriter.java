@@ -37,6 +37,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
+  private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
   private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
@@ -111,8 +112,13 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasHttpMethod = key.getHttpMethod() != null;
     final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
     final boolean hasServiceSource = key.getServiceSource() != null;
+    final boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null;
     final int mapSize =
-        15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+        15
+            + (hasServiceSource ? 1 : 0)
+            + (hasHttpMethod ? 1 : 0)
+            + (hasHttpEndpoint ? 1 : 0)
+            + (hasGrpcStatusCode ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -162,6 +168,12 @@ public final class SerializingMetricWriter implements MetricWriter {
     if (hasHttpEndpoint) {
       writer.writeUTF8(HTTP_ENDPOINT);
       writer.writeUTF8(key.getHttpEndpoint());
+    }
+
+    // Only include GRPCStatusCode if present (rpc-type spans)
+    if (hasGrpcStatusCode) {
+      writer.writeUTF8(GRPC_STATUS_CODE);
+      writer.writeUTF8(key.getGrpcStatusCode());
     }
 
     writer.writeUTF8(HITS);
