@@ -173,9 +173,6 @@ public class AppSecBenchmark {
     public String bodyAsString() {
       return "";
     }
-
-    @Override
-    public void close() {}
   }
 
   static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {

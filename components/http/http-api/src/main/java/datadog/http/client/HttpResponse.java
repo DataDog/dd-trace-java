@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
  *
  * <p>HttpResponse instances must be closed after use to release resources.
  */
-public interface HttpResponse extends AutoCloseable {
+public interface HttpResponse {
 
   /**
    * Returns the HTTP status code.
@@ -69,12 +69,4 @@ public interface HttpResponse extends AutoCloseable {
    * @throws IOException if an I/O error occurs
    */
   String bodyAsString() throws IOException;
-
-  // TODO Not sure if the response should be closed, the response body sure is.
-  /**
-   * Closes the response and releases any resources. This method should be called after the response
-   * is no longer needed.
-   */
-  @Override
-  void close();
 }

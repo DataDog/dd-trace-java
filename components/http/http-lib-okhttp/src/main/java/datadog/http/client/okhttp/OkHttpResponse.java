@@ -69,12 +69,4 @@ public final class OkHttpResponse implements HttpResponse {
     ResponseBody body = this.delegate.body();
     return body == null ? "" : body.string();
   }
-
-  @Override
-  public void close() {
-    okhttp3.ResponseBody body = this.delegate.body();
-    if (body != null) {
-      body.close();
-    }
-  }
 }

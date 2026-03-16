@@ -28,28 +28,6 @@ public final class JdkHttpClient implements HttpClient {
     this.delegate = delegate;
   }
 
-  // /**
-  //  * Wraps a java.net.http.HttpClient.
-  //  *
-  //  * @param jdkHttpClient the JDK HttpClient to wrap
-  //  * @return wrapped HttpClient
-  //  */
-  // public static HttpClient wrap(java.net.http.HttpClient jdkHttpClient) {
-  //   if (jdkHttpClient == null) {
-  //     return null;
-  //   }
-  //   return new JdkHttpClient(jdkHttpClient);
-  // }
-  //
-  // /**
-  //  * Unwraps to get the underlying java.net.http.HttpClient.
-  //  *
-  //  * @return the underlying java.net.http.HttpClient
-  //  */
-  // public java.net.http.HttpClient unwrap() {
-  //   return delegate;
-  // }
-
   @Override
   public HttpResponse execute(HttpRequest request) throws IOException {
     requireNonNull(request, "request");

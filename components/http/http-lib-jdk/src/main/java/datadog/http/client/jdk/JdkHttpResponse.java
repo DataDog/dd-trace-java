@@ -126,10 +126,4 @@ public final class JdkHttpResponse implements HttpResponse {
             })
         .orElse(UTF_8);
   }
-
-  @Override
-  public void close() {
-    // JDK HttpResponse doesn't require explicit closing.
-    // The JDK HTTP client caller must manage the response body stream when calling #body().
-  }
 }

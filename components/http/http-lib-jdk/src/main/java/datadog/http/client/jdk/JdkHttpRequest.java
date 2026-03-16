@@ -24,29 +24,6 @@ public final class JdkHttpRequest implements HttpRequest {
     this.listener = listener;
   }
 
-  // TODO Remove if not used
-  /**
-   * Wraps a java.net.http.HttpRequest.
-   *
-   * @param jdkRequest the JDK HttpRequest to wrap
-   * @return wrapped HttpRequest
-   */
-  static HttpRequest wrap(java.net.http.HttpRequest jdkRequest) {
-    if (jdkRequest == null) {
-      return null;
-    }
-    return new JdkHttpRequest(jdkRequest, null, null);
-  }
-
-  /**
-   * Unwraps to get the underlying java.net.http.HttpRequest.
-   *
-   * @return the underlying java.net.http.HttpRequest
-   */
-  java.net.http.HttpRequest unwrap() {
-    return this.delegate;
-  }
-
   @Override
   public HttpUrl url() {
     return JdkHttpUrl.wrap(this.delegate.uri());

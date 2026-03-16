@@ -7,6 +7,7 @@ import datadog.http.client.HttpUrl;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** JDK-based implementation of HttpUrl that wraps java.net.URI. */
 public final class JdkHttpUrl implements HttpUrl {
@@ -39,13 +40,7 @@ public final class JdkHttpUrl implements HttpUrl {
     return wrap(uri);
   }
 
-  /**
-   * Wraps a java.net.URI.
-   *
-   * @param uri the URI to wrap
-   * @return wrapped HttpUrl
-   */
-  static HttpUrl wrap(URI uri) {
+  static @Nullable HttpUrl wrap(@Nullable URI uri) {
     if (uri == null) {
       return null;
     }
