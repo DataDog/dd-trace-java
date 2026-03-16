@@ -6,7 +6,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
@@ -96,7 +95,6 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
   @Test
   void testNestedVirtualThreads() throws InterruptedException, TimeoutException {
     Thread.Builder.OfVirtual threadBuilder = Thread.ofVirtual();
-    CountDownLatch latch = new CountDownLatch(3);
 
     new Runnable() {
       @Trace(operationName = "parent")
@@ -118,19 +116,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
                               @Override
                               public void run() {
                                 System.out.println("complete");
-                                latch.countDown();
                               }
                             });
-                        latch.countDown();
                       }
                     });
-                latch.countDown();
               }
             });
       }
     }.run();
 
-    latch.await();
+    // Block test thread until child spans are reported
+    blockUntilTracesMatch(traces -> traces.size() == 1 && traces.get(0).size() == 4);
 
     assertTraces(
         trace(

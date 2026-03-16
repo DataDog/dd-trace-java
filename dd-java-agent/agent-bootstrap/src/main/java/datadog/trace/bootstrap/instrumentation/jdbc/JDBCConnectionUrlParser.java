@@ -73,7 +73,7 @@ public enum JDBCConnectionUrlParser {
       String instanceName = null;
       final int hostIndex = jdbcUrl.indexOf("://");
 
-      if (hostIndex <= 0) {
+      if (hostIndex <= 0 || jdbcUrl.length() == 3 + hostIndex) {
         return builder;
       }
 
