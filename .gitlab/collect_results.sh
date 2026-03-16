@@ -78,15 +78,16 @@ do
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
   sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
 
-  # Add dd_tags[test.final_status] property to each testcase
-  xsl_file="$(dirname "$0")/add_final_status.xsl"
-  tmp_file="$(mktemp)"
-  xsltproc --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-  mv "$tmp_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-
   if cmp -s "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"; then
     echo ""
   else
-    echo -n " (non-stable test names detected)"
+    echo " (non-stable test names detected)"
   fi
+
+  echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
+  xsl_file="$(dirname "$0")/add_final_status.xsl"
+  tmp_file="$(mktemp)"
+  xsltproc --huge --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  mv "$tmp_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+
 done <   <(find "${TEST_RESULT_DIRS[@]}" -name \*.xml -print0)
