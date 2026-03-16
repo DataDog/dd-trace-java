@@ -354,6 +354,7 @@ public final class TraceMapperV1 implements TraceMapper {
   private void encodeSpanAttributes(
       Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
     TagMap tags = meta.getTags();
+    Map<String, String> baggage = meta.getBaggage();
     String httpStatusCode =
         meta.getHttpStatusCode() == null ? null : meta.getHttpStatusCode().toString();
     boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
@@ -365,7 +366,12 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     writable.writeInt(fieldId);
-    writable.startArray((tagCount + metaStruct.size() + (writeHttpStatus ? 1 : 0)) * 3);
+    writable.startArray(
+        (baggage.size() + tagCount + metaStruct.size() + (writeHttpStatus ? 1 : 0)) * 3);
+
+    for (Map.Entry<String, String> entry : baggage.entrySet()) {
+      writeAttribute(writable, entry.getKey(), entry.getValue());
+    }
 
     for (TagMap.EntryReader entry : tags) {
       if (DDTags.SPAN_EVENTS.equals(entry.tag())) {

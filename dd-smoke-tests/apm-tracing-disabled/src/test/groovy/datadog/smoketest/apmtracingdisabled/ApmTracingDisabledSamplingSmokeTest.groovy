@@ -1,12 +1,12 @@
 package datadog.smoketest.apmtracingdisabled
 
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.test.util.Flaky
 import groovy.json.JsonSlurper
 import okhttp3.Request
 
-@Flaky
-class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmokeTest {
+abstract class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder(){
@@ -133,5 +133,26 @@ class ApmTracingDisabledSamplingSmokeTest extends AbstractApmTracingDisabledSmok
     checkRootSpanPrioritySampling(downstreamTrace, PrioritySampling.USER_KEEP)
     def downstreamHeaders = jsonSlurper.parseText(response.body().string())
     downstreamHeaders["x-datadog-sampling-priority"] == "2"
+  }
+}
+
+@Flaky
+class ApmTracingDisabledSamplingSmokeV04Test extends ApmTracingDisabledSamplingSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '0.4'
+  }
+}
+
+@Flaky
+class ApmTracingDisabledSamplingSmokeV1Test extends ApmTracingDisabledSamplingSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '1.0'
+  }
+
+  @Override
+  protected Object samplingPriority(DecodedTrace trace) {
+    return trace.samplingPriority
   }
 }

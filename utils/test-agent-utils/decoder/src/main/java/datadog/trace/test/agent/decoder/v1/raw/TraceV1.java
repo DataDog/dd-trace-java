@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.msgpack.core.MessageUnpacker;
-import org.msgpack.value.ValueType;
 
 /**
  * TraceV1 represents a decoded trace in V1.0 format.
@@ -34,17 +33,7 @@ public class TraceV1 implements DecodedTrace {
       }
       DecodedTrace[] traces = new TraceV1[size];
       for (int i = 0; i < size; i++) {
-        ValueType valueType = unpacker.getNextFormat().getValueType();
-        if (valueType == ValueType.ARRAY) {
-          // Legacy expectation: chunks field contains traces directly.
-          traces[i] = unpack(unpacker, stringTable);
-        } else if (valueType == ValueType.MAP) {
-          // Current V1 payload: chunks field contains chunk maps, each with spans in field 4.
-          traces[i] = unpackChunk(unpacker, stringTable);
-        } else {
-          throw new IllegalArgumentException(
-              "Expected trace/chunk entry as ARRAY or MAP, got " + valueType);
-        }
+        traces[i] = unpackChunk(unpacker, stringTable);
       }
       return traces;
     } catch (Throwable t) {
@@ -54,17 +43,6 @@ public class TraceV1 implements DecodedTrace {
         throw new IllegalArgumentException(t);
       }
     }
-  }
-
-  /**
-   * Unpacks a single trace (array of spans) from the unpacker.
-   *
-   * @param unpacker the message unpacker
-   * @param stringTable the shared string table for streaming string decoding
-   * @return the decoded trace
-   */
-  public static TraceV1 unpack(MessageUnpacker unpacker, List<String> stringTable) {
-    return new TraceV1(SpanV1.unpackSpans(unpacker, stringTable));
   }
 
   private static TraceV1 unpackChunk(MessageUnpacker unpacker, List<String> stringTable)
@@ -102,7 +80,7 @@ public class TraceV1 implements DecodedTrace {
       }
     }
 
-    return new TraceV1(withChunkFields(spans, traceId, samplingPriority));
+    return new TraceV1(withChunkFields(spans, traceId, samplingPriority), samplingPriority);
   }
 
   private static long unpackTraceId(MessageUnpacker unpacker) throws IOException {
@@ -182,9 +160,11 @@ public class TraceV1 implements DecodedTrace {
   }
 
   private final DecodedSpan[] spans;
+  private final Integer chunkSamplingPriority;
 
-  private TraceV1(DecodedSpan[] spans) {
+  private TraceV1(DecodedSpan[] spans, Integer chunkSamplingPriority) {
     this.spans = spans;
+    this.chunkSamplingPriority = chunkSamplingPriority;
   }
 
   @Override
@@ -193,5 +173,10 @@ public class TraceV1 implements DecodedTrace {
       return Collections.emptyList();
     }
     return Collections.unmodifiableList(Arrays.asList(spans));
+  }
+
+  @Override
+  public Integer getSamplingPriority() {
+    return chunkSamplingPriority;
   }
 }

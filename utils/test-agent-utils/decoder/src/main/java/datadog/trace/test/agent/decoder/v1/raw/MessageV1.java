@@ -8,35 +8,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.ValueType;
 
-/**
- * MessageV1 decodes V1.0 trace payload format.
- *
- * <p>The V1.0 raw buffer format (from FlushingBuffer.dump()) is a concatenation of traces, where
- * each trace is an array of spans:
- *
- * <pre>
- * [span1, span2, ...]    // trace 1 (array of spans)
- * [span3, span4, ...]    // trace 2 (array of spans)
- * ...
- * </pre>
- *
- * <p>Note: The dump() may include padding (zeros) after the actual data.
- *
- * <p>The full payload format wraps this in a map with field 11 (FIELD_CHUNKS).
- *
- * <p>Key features:
- *
- * <ul>
- *   <li>Integer field IDs instead of string keys
- *   <li>Streaming string encoding (string table)
- *   <li>Attributes as flat array of triplets (key, type, value)
- * </ul>
- */
+/** MessageV1 decodes V1.0 trace payload format. */
 public class MessageV1 implements DecodedMessage {
   // Tracer Payload field IDs
   static final int FIELD_CHUNKS = 11;
@@ -65,7 +41,7 @@ public class MessageV1 implements DecodedMessage {
       List<DecodedTrace> traces = new ArrayList<>();
 
       if (firstType == ValueType.MAP) {
-        // Full payload format: map with FIELD_CHUNKS containing traces
+        // Full payload format: map with FIELD_CHUNKS containing trace chunks.
         int mapSize = unpacker.unpackMapHeader();
 
         for (int i = 0; i < mapSize; i++) {
@@ -79,24 +55,9 @@ public class MessageV1 implements DecodedMessage {
             skipPayloadField(unpacker, fieldId, stringTable);
           }
         }
-      } else if (firstType == ValueType.ARRAY) {
-        // Raw buffer format: concatenated traces (each trace is an array of spans)
-        // Read traces one by one until we exhaust the buffer or hit padding
-        while (unpacker.hasNext()) {
-          MessageFormat format = unpacker.getNextFormat();
-          ValueType valueType = format.getValueType();
-
-          // Stop if we hit padding (zeros or other non-array values)
-          if (valueType != ValueType.ARRAY) {
-            break;
-          }
-
-          DecodedTrace trace = TraceV1.unpack(unpacker, stringTable);
-          traces.add(trace);
-        }
       } else {
         throw new IllegalArgumentException(
-            "Expected Map or Array at start of V1.0 payload, got: " + firstType);
+            "Expected Map at start of V1.0 payload, got: " + firstType);
       }
 
       return new MessageV1(traces.toArray(new DecodedTrace[0]));
