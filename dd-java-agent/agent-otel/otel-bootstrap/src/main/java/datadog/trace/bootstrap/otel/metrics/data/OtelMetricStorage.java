@@ -5,7 +5,7 @@ import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
-import datadog.trace.bootstrap.otel.metrics.export.OtelInstrumentVisitor;
+import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
@@ -149,7 +149,7 @@ public final class OtelMetricStorage {
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
 
-  public void collect(OtelInstrumentVisitor visitor) {
+  public void collectMetric(OtelMetricVisitor visitor) {
     if (resetOnCollect) {
       doCollectAndReset(visitor);
     } else {
@@ -158,7 +158,7 @@ public final class OtelMetricStorage {
   }
 
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
-  private void doCollect(OtelInstrumentVisitor visitor) {
+  private void doCollect(OtelMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     currentRecording.aggregators.forEach(
         (attributes, aggregator) -> {
@@ -173,7 +173,7 @@ public final class OtelMetricStorage {
    *
    * <p>Each collect request toggles between two groups of aggregators: current / previous.
    */
-  private void doCollectAndReset(OtelInstrumentVisitor visitor) {
+  private void doCollectAndReset(OtelMetricVisitor visitor) {
 
     // capture _current_ recording for collection, its aggregators will be reset at the end
     final Recording recording = currentRecording;
