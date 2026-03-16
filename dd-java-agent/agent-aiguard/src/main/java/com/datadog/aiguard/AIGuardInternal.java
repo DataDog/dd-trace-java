@@ -205,6 +205,9 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+    if (isBlockingEnabled == null) {
+      return false;
+    }
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
