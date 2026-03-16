@@ -190,6 +190,28 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     0 * _
   }
 
+  def "test fallback when /info empty"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+
+    when: "/info is empty"
+    features.discover()
+
+    then:
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, "{}") }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.6/stats" }) >> { Request request -> clientError(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.3/traces" }) >> { Request request -> success(request) }
+    features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
+    features.getTraceEndpoint() == V04_ENDPOINT
+    !features.supportsLongRunning()
+    features.state() == PROBE_STATE
+    0 * _
+  }
+
   def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
