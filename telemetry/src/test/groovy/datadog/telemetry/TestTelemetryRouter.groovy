@@ -248,7 +248,7 @@ class TestTelemetryRouter extends TelemetryRouter {
     PayloadAssertions instrumentationConfigId(String id) {
       boolean checked = false
       this.payload['configuration'].each { v ->
-        if (v['name'] == 'instrumentation_config_id') {
+        if (v['name'] == 'DD_INSTRUMENTATION_CONFIG_ID') {
           assert v['value'] == id
           checked = true
         }
