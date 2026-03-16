@@ -67,6 +67,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
@@ -275,6 +276,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
       checkMethodParameters(classNode);
+      if (!checkRecordTypeAnnotation(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
@@ -331,6 +335,37 @@ public class DebuggerTransformer implements ClassFileTransformer {
         break;
       }
     }
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8376185), when a record using a type
+   * annotation is retransformed, the internal JVM representation of this record is corrupted
+   * and lead to exception in best cases but in JVM crashes in worst cases.
+   * Note: the bug happens only at retransform time and not instrumenting at load time. But the
+   * fact we have already instrumented the record at load time, will prevent us to remove the
+   * instrumentation because it needs a retransformation and will lead to corruption of the record
+   */
+  private boolean checkRecordTypeAnnotation(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
+    if (!ASMHelper.isRecord(classNode)) {
+      return true;
+    }
+    if (classNode.fields == null || classNode.fields.isEmpty()) {
+      return true;
+    }
+    for (FieldNode field : classNode.fields) {
+      if ((field.visibleTypeAnnotations != null && !field.visibleTypeAnnotations.isEmpty())
+          || (field.invisibleTypeAnnotations != null
+              && !field.invisibleTypeAnnotations.isEmpty())) {
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
+            "Instrumentation of a record with type annotation is not supported");
+        return false;
+      }
+    }
+    // no type annotation for components, not a problem
+    return true;
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
