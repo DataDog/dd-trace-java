@@ -1,5 +1,4 @@
 plugins {
-  groovy
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
@@ -72,7 +71,6 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
-  implementation(localGroovy())
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
 
