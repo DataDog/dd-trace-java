@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -7,10 +8,13 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
+import java.util.function.Function;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
@@ -47,49 +51,50 @@ public final class SerializingMetricWriter implements MetricWriter {
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
   public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
 
+  private static final Function<GitInfo, UTF8BytesString> SHA_COMMIT_GETTER =
+      gitInfo ->
+          gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
+              ? UTF8BytesString.create(gitInfo.getCommit().getSha())
+              : EMPTY;
+
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
   private final GrowableBuffer buffer;
+  private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
+      DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
-
-  static class GitLazyInfo {
-    static GitLazyInfo INSTANCE = new GitLazyInfo();
-    final UTF8BytesString commitSha;
-
-    private GitLazyInfo() {
-      final GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
-      if (gitInfo != null && gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null) {
-        commitSha = UTF8BytesString.create(gitInfo.getCommit().getSha());
-      } else {
-        commitSha = null;
-      }
-    }
-
-    // @VisibleForTesting
-    static void reset() {
-      GitInfoProvider.INSTANCE.invalidateCache();
-      INSTANCE = new GitLazyInfo();
-    }
-  }
+  private final GitInfoProvider gitInfoProvider;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
   }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
+    this(wellKnownTags, sink, initialCapacity, GitInfoProvider.INSTANCE);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      int initialCapacity,
+      final GitInfoProvider gitInfoProvider) {
     this.wellKnownTags = wellKnownTags;
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
+    this.gitInfoProvider = new GitInfoProvider();
   }
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
-    final UTF8BytesString gitSha = GitLazyInfo.INSTANCE.commitSha;
-    final boolean writeGitCommitSha = gitSha != null;
+    // the gitinfo can be rebuild in time and initialized after this class is created. So that a
+    // cacheable is needed
+    final UTF8BytesString gitSha =
+        gitInfoCache.computeIfAbsent(gitInfoProvider.getGitInfo(), SHA_COMMIT_GETTER);
+    final boolean writeGitCommitSha = gitSha != EMPTY;
     writer.startMap(7 + (writeProcessTags ? 1 : 0) + (writeGitCommitSha ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);

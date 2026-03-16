@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -11,7 +10,8 @@ import datadog.trace.api.Config
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.WellKnownTags
-import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.api.git.CommitInfo
+import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
@@ -207,12 +207,11 @@ class SerializingMetricWriterTest extends DDSpecification {
     // and that HTTPMethod/HTTPEndpoint are only present when non-empty
   }
 
-  def "add git sha commit info when supplied is #userSupplied"() {
+  def "add git sha commit info when sha commit is #shaCommit"() {
     setup:
-    if (userSupplied != null) {
-      CapturedEnvironment.get().properties.put(DD_GIT_COMMIT_SHA, userSupplied)
-    }
-    SerializingMetricWriter.GitLazyInfo.reset()
+    GitInfoProvider gitInfoProvider = Mock(GitInfoProvider)
+    gitInfoProvider.getGitInfo() >> new GitInfo(null, null, null, new CommitInfo(shaCommit))
+
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
@@ -223,9 +222,10 @@ class SerializingMetricWriterTest extends DDSpecification {
     def content = [Pair.of(key, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),]
 
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
-    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128, gitInfoProvider)
 
     when:
+
     writer.startBucket(content.size(), startTime, duration)
     for (Pair<MetricKey, AggregateMetric> pair : content) {
       writer.add(pair.getLeft(), pair.getRight())
@@ -233,14 +233,11 @@ class SerializingMetricWriterTest extends DDSpecification {
     writer.finishBucket()
 
     then:
+
     sink.validatedInput()
 
-    cleanup:
-    CapturedEnvironment.get().properties.remove(DD_GIT_COMMIT_SHA)
-    SerializingMetricWriter.GitLazyInfo.reset()
-
     where:
-    userSupplied << [null, "123456"]
+    shaCommit << [null, "123456"]
   }
 
   static class ValidatingSink implements Sink {
