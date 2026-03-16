@@ -107,7 +107,7 @@ testing {
       }
       targets.configureEach {
         testTask.configure {
-          enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
+          enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
         }
       }
     }
