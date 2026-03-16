@@ -131,11 +131,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while creating execution settings");
-      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.REQUEST_ERROR);
 
     } catch (ExecutionException e) {
       LOGGER.error("Error while creating execution settings", e);
-      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.REQUEST_ERROR);
 
     } finally {
       settingsExecutor.shutdownNow();
@@ -146,6 +146,10 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private Map<String, ExecutionSettings> doCreate(
       TracerEnvironment tracerEnvironment, CiVisibilitySettings settings, ExecutorService executor)
       throws InterruptedException, ExecutionException {
+    if (settings.isRequestError()) {
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.REQUEST_ERROR);
+    }
+
     boolean itrEnabled =
         isFeatureEnabled(
             settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
@@ -287,7 +291,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
-              pullRequestDiff));
+              pullRequestDiff,
+              false));
     }
     return settingsByModule;
   }

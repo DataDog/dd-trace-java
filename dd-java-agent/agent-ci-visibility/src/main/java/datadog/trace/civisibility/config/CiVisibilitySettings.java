@@ -21,7 +21,8 @@ public class CiVisibilitySettings {
           false,
           EarlyFlakeDetectionSettings.DEFAULT,
           TestManagementSettings.DEFAULT,
-          null);
+          null,
+          true);
 
   private final boolean itrEnabled;
   private final boolean codeCoverage;
@@ -35,6 +36,7 @@ public class CiVisibilitySettings {
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
   @Nullable private final String defaultBranch;
+  private final boolean requestError;
 
   CiVisibilitySettings(
       boolean itrEnabled,
@@ -48,7 +50,8 @@ public class CiVisibilitySettings {
       boolean failedTestReplayEnabled,
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       TestManagementSettings testManagementSettings,
-      @Nullable String defaultBranch) {
+      @Nullable String defaultBranch,
+      boolean requestError) {
     this.itrEnabled = itrEnabled;
     this.codeCoverage = codeCoverage;
     this.testsSkipping = testsSkipping;
@@ -61,6 +64,7 @@ public class CiVisibilitySettings {
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
     this.defaultBranch = defaultBranch;
+    this.requestError = requestError;
   }
 
   public boolean isItrEnabled() {
@@ -112,6 +116,10 @@ public class CiVisibilitySettings {
     return defaultBranch;
   }
 
+  public boolean isRequestError() {
+    return requestError;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -132,7 +140,8 @@ public class CiVisibilitySettings {
         && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
-        && Objects.equals(defaultBranch, that.defaultBranch);
+        && Objects.equals(defaultBranch, that.defaultBranch)
+        && requestError == that.requestError;
   }
 
   @Override
@@ -149,7 +158,8 @@ public class CiVisibilitySettings {
         failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
         testManagementSettings,
-        defaultBranch);
+        defaultBranch,
+        requestError);
   }
 
   public interface Factory {
@@ -180,7 +190,8 @@ public class CiVisibilitySettings {
               (Map<String, Object>) json.get("early_flake_detection")),
           TestManagementSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("test_management")),
-          getString(json, "default_branch", null));
+          getString(json, "default_branch", null),
+          false); // Correctly deserialized settings response is never considered as "errored"
     }
 
     private static boolean getBoolean(
