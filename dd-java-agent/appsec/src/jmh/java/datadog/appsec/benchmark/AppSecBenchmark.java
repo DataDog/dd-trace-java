@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -124,6 +125,7 @@ public class AppSecBenchmark {
     normalRequest();
   }
 
+  @ParametersAreNonnullByDefault
   static class StubHttpClient implements HttpClient {
     private static final HttpResponse STUB_RESPONSE = new StubHttpResponse();
 

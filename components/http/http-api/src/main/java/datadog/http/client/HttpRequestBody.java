@@ -35,28 +35,28 @@ public interface HttpRequestBody {
    * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(String content) {
-    return HttpProviders.requestBodyOfString(content);
+    return HttpProviders.get().requestBodyOfString(content);
   }
 
   /**
    * Creates a request body from raw bytes. Content-Type should be set via request headers.
    *
-   * @param bytes the string content
+   * @param bytes the byte array content
    * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(byte[] bytes) {
-    return HttpProviders.requestBodyOfBytes(bytes);
+    return HttpProviders.get().requestBodyOfBytes(bytes);
   }
 
   /**
    * Creates a request body from a list of {@link ByteBuffer}s. Content-Type should be set via
    * request headers.
    *
-   * @param buffers the string content
+   * @param buffers the list of byte buffers content
    * @return a new {@link HttpRequestBody}
    */
   static HttpRequestBody of(List<ByteBuffer> buffers) {
-    return HttpProviders.requestBodyOfByteBuffers(buffers);
+    return HttpProviders.get().requestBodyOfByteBuffers(buffers);
   }
 
   /**
@@ -65,10 +65,11 @@ public interface HttpRequestBody {
    * via request headers.
    *
    * @param body the body to compress
+   * @throws IOException if the body cannot be compressed
    * @return a new gzip-compressed {@link HttpRequestBody}
    */
-  static HttpRequestBody gzip(HttpRequestBody body) {
-    return HttpProviders.requestBodyGzip(body);
+  static HttpRequestBody gzip(HttpRequestBody body) throws IOException {
+    return HttpProviders.get().requestBodyGzip(body);
   }
 
   /**
@@ -77,7 +78,7 @@ public interface HttpRequestBody {
    * @return a new {@link MultipartBuilder}
    */
   static MultipartBuilder multipart() {
-    return HttpProviders.requestBodyMultipart();
+    return HttpProviders.get().requestBodyMultipart();
   }
 
   /**
