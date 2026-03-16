@@ -322,29 +322,28 @@ public class DefaultConfigurationPoller
   }
 
   void sendRequest(Consumer<HttpResponse> responseConsumer) throws IOException {
-    try (HttpResponse response = fetchConfiguration()) {
-      if (response.code() == 404) {
-        log.debug("Remote configuration endpoint is disabled");
-        return;
-      }
-      if (response.code() == 204) {
-        log.debug("No configuration changes (HTTP 204 No Content)");
-        return;
-      }
-      if (response.isSuccessful()) {
-        responseConsumer.accept(response);
-        return;
-      }
-      // Retrieve body content for detailed error messages
-      try {
-        ratelimitedLogger.warn(
-            "Failed to retrieve remote configuration: unexpected response code {} {}",
-            response.code(),
-            response.bodyAsString());
-      } catch (IOException ex) {
-        ExceptionHelper.rateLimitedLogException(
-            ratelimitedLogger, log, ex, "Error while getting error message body");
-      }
+    HttpResponse response = fetchConfiguration();
+    if (response.code() == 404) {
+      log.debug("Remote configuration endpoint is disabled");
+      return;
+    }
+    if (response.code() == 204) {
+      log.debug("No configuration changes (HTTP 204 No Content)");
+      return;
+    }
+    if (response.isSuccessful()) {
+      responseConsumer.accept(response);
+      return;
+    }
+    // Retrieve body content for detailed error messages
+    try {
+      ratelimitedLogger.warn(
+          "Failed to retrieve remote configuration: unexpected response code {} {}",
+          response.code(),
+          response.bodyAsString());
+    } catch (IOException ex) {
+      ExceptionHelper.rateLimitedLogException(
+          ratelimitedLogger, log, ex, "Error while getting error message body");
     }
   }
 

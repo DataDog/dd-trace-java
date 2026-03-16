@@ -85,30 +85,28 @@ public class EvpProxyApi implements BackendApi {
     }
 
     final HttpRequest request = requestBuilder.post(requestBody).build();
+    final HttpResponse response =
+        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request);
+    if (response.isSuccessful()) {
+      log.debug("Request to {} returned successful response: {}", uri, response.code());
 
-    try (HttpResponse response =
-        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
-      if (response.isSuccessful()) {
-        log.debug("Request to {} returned successful response: {}", uri, response.code());
+      InputStream responseBodyStream = response.body();
 
-        InputStream responseBodyStream = response.body();
-
-        String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
-        if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
-          log.debug("Response content encoding is {}, unzipping response body", contentEncoding);
-          responseBodyStream = new GZIPInputStream(responseBodyStream);
-        }
-
-        return responseParser.apply(responseBodyStream);
-      } else {
-        throw new IOException(
-            "Request to "
-                + uri
-                + " returned error response "
-                + response.code()
-                + "; "
-                + response.bodyAsString());
+      String contentEncoding = response.header(CONTENT_ENCODING_HEADER);
+      if (GZIP_ENCODING.equalsIgnoreCase(contentEncoding)) {
+        log.debug("Response content encoding is {}, unzipping response body", contentEncoding);
+        responseBodyStream = new GZIPInputStream(responseBodyStream);
       }
+
+      return responseParser.apply(responseBodyStream);
+    } else {
+      throw new IOException(
+          "Request to "
+              + uri
+              + " returned error response "
+              + response.code()
+              + "; "
+              + response.bodyAsString());
     }
   }
 }

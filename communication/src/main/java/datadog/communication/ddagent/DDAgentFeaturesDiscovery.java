@@ -153,7 +153,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
       HttpRequest request = prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
-      try (HttpResponse response = client.execute(request)) {
+      try {
+        HttpResponse response = client.execute(request);
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
           fallback = !processInfoResponse(newState, response.bodyAsString());

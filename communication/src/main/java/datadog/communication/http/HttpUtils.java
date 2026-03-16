@@ -223,8 +223,6 @@ public final class HttpUtils {
           }
           if (!retryPolicy.shouldRetry(response)) {
             return response;
-          } else {
-            closeQuietly(response);
           }
         } catch (Exception ex) {
           if (!retryPolicy.shouldRetry(ex)) {
@@ -234,14 +232,6 @@ public final class HttpUtils {
         // If we get here, there has been an error, and we still have retries left
         retryPolicy.backoff();
       }
-    }
-  }
-
-  private static void closeQuietly(HttpResponse response) {
-    try {
-      response.close();
-    } catch (Exception e) {
-      // ignore
     }
   }
 

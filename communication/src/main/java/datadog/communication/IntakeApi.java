@@ -81,22 +81,20 @@ public class IntakeApi implements BackendApi {
     }
 
     HttpRequest request = requestBuilder.build();
-    try (HttpResponse response =
-        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
-      if (response.isSuccessful()) {
-        log.debug("Request to {} returned successful response: {}", uri, response.code());
-        try (InputStream responseBodyStream = streamFromResponse(response)) {
-          return responseParser.apply(responseBodyStream);
-        }
-      } else {
-        throw new IOException(
-            "Request to "
-                + uri
-                + " returned error response "
-                + response.code()
-                + "; "
-                + response.bodyAsString());
+    HttpResponse response = HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request);
+    if (response.isSuccessful()) {
+      log.debug("Request to {} returned successful response: {}", uri, response.code());
+      try (InputStream responseBodyStream = streamFromResponse(response)) {
+        return responseParser.apply(responseBodyStream);
       }
+    } else {
+      throw new IOException(
+          "Request to "
+              + uri
+              + " returned error response "
+              + response.code()
+              + "; "
+              + response.bodyAsString());
     }
   }
 
