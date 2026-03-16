@@ -50,8 +50,6 @@ public class HttpClientTest {
     assertTrue(response.isSuccessful());
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test
@@ -81,8 +79,6 @@ public class HttpClientTest {
     assertTrue(response.isSuccessful());
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test
@@ -112,8 +108,6 @@ public class HttpClientTest {
     assertTrue(response.isSuccessful());
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test
@@ -132,8 +126,6 @@ public class HttpClientTest {
     assertFalse(response.isSuccessful());
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test
@@ -164,8 +156,6 @@ public class HttpClientTest {
     assertTrue(response.isSuccessful());
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test
@@ -197,8 +187,6 @@ public class HttpClientTest {
     assertEquals("value3", customHeaderValues.get(2));
 
     this.server.verify(expectedRequest);
-
-    response.close();
   }
 
   @Test

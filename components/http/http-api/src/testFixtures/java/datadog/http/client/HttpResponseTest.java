@@ -56,8 +56,6 @@ public class HttpResponseTest {
     try (InputStream body = response.body()) {
       assertEquals(responseBody, readAll(body));
     }
-
-    response.close();
   }
 
   @Test
@@ -77,8 +75,6 @@ public class HttpResponseTest {
     try (InputStream body = response.body()) {
       assertEquals("", readAll(body));
     }
-
-    response.close();
   }
 
   @Test
@@ -101,8 +97,6 @@ public class HttpResponseTest {
     // missing header
     assertNull(response.header("X-Missing-Header"));
     assertTrue(response.headers("X-Missing-Header").isEmpty());
-
-    response.close();
   }
 
   @Test
@@ -125,8 +119,6 @@ public class HttpResponseTest {
     assertTrue(headerNames.contains("Content-Type"));
     assertTrue(headerNames.contains("X-Custom-Header"));
     assertTrue(headerNames.contains("X-Another-Header"));
-
-    response.close();
   }
 
   private String readAll(InputStream in) throws IOException {

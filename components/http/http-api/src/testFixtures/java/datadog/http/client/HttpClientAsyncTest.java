@@ -59,7 +59,6 @@ public class HttpClientAsyncTest {
     assertEquals("success", response.bodyAsString());
 
     this.server.verify(expectedRequest);
-    response.close();
   }
 
   @Test
@@ -79,7 +78,6 @@ public class HttpClientAsyncTest {
     assertEquals(404, response.code());
 
     this.server.verify(expectedRequest);
-    response.close();
   }
 
   @Test
@@ -200,8 +198,6 @@ public class HttpClientAsyncTest {
                     return Integer.parseInt(response.bodyAsString().trim());
                   } catch (IOException e) {
                     throw new RuntimeException(e);
-                  } finally {
-                    response.close();
                   }
                 });
 
@@ -241,8 +237,5 @@ public class HttpClientAsyncTest {
 
     assertEquals("response1", response1.bodyAsString());
     assertEquals("response2", response2.bodyAsString());
-
-    response1.close();
-    response2.close();
   }
 }

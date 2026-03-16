@@ -2,6 +2,8 @@ package datadog.http.client.okhttp;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.common.socket.NamedPipeSocketFactory;
+import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.http.client.HttpClient;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestListener;
@@ -10,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -17,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.EventListener;
@@ -169,22 +173,19 @@ public final class OkHttpClient implements HttpClient {
 
     @Override
     public HttpClient.Builder unixDomainSocket(File socketFile) {
-      // Unix domain socket support requires custom SocketFactory
-      // Will be implemented in future phase
+      this.delegate.socketFactory(new UnixDomainSocketFactory(socketFile));
       return this;
     }
 
     @Override
     public HttpClient.Builder namedPipe(String pipeName) {
-      // Named pipe support is Windows-specific
-      // Will be implemented in future phase
+      this.delegate.socketFactory(new NamedPipeSocketFactory(pipeName));
       return this;
     }
 
     @Override
     public HttpClient.Builder clearText(boolean clearText) {
-      // OkHttp supports both HTTP and HTTPS by default
-      // No special configuration needed for clear text
+      this.delegate.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
       return this;
     }
 
