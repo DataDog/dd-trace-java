@@ -1168,6 +1168,7 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
     def rs = adminConn.createStatement().executeQuery(
       "SELECT sql_fulltext FROM v\$sql " +
       "WHERE sql_fulltext LIKE '%1729%' AND sql_fulltext LIKE '%dddbs%' " +
+      "AND sql_fulltext LIKE '%oracle-dbm-fix-verify%' " +
       "AND ROWNUM = 1"
       )
     assert rs.next() : "Instrumented Oracle query not found in v\$sql — DBM comment may be missing"
