@@ -18,6 +18,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
+  muzzleBootstrap project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
