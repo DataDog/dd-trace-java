@@ -268,8 +268,6 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "continuation allows adding after root finished"() {
     setup:
-    def latch = new CountDownLatch(1)
-
     def trace = factory.create(DDTraceId.ONE)
     def parent = addContinuation(newSpanOf(trace))
     TraceScope.Continuation continuation = continuations[0]
@@ -302,19 +300,20 @@ class PendingTraceBufferTest extends DDSpecification {
     !trace.rootSpanWritten
 
     when:
-    buffer.start()
+    // Don't start the buffer thread here. When the continuation is cancelled,
+    // pendingReferenceCount drops to 0 with rootSpanWritten still false, so
+    // write() is called synchronously on this thread. Starting the buffer
+    // would introduce a race where the worker thread could process the
+    // enqueued trace before continuation.cancel(), causing extra mock
+    // invocations (TooManyInvocationsError).
     continuation.cancel()
-    latch.await()
 
     then:
     trace.size() == 0
     trace.pendingReferenceCount == 0
     trace.rootSpanWritten
-    _ * bufferSpy.longRunningSpansEnabled()
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
-    1 * tracer.write({ it.size() == 2 }) >> {
-      latch.countDown()
-    }
+    1 * tracer.write({ it.size() == 2 })
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.getTagInterceptor()
     0 * _

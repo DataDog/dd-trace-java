@@ -105,6 +105,7 @@ include(
   ":communication",
   ":components:context",
   ":components:environment",
+  ":components:http:http-api",
   ":components:json",
   ":components:native-loader",
   ":products:metrics:metrics-agent",

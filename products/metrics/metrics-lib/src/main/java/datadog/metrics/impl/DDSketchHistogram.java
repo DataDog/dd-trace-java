@@ -12,14 +12,35 @@ import java.util.List;
 /** Wrapper around the DDSketch library so that it can be used in an instrumentation */
 public class DDSketchHistogram implements Histogram {
   private final DDSketch sketch;
+  private double sum;
+  // We use a compensated sum to avoid accumulating rounding errors.
+  // See https://en.wikipedia.org/wiki/Kahan_summation_algorithm.
+  private double sumCompensation; // Low order bits of sum
+  private double simpleSum; // Used to compute right sum for non-finite inputs
 
   public DDSketchHistogram(DDSketch sketch) {
     this.sketch = sketch;
+    this.sum = 0;
+    this.simpleSum = 0;
+    this.sumCompensation = 0;
   }
 
   @Override
   public double getCount() {
     return sketch.getCount();
+  }
+
+  @Override
+  public double getSum() {
+    // Better error bounds to add both terms as the final sum
+    final double tmp = sum + sumCompensation;
+    if (Double.isNaN(tmp) && Double.isInfinite(simpleSum)) {
+      // If the compensated sum is spuriously NaN from accumulating one or more same-signed infinite
+      // values, return the correctly-signed infinity stored in simpleSum.
+      return simpleSum;
+    } else {
+      return tmp;
+    }
   }
 
   @Override
@@ -30,11 +51,13 @@ public class DDSketchHistogram implements Histogram {
   @Override
   public void accept(double value) {
     sketch.accept(value);
+    updateSum(value);
   }
 
   @Override
   public void accept(double value, double count) {
     sketch.accept(value, count);
+    updateSum(value * count);
   }
 
   @Override
@@ -102,5 +125,17 @@ public class DDSketchHistogram implements Histogram {
   @Override
   public ByteBuffer serialize() {
     return sketch.serialize();
+  }
+
+  private void updateSum(double value) {
+    simpleSum += value;
+    sumWithCompensation(value);
+  }
+
+  private void sumWithCompensation(double value) {
+    final double tmp = value - sumCompensation;
+    final double velvel = sum + tmp; // Little wolf of rounding error
+    sumCompensation = (velvel - sum) - tmp;
+    sum = velvel;
   }
 }
