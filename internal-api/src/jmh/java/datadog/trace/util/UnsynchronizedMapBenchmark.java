@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import datadog.collections.tagmap11_prototype2.TagMap;
+import datadog.trace.api.TagMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
