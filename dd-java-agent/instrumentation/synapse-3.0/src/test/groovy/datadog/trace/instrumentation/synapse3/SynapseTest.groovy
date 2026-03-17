@@ -215,35 +215,44 @@ abstract class SynapseTest extends VersionedNamingTestBase {
     int statusCode = client.newCall(request).execute().code()
 
     then:
-    // Wait for at least 2 traces; Synapse proxy requests can sometimes produce
-    // an additional trace from internal activity, so we tolerate extra traces.
+    // Synapse proxy handling can occasionally produce extra internal traces beyond the expected two
+    // (proxy+client trace and backend server trace), so we wait for at least 2 and filter to the
+    // traces we care about rather than asserting on an exact count.
     TEST_WRITER.waitForTraces(2)
-    def traces = new ArrayList<>(TEST_WRITER)
-    assert traces.size() >= 2
-    Collections.sort(traces, SORT_TRACES_BY_NAMES)
+    def allTraces = new ArrayList<>(TEST_WRITER)
 
-    // Find key spans across all traces. Synapse can produce variable numbers of traces and spans
-    // (e.g. extra internal activity), so we identify spans by resource name across all traces.
-    def allSpans = traces.flatten()
-    def proxyServerSpan = allSpans.find {
-      it.resourceName.toString() == "POST /services/StockQuoteProxy"
+    // Identify the two expected traces by their root span resource name.
+    def proxyTrace = allTraces.find { trace ->
+      trace.any { it.resourceName.toString() == "POST /services/StockQuoteProxy" }
     }
-    def clientSpan = allSpans.find {
+    def serverTrace = allTraces.find { trace ->
+      trace.any {
+        it.resourceName.toString() == "POST /services/SimpleStockQuoteService" &&
+          it.spanType == DDSpanTypes.HTTP_SERVER
+      } && !trace.any { it.resourceName.toString() == "POST /services/StockQuoteProxy" }
+    }
+
+    def allSpanDescriptions = allTraces.flatten().collect { it.resourceName.toString() + "(" + it.spanType + ")" }
+    assert proxyTrace != null : "Expected proxy trace not found in ${allTraces.size()} traces: ${allSpanDescriptions}"
+    assert serverTrace != null : "Expected backend server trace not found in ${allTraces.size()} traces: ${allSpanDescriptions}"
+
+    // Identify the client span so we can use it as the expected parent for the backend server span.
+    def clientSpanFromProxyTrace = proxyTrace.find {
       it.resourceName.toString() == "POST /services/SimpleStockQuoteService" &&
         it.spanType == DDSpanTypes.HTTP_CLIENT
     }
-    def serverSpan = allSpans.find {
-      it.resourceName.toString() == "POST /services/SimpleStockQuoteService" &&
-        it.spanType == DDSpanTypes.HTTP_SERVER
+    assert clientSpanFromProxyTrace != null : "Expected client span in proxy trace"
+
+    // Full span assertions using the existing helper methods, applied to each located trace.
+    TraceAssert.assertTrace(serverTrace, 1) {
+      serverSpan(it, 0, 'POST', statusCode, null, clientSpanFromProxyTrace, true)
     }
-
-    def allSpanDescriptions = allSpans.collect { it.resourceName.toString() + "(" + it.spanType + ")" }
-    assert proxyServerSpan != null : "Expected proxy server span, found: ${allSpanDescriptions}"
-    assert clientSpan != null : "Expected HTTP client span for forwarded call, found: ${allSpanDescriptions}"
-    assert serverSpan != null : "Expected server span for forwarded call, found: ${allSpanDescriptions}"
-
-    // Verify distributed tracing: the client span's traceId was propagated to the server span
-    assert clientSpan.traceId == serverSpan.traceId : "Expected client and server spans to share traceId, client traceId=${clientSpan.traceId}, server traceId=${serverSpan.traceId}"
+    TraceAssert.assertTrace(proxyTrace, 2) {
+      proxySpan(it, 0, 'POST', statusCode)
+      clientSpan(it, 1, 'POST', statusCode, span(0))
+      // Verify distributed tracing: client span's traceId was propagated to the backend server span.
+      assert span(1).traceId == clientSpanFromProxyTrace.traceId
+    }
 
     statusCode == 200
   }
