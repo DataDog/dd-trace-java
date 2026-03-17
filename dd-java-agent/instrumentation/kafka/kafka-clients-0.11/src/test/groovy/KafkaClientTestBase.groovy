@@ -1481,6 +1481,10 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
     super.configurePreAgent()
     injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledForkedTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
+    // Deterministic reproduction: SEQUENTIAL ID strategy forces a known sort order
+    // that differs from the reverse order the original positional code assumed,
+    // proving the dynamic parent lookup fix handles any ordering.
+    injectSysConfig("id.generation.strategy", "SEQUENTIAL")
   }
 
   @Override
