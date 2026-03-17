@@ -243,32 +243,31 @@ public class AIGuardInternal implements Evaluator {
               .header(CONTENT_TYPE, APPLICATION_JSON)
               .post(HttpRequestBody.of(formatRequestBody(moshi, messages, meta)));
       headers.forEach(request::header);
-      try (final HttpResponse response = client.execute(request.build())) {
-        final Map<String, Object> result = parseResponseBody(response);
-        final String actionStr = (String) result.get("action");
-        if (actionStr == null) {
-          throw new IllegalArgumentException("Action field is missing in the response");
-        }
-        final Action action = Action.valueOf(actionStr);
-        final String reason = (String) result.get("reason");
-        @SuppressWarnings("unchecked")
-        final List<String> tags = (List<String>) result.get("tags");
-        span.setTag(ACTION_TAG, action);
-        if (reason != null) {
-          span.setTag(REASON_TAG, reason);
-        }
-        if (tags != null && !tags.isEmpty()) {
-          metaStruct.put(META_STRUCT_CATEGORIES, tags);
-        }
-        final boolean shouldBlock =
-            isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
-        WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
-        if (shouldBlock) {
-          span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags);
-        }
-        return new Evaluation(action, reason, tags);
+      final HttpResponse response = client.execute(request.build());
+      final Map<String, Object> result = parseResponseBody(response);
+      final String actionStr = (String) result.get("action");
+      if (actionStr == null) {
+        throw new IllegalArgumentException("Action field is missing in the response");
       }
+      final Action action = Action.valueOf(actionStr);
+      final String reason = (String) result.get("reason");
+      @SuppressWarnings("unchecked")
+      final List<String> tags = (List<String>) result.get("tags");
+      span.setTag(ACTION_TAG, action);
+      if (reason != null) {
+        span.setTag(REASON_TAG, reason);
+      }
+      if (tags != null && !tags.isEmpty()) {
+        metaStruct.put(META_STRUCT_CATEGORIES, tags);
+      }
+      final boolean shouldBlock =
+          isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
+      WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
+      if (shouldBlock) {
+        span.setTag(BLOCKED_TAG, true);
+        throw new AIGuardAbortError(action, reason, tags);
+      }
+      return new Evaluation(action, reason, tags);
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);
       throw e;
