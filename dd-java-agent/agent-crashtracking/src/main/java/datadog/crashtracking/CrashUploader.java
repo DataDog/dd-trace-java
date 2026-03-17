@@ -561,6 +561,18 @@ public final class CrashUploader {
                       "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
+        // experimental
+        if (payload.experimental != null && payload.experimental.ucontext != null) {
+          writer.name("experimental");
+          writer.beginObject();
+          writer.name("ucontext");
+          writer.beginObject();
+          for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+            writer.name(entry.getKey()).value(entry.getValue());
+          }
+          writer.endObject();
+          writer.endObject();
+        }
         writer.endObject();
       }
       return RequestBody.create(APPLICATION_JSON, buf.readByteString());

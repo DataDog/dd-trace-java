@@ -7,6 +7,7 @@ import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.ErrorData;
+import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
@@ -21,8 +22,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,6 +48,7 @@ public final class HotspotCrashLogParser {
     SUMMARY,
     THREAD,
     STACKTRACE,
+    REGISTERS,
     SEEK_DYNAMIC_LIBRARIES,
     DYNAMIC_LIBRARIES,
     DONE
@@ -65,6 +69,9 @@ public final class HotspotCrashLogParser {
           "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+si_addr:\\s+(0x[0-9a-fA-F]+)");
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
+  // Matches register entries like: RAX=0x..., R8 =0x..., TRAPNO=0x...
+  private static final Pattern REGISTER_ENTRY_PARSER =
+      Pattern.compile("([A-Z0-9]+)\\s*=\\s*(0x[0-9a-fA-F]+)");
 
   private StackFrame parseLine(String line) {
     if (line == null || line.isEmpty()) {
@@ -84,10 +91,10 @@ public final class HotspotCrashLogParser {
     switch (firstChar) {
       case 'J':
         {
-          // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @
-          // 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
-          // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20
-          // bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // spotless:off
+          // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
+          // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // spotless:on
           String[] parts = SPACE_SPLITTER.split(line);
           if (parts.length > 3) {
             functionName = parts[3];
@@ -221,6 +228,7 @@ public final class HotspotCrashLogParser {
     String datetime = null;
     boolean incomplete = false;
     String oomMessage = null;
+    Map<String, String> registers = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -275,8 +283,9 @@ public final class HotspotCrashLogParser {
           break;
         case STACKTRACE:
           if (line.startsWith("siginfo:")) {
-            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr:
-            // 0x0000000000000070
+            // spotless:off
+            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000070
+            // spotless:on
             final Matcher siginfoMatcher = SIGINFO_PARSER.matcher(line);
             if (siginfoMatcher.matches()) {
               Integer number = safelyParseInt(siginfoMatcher.group(1));
@@ -286,6 +295,9 @@ public final class HotspotCrashLogParser {
               String address = siginfoMatcher.group(5);
               sigInfo = new SigInfo(number, name, siCode, sigAction, address);
             }
+          } else if (line.startsWith("Registers:")) {
+            registers = new LinkedHashMap<>();
+            state = State.REGISTERS;
           } else if (line.contains("P R O C E S S")) {
             state = State.SEEK_DYNAMIC_LIBRARIES;
           } else {
@@ -293,6 +305,18 @@ public final class HotspotCrashLogParser {
             final StackFrame frame = parseLine(line);
             if (frame != null) {
               frames.add(frame);
+            }
+          }
+          break;
+        case REGISTERS:
+          if (!line.isEmpty() && !REGISTER_ENTRY_PARSER.matcher(line).find()) {
+            // non-empty line with no register entries signals end of section; reprocess in
+            // STACKTRACE
+            state = State.STACKTRACE;
+          } else {
+            final Matcher m = REGISTER_ENTRY_PARSER.matcher(line);
+            while (m.find()) {
+              registers.put(m.group(1), m.group(2));
             }
           }
           break;
@@ -382,8 +406,19 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    Experimental experimental =
+        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
     return new CrashLog(
-        uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
+        uuid,
+        incomplete,
+        datetime,
+        error,
+        metadata,
+        OSInfo.current(),
+        procInfo,
+        sigInfo,
+        "1.0",
+        experimental);
   }
 
   static String dateTimeToISO(String datetime) {
