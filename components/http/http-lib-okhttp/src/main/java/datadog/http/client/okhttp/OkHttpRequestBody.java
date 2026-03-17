@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -16,6 +15,8 @@ import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import okio.BufferedSink;
+import okio.GzipSink;
+import okio.Okio;
 
 /** This class implements {@link HttpRequestBody} using OkHttp 3. */
 public final class OkHttpRequestBody implements HttpRequestBody {
@@ -86,6 +87,16 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     return new OkHttpRequestBody(new ByteBufferRequestBody(buffers));
   }
 
+  /** Wraps a request body with gzip compression. */
+  public static OkHttpRequestBody ofGzip(HttpRequestBody body) {
+    requireNonNull(body, "body");
+    return new OkHttpRequestBody(
+        new GzipRequestBody(
+            body instanceof OkHttpRequestBody
+                ? ((OkHttpRequestBody) body).delegate
+                : new HttpRequestBodyAdapter(body)));
+  }
+
   private static class ByteBufferRequestBody extends RequestBody {
     private static final MediaType MSGPACK = MediaType.get("application/msgpack");
 
@@ -119,15 +130,24 @@ public final class OkHttpRequestBody implements HttpRequestBody {
     }
   }
 
-  /** Wraps a request body with gzip compression. */
-  public static OkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
-    requireNonNull(body, "body");
-    // Compress the body content
-    try (Buffer buffer = new Buffer();
-        GZIPOutputStream gzipOut = new GZIPOutputStream(buffer.outputStream())) {
-      body.writeTo(gzipOut);
-      byte[] compressedBytes = buffer.readByteArray();
-      return new OkHttpRequestBody(RequestBody.create(null, compressedBytes));
+  private static class GzipRequestBody extends RequestBody {
+    private final RequestBody delegate;
+
+    private GzipRequestBody(RequestBody delegate) {
+      this.delegate = delegate;
+    }
+
+    @Nullable
+    @Override
+    public MediaType contentType() {
+      return this.delegate.contentType();
+    }
+
+    @Override
+    public void writeTo(BufferedSink bufferedSink) throws IOException {
+      BufferedSink gzipSink = Okio.buffer(new GzipSink(bufferedSink));
+      delegate.writeTo(gzipSink);
+      gzipSink.close();
     }
   }
 

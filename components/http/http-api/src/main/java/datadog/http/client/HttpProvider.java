@@ -1,6 +1,5 @@
 package datadog.http.client;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -23,7 +22,7 @@ public abstract class HttpProvider {
 
   public abstract HttpRequestBody requestBodyOfByteBuffers(List<ByteBuffer> buffers);
 
-  public abstract HttpRequestBody requestBodyGzip(HttpRequestBody body) throws IOException;
+  public abstract HttpRequestBody requestBodyGzip(HttpRequestBody body);
 
   public abstract HttpRequestBody.MultipartBuilder requestBodyMultipart();
 }

@@ -65,10 +65,9 @@ public interface HttpRequestBody {
    * via request headers.
    *
    * @param body the body to compress
-   * @throws IOException if the body cannot be compressed
    * @return a new gzip-compressed {@link HttpRequestBody}
    */
-  static HttpRequestBody gzip(HttpRequestBody body) throws IOException {
+  static HttpRequestBody gzip(HttpRequestBody body) {
     return HttpProviders.get().requestBodyGzip(body);
   }
 

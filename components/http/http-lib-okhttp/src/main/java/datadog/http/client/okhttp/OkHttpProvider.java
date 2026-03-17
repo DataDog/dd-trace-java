@@ -5,7 +5,6 @@ import datadog.http.client.HttpProvider;
 import datadog.http.client.HttpRequest;
 import datadog.http.client.HttpRequestBody;
 import datadog.http.client.HttpUrl;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -54,7 +53,7 @@ public final class OkHttpProvider extends HttpProvider {
   }
 
   @Override
-  public HttpRequestBody requestBodyGzip(HttpRequestBody body) throws IOException {
+  public HttpRequestBody requestBodyGzip(HttpRequestBody body) {
     return OkHttpRequestBody.ofGzip(body);
   }
 

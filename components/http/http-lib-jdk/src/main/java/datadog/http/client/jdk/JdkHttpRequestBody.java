@@ -138,6 +138,44 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
         BodyPublishers.fromPublisher(new ByteBufferPublisher(buffers), contentLength));
   }
 
+  /**
+   * Wraps a request body with gzip compression. Compression is performed lazily when the request is
+   * sent.
+   */
+  public static JdkHttpRequestBody ofGzip(HttpRequestBody body) {
+    requireNonNull(body, "body");
+    return new JdkHttpRequestBody(BodyPublishers.fromPublisher(new GzipBodyPublisher(body)));
+  }
+
+  private static final class GzipBodyPublisher implements Flow.Publisher<ByteBuffer> {
+    private final HttpRequestBody body;
+
+    GzipBodyPublisher(HttpRequestBody body) {
+      this.body = body;
+    }
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+      try {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
+          body.writeTo(gzipOut);
+        }
+        BodyPublishers.ofByteArray(baos.toByteArray()).subscribe(subscriber);
+      } catch (IOException e) {
+        subscriber.onSubscribe(
+            new Flow.Subscription() {
+              @Override
+              public void request(long n) {}
+
+              @Override
+              public void cancel() {}
+            });
+        subscriber.onError(e);
+      }
+    }
+  }
+
   private static final class ByteBufferPublisher implements Flow.Publisher<ByteBuffer> {
     private final List<ByteBuffer> buffers;
 
@@ -184,18 +222,6 @@ public final class JdkHttpRequestBody implements HttpRequestBody {
     public void cancel() {
       this.cancelled = true;
     }
-  }
-
-  /** Wraps a request body with gzip compression. */
-  public static JdkHttpRequestBody ofGzip(HttpRequestBody body) throws IOException {
-    requireNonNull(body, "body");
-    // Compress the body content
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try (GZIPOutputStream gzipOut = new GZIPOutputStream(baos)) {
-      body.writeTo(gzipOut);
-    }
-    byte[] compressedBytes = baos.toByteArray();
-    return new JdkHttpRequestBody(BodyPublishers.ofByteArray(compressedBytes));
   }
 
   /**
