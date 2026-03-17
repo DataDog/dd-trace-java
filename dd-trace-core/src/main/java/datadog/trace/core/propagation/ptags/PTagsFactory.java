@@ -17,6 +17,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -270,13 +271,30 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateKnuthSamplingRate(String rate) {
-      TagValue newValue = rate == null ? null : TagValue.from(rate);
-      if (!java.util.Objects.equals(knuthSamplingRateTagValue, newValue)) {
+    public void updateKnuthSamplingRate(double rate) {
+      TagValue newValue = TagValue.from(formatKnuthSamplingRate(rate));
+      if (!Objects.equals(knuthSamplingRateTagValue, newValue)) {
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
       }
       knuthSamplingRateTagValue = newValue;
+    }
+
+    /** Formats a sampling rate with up to 6 significant digits and no trailing zeros. */
+    static String formatKnuthSamplingRate(double rate) {
+      String formatted = String.format(Locale.ROOT, "%.6g", rate);
+      int dotIndex = formatted.indexOf('.');
+      if (dotIndex >= 0) {
+        int end = formatted.length();
+        while (end > dotIndex + 1 && formatted.charAt(end - 1) == '0') {
+          end--;
+        }
+        if (formatted.charAt(end - 1) == '.') {
+          end--;
+        }
+        formatted = formatted.substring(0, end);
+      }
+      return formatted;
     }
 
     TagValue getKnuthSamplingRateTagValue() {

@@ -5,6 +5,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
@@ -16,9 +17,16 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 class KnuthSamplingRateTest extends DDCoreSpecification {
   static serializer = DDAgentApi.RESPONSE_ADAPTER
 
-  def "formatKnuthSamplingRate produces correct format"() {
-    expect:
-    DDSpan.formatKnuthSamplingRate(rate) == expected
+  def "updateKnuthSamplingRate formats rate correctly"() {
+    setup:
+    def pTags = PropagationTags.factory().empty()
+
+    when:
+    pTags.updateKnuthSamplingRate(rate)
+    def tagMap = pTags.createTagMap()
+
+    then:
+    tagMap.get('_dd.p.ksr') == expected
 
     where:
     rate       | expected

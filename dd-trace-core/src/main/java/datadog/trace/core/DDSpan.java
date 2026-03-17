@@ -650,32 +650,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
           || samplingMechanism == SamplingMechanism.LOCAL_USER_RULE
           || samplingMechanism == SamplingMechanism.REMOTE_USER_RULE
           || samplingMechanism == SamplingMechanism.REMOTE_ADAPTIVE_RULE) {
-        context.getPropagationTags().updateKnuthSamplingRate(formatKnuthSamplingRate(sampleRate));
+        context.getPropagationTags().updateKnuthSamplingRate(sampleRate);
       }
     }
     return this;
-  }
-
-  /**
-   * Formats the sampling rate for the _dd.p.ksr propagated tag. Uses up to 6 significant digits
-   * with no trailing zeros, matching the Go/Python reference implementations (%.6g format).
-   */
-  static String formatKnuthSamplingRate(double rate) {
-    // Use %.6g format: up to 6 significant digits, no trailing zeros
-    // This matches Go's strconv.FormatFloat(rate, 'g', 6, 64) and Python's f"{rate:.6g}"
-    String formatted = String.format("%.6g", rate);
-    // Remove trailing zeros after decimal point (avoid forbidden String#replaceAll)
-    if (formatted.contains(".")) {
-      int end = formatted.length();
-      while (end > 0 && formatted.charAt(end - 1) == '0') {
-        end--;
-      }
-      if (end > 0 && formatted.charAt(end - 1) == '.') {
-        end--;
-      }
-      formatted = formatted.substring(0, end);
-    }
-    return formatted;
   }
 
   @Override

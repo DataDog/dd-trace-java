@@ -132,11 +132,13 @@ public abstract class PropagationTags {
 
   /**
    * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
-   * was applied when making an agent-based or rule-based sampling decision.
+   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
+   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
+   * implementations (%.6g format).
    *
-   * @param rate the formatted sampling rate string (up to 6 significant digits, no trailing zeros)
+   * @param rate the sampling rate value
    */
-  public abstract void updateKnuthSamplingRate(String rate);
+  public abstract void updateKnuthSamplingRate(double rate);
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
