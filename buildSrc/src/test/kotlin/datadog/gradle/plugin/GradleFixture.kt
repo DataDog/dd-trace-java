@@ -26,7 +26,7 @@ internal open class GradleFixture(protected val projectDir: File) {
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
-      .withArguments(*args)
+      .withArguments("--no-daemon", *args)
     return try {
       if (expectFailure) runner.buildAndFail() else runner.build()
     } catch (e: UnexpectedBuildResultException) {
