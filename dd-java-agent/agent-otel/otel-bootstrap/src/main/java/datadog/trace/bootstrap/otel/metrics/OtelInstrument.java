@@ -1,12 +1,12 @@
-package datadog.opentelemetry.shim.metrics;
+package datadog.trace.bootstrap.otel.metrics;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 
 /** Ensure all instruments implement the same equivalency. */
-abstract class OtelInstrument {
-  final OtelMetricStorage storage;
+public abstract class OtelInstrument {
+  protected final OtelMetricStorage storage;
 
-  OtelInstrument(OtelMetricStorage storage) {
+  protected OtelInstrument(OtelMetricStorage storage) {
     this.storage = storage;
   }
 

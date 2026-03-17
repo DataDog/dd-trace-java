@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.metrics.api.Histogram;
 import java.util.List;

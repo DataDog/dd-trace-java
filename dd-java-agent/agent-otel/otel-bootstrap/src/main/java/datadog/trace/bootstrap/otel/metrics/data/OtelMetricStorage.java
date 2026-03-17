@@ -1,11 +1,11 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
-import datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor;
-import datadog.opentelemetry.shim.metrics.OtelInstrumentType;
-import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
+import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor;
 import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
@@ -35,7 +35,7 @@ public final class OtelMetricStorage {
 
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
-  private final Function<Attributes, OtelAggregator> aggregatorSupplier;
+  private final Function<Object, OtelAggregator> aggregatorSupplier;
   private volatile Recording currentRecording;
 
   // only used with DELTA temporality
@@ -98,7 +98,7 @@ public final class OtelMetricStorage {
     return descriptor;
   }
 
-  public void recordLong(long value, Attributes attributes) {
+  public void recordLong(long value, Object attributes) {
     if (resetOnCollect) {
       Recording recording = acquireRecordingForWrite();
       try {
@@ -112,7 +112,7 @@ public final class OtelMetricStorage {
     }
   }
 
-  public void recordDouble(double value, Attributes attributes) {
+  public void recordDouble(double value, Object attributes) {
     if (Double.isNaN(value)) {
       LOGGER.debug(
           "Instrument {} has recorded measurement Not-a-Number (NaN) value with attributes {}. Dropping measurement.",
@@ -133,8 +133,7 @@ public final class OtelMetricStorage {
     }
   }
 
-  private OtelAggregator aggregator(
-      Map<Attributes, OtelAggregator> aggregators, Attributes attributes) {
+  private OtelAggregator aggregator(Map<Object, OtelAggregator> aggregators, Object attributes) {
     Objects.requireNonNull(attributes, "attributes");
     OtelAggregator aggregator = aggregators.get(attributes);
     if (null != aggregator) {
@@ -150,7 +149,7 @@ public final class OtelMetricStorage {
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
 
-  public void collect(OtelInstrumentVisitor visitor) {
+  public void collectMetric(OtelMetricVisitor visitor) {
     if (resetOnCollect) {
       doCollectAndReset(visitor);
     } else {
@@ -159,7 +158,7 @@ public final class OtelMetricStorage {
   }
 
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
-  private void doCollect(OtelInstrumentVisitor visitor) {
+  private void doCollect(OtelMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     currentRecording.aggregators.forEach(
         (attributes, aggregator) -> {
@@ -174,7 +173,7 @@ public final class OtelMetricStorage {
    *
    * <p>Each collect request toggles between two groups of aggregators: current / previous.
    */
-  private void doCollectAndReset(OtelInstrumentVisitor visitor) {
+  private void doCollectAndReset(OtelMetricVisitor visitor) {
 
     // capture _current_ recording for collection, its aggregators will be reset at the end
     final Recording recording = currentRecording;
@@ -188,7 +187,7 @@ public final class OtelMetricStorage {
       Thread.yield(); // other threads are still writing to this recording
     }
 
-    Map<Attributes, OtelAggregator> aggregators = recording.aggregators;
+    Map<Object, OtelAggregator> aggregators = recording.aggregators;
 
     // avoid churn: only remove empty aggregators if we're over cardinality
     if (aggregators.size() >= CARDINALITY_LIMIT) {
@@ -233,7 +232,7 @@ public final class OtelMetricStorage {
   private static final int WRITER = 2;
 
   static final class Recording {
-    final Map<Attributes, OtelAggregator> aggregators;
+    final Map<Object, OtelAggregator> aggregators;
 
     transient volatile int activity;
 
