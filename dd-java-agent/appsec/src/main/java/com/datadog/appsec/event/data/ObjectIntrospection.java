@@ -16,39 +16,17 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ObjectIntrospection {
 
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
-
-  /**
-   * Field types excluded from object introspection. Covers Groovy meta-fields and logging framework
-   * loggers — both introduce deep, cyclic, or sensitive object graphs that are irrelevant for WAF
-   * inspection and can trigger false positives (e.g. crs-944-130).
-   */
-  private static final Set<String> EXCLUDED_FIELD_TYPES;
-
-  static {
-    final Set<String> types = new HashSet<>();
-    types.add("groovy.lang.MetaClass");
-    types.add("org.slf4j.Logger");
-    types.add("org.apache.logging.log4j.Logger");
-    types.add("org.apache.logging.log4j.core.Logger");
-    types.add("java.util.logging.Logger");
-    types.add("org.apache.commons.logging.Log");
-    types.add("ch.qos.logback.classic.Logger");
-    EXCLUDED_FIELD_TYPES = Collections.unmodifiableSet(types);
-  }
 
   private static final Method trySetAccessible;
 
@@ -309,7 +287,7 @@ public final class ObjectIntrospection {
         if (Modifier.isStatic(f.getModifiers())) {
           continue;
         }
-        if (EXCLUDED_FIELD_TYPES.contains(f.getType().getName())) {
+        if (IntrospectionExcludedTypesTrie.apply(f.getType().getName()) >= 1) {
           continue;
         }
         String name = f.getName();

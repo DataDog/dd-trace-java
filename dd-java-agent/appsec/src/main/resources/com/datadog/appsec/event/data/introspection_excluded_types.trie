@@ -1,0 +1,15 @@
+# Generates 'IntrospectionExcludedTypesTrie.java'
+
+# Field types excluded from ObjectIntrospection to avoid deep/cyclic traversals
+# that could trigger WAF false positives (e.g. crs-944-130 java_code_injection).
+# 1 = exclude this field type
+
+# -------- Groovy --------
+1 groovy.lang.MetaClass
+
+# -------- Logging frameworks --------
+1 ch.qos.logback.*
+1 java.util.logging.Logger
+1 org.apache.commons.logging.Log
+1 org.apache.logging.log4j.*
+1 org.slf4j.*
