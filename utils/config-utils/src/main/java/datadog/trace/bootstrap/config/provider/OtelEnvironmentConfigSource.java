@@ -18,6 +18,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_EXPORTER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
@@ -134,9 +135,18 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
     capture(TRACE_ENABLED, mapDataCollection("traces"));
+    capture(OTLP_TRACES_EXPORTER, mapTracesExporter());
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
+  }
+
+  private String mapTracesExporter() {
+    String exporter = getOtelProperty("otel.traces.exporter");
+    if ("otlp".equalsIgnoreCase(exporter)) {
+      return "otlp";
+    }
+    return null;
   }
 
   private void setupMetricsOtelEnvironment() {
@@ -439,7 +449,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     if ("none".equalsIgnoreCase(exporter)) {
-      return "false"; // currently we only accept "none" which maps to disable data collection
+      return "false"; // "none" maps to disable data collection
+    }
+
+    if ("traces".equals(signal) && "otlp".equalsIgnoreCase(exporter)) {
+      return null; // otlp is handled separately for traces
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));

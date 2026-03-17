@@ -455,6 +455,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -912,6 +913,8 @@ public class Config {
   private final Integer jmxFetchStatsdPort;
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
+
+  private final String otlpTracesExporter;
 
   private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
@@ -1888,6 +1891,8 @@ public class Config {
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
+
+    otlpTracesExporter = configProvider.getString(OTLP_TRACES_EXPORTER);
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -5204,6 +5209,14 @@ public class Config {
     return configProvider.isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
+  public String getOtlpTracesExporter() {
+    return otlpTracesExporter;
+  }
+
+  public boolean isOtlpTracesExporterEnabled() {
+    return "otlp".equalsIgnoreCase(otlpTracesExporter);
+  }
+
   public boolean isMetricsOtelEnabled() {
     return metricsOtelEnabled;
   }
@@ -6255,6 +6268,9 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", otlpTracesExporter='"
+        + otlpTracesExporter
+        + '\''
         + ", metricsOtelEnabled="
         + metricsOtelEnabled
         + ", metricsOtelInterval="
