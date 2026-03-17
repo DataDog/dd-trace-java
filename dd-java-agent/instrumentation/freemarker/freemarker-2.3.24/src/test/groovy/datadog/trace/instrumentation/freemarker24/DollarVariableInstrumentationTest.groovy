@@ -15,15 +15,32 @@ class DollarVariableInstrumentationTest extends InstrumentationSpecification {
     injectSysConfig('dd.iast.enabled', 'true')
   }
 
-  void 'test freemarker process'() {
+  void 'plain interpolation reports xss'() {
     given:
     final module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
 
     final Configuration cfg = new Configuration()
-    final Template template = new Template("test", new StringReader("test \${$stringExpression}"), cfg)
+    final Template template = new Template("test", new StringReader('test ${name}'), cfg)
     final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
-    rootDataModel.put(stringExpression, expression)
+    rootDataModel.put("name", "<script>alert(1)</script>")
+
+    when:
+    template.process(rootDataModel, Mock(FileWriter))
+
+    then:
+    1 * module.onXss(_, _, _)
+  }
+
+  void 'non-escaping built-in still reports xss'() {
+    given:
+    final module = Mock(XssModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    final Configuration cfg = new Configuration()
+    final Template template = new Template("test", new StringReader("test \${name?$builtIn}"), cfg)
+    final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
+    rootDataModel.put("name", "<script>alert(1)</script>")
 
     when:
     template.process(rootDataModel, Mock(FileWriter))
@@ -32,17 +49,16 @@ class DollarVariableInstrumentationTest extends InstrumentationSpecification {
     1 * module.onXss(_, _, _)
 
     where:
-    stringExpression | expression
-    "test"           | "test"
+    builtIn << ['upper_case', 'js_string', 'j_string']
   }
 
-  void 'test freemarker process with built-in escaping does not report xss'() {
+  void 'html/xml escaping built-ins do not report xss'() {
     given:
     final module = Mock(XssModule)
     InstrumentationBridge.registerIastModule(module)
 
     final Configuration cfg = new Configuration()
-    final Template template = new Template("test", new StringReader('test ${name?html}'), cfg)
+    final Template template = new Template("test", new StringReader("test \${name?$builtIn}"), cfg)
     final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
     rootDataModel.put("name", "<script>alert(1)</script>")
 
@@ -51,5 +67,8 @@ class DollarVariableInstrumentationTest extends InstrumentationSpecification {
 
     then:
     0 * module.onXss(_, _, _)
+
+    where:
+    builtIn << ['html', 'xml', 'xhtml']
   }
 }

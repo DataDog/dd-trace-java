@@ -54,7 +54,7 @@ public final class DollarVariable24Helper {
     }
     if (ESCAPED_EXPRESSION != null) {
       try {
-        if (ESCAPED_EXPRESSION.get(object) instanceof BuiltIn) {
+        if (ESCAPED_EXPRESSION.get(object) instanceof BuiltInForLegacyEscaping) {
           return null;
         }
       } catch (IllegalAccessException e) {
