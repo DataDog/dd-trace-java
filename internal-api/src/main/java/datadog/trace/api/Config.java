@@ -449,13 +449,13 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -1892,7 +1892,7 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
-    otlpTracesExporter = configProvider.getString(OTLP_TRACES_EXPORTER);
+    otlpTracesExporter = configProvider.getString(OTEL_TRACES_EXPORTER);
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);

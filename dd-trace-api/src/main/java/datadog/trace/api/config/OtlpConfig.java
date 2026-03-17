@@ -15,7 +15,7 @@ public final class OtlpConfig {
   public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otlp.metrics.temporality.preference";
 
-  public static final String OTLP_TRACES_EXPORTER = "otlp.traces.exporter";
+  public static final String OTEL_TRACES_EXPORTER = "otel.traces.exporter";
 
   public enum Protocol {
     GRPC,

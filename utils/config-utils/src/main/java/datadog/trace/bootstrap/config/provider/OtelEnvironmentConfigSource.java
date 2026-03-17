@@ -12,13 +12,13 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_EXPORTER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
@@ -135,7 +135,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
     capture(TRACE_ENABLED, mapDataCollection("traces"));
-    capture(OTLP_TRACES_EXPORTER, mapTracesExporter());
+    capture(OTEL_TRACES_EXPORTER, mapTracesExporter());
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
