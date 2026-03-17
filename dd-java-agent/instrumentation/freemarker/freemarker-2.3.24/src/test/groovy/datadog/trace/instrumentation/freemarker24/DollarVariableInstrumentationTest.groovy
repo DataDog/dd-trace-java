@@ -35,4 +35,21 @@ class DollarVariableInstrumentationTest extends InstrumentationSpecification {
     stringExpression | expression
     "test"           | "test"
   }
+
+  void 'test freemarker process with built-in escaping does not report xss'() {
+    given:
+    final module = Mock(XssModule)
+    InstrumentationBridge.registerIastModule(module)
+
+    final Configuration cfg = new Configuration()
+    final Template template = new Template("test", new StringReader('test ${name?html}'), cfg)
+    final TemplateHashModel rootDataModel = new SimpleHash(cfg.getObjectWrapper())
+    rootDataModel.put("name", "<script>alert(1)</script>")
+
+    when:
+    template.process(rootDataModel, Mock(FileWriter))
+
+    then:
+    0 * module.onXss(_, _, _)
+  }
 }
