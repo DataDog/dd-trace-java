@@ -17,6 +17,8 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.SocketAddress;
 import java.util.function.Supplier;
 
@@ -103,8 +105,19 @@ public class RocketMqDecorator extends ClientDecorator {
     }
 
     span.setResourceName(name);
+    String brokerName = "";
+    try {
+      Method method = ext.getClass().getMethod("getBrokerName");
+      brokerName = (String) method.invoke(ext);
+    } catch (Exception e) {
+      // 方法不存在，可降级处理
+      // System.err.println("getBrokerName 方法不存在");
+    }
 
-    span.setTag(BROKER_NAME, ext.getBrokerName());
+    if (!"".equals(brokerName)) {
+      span.setTag(BROKER_NAME, brokerName);
+    }
+
     String tags = ext.getTags();
     if (tags != null) {
       span.setTag(MESSAGING_ROCKETMQ_TAGS, tags);
