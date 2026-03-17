@@ -275,7 +275,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return null;
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
-      checkMethodParameters(classNode);
+      if (!checkMethodParameters(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
       if (!checkRecordTypeAnnotation(classNode, definitions, fullyQualifiedClassName)) {
         return null;
       }
@@ -306,10 +308,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
    * instrumented the class, we will retransform for removing the instrumentation and then the
    * attribute is stripped. That's why we are preventing it even at load time.
    */
-  private void checkMethodParameters(ClassNode classNode) {
+  private boolean checkMethodParameters(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
     if (JAVA_AT_LEAST_19) {
       // bug is fixed since JDK19, no need to perform check
-      return;
+      return true;
     }
     boolean isRecord = ASMHelper.isRecord(classNode);
     // capping scanning of methods to 100 to avoid generated class with thousand of methods
@@ -328,13 +331,17 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (methodNode.parameters != null
           && !methodNode.parameters.isEmpty()
           && SpringHelper.isSpringUsingOnlyMethodParameters(DebuggerAgent.getInstrumentation())) {
-        throw new RuntimeException(
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
             "Method Parameters attribute detected, instrumentation not supported");
+        return false;
       } else {
         // we found at leat a method with one parameter if name is not present we can stop there
         break;
       }
     }
+    return true;
   }
 
   /*
