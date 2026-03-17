@@ -2,17 +2,18 @@ package opentelemetry147.metrics
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope
-import datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider
-import datadog.opentelemetry.shim.metrics.data.OtelDoublePoint
-import datadog.opentelemetry.shim.metrics.data.OtelHistogramPoint
-import datadog.opentelemetry.shim.metrics.data.OtelLongPoint
-import datadog.opentelemetry.shim.metrics.data.OtelPoint
-import datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor
-import datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor
-import datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor
+import datadog.trace.bootstrap.otel.metrics.data.OtelDoublePoint
+import datadog.trace.bootstrap.otel.metrics.data.OtelHistogramPoint
+import datadog.trace.bootstrap.otel.metrics.data.OtelLongPoint
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry
+import datadog.trace.bootstrap.otel.metrics.data.OtelPoint
+import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtelMetricsVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtelScopedMetricsVisitor
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.Attributes
 import spock.lang.Shared
@@ -49,7 +50,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.add(1)
     counter.add(2, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:long-counter'] == 1
@@ -66,7 +67,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.add(1.2)
     counter.add(3.4, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:double-counter'] == 1.2
@@ -82,7 +83,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.add(1)
     counter.add(2, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:long-up-down-counter'] == 1
@@ -99,7 +100,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.add(1.2)
     counter.add(3.4, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:double-up-down-counter'] == 1.2
@@ -116,7 +117,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.set(1)
     counter.set(2, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:long-gauge'] == 1
@@ -132,7 +133,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     counter.set(1.2)
     counter.set(3.4, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:double-gauge'] == 1.2
@@ -150,7 +151,7 @@ class MetricsTest extends InstrumentationSpecification {
     histogram.record(1)
     histogram.record(24)
     histogram.record(101, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:long-histogram'] == [2.0, [0.0, 5.0, 10.0, 25.0], [0.0, 1.0, 0.0, 1.0], 25.0]
@@ -167,7 +168,7 @@ class MetricsTest extends InstrumentationSpecification {
     histogram.record(1.2)
     histogram.record(24.5)
     histogram.record(101.2, someAttributes)
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:double-histogram'] == [2.0, [0.0, 5.0, 10.0, 25.0], [0.0, 1.0, 0.0, 1.0], 25.7]
@@ -184,7 +185,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-long-counter'] == 1
@@ -205,7 +206,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-double-counter'] == 1.2
@@ -225,7 +226,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-long-up-down-counter'] == 1
@@ -246,7 +247,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-double-up-down-counter'] == 1.2
@@ -267,7 +268,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-long-gauge'] == 1
@@ -287,7 +288,7 @@ class MetricsTest extends InstrumentationSpecification {
       }
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:observable-double-gauge'] == 1.2
@@ -360,7 +361,7 @@ class MetricsTest extends InstrumentationSpecification {
     }, null)
 
     when:
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     points['test:long-counter-observer'] == 1
@@ -379,7 +380,7 @@ class MetricsTest extends InstrumentationSpecification {
     when:
     points.clear()
     // this should invoke batchCallback again
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     // delta mode: counters show values added during last collect
@@ -402,7 +403,7 @@ class MetricsTest extends InstrumentationSpecification {
     batchCallback.close()
     points.clear()
     // batchCallback will not be invoked as it it closed
-    meterProvider.collectMetrics(meterReader)
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader)
 
     then:
     // delta mode: no values were added as batchCallback is closed
@@ -425,24 +426,24 @@ class MetricsTest extends InstrumentationSpecification {
     noopCallback.close()
   }
 
-  class MeterReader implements OtelMetricsVisitor, OtelMeterVisitor, OtelInstrumentVisitor {
+  class MeterReader implements OtelMetricsVisitor, OtelScopedMetricsVisitor, OtelMetricVisitor {
     def scopeName
     def instrumentName
 
     @Override
-    OtelMeterVisitor visitMeter(OtelInstrumentationScope scope) {
+    OtelScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
       scopeName = scope.name
       return this
     }
 
     @Override
-    OtelInstrumentVisitor visitInstrument(OtelInstrumentDescriptor descriptor) {
+    OtelMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
       instrumentName = descriptor.name
       return this
     }
 
     @Override
-    void visitPoint(Attributes attributes, OtelPoint point) {
+    void visitPoint(Object attributes, OtelPoint point) {
       def key = scopeName + ':' + instrumentName
       if (!attributes.isEmpty()) {
         key = key + '@' + attributes.asMap()

@@ -50,7 +50,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 327)
+            .where("ServerDebuggerTestApplication.java", 329)
             .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");

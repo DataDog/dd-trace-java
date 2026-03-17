@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
+import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
@@ -29,6 +30,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -326,13 +328,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
     }
 
+    CharSequence spanType = span.getType();
+    String grpcStatusCode = null;
+    if (spanType != null && RPC.contentEquals(spanType)) {
+      Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
+      grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
+    }
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getServiceNameSource(),
-            span.getType(),
+            spanType,
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.getParentId() == 0,
@@ -340,7 +348,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()),
             httpMethod,
-            httpEndpoint);
+            httpEndpoint,
+            grpcStatusCode);
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;

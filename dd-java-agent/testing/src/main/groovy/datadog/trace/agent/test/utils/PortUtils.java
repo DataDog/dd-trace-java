@@ -1,6 +1,8 @@
 package datadog.trace.agent.test.utils;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.TimeUnit;
@@ -9,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PortUtils {
 
   public static int UNUSABLE_PORT = 61;
+  private static final int PORT_CONNECT_TIMEOUT_MS = 1000;
 
   private static final int FREE_PORT_RANGE_START = 20000;
   private static final int FREE_PORT_RANGE_END = 40000;
@@ -96,7 +99,12 @@ public class PortUtils {
   }
 
   private static boolean isPortOpen(String host, int port) {
-    try (final Socket socket = new Socket(host, port)) {
+    try (final Socket socket = new Socket()) {
+      InetSocketAddress address =
+          host == null
+              ? new InetSocketAddress(InetAddress.getLoopbackAddress(), port)
+              : new InetSocketAddress(host, port);
+      socket.connect(address, PORT_CONNECT_TIMEOUT_MS);
       return true;
     } catch (final IOException e) {
       return false;

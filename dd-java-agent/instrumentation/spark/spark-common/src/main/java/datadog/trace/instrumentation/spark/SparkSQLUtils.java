@@ -23,12 +23,12 @@ public class SparkSQLUtils {
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulatorToStageID,
       SparkAggregatedTaskMetrics stageMetric,
       int stageId) {
     Set<Integer> parentStageIds = new HashSet<>();
     SparkPlanInfoForStage planForStage =
-        computeStageInfoForStage(plan, accumulators, stageId, parentStageIds, false);
+        computeStageInfoForStage(plan, accumulatorToStageID, stageId, parentStageIds, false);
 
     span.setTag("_dd.spark.sql_parent_stage_ids", parentStageIds.toString());
 
@@ -40,11 +40,11 @@ public class SparkSQLUtils {
 
   public static SparkPlanInfoForStage computeStageInfoForStage(
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulatorToStageID,
       int stageId,
       Set<Integer> parentStageIds,
       boolean foundStage) {
-    Set<Integer> stageIds = stageIdsForPlan(plan, accumulators);
+    Set<Integer> stageIds = stageIdsForPlan(plan, accumulatorToStageID);
 
     boolean hasStageInfo = !stageIds.isEmpty();
     boolean isForStage = stageIds.contains(stageId);
@@ -64,7 +64,7 @@ public class SparkSQLUtils {
       List<SparkPlanInfoForStage> childrenForStage = new ArrayList<>();
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, true);
+            computeStageInfoForStage(child, accumulatorToStageID, stageId, parentStageIds, true);
 
         if (planForStage != null) {
           childrenForStage.add(planForStage);
@@ -76,7 +76,7 @@ public class SparkSQLUtils {
       // The expected stage was not found yet, searching in the children nodes
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, false);
+            computeStageInfoForStage(child, accumulatorToStageID, stageId, parentStageIds, false);
 
         if (planForStage != null) {
           // Early stopping if the stage was found, no need to keep searching
@@ -89,17 +89,17 @@ public class SparkSQLUtils {
   }
 
   private static Set<Integer> stageIdsForPlan(
-      SparkPlanInfo info, Map<Long, AccumulatorWithStage> accumulators) {
+      SparkPlanInfo info, Map<Long, Integer> accumulatorToStageID) {
     Set<Integer> stageIds = new HashSet<>();
 
     Collection<SQLMetricInfo> metrics =
         AbstractDatadogSparkListener.listener.getPlanInfoMetrics(info);
     for (SQLMetricInfo metric : metrics) {
       // Using the accumulators to associate a plan with its stage
-      AccumulatorWithStage acc = accumulators.get(metric.accumulatorId());
+      Integer stageId = accumulatorToStageID.get(metric.accumulatorId());
 
-      if (acc != null) {
-        stageIds.add(acc.stageId);
+      if (stageId != null) {
+        stageIds.add(stageId);
       }
     }
 

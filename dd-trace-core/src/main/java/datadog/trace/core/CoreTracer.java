@@ -1171,11 +1171,19 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void checkpointActiveForRollback() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "checkpointActiveForRollback must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.checkpointActiveForRollback();
   }
 
   @Override
   public void rollbackActiveToCheckpoint() {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      throw new IllegalStateException(
+          "rollbackActiveToCheckpoint must not be called when context swap based logic is enabled");
+    }
     this.scopeManager.rollbackActiveToCheckpoint();
   }
 
@@ -1222,9 +1230,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     // run early tag postprocessors before publishing to the metrics writer since peer / base
     // service are needed
-    for (DDSpan span : writtenTrace) {
-      span.processServiceTags();
-    }
+
+    // DQH - Using forEach avoids ArrayList$Iter allocation
+    writtenTrace.forEach(DDSpan::processServiceTags);
+
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
     TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();
