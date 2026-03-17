@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import datadog.trace.test.util.TableTestTypeConverters;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,7 +15,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
-@TypeConverterSources(TableTestTypeConverters.class)
+@TypeConverterSources(DDTraceApiTableTestConverters.class)
 class DDSpanIdTest {
 
   @TableTest({
@@ -27,7 +26,7 @@ class DDSpanIdTest {
     "long max           | '9223372036854775807'  | Long.MAX_VALUE      ",
     "long max plus one  | '9223372036854775808'  | Long.MIN_VALUE      "
   })
-  @ParameterizedTest
+  @ParameterizedTest(name = "convert ids from/to String [{index}]")
   void convertIdsFromToString(String stringId, long expectedId) {
     long ddid = DDSpanId.from(stringId);
 
@@ -35,7 +34,7 @@ class DDSpanIdTest {
     assertEquals(stringId, DDSpanId.toString(ddid));
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "fail on illegal String [{index}]")
   @NullSource
   @ValueSource(
       strings = {
@@ -59,10 +58,10 @@ class DDSpanIdTest {
     "long max                    | '7fffffffffffffff'     | Long.MAX_VALUE      ",
     "long min                    | '8000000000000000'     | Long.MIN_VALUE      ",
     "long min with leading zeros | '00008000000000000000' | Long.MIN_VALUE      ",
-    "cafebabe                    | 'cafebabe'             | 3405691582          ",
+    "hex sample                  | 'cafebabe'             | 3405691582          ",
     "fifteen hex digits          | '123456789abcdef'      | 81985529216486895   "
   })
-  @ParameterizedTest
+  @ParameterizedTest(name = "convert ids from/to hex String [{index}]")
   void convertIdsFromToHexString(String hexId, long expectedId) {
     long ddid = DDSpanId.fromHex(hexId);
     String padded16 =
@@ -90,7 +89,7 @@ class DDSpanIdTest {
     "upper-case rejected when lower-case only| 'ffffffffffffFfff'  | 0     | 16     | true          |              ",
     "upper-case accepted when lower disabled | 'ffffffffffffFfff'  | 0     | 16     | false         | DDSpanId.MAX "
   })
-  @ParameterizedTest
+  @ParameterizedTest(name = "convert ids from part of hex String [{index}]")
   void convertIdsFromPartOfHexString(
       String hexId, int start, int length, boolean lowerCaseOnly, Long expectedId) {
     Long parsedId = null;
@@ -107,14 +106,14 @@ class DDSpanIdTest {
     }
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "fail on illegal hex String [{index}]")
   @NullSource
   @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failOnIllegalHexString(String hexId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.fromHex(hexId));
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "generate id with {0}")
   @ValueSource(strings = {"RANDOM", "SEQUENTIAL", "SECURE_RANDOM"})
   void generateIdWithStrategy(String strategyName) {
     IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);

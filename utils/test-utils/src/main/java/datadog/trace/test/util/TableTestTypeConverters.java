@@ -2,7 +2,7 @@ package datadog.trace.test.util;
 
 import org.tabletest.junit.TypeConverter;
 
-/** Shared converters for TableTest numeric cells, including symbolic constants. */
+/** Shared converters for JUnit 5 TableTest tests that use unparsable constants. */
 public final class TableTestTypeConverters {
 
   private TableTestTypeConverters() {}
@@ -18,10 +18,6 @@ public final class TableTestTypeConverters {
         return Long.MAX_VALUE;
       case "Long.MIN_VALUE":
         return Long.MIN_VALUE;
-      case "DDSpanId.MAX":
-        return -1L;
-      case "DDSpanId.ZERO":
-        return 0L;
       default:
         return Long.decode(token);
     }

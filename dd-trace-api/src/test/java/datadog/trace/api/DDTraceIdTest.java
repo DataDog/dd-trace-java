@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import datadog.trace.test.util.TableTestTypeConverters;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -13,7 +12,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
-@TypeConverterSources(TableTestTypeConverters.class)
+@TypeConverterSources(DDTraceApiTableTestConverters.class)
 class DDTraceIdTest {
 
   @TableTest({
@@ -24,7 +23,7 @@ class DDTraceIdTest {
     "long max   | Long.MAX_VALUE       | '9223372036854775807' | '00000000000000007fffffffffffffff'",
     "long min   | Long.MIN_VALUE       | '9223372036854775808' | '00000000000000008000000000000000'"
   })
-  @ParameterizedTest
+  @ParameterizedTest(name = "convert 64-bit ids from/to long and check strings [{index}]")
   void convert64BitIdsFromToLongAndCheckStrings(
       long longId, String expectedString, String expectedHex) {
     DD64bTraceId ddid = DD64bTraceId.from(longId);
@@ -40,22 +39,22 @@ class DDTraceIdTest {
   }
 
   @TableTest({
-    "scenario           | stringId               | expectedLongId      ",
-    "zero               | '0'                    | 0                   ",
-    "one                | '1'                    | 1                   ",
-    "max                | '18446744073709551615' | -1                  ",
-    "long max           | '9223372036854775807'  | Long.MAX_VALUE      ",
-    "long max plus one  | '9223372036854775808'  | Long.MIN_VALUE      "
+    "scenario           | stringId               | expectedId           ",
+    "zero               | '0'                    | DD64bTraceId.ZERO    ",
+    "one                | '1'                    | DD64bTraceId.ONE     ",
+    "max                | '18446744073709551615' | DD64bTraceId.MAX     ",
+    "long max           | '9223372036854775807'  | DD64bTraceId.LONG_MAX",
+    "long max plus one  | '9223372036854775808'  | DD64bTraceId.LONG_MIN"
   })
-  @ParameterizedTest
-  void convert64BitIdsFromToStringRepresentation(String stringId, long expectedLongId) {
+  @ParameterizedTest(name = "convert 64-bit ids from/to String representation [{index}]")
+  void convert64BitIdsFromToStringRepresentation(String stringId, DD64bTraceId expectedId) {
     DD64bTraceId ddid = DD64bTraceId.from(stringId);
 
-    assertEquals(DD64bTraceId.from(expectedLongId), ddid);
+    assertEquals(expectedId, ddid);
     assertEquals(stringId, ddid.toString());
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(name = "fail parsing illegal 64-bit id String representation [{index}]")
   @NullSource
   @ValueSource(
       strings = {
@@ -72,20 +71,19 @@ class DDTraceIdTest {
   }
 
   @TableTest({
-    "scenario                    | hexId                  | expectedLongId      ",
-    "zero                        | '0'                    | 0                   ",
-    "one                         | '1'                    | 1                   ",
-    "max                         | 'ffffffffffffffff'     | -1                  ",
-    "long max                    | '7fffffffffffffff'     | Long.MAX_VALUE      ",
-    "long min                    | '8000000000000000'     | Long.MIN_VALUE      ",
-    "long min with leading zeros | '00008000000000000000' | Long.MIN_VALUE      ",
-    "cafebabe                    | 'cafebabe'             | 3405691582          ",
-    "fifteen hex digits          | '123456789abcdef'      | 81985529216486895   "
+    "scenario                    | hexId                  | expectedId           ",
+    "zero                        | '0'                    | DD64bTraceId.ZERO    ",
+    "one                         | '1'                    | DD64bTraceId.ONE     ",
+    "max                         | 'ffffffffffffffff'     | DD64bTraceId.MAX     ",
+    "long max                    | '7fffffffffffffff'     | DD64bTraceId.LONG_MAX",
+    "long min                    | '8000000000000000'     | DD64bTraceId.LONG_MIN",
+    "long min with leading zeros | '00008000000000000000' | DD64bTraceId.LONG_MIN",
+    "hex sample                  | 'cafebabe'             | DD64bTraceId.CAFEBABE",
+    "fifteen hex digits          | '123456789abcdef'      | DD64bTraceId.HEX     "
   })
-  @ParameterizedTest
-  void convert64BitIdsFromToHexStringRepresentation(String hexId, long expectedLongId) {
+  @ParameterizedTest(name = "convert 64-bit ids from/to hex String representation [{index}]")
+  void convert64BitIdsFromToHexStringRepresentation(String hexId, DD64bTraceId expectedId) {
     DD64bTraceId ddid = DD64bTraceId.fromHex(hexId);
-    DD64bTraceId expectedId = DD64bTraceId.from(expectedLongId);
     String padded16 =
         hexId.length() <= 16 ? leftPadWithZeros(hexId, 16) : hexId.substring(hexId.length() - 16);
     String padded32 = leftPadWithZeros(hexId, 32);
@@ -96,7 +94,8 @@ class DDTraceIdTest {
     assertEquals(padded32, ddid.toHexStringPadded(32));
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(
+      name = "fail parsing illegal 64-bit hexadecimal String representation [{index}]")
   @NullSource
   @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failParsingIllegal64BitHexadecimalStringRepresentation(String hexId) {
@@ -124,7 +123,8 @@ class DDTraceIdTest {
     "all f                         | -1                   | -1                   | 'ffffffffffffffffffffffffffffffff'",
     "hex literal                   | 1311768467463790320  | 1311768467463790320  | '123456789abcdef0123456789abcdef0'"
   })
-  @ParameterizedTest
+  @ParameterizedTest(
+      name = "convert 128-bit ids from/to hexadecimal String representation [{index}]")
   void convert128BitIdsFromToHexadecimalStringRepresentation(
       long highOrderBits, long lowOrderBits, String hexId) {
     DDTraceId parsedId = DD128bTraceId.fromHex(hexId);
@@ -140,7 +140,8 @@ class DDTraceIdTest {
     assertEquals(Long.toUnsignedString(lowOrderBits), parsedId.toString());
   }
 
-  @ParameterizedTest
+  @ParameterizedTest(
+      name = "fail parsing illegal 128-bit id hexadecimal String representation [{index}]")
   @NullSource
   @ValueSource(strings = {"", "-1", "-A", "111111111111111111111111111111111", "123ABC", "123abcg"})
   void failParsingIllegal128BitIdHexadecimalStringRepresentation(String hexId) {
@@ -161,7 +162,9 @@ class DDTraceIdTest {
     "invalid upper case   | '123ABC'                            | 0     | 6      | true         ",
     "too long             | '111111111111111111111111111111111' | 0     | 33     | true         "
   })
-  @ParameterizedTest
+  @ParameterizedTest(
+      name =
+          "fail parsing illegal 128-bit id hexadecimal String representation from partial String [{index}]")
   void failParsingIllegal128BitIdHexadecimalStringRepresentationFromPartialString(
       String hexId, int start, int length, boolean lowerCaseOnly) {
     assertThrows(
