@@ -73,6 +73,8 @@ dependencies {
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: "$otelInstrumentationApiVersion-alpha"
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
+
+  implementation project(':utils:logging-utils')
 }
 
 tasks.named("shadowJar", ShadowJar) {

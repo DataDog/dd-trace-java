@@ -10,4 +10,5 @@ dependencies {
 
   implementation project(':products:metrics:metrics-api')
   implementation project(':internal-api')
+  implementation project(':utils:logging-utils')
 }
