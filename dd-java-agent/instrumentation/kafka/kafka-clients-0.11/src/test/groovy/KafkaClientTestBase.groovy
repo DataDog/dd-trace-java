@@ -898,7 +898,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     assert receivedSet.isEmpty()
 
-    assertTraces(4, SORT_TRACES_BY_ID) {
+    // Use SORT_TRACES_BY_START so the parent trace (started first, before any consumer
+    // receives messages) is always at index 0 regardless of span ID generation strategy.
+    // The dynamic parent lookup below handles any ordering of the 3 consumer traces.
+    assertTraces(4, SORT_TRACES_BY_START) {
       trace(7) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -923,7 +926,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           queueSpan(it, trace(0)[2])
         }
       } else {
-        // Consumer traces are sorted by random span ID, so we can't assume a fixed
+        // Consumer traces are sorted by start time, so we can't assume a fixed
         // mapping between consumer trace index and producer span index. Instead, find
         // the actual parent producer span for each consumer trace dynamically.
         def producerSpans = [trace(0)[2], trace(0)[4], trace(0)[6]]
@@ -1481,10 +1484,6 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
     super.configurePreAgent()
     injectSysConfig("dd.service", "KafkaClientDataStreamsDisabledForkedTest")
     injectSysConfig("dd.kafka.legacy.tracing.enabled", "true")
-    // Deterministic reproduction: SEQUENTIAL ID strategy forces a known sort order
-    // that differs from the reverse order the original positional code assumed,
-    // proving the dynamic parent lookup fix handles any ordering.
-    injectSysConfig("id.generation.strategy", "SEQUENTIAL")
   }
 
   @Override
@@ -1513,5 +1512,26 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}
+
+/**
+ * Reproduces the flake in "test spring kafka template produce and batch consume"
+ * by using RANDOM IDs (instead of the default SEQUENTIAL used in tests).
+ *
+ * Root cause: The test's assertTraces(4, SORT_TRACES_BY_ID) sorts traces by
+ * localRootSpan.spanId, then hardcodes positional mappings between consumer and
+ * producer traces. With SEQUENTIAL IDs (the test default), both the producer span
+ * finish order within trace(0) and the consumer trace sort order are driven by the
+ * same Kafka internal ordering, so the mapping happens to be consistent.
+ *
+ * With RANDOM IDs (as used in production), the sort order becomes non-deterministic.
+ * There are 3! = 6 possible orderings for the 3 consumer traces, and only 1 matches
+ * the hardcoded mapping. The dynamic parent lookup fix handles any ordering.
+ */
+class KafkaClientDsmDisabledRandomIdsForkedTest extends KafkaClientDataStreamsDisabledForkedTest {
+  @Override
+  protected String idGenerationStrategyName() {
+    return "RANDOM"
   }
 }
