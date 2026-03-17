@@ -19,6 +19,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -856,6 +857,9 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     }
     if (shouldContainHttpStatus) {
       expectedAttributes.put("http.status_code", Integer.toString(expectedHttpStatusCode))
+    }
+    if (expectedSpan.isTopLevel()) {
+      expectedAttributes.put(InstrumentationTags.DD_TOP_LEVEL.toString(), 1d)
     }
 
     assertEquals(expectedAttributes.size(), attributes.size())

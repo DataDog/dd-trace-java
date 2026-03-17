@@ -17,6 +17,7 @@ import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
@@ -358,6 +359,7 @@ public final class TraceMapperV1 implements TraceMapper {
     String httpStatusCode =
         meta.getHttpStatusCode() == null ? null : meta.getHttpStatusCode().toString();
     boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
+    boolean writeTopLevel = meta.topLevel();
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
       if (!DDTags.SPAN_EVENTS.equals(entry.tag())) {
@@ -367,7 +369,12 @@ public final class TraceMapperV1 implements TraceMapper {
 
     writable.writeInt(fieldId);
     writable.startArray(
-        (baggage.size() + tagCount + metaStruct.size() + (writeHttpStatus ? 1 : 0)) * 3);
+        (tagCount
+                + baggage.size()
+                + metaStruct.size()
+                + (writeHttpStatus ? 1 : 0)
+                + (writeTopLevel ? 1 : 0))
+            * 3);
 
     for (Map.Entry<String, String> entry : baggage.entrySet()) {
       writeAttribute(writable, entry.getKey(), entry.getValue());
@@ -381,6 +388,9 @@ public final class TraceMapperV1 implements TraceMapper {
     }
     if (writeHttpStatus) {
       writeAttribute(writable, HTTP_STATUS, httpStatusCode);
+    }
+    if (writeTopLevel) {
+      writeAttribute(writable, InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
     }
     for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
       writeStreamingString(writable, metaStructField.getKey());
