@@ -30,9 +30,12 @@ _Recovery:_ Manually verify the guideline compliance.
 
 ### check-pull-request-labels [🔗](check-pull-request-labels.yaml)
 
-_Trigger:_ When creating or updating a pull request.
+_Trigger:_ When creating or updating a pull request, or when new commits are pushed to it.
 
-_Action:_ Check the pull request did not introduce unexpected label.
+_Actions:_
+
+* Detect AI-generated pull requests then apply the `tag: ai generated` label.
+* Check the pull request did not introduce unexpected labels.
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
