@@ -1,6 +1,7 @@
 package com.datadog.debugger.symbol;
 
 import com.datadog.debugger.util.JvmLanguage;
+import datadog.trace.agent.tooling.stratum.FileInfo;
 import datadog.trace.agent.tooling.stratum.SourceMap;
 import datadog.trace.agent.tooling.stratum.StratumExt;
 import datadog.trace.api.Pair;
@@ -13,11 +14,18 @@ public interface SourceRemapper {
     JvmLanguage jvmLanguage = JvmLanguage.of(sourceFile);
     switch (jvmLanguage) {
       case KOTLIN:
-        StratumExt stratum = sourceMap.getStratum("KotlinDebug");
-        if (stratum == null) {
-          throw new IllegalArgumentException("No stratum found for KotlinDebug");
+        StratumExt stratumMain = sourceMap.getStratum("Kotlin");
+        if (stratumMain == null) {
+          stratumMain = sourceMap.getStratum(sourceMap.getDefaultStratumName());
+          if (stratumMain == null) {
+            throw new IllegalArgumentException("No default stratum found");
+          }
         }
-        return new KotlinSourceRemapper(stratum);
+        StratumExt stratumDebug = sourceMap.getStratum("KotlinDebug");
+        if (stratumDebug == null) {
+          throw new IllegalArgumentException("No stratumDebug found for KotlinDebug");
+        }
+        return new KotlinSourceRemapper(stratumMain, stratumDebug);
       default:
         return NOOP_REMAPPER;
     }
@@ -33,19 +41,33 @@ public interface SourceRemapper {
   }
 
   class KotlinSourceRemapper implements SourceRemapper {
-    private final StratumExt stratum;
+    private final StratumExt stratumMain;
+    private final StratumExt stratumDebug;
 
-    public KotlinSourceRemapper(StratumExt stratum) {
-      this.stratum = stratum;
+    public KotlinSourceRemapper(StratumExt stratumMain, StratumExt stratumDebug) {
+      this.stratumMain = stratumMain;
+      this.stratumDebug = stratumDebug;
     }
 
     @Override
     public int remapSourceLine(int line) {
-      Pair<String, Integer> pair = stratum.getInputLine(line);
-      if (pair == null || pair.getRight() == null) {
-        return line;
+      Pair<String, Integer> pairDebug = stratumDebug.getInputLine(line);
+      if (pairDebug == null || pairDebug.getRight() == null) {
+        Pair<String, Integer> pairMain = stratumMain.getInputLine(line);
+        if (pairMain == null || pairMain.getRight() == null) {
+          return line;
+        }
+        String fileId = pairMain.getLeft();
+        String sourceFileName = stratumMain.getSourceFileName(fileId);
+        if (sourceFileName == null) {
+          throw new IllegalArgumentException("Cannot find source filename for fileid=" + fileId);
+        }
+        if (sourceFileName.equals("fake.kt")) {
+          return -1; // no mapping possible
+        }
+        return pairMain.getRight();
       }
-      return pair.getRight();
+      return pairDebug.getRight();
     }
   }
 }
