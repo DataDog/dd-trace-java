@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
 public final class OtelLongPoint extends OtelPoint {
   public final long value;
