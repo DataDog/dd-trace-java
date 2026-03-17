@@ -1,19 +1,20 @@
+import static TraceGenerator.generateRandomTraces
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
-import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
 import datadog.trace.common.writer.PayloadDispatcherImpl
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
+import java.util.concurrent.TimeUnit
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-
-import java.util.concurrent.TimeUnit
-
-import static TraceGenerator.generateRandomTraces
 
 class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
 
@@ -30,8 +31,8 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
     monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
-    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, "0.5", true)
-    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, "0.4", true)
+    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
+    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_4, true)
     v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
     v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
   }

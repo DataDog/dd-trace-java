@@ -17,6 +17,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
@@ -108,17 +109,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       OkHttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
-      String traceAgentProtocolVersion,
+      ProtocolVersion protocolVersion,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
-    this.traceEndpoints =
-        "1.0".equals(traceAgentProtocolVersion)
-            ? new String[] {V1_ENDPOINT, V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
-            : ("0.5".equals(traceAgentProtocolVersion)
-                ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
-                : new String[] {V04_ENDPOINT, V03_ENDPOINT});
+    this.traceEndpoints = protocolVersion.traceEndpoints();
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }

@@ -9,6 +9,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
@@ -37,7 +38,7 @@ public class DDAgentWriter extends RemoteWriter {
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
-    String traceAgentProtocolVersion = Config.get().getTraceAgentProtocolVersion();
+    ProtocolVersion protocolVersion = Config.get().getTraceAgentProtocolVersion();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -103,9 +104,13 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder traceAgentProtocolVersion(String traceAgentProtocolVersion) {
-      this.traceAgentProtocolVersion = traceAgentProtocolVersion;
+    public DDAgentWriterBuilder traceAgentProtocolVersion(ProtocolVersion protocolVersion) {
+      this.protocolVersion = protocolVersion;
       return this;
+    }
+
+    public DDAgentWriterBuilder traceAgentProtocolVersion(String traceAgentProtocolVersion) {
+      return traceAgentProtocolVersion(ProtocolVersion.fromConfigValue(traceAgentProtocolVersion));
     }
 
     public DDAgentWriterBuilder metricsReportingEnabled(boolean metricsReportingEnabled) {
@@ -143,7 +148,7 @@ public class DDAgentWriter extends RemoteWriter {
       if (null == featureDiscovery) {
         featureDiscovery =
             new DDAgentFeaturesDiscovery(
-                client, monitoring, agentUrl, traceAgentProtocolVersion, metricsReportingEnabled);
+                client, monitoring, agentUrl, protocolVersion, metricsReportingEnabled);
       }
       if (null == agentApi) {
         agentApi =

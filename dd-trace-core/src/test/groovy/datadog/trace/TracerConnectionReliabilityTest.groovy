@@ -1,5 +1,8 @@
 package datadog.trace
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.ProtocolVersion.V0_4
+
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -10,6 +13,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
+import java.lang.reflect.Type
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,10 +22,6 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-
-import java.lang.reflect.Type
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 
 class TracerConnectionReliabilityTest extends DDSpecification {
   final static FEATURES_DISCOVERY_MIN_DELAY = 10
@@ -147,7 +147,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   class FixedTraceEndpointFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     FixedTraceEndpointFeaturesDiscovery(SharedCommunicationObjects objects) {
-      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, "0.4", false)
+      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, V0_4, false)
     }
 
     @Override
