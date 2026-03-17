@@ -186,8 +186,9 @@ public class EvalProcessingWorker implements AutoCloseable {
                 .post(HttpRequestBody.of(reqBod))
                 .build();
 
-        try (HttpResponse response =
-            HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+        try {
+          HttpResponse response =
+              HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request);
           if (response.isSuccessful()) {
             log.debug("successfully flushed evaluation request with {} evals", this.buffer.size());
             this.buffer.clear();
