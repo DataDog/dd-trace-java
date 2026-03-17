@@ -120,7 +120,8 @@ public final class HttpSink implements Sink, EventListener {
 
   private void send(HttpRequest request) {
     long start = System.nanoTime();
-    try (final HttpResponse response = client.execute(request)) {
+    try {
+      final HttpResponse response = client.execute(request);
       if (!response.isSuccessful()) {
         handleFailure(response);
       } else {

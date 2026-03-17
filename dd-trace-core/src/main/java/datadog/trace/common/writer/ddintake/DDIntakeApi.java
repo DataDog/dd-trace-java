@@ -138,8 +138,8 @@ public class DDIntakeApi extends RemoteApi {
     totalTraces += payload.traceCount();
     receivedTraces += payload.traceCount();
 
-    try (HttpResponse response =
-        HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
+    try {
+      HttpResponse response = HttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request);
       if (response.isSuccessful()) {
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         return Response.success(response.code());

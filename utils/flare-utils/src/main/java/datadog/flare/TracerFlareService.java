@@ -174,14 +174,13 @@ final class TracerFlareService {
               .post(form)
               .build();
 
-      try (HttpResponse response = httpClient.execute(flareRequest)) {
-        if (response.code() == 404) {
-          log.debug("Tracer flare endpoint is disabled, ignoring request");
-        } else if (!response.isSuccessful()) {
-          log.warn("Tracer flare failed with: {}", response.code());
-        } else {
-          log.debug("Tracer flare sent successfully");
-        }
+      HttpResponse response = httpClient.execute(flareRequest);
+      if (response.code() == 404) {
+        log.debug("Tracer flare endpoint is disabled, ignoring request");
+      } else if (!response.isSuccessful()) {
+        log.warn("Tracer flare failed with: {}", response.code());
+      } else {
+        log.debug("Tracer flare sent successfully");
       }
 
     } catch (IOException e) {

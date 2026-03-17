@@ -123,8 +123,8 @@ public class DDAgentApi extends RemoteApi {
               .build();
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
-      try (final Recording recording = sendPayloadTimer.start();
-          final HttpResponse response = httpClient.execute(request)) {
+      try (final Recording recording = sendPayloadTimer.start()) {
+        final HttpResponse response = httpClient.execute(request);
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
         String responseString = response.bodyAsString();
         if (response.code() != 200) {

@@ -76,7 +76,8 @@ public class LambdaHandler {
             .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
             .post(body)
             .build();
-    try (HttpResponse response = HTTP_CLIENT.execute(request)) {
+    try {
+      HttpResponse response = HTTP_CLIENT.execute(request);
       if (response.isSuccessful()) {
         return extractContextAndGetSpanContext(
             response,
@@ -134,7 +135,8 @@ public class LambdaHandler {
       builder.addHeader(DATADOG_INVOCATION_ERROR, "true");
     }
 
-    try (HttpResponse response = HTTP_CLIENT.execute(builder.build())) {
+    try {
+      HttpResponse response = HTTP_CLIENT.execute(builder.build());
       if (response.isSuccessful()) {
         log.debug("notifyEndInvocation success");
         return true;
