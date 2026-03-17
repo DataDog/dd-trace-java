@@ -69,12 +69,15 @@ public abstract class AIGuard {
     private final Action action;
     private final String reason;
     private final List<String> tags;
+    private final List<?> sds;
 
-    public AIGuardAbortError(final Action action, final String reason, final List<String> tags) {
+    public AIGuardAbortError(
+        final Action action, final String reason, final List<String> tags, final List<?> sds) {
       super(reason);
       this.action = action;
       this.reason = reason;
       this.tags = tags;
+      this.sds = sds != null ? sds : Collections.emptyList();
     }
 
     public Action getAction() {
@@ -87,6 +90,10 @@ public abstract class AIGuard {
 
     public List<String> getTags() {
       return tags;
+    }
+
+    public List<?> getSds() {
+      return sds;
     }
   }
 
@@ -149,6 +156,7 @@ public abstract class AIGuard {
     final Action action;
     final String reason;
     final List<String> tags;
+    final List<?> sds;
 
     /**
      * Creates a new evaluation result.
@@ -156,11 +164,14 @@ public abstract class AIGuard {
      * @param action the recommended action for the evaluated content
      * @param reason human-readable explanation for the decision
      * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     * @param sds list of Sensitive Data Scanner findings
      */
-    public Evaluation(final Action action, final String reason, final List<String> tags) {
+    public Evaluation(
+        final Action action, final String reason, final List<String> tags, final List<?> sds) {
       this.action = action;
       this.reason = reason;
       this.tags = tags;
+      this.sds = sds != null ? sds : Collections.emptyList();
     }
 
     /**
@@ -188,6 +199,15 @@ public abstract class AIGuard {
      */
     public List<String> getTags() {
       return tags;
+    }
+
+    /**
+     * Returns the list of Sensitive Data Scanner findings.
+     *
+     * @return list of SDS findings.
+     */
+    public List<?> getSds() {
+      return sds;
     }
   }
 
