@@ -13,6 +13,15 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
 internal open class GradleFixture(protected val projectDir: File) {
+  init {
+    // Disable the Gradle daemon so each GradleRunner invocation starts a fresh JVM.
+    // This prevents stale singleton state (e.g. MUZZLE_REPOS) from leaking across tests.
+    // Note: --no-daemon is unsupported by the Tooling API; -Dorg.gradle.daemon=false in
+    // withArguments() is ignored for daemon selection (build args are forwarded after daemon
+    // connection is established). Only gradle.properties is read early enough to take effect.
+    file("gradle.properties").appendText("org.gradle.daemon=false\n")
+  }
+
   /**
    * Runs Gradle with the specified arguments.
    *
@@ -26,7 +35,7 @@ internal open class GradleFixture(protected val projectDir: File) {
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
-      .withArguments("-Dorg.gradle.daemon=false", *args)
+      .withArguments(*args)
     return try {
       if (expectFailure) runner.buildAndFail() else runner.build()
     } catch (e: UnexpectedBuildResultException) {
