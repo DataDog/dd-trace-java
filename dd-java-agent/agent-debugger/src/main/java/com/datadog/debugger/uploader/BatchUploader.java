@@ -340,9 +340,6 @@ public class BatchUploader {
                   }
                 }
               } finally {
-                if (response != null) {
-                  response.close();
-                }
                 runningRequests.release();
                 queuedRequestsCount.decrementAndGet();
                 inflightRequests.arriveAndDeregister();
