@@ -489,12 +489,16 @@ class ObjectIntrospectionSpecification extends DDSpecification {
   }
 
   void 'logging framework fields are excluded from introspection'() {
-    given: 'a DTO with a logger instance field alongside regular fields'
-    // Reproduces the false positive in crs-944-130: an instance logger field on the request
-    // body DTO causes ObjectIntrospection to traverse logging framework internals (Log4j,
-    // Jackson TypeCache), eventually hitting java.lang.Class.toString() = "class java.lang.Object"
-    // which matches the WAF phrase_match rule. Skipping logging-typed fields cuts the traversal
-    // at the root and eliminates the false positive without discarding other useful fields.
+    given: '''Reproduces the false positive triggered by crs-944-130 (java_code_injection).
+             A request body DTO had an instance field of a concrete logging type. ObjectIntrospection
+             traversed the logger internals 19 levels deep (SLF4J → Log4jLogger → core.Logger →
+             privateConfig → loggerConfig → appenders → appenderArray → appender → manager →
+             layout → objectWriter → _config → _base → _typeFactory → _typeCache → _map →
+             invalid_key:9 → _elementType → _class), eventually calling
+             java.lang.Class.toString() = "class java.lang.object" which phrase-matched the WAF rule.
+             The field in the real trace was declared as org.slf4j.Logger (runtime: Log4jLogger),
+             but the trie also covers org.apache.logging.slf4j.Log4jLogger directly via
+             org.apache.logging.* in case the field is declared as the concrete class.'''
     def input = new DtoWithLogger()
 
     when:
@@ -508,7 +512,11 @@ class ObjectIntrospectionSpecification extends DDSpecification {
 
   static class DtoWithLogger {
     String userId = 'user123'
-    java.util.logging.Logger logger = java.util.logging.Logger.getLogger('test')
+    // Declared as the concrete Logback type (ch.qos.logback.classic.Logger) to mirror the
+    // real scenario where org.apache.logging.slf4j.Log4jLogger is the runtime instance of
+    // a field declared as the concrete logger class rather than the SLF4J interface.
+    // Both are covered by the trie (ch.qos.logback.* and org.apache.logging.*).
+    ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger('test')
     String payload = 'data'
   }
 

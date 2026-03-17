@@ -11,5 +11,5 @@
 1 ch.qos.logback.*
 1 java.util.logging.Logger
 1 org.apache.commons.logging.Log
-1 org.apache.logging.log4j.*
+1 org.apache.logging.*
 1 org.slf4j.*
