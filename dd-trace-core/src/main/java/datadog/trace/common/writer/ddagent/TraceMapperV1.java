@@ -361,7 +361,7 @@ public final class TraceMapperV1 implements TraceMapper {
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
       if (!DDTags.SPAN_EVENTS.equals(entry.tag())) {
-        tagCount++;
+        tagCount += getFlatAttributeCount(entry.objectValue());
       }
     }
 
@@ -377,7 +377,7 @@ public final class TraceMapperV1 implements TraceMapper {
       if (DDTags.SPAN_EVENTS.equals(entry.tag())) {
         continue;
       }
-      writeAttribute(writable, entry.tag(), entry.objectValue());
+      writeFlattenedTagAttribute(writable, entry.tag(), entry.objectValue());
     }
     if (writeHttpStatus) {
       writeAttribute(writable, HTTP_STATUS, httpStatusCode);
@@ -386,6 +386,37 @@ public final class TraceMapperV1 implements TraceMapper {
       writeStreamingString(writable, metaStructField.getKey());
       writable.writeInt(VALUE_TYPE_BYTES);
       writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
+    }
+  }
+
+  private int getFlatAttributeCount(Object value) {
+    if (!(value instanceof Map)) {
+      return 1;
+    }
+    int count = 0;
+    for (Object nestedValue : ((Map<?, ?>) value).values()) {
+      count += getFlatAttributeCount(nestedValue);
+    }
+    return count;
+  }
+
+  private void writeFlattenedTagAttribute(Writable writable, String key, Object value) {
+    if (!(value instanceof Map)) {
+      writeAttribute(writable, key, value);
+      return;
+    }
+    writeFlatMapAttributes(writable, key, (Map<?, ?>) value);
+  }
+
+  private void writeFlatMapAttributes(Writable writable, String keyPrefix, Map<?, ?> mapValue) {
+    for (Map.Entry<?, ?> entry : mapValue.entrySet()) {
+      String key = keyPrefix + "." + String.valueOf(entry.getKey());
+      Object value = entry.getValue();
+      if (value instanceof Map) {
+        writeFlatMapAttributes(writable, key, (Map<?, ?>) value);
+      } else {
+        writeAttribute(writable, key, value);
+      }
     }
   }
 

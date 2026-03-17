@@ -193,7 +193,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info empty"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, "0.4", true)
 
     when: "/info is empty"
     features.discover()

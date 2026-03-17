@@ -515,6 +515,74 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals(42L, decodedMetaStruct["answer"])
   }
 
+  def "test map-valued span tags are flattened in v1 attributes"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [
+        "usr": [
+          "id"           : "123",
+          "name"         : "alice",
+          "authenticated": true,
+          "profile"      : [
+            "age": 30L
+          ]
+        ],
+        "appsec.events.users.login.success": [
+          "metadata0": [
+            "event"   : "login",
+            "attempts": 1L
+          ],
+          "metadata1": [
+            "blocked": false
+          ]
+        ]
+      ],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      0,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable)
+
+    then:
+    assertTrue(attributes.containsKey("usr.id"))
+    assertTrue(attributes.containsKey("usr.name"))
+    assertTrue(attributes.containsKey("usr.authenticated"))
+    assertTrue(attributes.containsKey("usr.profile.age"))
+    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata0.event"))
+    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata0.attempts"))
+    assertTrue(attributes.containsKey("appsec.events.users.login.success.metadata1.blocked"))
+
+    assertEquals("123", attributes.get("usr.id"))
+    assertEquals("alice", attributes.get("usr.name"))
+    assertEquals(true, attributes.get("usr.authenticated"))
+    assertEquals(30d, (attributes.get("usr.profile.age") as Number).doubleValue(), 0.000001d)
+    assertEquals("login", attributes.get("appsec.events.users.login.success.metadata0.event"))
+    assertEquals(1d, (attributes.get("appsec.events.users.login.success.metadata0.attempts") as Number).doubleValue(), 0.000001d)
+    assertEquals(false, attributes.get("appsec.events.users.login.success.metadata1.blocked"))
+
+    assertTrue(!attributes.containsKey("usr"))
+    assertTrue(!attributes.containsKey("appsec.events.users.login.success"))
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
@@ -776,15 +844,26 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertNotNull(attributes)
     int expectedHttpStatusCode = expectedSpan.getHttpStatusCode()
     boolean shouldContainHttpStatus = expectedHttpStatusCode != 0 && !expectedSpan.getTags().containsKey("http.status_code")
-    assertEquals(expectedSpan.getTags().size() + (shouldContainHttpStatus ? 1 : 0), attributes.size())
+    Map<String, Object> expectedAttributes = [:]
+    for (Map.Entry<String, String> entry : expectedSpan.getBaggage().entrySet()) {
+      expectedAttributes.put(entry.getKey(), entry.getValue())
+    }
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
+      if (DDTags.SPAN_EVENTS == entry.getKey()) {
+        continue
+      }
+      addFlattenedExpectedAttribute(expectedAttributes, entry.getKey(), entry.getValue())
+    }
+    if (shouldContainHttpStatus) {
+      expectedAttributes.put("http.status_code", Integer.toString(expectedHttpStatusCode))
+    }
+
+    assertEquals(expectedAttributes.size(), attributes.size())
+    for (Map.Entry<String, Object> entry : expectedAttributes.entrySet()) {
       String key = entry.getKey()
       Object expectedValue = entry.getValue()
       assertTrue(attributes.containsKey(key), "Missing attribute key: $key")
       assertAttributeValueEquals(expectedValue, attributes.get(key), key)
-    }
-    if (shouldContainHttpStatus) {
-      assertEquals(Integer.toString(expectedHttpStatusCode), attributes.get("http.status_code"))
     }
   }
 
@@ -833,6 +912,22 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       assertEquals(expected, actual, "Boolean mismatch for $key")
     } else {
       assertEquals(String.valueOf(expected), String.valueOf(actual), "String mismatch for $key")
+    }
+  }
+
+  private static void addFlattenedExpectedAttribute(
+    Map<String, Object> expectedAttributes,
+    String key,
+    Object value) {
+    if (!(value instanceof Map)) {
+      expectedAttributes.put(key, value)
+      return
+    }
+    for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+      addFlattenedExpectedAttribute(
+        expectedAttributes,
+        key + "." + String.valueOf(entry.getKey()),
+        entry.getValue())
     }
   }
 
