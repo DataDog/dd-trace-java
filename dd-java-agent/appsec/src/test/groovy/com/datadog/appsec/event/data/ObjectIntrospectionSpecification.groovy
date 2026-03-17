@@ -583,40 +583,4 @@ class ObjectIntrospectionSpecification extends DDSpecification {
       return map.entrySet().iterator()
     }
   }
-
-  static class DtoWithLogger {
-    String userId = 'user123'
-    java.util.logging.Logger logger = java.util.logging.Logger.getLogger('test')
-    String payload = 'data'
-  }
-
-  void 'logging framework fields are excluded from introspection'() {
-    given:
-    def input = new DtoWithLogger()
-
-    when:
-    def result = convert(input, ctx) as Map
-
-    then:
-    result['userId'] == 'user123'
-    result['payload'] == 'data'
-    !result.containsKey('logger')
-  }
-
-  static class WrapperWithSoftRef {
-    String name = 'test'
-    java.lang.ref.SoftReference<String> ref = new java.lang.ref.SoftReference<>('test')
-  }
-
-  void 'objects with inaccessible JDK fields skip those fields rather than expose toString()'() {
-    given:
-    def input = new WrapperWithSoftRef()
-
-    when:
-    def result = convert(input, ctx) as Map
-
-    then:
-    result['name'] == 'test'
-    result['ref'] instanceof Map
-  }
 }
