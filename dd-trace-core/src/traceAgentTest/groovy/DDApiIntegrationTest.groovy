@@ -1,11 +1,15 @@
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
+import datadog.trace.api.ProtocolVersion
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.RemoteApi
@@ -16,13 +20,12 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import spock.lang.Shared
-
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import spock.lang.Shared
 
 class DDApiIntegrationTest extends AbstractTraceAgentTest {
   def tracer
@@ -76,7 +79,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   }
 
   def beforeTest(boolean enableV05) {
-    String protocol = enableV05 ? "0.5" : "0.4"
+    ProtocolVersion protocol = enableV05 ? V0_5 : V0_4
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
     HttpUrl agentUrl = HttpUrl.get(Config.get().getAgentUrl())
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
