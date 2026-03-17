@@ -23,7 +23,6 @@ internal open class GradleFixture(protected val projectDir: File) {
    */
   fun run(vararg args: String, expectFailure: Boolean = false, env: Map<String, String> = emptyMap()): BuildResult {
     val runner = GradleRunner.create()
-      .withTestKitDir(File(projectDir, ".gradle-test-kit"))
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
