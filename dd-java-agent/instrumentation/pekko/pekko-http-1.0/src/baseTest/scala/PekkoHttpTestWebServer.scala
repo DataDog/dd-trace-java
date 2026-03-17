@@ -274,10 +274,6 @@ object PekkoHttpTestWebServer {
       ec: ExecutionContext
   ): HttpRequest => Future[HttpResponse] = { request =>
     Future {
-      // Deterministic reproduction: delay async execution to widen the race window
-      // between Future continuation cleanup and span completion. Without .recover,
-      // this delay makes the failed-Future trace-drop race condition trigger reliably.
-      Thread.sleep(50)
       syncHandler(request)
     }.recover { case e: Exception =>
       // Recover from exceptions to return a proper HTTP response instead of a
