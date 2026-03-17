@@ -38,6 +38,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (spanStarter) {
       if (span == null) {
         AgentSpan parentSpan = activeSpan();
+        if (parentSpan != null) {
+          parentSpan = parentSpan.getLocalRootSpan();
+        }
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
         span = startSpan(INSTRUMENTATION_NAME);
@@ -66,7 +69,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       return;
     }
 
-    final AgentSpan routeSpan = parentSpan.getLocalRootSpan();
+    final AgentSpan routeSpan = parentSpan;
 
     final String method = routingContext.request().method().name();
     final String mountPoint = routingContext.mountPoint();
