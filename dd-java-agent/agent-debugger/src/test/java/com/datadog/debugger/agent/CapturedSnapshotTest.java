@@ -3132,6 +3132,23 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertNull(result);
   }
 
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
+    LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
+    TestSnapshotListener listener = installProbes(probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    Reflect.onClass(testClass).call("parse", "1").get();
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+    assertEquals(PROBE_ID1.getId(), probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals(
+        "Instrumentation failed for com.datadog.debugger.CapturedSnapshot33: Instrumentation of a record with type annotation is not supported",
+        strCaptor.getAllValues().get(0));
+  }
+
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName, String includeFileName) {
     Config config = mock(Config.class);
