@@ -276,15 +276,7 @@ public final class ProfileUploader {
                         handleResponse(request, response, data, onCompletion);
                       }
                     } finally {
-                      if (response != null) {
-                        response.close();
-                      }
                       queuedRequestsCount.decrementAndGet();
-                    }
-                  } else {
-                    // Already handled by timeout - just close the response
-                    if (response != null) {
-                      response.close();
                     }
                   }
                 });
