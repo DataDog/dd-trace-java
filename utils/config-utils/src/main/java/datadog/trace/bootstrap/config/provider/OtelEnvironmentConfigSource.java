@@ -142,7 +142,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   private String mapTracesExporter() {
-    String exporter = getOtelProperty("otel.traces.exporter");
+    String exporter = getOtelProperty(OTEL_TRACES_EXPORTER);
     if ("otlp".equalsIgnoreCase(exporter)) {
       return "otlp";
     }
