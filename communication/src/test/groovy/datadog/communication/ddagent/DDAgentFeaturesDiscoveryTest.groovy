@@ -87,6 +87,23 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     V1_0     | V1_ENDPOINT
   }
 
+  def "null protocol version falls back to v0.4 trace endpoints"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features =
+      new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, null, true)
+
+    when:
+    features.discover()
+
+    then:
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, "{}") }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    features.getTraceEndpoint() == V04_ENDPOINT
+    0 * _
+  }
+
   def "Should change discovery state atomically after discovery happened"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)

@@ -32,6 +32,9 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
     }
 
     String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
+    if (tracesEndpoint == null) {
+      return;
+    }
 
     switch (ProtocolVersion.fromTraceEndpoint(tracesEndpoint)) {
       case V1_0:

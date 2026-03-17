@@ -1,17 +1,23 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+import static datadog.trace.api.ProtocolVersion.V1_0
+
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
-import datadog.metrics.api.Monitoring
-import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.api.statsd.StatsDClient
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.metrics.api.Monitoring
+import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
+import datadog.trace.api.ProtocolVersion
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -23,19 +29,16 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import org.msgpack.jackson.dataformat.MessagePackFactory
-import spock.lang.Shared
-import spock.lang.Timeout
-
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.lang.Shared
+import spock.lang.Timeout
 
 @Timeout(20)
 class DDAgentApiTest extends DDCoreSpecification {
@@ -79,10 +82,10 @@ class DDAgentApiTest extends DDCoreSpecification {
 
     where:
     agentVersion   | protocolVersion
-    "v0.3/traces"  | "0.4"
-    "v0.4/traces"  | "0.4"
-    "v0.5/traces"  | "0.5"
-    "v1.0/traces"  | "1.0"
+    "v0.3/traces"  | V0_4
+    "v0.4/traces"  | V0_4
+    "v0.5/traces"  | V0_5
+    "v1.0/traces"  | V1_0
   }
 
   def "response body propagated in case of non-200 response"() {
@@ -490,7 +493,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
   }
 
-  def createAgentApi(String url, String protocolVersion = "0.5") {
+  def createAgentApi(String url, ProtocolVersion protocolVersion = V0_5) {
     HttpUrl agentUrl = HttpUrl.get(url)
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
     DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocolVersion, true)

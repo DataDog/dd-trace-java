@@ -4426,7 +4426,7 @@ public class Config {
     return servletAsyncTimeoutError;
   }
 
-  public ProtocolVersion getTraceAgentProtocolVersion() {
+  public ProtocolVersion getProtocolVersion() {
     return protocolVersion;
   }
 

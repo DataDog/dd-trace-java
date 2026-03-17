@@ -25,12 +25,12 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.instrument.classinject.ClassInjector
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.api.statsd.StatsDClient
-import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
@@ -389,7 +389,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
-      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getTraceAgentProtocolVersion(), cfg.isTracerMetricsEnabled())
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, cfg.isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }

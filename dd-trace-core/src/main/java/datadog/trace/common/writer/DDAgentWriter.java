@@ -38,7 +38,7 @@ public class DDAgentWriter extends RemoteWriter {
     HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
-    ProtocolVersion protocolVersion = Config.get().getTraceAgentProtocolVersion();
+    ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
