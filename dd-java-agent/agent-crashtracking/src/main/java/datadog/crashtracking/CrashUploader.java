@@ -588,9 +588,6 @@ public final class CrashUploader {
                       body != null ? body.trim() : "<null>");
                 }
               } finally {
-                if (response != null) {
-                  response.close();
-                }
                 queuedRequestsCount.decrementAndGet();
               }
             });
