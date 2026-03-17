@@ -525,7 +525,7 @@ public final class CrashUploader {
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
-          writer.name("source_type").value("crashtracking");
+          writer.name("source_type").value("Crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
             // flat write an already serialized json object

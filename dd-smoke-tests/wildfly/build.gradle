@@ -9,6 +9,12 @@ ext {
 repositories {
   ivy {
     url = 'https://download.jboss.org/'
+    // Restrict this repository to WildFly distribution artifacts only.
+    // Without this filter, Gradle may probe this host for unrelated dependencies
+    // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
+    content {
+      includeGroup 'wildfly'
+    }
     patternLayout {
       // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
       // we download the full EE profile and not the servlet minimal one
@@ -127,4 +133,3 @@ tasks.withType(Test).configureEach {
   dependsOn 'deploy'
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
 }
-

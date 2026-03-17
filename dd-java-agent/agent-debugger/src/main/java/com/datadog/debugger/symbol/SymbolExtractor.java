@@ -390,13 +390,24 @@ public class SymbolExtractor {
       List<Symbol> varSymbols = new ArrayList<>();
       int minLine = Integer.MAX_VALUE;
       for (LocalVariableNode var : entry.getValue()) {
-        int line = monotonicLineMap.get(var.start.getLabel());
+        Integer line = monotonicLineMap.get(var.start.getLabel());
+        if (line == null) {
+          LOGGER.debug(
+              "Cannot find the line for variable {} idx={} in local variables",
+              var.name,
+              var.index);
+          continue;
+        }
         minLine = Math.min(line, minLine);
         varSymbols.add(
             new Symbol(
                 SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
       }
-      int endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      Integer endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      if (endLine == null) {
+        LOGGER.debug("Cannot find the line from end label");
+        continue;
+      }
       Scope varScope =
           Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
               .symbols(varSymbols)
