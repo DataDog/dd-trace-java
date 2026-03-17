@@ -13,15 +13,6 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
 internal open class GradleFixture(protected val projectDir: File) {
-  init {
-    // Disable the Gradle daemon so each GradleRunner invocation starts a fresh JVM.
-    // This prevents stale singleton state (e.g. MUZZLE_REPOS) from leaking across tests.
-    // Note: --no-daemon is unsupported by the Tooling API; -Dorg.gradle.daemon=false in
-    // withArguments() is ignored for daemon selection (build args are forwarded after daemon
-    // connection is established). Only gradle.properties is read early enough to take effect.
-    file("gradle.properties").appendText("org.gradle.daemon=false\n")
-  }
-
   /**
    * Runs Gradle with the specified arguments.
    *
@@ -32,6 +23,12 @@ internal open class GradleFixture(protected val projectDir: File) {
    */
   fun run(vararg args: String, expectFailure: Boolean = false, env: Map<String, String> = emptyMap()): BuildResult {
     val runner = GradleRunner.create()
+      // Use a testkit dir scoped to this fixture's projectDir. The Tooling API always uses a
+      // daemon and ignores org.gradle.daemon=false. By giving each test its own testkit dir,
+      // we force a fresh daemon per test — ensuring withEnvironment() vars (e.g.
+      // MAVEN_REPOSITORY_PROXY) are correctly set on the daemon JVM and not inherited from
+      // a previously-started daemon with a different test's environment.
+      .withTestKitDir(file(".testkit"))
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
