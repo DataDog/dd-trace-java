@@ -5209,11 +5209,11 @@ public class Config {
     return configProvider.isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
-  public String getotelTracesExporter() {
+  public String getOtelTracesExporter() {
     return otelTracesExporter;
   }
 
-  public boolean isotelTracesExporterEnabled() {
+  public boolean isOtlpTracesExporterEnabled() {
     return "otlp".equalsIgnoreCase(otelTracesExporter);
   }
 
