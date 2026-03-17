@@ -89,30 +89,7 @@ public class MessageV1 implements DecodedMessage {
         break;
       case 10:
         // Header-level attributes: same triplet encoding as span attributes.
-        int arraySize = unpacker.unpackArrayHeader();
-        if (arraySize % 3 != 0) {
-          throw new IllegalArgumentException(
-              "Attributes array size must be divisible by 3, got: " + arraySize);
-        }
-        int tripletCount = arraySize / 3;
-        for (int i = 0; i < tripletCount; i++) {
-          SpanV1.unpackStreamingString(unpacker, stringTable);
-          int valueType = unpacker.unpackInt();
-          switch (valueType) {
-            case SpanV1.STRING_VALUE_TYPE:
-              SpanV1.unpackStreamingString(unpacker, stringTable);
-              break;
-            case SpanV1.BOOL_VALUE_TYPE:
-              unpacker.unpackBoolean();
-              break;
-            case SpanV1.FLOAT_VALUE_TYPE:
-              unpacker.unpackDouble();
-              break;
-            default:
-              unpacker.skipValue();
-              break;
-          }
-        }
+        SpanV1.skipAttributes(unpacker, stringTable);
         break;
       default:
         unpacker.skipValue();

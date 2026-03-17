@@ -324,6 +324,58 @@ public class SpanV1 implements DecodedSpan {
     }
   }
 
+  static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)
+      throws IOException {
+    forEachAttribute(unpacker, stringTable, AttributeSkipper.INSTANCE);
+  }
+
+  private static void forEachAttribute(
+      MessageUnpacker unpacker, List<String> stringTable, AttributeConsumer consumer)
+      throws IOException {
+    int arraySize = unpacker.unpackArrayHeader();
+    // Array contains triplets (key, type, value), so size must be divisible by 3
+    if (arraySize % 3 != 0) {
+      throw new IllegalArgumentException(
+          "Attributes array size must be divisible by 3, got: " + arraySize);
+    }
+
+    int tripletCount = arraySize / 3;
+    for (int i = 0; i < tripletCount; i++) {
+      String key = unpackStreamingString(unpacker, stringTable);
+      int valueType = unpacker.unpackInt();
+      consumer.accept(unpacker, stringTable, key, valueType);
+    }
+  }
+
+  private interface AttributeConsumer {
+    void accept(MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
+        throws IOException;
+  }
+
+  private enum AttributeSkipper implements AttributeConsumer {
+    INSTANCE;
+
+    @Override
+    public void accept(
+        MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
+        throws IOException {
+      switch (valueType) {
+        case STRING_VALUE_TYPE:
+          unpackStreamingString(unpacker, stringTable);
+          break;
+        case BOOL_VALUE_TYPE:
+          unpacker.unpackBoolean();
+          break;
+        case FLOAT_VALUE_TYPE:
+          unpacker.unpackDouble();
+          break;
+        default:
+          unpacker.skipValue();
+          break;
+      }
+    }
+  }
+
   /**
    * Converts span kind integer to string representation.
    *

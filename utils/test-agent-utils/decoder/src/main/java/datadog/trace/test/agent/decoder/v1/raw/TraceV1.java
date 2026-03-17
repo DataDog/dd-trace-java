@@ -65,7 +65,7 @@ public class TraceV1 implements DecodedTrace {
           break;
         case 3:
           // chunk attributes (triplets array)
-          skipAttributes(unpacker, stringTable);
+          SpanV1.skipAttributes(unpacker, stringTable);
           break;
         case 4:
           spans = SpanV1.unpackSpans(unpacker, stringTable, traceId);
@@ -129,34 +129,6 @@ public class TraceV1 implements DecodedTrace {
               span.getMetaStruct());
     }
     return updated;
-  }
-
-  private static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
-    int arraySize = unpacker.unpackArrayHeader();
-    if (arraySize % 3 != 0) {
-      throw new IllegalArgumentException(
-          "Attributes array size must be divisible by 3, got: " + arraySize);
-    }
-    int tripletCount = arraySize / 3;
-    for (int i = 0; i < tripletCount; i++) {
-      SpanV1.unpackStreamingString(unpacker, stringTable);
-      int valueType = unpacker.unpackInt();
-      switch (valueType) {
-        case SpanV1.STRING_VALUE_TYPE:
-          SpanV1.unpackStreamingString(unpacker, stringTable);
-          break;
-        case SpanV1.BOOL_VALUE_TYPE:
-          unpacker.unpackBoolean();
-          break;
-        case SpanV1.FLOAT_VALUE_TYPE:
-          unpacker.unpackDouble();
-          break;
-        default:
-          unpacker.skipValue();
-          break;
-      }
-    }
   }
 
   private final DecodedSpan[] spans;
