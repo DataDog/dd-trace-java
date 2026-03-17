@@ -21,6 +21,12 @@ import okhttp3.mockwebserver.RecordedRequest;
  */
 public class SimpleAgentMock implements Closeable {
   private static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
+  private static final MockResponse INFO_RESPONSE =
+      new MockResponse()
+          .setResponseCode(200)
+          .addHeader("Content-Type", "application/json")
+          .setBody(
+              "{\"version\":\"7.77.0\",\"endpoints\":[\"/v1.0/traces\",\"/v0.5/traces\",\"/v0.4/traces\"]}");
 
   private final MockWebServer server;
   private final List<DecodedSpan> spans = new CopyOnWriteArrayList<>();
@@ -34,6 +40,10 @@ public class SimpleAgentMock implements Closeable {
           public MockResponse dispatch(final RecordedRequest request) {
             String path = request.getPath();
             if (path != null) {
+              if (path.startsWith("/info")) {
+                return INFO_RESPONSE;
+              }
+
               byte[] body = request.getBody().readByteArray();
 
               DecodedMessage message = null;
