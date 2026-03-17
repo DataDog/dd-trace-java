@@ -82,8 +82,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
-  private final ConcurrentHashMap<KafkaConfigReport, Boolean> reportedKafkaConfigs =
-      new ConcurrentHashMap<>();
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
@@ -296,17 +294,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void reportKafkaConfig(
       String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
-    KafkaConfigReport report =
+    inbox.offer(
         new KafkaConfigReport(
             type,
             kafkaClusterId,
             consumerGroup,
             config,
             timeSource.getCurrentTimeNanos(),
-            getThreadServiceName());
-    if (reportedKafkaConfigs.putIfAbsent(report, Boolean.TRUE) == null) {
-      inbox.offer(report);
-    }
+            getThreadServiceName()));
   }
 
   @Override
@@ -523,7 +518,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   public void clear() {
     timeToBucket.clear();
     schemaSamplers.clear();
-    reportedKafkaConfigs.clear();
   }
 
   void report() {

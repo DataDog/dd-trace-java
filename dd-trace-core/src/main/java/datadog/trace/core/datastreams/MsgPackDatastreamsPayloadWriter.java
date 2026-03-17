@@ -17,8 +17,11 @@ import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
@@ -290,14 +293,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.startMap(4); // Type, KafkaClusterId, ConsumerGroup, Config
 
       packer.writeUTF8(CONFIG_TYPE);
-      packer.writeString(config.getType() != null ? config.getType() : "", null);
+      packer.writeString(config.getType(), null);
 
       packer.writeUTF8(CONFIG_KAFKA_CLUSTER_ID);
-      packer.writeString(
-          config.getKafkaClusterId() != null ? config.getKafkaClusterId() : "", null);
+      packer.writeString(config.getKafkaClusterId(), null);
 
       packer.writeUTF8(CONFIG_CONSUMER_GROUP);
-      packer.writeString(config.getConsumerGroup() != null ? config.getConsumerGroup() : "", null);
+      packer.writeString(config.getConsumerGroup(), null);
 
       packer.writeUTF8(CONFIG_ENTRIES);
       Map<String, String> entries = config.getConfig();

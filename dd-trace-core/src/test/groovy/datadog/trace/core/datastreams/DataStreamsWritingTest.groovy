@@ -219,7 +219,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     validateKafkaConfigMessage(requestBodies[0])
   }
 
-  def "Duplicate Kafka configs are not serialized twice"() {
+  def "Duplicate Kafka configs are each serialized in the payload"() {
     given:
     def conditions = new PollingConditions(timeout: 2)
 
@@ -252,7 +252,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     def dataStreams = new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, { traceConfig })
     dataStreams.start()
 
-    // Report the same producer config twice
+    // Report the same producer config twice — both should be serialized
     dataStreams.reportKafkaConfig("kafka_producer", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
     dataStreams.reportKafkaConfig("kafka_producer", "", "", ["bootstrap.servers": "localhost:9092", "acks": "all"])
 
@@ -267,7 +267,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
       assert requestBodies.size() == 1
     }
 
-    validateDedupedKafkaConfigMessage(requestBodies[0])
+    validateDuplicateKafkaConfigMessage(requestBodies[0])
   }
 
   def validateKafkaConfigMessage(byte[] message) {
@@ -346,7 +346,7 @@ class DataStreamsWritingTest extends DDCoreSpecification {
     return true
   }
 
-  def validateDedupedKafkaConfigMessage(byte[] message) {
+  def validateDuplicateKafkaConfigMessage(byte[] message) {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)))
     BufferedSource bufferedSource = Okio.buffer(gzipSource)
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream())
@@ -368,26 +368,28 @@ class DataStreamsWritingTest extends DDCoreSpecification {
           if (bucketKey == "Configs") {
             foundConfigs = true
             def numConfigs = unpacker.unpackArrayHeader()
-            // Only 1 config should be present (deduplication)
-            assert numConfigs == 1
+            // Both configs should be present (no deduplication)
+            assert numConfigs == 2
 
-            assert unpacker.unpackMapHeader() == 4
-            assert unpacker.unpackString() == "Type"
-            assert unpacker.unpackString() == "kafka_producer"
-            assert unpacker.unpackString() == "KafkaClusterId"
-            unpacker.unpackString() // skip cluster id value
-            assert unpacker.unpackString() == "ConsumerGroup"
-            unpacker.unpackString() // skip consumer group value
-            assert unpacker.unpackString() == "Config"
-            def configSize = unpacker.unpackMapHeader()
-            Map<String, String> configEntries = [:]
-            configSize.times {
-              def ck = unpacker.unpackString()
-              def cv = unpacker.unpackString()
-              configEntries[ck] = cv
+            numConfigs.times {
+              assert unpacker.unpackMapHeader() == 4
+              assert unpacker.unpackString() == "Type"
+              assert unpacker.unpackString() == "kafka_producer"
+              assert unpacker.unpackString() == "KafkaClusterId"
+              unpacker.unpackString() // skip cluster id value
+              assert unpacker.unpackString() == "ConsumerGroup"
+              unpacker.unpackString() // skip consumer group value
+              assert unpacker.unpackString() == "Config"
+              def configSize = unpacker.unpackMapHeader()
+              Map<String, String> configEntries = [:]
+              configSize.times {
+                def ck = unpacker.unpackString()
+                def cv = unpacker.unpackString()
+                configEntries[ck] = cv
+              }
+              assert configEntries["bootstrap.servers"] == "localhost:9092"
+              assert configEntries["acks"] == "all"
             }
-            assert configEntries["bootstrap.servers"] == "localhost:9092"
-            assert configEntries["acks"] == "all"
           } else {
             unpacker.skipValue()
           }

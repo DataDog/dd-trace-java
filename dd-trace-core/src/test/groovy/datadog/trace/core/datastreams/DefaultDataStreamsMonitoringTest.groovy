@@ -1105,7 +1105,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     dataStreams.close()
   }
 
-  def "Duplicate Kafka configs are deduplicated and only sent once"() {
+  def "Duplicate Kafka configs are each reported in the bucket"() {
     given:
     def conditions = new PollingConditions(timeout: 1)
     def features = Stub(DDAgentFeaturesDiscovery) {
@@ -1125,11 +1125,11 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     def config1 = ["bootstrap.servers": "localhost:9092", "acks": "all"]
     def config2 = ["bootstrap.servers": "localhost:9092", "acks": "all"]
     dataStreams.reportKafkaConfig("kafka_producer", "", "", config1)
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2) // duplicate, should be ignored
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
-    then: "only one config is reported in the bucket"
+    then: "both configs are reported in the bucket"
     conditions.eventually {
       assert dataStreams.inbox.isEmpty()
       assert dataStreams.thread.state != Thread.State.RUNNABLE
@@ -1137,12 +1137,10 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     }
 
     with(payloadWriter.buckets.get(0)) {
-      kafkaConfigs.size() == 1
-      with(kafkaConfigs.get(0)) {
-        type == "kafka_producer"
-        config["bootstrap.servers"] == "localhost:9092"
-        config["acks"] == "all"
-      }
+      kafkaConfigs.size() == 2
+      kafkaConfigs.every { it.type == "kafka_producer" }
+      kafkaConfigs.every { it.config["bootstrap.servers"] == "localhost:9092" }
+      kafkaConfigs.every { it.config["acks"] == "all" }
     }
 
     cleanup:
@@ -1150,7 +1148,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
     dataStreams.close()
   }
 
-  def "Duplicate Kafka configs across buckets are deduplicated"() {
+  def "Kafka configs reported in separate buckets appear in each bucket"() {
     given:
     def conditions = new PollingConditions(timeout: 1)
     def features = Stub(DDAgentFeaturesDiscovery) {
@@ -1164,7 +1162,7 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
       isDataStreamsEnabled() >> true
     }
 
-    when: "reporting the same config in two different bucket windows"
+    when: "reporting a config in the first bucket"
     def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.start()
     def config = ["bootstrap.servers": "localhost:9092", "acks": "all"]
@@ -1185,17 +1183,25 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     when: "reporting the same config again in a new bucket"
     payloadWriter.buckets.clear()
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config) // duplicate, should be ignored globally
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config)
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
     dataStreams.report()
 
-    then: "second bucket has no configs because the duplicate was filtered"
+    then: "second bucket also has the config"
     conditions.eventually {
       assert dataStreams.inbox.isEmpty()
       assert dataStreams.thread.state != Thread.State.RUNNABLE
+      assert payloadWriter.buckets.size() == 1
     }
-    // Either no buckets at all, or buckets with empty kafkaConfigs
-    payloadWriter.buckets.every { it.kafkaConfigs.isEmpty() }
+
+    with(payloadWriter.buckets.get(0)) {
+      kafkaConfigs.size() == 1
+      with(kafkaConfigs.get(0)) {
+        type == "kafka_producer"
+        config["bootstrap.servers"] == "localhost:9092"
+        config["acks"] == "all"
+      }
+    }
 
     cleanup:
     payloadWriter.close()
@@ -1416,66 +1422,6 @@ class DefaultDataStreamsMonitoringTest extends DDCoreSpecification {
 
     cleanup:
     payloadWriter.close()
-  }
-
-  def "clear() resets Kafka config dedup cache"() {
-    given:
-    def conditions = new PollingConditions(timeout: 1)
-    def features = Stub(DDAgentFeaturesDiscovery) {
-      supportsDataStreams() >> true
-    }
-    def timeSource = new ControllableTimeSource()
-    def sink = Mock(Sink)
-    def payloadWriter = new CapturingPayloadWriter()
-
-    def traceConfig = Mock(TraceConfig) {
-      isDataStreamsEnabled() >> true
-    }
-
-    when: "reporting config, flushing, clearing, then reporting the same config again"
-    def dataStreams = new DefaultDataStreamsMonitoring(sink, features, timeSource, { traceConfig }, payloadWriter, DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.start()
-    def config = ["bootstrap.servers": "localhost:9092", "acks": "all"]
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config)
-    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.report()
-
-    then: "first config is reported"
-    conditions.eventually {
-      assert dataStreams.inbox.isEmpty()
-      assert dataStreams.thread.state != Thread.State.RUNNABLE
-      assert payloadWriter.buckets.size() == 1
-    }
-
-    with(payloadWriter.buckets.get(0)) {
-      kafkaConfigs.size() == 1
-    }
-
-    when: "clearing the state and reporting the same config"
-    payloadWriter.buckets.clear()
-    dataStreams.clear()
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config)
-    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS)
-    dataStreams.report()
-
-    then: "the config is reported again because the dedup cache was cleared"
-    conditions.eventually {
-      assert dataStreams.inbox.isEmpty()
-      assert dataStreams.thread.state != Thread.State.RUNNABLE
-      assert payloadWriter.buckets.size() == 1
-    }
-
-    with(payloadWriter.buckets.get(0)) {
-      kafkaConfigs.size() == 1
-      with(kafkaConfigs.get(0)) {
-        type == "kafka_producer"
-        config["bootstrap.servers"] == "localhost:9092"
-      }
-    }
-
-    cleanup:
-    payloadWriter.close()
-    dataStreams.close()
   }
 
   def "KafkaConfigReport equals and hashCode work correctly"() {

@@ -16,13 +16,13 @@ import org.slf4j.LoggerFactory;
 public class KafkaConfigHelper {
   private static final Logger log = LoggerFactory.getLogger(KafkaConfigHelper.class);
 
-  static final String MASKED_VALUE = "****";
+  public static final String MASKED_VALUE = "****";
 
   /**
    * Config keys that are safe to capture with their values. Other keys are captured with masked
    * values.
    */
-  static final Set<String> ALLOWED_KEYS =
+  public static final Set<String> ALLOWED_KEYS =
       new HashSet<>(
           Arrays.asList(
               // Common client configs
@@ -93,7 +93,7 @@ public class KafkaConfigHelper {
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingProducerConfig(MetadataState state, Map<String, String> config) {
-    state.setPendingConfig(new PendingConfig("producer", "", config));
+    state.setPendingConfig(new PendingConfig("kafka_producer", "", config));
     log.debug("Stored pending producer config (cluster ID not yet known)");
   }
 
@@ -101,7 +101,7 @@ public class KafkaConfigHelper {
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, Map<String, String> config) {
     state.setPendingConfig(
-        new PendingConfig("consumer", consumerGroup != null ? consumerGroup : "", config));
+        new PendingConfig("kafka_consumer", consumerGroup != null ? consumerGroup : "", config));
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 
