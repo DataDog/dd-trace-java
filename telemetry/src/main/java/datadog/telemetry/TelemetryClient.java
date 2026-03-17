@@ -93,8 +93,8 @@ public class TelemetryClient {
     HttpRequest httpRequest = httpRequestBuilder.build();
     String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
 
-    try (HttpResponse response =
-        HttpUtils.sendWithRetries(httpClient, httpRetryPolicy, httpRequest)) {
+    try {
+      HttpResponse response = HttpUtils.sendWithRetries(httpClient, httpRetryPolicy, httpRequest);
       if (response.code() == 404) {
         log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
         return Result.NOT_FOUND;
