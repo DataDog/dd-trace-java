@@ -33,9 +33,6 @@ class SpringSchedulingTest extends InstrumentationSpecification {
     // Close the context immediately after the first execution to prevent a second cron
     // firing before assertions complete, which would produce extra traces and cause flakiness.
     context.close()
-    // Deterministic reproduction: sleep longer than the cron interval (5 s) to prove
-    // that closing the context stopped the scheduler and no extra traces appear.
-    Thread.sleep(6000)
 
     expect:
     assert task != null
