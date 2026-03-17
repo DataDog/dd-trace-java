@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim.metrics.data;
+package datadog.trace.bootstrap.otel.metrics.data;
 
 /** Common behaviour shared across all aggregators. */
 abstract class OtelAggregator {

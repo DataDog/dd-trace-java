@@ -1,4 +1,4 @@
-package datadog.opentelemetry.shim;
+package datadog.trace.bootstrap.otel.common;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Objects;
