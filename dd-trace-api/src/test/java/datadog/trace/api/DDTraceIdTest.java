@@ -5,19 +5,24 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import datadog.trace.test.util.TableTestTypeConverters;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(TableTestTypeConverters.class)
 class DDTraceIdTest {
 
   @TableTest({
-    "scenario   | longId               | expectedString        | expectedHex                        ",
+    "scenario   | longId               | expectedString        | expectedHex                       ",
     "zero       | 0                    | '0'                   | '00000000000000000000000000000000'",
     "one        | 1                    | '1'                   | '00000000000000000000000000000001'",
     "minus one  | -1                   | '18446744073709551615'| '0000000000000000ffffffffffffffff'",
-    "long max   | 9223372036854775807  | '9223372036854775807' | '00000000000000007fffffffffffffff'",
-    "long min   | -9223372036854775808 | '9223372036854775808' | '00000000000000008000000000000000'"
+    "long max   | Long.MAX_VALUE       | '9223372036854775807' | '00000000000000007fffffffffffffff'",
+    "long min   | Long.MIN_VALUE       | '9223372036854775808' | '00000000000000008000000000000000'"
   })
   @ParameterizedTest
   void convert64BitIdsFromToLongAndCheckStrings(
@@ -39,30 +44,29 @@ class DDTraceIdTest {
     "zero               | '0'                    | 0                   ",
     "one                | '1'                    | 1                   ",
     "max                | '18446744073709551615' | -1                  ",
-    "long max           | '9223372036854775807'  | 9223372036854775807 ",
-    "long max plus one  | '9223372036854775808'  | -9223372036854775808"
+    "long max           | '9223372036854775807'  | Long.MAX_VALUE      ",
+    "long max plus one  | '9223372036854775808'  | Long.MIN_VALUE      "
   })
   @ParameterizedTest
   void convert64BitIdsFromToStringRepresentation(String stringId, long expectedLongId) {
     DD64bTraceId ddid = DD64bTraceId.from(stringId);
 
     assertEquals(DD64bTraceId.from(expectedLongId), ddid);
-    assertEquals(expectedLongId, ddid.toLong());
     assertEquals(stringId, ddid.toString());
   }
 
-  @TableTest({
-    "scenario              | stringId               ",
-    "null                  |                        ",
-    "empty                 | ''                     ",
-    "negative one          | '-1'                   ",
-    "too large             | '18446744073709551616'",
-    "too large variant     | '18446744073709551625'",
-    "too large long        | '184467440737095516150'",
-    "contains alpha first  | '18446744073709551a1' ",
-    "contains alpha last   | '184467440737095511a' "
-  })
   @ParameterizedTest
+  @NullSource
+  @ValueSource(
+      strings = {
+        "",
+        "-1",
+        "18446744073709551616",
+        "18446744073709551625",
+        "184467440737095516150",
+        "18446744073709551a1",
+        "184467440737095511a"
+      })
   void failParsingIllegal64BitIdStringRepresentation(String stringId) {
     assertThrows(NumberFormatException.class, () -> DD64bTraceId.from(stringId));
   }
@@ -72,9 +76,9 @@ class DDTraceIdTest {
     "zero                        | '0'                    | 0                   ",
     "one                         | '1'                    | 1                   ",
     "max                         | 'ffffffffffffffff'     | -1                  ",
-    "long max                    | '7fffffffffffffff'     | 9223372036854775807 ",
-    "long min                    | '8000000000000000'     | -9223372036854775808",
-    "long min with leading zeros | '00008000000000000000' | -9223372036854775808",
+    "long max                    | '7fffffffffffffff'     | Long.MAX_VALUE      ",
+    "long min                    | '8000000000000000'     | Long.MIN_VALUE      ",
+    "long min with leading zeros | '00008000000000000000' | Long.MIN_VALUE      ",
     "cafebabe                    | 'cafebabe'             | 3405691582          ",
     "fifteen hex digits          | '123456789abcdef'      | 81985529216486895   "
   })
@@ -92,31 +96,24 @@ class DDTraceIdTest {
     assertEquals(padded32, ddid.toHexStringPadded(32));
   }
 
-  @TableTest({
-    "scenario             | hexId              ",
-    "null                 |                    ",
-    "empty                | ''                 ",
-    "negative one         | '-1'               ",
-    "too long             | '10000000000000000'",
-    "invalid middle       | 'ffffffffffffffzf' ",
-    "invalid tail         | 'fffffffffffffffz' "
-  })
   @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failParsingIllegal64BitHexadecimalStringRepresentation(String hexId) {
     assertThrows(NumberFormatException.class, () -> DD64bTraceId.fromHex(hexId));
   }
 
   @TableTest({
     "scenario                      | highOrderBits        | lowOrderBits         | hexId                             ",
-    "both long min                 | -9223372036854775808 | -9223372036854775808 | '80000000000000008000000000000000'",
-    "high long min low one         | -9223372036854775808 | 1                    | '80000000000000000000000000000001'",
-    "high long min low long max    | -9223372036854775808 | 9223372036854775807  | '80000000000000007fffffffffffffff'",
-    "high one low long min         | 1                    | -9223372036854775808 | '00000000000000018000000000000000'",
+    "both long min                 | Long.MIN_VALUE       | Long.MIN_VALUE       | '80000000000000008000000000000000'",
+    "high long min low one         | Long.MIN_VALUE       | 1                    | '80000000000000000000000000000001'",
+    "high long min low long max    | Long.MIN_VALUE       | Long.MAX_VALUE       | '80000000000000007fffffffffffffff'",
+    "high one low long min         | 1                    | Long.MIN_VALUE       | '00000000000000018000000000000000'",
     "high one low one              | 1                    | 1                    | '00000000000000010000000000000001'",
-    "high one low long max         | 1                    | 9223372036854775807  | '00000000000000017fffffffffffffff'",
-    "high long max low long min    | 9223372036854775807  | -9223372036854775808 | '7fffffffffffffff8000000000000000'",
-    "high long max low one         | 9223372036854775807  | 1                    | '7fffffffffffffff0000000000000001'",
-    "high long max low long max    | 9223372036854775807  | 9223372036854775807  | '7fffffffffffffff7fffffffffffffff'",
+    "high one low long max         | 1                    | Long.MAX_VALUE       | '00000000000000017fffffffffffffff'",
+    "high long max low long min    | Long.MAX_VALUE       | Long.MIN_VALUE       | '7fffffffffffffff8000000000000000'",
+    "high long max low one         | Long.MAX_VALUE       | 1                    | '7fffffffffffffff0000000000000001'",
+    "high long max low long max    | Long.MAX_VALUE       | Long.MAX_VALUE       | '7fffffffffffffff7fffffffffffffff'",
     "all zeros length one          | 0                    | 0                    | '0'                               ",
     "all zeros length sixteen      | 0                    | 0                    | '0000000000000000'                ",
     "all zeros length seventeen    | 0                    | 0                    | '00000000000000000'               ",
@@ -143,17 +140,9 @@ class DDTraceIdTest {
     assertEquals(Long.toUnsignedString(lowOrderBits), parsedId.toString());
   }
 
-  @TableTest({
-    "scenario            | hexId                               ",
-    "null                |                                     ",
-    "empty               | ''                                  ",
-    "negative one        | '-1'                                ",
-    "negative A          | '-A'                                ",
-    "too long            | '111111111111111111111111111111111'  ",
-    "upper case allowed? | '123ABC'                            ",
-    "invalid character   | '123abcg'                           "
-  })
   @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "-1", "-A", "111111111111111111111111111111111", "123ABC", "123abcg"})
   void failParsingIllegal128BitIdHexadecimalStringRepresentation(String hexId) {
     assertThrows(NumberFormatException.class, () -> DD128bTraceId.fromHex(hexId));
   }

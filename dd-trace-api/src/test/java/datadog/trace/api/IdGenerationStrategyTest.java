@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class IdGenerationStrategyTest {
@@ -52,13 +53,8 @@ class IdGenerationStrategyTest {
     }
   }
 
-  @TableTest({
-    "scenario          | strategyName",
-    "some-strategy     | SOME        ",
-    "unknown-strategy  | UNKNOWN     ",
-    "plural-strategies | STRATEGIES  "
-  })
   @ParameterizedTest(name = "return null for non existing strategy {0}")
+  @ValueSource(strings = {"SOME", "UNKNOWN", "STRATEGIES"})
   void returnNullForNonExistingStrategy(String strategyName) {
     assertNull(IdGenerationStrategy.fromName(strategyName));
   }

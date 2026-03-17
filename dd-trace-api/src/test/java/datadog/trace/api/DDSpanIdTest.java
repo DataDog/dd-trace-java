@@ -7,20 +7,25 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import datadog.trace.test.util.TableTestTypeConverters;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(TableTestTypeConverters.class)
 class DDSpanIdTest {
 
   @TableTest({
     "scenario           | stringId               | expectedId          ",
     "zero               | '0'                    | 0                   ",
     "one                | '1'                    | 1                   ",
-    "max                | '18446744073709551615' | -1                  ",
-    "long max           | '9223372036854775807'  | 9223372036854775807 ",
-    "long max plus one  | '9223372036854775808'  | -9223372036854775808"
+    "max                | '18446744073709551615' | DDSpanId.MAX        ",
+    "long max           | '9223372036854775807'  | Long.MAX_VALUE      ",
+    "long max plus one  | '9223372036854775808'  | Long.MIN_VALUE      "
   })
   @ParameterizedTest
   void convertIdsFromToString(String stringId, long expectedId) {
@@ -30,18 +35,18 @@ class DDSpanIdTest {
     assertEquals(stringId, DDSpanId.toString(ddid));
   }
 
-  @TableTest({
-    "scenario              | stringId               ",
-    "null                  |                        ",
-    "empty                 | ''                     ",
-    "negative one          | '-1'                   ",
-    "too large             | '18446744073709551616'",
-    "too large variant     | '18446744073709551625'",
-    "too large long        | '184467440737095516150'",
-    "contains alpha first  | '18446744073709551a1' ",
-    "contains alpha last   | '184467440737095511a' "
-  })
   @ParameterizedTest
+  @NullSource
+  @ValueSource(
+      strings = {
+        "",
+        "-1",
+        "18446744073709551616",
+        "18446744073709551625",
+        "184467440737095516150",
+        "18446744073709551a1",
+        "184467440737095511a"
+      })
   void failOnIllegalString(String stringId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.from(stringId));
   }
@@ -50,10 +55,10 @@ class DDSpanIdTest {
     "scenario                    | hexId                  | expectedId          ",
     "zero                        | '0'                    | 0                   ",
     "one                         | '1'                    | 1                   ",
-    "max                         | 'ffffffffffffffff'     | -1                  ",
-    "long max                    | '7fffffffffffffff'     | 9223372036854775807 ",
-    "long min                    | '8000000000000000'     | -9223372036854775808",
-    "long min with leading zeros | '00008000000000000000' | -9223372036854775808",
+    "max                         | 'ffffffffffffffff'     | DDSpanId.MAX        ",
+    "long max                    | '7fffffffffffffff'     | Long.MAX_VALUE      ",
+    "long min                    | '8000000000000000'     | Long.MIN_VALUE      ",
+    "long min with leading zeros | '00008000000000000000' | Long.MIN_VALUE      ",
     "cafebabe                    | 'cafebabe'             | 3405691582          ",
     "fifteen hex digits          | '123456789abcdef'      | 81985529216486895   "
   })
@@ -73,17 +78,17 @@ class DDSpanIdTest {
   }
 
   @TableTest({
-    "scenario                                | hexId               | start | length | lowerCaseOnly | expectedId",
-    "null input                              |                     | 1     | 1      | false         |          ",
-    "empty input                             | ''                  | 1     | 1      | false         |          ",
-    "negative start                          | '00'                | -1    | 1      | false         |          ",
-    "zero length                             | '00'                | 0     | 0      | false         |          ",
-    "single zero at index 0                  | '00'                | 0     | 1      | false         | 0        ",
-    "single zero at index 1                  | '00'                | 1     | 1      | false         | 0        ",
-    "single zero at index 1 duplicate        | '00'                | 1     | 1      | false         | 0        ",
-    "max lower-case                          | 'ffffffffffffffff'  | 0     | 16     | true          | -1       ",
-    "upper-case rejected when lower-case only| 'ffffffffffffFfff'  | 0     | 16     | true          |          ",
-    "upper-case accepted when lower disabled | 'ffffffffffffFfff'  | 0     | 16     | false         | -1       "
+    "scenario                                | hexId               | start | length | lowerCaseOnly | expectedId   ",
+    "null input                              |                     | 1     | 1      | false         |              ",
+    "empty input                             | ''                  | 1     | 1      | false         |              ",
+    "negative start                          | '00'                | -1    | 1      | false         |              ",
+    "zero length                             | '00'                | 0     | 0      | false         |              ",
+    "single zero at index 0                  | '00'                | 0     | 1      | false         | DDSpanId.ZERO",
+    "single zero at index 1                  | '00'                | 1     | 1      | false         | DDSpanId.ZERO",
+    "single zero at index 1 duplicate        | '00'                | 1     | 1      | false         | DDSpanId.ZERO",
+    "max lower-case                          | 'ffffffffffffffff'  | 0     | 16     | true          | DDSpanId.MAX ",
+    "upper-case rejected when lower-case only| 'ffffffffffffFfff'  | 0     | 16     | true          |              ",
+    "upper-case accepted when lower disabled | 'ffffffffffffFfff'  | 0     | 16     | false         | DDSpanId.MAX "
   })
   @ParameterizedTest
   void convertIdsFromPartOfHexString(
@@ -102,27 +107,15 @@ class DDSpanIdTest {
     }
   }
 
-  @TableTest({
-    "scenario             | hexId              ",
-    "null                 |                    ",
-    "empty                | ''                 ",
-    "negative one         | '-1'               ",
-    "too long             | '10000000000000000'",
-    "invalid middle       | 'ffffffffffffffzf' ",
-    "invalid tail         | 'fffffffffffffffz' "
-  })
   @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failOnIllegalHexString(String hexId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.fromHex(hexId));
   }
 
-  @TableTest({
-    "scenario      | strategyName ",
-    "random        | RANDOM       ",
-    "sequential    | SEQUENTIAL   ",
-    "secure random | SECURE_RANDOM"
-  })
   @ParameterizedTest
+  @ValueSource(strings = {"RANDOM", "SEQUENTIAL", "SECURE_RANDOM"})
   void generateIdWithStrategy(String strategyName) {
     IdGenerationStrategy strategy = IdGenerationStrategy.fromName(strategyName);
     Set<Long> checked = new HashSet<Long>();
