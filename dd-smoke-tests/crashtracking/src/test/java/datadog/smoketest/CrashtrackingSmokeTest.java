@@ -13,6 +13,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -317,6 +318,132 @@ public class CrashtrackingSmokeTest {
     assertExpectedCrash(p);
     assertCrashData(assertCrashPing());
     assertOOMEvent();
+  }
+
+  /**
+   * Verifies that the OOME notifier script correctly unsets inherited JVM environment variables.
+   * Without the fix, the child JVM spawned by the script would inherit JDK_JAVA_OPTIONS containing
+   * JMX port-binding flags, causing a BindException and losing the OOME event.
+   *
+   * @see <a href="https://github.com/DataDog/dd-trace-java/issues/10766">#10766</a>
+   */
+  @Test
+  void testOomeTrackingWithInheritedEnvVars() throws Exception {
+    int jmxPort = findFreePort();
+
+    Path script = tempDir.resolve("dd_oome_notifier." + getExtension());
+    String onErrorValue = script + " %p";
+    String errorFile = tempDir.resolve("hs_err_pid%p.log").toString();
+
+    String onOOMEArg =
+        !Platform.isLinux()
+            ? "-XX:OnOutOfMemoryError=" + onErrorValue
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true";
+
+    List<String> processArgs = new ArrayList<>();
+    processArgs.add(javaPath());
+    processArgs.add("-javaagent:" + agentShadowJar());
+    processArgs.add("-Xmx96m");
+    processArgs.add("-Xms96m");
+    if (!onOOMEArg.isEmpty()) {
+      processArgs.add(onOOMEArg);
+    }
+    processArgs.add("-XX:ErrorFile=" + errorFile);
+    processArgs.add("-XX:+CrashOnOutOfMemoryError");
+    processArgs.add("-Ddd.dogstatsd.start-delay=0");
+    processArgs.add("-Ddd.trace.enabled=false");
+    processArgs.add("-jar");
+    processArgs.add(appShadowJar());
+
+    ProcessBuilder pb = new ProcessBuilder(processArgs);
+    pb.environment().put("DD_DOGSTATSD_PORT", String.valueOf(udpServer.getPort()));
+    // Simulate admission controller injecting JMX flags via JDK_JAVA_OPTIONS
+    pb.environment()
+        .put(
+            "JDK_JAVA_OPTIONS",
+            "-Dcom.sun.management.jmxremote"
+                + " -Dcom.sun.management.jmxremote.port="
+                + jmxPort
+                + " -Dcom.sun.management.jmxremote.rmi.port="
+                + jmxPort
+                + " -Dcom.sun.management.jmxremote.authenticate=false"
+                + " -Dcom.sun.management.jmxremote.ssl=false");
+
+    System.out.println("==> Process args: " + pb.command());
+    System.out.println("==> JMX port: " + jmxPort);
+
+    Process p = pb.start();
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testOomeTrackingWithInheritedEnvVars.log").toFile());
+
+    assertExpectedCrash(p);
+    assertOOMEvent();
+  }
+
+  /**
+   * Verifies that the crash uploader script correctly unsets inherited JVM environment variables.
+   * Without the fix, the child JVM spawned by the script would inherit JDK_JAVA_OPTIONS containing
+   * JMX port-binding flags, causing a BindException and losing the crash data.
+   *
+   * @see <a href="https://github.com/DataDog/dd-trace-java/issues/10766">#10766</a>
+   */
+  @Test
+  void testCrashTrackingWithInheritedEnvVars() throws Exception {
+    int jmxPort = findFreePort();
+
+    Path script = tempDir.resolve("dd_crash_uploader." + getExtension());
+    String onErrorValue = script + " %p";
+    String errorFile = tempDir.resolve("hs_err.log").toString();
+
+    String onErrorArg =
+        !Platform.isLinux()
+            ? "-XX:OnError=" + onErrorValue
+            : "-Ddd.crashtracking.debug.autoconfig.enable=true";
+
+    List<String> processArgs = new ArrayList<>();
+    processArgs.add(javaPath());
+    processArgs.add("-javaagent:" + agentShadowJar());
+    processArgs.add("-Xmx96m");
+    processArgs.add("-Xms96m");
+    if (!onErrorArg.isEmpty()) {
+      processArgs.add(onErrorArg);
+    }
+    processArgs.add("-XX:ErrorFile=" + errorFile);
+    processArgs.add("-XX:+CrashOnOutOfMemoryError");
+    processArgs.add("-Ddd.dogstatsd.start-delay=0");
+    processArgs.add("-Ddd.trace.enabled=false");
+    processArgs.add("-jar");
+    processArgs.add(appShadowJar());
+
+    ProcessBuilder pb = new ProcessBuilder(processArgs);
+    pb.environment().put("DD_TRACE_AGENT_PORT", String.valueOf(tracingServer.getPort()));
+    // Simulate admission controller injecting JMX flags via JDK_JAVA_OPTIONS
+    pb.environment()
+        .put(
+            "JDK_JAVA_OPTIONS",
+            "-Dcom.sun.management.jmxremote"
+                + " -Dcom.sun.management.jmxremote.port="
+                + jmxPort
+                + " -Dcom.sun.management.jmxremote.rmi.port="
+                + jmxPort
+                + " -Dcom.sun.management.jmxremote.authenticate=false"
+                + " -Dcom.sun.management.jmxremote.ssl=false");
+
+    System.out.println("==> Process args: " + pb.command());
+    System.out.println("==> JMX port: " + jmxPort);
+
+    Process p = pb.start();
+    OUTPUT.captureOutput(
+        p, LOG_FILE_DIR.resolve("testProcess.testCrashTrackingWithInheritedEnvVars.log").toFile());
+
+    assertExpectedCrash(p);
+    assertCrashData(assertCrashPing());
+  }
+
+  private static int findFreePort() throws IOException {
+    try (ServerSocket socket = new ServerSocket(0)) {
+      return socket.getLocalPort();
+    }
   }
 
   private static void assertExpectedCrash(Process p) throws InterruptedException {
