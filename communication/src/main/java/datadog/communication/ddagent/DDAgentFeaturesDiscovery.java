@@ -201,11 +201,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
                 .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                 .build();
-        try (HttpResponse response = client.execute(request)) {
-          if (response.code() != 404) {
-            newState.state = response.header(DATADOG_AGENT_STATE);
-            return candidate;
-          }
+        HttpResponse response = client.execute(request);
+        if (response.code() != 404) {
+          newState.state = response.header(DATADOG_AGENT_STATE);
+          return candidate;
         }
       } catch (Throwable e) {
         errorQueryingEndpoint(candidate, e);
