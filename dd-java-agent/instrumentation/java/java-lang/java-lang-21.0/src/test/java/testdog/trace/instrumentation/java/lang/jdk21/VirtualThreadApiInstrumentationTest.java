@@ -115,15 +115,6 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
                               @Trace(operationName = "great-great-child")
                               @Override
                               public void run() {
-                                try {
-                                  // Deterministic reproduction: delay the innermost thread to
-                                  // simulate slow span closure. Without
-                                  // blockUntilChildSpansFinished, this delay causes assertTraces
-                                  // to run before this span is written.
-                                  Thread.sleep(200);
-                                } catch (InterruptedException e) {
-                                  Thread.currentThread().interrupt();
-                                }
                                 System.out.println("complete");
                               }
                             });
