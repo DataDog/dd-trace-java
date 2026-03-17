@@ -69,6 +69,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       return;
     }
 
+    final AgentSpan routeSpan = parentSpan.getLocalRootSpan();
+
     final String method = routingContext.request().rawMethod();
     String mountPoint = routingContext.mountPoint();
     String path = routingContext.currentRoute().getPath();
@@ -81,9 +83,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       }
       path = mountPoint + path;
     }
-    if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
+    if (method != null && path != null && shouldUpdateRoute(routingContext, routeSpan, path)) {
       routingContext.put(ROUTE_CONTEXT_KEY, path);
-      HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
+      HTTP_RESOURCE_DECORATOR.withRoute(routeSpan, method, path, true);
     }
   }
 
