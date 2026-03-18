@@ -23,7 +23,12 @@ internal open class GradleFixture(protected val projectDir: File) {
    */
   fun run(vararg args: String, expectFailure: Boolean = false, env: Map<String, String> = emptyMap()): BuildResult {
     val runner = GradleRunner.create()
-      .withTestKitDir(File(projectDir, ".gradle-test-kit"))
+      // Use a testkit dir scoped to this fixture's projectDir. The Tooling API always uses a
+      // daemon and ignores org.gradle.daemon=false. By giving each test its own testkit dir,
+      // we force a fresh daemon per test — ensuring withEnvironment() vars (e.g.
+      // MAVEN_REPOSITORY_PROXY) are correctly set on the daemon JVM and not inherited from
+      // a previously-started daemon with a different test's environment.
+      .withTestKitDir(file(".testkit"))
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
