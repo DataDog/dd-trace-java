@@ -561,6 +561,7 @@ include(
   ":dd-java-agent:instrumentation:sparkjava-2.3",
   ":dd-java-agent:instrumentation:spray-1.3",
   ":dd-java-agent:instrumentation:spring:spring-beans-3.1",
+  ":dd-java-agent:instrumentation:spring:spring-ai-1.0",
   ":dd-java-agent:instrumentation:spring:spring-boot-1.3",
   ":dd-java-agent:instrumentation:spring:spring-cloud-zuul-2.0",
   ":dd-java-agent:instrumentation:spring:spring-core-3.2.2",
