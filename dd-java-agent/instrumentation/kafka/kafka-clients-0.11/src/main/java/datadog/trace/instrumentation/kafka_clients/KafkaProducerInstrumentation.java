@@ -200,7 +200,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
       AgentSpan span = activeSpan();
       if (span == null) return;
-      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+      MetadataState metadataState =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      String clusterId = metadataState != null ? metadataState.clusterId : null;
       TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
