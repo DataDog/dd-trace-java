@@ -6264,9 +6264,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
-        + ", traceOtelExporter='"
+        + ", traceOtelExporter="
         + traceOtelExporter
-        + '\''
         + ", metricsOtelEnabled="
         + metricsOtelEnabled
         + ", metricsOtelInterval="
