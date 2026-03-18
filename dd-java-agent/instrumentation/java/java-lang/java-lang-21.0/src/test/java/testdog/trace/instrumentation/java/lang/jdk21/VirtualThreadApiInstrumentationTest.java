@@ -3,11 +3,14 @@ package testdog.trace.instrumentation.java.lang.jdk21;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.Trace;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -135,6 +138,68 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
             span().childOfPrevious().operationName("child"),
             span().childOfPrevious().operationName("great-child"),
             span().childOfPrevious().operationName("great-great-child")));
+  }
+
+  @DisplayName("test CorrelationIdentifier across virtual thread remount")
+  @Test
+  void testCorrelationIdentifierAcrossVirtualThreadRemount() throws InterruptedException {
+    AtomicReference<String> parentTraceId = new AtomicReference<>();
+    AtomicReference<String> parentSpanId = new AtomicReference<>();
+    AtomicReference<String> traceIdBeforeRemount = new AtomicReference<>();
+    AtomicReference<String> spanIdBeforeRemount = new AtomicReference<>();
+    AtomicReference<String> traceIdAfterRemount = new AtomicReference<>();
+    AtomicReference<String> spanIdAfterRemount = new AtomicReference<>();
+
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      public void run() {
+        parentTraceId.set(CorrelationIdentifier.getTraceId());
+        parentSpanId.set(CorrelationIdentifier.getSpanId());
+
+        Thread thread =
+            Thread.startVirtualThread(
+                () -> {
+                  traceIdBeforeRemount.set(CorrelationIdentifier.getTraceId());
+                  spanIdBeforeRemount.set(CorrelationIdentifier.getSpanId());
+
+                  try {
+                    // Sleeping should park and later remount the virtual thread.
+                    Thread.sleep(10);
+                  } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                  }
+
+                  traceIdAfterRemount.set(CorrelationIdentifier.getTraceId());
+                  spanIdAfterRemount.set(CorrelationIdentifier.getSpanId());
+                });
+
+        try {
+          thread.join();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }.run();
+
+    assertEquals(
+        parentTraceId.get(),
+        traceIdBeforeRemount.get(),
+        "trace id should be visible before the virtual thread remounts");
+    assertEquals(
+        parentSpanId.get(),
+        spanIdBeforeRemount.get(),
+        "span id should be visible before the virtual thread remounts");
+    assertEquals(
+        parentTraceId.get(),
+        traceIdAfterRemount.get(),
+        "trace id should survive a virtual thread remount");
+    assertEquals(
+        parentSpanId.get(),
+        spanIdAfterRemount.get(),
+        "span id should survive a virtual thread remount");
+
+    assertTraces(trace(span().root().operationName("parent")));
   }
 
   /** Verifies the parent / child span relation. */
