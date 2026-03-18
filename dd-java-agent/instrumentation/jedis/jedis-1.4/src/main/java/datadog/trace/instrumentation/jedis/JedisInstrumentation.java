@@ -51,7 +51,8 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("sendCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command"))),
+            .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command")))
+            .and(takesArgument(1,byte[][].class)),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
     // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
@@ -60,14 +61,23 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final Command command, @Advice.This final Connection thiz) {
+        @Advice.Argument(0) final Command command,
+        @Advice.Argument(1) final byte[][] args,
+        @Advice.This final Connection thiz) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
+      DECORATE.setPeerPort(span, thiz.getPort());
       DECORATE.onStatement(span, command.name());
+      StringBuilder sb = new StringBuilder();
+      sb.append(command.name()).append(",");
+      for (byte[] b : args){
+        sb.append(new String(b,java.nio.charset.StandardCharsets.UTF_8)).append(",");
+      }
+      DECORATE.setRaw(span, sb.toString());
       return activateSpan(span);
     }
 

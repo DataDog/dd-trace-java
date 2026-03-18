@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    name = "Java-WebSocket"
+    group = "org.java-websocket"
+    versions = "[1.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+
+dependencies {
+  compileOnly group: 'org.java-websocket', name: 'Java-WebSocket', version: '1.5.3'
+}
+

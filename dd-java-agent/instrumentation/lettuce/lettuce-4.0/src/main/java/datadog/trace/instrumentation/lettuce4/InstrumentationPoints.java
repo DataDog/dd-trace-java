@@ -17,8 +17,11 @@ import com.lambdaworks.redis.protocol.AsyncCommand;
 import com.lambdaworks.redis.protocol.CommandType;
 import com.lambdaworks.redis.protocol.ProtocolKeyword;
 import com.lambdaworks.redis.protocol.RedisCommand;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+
+import javax.swing.plaf.synth.SynthOptionPaneUI;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -38,6 +41,10 @@ public final class InstrumentationPoints {
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     DECORATE.onCommand(span, command);
+    if (command.getArgs()!=null){
+      String args = command.getArgs().toString();
+      DECORATE.setArgs(span,args);
+    }
     return activateSpan(span);
   }
 

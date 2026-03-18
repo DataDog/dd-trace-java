@@ -10,13 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-import redis.clients.jedis.Connection;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import redis.clients.jedis.Connection;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
@@ -29,7 +29,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JedisClientDecorator",
+        packageName + ".JedisClientDecorator",
     };
   }
 
@@ -43,7 +43,8 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("sendCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand"))),
+            .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand")))
+            .and(takesArgument(1,byte[][].class)),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
     // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
@@ -52,14 +53,22 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final ProtocolCommand command, @Advice.This final Connection thiz) {
+        @Advice.Argument(0) final ProtocolCommand command,
+        @Advice.Argument(1)final byte[][] args,
+        @Advice.This final Connection thiz) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
       final AgentSpan span = startSpan(JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
-
+      StringBuilder sb = new StringBuilder();
+      for (byte[] b : args){
+        sb.append(new String(b,java.nio.charset.StandardCharsets.UTF_8)).append(" ");
+      }
+      
+      DECORATE.setRaw(span, sb.toString());
+      DECORATE.setPeerPort(span,thiz.getPort());
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {

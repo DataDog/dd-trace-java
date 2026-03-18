@@ -49,7 +49,11 @@ public class DefaultConnectionInstrumentation extends AbstractConnectionInstrume
     "com.sybase.jdbc2.jdbc.SybConnection",
     "com.sybase.jdbc4.jdbc.SybConnection",
     // for testing purposes
-    "test.TestConnection"
+    "test.TestConnection",
+    // 达梦db
+    "dm.jdbc.driver.DmdbConnection",
+    // kingbase
+    "com.kingbase8.jdbc.KbConnection"
   };
 
   @Override

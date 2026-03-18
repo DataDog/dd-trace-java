@@ -24,6 +24,7 @@ public class BlackholeWriter implements Writer {
     counters.spans += trace.size();
   }
 
+
   @Override
   public void start() {}
 

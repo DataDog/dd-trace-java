@@ -1,0 +1,14 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "com.lmax"
+    module = "disruptor"
+    versions = "[3.0,)"
+    assertInverse = true
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.lmax', name: 'disruptor', version: '3.4.4'
+}

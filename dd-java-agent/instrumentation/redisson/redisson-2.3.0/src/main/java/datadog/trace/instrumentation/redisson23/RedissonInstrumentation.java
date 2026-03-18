@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.redisson.api.RFuture;
@@ -70,6 +71,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
       RedissonClientDecorator.DECORATE.afterStart(span);
       RedissonClientDecorator.DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
       RedissonClientDecorator.DECORATE.onStatement(span, command.getCommand().getName());
+      RedissonClientDecorator.DECORATE.onArgs(span, command.getParams());
       ((RFuture<?>) command.getPromise())
           .addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
       return activateSpan(span);

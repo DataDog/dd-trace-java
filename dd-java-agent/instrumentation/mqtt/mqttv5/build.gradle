@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    group = "org.eclipse.paho"
+    module = "org.eclipse.paho.mqttv5.client"
+    versions = "[1.2.5,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.eclipse.paho', name: 'org.eclipse.paho.mqttv5.client', version: '1.2.5'
+
+}

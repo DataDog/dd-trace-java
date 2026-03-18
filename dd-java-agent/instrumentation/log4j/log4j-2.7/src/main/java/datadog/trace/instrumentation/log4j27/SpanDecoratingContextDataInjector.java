@@ -30,7 +30,6 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
   @Override
   public StringMap injectContextData(List<Property> list, StringMap reusable) {
     StringMap contextData = delegate.injectContextData(list, reusable);
-
     AgentSpan span = activeSpan();
 
     if (!traceConfig(span).isLogsInjectionEnabled()) {
@@ -52,7 +51,6 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     if (null != version && !version.isEmpty()) {
       newContextData.putValue(Tags.DD_VERSION, version);
     }
-
     if (span != null) {
       DDTraceId traceId = span.context().getTraceId();
       String traceIdValue =

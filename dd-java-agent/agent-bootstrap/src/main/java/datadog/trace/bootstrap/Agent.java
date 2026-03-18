@@ -62,6 +62,8 @@ import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

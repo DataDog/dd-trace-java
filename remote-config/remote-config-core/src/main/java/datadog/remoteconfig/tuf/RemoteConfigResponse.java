@@ -134,6 +134,7 @@ public class RemoteConfigResponse {
         String raw = targetFile.raw;
         byte[] decode = Base64.getDecoder().decode(raw);
         BigInteger gottenHash = sha256(decode);
+        // log.info("raw:=" + raw + " sha256:=" + hashStr + " gottenHash=" + gottenHash.toString(16));
         if (!expectedHash.equals(gottenHash)) {
           throw new IntegrityCheckException(
               "File "

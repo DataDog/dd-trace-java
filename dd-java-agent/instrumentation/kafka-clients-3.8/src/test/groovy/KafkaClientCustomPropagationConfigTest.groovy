@@ -1,10 +1,11 @@
-import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeaders
+import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -12,10 +13,9 @@ import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Shared
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -25,21 +25,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE
 
-class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecification {
+class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
   static final MESSAGE = "Testing without headers for certain topics"
 
-  @Shared
-  EmbeddedKafkaBroker embeddedKafka
-
-  def setupSpec() {
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, *SHARED_TOPIC)
-    embeddedKafka.afterPropertiesSet()
-  }
-
-  def cleanupSpec() {
-    embeddedKafka.destroy()
-  }
+  @Rule
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC.toArray(String[]::new))
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
   static final dataTable() {
     [
@@ -63,6 +55,7 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     super.configurePreAgent()
 
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+    injectSysConfig("dd.trace.experimental.kafka.enabled","true")
   }
 
   def "test kafka client header propagation with topic filters"() {
@@ -99,36 +92,36 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
 
     // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records1.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records1.add(record)
+      }
+    })
 
     container2.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records2.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records2.add(record)
+      }
+    })
 
     container3.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records3.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records3.add(record)
+      }
+    })
 
     container4.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records4.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records4.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container1.start()
@@ -203,36 +196,36 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
 
     // setup a Kafka message listener
     container1.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records1.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records1.add(activeSpan())
+      }
+    })
 
     container2.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records2.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records2.add(activeSpan())
+      }
+    })
 
     container3.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records3.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records3.add(activeSpan())
+      }
+    })
 
     container4.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records4.add(activeSpan())
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records4.add(activeSpan())
+      }
+    })
 
     // start the container and underlying message listener
     container1.start()
@@ -253,12 +246,12 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     activateSpan(span).withCloseable {
       for (String topic : SHARED_TOPIC) {
         ProducerRecord record = new ProducerRecord<>(
-          topic,
-          0,
-          null,
-          MESSAGE,
-          header
-          )
+        topic,
+        0,
+        null,
+        MESSAGE,
+        header
+        )
         kafkaTemplate.send(record as ProducerRecord<String, String>)
       }
     }
@@ -299,7 +292,9 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3?.stop()
     container4?.stop()
 
+
     where:
     [value, expected1, expected2, expected3, expected4]<< dataTable()
   }
+
 }

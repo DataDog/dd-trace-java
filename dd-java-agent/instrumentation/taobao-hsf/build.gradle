@@ -1,0 +1,14 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "com.alibaba.middleware"
+    module = "hsf-sdk"
+    versions = "[2.2.8.2--2019-06-stable,)"
+  }
+}
+
+dependencies {
+  compileOnly(group: 'com.alibaba.middleware', name: 'hsf-sdk', version: '2.2.8.2--2019-06-stable')
+}

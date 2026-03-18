@@ -47,6 +47,7 @@ public abstract class BaseDecorator {
 
   // Deliberately not volatile, reading null and repeating the calculation is safe
   private TagMap.Entry cachedComponentEntry = null;
+  protected final CharSequence  version;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -56,6 +57,7 @@ public abstract class BaseDecorator {
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
                 traceAnalyticsDefault(), instrumentationNames);
+    version = config.getVersion();
 
     this.traceAnalyticsSampleRate =
         (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
@@ -100,11 +102,13 @@ public abstract class BaseDecorator {
     // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
     // unclear which option is better here
     final CharSequence component = component();
+    span.setTag(Tags.COMPONENT, component);
     span.context().setIntegrationName(component);
-
+    if (version != ""){
+      span.setTag(Tags.DD_VERSION,version);
+    }
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
-
     return span;
   }
 

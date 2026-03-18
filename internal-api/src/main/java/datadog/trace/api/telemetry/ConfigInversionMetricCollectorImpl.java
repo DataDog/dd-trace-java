@@ -32,7 +32,8 @@ public class ConfigInversionMetricCollectorImpl
   }
 
   public void setUndocumentedEnvVarMetric(String configName) {
-    setMetricConfigInversionMetric(CONFIG_INVERSION_KEY_TAG + configName);
+    // 防止资源目录太多的未检测环境变量
+    // setMetricConfigInversionMetric(CONFIG_INVERSION_KEY_TAG + configName);
   }
 
   private void setMetricConfigInversionMetric(final String... tags) {

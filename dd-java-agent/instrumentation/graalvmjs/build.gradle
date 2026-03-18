@@ -1,0 +1,15 @@
+muzzle {
+  pass {
+    group = "org.graalvm.js"
+    module = "js-scriptengine"
+    versions = "[21.1.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.graalvm.js', name: 'js-scriptengine', version: '21.1.0'
+
+}
