@@ -24,6 +24,7 @@ import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.InstrumentationTestHelper.loadClass;
+import static utils.TestClassFileHelper.getClassFileBytes;
 import static utils.TestHelper.getFixtureContent;
 import static utils.TestHelper.setFieldInConfig;
 
@@ -32,6 +33,8 @@ import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
+import com.datadog.debugger.instrumentation.Types;
+import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.SpanDecorationProbe;
@@ -254,6 +257,22 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     assertOneSnapshot(listener);
+  }
+
+  @Test
+  public void constructorFirstLine() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot02";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID2);
+    TestSnapshotListener listener = installLineProbe(LINE_PROBE_ID2, CLASS_NAME, line);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "f").get();
+    assertEquals(42, result);
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink).addError(probeIdCaptor.capture(), strCaptor.capture());
+    assertEquals(LINE_PROBE_ID2.getId(), probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals(
+        "Cannot instrument the first line of a constructor", strCaptor.getAllValues().get(0));
   }
 
   @Test
@@ -3040,7 +3059,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
       assertEquals(
-          "Instrumentation failed for CapturedSnapshot01: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          "Instrumentation failed for CapturedSnapshot01: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     } else {
       Snapshot snapshot = assertOneSnapshot(listener);
@@ -3050,9 +3069,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
-  public void methodParametersAttributeRecord() throws IOException, URISyntaxException {
+  public void methodParametersAttributeRecord() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    Config config = mock(Config.class);
+    when(config.isDebuggerCodeOriginEnabled()).thenReturn(false);
+    when(config.isDebuggerExceptionEnabled()).thenReturn(false);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(false);
+    Instrumentation inst = mock(Instrumentation.class);
+    Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {springClass});
+    DebuggerAgent.run(config, inst, null);
     TestSnapshotListener listener = installMethodProbeAtExit(RECORD_NAME, "<init>", null);
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17", Arrays.asList("-parameters"));
@@ -3070,9 +3097,64 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
       assertEquals(
-          "Instrumentation failed for com.datadog.debugger.MyRecord1: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          "Instrumentation failed for com.datadog.debugger.MyRecord1: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     }
+  }
+
+  /*
+   * Regression test for: DatadogClassLoader attempted duplicate class definition for
+   * com.datadog.debugger.instrumentation.Types (LinkageError).
+   *
+   * When a CodeOriginProbe matches the agent's Types class (by FQN or simple name), and Types
+   * is being loaded for the first time by DatadogClassLoader, DebuggerTransformer.transform() is
+   * invoked as a ClassFileTransformer. Inside performInstrumentation(), CodeOriginInstrumenter
+   * accesses the static field Types.DEBUGGER_CONTEXT_TYPE, triggering a re-entrant loadClass()
+   * call for Types on the same thread. Because Java's synchronized is reentrant and Types is not
+   * yet registered in the JVM (defineClass hasn't completed), findLoadedClass() returns null and
+   * defineClass is called a second time, producing the LinkageError.
+   */
+  @Test
+  public void noInstrumentationForAgentClasses() throws Exception {
+    // Install a CodeOriginProbe targeting the agent's Types class by FQN.
+    // This simulates a probe accidentally matching an agent class (e.g. via simple-name fallback
+    // in TransformerDefinitionMatcher when a user class is also named "Types").
+    CodeOriginProbe probe =
+        new CodeOriginProbe(
+            PROBE_ID,
+            true,
+            Where.of("com.datadog.debugger.instrumentation.Types", "descriptorToSignature", null));
+    installProbes(probe);
+    byte[] typeBytes = getClassFileBytes(Types.class);
+    // transform() proceeds to performInstrumentation(), which calls
+    // CodeOriginInstrumenter.codeOriginCall() → accesses Types.DEBUGGER_CONTEXT_TYPE.
+    // In production (when Types is not yet loaded), this re-enters DatadogClassLoader.loadClass()
+    // and triggers LinkageError: duplicate class definition for Types.
+    byte[] result =
+        currentTransformer.transform(
+            Types.class.getClassLoader(),
+            "com/datadog/debugger/instrumentation/Types",
+            null,
+            null,
+            typeBytes);
+    assertNull(result);
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
+    LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
+    TestSnapshotListener listener = installProbes(probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    Reflect.onClass(testClass).call("parse", "1").get();
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+    assertEquals(PROBE_ID1.getId(), probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals(
+        "Instrumentation failed for com.datadog.debugger.CapturedSnapshot33: Instrumentation of a record with type annotation is not supported",
+        strCaptor.getAllValues().get(0));
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(

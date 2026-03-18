@@ -54,6 +54,6 @@ public class HttpHeadersInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
+    transformer.applyAdvices(isMethod().and(named("headers")), packageName + ".HeadersAdvice");
   }
 }
