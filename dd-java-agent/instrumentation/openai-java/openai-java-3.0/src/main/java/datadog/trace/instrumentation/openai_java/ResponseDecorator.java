@@ -692,33 +692,35 @@ public class ResponseDecorator {
               }
             });
 
-    if (!messages.isEmpty()) {
-      return messages;
-    }
-
     // Fallback for SDK union parsing mismatches: parse raw instructions payload.
-    Optional<JsonValue> rawInstructions = response._instructions().asUnknown();
-    if (rawInstructions.isPresent()) {
-      Optional<List<JsonValue>> rawList = rawInstructions.get().asArray();
-      if (rawList.isPresent()) {
-        for (JsonValue item : rawList.get()) {
-          LLMObs.LLMMessage message = extractMessageFromRawInstruction(item);
-          if (message != null) {
-            messages.add(message);
+    if (messages.isEmpty()) {
+      Optional<JsonValue> rawInstructions = response._instructions().asUnknown();
+      if (rawInstructions.isPresent()) {
+        Optional<List<JsonValue>> rawList = rawInstructions.get().asArray();
+        if (rawList.isPresent()) {
+          for (JsonValue item : rawList.get()) {
+            LLMObs.LLMMessage message = extractMessageFromRawInstruction(item);
+            if (message != null) {
+              messages.add(message);
+            }
           }
         }
       }
     }
 
-    if (!messages.isEmpty()) {
-      return messages;
-    }
+    boolean hasInstructions = !messages.isEmpty();
 
+    // Always include input messages from the span tag (set by withResponseCreateParams, which
+    // records both instructions as "system" and input as "user"). When instructions were already
+    // collected above, skip "system" messages here to avoid duplicating them.
     Object inputTag = span.getTag(CommonTags.INPUT);
     if (inputTag instanceof List) {
       for (Object messageObj : (List<?>) inputTag) {
         if (messageObj instanceof LLMObs.LLMMessage) {
-          messages.add((LLMObs.LLMMessage) messageObj);
+          LLMObs.LLMMessage msg = (LLMObs.LLMMessage) messageObj;
+          if (!hasInstructions || !"system".equals(msg.getRole())) {
+            messages.add(msg);
+          }
         }
       }
     } else if (inputTag instanceof Map) {
@@ -726,7 +728,10 @@ public class ResponseDecorator {
       if (messagesObj instanceof List) {
         for (Object messageObj : (List<?>) messagesObj) {
           if (messageObj instanceof LLMObs.LLMMessage) {
-            messages.add((LLMObs.LLMMessage) messageObj);
+            LLMObs.LLMMessage msg = (LLMObs.LLMMessage) messageObj;
+            if (!hasInstructions || !"system".equals(msg.getRole())) {
+              messages.add(msg);
+            }
           }
         }
       }
