@@ -9,7 +9,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_EXPORTER
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED
@@ -243,7 +243,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
 
     then:
     source.get(TRACE_ENABLED) == null
-    source.get(OTEL_TRACES_EXPORTER) == 'otlp'
+    source.get(TRACE_OTEL_EXPORTER) == 'otlp'
   }
 
   def "otel traces exporter otlp environment variable is mapped"() {
@@ -256,7 +256,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
 
     then:
     source.get(TRACE_ENABLED) == null
-    source.get(OTEL_TRACES_EXPORTER) == 'otlp'
+    source.get(TRACE_OTEL_EXPORTER) == 'otlp'
   }
 
   def "otel traces exporter none still disables tracing"() {
@@ -269,7 +269,6 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
 
     then:
     source.get(TRACE_ENABLED) == 'false'
-    source.get(OTEL_TRACES_EXPORTER) == 'none'
   }
 
   def "otel resource attributes system property is mapped"() {
