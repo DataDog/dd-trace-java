@@ -1,25 +1,29 @@
 package datadog.trace.api;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableList;
+
+import java.util.List;
 import java.util.Locale;
 
 public enum ProtocolVersion {
-  V0_4("0.4", new String[] {"v0.4/traces", "v0.3/traces"}),
-  V0_5("0.5", new String[] {"v0.5/traces", "v0.4/traces", "v0.3/traces"}),
-  V1_0("1.0", new String[] {"v1.0/traces", "v0.5/traces", "v0.4/traces", "v0.3/traces"});
+  V0_4("0.4", asList("v0.4/traces", "v0.3/traces")),
+  V0_5("0.5", asList("v0.5/traces", "v0.4/traces", "v0.3/traces")),
+  V1_0("1.0", asList("v1.0/traces", "v0.5/traces", "v0.4/traces", "v0.3/traces"));
 
   private final String configValue;
-  private final String[] traceEndpoints;
+  private final List<String> traceEndpoints;
 
-  ProtocolVersion(String configValue, String[] traceEndpoints) {
+  ProtocolVersion(String configValue, List<String> traceEndpoints) {
     this.configValue = configValue;
-    this.traceEndpoints = traceEndpoints;
+    this.traceEndpoints = unmodifiableList(traceEndpoints);
   }
 
   public String asConfigValue() {
     return configValue;
   }
 
-  public String[] traceEndpoints() {
+  public List<String> traceEndpoints() {
     return traceEndpoints;
   }
 
@@ -46,11 +50,11 @@ public enum ProtocolVersion {
     }
 
     String normalized = endpoint.toLowerCase(Locale.ROOT);
-    if (normalized.endsWith(V1_0.traceEndpoints[0])) {
+    if (normalized.endsWith(V1_0.traceEndpoints.get(0))) {
       return V1_0;
     }
 
-    if (normalized.endsWith(V0_5.traceEndpoints[0])) {
+    if (normalized.endsWith(V0_5.traceEndpoints.get(0))) {
       return V0_5;
     }
 
