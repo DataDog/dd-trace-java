@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INST
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
@@ -95,6 +96,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   static boolean shouldUpdateRoute(
       final RoutingContext routingContext, final AgentSpan span, final String path) {
     if (span == null) {
+      return false;
+    }
+    if (span.getTag(Tags.HTTP_ROUTE) != null
+        && span.getResourceNamePriority() > ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
       return false;
     }
     final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
