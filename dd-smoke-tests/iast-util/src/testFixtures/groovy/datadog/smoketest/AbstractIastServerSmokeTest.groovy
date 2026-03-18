@@ -171,7 +171,8 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
         if (!json) {
           return false
         }
-        return parseVulnerabilities(json)
+        found.addAll(parseVulnerabilities(json))
+        return true
       }
     } catch (SpockTimeoutError toe) {
       // do nothing
