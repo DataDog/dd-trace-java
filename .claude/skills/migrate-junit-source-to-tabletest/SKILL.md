@@ -29,6 +29,7 @@ Table formatting rules (mandatory):
 - Use '|' as delimiter.
 - Align columns with spaces so pipes line up vertically.
 - Prefer single quotes for strings requiring quotes (e.g., 'a|b', '[]', '{}', ' ').
+- Use value sets (`{a, b, c}`) instead of matrix-style repetition when only one dimension varies across otherwise-identical rows.
 
 Conversions:
 A) @CsvSource

@@ -19,12 +19,8 @@ class IdGenerationStrategyTest {
 
   @TableTest({
     "scenario                 | traceId128BitGenerationEnabled | strategyName ",
-    "random-64-bit            | false                          | RANDOM       ",
-    "sequential-64-bit        | false                          | SEQUENTIAL   ",
-    "secure-random-64-bit     | false                          | SECURE_RANDOM",
-    "random-128-bit           | true                           | RANDOM       ",
-    "sequential-128-bit       | true                           | SEQUENTIAL   ",
-    "secure-random-128-bit    | true                           | SECURE_RANDOM"
+    "strategies-64-bit        | false                          | {RANDOM, SEQUENTIAL, SECURE_RANDOM}",
+    "strategies-128-bit       | true                           | {RANDOM, SEQUENTIAL, SECURE_RANDOM}"
   })
   @ParameterizedTest(name = "generate id with {1} and {0} bits")
   void generateIdWithStrategyAndBitSize(
