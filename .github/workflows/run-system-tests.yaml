@@ -62,7 +62,7 @@ jobs:
     needs:
     - build
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-    uses: DataDog/system-tests/.github/workflows/system-tests.yml@ab6ccde3946ded935e7b1ffddf260b982275795e # system tests are pinned for releases only
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@a2940a1de6d59489b76b788966176d4ca5702ccb # system tests are pinned for releases only
     secrets:
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
     permissions:
@@ -72,7 +72,7 @@ jobs:
     with:
       library: java
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-      ref: ab6ccde3946ded935e7b1ffddf260b982275795e # system tests are pinned for releases only
+      ref: a2940a1de6d59489b76b788966176d4ca5702ccb # system tests are pinned for releases only
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
