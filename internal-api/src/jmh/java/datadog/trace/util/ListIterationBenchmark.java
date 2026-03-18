@@ -29,7 +29,9 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>(DISCOURAGED) List.stream - always incurs allocation overhead - usually unnecessary
  *   <li>(DISCOURAGED) List.parallelStream - heavy allocation overhead - only beneficial when
  *       working with sets (uncommon in the java agent)
- *   <li><code>Java 17 - MacBook M1 - 8 threads
+ *   <li>
+ * </ul>
+ * <code>Java 17 - MacBook M1 - 8 threads
  * Benchmark                                                                          (listSpec)   Mode  Cnt           Score             Error   Units
  * ListIterationBenchmark.cstyleFor_inline                                COLLECTIONS_EMPTY_LIST  thrpt    3  9066154714.207 ±  3993855570.335   ops/s
  * ListIterationBenchmark.cstyleFor:gc.alloc.rate.norm                    COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
@@ -335,75 +337,74 @@ public class ListIterationBenchmark {
 
   @Param ListSpec listSpec;
 
-    @Benchmark
-    public void forEach_inline() {
-      this.listSpec.list.forEach(Element::manipulate_inline);
+  @Benchmark
+  public void forEach_inline() {
+    this.listSpec.list.forEach(Element::manipulate_inline);
+  }
+
+  @Benchmark
+  public void forEach_dont_inline() {
+    this.listSpec.list.forEach(Element::manipulate_dont_inline);
+  }
+
+  @Benchmark
+  public void enhancedFor_inline() {
+    // Enhanced for-loop is just syntax sugar for an Iterator
+    for (Element e : this.listSpec.list) {
+      e.manipulate_inline();
     }
-  
-    @Benchmark
-    public void forEach_dont_inline() {
-      this.listSpec.list.forEach(Element::manipulate_dont_inline);
+  }
+
+  @Benchmark
+  public void enhancedFor_dont_inline() {
+    // Enhanced for-loop is just syntax sugar for an Iterator
+    for (Element e : this.listSpec.list) {
+      e.manipulate_dont_inline();
     }
-  
-    @Benchmark
-    public void enhancedFor_inline() {
-  	// Enhanced for-loop is just syntax sugar for an Iterator
-  	for ( Element e : this.listSpec.list ) {
-  	  e.manipulate_inline();
-  	}
+  }
+
+  @Benchmark
+  public void iterator_inline() {
+    for (Iterator<Element> iter = this.listSpec.list.iterator(); iter.hasNext(); ) {
+      iter.next().manipulate_inline();
     }
-  
-    @Benchmark
-    public void enhancedFor_dont_inline() {
-  	// Enhanced for-loop is just syntax sugar for an Iterator
-  	for ( Element e : this.listSpec.list ) {
-  	  e.manipulate_dont_inline();
-  	}
+  }
+
+  @Benchmark
+  public void iterator_dont_inline() {
+    for (Iterator<Element> iter = this.listSpec.list.iterator(); iter.hasNext(); ) {
+      iter.next().manipulate_dont_inline();
     }
-  
-    @Benchmark
-    public void iterator_inline() {
-  	for ( Iterator<Element> iter = this.listSpec.list.iterator(); iter.hasNext(); ) {
-  	  iter.next().manipulate_inline();
-  	}
+  }
+
+  @Benchmark
+  public void cstyleFor_inline() {
+    for (int i = 0; i < this.listSpec.list.size(); ++i) {
+      this.listSpec.list.get(i).manipulate_inline();
     }
-  
-    @Benchmark
-    public void iterator_dont_inline() {
-  	for ( Iterator<Element> iter = this.listSpec.list.iterator(); iter.hasNext(); ) {
-  	  iter.next().manipulate_dont_inline();
-  	}
+  }
+
+  @Benchmark
+  public void cstyleFor_dont_inline() {
+    for (int i = 0; i < this.listSpec.list.size(); ++i) {
+      this.listSpec.list.get(i).manipulate_dont_inline();
     }
-  
-  
-    @Benchmark
-    public void cstyleFor_inline() {
-  	for ( int i = 0; i < this.listSpec.list.size(); ++i ) {
-  	  this.listSpec.list.get(i).manipulate_inline();
-  	}
-    }
-  
-    @Benchmark
-    public void cstyleFor_dont_inline() {
-  	for ( int i = 0; i < this.listSpec.list.size(); ++i ) {
-  	  this.listSpec.list.get(i).manipulate_dont_inline();
-  	}
-    }
-  
-    @Benchmark
-    public void streams_inline() {
-  	this.listSpec.list.stream().forEach(Element::manipulate_inline);
-    }
-  
-    @Benchmark
-    public void streams_dont_inline() {
-  	this.listSpec.list.stream().forEach(Element::manipulate_dont_inline);
-    }
-  
-    @Benchmark
-    public void parallelStreams_inline() {
-  	listSpec.list.parallelStream().forEach(Element::manipulate_dont_inline);
-    }
+  }
+
+  @Benchmark
+  public void streams_inline() {
+    this.listSpec.list.stream().forEach(Element::manipulate_inline);
+  }
+
+  @Benchmark
+  public void streams_dont_inline() {
+    this.listSpec.list.stream().forEach(Element::manipulate_dont_inline);
+  }
+
+  @Benchmark
+  public void parallelStreams_inline() {
+    listSpec.list.parallelStream().forEach(Element::manipulate_dont_inline);
+  }
 
   @Benchmark
   public void parallelStreams_dont_inline() {
