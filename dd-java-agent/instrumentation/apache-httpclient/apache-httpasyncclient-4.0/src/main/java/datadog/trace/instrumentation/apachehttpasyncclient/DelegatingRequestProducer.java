@@ -40,7 +40,9 @@ public class DelegatingRequestProducer implements HttpAsyncRequestProducer {
   @Override
   public HttpRequest generateRequest() throws IOException, HttpException {
     final HttpRequest request = delegate.generateRequest();
-    DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
+    if (span != null) {
+      DECORATE.onRequest(span, new HostAndRequestAsHttpUriRequest(delegate.getTarget(), request));
+    }
     if (injectContext) {
       Context receiver = current();
       if (span != null) {
