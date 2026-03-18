@@ -232,7 +232,6 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     source.get(TRACE_EXTENSIONS_PATH) == '/opt/opentelemetry/extensions'
   }
 
-  // TODO: Do we expect to support the system property version of this, actually?
   def "otel traces exporter otlp system property is mapped"() {
     setup:
     injectSysConfig('dd.trace.otel.enabled', 'true', false)

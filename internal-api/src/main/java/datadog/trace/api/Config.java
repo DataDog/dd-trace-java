@@ -914,7 +914,7 @@ public class Config {
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
-  private final String otelTracesExporter;
+  private final String traceOtelExporter;
 
   private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
@@ -1892,7 +1892,7 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
-    otelTracesExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
 
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
@@ -5210,7 +5210,7 @@ public class Config {
   }
 
   public boolean isOtlpTracesExporterEnabled() {
-    return "otlp".equalsIgnoreCase(otelTracesExporter);
+    return "otlp".equalsIgnoreCase(traceOtelExporter);
   }
 
   public boolean isMetricsOtelEnabled() {
@@ -6264,8 +6264,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
-        + ", otelTracesExporter='"
-        + otelTracesExporter
+        + ", traceOtelExporter='"
+        + traceOtelExporter
         + '\''
         + ", metricsOtelEnabled="
         + metricsOtelEnabled
