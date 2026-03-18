@@ -1,7 +1,6 @@
 package com.datadog.debugger.symbol;
 
 import com.datadog.debugger.util.JvmLanguage;
-import datadog.trace.agent.tooling.stratum.FileInfo;
 import datadog.trace.agent.tooling.stratum.SourceMap;
 import datadog.trace.agent.tooling.stratum.StratumExt;
 import datadog.trace.api.Pair;
