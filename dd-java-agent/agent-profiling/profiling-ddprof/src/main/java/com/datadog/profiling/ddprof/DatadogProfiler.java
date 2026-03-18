@@ -22,7 +22,6 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameConte
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.useJvmtiWallclockSampler;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
@@ -312,9 +311,6 @@ public final class DatadogProfiler {
         cmd.append(",filter=0");
       } else {
         cmd.append(",filter=");
-      }
-      if (useJvmtiWallclockSampler(configProvider)) {
-        cmd.append(",wallsampler=jvmti");
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
