@@ -40,14 +40,25 @@ public class HelperMethods {
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
-
-    // AWS calls are often signed, so we can't add headers without breaking the signature.
-    if (!awsClientCall) {
-      DECORATE.injectContext(current().with(span), request, SETTER);
-    }
 
     return scope;
+  }
+
+  public static void doInjectContext(final HttpUriRequest request) {
+    if (request.containsHeader("amz-sdk-invocation-id")) {
+      return;
+    }
+    DECORATE.injectContext(current(), request, SETTER);
+  }
+
+  public static void doInjectContext(final HttpHost host, final HttpRequest request) {
+    final HttpUriRequest uriRequest;
+    if (request instanceof HttpUriRequest) {
+      uriRequest = (HttpUriRequest) request;
+    } else {
+      uriRequest = new HostAndRequestAsHttpUriRequest(host, request);
+    }
+    doInjectContext(uriRequest);
   }
 
   public static void doMethodExit(

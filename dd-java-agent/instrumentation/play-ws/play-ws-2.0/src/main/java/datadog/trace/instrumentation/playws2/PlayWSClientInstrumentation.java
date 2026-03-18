@@ -1,14 +1,14 @@
 package datadog.trace.instrumentation.playws2;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
@@ -20,7 +20,7 @@ import play.shaded.ahc.org.asynchttpclient.ws.WebSocketUpgradeHandler;
 public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
   public static class ClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
@@ -28,7 +28,6 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);
@@ -37,18 +36,22 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
       }
 
-      return span;
+      return Java8BytecodeBridge.getCurrentContext().with(span).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentSpan clientSpan, @Advice.Thrown final Throwable throwable) {
-
-      if (throwable != null) {
-        DECORATE.onError(clientSpan, throwable);
-        DECORATE.beforeFinish(clientSpan);
-        clientSpan.finish();
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      if (scope == null) {
+        return;
       }
+      if (throwable != null) {
+        final AgentSpan span = Java8BytecodeBridge.spanFromContext(scope.context());
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
+      scope.close();
     }
   }
 }
