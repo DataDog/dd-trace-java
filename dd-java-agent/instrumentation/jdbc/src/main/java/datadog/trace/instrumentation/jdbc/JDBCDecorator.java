@@ -219,13 +219,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return dbService(dbInfo.getType(), dbInstance(dbInfo));
   }
 
-  public String getDbInstance(final DBInfo dbInfo) {
-    if (null == dbInfo) {
-      return null;
-    }
-    return dbInstance(dbInfo);
-  }
-
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
     if (connection == null || !FETCH_DB_METADATA_ON_QUERY) {
       // we can log here, but it risks to be too verbose

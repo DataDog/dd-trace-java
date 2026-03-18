@@ -147,7 +147,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           }
 
           final String dbService;
-          final String dbName;
           if (isOracle) {
             String oracleService = DECORATE.getDbService(dbInfo);
             if (oracleService != null) {
@@ -155,10 +154,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
             }
             dbService = oracleService;
-            dbName = DECORATE.getDbInstance(dbInfo);
           } else {
             dbService = span.getServiceName();
-            dbName = dbInfo.getDb();
           }
           sql =
               SQLCommenter.inject(
@@ -166,7 +163,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   dbService,
                   dbInfo.getType(),
                   dbInfo.getHost(),
-                  dbName,
+                  dbInfo.getDb(),
                   injectTraceInComment ? traceParent : null,
                   appendComment);
         }
