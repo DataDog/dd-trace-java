@@ -188,7 +188,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
     when:
     DDSpan span = (DDSpan) tracer.startSpan("test", "test")
     span.phasedFinish()
-    tracer.write([span])
+    tracer.write(SpanList.of(span))
 
     then:
     notThrown(Throwable)
