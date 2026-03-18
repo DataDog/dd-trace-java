@@ -687,7 +687,7 @@ public class ResponseDecorator {
               } else if (instructions.isString()) {
                 String text = instructions.asString();
                 if (text != null && !text.isEmpty()) {
-                  messages.add(LLMObs.LLMMessage.from("user", text));
+                  messages.add(LLMObs.LLMMessage.from("system", text));
                 }
               }
             });
