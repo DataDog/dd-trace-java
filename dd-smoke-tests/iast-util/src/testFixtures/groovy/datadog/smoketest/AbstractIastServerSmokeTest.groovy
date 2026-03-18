@@ -1,14 +1,18 @@
 package datadog.smoketest
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 import datadog.smoketest.model.TaintedObject
 import datadog.smoketest.model.Vulnerability
 import datadog.smoketest.model.Vulnerability.Source
+import datadog.trace.agent.test.server.http.TestHttpServer
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import org.spockframework.runtime.SpockTimeoutError
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
@@ -32,6 +36,17 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
   Closure decodedTracesCallback() {
     return {} // force traces decoding
   }
+
+  @AutoCleanup
+  @Shared
+  TestHttpServer externalServer = withExternalServer() ? httpServer {
+    handlers {
+      prefix('/') {
+        String msg = "Hello."
+        response.status(200).send(msg)
+      }
+    }
+  } : null
 
   def setupSpec() {
     try {
@@ -245,5 +260,9 @@ abstract class AbstractIastServerSmokeTest extends AbstractServerSmokeTest {
       }
     }
     return vulnerabilities
+  }
+
+  protected boolean withExternalServer() {
+    false
   }
 }
