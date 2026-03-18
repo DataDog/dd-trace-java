@@ -251,6 +251,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':internal-api'))
     exclude(project(':components:context'))
     exclude(project(':utils:config-utils'))
+    exclude(project(':utils:logging-utils'))
     exclude(project(':utils:time-utils'))
     exclude(project(':products:metrics:metrics-api'))
     exclude(project(':products:metrics:metrics-agent'))
