@@ -72,7 +72,13 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Activate");
     transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Close");
     transformer.applyAdvice(
-        isMethod().and(named("afterTerminate")).and(takesArguments(2)),
+        isMethod()
+            .and(
+                // this one for jdk 21
+                named("afterTerminate")
+                    .and(takesArguments(2))
+                    // this one for jdk 25+
+                    .or(named("afterDone").and(takesArguments(1)))),
         getClass().getName() + "$Terminate");
   }
 
