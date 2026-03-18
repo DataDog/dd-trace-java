@@ -16,7 +16,9 @@ muzzle {
       '7.7.8-ce',
       '7.7.8-ccs',
       '7.8.7-ce',
-      '7.8.7-ccs'
+      '7.8.7-ccs',
+      '7.9.6-ce',
+      '7.9.6-ccs'
     ]
     excludeDependency "io.confluent.cloud:*"
     excludeDependency "io.confluent.observability:*"
