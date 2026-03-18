@@ -15,37 +15,44 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.time.ControllableTimeSource;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 
 class RateLimitedLoggerTest {
-  final RuntimeException exception = new RuntimeException("bad thing");
+  private static final RuntimeException EXCEPTION = new RuntimeException("bad thing");
+
+  private Logger log;
+  private ControllableTimeSource timeSource;
+
+  @BeforeEach
+  void setUp() {
+    this.log = mock(Logger.class);
+    this.timeSource = new ControllableTimeSource();
+  }
 
   @Test
   void debugLevel() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    when(log.isDebugEnabled()).thenReturn(true);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, MINUTES, timeSource);
+    when(this.log.isDebugEnabled()).thenReturn(true);
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(this.log, 5, MINUTES, this.timeSource);
 
-    rateLimitedLog.warn("test {} {}", "message", exception);
-    rateLimitedLog.warn("test {} {}", "message", exception);
+    rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
+    rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
 
-    verify(log, times(2)).warn(nullable(Marker.class), eq("test {} {}"), (Object[]) any());
+    verify(this.log, times(2)).warn(nullable(Marker.class), eq("test {} {}"), (Object[]) any());
   }
 
   @Test
   void defaultWarningOnce() {
-    Logger log = mock(Logger.class);
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger defaultRateLimitedLog = new RatelimitedLogger(log, 5, MINUTES);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger defaultRateLimitedLog = new RatelimitedLogger(this.log, 5, MINUTES);
 
-    boolean firstLog = defaultRateLimitedLog.warn("test {} {}", "message", exception);
-    boolean secondLog = defaultRateLimitedLog.warn("test {} {}", "message", exception);
+    boolean firstLog = defaultRateLimitedLog.warn("test {} {}", "message", EXCEPTION);
+    boolean secondLog = defaultRateLimitedLog.warn("test {} {}", "message", EXCEPTION);
 
-    verify(log)
+    verify(this.log)
         .warn(
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 5 minutes)"),
@@ -56,19 +63,17 @@ class RateLimitedLoggerTest {
 
   @Test
   void warningOnce() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MINUTES, timeSource);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(this.log, 1, MINUTES, this.timeSource);
 
-    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertTrue(firstLog);
 
-    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertFalse(secondLog);
 
-    verify(log)
+    verify(this.log)
         .warn(
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 1 minute)"),
@@ -77,21 +82,20 @@ class RateLimitedLoggerTest {
 
   @Test
   void warningOnceNegativeTime() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(Long.MIN_VALUE);
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, NANOSECONDS, timeSource);
+    this.timeSource.set(Long.MIN_VALUE);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog =
+        new RatelimitedLogger(this.log, 5, NANOSECONDS, this.timeSource);
 
-    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertTrue(firstLog);
 
-    timeSource.advance(5 - 1);
-    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    this.timeSource.advance(5 - 1);
+    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertFalse(secondLog);
 
-    verify(log)
+    verify(this.log)
         .warn(
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
@@ -100,21 +104,20 @@ class RateLimitedLoggerTest {
 
   @Test
   void warningOnceZeroTime() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(0);
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 5, NANOSECONDS, timeSource);
+    this.timeSource.set(0);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog =
+        new RatelimitedLogger(this.log, 5, NANOSECONDS, this.timeSource);
 
-    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertTrue(firstLog);
 
-    timeSource.advance(1);
-    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    this.timeSource.advance(1);
+    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertFalse(secondLog);
 
-    verify(log)
+    verify(this.log)
         .warn(
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
@@ -123,20 +126,19 @@ class RateLimitedLoggerTest {
 
   @Test
   void warningTwice() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 7, NANOSECONDS, timeSource);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog =
+        new RatelimitedLogger(this.log, 7, NANOSECONDS, this.timeSource);
 
-    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    boolean firstLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertTrue(firstLog);
 
-    timeSource.advance(7);
-    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", exception);
+    this.timeSource.advance(7);
+    boolean secondLog = rateLimitedLog.warn("test {} {}", "message", EXCEPTION);
     assertTrue(secondLog);
 
-    verify(log, times(2))
+    verify(this.log, times(2))
         .warn(
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 7 nanoseconds)"),
@@ -145,15 +147,13 @@ class RateLimitedLoggerTest {
 
   @Test
   void noArgs() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, timeSource);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, this.timeSource);
 
     rateLimitedLog.warn("test");
 
-    verify(log)
+    verify(this.log)
         .warn(
             nullable(Marker.class),
             eq("test (Will not log warnings for 1 millisecond)"),
@@ -162,15 +162,14 @@ class RateLimitedLoggerTest {
 
   @Test
   void withMarker() {
-    Logger log = mock(Logger.class);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    when(log.isWarnEnabled()).thenReturn(true);
-    when(log.isDebugEnabled()).thenReturn(false);
-    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, 1, MILLISECONDS, timeSource);
+    when(this.log.isWarnEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog =
+        new RatelimitedLogger(this.log, 1, MILLISECONDS, this.timeSource);
 
     rateLimitedLog.warn(LogCollector.SEND_TELEMETRY, "test");
 
-    verify(log)
+    verify(this.log)
         .warn(
             eq(LogCollector.SEND_TELEMETRY),
             eq("test (Will not log warnings for 1 millisecond)"),

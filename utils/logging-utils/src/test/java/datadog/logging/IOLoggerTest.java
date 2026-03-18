@@ -16,56 +16,56 @@ import org.slf4j.Logger;
 import org.slf4j.Marker;
 
 class IOLoggerTest {
-  final IOLogger.Response response =
+  private final IOLogger.Response response =
       new IOLogger.Response(404, "Not Found", "The thing you were looking for does not exist");
-  final RuntimeException exception = new RuntimeException("Something went wrong!");
+  private final RuntimeException exception = new RuntimeException("Something went wrong!");
 
-  Logger log;
-  RatelimitedLogger rateLimitedLogger;
-  IOLogger ioLogger;
+  private Logger log;
+  private RatelimitedLogger rateLimitedLogger;
+  private IOLogger ioLogger;
 
   @BeforeEach
   void setUp() {
-    log = mock(Logger.class);
-    rateLimitedLogger = mock(RatelimitedLogger.class);
-    ioLogger = new IOLogger(log, rateLimitedLogger);
+    this.log = mock(Logger.class);
+    this.rateLimitedLogger = mock(RatelimitedLogger.class);
+    this.ioLogger = new IOLogger(this.log, this.rateLimitedLogger);
   }
 
   @Test
   void successDebugLevel() {
-    when(log.isDebugEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(true);
 
-    ioLogger.success("test {}", "message");
+    this.ioLogger.success("test {}", "message");
 
-    verify(log).debug(eq(EXCLUDE_TELEMETRY), eq("test {}"), (Object[]) any());
+    verify(this.log).debug(eq(EXCLUDE_TELEMETRY), eq("test {}"), (Object[]) any());
   }
 
   @Test
   void successInfoLevel() {
-    when(log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
 
-    ioLogger.success("test {}", "message");
+    this.ioLogger.success("test {}", "message");
 
-    verify(log, never()).debug(nullable(Marker.class), anyString(), (Object[]) any());
-    verify(log, never()).info(nullable(Marker.class), anyString(), (Object[]) any());
+    verify(this.log, never()).debug(nullable(Marker.class), anyString(), (Object[]) any());
+    verify(this.log, never()).info(nullable(Marker.class), anyString(), (Object[]) any());
   }
 
   @Test
   void errorDebugLevelMessage() {
-    when(log.isDebugEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(true);
 
-    ioLogger.error("test message");
+    this.ioLogger.error("test message");
 
-    verify(log).debug(EXCLUDE_TELEMETRY, "test message");
+    verify(this.log).debug(EXCLUDE_TELEMETRY, "test message");
   }
 
   @Test
   void errorDebugLevelResponse() {
-    when(log.isDebugEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(true);
 
-    ioLogger.error("test message", response);
+    this.ioLogger.error("test message", this.response);
 
-    verify(log)
+    verify(this.log)
         .debug(
             eq(EXCLUDE_TELEMETRY),
             anyString(),
@@ -77,39 +77,39 @@ class IOLoggerTest {
 
   @Test
   void errorDebugLevelException() {
-    when(log.isDebugEnabled()).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(true);
 
-    ioLogger.error("test message", exception);
+    this.ioLogger.error("test message", this.exception);
 
-    verify(log).debug(EXCLUDE_TELEMETRY, "test message", exception);
+    verify(this.log).debug(EXCLUDE_TELEMETRY, "test message", this.exception);
   }
 
   @Test
   void errorInfoLevelMessage() {
-    when(log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
 
-    ioLogger.error("test message");
+    this.ioLogger.error("test message");
 
-    verify(rateLimitedLogger).warn("test message");
+    verify(this.rateLimitedLogger).warn("test message");
   }
 
   @Test
   void errorInfoLevelResponse() {
-    when(log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
 
-    ioLogger.error("test message", response);
+    this.ioLogger.error("test message", this.response);
 
-    verify(rateLimitedLogger)
+    verify(this.rateLimitedLogger)
         .warn(eq(EXCLUDE_TELEMETRY), anyString(), eq("test message"), eq(404), eq("Not Found"));
   }
 
   @Test
   void errorInfoLevelException() {
-    when(log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
 
-    ioLogger.error("test message", exception);
+    this.ioLogger.error("test message", this.exception);
 
-    verify(rateLimitedLogger)
+    verify(this.rateLimitedLogger)
         .warn(
             eq(EXCLUDE_TELEMETRY),
             anyString(),
@@ -120,30 +120,31 @@ class IOLoggerTest {
 
   @Test
   void loggedErrorThenSuccessInfoLevel() {
-    when(log.isDebugEnabled()).thenReturn(false);
-    when(log.isInfoEnabled()).thenReturn(true);
-    when(rateLimitedLogger.warn("test message")).thenReturn(true);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isInfoEnabled()).thenReturn(true);
+    when(this.rateLimitedLogger.warn("test message")).thenReturn(true);
 
-    ioLogger.error("test message");
-    ioLogger.success("very successful");
-    ioLogger.success("very successful again");
+    this.ioLogger.error("test message");
+    this.ioLogger.success("very successful");
+    this.ioLogger.success("very successful again");
 
-    verify(rateLimitedLogger).warn("test message");
-    verify(log).info(eq(EXCLUDE_TELEMETRY), eq("very successful"), (Object[]) any());
-    verify(log, never()).info(eq(EXCLUDE_TELEMETRY), eq("very successful again"), (Object[]) any());
+    verify(this.rateLimitedLogger).warn("test message");
+    verify(this.log).info(eq(EXCLUDE_TELEMETRY), eq("very successful"), (Object[]) any());
+    verify(this.log, never())
+        .info(eq(EXCLUDE_TELEMETRY), eq("very successful again"), (Object[]) any());
   }
 
   @Test
   void unloggedErrorThenSuccessInfoLevel() {
-    when(log.isDebugEnabled()).thenReturn(false);
-    when(log.isInfoEnabled()).thenReturn(true);
-    when(rateLimitedLogger.warn("test message")).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    when(this.log.isInfoEnabled()).thenReturn(true);
+    when(this.rateLimitedLogger.warn("test message")).thenReturn(false);
 
-    ioLogger.error("test message");
-    ioLogger.success("very successful");
-    ioLogger.success("very successful again");
+    this.ioLogger.error("test message");
+    this.ioLogger.success("very successful");
+    this.ioLogger.success("very successful again");
 
-    verify(rateLimitedLogger).warn("test message");
-    verify(log, never()).info(nullable(Marker.class), anyString(), (Object[]) any());
+    verify(this.rateLimitedLogger).warn("test message");
+    verify(this.log, never()).info(nullable(Marker.class), anyString(), (Object[]) any());
   }
 }
