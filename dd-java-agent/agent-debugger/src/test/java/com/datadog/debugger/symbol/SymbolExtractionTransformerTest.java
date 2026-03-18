@@ -1002,7 +1002,7 @@ class SymbolExtractionTransformerTest {
     }
     assertEquals(2, symbolSinkMock.jarScopes.size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 17, SOURCE_FILE, 4, 1);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 23, SOURCE_FILE, 5, 1);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1024,12 +1024,15 @@ class SymbolExtractionTransformerTest {
     Scope f2MethodScope = classScope.getScopes().get(2);
     assertScope(f2MethodScope, ScopeType.METHOD, "f2", 10, 17, SOURCE_FILE, 3, 1);
     assertLineRanges(f2MethodScope, "10-10", "12-12", "14-14", "16-17");
+    Scope f3MethodScope = classScope.getScopes().get(3);
+    assertScope(f3MethodScope, ScopeType.METHOD, "f3", 21, 23, SOURCE_FILE, 1, 1);
+    assertLineRanges(f3MethodScope, "21-23");
     assertScope(
-        classScope.getScopes().get(3), ScopeType.METHOD, "<clinit>", 0, 0, SOURCE_FILE, 0, 0);
+        classScope.getScopes().get(4), ScopeType.METHOD, "<clinit>", 0, 0, SOURCE_FILE, 0, 0);
 
     Scope companionClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
     assertScope(
-        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 22, 23, SOURCE_FILE, 3, 0);
+        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 28, 29, SOURCE_FILE, 3, 0);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1047,8 +1050,8 @@ class SymbolExtractionTransformerTest {
         0,
         0);
     Scope mainMethodScope = companionClassScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 22, 23, SOURCE_FILE, 1, 1);
-    assertLineRanges(mainMethodScope, "22-23");
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 28, 29, SOURCE_FILE, 1, 1);
+    assertLineRanges(mainMethodScope, "28-29");
   }
 
   @Test
