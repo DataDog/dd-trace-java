@@ -22,7 +22,7 @@ spotless {
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
-      googleJavaFormat('1.34.1')
+      googleJavaFormat('1.35.0')
       tableTestFormatter('1.1.1')
     }
   }
