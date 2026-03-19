@@ -229,6 +229,80 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     "invalid"       | SamplingMechanism.DEFAULT
   }
 
+  def "test span ids are encoded as unsigned values in v1 payloads"() {
+    setup:
+    long spanId = Long.MIN_VALUE + 123L
+    long parentId = Long.MIN_VALUE + 456L
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      spanId,
+      parentId,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    unpacker.unpackMapHeader()
+    Long actualSpanId = null
+    Long actualParentId = null
+
+    for (int i = 0; i < 10; i++) {
+      int payloadFieldId = unpacker.unpackInt()
+      if (payloadFieldId == 11) {
+        int chunkCount = unpacker.unpackArrayHeader()
+        assertEquals(1, chunkCount)
+        int chunkFieldCount = unpacker.unpackMapHeader()
+        for (int j = 0; j < chunkFieldCount; j++) {
+          int chunkFieldId = unpacker.unpackInt()
+          if (chunkFieldId == 4) {
+            int spanCount = unpacker.unpackArrayHeader()
+            assertEquals(1, spanCount)
+            int spanFieldCount = unpacker.unpackMapHeader()
+            for (int k = 0; k < spanFieldCount; k++) {
+              int spanFieldId = unpacker.unpackInt()
+              switch (spanFieldId) {
+                case 4:
+                  assertEquals(MessageFormat.UINT64, unpacker.nextFormat)
+                  actualSpanId = DDSpanId.from("${unpacker.unpackBigInteger()}")
+                  break
+                case 5:
+                  assertEquals(MessageFormat.UINT64, unpacker.nextFormat)
+                  actualParentId = DDSpanId.from("${unpacker.unpackBigInteger()}")
+                  break
+                default:
+                  skipSpanField(unpacker, spanFieldId, stringTable)
+              }
+            }
+          } else {
+            skipChunkField(unpacker, chunkFieldId, stringTable)
+          }
+        }
+      } else {
+        skipPayloadField(unpacker, payloadFieldId, stringTable)
+      }
+    }
+
+    then:
+    assertEquals(spanId, actualSpanId)
+    assertEquals(parentId, actualParentId)
+  }
+
   def "test span links are encoded from structured span links"() {
     setup:
     List<SpanLink> spanLinks = [
@@ -783,10 +857,10 @@ class TraceMapperV1PayloadTest extends DDSpecification {
           resource = readStreamingString(unpacker, stringTable)
           break
         case 4:
-          spanId = unpacker.unpackValue().asNumberValue().toLong()
+          spanId = unpackUnsignedLong(unpacker)
           break
         case 5:
-          parentId = unpacker.unpackValue().asNumberValue().toLong()
+          parentId = unpackUnsignedLong(unpacker)
           break
         case 6:
           start = unpacker.unpackLong()
@@ -917,6 +991,14 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     } else {
       assertEquals(String.valueOf(expected), String.valueOf(actual), "String mismatch for $key")
     }
+  }
+
+  private static long unpackUnsignedLong(MessageUnpacker unpacker) {
+    MessageFormat format = unpacker.nextFormat
+    if (format == MessageFormat.UINT64) {
+      return DDSpanId.from("${unpacker.unpackBigInteger()}")
+    }
+    return unpacker.unpackLong()
   }
 
   private static void addFlattenedExpectedAttribute(

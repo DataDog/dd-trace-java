@@ -149,9 +149,9 @@ public final class TraceMapperV1 implements TraceMapper {
       // sometimes called endpoint for web spans
       encodeField(writable, 3, span.getResourceName());
       // spanID = 4, the ID of this span
-      encodeField(writable, 4, span.getSpanId());
+      encodeUnsignedField(writable, 4, span.getSpanId());
       // parentID = 5, the ID of this span's parent, or zero if there is no parent
-      encodeField(writable, 5, span.getParentId());
+      encodeUnsignedField(writable, 5, span.getParentId());
       // start = 6, the number of nanoseconds from the Unix epoch to the start of this span
       encodeField(writable, 6, span.getStartTime());
       // duration = 7, the time length of this span in nanoseconds
@@ -189,7 +189,7 @@ public final class TraceMapperV1 implements TraceMapper {
     for (AgentSpanLink link : links) {
       writable.startMap(5);
       encodeField(writable, 1, link.traceId().to128BitBytes());
-      encodeField(writable, 2, link.spanId());
+      encodeUnsignedField(writable, 2, link.spanId());
       Map<String, Object> attributes = new LinkedHashMap<>();
       attributes.putAll(link.attributes().asMap());
       encodeAttributes(writable, 3, attributes, emptyMap());
@@ -487,6 +487,11 @@ public final class TraceMapperV1 implements TraceMapper {
   private void encodeField(Writable writable, int fieldId, long value) {
     writable.writeInt(fieldId);
     writable.writeLong(value);
+  }
+
+  private void encodeUnsignedField(Writable writable, int fieldId, long value) {
+    writable.writeInt(fieldId);
+    writable.writeUnsignedLong(value);
   }
 
   private void encodeField(Writable writable, int fieldId, CharSequence value) {
