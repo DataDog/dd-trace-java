@@ -92,8 +92,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile int traceSource;
     private volatile String debugPropagation;
 
-    // extracted Knuth sampling rate tag for easier updates
-    private volatile TagValue knuthSamplingRateTagValue;
+    private volatile double knuthSamplingRate = Double.NaN;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -272,12 +271,11 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateKnuthSamplingRate(double rate) {
-      TagValue newValue = TagValue.from(formatKnuthSamplingRate(rate));
-      if (!Objects.equals(knuthSamplingRateTagValue, newValue)) {
+      if (Double.compare(knuthSamplingRate, rate) != 0) {
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
+        knuthSamplingRate = rate;
       }
-      knuthSamplingRateTagValue = newValue;
     }
 
     /** Formats a sampling rate with up to 6 significant digits and no trailing zeros. */
@@ -298,7 +296,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     TagValue getKnuthSamplingRateTagValue() {
-      return knuthSamplingRateTagValue;
+      double rate = knuthSamplingRate;
+      return Double.isNaN(rate) ? null : TagValue.from(formatKnuthSamplingRate(rate));
     }
 
     @Override
@@ -428,7 +427,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
         size =
             PTagsCodec.calcXDatadogTagsSize(
-                size, KNUTH_SAMPLING_RATE_TAG, knuthSamplingRateTagValue);
+                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =

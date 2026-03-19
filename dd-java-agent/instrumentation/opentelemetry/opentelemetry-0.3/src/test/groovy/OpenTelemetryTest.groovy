@@ -277,9 +277,9 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       "-${DDSpanId.toHexStringPadded(spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
     def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(spanId)}"
-    def datadogTags = []
+    def expectedDataTags = []
     if (propagatedMechanism != UNKNOWN) {
-      datadogTags << "_dd.p.dm=-" + propagatedMechanism
+      expectedDataTags << "_dd.p.dm=-" + propagatedMechanism
       expectedTracestate += ";t.dm:-" + propagatedMechanism
     }
     if (traceId.toHighOrderLong() != 0) {
@@ -289,10 +289,10 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       expectedTracestate += ";t.ksr:1"
     }
     if (traceId.toHighOrderLong() != 0) {
-      datadogTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
+      expectedDataTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
     }
     if (contextPriority == UNSET) {
-      datadogTags << "_dd.p.ksr=1"
+      expectedDataTags << "_dd.p.ksr=1"
     }
     def expectedTextMap = [
       "x-datadog-trace-id"         : "$traceId",
@@ -301,8 +301,8 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       "traceparent"                : expectedTraceparent,
       "tracestate"                 : expectedTracestate,
     ]
-    if (!datadogTags.empty) {
-      expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
+    if (!expectedDataTags.empty) {
+      expectedTextMap.put("x-datadog-tags", expectedDataTags.join(','))
     }
     textMap == expectedTextMap
 
