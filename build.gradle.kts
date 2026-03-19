@@ -39,6 +39,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
 
     googleJavaFormat("1.34.1")
+    tableTestFormatter("1.1.1")
   }
   groovyGradle {
     greclipse()
