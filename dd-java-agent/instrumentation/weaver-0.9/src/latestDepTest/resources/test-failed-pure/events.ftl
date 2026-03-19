@@ -46,7 +46,7 @@
       "env" : "none",
       "error.message" : ${content_meta_error_message},
       "error.stack" : ${content_meta_error_stack},
-      "error.type" : "weaver.ExpectationFailed",
+      "error.type" : "java.lang.RuntimeException",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
