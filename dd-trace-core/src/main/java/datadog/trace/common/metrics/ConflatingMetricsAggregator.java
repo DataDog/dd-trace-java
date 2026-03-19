@@ -82,6 +82,17 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
+  /**
+   * gRPC status code tag keys in priority order, matching the Go reference implementation. The
+   * first non-empty value wins.
+   */
+  private static final String[] GRPC_STATUS_CODE_KEYS = {
+    InstrumentationTags.GRPC_STATUS_CODE, // rpc.grpc.status_code
+    InstrumentationTags.GRPC_CODE, // grpc.code
+    InstrumentationTags.RPC_GRPC_STATUS_CODE, // rpc.grpc.status.code
+    InstrumentationTags.GRPC_STATUS_CODE_LEGACY // grpc.status.code
+  };
+
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
       unmodifiableSet(
           new HashSet<>(
@@ -331,8 +342,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     CharSequence spanType = span.getType();
     String grpcStatusCode = null;
     if (spanType != null && RPC.contentEquals(spanType)) {
-      Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
-      grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
+      grpcStatusCode = extractGrpcStatusCode(span);
     }
     MetricKey newKey =
         new MetricKey(
@@ -379,6 +389,26 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     inbox.offer(batch);
     // force keep keys if there are errors
     return span.getError() > 0;
+  }
+
+  /**
+   * Extracts gRPC status code from a span by checking tag keys in priority order: 1.
+   * rpc.grpc.status_code 2. grpc.code 3. rpc.grpc.status.code 4. grpc.status.code
+   *
+   * <p>Returns the string value of the first non-empty tag found, or null if none are present. This
+   * matches the Go reference implementation's extraction order.
+   */
+  private static String extractGrpcStatusCode(CoreSpan<?> span) {
+    for (String key : GRPC_STATUS_CODE_KEYS) {
+      Object value = span.unsafeGetTag(key);
+      if (value != null) {
+        String strValue = value.toString();
+        if (!strValue.isEmpty()) {
+          return strValue;
+        }
+      }
+    }
+    return null;
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {

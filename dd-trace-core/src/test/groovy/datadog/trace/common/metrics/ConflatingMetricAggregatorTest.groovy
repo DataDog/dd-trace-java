@@ -1549,6 +1549,58 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should extract grpc status code using priority order: #description"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    def span = new SimpleSpan("service", "grpc.server", "grpc.service/Method", "rpc", true, false, false, 0, 100, 0)
+      .setTag(SPAN_KIND, "server")
+    tags.each { k, v -> span.setTag(k, v) }
+    aggregator.publish([span])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(new MetricKey(
+      "grpc.service/Method",
+      "service",
+      "grpc.server",
+      null,
+      "rpc",
+      0,
+      false,
+      false,
+      "server",
+      [],
+      null,
+      null,
+      expectedGrpcStatus
+      ), _)
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+
+    where:
+    description                                                | tags                                                                                                                                                              | expectedGrpcStatus
+    "rpc.grpc.status_code is highest priority"                 | [(InstrumentationTags.GRPC_STATUS_CODE): 0, (InstrumentationTags.GRPC_CODE): "OK", (InstrumentationTags.RPC_GRPC_STATUS_CODE): "0", (InstrumentationTags.GRPC_STATUS_CODE_LEGACY): "OK"] | "0"
+    "grpc.code used when rpc.grpc.status_code absent"          | [(InstrumentationTags.GRPC_CODE): "NOT_FOUND", (InstrumentationTags.RPC_GRPC_STATUS_CODE): "5", (InstrumentationTags.GRPC_STATUS_CODE_LEGACY): "NOT_FOUND"]        | "NOT_FOUND"
+    "rpc.grpc.status.code used when higher priority absent"    | [(InstrumentationTags.RPC_GRPC_STATUS_CODE): "14", (InstrumentationTags.GRPC_STATUS_CODE_LEGACY): "UNAVAILABLE"]                                                   | "14"
+    "grpc.status.code used as last fallback"                   | [(InstrumentationTags.GRPC_STATUS_CODE_LEGACY): "CANCELLED"]                                                                                                       | "CANCELLED"
+    "no grpc status when no tags present"                      | [:]                                                                                                                                                                | null
+  }
+
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()
