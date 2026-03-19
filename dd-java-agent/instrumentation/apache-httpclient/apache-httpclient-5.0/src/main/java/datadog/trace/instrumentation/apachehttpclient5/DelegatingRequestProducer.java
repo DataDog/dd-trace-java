@@ -9,12 +9,20 @@ import org.apache.hc.core5.http.nio.RequestChannel;
 import org.apache.hc.core5.http.protocol.HttpContext;
 
 public class DelegatingRequestProducer implements AsyncRequestProducer {
-  final AgentSpan span;
+  AgentSpan span;
   final AsyncRequestProducer delegate;
+  boolean injectContext = false;
 
-  public DelegatingRequestProducer(final AgentSpan span, final AsyncRequestProducer delegate) {
-    this.span = span;
+  public DelegatingRequestProducer(final AsyncRequestProducer delegate) {
     this.delegate = delegate;
+  }
+
+  public void setSpan(AgentSpan span) {
+    this.span = span;
+  }
+
+  public void setInjectContext(boolean injectContext) {
+    this.injectContext = injectContext;
   }
 
   @Override
@@ -25,7 +33,8 @@ public class DelegatingRequestProducer implements AsyncRequestProducer {
   @Override
   public void sendRequest(RequestChannel channel, HttpContext context)
       throws HttpException, IOException {
-    DelegatingRequestChannel requestChannel = new DelegatingRequestChannel(channel, span);
+    DelegatingRequestChannel requestChannel =
+        new DelegatingRequestChannel(channel, span, injectContext);
     delegate.sendRequest(requestChannel, context);
   }
 

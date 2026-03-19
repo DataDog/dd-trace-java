@@ -3,28 +3,17 @@ package datadog.trace.api.internal.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.tabletest.junit.TableTest;
 
 class HexStringUtilsTest {
 
-  @ParameterizedTest(name = "test hexadecimal String representations high={0} low={1} size={2}")
-  @CsvSource({
-    "0,0,10",
-    "0,0,16",
-    "0,0,20",
-    "0,0,32",
-    "0,0,40",
-    "1,2,10",
-    "1,2,16",
-    "1,2,20",
-    "1,2,32",
-    "1,2,40",
-    "6536977903480360123,3270264562721133536,10",
-    "6536977903480360123,3270264562721133536,16",
-    "6536977903480360123,3270264562721133536,20",
-    "6536977903480360123,3270264562721133536,32",
-    "6536977903480360123,3270264562721133536,40"
+  @TableTest({
+    "scenario      | highOrderBits       | lowOrderBits        | size",
+    "zero          | 0                   | 0                   | {10, 16, 20, 32, 40}",
+    "one-two       | 1                   | 2                   | {10, 16, 20, 32, 40}",
+    "large         | 6536977903480360123 | 3270264562721133536 | {10, 16, 20, 32, 40}"
   })
+  @ParameterizedTest(name = "test hexadecimal String representations high={0} low={1} size={2}")
   void testHexadecimalStringRepresentations(long highOrderBits, long lowOrderBits, int size) {
     int highOrderSize = Math.min(16, Math.max(0, size - 16));
     int lowOrderSize = Math.min(16, size);

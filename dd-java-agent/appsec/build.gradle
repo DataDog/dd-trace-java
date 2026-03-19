@@ -9,6 +9,7 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
+apply from: "$rootDir/gradle/tries.gradle"
 
 dependencies {
   api libs.slf4j
@@ -27,6 +28,14 @@ dependencies {
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
+}
+
+tasks.named("compileJava", JavaCompile) {
+  dependsOn("generateClassNameTries")
+}
+
+tasks.named("sourcesJar", Jar) {
+  dependsOn("generateClassNameTries")
 }
 
 tasks.named("shadowJar", ShadowJar) {
