@@ -422,7 +422,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     received.value() == greeting
     received.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    // Use SORT_TRACES_BY_START so the producer trace (started first) is always trace(0)
+    // regardless of span ID generation strategy.
+    assertTraces(2, SORT_TRACES_BY_START) {
       trace(3) {
         basicSpan(it, "parent")
         basicSpan(it, "producer callback", span(0))
@@ -542,7 +544,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     received.value() == null
     received.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    // Use SORT_TRACES_BY_START so the producer trace (started first) is always trace(0)
+    // regardless of span ID generation strategy.
+    assertTraces(2, SORT_TRACES_BY_START) {
       trace(1) {
         producerSpan(it, senderProps, null, false, true)
       }
@@ -596,7 +600,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    assertTraces(2, SORT_TRACES_BY_START) {
       trace(1) {
         producerSpan(it, senderProps)
       }
@@ -651,7 +655,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     first.value() == greeting
     first.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    assertTraces(2, SORT_TRACES_BY_START) {
       trace(1) {
         producerSpan(it, senderProps)
       }
@@ -706,7 +710,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     last.value() == greeting
     last.key() == null
 
-    assertTraces(2, SORT_TRACES_BY_ID) {
+    assertTraces(2, SORT_TRACES_BY_START) {
       trace(1) {
         producerSpan(it, senderProps)
       }
@@ -764,7 +768,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     receivedSet.isEmpty()
 
-    assertTraces(9, SORT_TRACES_BY_ID) {
+    // Use SORT_TRACES_BY_START so producer traces (started first) come before consumer traces
+    // regardless of span ID generation strategy.
+    assertTraces(9, SORT_TRACES_BY_START) {
 
       // producing traces
       trace(1) {
@@ -792,14 +798,17 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           queueSpan(it, trace(2)[0])
         }
       } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
+        // With SORT_TRACES_BY_START, producer traces are at indices 0-2 and consumer
+        // traces follow. Use dynamic parent matching since start-time ordering within
+        // the consumer group may vary with different ID generation strategies.
+        def producerSpans = [trace(0)[0], trace(1)[0], trace(2)[0]]
+        (3..5).each { traceIdx ->
+          def consumerSpanParentId = trace(traceIdx)[0].parentId
+          def parentProducerSpan = producerSpans.find { it.spanId == consumerSpanParentId }
+          assert parentProducerSpan != null : "Forward consumer trace $traceIdx has no matching producer span"
+          trace(1) {
+            consumerSpan(it, consumerProperties, parentProducerSpan)
+          }
         }
       }
 
@@ -818,14 +827,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           queueSpan(it, trace(0)[0])
         }
       } else {
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(2)[0], 2..2)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(1)[0], 1..1)
-        }
-        trace(1) {
-          consumerSpan(it, consumerProperties, trace(0)[0], 0..0)
+        // Same dynamic parent matching for backward iteration consumer traces
+        def producerSpans2 = [trace(0)[0], trace(1)[0], trace(2)[0]]
+        (6..8).each { traceIdx ->
+          def consumerSpanParentId = trace(traceIdx)[0].parentId
+          def parentProducerSpan = producerSpans2.find { it.spanId == consumerSpanParentId }
+          assert parentProducerSpan != null : "Backward consumer trace $traceIdx has no matching producer span"
+          trace(1) {
+            consumerSpan(it, consumerProperties, parentProducerSpan)
+          }
         }
       }
     }
