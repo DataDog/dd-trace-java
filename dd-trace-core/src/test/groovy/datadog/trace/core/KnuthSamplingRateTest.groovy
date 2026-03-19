@@ -52,6 +52,12 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
     0.000123456789d | "0.000123457"
     // rounding boundary: 0.9999995 rounds up to 1.0
     0.9999995d      | "1"
+    // scientific notation (rate < 1e-4)
+    0.00001d        | "1e-05"
+    0.000050d       | "5e-05"
+    1.23456789e-5d  | "1.23457e-05"
+    1e-7d           | "1e-07"
+    5.5e-10d        | "5.5e-10"
   }
 
   def "agent rate sampler sets ksr propagated tag"() {
