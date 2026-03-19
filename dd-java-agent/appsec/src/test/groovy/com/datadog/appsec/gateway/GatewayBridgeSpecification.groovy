@@ -18,6 +18,8 @@ import datadog.trace.api.appsec.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -1635,6 +1637,60 @@ class GatewayBridgeSpecification extends DDSpecification {
       final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
       assert body['test'] == 'this is a test'
     }
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to application/json'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'application/json')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.JSON, null).length))
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to text/html'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'text/html,application/xhtml+xml')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html;charset=utf-8')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.HTML, null).length))
   }
 
   static toLowerCaseHeaders(final Map<String, List<String>> headers) {
