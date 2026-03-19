@@ -2,7 +2,185 @@ package datadog.trace.api;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
-import static datadog.trace.api.ConfigDefaults.*;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BACKEND_API_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SIGNAL_SERVER_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_SOURCE_DATA_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLIENT_IP_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CLOCK_SYNC_PERIOD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_COUCHBASE_INTERNAL_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CWS_TLS_REFRESH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_MAX_CAPTURED_FRAMES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_MAX_EXCEPTION_PER_SECOND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DISTRIBUTED_DEBUGGER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ANONYMOUS_CLASSES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DB_ROWS_TO_TAINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_DEBUG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_HARDCODED_SECRET_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_STACK_TRACE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_TRUNCATION_MAX_VALUE_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_WEAK_HASH_ALGORITHMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_INJECT_DATADOG_ATTRIBUTE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_INSTRUMENTATION_SOURCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JAX_RS_EXCEPTION_AS_ERROR_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SECURE_RANDOM;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_DISCOVERY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SSI_INJECTION_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SYMBOL_DATABASE_COMPRESSED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SYMBOL_DATABASE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SYMBOL_DATABASE_FLUSH_THRESHOLD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEBUG_REQUESTS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_LOG_COLLECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
@@ -268,7 +446,6 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
-import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
@@ -277,6 +454,11 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -737,9 +919,6 @@ public class Config {
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
-  private final String traceOtelExporter;
-
-  private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
@@ -749,6 +928,13 @@ public class Config {
   private final OtlpConfig.Compression otlpMetricsCompression;
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
+
+  private final String traceOtelExporter;
+  private final String otlpTracesEndpoint;
+  private final Map<String, String> otlpTracesHeaders;
+  private final OtlpConfig.Protocol otlpTracesProtocol;
+  private final OtlpConfig.Compression otlpTracesCompression;
+  private final int otlpTracesTimeout;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -1715,11 +1901,6 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
-    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
-
-    metricsOtelEnabled =
-        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-
     int cardinalityLimit =
         configProvider.getInteger(
             METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
@@ -1747,11 +1928,11 @@ public class Config {
     metricsOtelTimeout = otelTimeout;
 
     // keep OTLP default timeout below the overall export timeout
-    int defaultOtlpTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
-    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpTimeout);
+    int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
+    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP metrics timeout: {}. The value must be positive", otlpTimeout);
-      otlpTimeout = defaultOtlpTimeout;
+      otlpTimeout = defaultOtlpMetricsTimeout;
     }
     otlpMetricsTimeout = otlpTimeout;
 
@@ -1774,7 +1955,7 @@ public class Config {
                 + ':'
                 + DEFAULT_OTLP_HTTP_PORT
                 + '/'
-                + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT;
+                + DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
       }
     }
     otlpMetricsEndpoint = otlpMetricsEndpointFromEnvironment;
@@ -1784,6 +1965,39 @@ public class Config {
             OTLP_METRICS_TEMPORALITY_PREFERENCE,
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
+
+    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+
+    otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
+    if (otlpTimeout < 0) {
+      log.warn("Invalid OTLP traces timeout: {}. The value must be positive", otlpTimeout);
+      otlpTimeout = DEFAULT_OTLP_TRACES_TIMEOUT;
+    }
+    otlpTracesTimeout = otlpTimeout;
+
+    otlpTracesHeaders = configProvider.getMergedMap(OTLP_TRACES_HEADERS, '=');
+    otlpTracesProtocol =
+        configProvider.getEnum(
+            OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpTracesCompression =
+        configProvider.getEnum(
+            OTLP_TRACES_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+
+    String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
+    if (otlpTracesEndpointFromEnvironment == null) {
+      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+      } else {
+        otlpTracesEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+      }
+    }
+    otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
@@ -5042,12 +5256,8 @@ public class Config {
     return configProvider.isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
-  public boolean isOtlpTracesExporterEnabled() {
-    return "otlp".equalsIgnoreCase(traceOtelExporter);
-  }
-
   public boolean isMetricsOtelEnabled() {
-    return metricsOtelEnabled;
+    return instrumenterConfig.isMetricsOtelEnabled();
   }
 
   public int getMetricsOtelCardinalityLimit() {
@@ -5084,6 +5294,34 @@ public class Config {
 
   public OtlpConfig.Temporality getOtlpMetricsTemporalityPreference() {
     return otlpMetricsTemporalityPreference;
+  }
+
+  public boolean isTraceOtelEnabled() {
+    return instrumenterConfig.isTraceOtelEnabled();
+  }
+
+  public boolean isTraceOtlpExporterEnabled() {
+    return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public String getOtlpTracesEndpoint() {
+    return otlpTracesEndpoint;
+  }
+
+  public Map<String, String> getOtlpTracesHeaders() {
+    return otlpTracesHeaders;
+  }
+
+  public OtlpConfig.Protocol getOtlpTracesProtocol() {
+    return otlpTracesProtocol;
+  }
+
+  public OtlpConfig.Compression getOtlpTracesCompression() {
+    return otlpTracesCompression;
+  }
+
+  public int getOtlpTracesTimeout() {
+    return otlpTracesTimeout;
   }
 
   public boolean isRuleEnabled(final String name) {
@@ -6097,10 +6335,6 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
-        + ", traceOtelExporter="
-        + traceOtelExporter
-        + ", metricsOtelEnabled="
-        + metricsOtelEnabled
         + ", metricsOtelInterval="
         + metricsOtelInterval
         + ", metricsOtelTimeout="
@@ -6119,6 +6353,18 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
+        + ", traceOtelExporter="
+        + traceOtelExporter
+        + ", otlpTracesEndpoint="
+        + otlpTracesEndpoint
+        + ", otlpTracesHeaders="
+        + otlpTracesHeaders
+        + ", otlpTracesProtocol="
+        + otlpTracesProtocol
+        + ", otlpTracesCompression="
+        + otlpTracesCompression
+        + ", otlpTracesTimeout="
+        + otlpTracesTimeout
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="
