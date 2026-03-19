@@ -1,6 +1,6 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.relocate.api.IOLogger;
+import datadog.logging.IOLogger;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalInt;

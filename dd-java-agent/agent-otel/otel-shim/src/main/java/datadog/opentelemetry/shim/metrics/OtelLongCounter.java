@@ -3,10 +3,10 @@ package datadog.opentelemetry.shim.metrics;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
 import io.opentelemetry.api.metrics.LongCounter;

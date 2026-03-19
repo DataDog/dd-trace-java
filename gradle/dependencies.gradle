@@ -32,6 +32,7 @@ final class CachedData {
       exclude(project(':utils:queue-utils'))
       exclude(project(':utils:socket-utils'))
       exclude(project(':utils:time-utils'))
+      exclude(project(':utils:logging-utils'))
       exclude(project(':utils:version-utils'))
       exclude(project(':dd-java-agent:agent-crashtracking'))
       exclude(project(':dd-java-agent:ddprof-lib'))
