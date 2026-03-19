@@ -94,12 +94,12 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario      | Input                | Expected                          ",
-    "null input    |                      | '[]'                              ",
-    "empty list    | []                   | '[]'                              ",
-    "single value  | [value1]             | '[\"value1\"]'                    ",
-    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'         ",
-    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]' "
+    "Scenario      | Input                | Expected                         ",
+    "null input    |                      | '[]'                             ",
+    "empty list    | []                   | '[]'                             ",
+    "single value  | [value1]             | '[\"value1\"]'                   ",
+    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
   })
   @ParameterizedTest(name = "test mapping iterable to JSON array: {0}")
   void testMappingIterableToJsonArray(List<String> input, String expected) throws IOException {
@@ -137,14 +137,14 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario      | input  | expected   ",
-    " null value   |        | ''         ",
-    " empty string | ''     | ''         ",
-    " \\b          | '\b'   | '\"\\b\"'  ",
-    " \\t          | '\t'   | '\"\\t\"'  ",
-    " \\f          | '\f'   | '\"\\f\"'  ",
-    " a            | 'a'    | '\"a\"'    ",
-    " /            | '/'    | '\"\\/\"'  ",
+    "Scenario     | input | expected ",
+    "null value   |       | ''       ",
+    "empty string | ''    | ''       ",
+    "\\b          | '\b'  | '\"\\b\"'",
+    "\\t          | '\t'  | '\"\\t\"'",
+    "\\f          | '\f'  | '\"\\f\"'",
+    "a            | 'a'   | '\"a\"'  ",
+    "/            | '/'   | '\"\\/\"'"
   })
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonStringArguments")

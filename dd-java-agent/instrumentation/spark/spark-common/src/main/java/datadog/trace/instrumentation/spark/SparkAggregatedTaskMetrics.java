@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.spark;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import datadog.metrics.api.Histogram;
+import datadog.metrics.api.HistogramWithSum;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
@@ -67,7 +68,7 @@ class SparkAggregatedTaskMetrics {
   private Histogram diskBytesSpilledHistogram;
 
   // Used for Spark SQL Plan metrics ONLY, don't put in regular span for now
-  private Map<Long, Histogram> externalAccumulableHistograms;
+  private Map<Long, HistogramWithSum> externalAccumulableHistograms;
 
   public SparkAggregatedTaskMetrics() {}
 
@@ -148,10 +149,11 @@ class SparkAggregatedTaskMetrics {
 
           externalAccumulators.forEach(
               acc -> {
-                Histogram hist = externalAccumulableHistograms.get(acc.id());
+                HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
                 if (hist == null) {
                   hist =
-                      Histogram.newHistogram(HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+                      Histogram.newHistogramWithSum(
+                          HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
                 }
 
                 try {
@@ -315,7 +317,7 @@ class SparkAggregatedTaskMetrics {
   // Used to put external accum metrics to JSON for Spark SQL plans
   public void externalAccumToJson(JsonGenerator generator, SQLMetricInfo info) throws IOException {
     if (externalAccumulableHistograms != null) {
-      Histogram hist = externalAccumulableHistograms.get(info.accumulatorId());
+      HistogramWithSum hist = externalAccumulableHistograms.get(info.accumulatorId());
       String name = info.name();
 
       if (name != null && hist != null) {
