@@ -12,7 +12,13 @@ WORKSPACE_DIR=workspace
 mkdir -p $TEST_RESULTS_DIR
 mkdir -p $WORKSPACE_DIR
 
-mapfile -t TEST_RESULT_DIRS < <(find $WORKSPACE_DIR -name test-results -type d)
+# Main project modules redirect their build directory to workspace/<project-path>/build/ in CI
+# (see build.gradle.kts layout.buildDirectory override). buildSrc is a separate Gradle build
+# that runs before the main build is configured, so this redirect never applies to it;
+# its test results always land in buildSrc/**/build/test-results/, not under workspace/.
+SEARCH_DIRS=($WORKSPACE_DIR buildSrc)
+
+mapfile -t TEST_RESULT_DIRS < <(find "${SEARCH_DIRS[@]}" -name test-results -type d)
 
 if [[ ${#TEST_RESULT_DIRS[@]} -eq 0 ]]; then
   echo "No test results found"

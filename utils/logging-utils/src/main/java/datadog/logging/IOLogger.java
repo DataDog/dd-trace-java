@@ -1,4 +1,4 @@
-package datadog.trace.relocate.api;
+package datadog.logging;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 

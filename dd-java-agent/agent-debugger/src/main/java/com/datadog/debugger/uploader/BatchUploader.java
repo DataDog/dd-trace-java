@@ -5,8 +5,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DI
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;

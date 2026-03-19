@@ -1,4 +1,4 @@
-package datadog.trace.relocate.api;
+package datadog.logging;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;

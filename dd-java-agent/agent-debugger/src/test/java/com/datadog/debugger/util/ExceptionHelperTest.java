@@ -7,7 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.logging.RatelimitedLogger;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import org.junit.jupiter.api.Test;

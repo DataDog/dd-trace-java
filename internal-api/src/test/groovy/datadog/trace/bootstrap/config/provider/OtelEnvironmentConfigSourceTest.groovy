@@ -9,6 +9,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED
@@ -229,6 +230,44 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     source.get(REQUEST_HEADER_TAGS) == 'content-type:http.request.header.content-type,custom-header:http.request.header.custom-header'
     source.get(RESPONSE_HEADER_TAGS) == 'content-length:http.response.header.content-length,another-header:http.response.header.another-header'
     source.get(TRACE_EXTENSIONS_PATH) == '/opt/opentelemetry/extensions'
+  }
+
+  def "otel traces exporter otlp system property is mapped"() {
+    setup:
+    injectSysConfig('dd.trace.otel.enabled', 'true', false)
+    injectSysConfig('otel.traces.exporter', 'otlp', false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACE_ENABLED) == null
+    source.get(TRACE_OTEL_EXPORTER) == 'otlp'
+  }
+
+  def "otel traces exporter otlp environment variable is mapped"() {
+    setup:
+    injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
+    injectEnvConfig('OTEL_TRACES_EXPORTER', 'otlp', false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACE_ENABLED) == null
+    source.get(TRACE_OTEL_EXPORTER) == 'otlp'
+  }
+
+  def "otel traces exporter none still disables tracing"() {
+    setup:
+    injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
+    injectEnvConfig('OTEL_TRACES_EXPORTER', 'none', false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACE_ENABLED) == 'false'
   }
 
   def "otel resource attributes system property is mapped"() {

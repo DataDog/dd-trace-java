@@ -12,20 +12,17 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class IdGenerationStrategyTest {
 
-  @ParameterizedTest(name = "generate id with {1} and {0} bits")
-  @CsvSource({
-    "false,RANDOM",
-    "false,SEQUENTIAL",
-    "false,SECURE_RANDOM",
-    "true,RANDOM",
-    "true,SEQUENTIAL",
-    "true,SECURE_RANDOM"
+  @TableTest({
+    "scenario                 | traceId128BitGenerationEnabled | strategyName ",
+    "strategies-64-bit        | false                          | {RANDOM, SEQUENTIAL, SECURE_RANDOM}",
+    "strategies-128-bit       | true                           | {RANDOM, SEQUENTIAL, SECURE_RANDOM}"
   })
+  @ParameterizedTest(name = "generate id with {1} and {0} bits")
   void generateIdWithStrategyAndBitSize(
       boolean traceId128BitGenerationEnabled, String strategyName) {
     IdGenerationStrategy strategy =

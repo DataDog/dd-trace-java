@@ -1,12 +1,12 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.Map;
