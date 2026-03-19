@@ -67,6 +67,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
@@ -95,8 +96,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
   private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
-
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
+  private static final String[] SKIPPED_PACKAGES =
+      new String[] {
+        "com/datadog/debugger/agent/",
+        "com/datadog/debugger/codeorigin/",
+        "com/datadog/debugger/exception/",
+        "com/datadog/debugger/instrumentation/",
+        "com/datadog/debugger/probe/",
+        "com/datadog/debugger/sink/",
+        "com/datadog/debugger/symbol/",
+        "com/datadog/debugger/uploader/",
+        "com/datadog/debugger/util/"
+      };
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -263,7 +275,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return null;
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
-      checkMethodParameters(classNode);
+      if (!checkMethodParameters(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
+      if (!checkRecordTypeAnnotation(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
@@ -291,10 +308,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
    * instrumented the class, we will retransform for removing the instrumentation and then the
    * attribute is stripped. That's why we are preventing it even at load time.
    */
-  private void checkMethodParameters(ClassNode classNode) {
+  private boolean checkMethodParameters(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
     if (JAVA_AT_LEAST_19) {
       // bug is fixed since JDK19, no need to perform check
-      return;
+      return true;
     }
     boolean isRecord = ASMHelper.isRecord(classNode);
     // capping scanning of methods to 100 to avoid generated class with thousand of methods
@@ -313,13 +331,48 @@ public class DebuggerTransformer implements ClassFileTransformer {
       if (methodNode.parameters != null
           && !methodNode.parameters.isEmpty()
           && SpringHelper.isSpringUsingOnlyMethodParameters(DebuggerAgent.getInstrumentation())) {
-        throw new RuntimeException(
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
             "Method Parameters attribute detected, instrumentation not supported");
+        return false;
       } else {
         // we found at leat a method with one parameter if name is not present we can stop there
         break;
       }
     }
+    return true;
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8376185), when a record using a type
+   * annotation is retransformed, the internal JVM representation of this record is corrupted
+   * and lead to exception in best cases but in JVM crashes in worst cases.
+   * Note: the bug happens only at retransform time and not instrumenting at load time. But the
+   * fact we have already instrumented the record at load time, will prevent us to remove the
+   * instrumentation because it needs a retransformation and will lead to corruption of the record
+   */
+  private boolean checkRecordTypeAnnotation(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
+    if (!ASMHelper.isRecord(classNode)) {
+      return true;
+    }
+    if (classNode.fields == null || classNode.fields.isEmpty()) {
+      return true;
+    }
+    for (FieldNode field : classNode.fields) {
+      if ((field.visibleTypeAnnotations != null && !field.visibleTypeAnnotations.isEmpty())
+          || (field.invisibleTypeAnnotations != null
+              && !field.invisibleTypeAnnotations.isEmpty())) {
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
+            "Instrumentation of a record with type annotation is not supported");
+        return false;
+      }
+    }
+    // no type annotation for components, not a problem
+    return true;
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
@@ -330,6 +383,16 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (classFilePath == null) {
       // in case of anonymous classes
       return true;
+    }
+    if (classFilePath.startsWith("com/datadog/debugger/")) {
+      // skip classes/packages that are part of debugger agent to avoid
+      // LinkageError: attempted duplicate class definition
+      // while retransforming a class used by instrumentation
+      for (int i = 0; i < SKIPPED_PACKAGES.length; i++) {
+        if (classFilePath.startsWith(SKIPPED_PACKAGES[i])) {
+          return true;
+        }
+      }
     }
     return false;
   }

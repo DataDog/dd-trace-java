@@ -345,14 +345,6 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
             ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
             ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT),
         ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
-    appendConfig(
-        sb,
-        "DDProf Wall JVMTI",
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI,
-            ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT),
-        ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT);
-
     sb.append("\n=== DDProf Allocation Profiling ===\n");
     appendConfig(
         sb,

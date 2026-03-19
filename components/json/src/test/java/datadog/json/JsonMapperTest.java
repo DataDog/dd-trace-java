@@ -4,13 +4,12 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,13 +17,24 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.Scenario;
+import org.tabletest.junit.TableTest;
 
 class JsonMapperTest {
-
+  @TableTest({
+    "Scenario       | Input                              | Expected                                               ",
+    "null input     |                                    | '{}'                                                   ",
+    "empty map      | [:]                                | '{}'                                                   ",
+    "single entry   | [key1: value1]                     | '{\"key1\":\"value1\"}'                                ",
+    "two entries    | [key1: value1, key2: value2]       | '{\"key1\":\"value1\",\"key2\":\"value2\"}'            ",
+    "quoted entries | [key1: va\"lu\"e1, ke\"y2: value2] | '{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}'"
+  })
   @ParameterizedTest(name = "test mapping to JSON object: {0}")
   @MethodSource("testMappingToJsonObjectArguments")
-  void testMappingToJsonObject(String testCase, Map<String, Object> input, String expected)
+  void testMappingToJsonObject(
+      @Scenario String ignoredScenario, Map<String, Object> input, String expected)
       throws IOException {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
@@ -42,7 +52,7 @@ class JsonMapperTest {
         if (expectedValue instanceof UnsupportedType) {
           assertEquals(expectedValue.toString(), parsedValue);
         } else if (expectedValue instanceof Float) {
-          assertTrue(parsedValue instanceof Double);
+          assertInstanceOf(Double.class, parsedValue);
           assertEquals((Float) expectedValue, (Double) parsedValue, 0.001);
         } else {
           assertEquals(expectedValue, parsedValue);
@@ -52,17 +62,6 @@ class JsonMapperTest {
   }
 
   static Stream<Arguments> testMappingToJsonObjectArguments() {
-    Map<String, Object> singleEntry = new LinkedHashMap<>();
-    singleEntry.put("key1", "value1");
-
-    Map<String, Object> twoEntries = new LinkedHashMap<>();
-    twoEntries.put("key1", "value1");
-    twoEntries.put("key2", "value2");
-
-    Map<String, Object> quotedEntries = new LinkedHashMap<>();
-    quotedEntries.put("key1", "va\"lu\"e1");
-    quotedEntries.put("ke\"y2", "value2");
-
     Map<String, Object> complexMap = new LinkedHashMap<>();
     complexMap.put("key1", null);
     complexMap.put("key2", "bar");
@@ -74,30 +73,18 @@ class JsonMapperTest {
     complexMap.put("key8", new UnsupportedType());
 
     return Stream.of(
-        Arguments.of("null input", null, "{}"),
-        Arguments.of("empty map", new HashMap<>(), "{}"),
-        Arguments.of("single entry", singleEntry, "{\"key1\":\"value1\"}"),
-        Arguments.of("two entries", twoEntries, "{\"key1\":\"value1\",\"key2\":\"value2\"}"),
-        Arguments.of(
-            "quoted entries",
-            quotedEntries,
-            "{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}"),
-        Arguments.of(
+        arguments(
             "complex map",
             complexMap,
             "{\"key1\":null,\"key2\":\"bar\",\"key3\":3,\"key4\":3456789123,\"key5\":3.142,\"key6\":3.141592653589793,\"key7\":true,\"key8\":\"toString\"}"));
   }
 
   @ParameterizedTest(name = "test mapping to Map from empty JSON object: {0}")
-  @MethodSource("testMappingToMapFromEmptyJsonObjectArguments")
+  @NullSource
+  @ValueSource(strings = {"null", "", "{}"})
   void testMappingToMapFromEmptyJsonObject(String json) throws IOException {
     Map<String, Object> parsed = JsonMapper.fromJsonToMap(json);
     assertEquals(emptyMap(), parsed);
-  }
-
-  static Stream<Arguments> testMappingToMapFromEmptyJsonObjectArguments() {
-    return Stream.of(
-        Arguments.of((Object) null), Arguments.of("null"), Arguments.of(""), Arguments.of("{}"));
   }
 
   @ParameterizedTest(name = "test mapping to Map from non-object JSON: {0}")
@@ -106,8 +93,15 @@ class JsonMapperTest {
     assertThrows(IOException.class, () -> JsonMapper.fromJsonToMap(json));
   }
 
+  @TableTest({
+    "Scenario      | Input                | Expected                         ",
+    "null input    |                      | '[]'                             ",
+    "empty list    | []                   | '[]'                             ",
+    "single value  | [value1]             | '[\"value1\"]'                   ",
+    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
+  })
   @ParameterizedTest(name = "test mapping iterable to JSON array: {0}")
-  @MethodSource("testMappingIterableToJsonArrayArguments")
   void testMappingIterableToJsonArray(List<String> input, String expected) throws IOException {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
@@ -116,18 +110,16 @@ class JsonMapperTest {
     assertEquals(input != null ? input : emptyList(), parsed);
   }
 
-  static Stream<Arguments> testMappingIterableToJsonArrayArguments() {
-    return Stream.of(
-        Arguments.of(null, "[]"),
-        Arguments.of(new ArrayList<>(), "[]"),
-        Arguments.of(Arrays.asList("value1"), "[\"value1\"]"),
-        Arguments.of(Arrays.asList("value1", "value2"), "[\"value1\",\"value2\"]"),
-        Arguments.of(Arrays.asList("va\"lu\"e1", "value2"), "[\"va\\\"lu\\\"e1\",\"value2\"]"));
-  }
-
+  @TableTest({
+    "Scenario       | Input                | Expected                         ",
+    "null input     |                      | '[]'                             ",
+    "empty array    | []                   | '[]'                             ",
+    "single element | [value1]             | '[\"value1\"]'                   ",
+    "two elements   | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+    "escaped quotes | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
+  })
   @ParameterizedTest(name = "test mapping array to JSON array: {0}")
-  @MethodSource("testMappingArrayToJsonArrayArguments")
-  void testMappingArrayToJsonArray(String testCase, String[] input, String expected)
+  void testMappingArrayToJsonArray(String ignoredScenario, String[] input, String expected)
       throws IOException {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
@@ -136,53 +128,40 @@ class JsonMapperTest {
     assertArrayEquals(input != null ? input : new String[] {}, parsed);
   }
 
-  static Stream<Arguments> testMappingArrayToJsonArrayArguments() {
-    return Stream.of(
-        Arguments.of("null input", (Object) null, "[]"),
-        Arguments.of("empty array", new String[] {}, "[]"),
-        Arguments.of("single element", new String[] {"value1"}, "[\"value1\"]"),
-        Arguments.of("two elements", new String[] {"value1", "value2"}, "[\"value1\",\"value2\"]"),
-        Arguments.of(
-            "escaped quotes",
-            new String[] {"va\"lu\"e1", "value2"},
-            "[\"va\\\"lu\\\"e1\",\"value2\"]"));
-  }
-
   @ParameterizedTest(name = "test mapping to List from empty JSON object: {0}")
-  @MethodSource("testMappingToListFromEmptyJsonObjectArguments")
+  @NullSource
+  @ValueSource(strings = {"null", "", "[]"})
   void testMappingToListFromEmptyJsonObject(String json) throws IOException {
     List<String> parsed = JsonMapper.fromJsonToList(json);
     assertEquals(emptyList(), parsed);
   }
 
-  static Stream<Arguments> testMappingToListFromEmptyJsonObjectArguments() {
-    return Stream.of(
-        Arguments.of((Object) null), Arguments.of("null"), Arguments.of(""), Arguments.of("[]"));
-  }
-
+  @TableTest({
+    "Scenario     | input | expected ",
+    "null value   |       | ''       ",
+    "empty string | ''    | ''       ",
+    "\\b          | '\b'  | '\"\\b\"'",
+    "\\t          | '\t'  | '\"\\t\"'",
+    "\\f          | '\f'  | '\"\\f\"'",
+    "a            | 'a'   | '\"a\"'  ",
+    "/            | '/'   | '\"\\/\"'"
+  })
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonStringArguments")
-  void testMappingToJsonString(String input, String expected) {
+  void testMappingToJsonString(@Scenario String ignoredScenario, String input, String expected) {
     String json = JsonMapper.toJson(input);
     assertEquals(expected, json);
   }
 
   static Stream<Arguments> testMappingToJsonStringArguments() {
     return Stream.of(
-        Arguments.of((Object) null, ""),
-        Arguments.of("", ""),
-        Arguments.of(String.valueOf((char) 4096), "\"\\u1000\""),
-        Arguments.of(String.valueOf((char) 256), "\"\\u0100\""),
-        Arguments.of(String.valueOf((char) 128), "\"\\u0080\""),
-        Arguments.of("\b", "\"\\b\""),
-        Arguments.of("\t", "\"\\t\""),
-        Arguments.of("\n", "\"\\n\""),
-        Arguments.of("\f", "\"\\f\""),
-        Arguments.of("\r", "\"\\r\""),
-        Arguments.of("\"", "\"\\\"\""),
-        Arguments.of("/", "\"\\/\""),
-        Arguments.of("\\", "\"\\\\\""),
-        Arguments.of("a", "\"a\""));
+        arguments("char #4096", String.valueOf((char) 4096), "\"\\u1000\""),
+        arguments("char #256", String.valueOf((char) 256), "\"\\u0100\""),
+        arguments("char #128", String.valueOf((char) 128), "\"\\u0080\""),
+        arguments("\\n", "\n", "\"\\n\""),
+        arguments("\\r", "\r", "\"\\r\""),
+        arguments("\"", "\"", "\"\\\"\""),
+        arguments("\\", "\\", "\"\\\\\""));
   }
 
   private static class UnsupportedType {

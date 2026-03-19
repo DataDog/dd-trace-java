@@ -639,7 +639,7 @@ public class ConfigurationUpdaterTest {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     if (JavaVirtualMachine.isJavaVersion(17)) {
       // on JDK 17 introduced Spring6 class
-      Class<?> springClass = Class.forName("org.springframework.web.client.RestClient");
+      Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
     } else {
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
@@ -688,6 +688,25 @@ public class ConfigurationUpdaterTest {
     verify(inst, times(1)).retransformClasses(captor.capture());
     List<Class<?>[]> allValues = captor.getAllValues();
     assertEquals(testClass, allValues.get(0));
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void recordWithTypeAnnotation()
+      throws IOException, URISyntaxException, UnmodifiableClassException {
+    // make sure record method are not detected as having methodParameters attribute.
+    // /!\ record canonical constructor has the MethodParameters attribute,
+    // but not returned by Class::getDeclaredMethods()
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
+    Map<String, byte[]> buffers = compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17");
+    Class<?> testClass = loadClass(CLASS_NAME, buffers);
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    configurationUpdater.accept(
+        REMOTE_CONFIG,
+        singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "parse").build()));
+    verify(inst).getAllLoadedClasses();
+    verify(inst, times(0)).retransformClasses(any());
   }
 
   private DebuggerTransformer createTransformer(
