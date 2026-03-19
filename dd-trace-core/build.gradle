@@ -73,6 +73,7 @@ dependencies {
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')

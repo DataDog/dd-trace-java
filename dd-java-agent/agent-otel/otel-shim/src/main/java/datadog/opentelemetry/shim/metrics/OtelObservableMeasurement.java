@@ -1,7 +1,7 @@
 package datadog.opentelemetry.shim.metrics;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
