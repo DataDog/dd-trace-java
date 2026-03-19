@@ -15,6 +15,7 @@ dependencies {
   implementation(libs.dogstatsd)
   implementation(project(":internal-api"))
   implementation(project(":utils:filesystem-utils"))
+  implementation(project(":utils:logging-utils"))
 
   implementation(group = "com.datadoghq", name = "sketches-java", version = "0.8.3")
 

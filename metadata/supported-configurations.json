@@ -8177,6 +8177,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_PARTIAL_FLUSH_ENABLED": [
       {
         "version": "B",

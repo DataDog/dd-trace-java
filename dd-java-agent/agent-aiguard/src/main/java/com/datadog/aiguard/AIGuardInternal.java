@@ -273,9 +273,9 @@ public class AIGuardInternal implements Evaluator {
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags);
+          throw new AIGuardAbortError(action, reason, tags, sdsFindings);
         }
-        return new Evaluation(action, reason, tags);
+        return new Evaluation(action, reason, tags, sdsFindings);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);
