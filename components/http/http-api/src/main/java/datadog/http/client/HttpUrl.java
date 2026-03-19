@@ -64,7 +64,7 @@ public interface HttpUrl {
    */
   static HttpUrl parse(String url) throws IllegalArgumentException {
     requireNonNull(url, "url");
-    return HttpProviders.httpUrlParse(url);
+    return HttpProviders.get().httpUrlParse(url);
   }
 
   /**
@@ -75,7 +75,7 @@ public interface HttpUrl {
    */
   static HttpUrl from(URI uri) {
     requireNonNull(uri, "uri");
-    return HttpProviders.httpUrlFrom(uri);
+    return HttpProviders.get().httpUrlFrom(uri);
   }
 
   /**
@@ -84,7 +84,7 @@ public interface HttpUrl {
    * @return a new {@link Builder}
    */
   static Builder builder() {
-    return HttpProviders.newUrlBuilder();
+    return HttpProviders.get().newUrlBuilder();
   }
 
   /** Builder for constructing {@link HttpUrl} instances. */

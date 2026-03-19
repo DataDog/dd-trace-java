@@ -2337,6 +2337,46 @@
         "aliases": []
       }
     ],
+    "DD_OTLP_TRACES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "HTTP_PROTOBUF",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "NONE",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
+        "aliases": []
+      }
+    ],
     "DD_PIPELINE_EXECUTION_ID": [
       {
         "version": "A",
@@ -8177,6 +8217,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_PARTIAL_FLUSH_ENABLED": [
       {
         "version": "B",
@@ -11158,6 +11206,46 @@
         "version": "A",
         "type": "int",
         "default": "2000",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_HEADERS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
         "aliases": []
       }
     ],

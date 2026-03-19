@@ -371,9 +371,15 @@ public class DebuggerAgent {
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
-    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
-    String gitSha = gitInfo.getCommit().getSha();
-    String gitUrl = gitInfo.getRepositoryURL();
+    String gitSha = null;
+    String gitUrl = null;
+    try {
+      GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+      gitSha = gitInfo.getCommit().getSha();
+      gitUrl = gitInfo.getRepositoryURL();
+    } catch (Exception e) {
+      LOGGER.error("Failed to retrieve git info: ", e);
+    }
     String debuggerTags =
         TagsHelper.concatTags(
             "env:" + config.getEnv(),

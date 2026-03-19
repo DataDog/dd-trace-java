@@ -29,9 +29,14 @@ class IastGrpcSmokeTest extends AbstractIastServerSmokeTest {
     return processBuilder
   }
 
+  @Override
+  boolean withExternalServer() {
+    true
+  }
+
   void 'test SSRF detection'() {
     setup:
-    final url = 'https://dd.datad0g.com/'
+    final url = externalServer.address.toString()
     final request = Iast.Request.newBuilder().setType(Iast.Request.Type.URL)
       .setUrl(Iast.Request.Url.newBuilder().setValue(url).build()).build()
 
