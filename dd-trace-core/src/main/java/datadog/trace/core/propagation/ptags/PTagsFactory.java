@@ -93,6 +93,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile String debugPropagation;
 
     private volatile double knuthSamplingRate = Double.NaN;
+    private volatile TagValue knuthSamplingRateTagValue;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -275,29 +276,87 @@ public class PTagsFactory implements PropagationTags.Factory {
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
         knuthSamplingRate = rate;
+        knuthSamplingRateTagValue =
+            Double.isNaN(rate) ? null : TagValue.from(formatKnuthSamplingRate(rate));
       }
     }
 
-    /** Formats a sampling rate with up to 6 significant digits and no trailing zeros. */
+    /**
+     * Formats a sampling rate with up to 6 significant digits and no trailing zeros, matching
+     * {@code %.6g} semantics (fixed notation for values in [1e-4, 1], scientific for smaller).
+     *
+     * <p>Uses char-array arithmetic to avoid {@link java.util.Formatter} allocation on the hot
+     * path; only falls back to {@code String.format} for the extremely rare case of rate &lt; 1e-4.
+     */
     static String formatKnuthSamplingRate(double rate) {
-      String formatted = String.format(Locale.ROOT, "%.6g", rate);
-      int dotIndex = formatted.indexOf('.');
-      if (dotIndex >= 0) {
-        int end = formatted.length();
-        while (end > dotIndex + 1 && formatted.charAt(end - 1) == '0') {
-          end--;
+      if (rate <= 0.0) return "0";
+      if (rate >= 1.0) return "1";
+
+      if (rate < 1e-4) {
+        // Scientific notation path — not expected in practice for sampling rates; kept for
+        // correctness only.
+        String formatted = String.format(Locale.ROOT, "%.6g", rate);
+        int dotIndex = formatted.indexOf('.');
+        if (dotIndex >= 0) {
+          int end = formatted.length();
+          while (end > dotIndex + 1 && formatted.charAt(end - 1) == '0') {
+            end--;
+          }
+          if (formatted.charAt(end - 1) == '.') {
+            end--;
+          }
+          formatted = formatted.substring(0, end);
         }
-        if (formatted.charAt(end - 1) == '.') {
-          end--;
-        }
-        formatted = formatted.substring(0, end);
+        return formatted;
       }
-      return formatted;
+
+      // Fixed notation: choose a multiplier so Math.round(rate * multiplier) is a 6-significant-
+      // figure integer. For rate in [10^-k, 10^-(k-1)) the first sig fig is at decimal position k,
+      // so we need k+5 total fractional digits:
+      //   [0.1,   1.0)   -> scale=6,  multiplier=1e6
+      //   [0.01,  0.1)   -> scale=7,  multiplier=1e7
+      //   [0.001, 0.01)  -> scale=8,  multiplier=1e8
+      //   [1e-4,  0.001) -> scale=9,  multiplier=1e9
+      final int scale;
+      final long multiplier;
+      if (rate >= 0.1) {
+        scale = 6;
+        multiplier = 1_000_000L;
+      } else if (rate >= 0.01) {
+        scale = 7;
+        multiplier = 10_000_000L;
+      } else if (rate >= 0.001) {
+        scale = 8;
+        multiplier = 100_000_000L;
+      } else {
+        scale = 9;
+        multiplier = 1_000_000_000L;
+      }
+
+      long rounded = Math.round(rate * multiplier);
+      if (rounded == 0) return "0";
+      if (rounded >= multiplier) return "1"; // rounding pushed value to 1.0
+
+      // Build "0." + <scale digits> and trim trailing zeros in a single right-to-left pass.
+      // Maximum buffer: 2 ("0.") + 9 digits = 11 chars.
+      char[] buf = new char[2 + scale];
+      buf[0] = '0';
+      buf[1] = '.';
+      int end = 2; // exclusive end; updated on first non-zero digit found from the right
+      for (int i = 2 + scale - 1; i >= 2; i--) {
+        int d = (int) (rounded % 10);
+        rounded /= 10;
+        buf[i] = (char) ('0' + d);
+        if (d != 0 && end == 2) {
+          end = i + 1;
+        }
+      }
+
+      return new String(buf, 0, end);
     }
 
     TagValue getKnuthSamplingRateTagValue() {
-      double rate = knuthSamplingRate;
-      return Double.isNaN(rate) ? null : TagValue.from(formatKnuthSamplingRate(rate));
+      return knuthSamplingRateTagValue;
     }
 
     @Override

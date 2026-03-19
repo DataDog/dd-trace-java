@@ -29,16 +29,29 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
     tagMap.get('_dd.p.ksr') == expected
 
     where:
-    rate       | expected
-    1.0d       | "1"
-    0.5d       | "0.5"
-    0.1d       | "0.1"
-    0.0d       | "0"
-    0.765432d  | "0.765432"
-    0.7654321d | "0.765432"
-    0.123456d  | "0.123456"
-    0.100000d  | "0.1"
-    0.250d     | "0.25"
+    rate            | expected
+    1.0d            | "1"
+    0.5d            | "0.5"
+    0.1d            | "0.1"
+    0.0d            | "0"
+    0.765432d       | "0.765432"
+    0.7654321d      | "0.765432"
+    0.123456d       | "0.123456"
+    0.100000d       | "0.1"
+    0.250d          | "0.25"
+    // [0.01, 0.1) magnitude bucket (scale=7)
+    0.05d           | "0.05"
+    0.0123456789d   | "0.0123457"
+    // [0.001, 0.01) magnitude bucket (scale=8)
+    0.001d          | "0.001"
+    0.00500d        | "0.005"
+    0.00123456789d  | "0.00123457"
+    // [0.0001, 0.001) magnitude bucket (scale=9)
+    0.0001d         | "0.0001"
+    0.000500d       | "0.0005"
+    0.000123456789d | "0.000123457"
+    // rounding boundary: 0.9999995 rounds up to 1.0
+    0.9999995d      | "1"
   }
 
   def "agent rate sampler sets ksr propagated tag"() {
