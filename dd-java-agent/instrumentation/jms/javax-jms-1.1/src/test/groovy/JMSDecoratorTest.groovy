@@ -83,6 +83,59 @@ class JMSDecoratorTest extends Specification {
     result == null
   }
 
+  def "test getDestinationName strips URI prefixes from IBM MQ destination names"() {
+    given:
+    def decorator = JMSDecorator.CONSUMER_DECORATE
+
+    when:
+    def queue = Mock(Queue) {
+      getQueueName() >> rawQueueName
+    }
+    def result = decorator.getDestinationName(queue)
+
+    then:
+    result == expectedName
+
+    where:
+    rawQueueName                        | expectedName
+    // Triple slash (no queue manager) - most common IBM MQ URI form
+    "queue:///MY.QUEUE"                 | "MY.QUEUE"
+    // Double slash
+    "queue://MY.QUEUE"                  | "MY.QUEUE"
+    // Topic URI prefixes
+    "topic:///MY.TOPIC"                 | "MY.TOPIC"
+    "topic://MY.TOPIC"                  | "MY.TOPIC"
+    // Case insensitive
+    "QUEUE:///MY.QUEUE"                 | "MY.QUEUE"
+    "Queue:///MY.QUEUE"                 | "MY.QUEUE"
+    "TOPIC:///MY.TOPIC"                 | "MY.TOPIC"
+    // Names without prefix pass through unchanged
+    "MY.QUEUE"                          | "MY.QUEUE"
+    "simple"                            | "simple"
+    // Combined: URI prefix + Kafka Connect suffix both stripped
+    "queue:///myqueue_messagebody_0"    | "myqueue"
+  }
+
+  def "test getDestinationName strips URI prefixes from topic destinations"() {
+    given:
+    def decorator = JMSDecorator.CONSUMER_DECORATE
+
+    when:
+    def topic = Mock(Topic) {
+      getTopicName() >> rawTopicName
+    }
+    def result = decorator.getDestinationName(topic)
+
+    then:
+    result == expectedName
+
+    where:
+    rawTopicName                        | expectedName
+    "topic:///MY.TOPIC"                 | "MY.TOPIC"
+    "topic://MY.TOPIC"                  | "MY.TOPIC"
+    "queue:///MY.TOPIC"                 | "MY.TOPIC"
+  }
+
   def "test getDestinationName returns null for TIBCO temp prefix"() {
     given:
     def decorator = JMSDecorator.CONSUMER_DECORATE

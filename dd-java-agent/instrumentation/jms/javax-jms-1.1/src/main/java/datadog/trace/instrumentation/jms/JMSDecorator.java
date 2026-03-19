@@ -249,6 +249,30 @@ public final class JMSDecorator extends MessagingClientDecorator {
         || (len == 3 && name.regionMatches(true, start, "map", 0, 3));
   }
 
+  /**
+   * Strips URI prefixes ({@code queue://} and {@code topic://}) that IBM MQ's JMS implementation
+   * can return from {@code Queue.getQueueName()} when destinations are created with URI syntax.
+   */
+  static String sanitizeUriPrefix(String name) {
+    if (name == null || name.length() < 9) {
+      return name;
+    }
+    int offset = -1;
+    if (name.length() >= 8 && name.regionMatches(true, 0, "queue://", 0, 8)) {
+      offset = 8;
+    } else if (name.length() >= 8 && name.regionMatches(true, 0, "topic://", 0, 8)) {
+      offset = 8;
+    }
+    if (offset < 0) {
+      return name;
+    }
+    // Strip any remaining leading '/' characters (handles queue:///QUEUE -> /QUEUE -> QUEUE)
+    while (offset < name.length() && name.charAt(offset) == '/') {
+      offset++;
+    }
+    return offset < name.length() ? name.substring(offset) : name;
+  }
+
   public CharSequence toResourceName(String destinationName, boolean isQueue) {
     if (null == destinationName) {
       return isQueue ? queueTempResourceName : topicTempResourceName;
@@ -283,6 +307,10 @@ public final class JMSDecorator extends MessagingClientDecorator {
       }
     } catch (Exception e) {
       log.debug("Unable to get jms destination name", e);
+    }
+    if (null != name) {
+      // Strip URI prefixes (queue:// and topic://) from IBM MQ destination names
+      name = sanitizeUriPrefix(name);
     }
     if (null != name && !name.startsWith(TIBCO_TMP_PREFIX)) {
       // Sanitize Kafka Connect schema-derived suffixes from queue/topic names
