@@ -63,6 +63,9 @@ public final class HotspotCrashLogParser {
   private static final Pattern SIGINFO_PARSER =
       Pattern.compile(
           "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+si_addr:\\s+(0x[0-9a-fA-F]+)");
+  private static final Pattern SIGINFO_SI_USER_PARSER =
+      Pattern.compile(
+          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+)");
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
 
@@ -284,7 +287,20 @@ public final class HotspotCrashLogParser {
               Integer siCode = safelyParseInt(siginfoMatcher.group(3));
               String sigAction = siginfoMatcher.group(4);
               String address = siginfoMatcher.group(5);
-              sigInfo = new SigInfo(number, name, siCode, sigAction, address);
+              sigInfo = new SigInfo(number, name, siCode, sigAction, address, null, null);
+            } else {
+              // siginfo: si_signo: 11 (SIGSEGV), si_code: 0 (SI_USER), si_pid: 554848, si_uid:
+              // 1000
+              final Matcher siUserMatcher = SIGINFO_SI_USER_PARSER.matcher(line);
+              if (siUserMatcher.matches()) {
+                Integer number = safelyParseInt(siUserMatcher.group(1));
+                String name = siUserMatcher.group(2);
+                Integer siCode = safelyParseInt(siUserMatcher.group(3));
+                String sigAction = siUserMatcher.group(4);
+                Integer siPid = safelyParseInt(siUserMatcher.group(5));
+                Integer siUid = safelyParseInt(siUserMatcher.group(6));
+                sigInfo = new SigInfo(number, name, siCode, sigAction, null, siPid, siUid);
+              }
             }
           } else if (line.contains("P R O C E S S")) {
             state = State.SEEK_DYNAMIC_LIBRARIES;
