@@ -9,7 +9,7 @@ import java.util.Locale;
 public enum ProtocolVersion {
   V0_4("0.4", asList("v0.4/traces", "v0.3/traces")),
   V0_5("0.5", asList("v0.5/traces", "v0.4/traces", "v0.3/traces")),
-  V1_0("1.0", asList("v1.0/traces", "v0.5/traces", "v0.4/traces", "v0.3/traces"));
+  V1_0("1.0", asList("v1.0/traces", "v0.4/traces", "v0.3/traces"));
 
   private final String configValue;
   private final List<String> traceEndpoints;
