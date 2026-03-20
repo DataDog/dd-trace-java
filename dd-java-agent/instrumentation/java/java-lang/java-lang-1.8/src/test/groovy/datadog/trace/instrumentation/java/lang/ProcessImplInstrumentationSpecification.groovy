@@ -337,7 +337,7 @@ class ProcessImplInstrumentationSpecification extends InstrumentationSpecificati
     when:
     def command = ['/bin/sh', '-c', 'echo $_DD_ROOT_JAVA_SESSION_ID']
     def builder = new ProcessBuilder(command)
-    builder.environment() // force lazy environment map initialization so advice can inject
+    builder.environment()
     Process p = builder.start()
     def output = p.inputStream.text.trim()
     def terminated = p.waitFor(5, TimeUnit.SECONDS)
