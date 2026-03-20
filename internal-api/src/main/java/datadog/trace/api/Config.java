@@ -3130,7 +3130,7 @@ public class Config {
   }
 
   public String getRootSessionId() {
-    return RuntimeIdHolder.rootSessionId;
+    return runtimeIdEnabled ? RuntimeIdHolder.rootSessionId : "";
   }
 
   public Long getProcessId() {
@@ -5872,6 +5872,9 @@ public class Config {
         + instrumenterConfig
         + ", runtimeId='"
         + getRuntimeId()
+        + '\''
+        + ", rootSessionId='"
+        + getRootSessionId()
         + '\''
         + ", runtimeVersion='"
         + runtimeVersion
