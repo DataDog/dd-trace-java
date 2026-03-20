@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.lang
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.utils.TraceUtils
+import datadog.trace.api.Config
 import datadog.trace.bootstrap.ActiveSubsystems
 
 import java.util.concurrent.TimeUnit
@@ -330,5 +331,18 @@ class ProcessImplInstrumentationSpecification extends InstrumentationSpecificati
     command                                                 | expected
     ['/does/not/exist/cmd', '--pass', 'abc', '--token=def'] | '["/does/not/exist/cmd","--pass","?","--token=?"]'
     ['/does/not/exist/md5', '-s', 'pony']                   | '["/does/not/exist/md5","?","?"]'
+  }
+
+  void 'child process inherits root session ID'() {
+    when:
+    def command = ['/bin/sh', '-c', 'echo $_DD_ROOT_JAVA_SESSION_ID']
+    def builder = new ProcessBuilder(command)
+    Process p = builder.start()
+    def output = p.inputStream.text.trim()
+    def terminated = p.waitFor(5, TimeUnit.SECONDS)
+
+    then:
+    terminated
+    output == Config.get().getRootSessionId()
   }
 }
