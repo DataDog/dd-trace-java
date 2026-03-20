@@ -1,6 +1,5 @@
 package datadog.trace.core.propagation.ptags;
 
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.core.propagation.PropagationTags;
@@ -16,6 +15,7 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -29,14 +29,20 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>
  *   ./gradlew :dd-trace-core:jmhJar
- *   java -jar dd-trace-core/build/libs/dd-trace-core-*-jmh.jar KnuthSamplingRateFormatBenchmark
+ *   java -jar dd-trace-core/build/libs/dd-trace-core-*-jmh.jar KnuthSamplingRateFormatBenchmark \
+ *     -t 8 -prof gc
  * </pre>
+ *
+ * <p>Use {@code -t 8} (or higher) to surface GC pressure from multi-threaded allocation. Use {@code
+ * -prof gc} to see alloc rate (bytes/op) per benchmark — that's the primary signal for whether the
+ * hot path is allocation-free.
  */
-@State(Scope.Benchmark)
+@State(Scope.Thread)
 @Warmup(iterations = 3, time = 10, timeUnit = SECONDS)
 @Measurement(iterations = 5, time = 10, timeUnit = SECONDS)
-@BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(NANOSECONDS)
+@BenchmarkMode(Mode.Throughput)
+@OutputTimeUnit(SECONDS)
+@Threads(8)
 @Fork(value = 1)
 public class KnuthSamplingRateFormatBenchmark {
 
@@ -67,9 +73,24 @@ public class KnuthSamplingRateFormatBenchmark {
     bh.consume(PTagsFactory.PTags.formatKnuthSamplingRate(rate));
   }
 
-  /** Cached TagValue: the full getKnuthSamplingRateTagValue() hot-path after caching. */
+  /**
+   * Cached TagValue: the full getKnuthSamplingRateTagValue() hot-path after caching. Should be
+   * near-zero allocation (volatile read only).
+   */
   @Benchmark
   public void cachedTagValue(Blackhole bh) {
+    bh.consume(ptags.getKnuthSamplingRateTagValue());
+  }
+
+  /**
+   * Models the per-trace allocation cost: resets the instance cache (simulating a new PTags), then
+   * calls updateKnuthSamplingRate. This is what every trace root pays. With the static cache
+   * applied, this should also be near-zero allocation after warmup.
+   */
+  @Benchmark
+  public void updateRateFreshTrace(Blackhole bh) {
+    ptags.updateKnuthSamplingRate(Double.NaN); // reset instance cache, like a new PTags
+    ptags.updateKnuthSamplingRate(rate);
     bh.consume(ptags.getKnuthSamplingRateTagValue());
   }
 

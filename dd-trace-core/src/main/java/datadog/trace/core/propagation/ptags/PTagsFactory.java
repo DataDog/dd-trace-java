@@ -94,6 +94,12 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile double knuthSamplingRate = Double.NaN;
     private volatile TagValue knuthSamplingRateTagValue;
 
+    // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
+    // rate, so this eliminates the char[] + String allocation on every new PTags instance.
+    // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
+    private static volatile double cachedKsrRate = Double.NaN;
+    private static volatile TagValue cachedKsrTagValue;
+
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
 
@@ -275,8 +281,19 @@ public class PTagsFactory implements PropagationTags.Factory {
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
         knuthSamplingRate = rate;
-        knuthSamplingRateTagValue =
-            Double.isNaN(rate) ? null : TagValue.from(formatKnuthSamplingRate(rate));
+        if (Double.isNaN(rate)) {
+          knuthSamplingRateTagValue = null;
+        } else {
+          TagValue tv;
+          if (Double.compare(cachedKsrRate, rate) == 0) {
+            tv = cachedKsrTagValue;
+          } else {
+            tv = TagValue.from(formatKnuthSamplingRate(rate));
+            cachedKsrTagValue = tv;
+            cachedKsrRate = rate;
+          }
+          knuthSamplingRateTagValue = tv;
+        }
       }
     }
 
