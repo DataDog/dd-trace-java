@@ -1,9 +1,7 @@
 package datadog.trace.api.config;
 
 /**
- * These config options will only work with dd-java-agent, not with dd-trace-ot.
- *
- * <p>Configure via system properties, environment variables, or config properties file. See online
+ * Configure via system properties, environment variables, or config properties file. See online
  * documentation for details.
  *
  * @see TracerConfig for more tracer config options

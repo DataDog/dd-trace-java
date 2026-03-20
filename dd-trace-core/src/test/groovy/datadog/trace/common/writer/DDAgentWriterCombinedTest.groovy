@@ -87,7 +87,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "test happy path"() {
@@ -118,7 +118,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "test flood of traces"() {
@@ -152,7 +152,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     where:
     bufferSize = 1024
     traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "test flush by time"() {
@@ -191,7 +191,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   @Timeout(30)
@@ -234,7 +234,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
     where:
     minimalTrace = createMinimalTrace()
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "check that there are no interactions after close"() {
@@ -267,7 +267,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def createMinimalContext() {
@@ -355,7 +355,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "monitor agent returns error"() {
@@ -414,7 +414,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "unreachable agent test"() {
@@ -461,7 +461,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onShutdown(true)
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   @Flaky("If execution is too slow, the http client timeout may trigger")
@@ -575,7 +575,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     where:
     bufferSize = 16
     minimalTrace = createMinimalTrace()
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "multi threaded"() {
@@ -646,7 +646,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "statsd success"() {
@@ -697,7 +697,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   def "statsd comm failure"() {
@@ -736,7 +736,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     healthMetrics.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion << ["v0.4/traces", "v0.5/traces"]
   }
 
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {

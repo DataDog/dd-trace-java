@@ -14,6 +14,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -82,9 +83,8 @@ public class GrizzlyHttpHandlerInstrumentation
       scope = context.attach();
 
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+      request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {

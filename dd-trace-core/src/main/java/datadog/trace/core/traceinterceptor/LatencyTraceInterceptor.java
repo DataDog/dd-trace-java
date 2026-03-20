@@ -2,6 +2,7 @@ package datadog.trace.core.traceinterceptor;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -36,7 +37,8 @@ public class LatencyTraceInterceptor extends AbstractTraceInterceptor {
     if (latencyTrace.isEmpty()) {
       return latencyTrace;
     }
-    MutableSpan rootSpan = latencyTrace.iterator().next().getLocalRootSpan();
+
+    MutableSpan rootSpan = GlobalTracer.get().getLocalRootSpan(latencyTrace.iterator().next());
     if (rootSpan != null && rootSpan.getDurationNano() > LATENCY) {
       rootSpan.setTag(DDTags.MANUAL_KEEP, true);
     }

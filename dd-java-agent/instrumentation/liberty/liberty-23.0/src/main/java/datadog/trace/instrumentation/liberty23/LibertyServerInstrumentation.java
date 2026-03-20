@@ -24,6 +24,7 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
@@ -159,9 +160,8 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+      request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
       if (ActiveSubsystems.APPSEC_ACTIVE) {
         ContextStore store =
             InstrumentationContext.get(

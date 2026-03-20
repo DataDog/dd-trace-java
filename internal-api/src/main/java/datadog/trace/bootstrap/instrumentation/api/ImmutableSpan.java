@@ -179,11 +179,6 @@ public abstract class ImmutableSpan implements AgentSpan {
   }
 
   @Override
-  public MutableSpan setSamplingPriority(int newPriority) {
-    return null;
-  }
-
-  @Override
   public AgentSpan setResourceName(CharSequence resourceName, byte priority) {
     return null;
   }
@@ -191,6 +186,11 @@ public abstract class ImmutableSpan implements AgentSpan {
   @Override
   public Integer forceSamplingDecision() {
     return null;
+  }
+
+  @Override
+  public AgentSpan setSamplingPriority(int newPriority) {
+    return this;
   }
 
   @Override

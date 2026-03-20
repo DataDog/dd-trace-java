@@ -257,7 +257,6 @@ val excludedClassesInstructionCoverage by extra(
 )
 
 dependencies {
-  // references TraceScope and Continuation from public api
   api(project(":dd-trace-api"))
   api(libs.slf4j)
   api(project(":components:context"))

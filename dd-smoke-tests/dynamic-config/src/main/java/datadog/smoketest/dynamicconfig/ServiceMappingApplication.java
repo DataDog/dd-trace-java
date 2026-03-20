@@ -1,7 +1,6 @@
 package datadog.smoketest.dynamicconfig;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.interceptor.MutableSpan;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
@@ -21,7 +20,9 @@ public class ServiceMappingApplication {
     while (System.nanoTime() - startTime < TIMEOUT_IN_NANOS) {
       Span span = tracer.buildSpan("someOperation").start();
       span.setTag(DDTags.SERVICE_NAME, ORIGINAL_SERVICE_NAME);
-      String serviceName = ((MutableSpan) span).getServiceName();
+
+      String serviceName =
+          datadog.trace.api.GlobalTracer.get().toMutableSpan(span).getServiceName();
 
       if (serviceName.equals(MAPPED_SERVICE_NAME)) {
         System.out.println("Service mapping updated to dynamic value");

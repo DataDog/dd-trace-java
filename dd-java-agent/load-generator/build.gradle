@@ -2,7 +2,8 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   implementation project(':dd-trace-api')
-  implementation project(':dd-trace-ot')
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   implementation 'info.picocli:picocli:4.0.4'
   implementation libs.guava

@@ -1,23 +1,15 @@
 package datadog.trace.instrumentation.opentracing31;
 
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.instrumentation.opentracing.LogHandler;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import java.util.Map;
 
-/**
- * This class should be castable to MutableSpan since that is the way we've encouraged users to
- * interact with non-ot parts of our API.
- */
-class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
+class OTSpan implements Span, WithAgentSpan, SpanWrapper {
   private final AgentSpan delegate;
   private final TypeConverter converter;
   private final LogHandler logHandler;
@@ -49,51 +41,6 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   public OTSpan setTag(final String key, final Number value) {
     delegate.setTag(key, value);
     return this;
-  }
-
-  @Override
-  public OTSpan setMetric(final CharSequence metric, final int value) {
-    delegate.setMetric(metric, value);
-    return this;
-  }
-
-  @Override
-  public OTSpan setMetric(final CharSequence metric, final long value) {
-    delegate.setMetric(metric, value);
-    return this;
-  }
-
-  @Override
-  public OTSpan setMetric(final CharSequence metric, final float value) {
-    delegate.setMetric(metric, value);
-    return this;
-  }
-
-  @Override
-  public OTSpan setMetric(final CharSequence metric, final double value) {
-    delegate.setMetric(metric, value);
-    return this;
-  }
-
-  @Override
-  public boolean isError() {
-    return delegate.isError();
-  }
-
-  @Override
-  public OTSpan setError(final boolean value) {
-    delegate.setError(value, ErrorPriorities.MANUAL_INSTRUMENTATION);
-    return this;
-  }
-
-  @Override
-  public OTSpan getRootSpan() {
-    return getLocalRootSpan();
-  }
-
-  @Override
-  public OTSpan getLocalRootSpan() {
-    return converter.toSpan(delegate.getLocalRootSpan());
   }
 
   @Override
@@ -132,85 +79,9 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
   }
 
   @Override
-  public long getStartTime() {
-    return delegate.getStartTime();
-  }
-
-  @Override
-  public long getDurationNano() {
-    return delegate.getDurationNano();
-  }
-
-  @Override
-  public CharSequence getOperationName() {
-    return delegate.getOperationName();
-  }
-
-  @Override
-  public OTSpan setOperationName(final CharSequence operationName) {
-    delegate.setOperationName(operationName);
-    return this;
-  }
-
-  @Override
   public OTSpan setOperationName(final String operationName) {
     delegate.setOperationName(UTF8BytesString.create(operationName));
     return this;
-  }
-
-  @Override
-  public String getServiceName() {
-    return delegate.getServiceName();
-  }
-
-  @Override
-  @SuppressForbidden
-  public OTSpan setServiceName(final String serviceName) {
-    delegate.setServiceName(serviceName);
-    return this;
-  }
-
-  @Override
-  public CharSequence getResourceName() {
-    return delegate.getResourceName();
-  }
-
-  @Override
-  public OTSpan setResourceName(final CharSequence resourceName) {
-    delegate.setResourceName(resourceName, ResourceNamePriorities.MANUAL_INSTRUMENTATION);
-    return this;
-  }
-
-  @Override
-  public Integer getSamplingPriority() {
-    return delegate.getSamplingPriority();
-  }
-
-  @Override
-  public OTSpan setSamplingPriority(final int newPriority) {
-    delegate.setSamplingPriority(newPriority);
-    return this;
-  }
-
-  @Override
-  public String getSpanType() {
-    return delegate.getSpanType();
-  }
-
-  @Override
-  public OTSpan setSpanType(final CharSequence type) {
-    delegate.setSpanType(type);
-    return this;
-  }
-
-  @Override
-  public Map<String, Object> getTags() {
-    return delegate.getTags();
-  }
-
-  @Override
-  public Object getTag(String key) {
-    return delegate.getTag(key);
   }
 
   @Override

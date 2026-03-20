@@ -11,6 +11,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
@@ -58,8 +59,8 @@ public class JettyServerAdvice {
         DECORATE.onRequest(span, req, req, parentContext);
 
         req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
         ret = JettyRunnableWrapper.wrapIfNeeded(ret);
       }
     }
