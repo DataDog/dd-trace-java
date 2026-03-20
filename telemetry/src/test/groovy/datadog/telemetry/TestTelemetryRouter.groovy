@@ -7,6 +7,7 @@ import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.Config
 import datadog.trace.api.ConfigSetting
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
@@ -97,6 +98,15 @@ class TestTelemetryRouter extends TelemetryRouter {
       assert entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-")
       def sessionId = this.request.header('DD-Session-ID')
       assert sessionId =~ /[\da-f]{8}-([\da-f]{4}-){3}[\da-f]{12}/
+      assert sessionId == Config.get().getRuntimeId()
+      // DD-Root-Session-ID should only be present when inherited from a parent process
+      // (i.e., when rootSessionId != runtimeId). In normal test context, they're equal.
+      def rootSessionId = this.request.header('DD-Root-Session-ID')
+      if (Config.get().getRootSessionId() == Config.get().getRuntimeId()) {
+        assert rootSessionId == null
+      } else {
+        assert rootSessionId == Config.get().getRootSessionId()
+      }
       return this
     }
 
