@@ -74,7 +74,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     def trace = [llmSpan]
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+    // Keep all formatted spans in a single flush for this assertion.
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
 
     when:
     packer.format(trace, mapper)
