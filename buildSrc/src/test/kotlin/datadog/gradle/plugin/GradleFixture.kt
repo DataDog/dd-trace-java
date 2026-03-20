@@ -6,6 +6,7 @@ import org.gradle.testkit.runner.UnexpectedBuildResultException
 import org.intellij.lang.annotations.Language
 import org.w3c.dom.Document
 import java.io.File
+import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
@@ -13,6 +14,15 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
 internal open class GradleFixture(protected val projectDir: File) {
+  // Keep test-kit caches outside @TempDir so Gradle daemon file-locks on
+  // .testkit/caches/*/transforms don't cause JUnit @TempDir cleanup failures
+  // (DirectoryNotEmptyException).  Each fixture still gets its own testkit dir,
+  // ensuring daemon isolation (fresh MAVEN_REPOSITORY_PROXY per test).
+  // Cleanup is left to the OS (/tmp is ephemeral on CI containers).
+  private val testKitDir: File by lazy {
+    Files.createTempDirectory("gradle-testkit-").toFile()
+  }
+
   /**
    * Runs Gradle with the specified arguments.
    *
@@ -23,12 +33,7 @@ internal open class GradleFixture(protected val projectDir: File) {
    */
   fun run(vararg args: String, expectFailure: Boolean = false, env: Map<String, String> = emptyMap()): BuildResult {
     val runner = GradleRunner.create()
-      // Use a testkit dir scoped to this fixture's projectDir. The Tooling API always uses a
-      // daemon and ignores org.gradle.daemon=false. By giving each test its own testkit dir,
-      // we force a fresh daemon per test — ensuring withEnvironment() vars (e.g.
-      // MAVEN_REPOSITORY_PROXY) are correctly set on the daemon JVM and not inherited from
-      // a previously-started daemon with a different test's environment.
-      .withTestKitDir(file(".testkit"))
+      .withTestKitDir(testKitDir)
       .withPluginClasspath()
       .withProjectDir(projectDir)
       .withEnvironment(System.getenv() + env)
