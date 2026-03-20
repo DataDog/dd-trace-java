@@ -80,6 +80,8 @@ public interface Sampler {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
           }
+        } else if (config.isTraceOtlpExporterEnabled()) {
+          sampler = new ParentBasedAlwaysOnSampler();
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");

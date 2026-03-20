@@ -66,4 +66,53 @@ class SamplerTest extends DDSpecification{
     then:
     !(sampler instanceof AsmStandaloneSampler)
   }
+
+  void "test that ParentBasedAlwaysOnSampler is selected when otlp traces exporter enabled"() {
+    setup:
+    System.setProperty("dd.trace.otel.exporter", "otlp")
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof ParentBasedAlwaysOnSampler
+  }
+
+  void "test that ParentBasedAlwaysOnSampler is not selected when otlp traces exporter not set"() {
+    setup:
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    !(sampler instanceof ParentBasedAlwaysOnSampler)
+  }
+
+  void "test that user-defined sampling rules take precedence over otlp default sampler"() {
+    setup:
+    System.setProperty("dd.trace.otel.exporter", "otlp")
+    System.setProperty("dd.trace.sample.rate", "0.5")
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof RuleBasedTraceSampler
+  }
+
+  void "test that DD_TRACE_SAMPLING_RULES takes precedence over otlp default sampler"() {
+    setup:
+    System.setProperty("dd.trace.otel.exporter", "otlp")
+    System.setProperty("dd.trace.sampling.rules", '[{"sample_rate": 0.5}]')
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof RuleBasedTraceSampler
+  }
 }
