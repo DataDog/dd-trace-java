@@ -8,11 +8,10 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class ProcessImplStartAdvice {
-  @SuppressWarnings("unchecked")
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentSpan beforeStart(
       @Advice.Argument(0) final String[] command,
-      @Advice.Argument(value = 1, readOnly = false) Map<String, String> environment) {
+      @Advice.Argument(1) final Map<String, String> environment) {
     String rootSessionId = Config.get().getRootSessionId();
     if (rootSessionId != null && environment != null) {
       environment.put("_DD_ROOT_JAVA_SESSION_ID", rootSessionId);

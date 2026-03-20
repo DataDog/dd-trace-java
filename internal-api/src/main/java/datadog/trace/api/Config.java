@@ -687,7 +687,6 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -796,7 +795,7 @@ public class Config {
     static final String rootSessionId = initRootSessionId();
 
     private static String initRootSessionId() {
-      String inherited = EnvironmentVariables.get("_DD_ROOT_JAVA_SESSION_ID");
+      String inherited = ConfigHelper.env("_DD_ROOT_JAVA_SESSION_ID");
       return inherited != null ? inherited : runtimeId;
     }
   }
