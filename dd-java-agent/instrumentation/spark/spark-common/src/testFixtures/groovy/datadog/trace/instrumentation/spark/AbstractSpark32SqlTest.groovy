@@ -1601,7 +1601,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
   }
 
   private static Set<Object> extractNodeIds(Object plan) {
-    Set<Object> nodeIds = new HashSet<>()
+    Set<Object> nodeIds = new LinkedHashSet<>()
     if (plan instanceof Map) {
       if (plan.containsKey("nodeId")) {
         nodeIds.add(plan.nodeId)
