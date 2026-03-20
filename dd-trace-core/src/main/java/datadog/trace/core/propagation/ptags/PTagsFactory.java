@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -89,6 +90,15 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile int traceSource;
     private volatile String debugPropagation;
+
+    private volatile double knuthSamplingRate = Double.NaN;
+    private volatile TagValue knuthSamplingRateTagValue;
+
+    // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
+    // rate, so this eliminates the char[] + String allocation on every new PTags instance.
+    // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
+    private static volatile double cachedKsrRate = Double.NaN;
+    private static volatile TagValue cachedKsrTagValue;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -266,6 +276,161 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public void updateKnuthSamplingRate(double rate) {
+      if (Double.compare(knuthSamplingRate, rate) != 0) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        knuthSamplingRate = rate;
+        if (Double.isNaN(rate)) {
+          knuthSamplingRateTagValue = null;
+        } else {
+          TagValue tv;
+          if (Double.compare(cachedKsrRate, rate) == 0) {
+            tv = cachedKsrTagValue;
+          } else {
+            tv = TagValue.from(formatKnuthSamplingRate(rate));
+            cachedKsrTagValue = tv;
+            cachedKsrRate = rate;
+          }
+          knuthSamplingRateTagValue = tv;
+        }
+      }
+    }
+
+    /**
+     * Formats a sampling rate with up to 6 significant digits and no trailing zeros, matching
+     * {@code %.6g} semantics (fixed notation for values in [1e-4, 1], scientific for smaller).
+     *
+     * <p>Uses char-array arithmetic to avoid {@link java.util.Formatter} allocations entirely.
+     */
+    static String formatKnuthSamplingRate(double rate) {
+      if (rate <= 0.0) return "0";
+      if (rate >= 1.0) return "1";
+
+      if (rate < 1e-4) {
+        return formatScientific6g(rate);
+      }
+
+      return formatFixed6g(rate);
+    }
+
+    /** Fixed notation for rates in [1e-4, 1): "0.DDDDDDDDD" with trailing zeros trimmed. */
+    private static String formatFixed6g(double rate) {
+      // Choose a multiplier so Math.round(rate * multiplier) is a 6-significant-figure integer.
+      // For rate in [10^-k, 10^-(k-1)) the first sig fig is at decimal position k, so we need
+      // k+5 total fractional digits:
+      //   [0.1,   1.0)   -> scale=6,  multiplier=1e6
+      //   [0.01,  0.1)   -> scale=7,  multiplier=1e7
+      //   [0.001, 0.01)  -> scale=8,  multiplier=1e8
+      //   [1e-4,  0.001) -> scale=9,  multiplier=1e9
+      final int scale;
+      final long multiplier;
+      if (rate >= 0.1) {
+        scale = 6;
+        multiplier = 1_000_000L;
+      } else if (rate >= 0.01) {
+        scale = 7;
+        multiplier = 10_000_000L;
+      } else if (rate >= 0.001) {
+        scale = 8;
+        multiplier = 100_000_000L;
+      } else {
+        scale = 9;
+        multiplier = 1_000_000_000L;
+      }
+
+      long rounded = Math.round(rate * multiplier);
+      if (rounded == 0) return "0";
+      if (rounded >= multiplier) return "1"; // rounding pushed value to 1.0
+
+      // Build "0." + <scale digits> and trim trailing zeros in a single right-to-left pass.
+      char[] buf = new char[2 + scale];
+      buf[0] = '0';
+      buf[1] = '.';
+      int end = 2; // exclusive end; updated on first non-zero digit found from the right
+      for (int i = 2 + scale - 1; i >= 2; i--) {
+        int d = (int) (rounded % 10);
+        rounded /= 10;
+        buf[i] = (char) ('0' + d);
+        if (d != 0 && end == 2) {
+          end = i + 1;
+        }
+      }
+
+      return new String(buf, 0, end);
+    }
+
+    /** Scientific notation for rates below 1e-4: "X.XXXXXe-YY" with mantissa zeros trimmed. */
+    private static String formatScientific6g(double rate) {
+      // Normalize to [1, 10) by repeated multiply — at most ~15 iterations for realistic rates.
+      int exp = 0;
+      double normalized = rate;
+      while (normalized < 1.0) {
+        normalized *= 10;
+        exp--;
+      }
+
+      // Round mantissa to 6 significant figures (integer in [100000, 999999]).
+      long sig = Math.round(normalized * 100000.0);
+      if (sig >= 1000000) {
+        sig /= 10;
+        exp++;
+        if (exp >= -4) {
+          // Rounding pushed the value into fixed-notation range (always exactly 0.0001).
+          return "0.0001";
+        }
+      }
+
+      // Build "X.XXXXXe-YY" trimming mantissa trailing zeros.
+      // Max: "X.XXXXXe-XXX" = 13 chars.
+      char[] buf = new char[13];
+      int pos = 0;
+
+      // Integer part (always a single digit 1-9).
+      buf[pos++] = (char) ('0' + (int) (sig / 100000));
+      sig %= 100000;
+
+      // Fractional part (5 digits, trim trailing zeros).
+      if (sig > 0) {
+        buf[pos++] = '.';
+        char[] frac = new char[5];
+        int fracEnd = 0;
+        for (int i = 4; i >= 0; i--) {
+          frac[i] = (char) ('0' + (int) (sig % 10));
+          sig /= 10;
+          if (frac[i] != '0' && fracEnd == 0) {
+            fracEnd = i + 1;
+          }
+        }
+        for (int i = 0; i < fracEnd; i++) {
+          buf[pos++] = frac[i];
+        }
+      }
+
+      // Exponent: "e-YY" (always negative here, at least 2 digits).
+      buf[pos++] = 'e';
+      buf[pos++] = '-';
+      int absExp = -exp;
+      if (absExp < 10) {
+        buf[pos++] = '0';
+        buf[pos++] = (char) ('0' + absExp);
+      } else if (absExp < 100) {
+        buf[pos++] = (char) ('0' + absExp / 10);
+        buf[pos++] = (char) ('0' + absExp % 10);
+      } else {
+        buf[pos++] = (char) ('0' + absExp / 100);
+        buf[pos++] = (char) ('0' + (absExp / 10) % 10);
+        buf[pos++] = (char) ('0' + absExp % 10);
+      }
+
+      return new String(buf, 0, pos);
+    }
+
+    TagValue getKnuthSamplingRateTagValue() {
+      return knuthSamplingRateTagValue;
+    }
+
+    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -390,6 +555,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
