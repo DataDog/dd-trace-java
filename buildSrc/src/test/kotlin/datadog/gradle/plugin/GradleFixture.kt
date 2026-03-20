@@ -6,7 +6,6 @@ import org.gradle.testkit.runner.UnexpectedBuildResultException
 import org.intellij.lang.annotations.Language
 import org.w3c.dom.Document
 import java.io.File
-import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
@@ -14,17 +13,18 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
 internal open class GradleFixture(protected val projectDir: File) {
-  // Keep test-kit caches outside @TempDir so Gradle daemon file-locks on
-  // .testkit/caches/*/transforms don't cause JUnit @TempDir cleanup failures
-  // (DirectoryNotEmptyException).  Each fixture still gets its own testkit dir,
-  // ensuring daemon isolation (fresh MAVEN_REPOSITORY_PROXY per test).
-  // Cleanup is left to the OS (/tmp is ephemeral on CI containers).
-  private val testKitDir: File by lazy {
-    Files.createTempDirectory("gradle-testkit-").toFile()
-  }
+  // Each fixture gets its own testkit dir so that a fresh daemon is started per
+  // test — ensuring withEnvironment() vars (e.g. MAVEN_REPOSITORY_PROXY) are
+  // correctly set on the daemon JVM and not inherited from a previously-started
+  // daemon with a different test's environment.
+  private val testKitDir: File by lazy { file(".testkit") }
 
   /**
    * Runs Gradle with the specified arguments.
+   *
+   * After the build completes, any Gradle daemons started by TestKit are killed
+   * so their file locks on the testkit cache are released before JUnit `@TempDir`
+   * cleanup.  See https://github.com/gradle/gradle/issues/12535
    *
    * @param args Gradle task names and arguments
    * @param expectFailure Whether the build is expected to fail
@@ -36,13 +36,70 @@ internal open class GradleFixture(protected val projectDir: File) {
       .withTestKitDir(testKitDir)
       .withPluginClasspath()
       .withProjectDir(projectDir)
+      // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
       .withEnvironment(System.getenv() + env)
       .withArguments(*args)
     return try {
       if (expectFailure) runner.buildAndFail() else runner.build()
     } catch (e: UnexpectedBuildResultException) {
       e.buildResult
+    } finally {
+      stopDaemons()
     }
+  }
+
+  /**
+   * Kills Gradle daemons started by TestKit for this fixture's testkit dir.
+   *
+   * The Gradle Tooling API (used by [GradleRunner]) always spawns a daemon and
+   * provides no public API to stop it (https://github.com/gradle/gradle/issues/12535).
+   * We replicate the strategy Gradle uses in its own integration tests
+   * ([DaemonLogsAnalyzer.killAll()][1]):
+   *
+   * 1. Scan `<testkit>/daemon/<version>/` for log files matching
+   *    `DaemonLogConstants.DAEMON_LOG_PREFIX + pid + DaemonLogConstants.DAEMON_LOG_SUFFIX`,
+   *    i.e. `daemon-<pid>.out.log`.
+   * 2. Extract the PID from the filename and kill the process.
+   *
+   * Trade-offs of the PID-from-filename approach:
+   * - **PID recycling**: between the build finishing and `kill` being sent, the OS
+   *   could theoretically recycle the PID.  In practice the window is short
+   *   (the `finally` block runs immediately after the build) so the risk is negligible.
+   * - **Filename convention is internal**: Gradle's `DaemonLogConstants.DAEMON_LOG_PREFIX`
+   *   (`"daemon-"`) / `DAEMON_LOG_SUFFIX` (`".out.log"`) are not public API; a future
+   *   Gradle version could change them.  The `toLongOrNull()` guard safely skips entries
+   *   that don't parse as a PID (including the UUID fallback Gradle uses when the PID
+   *   is unavailable).
+   * - **Java 8 compatible**: uses `kill`/`taskkill` via [ProcessBuilder] instead of
+   *   `ProcessHandle` (Java 9+) because build logic targets JVM 1.8.
+   *
+   * [1]: https://github.com/gradle/gradle/blob/43b381d88/testing/internal-distribution-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
+   */
+  private fun stopDaemons() {
+    val daemonDir = File(testKitDir, "daemon")
+    if (!daemonDir.exists()) return
+
+    daemonDir.walkTopDown()
+      .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
+      .forEach { logFile ->
+        val pid = logFile.nameWithoutExtension  // daemon-12345.out
+          .removeSuffix(".out")                 // daemon-12345
+          .removePrefix("daemon-")              // 12345
+          .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
+
+        val isWindows = System.getProperty("os.name").lowercase().contains("win")
+        val killProcess = if (isWindows) {
+          ProcessBuilder("taskkill", "/F", "/PID", pid.toString())
+        } else {
+          ProcessBuilder("kill", pid.toString())
+        }
+        try {
+          val process = killProcess.redirectErrorStream(true).start()
+          process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (_: Exception) {
+          // best effort — daemon may already be stopped
+        }
+      }
   }
 
   /**
