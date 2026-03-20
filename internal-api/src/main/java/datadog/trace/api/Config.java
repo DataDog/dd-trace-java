@@ -687,6 +687,7 @@ import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
+import datadog.environment.EnvironmentVariables;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -792,6 +793,12 @@ public class Config {
    */
   static class RuntimeIdHolder {
     static final String runtimeId = RandomUtils.randomUUID().toString();
+    static final String rootSessionId = initRootSessionId();
+
+    private static String initRootSessionId() {
+      String inherited = EnvironmentVariables.get("_DD_ROOT_JAVA_SESSION_ID");
+      return inherited != null ? inherited : runtimeId;
+    }
   }
 
   static class HostNameHolder {
@@ -3121,6 +3128,10 @@ public class Config {
 
   public String getRuntimeId() {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
+  }
+
+  public String getRootSessionId() {
+    return RuntimeIdHolder.rootSessionId;
   }
 
   public Long getProcessId() {

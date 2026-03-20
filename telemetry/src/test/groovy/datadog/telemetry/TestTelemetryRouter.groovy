@@ -84,7 +84,8 @@ class TestTelemetryRouter extends TelemetryRouter {
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type'
+        'DD-Telemetry-Request-Type',
+        'DD-Session-ID'
       ])
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
       assert this.request.header('Content-Length').toInteger() > 0
@@ -94,6 +95,8 @@ class TestTelemetryRouter extends TelemetryRouter {
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
       def entityId = this.request.header('Datadog-Entity-ID')
       assert entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-")
+      def sessionId = this.request.header('DD-Session-ID')
+      assert sessionId =~ /[\da-f]{8}-([\da-f]{4}-){3}[\da-f]{12}/
       return this
     }
 
