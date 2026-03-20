@@ -24,7 +24,28 @@ plugins {
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-apply<datadog.gradle.plugin.overlapping.CheckOverlappingOutputsPlugin>()
+// TODO doesn't work:
+// apply<datadog.gradle.plugin.overlapping.CheckOverlappingOutputsPlugin>()
+//
+// buildSrc is NOT an included build, it is built during **after settings is evaluated**, and its output is
+// placed directly on the classpath before the **main** project script is processed. Here's the timeline
+// (https://docs.gradle.org/8.14.4/userguide/configuration_cache.html)
+//
+// 1. run init scripts
+// 2. runs the settings script
+// 3. Configure and build the buildSrc project, if present.
+// 4. Run build scripts, applying any requested project plugins. If plugins come from included builds, Gradle builds them first.
+//
+// Do not mistake `buildSrc` for an _includedBuild_ they are different. An included build has a separate lifecycle
+// which is not the case for buildSrc.
+//
+// https://docs.gradle.org/current/userguide/best_practices_structuring_builds.html
+// https://docs.gradle.org/current/userguide/organizing_gradle_projects.html#sec:build_sources
+//
+// TODO
+//  migrate `buildSrc/` → `build-logic/`,
+//  in settings.gradle.kts : `pluginManagement { includeBuild("build-logic") }`, then declare `plugins { id("dd-trace-java.check-overlapping-outputs") }`
+
 
 val isCI = providers.environmentVariable("CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
