@@ -6,6 +6,7 @@ import org.gradle.testkit.runner.UnexpectedBuildResultException
 import org.intellij.lang.annotations.Language
 import org.w3c.dom.Document
 import java.io.File
+import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
@@ -13,11 +14,19 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
 internal open class GradleFixture(protected val projectDir: File) {
-  // Each fixture gets its own testkit dir so that a fresh daemon is started per
-  // test — ensuring withEnvironment() vars (e.g. MAVEN_REPOSITORY_PROXY) are
-  // correctly set on the daemon JVM and not inherited from a previously-started
-  // daemon with a different test's environment.
-  private val testKitDir: File by lazy { file(".testkit") }
+  // Each fixture gets its own testkit dir in the system temp directory (NOT under
+  // projectDir) so that JUnit's @TempDir cleanup doesn't race with daemon file locks.
+  // See https://github.com/gradle/gradle/issues/12535
+  // A fresh daemon is started per test — ensuring withEnvironment() vars (e.g.
+  // MAVEN_REPOSITORY_PROXY) are correctly set on the daemon JVM and not inherited
+  // from a previously-started daemon with a different test's environment.
+  // A JVM shutdown hook removes the directory after all tests have run (and daemons
+  // have been stopped), so file locks are guaranteed to be released by then.
+  private val testKitDir: File by lazy {
+    Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
+      Runtime.getRuntime().addShutdownHook(Thread { dir.deleteRecursively() })
+    }
+  }
 
   /**
    * Runs Gradle with the specified arguments.
