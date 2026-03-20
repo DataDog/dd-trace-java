@@ -24,6 +24,8 @@ plugins {
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+apply<datadog.gradle.plugin.overlapping.CheckOverlappingOutputsPlugin>()
+
 val isCI = providers.environmentVariable("CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 

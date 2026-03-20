@@ -58,6 +58,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("check-overlapping-outputs") {
+      id = "dd-trace-java.check-overlapping-outputs"
+      implementationClass = "datadog.gradle.plugin.overlapping.CheckOverlappingOutputsPlugin"
+    }
   }
 }
 
