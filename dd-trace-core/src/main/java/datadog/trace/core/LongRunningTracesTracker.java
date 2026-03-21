@@ -139,4 +139,25 @@ public class LongRunningTracesTracker {
     write = 0;
     expired = 0;
   }
+
+  // Test-visible accessors
+  List<PendingTrace> getTraceArray() {
+    return traceArray;
+  }
+
+  int getDropped() {
+    return dropped;
+  }
+
+  long getMaxTrackedDurationMilli() {
+    return maxTrackedDurationMilli;
+  }
+
+  int getFlushPeriodMilli() {
+    return flushPeriodMilli;
+  }
+
+  int getInitialFlushPeriodMilli() {
+    return initialFlushPeriodMilli;
+  }
 }

@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
-  private static final int BUFFER_SIZE = 1 << 12; // 4096
+  static final int BUFFER_SIZE = 1 << 12; // 4096
 
   public boolean longRunningSpansEnabled() {
     return false;
@@ -54,7 +54,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     boolean writeOnBufferFull();
   }
 
-  private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+  static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -62,15 +62,15 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
     private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final MessagePassingBlockingQueue<Element> queue;
-    private final Thread worker;
+    final MessagePassingBlockingQueue<Element> queue;
+    final Thread worker;
     private final TimeSource timeSource;
 
     private volatile boolean closed = false;
     private final AtomicInteger flushCounter = new AtomicInteger(0);
     private final AtomicInteger dumpCounter = new AtomicInteger(0);
 
-    private final LongRunningTracesTracker runningTracesTracker;
+    final LongRunningTracesTracker runningTracesTracker;
 
     public boolean longRunningSpansEnabled() {
       return runningTracesTracker != null;

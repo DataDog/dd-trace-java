@@ -135,7 +135,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
    */
   private volatile long lastReferenced = 0;
 
-  private PendingTrace(
+  PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
@@ -464,5 +464,34 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   Collection<DDSpan> getSpans() {
     return spans;
+  }
+
+  DDTraceId getTraceId() {
+    return traceId;
+  }
+
+  // Test-visible accessors
+  int getPendingReferenceCount() {
+    return pendingReferenceCount;
+  }
+
+  boolean isRootSpanWritten() {
+    return rootSpanWritten;
+  }
+
+  PendingTraceBuffer getPendingTraceBuffer() {
+    return pendingTraceBuffer;
+  }
+
+  int getIsEnqueued() {
+    return isEnqueued;
+  }
+
+  int getLongRunningTrackedState() {
+    return longRunningTrackedState;
+  }
+
+  void setLongRunningTrackedState(int state) {
+    longRunningTrackedState = state;
   }
 }

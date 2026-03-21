@@ -29,11 +29,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A codec designed for HTTP transport via headers using W3C traceparent and tracestate headers */
-class W3CHttpCodec {
+public class W3CHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(W3CHttpCodec.class);
 
-  static final String TRACE_PARENT_KEY = "traceparent";
-  static final String TRACE_STATE_KEY = "tracestate";
+  public static final String TRACE_PARENT_KEY = "traceparent";
+  public static final String TRACE_STATE_KEY = "tracestate";
   static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   private static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
 

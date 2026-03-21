@@ -29,8 +29,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
-  private final Map<Object, Integer> encoding = new HashMap<>();
-  private final GrowableBuffer dictionary;
+  // Visible for testing
+  final Map<Object, Integer> encoding = new HashMap<>();
+  // Visible for testing
+  final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -123,6 +125,16 @@ public final class TraceMapperV0_5 implements TraceMapper {
   @Override
   public String endpoint() {
     return "v0.5";
+  }
+
+  // Visible for testing
+  public ByteBuffer getDictionary() {
+    return dictionary.slice();
+  }
+
+  // Visible for testing
+  public int getEncodingSize() {
+    return encoding.size();
   }
 
   private static class DictionaryMapper implements Mapper<Object> {

@@ -37,7 +37,8 @@ public class TraceProcessingWorker implements AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
 
   private final PrioritizationStrategy prioritizationStrategy;
-  private final MessagePassingBlockingQueue<Object> primaryQueue;
+  // Visible for testing
+  final MessagePassingBlockingQueue<Object> primaryQueue;
   private final MessagePassingBlockingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;

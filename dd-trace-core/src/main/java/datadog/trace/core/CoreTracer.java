@@ -176,7 +176,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   final Sampler initialSampler;
 
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final ContinuableScopeManager scopeManager;
+  public final ContinuableScopeManager scopeManager;
 
   volatile MetricsAggregator metricsAggregator;
 
@@ -226,7 +226,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    */
   private final TagInterceptor tagInterceptor;
 
-  private final SortedSet<TraceInterceptor> interceptors =
+  // Visible for testing
+  final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
 
   private final boolean logs128bTraceIdEnabled;

@@ -34,6 +34,21 @@ public class ThreadUtils {
    * @throws Throwable if anything went wrong
    */
   public static boolean runConcurrently(
+      final int concurrency, final int totalInvocations, final Runnable runnable)
+      throws Throwable {
+    return runConcurrently(
+        concurrency,
+        totalInvocations,
+        new Closure<Void>(null) {
+          @Override
+          public Void call() {
+            runnable.run();
+            return null;
+          }
+        });
+  }
+
+  public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final Closure<Void> closure)
       throws Throwable {
     // There is no reason in creating more threads than invocations

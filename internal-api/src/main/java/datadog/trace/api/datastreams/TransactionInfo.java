@@ -71,7 +71,7 @@ public final class TransactionInfo implements InboxItem {
   }
 
   // @VisibleForTesting
-  static synchronized void resetCache() {
+  public static synchronized void resetCache() {
     CACHE.clear();
     CACHE_BYTES = new byte[0];
     ID_COUNTER.set(1);

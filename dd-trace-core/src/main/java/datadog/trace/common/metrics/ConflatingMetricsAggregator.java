@@ -97,7 +97,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
-  private final MessagePassingQueue<InboxItem> inbox;
+  // Visible for testing
+  final MessagePassingQueue<InboxItem> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;

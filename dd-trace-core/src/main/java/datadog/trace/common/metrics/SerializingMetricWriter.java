@@ -83,7 +83,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
-    this.gitInfoProvider = new GitInfoProvider();
+    this.gitInfoProvider = gitInfoProvider;
   }
 
   @Override

@@ -31,7 +31,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private final TimeSource timeSource;
 
-  private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
+  // Visible for testing
+  volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
   private long lastCappedNanos;
 
   public RateByServiceTraceSampler() {
@@ -167,7 +168,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return new DeterministicSampler.TraceSampler(sanitizedRate);
   }
 
-  private static final class RateSamplersByEnvAndService {
+  static final class RateSamplersByEnvAndService {
     private static final RateSampler DEFAULT_SAMPLER = createRateSampler(DEFAULT_RATE);
 
     private final Map<String, TreeMap<String, RateSampler>> envServiceRates;
@@ -206,7 +207,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     }
   }
 
-  private static final class EnvAndService {
+  static final class EnvAndService {
     private static final DDCache<String, EnvAndService> CACHE = DDCaches.newFixedSizeCache(32);
 
     private static final Function<String, EnvAndService> PARSE =

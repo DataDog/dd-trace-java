@@ -42,15 +42,15 @@ public abstract class TraceCollector implements AgentTraceCollector {
     this.timeSource = timeSource;
   }
 
-  CoreTracer getTracer() {
+  public CoreTracer getTracer() {
     return tracer;
   }
 
-  CoreTracer.ConfigSnapshot getTraceConfig() {
+  public CoreTracer.ConfigSnapshot getTraceConfig() {
     return traceConfig;
   }
 
-  String mapServiceName(String serviceName) {
+  public String mapServiceName(String serviceName) {
     return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
   }
 

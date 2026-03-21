@@ -29,16 +29,16 @@ class HaystackHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
 
   // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
-  private static final String OT_BAGGAGE_PREFIX = "Baggage-";
-  private static final String TRACE_ID_KEY = "Trace-ID";
-  private static final String SPAN_ID_KEY = "Span-ID";
+  static final String OT_BAGGAGE_PREFIX = "Baggage-";
+  static final String TRACE_ID_KEY = "Trace-ID";
+  static final String SPAN_ID_KEY = "Span-ID";
   private static final String PARENT_ID_KEY = "Parent-ID";
 
-  private static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
-  private static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
-  private static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
+  static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
+  static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
+  static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
 
-  private static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
+  static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
   private static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
   private static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
 

@@ -23,7 +23,7 @@ public class DDSpanLink extends SpanLink {
   private static final Logger LOGGER = LoggerFactory.getLogger(DDSpanLink.class);
 
   /** The maximum of characters a span tag value can hold. */
-  private static final int TAG_MAX_LENGTH = 25_000;
+  static final int TAG_MAX_LENGTH = 25_000;
 
   protected DDSpanLink(
       DDTraceId traceId,

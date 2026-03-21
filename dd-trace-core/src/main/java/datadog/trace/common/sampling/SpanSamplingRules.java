@@ -191,7 +191,8 @@ public class SpanSamplingRules {
     }
   }
 
-  private static final class JsonRule {
+  // Visible for testing
+  static final class JsonRule {
     private static final JsonAdapter<JsonRule> jsonAdapter = MOSHI.adapter(JsonRule.class);
 
     String service;

@@ -67,13 +67,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
-  private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
+  // Visible for testing
+  final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
   private final DatastreamsPayloadWriter payloadWriter;
   private final DDAgentFeaturesDiscovery features;
   private final TimeSource timeSource;
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final long bucketDurationNanos;
-  private final Thread thread;
+  // Visible for testing
+  final Thread thread;
   private final DataStreamsPropagator propagator;
   private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
   private volatile long nextFeatureCheck;

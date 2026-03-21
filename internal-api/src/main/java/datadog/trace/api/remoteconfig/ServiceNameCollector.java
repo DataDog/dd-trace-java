@@ -25,6 +25,11 @@ public class ServiceNameCollector {
     return INSTANCE;
   }
 
+  // Visible for testing
+  public static void setForTesting(ServiceNameCollector instance) {
+    INSTANCE = instance;
+  }
+
   private final ConcurrentHashMap<String, String> services =
       new ConcurrentHashMap<>(MAX_EXTRA_SERVICE);
 

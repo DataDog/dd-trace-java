@@ -82,8 +82,8 @@ public class TraceStructureWriter implements Writer {
     return parseArgs(outputFile, OperatingSystem.isWindows());
   }
 
-  // package visibility for testing
-  static String[] parseArgs(String outputFile, boolean windows) {
+  // Visible for testing
+  public static String[] parseArgs(String outputFile, boolean windows) {
     String[] args = ARGS_DELIMITER.split(outputFile);
     // Check Windows absolute paths (<drive>:<path>) as column is used as arg delimiter
     if (windows

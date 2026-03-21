@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
-  static DDSpan create(
+  public static DDSpan create(
       final String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,

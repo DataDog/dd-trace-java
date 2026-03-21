@@ -29,9 +29,9 @@ class B3HttpCodec {
   private static final String B3_SPAN_ID = "b3.spanid";
   static final String TRACE_ID_KEY = "X-B3-TraceId";
   static final String SPAN_ID_KEY = "X-B3-SpanId";
-  private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
+  static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
   // See https://github.com/openzipkin/b3-propagation#single-header for b3 header documentation
-  private static final String B3_KEY = "b3";
+  static final String B3_KEY = "b3";
   private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
   private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
 

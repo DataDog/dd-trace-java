@@ -21,7 +21,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
   private static final Filter ACCEPT_ALL = trace -> true;
 
-  private final AtomicInteger traceCount = new AtomicInteger();
+  public final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
   private final Object monitor = new Object();
 
