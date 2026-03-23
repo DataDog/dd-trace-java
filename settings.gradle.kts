@@ -128,6 +128,11 @@ include(
   ":dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures",
 )
 
+// code-coverage
+include(
+  ":dd-java-agent:agent-code-coverage",
+)
+
 // llm-observability
 include(
   ":dd-java-agent:agent-llmobs",

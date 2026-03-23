@@ -294,6 +294,10 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLA
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
+import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_CLASSPATH;
+import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_EXCLUDES;
+import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_INCLUDES;
+import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_REPORT_INTERVAL_SECONDS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
@@ -1247,6 +1251,11 @@ public class Config {
 
   private final boolean cwsEnabled;
   private final int cwsTlsRefresh;
+
+  private final String[] codeCoverageIncludes;
+  private final String[] codeCoverageExcludes;
+  private final int codeCoverageReportIntervalSeconds;
+  private final String codeCoverageClasspath;
 
   private final boolean dataJobsOpenLineageEnabled;
   private final boolean dataJobsOpenLineageTimeoutEnabled;
@@ -2815,6 +2824,20 @@ public class Config {
 
     cwsEnabled = configProvider.getBoolean(CWS_ENABLED, DEFAULT_CWS_ENABLED);
     cwsTlsRefresh = configProvider.getInteger(CWS_TLS_REFRESH, DEFAULT_CWS_TLS_REFRESH);
+
+    {
+      List<String> includesList = configProvider.getList(CODE_COVERAGE_INCLUDES);
+      codeCoverageIncludes =
+          includesList == null || includesList.isEmpty()
+              ? new String[] {"*"}
+              : includesList.toArray(new String[0]);
+      List<String> excludesList = configProvider.getList(CODE_COVERAGE_EXCLUDES);
+      codeCoverageExcludes =
+          excludesList == null ? new String[0] : excludesList.toArray(new String[0]);
+    }
+    codeCoverageReportIntervalSeconds =
+        configProvider.getInteger(CODE_COVERAGE_REPORT_INTERVAL_SECONDS, 900);
+    codeCoverageClasspath = configProvider.getString(CODE_COVERAGE_CLASSPATH);
 
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
@@ -4675,6 +4698,22 @@ public class Config {
 
   public boolean isCwsEnabled() {
     return cwsEnabled;
+  }
+
+  public String[] getCodeCoverageIncludes() {
+    return codeCoverageIncludes;
+  }
+
+  public String[] getCodeCoverageExcludes() {
+    return codeCoverageExcludes;
+  }
+
+  public int getCodeCoverageReportIntervalSeconds() {
+    return codeCoverageReportIntervalSeconds;
+  }
+
+  public String getCodeCoverageClasspath() {
+    return codeCoverageClasspath;
   }
 
   public int getCwsTlsRefresh() {

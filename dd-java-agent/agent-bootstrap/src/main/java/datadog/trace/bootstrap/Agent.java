@@ -26,6 +26,7 @@ import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
 import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
@@ -336,6 +337,11 @@ public class Agent {
       StaticEventLogger.end("crashtracking");
     }
 
+    Object codeCoverageTransformer = null;
+    if (InstrumenterConfig.get().isCodeCoverageEnabled()) {
+      codeCoverageTransformer = maybeStartCodeCoverage(inst);
+    }
+
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -390,7 +396,8 @@ public class Agent {
     }
 
     InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(initTelemetry, inst, okHttpDelayMillis);
+        new InstallDatadogTracerCallback(
+            initTelemetry, inst, okHttpDelayMillis, codeCoverageTransformer);
     if (waitForJUL) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
       registerLogManagerCallback(installDatadogTracerCallback);
@@ -645,11 +652,14 @@ public class Agent {
     private final Object sco;
     private final Class<?> scoClass;
     private final int okHttpDelayMillis;
+    private final Object codeCoverageTransformer;
 
     public InstallDatadogTracerCallback(
         InitializationTelemetry initTelemetry,
         Instrumentation instrumentation,
-        int okHttpDelayMillis) {
+        int okHttpDelayMillis,
+        Object codeCoverageTransformer) {
+      this.codeCoverageTransformer = codeCoverageTransformer;
       this.okHttpDelayMillis = okHttpDelayMillis;
       this.instrumentation = instrumentation;
       try {
@@ -695,6 +705,10 @@ public class Agent {
       }
       if (flareEnabled) {
         startFlarePoller(scoClass, sco);
+      }
+
+      if (codeCoverageTransformer != null) {
+        startCodeCoverageCollector(codeCoverageTransformer);
       }
     }
 
@@ -1121,6 +1135,33 @@ public class Agent {
       }
 
       StaticEventLogger.end("CI Visibility");
+    }
+  }
+
+  private static Object maybeStartCodeCoverage(Instrumentation inst) {
+    StaticEventLogger.begin("Code Coverage");
+
+    try {
+      final Class<?> systemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.codecoverage.CodeCoverageSystem");
+      final Method startMethod = systemClass.getMethod("start", Instrumentation.class);
+      return startMethod.invoke(null, inst);
+    } catch (final Throwable e) {
+      log.warn("Not starting Code Coverage subsystem", e);
+      return null;
+    } finally {
+      StaticEventLogger.end("Code Coverage");
+    }
+  }
+
+  private static void startCodeCoverageCollector(Object transformer) {
+    try {
+      final Class<?> systemClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.codecoverage.CodeCoverageSystem");
+      final Method startCollectorMethod = systemClass.getMethod("startCollector", Object.class);
+      startCollectorMethod.invoke(null, transformer);
+    } catch (final Throwable e) {
+      log.warn("Not starting Code Coverage collector", e);
     }
   }
 

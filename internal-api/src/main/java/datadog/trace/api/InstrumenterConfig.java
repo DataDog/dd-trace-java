@@ -28,6 +28,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLEC
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
+import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -215,6 +216,8 @@ public class InstrumenterConfig {
   private final boolean appLogsCollectionEnabled;
   private final boolean legacyContextManagerEnabled;
 
+  private final boolean codeCoverageEnabled;
+
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
     OtelEnvMetricCollectorProvider.register(OtelEnvMetricCollectorImpl.getInstance());
@@ -367,6 +370,8 @@ public class InstrumenterConfig {
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
+
+    codeCoverageEnabled = configProvider.getBoolean(CODE_COVERAGE_ENABLED, false);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -690,6 +695,10 @@ public class InstrumenterConfig {
     return legacyContextManagerEnabled;
   }
 
+  public boolean isCodeCoverageEnabled() {
+    return codeCoverageEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
@@ -811,6 +820,8 @@ public class InstrumenterConfig {
         + apiSecurityEndpointCollectionEnabled
         + ", legacyContextManagerEnabled="
         + legacyContextManagerEnabled
+        + ", codeCoverageEnabled="
+        + codeCoverageEnabled
         + '}';
   }
 }
