@@ -242,8 +242,6 @@ dd-octo-sts-pre-release-check:
 
 build:
   needs:
-    - job: maven-central-pre-release-check
-      optional: true
     - job: dd-octo-sts-pre-release-check
       optional: true
   extends: .gradle_build
