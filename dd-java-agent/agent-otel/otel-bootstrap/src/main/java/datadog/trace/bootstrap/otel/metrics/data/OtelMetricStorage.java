@@ -11,9 +11,11 @@ import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -32,6 +34,9 @@ public final class OtelMetricStorage {
 
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
+
+  private static final Map<ClassLoader, BiConsumer<Object, BiConsumer<String, Object>>>
+      ATTRIBUTE_READERS = new WeakHashMap<>();
 
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
@@ -157,13 +162,27 @@ public final class OtelMetricStorage {
     }
   }
 
+  public static void registerAttributeReader(
+      ClassLoader cl, BiConsumer<Object, BiConsumer<String, Object>> reader) {
+    ATTRIBUTE_READERS.put(cl, reader);
+  }
+
+  private static void visitAttributes(Object attributes, OtelMetricVisitor visitor) {
+    ClassLoader cl = attributes.getClass().getClassLoader();
+    BiConsumer<Object, BiConsumer<String, Object>> reader = ATTRIBUTE_READERS.get(cl);
+    if (reader != null) {
+      reader.accept(attributes, visitor::visitAttribute);
+    }
+  }
+
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
   private void doCollect(OtelMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     currentRecording.aggregators.forEach(
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
-            visitor.visitPoint(attributes, aggregator.collect());
+            visitAttributes(attributes, visitor);
+            visitor.visitPoint(aggregator.collect());
           }
         });
   }
@@ -197,7 +216,8 @@ public final class OtelMetricStorage {
     aggregators.forEach(
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
-            visitor.visitPoint(attributes, aggregator.collectAndReset());
+            visitAttributes(attributes, visitor);
+            visitor.visitPoint(aggregator.collectAndReset());
           }
         });
 
