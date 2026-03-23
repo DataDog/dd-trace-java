@@ -214,28 +214,6 @@ default:
     - *cgroup_info
     - *container_info
 
-# Check and fail early if maven central credentials are incorrect. When a new token is generated
-# on the central publisher portal, it invalidates the old one. This check prevents going further.
-# See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
-maven-central-pre-release-check:
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
-  stage: .pre
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
-      when: on_success
-      allow_failure: false
-  script:
-    - |
-      MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
-      MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-      # See https://central.sonatype.org/publish/publish-portal-api/
-      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if [ $? -ne 0 ]; then
-        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
-        exit 1
-      fi
-
 dd-octo-sts-pre-release-check:
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   stage: .pre
@@ -264,8 +242,6 @@ dd-octo-sts-pre-release-check:
 
 build:
   needs:
-    - job: maven-central-pre-release-check
-      optional: true
     - job: dd-octo-sts-pre-release-check
       optional: true
   extends: .gradle_build
