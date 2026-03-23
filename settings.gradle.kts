@@ -346,6 +346,7 @@ include(
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
   ":dd-java-agent:instrumentation:glassfish-3.0",
+  ":dd-java-agent:instrumentation:gson:gson-1.6",
   ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub-1.116",
   ":dd-java-agent:instrumentation:graal:graal-native-image-20.0",

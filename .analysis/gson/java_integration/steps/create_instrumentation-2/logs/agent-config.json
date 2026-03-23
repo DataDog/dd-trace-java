@@ -1,0 +1,186 @@
+{
+  "provider": "claude_sdk",
+  "runner": {
+    "sandbox": false,
+    "permission_mode": "acceptEdits",
+    "permission_allow": [
+      "WebFetch",
+      "WebSearch"
+    ],
+    "permission_deny": [],
+    "system_prompt": true,
+    "use_default_security": true,
+    "allowed_paths": [
+      "/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py",
+      "/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit",
+      "/Users/jordan.wong/.claude",
+      "/Users/jordan.wong/tmp",
+      "/tmp"
+    ],
+    "allow_interrupt": true
+  },
+  "working_directory": "/private/tmp/dd-trace-java-gson-clean",
+  "sdk_options": {
+    "allowed_tools": [],
+    "system_prompt": "You are a senior Datadog APM engineer working on the dd-trace libraries.\n\n## Your Role\n\nYou implement, fix, and maintain third-party library integrations for Datadog's distributed tracing and observability platform.\n\n## Priorities\n\n1. **Observability value** - Produce meaningful telemetry that helps customers understand their application behavior. Focus on traces, spans, and metadata that provide real insight into how applications perform.\n\n2. **Code quality** - Write clean, maintainable code that follows existing patterns in the codebase. Prefer simplicity over cleverness. Other engineers will review and maintain this code.\n\n3. **Production readiness** - Consider edge cases, error handling, and performance. Your code runs in customer production environments where reliability matters.\n\n4. **Test coverage** - Ensure integrations are properly tested with both unit tests and integration tests where appropriate.\n\n## Context\n\n- The ddtrace libraries instrument third-party packages to automatically capture distributed traces and send them to Datadog\n- Each integration wraps library methods to create spans, propagate context, and capture relevant metadata\n- Integrations should be non-intrusive and have minimal performance overhead\n- Follow the patterns established by existing integrations in the codebase\n",
+    "mcp_servers": {},
+    "permission_mode": "acceptEdits",
+    "continue_conversation": false,
+    "max_turns": 100,
+    "disallowed_tools": [],
+    "model": "sonnet",
+    "betas": [],
+    "cwd": "/private/tmp/dd-trace-java-gson-clean",
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Read(/private/tmp/dd-trace-java-gson-clean/**)",
+          "Write(/private/tmp/dd-trace-java-gson-clean/**)",
+          "Edit(/private/tmp/dd-trace-java-gson-clean/**)",
+          "Glob(/private/tmp/dd-trace-java-gson-clean/**)",
+          "Bash(/private/tmp/dd-trace-java-gson-clean/**)",
+          "Read(/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py/**)",
+          "Write(/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py/**)",
+          "Edit(/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py/**)",
+          "Glob(/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py/**)",
+          "Bash(/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py/**)",
+          "Read(/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit/**)",
+          "Write(/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit/**)",
+          "Edit(/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit/**)",
+          "Glob(/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit/**)",
+          "Bash(/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit/**)",
+          "Read(/Users/jordan.wong/.claude/**)",
+          "Write(/Users/jordan.wong/.claude/**)",
+          "Edit(/Users/jordan.wong/.claude/**)",
+          "Glob(/Users/jordan.wong/.claude/**)",
+          "Bash(/Users/jordan.wong/.claude/**)",
+          "Read(/Users/jordan.wong/tmp/**)",
+          "Write(/Users/jordan.wong/tmp/**)",
+          "Edit(/Users/jordan.wong/tmp/**)",
+          "Glob(/Users/jordan.wong/tmp/**)",
+          "Bash(/Users/jordan.wong/tmp/**)",
+          "Read(/private/tmp/**)",
+          "Write(/private/tmp/**)",
+          "Edit(/private/tmp/**)",
+          "Glob(/private/tmp/**)",
+          "Bash(/private/tmp/**)",
+          "Bash",
+          "Skill",
+          "WebFetch",
+          "WebSearch"
+        ],
+        "deny": [
+          "Bash(rm:*)",
+          "Bash(rm -rf:*)",
+          "Bash(rm -r:*)",
+          "Bash(rmdir:*)",
+          "Bash(unlink:*)",
+          "Bash(shred:*)",
+          "Bash(chmod:*)",
+          "Bash(chown:*)",
+          "Bash(mv:*)",
+          "Bash(dd:*)",
+          "Bash(mkfs:*)",
+          "Bash(fdisk:*)",
+          "Bash(kill:*)",
+          "Bash(killall:*)",
+          "Bash(pkill:*)",
+          "Bash(sudo:*)",
+          "Bash(su:*)",
+          "Bash(mocha:*)",
+          "Bash(./node_modules/.bin/mocha:*)",
+          "Bash(npx mocha:*)",
+          "Bash(yarn mocha:*)",
+          "Bash(node_modules/.bin/mocha:*)"
+        ]
+      }
+    },
+    "add_dirs": [
+      "/Users/jordan.wong/Integration-test-with-test-agent/dd-trace-py",
+      "/Users/jordan.wong/Integration-test-with-test-agent/apm-instrumentation-toolkit",
+      "/Users/jordan.wong/.claude",
+      "/Users/jordan.wong/tmp",
+      "/private/tmp"
+    ],
+    "env": {},
+    "extra_args": {},
+    "debug_stderr": "<TextIOWrapper>",
+    "hooks": {
+      "PreToolUse": 2
+    },
+    "include_partial_messages": false,
+    "fork_session": false,
+    "setting_sources": [
+      "local",
+      "project"
+    ],
+    "sandbox": {
+      "enabled": false
+    },
+    "plugins": [],
+    "output_format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "description": "Output from Java integration workflow.",
+        "title": "JavaIntegrationOutput",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the instrumentation was successfully created",
+            "title": "Success"
+          },
+          "instrumentation_path": {
+            "type": "string",
+            "description": "Path to the created instrumentation module",
+            "title": "Instrumentation Path"
+          },
+          "tests_passing": {
+            "type": "boolean",
+            "description": "Whether tests are passing\n\n{default: False}",
+            "title": "Tests Passing"
+          },
+          "message": {
+            "type": "string",
+            "description": "Status message or error details\n\n{default: }",
+            "title": "Message"
+          },
+          "output": {
+            "type": "object",
+            "description": "Output from Java integration workflow.",
+            "title": "JavaIntegrationOutput",
+            "properties": {
+              "success": {
+                "type": "boolean",
+                "description": "Whether the instrumentation was successfully created",
+                "title": "Success"
+              },
+              "instrumentation_path": {
+                "type": "string",
+                "description": "Path to the created instrumentation module",
+                "title": "Instrumentation Path"
+              },
+              "tests_passing": {
+                "type": "boolean",
+                "description": "Whether tests are passing\n\n{default: False}",
+                "title": "Tests Passing"
+              },
+              "message": {
+                "type": "string",
+                "description": "Status message or error details\n\n{default: }",
+                "title": "Message"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "success",
+              "instrumentation_path"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "enable_file_checkpointing": false
+  }
+}
