@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.communication.serialization;
 
 import java.util.Arrays;
 

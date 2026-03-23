@@ -793,6 +793,12 @@ public class Config {
    */
   static class RuntimeIdHolder {
     static final String runtimeId = RandomUtils.randomUUID().toString();
+    static final String rootSessionId = initRootSessionId();
+
+    private static String initRootSessionId() {
+      String inherited = ConfigHelper.env("_DD_ROOT_JAVA_SESSION_ID");
+      return inherited != null ? inherited : runtimeId;
+    }
   }
 
   static class HostNameHolder {
@@ -3132,6 +3138,10 @@ public class Config {
 
   public String getRuntimeId() {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
+  }
+
+  public String getRootSessionId() {
+    return runtimeIdEnabled ? RuntimeIdHolder.rootSessionId : "";
   }
 
   public Long getProcessId() {
@@ -5873,6 +5883,9 @@ public class Config {
         + instrumenterConfig
         + ", runtimeId='"
         + getRuntimeId()
+        + '\''
+        + ", rootSessionId='"
+        + getRootSessionId()
         + '\''
         + ", runtimeVersion='"
         + runtimeVersion

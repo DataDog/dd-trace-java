@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.communication.serialization;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
