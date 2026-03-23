@@ -18,6 +18,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
@@ -42,6 +46,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
+    transformer.applyAdvice(named("getParts"), getClass().getName() + "$GetFilenamesAdvice");
   }
 
   private static final Reference REQUEST_REFERENCE =
@@ -93,6 +98,60 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
           if (t == null) {
             t = new BlockingException("Blocked request (for Request/extractContentParameters)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
+        }
+      }
+    }
+  }
+
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Return Collection parts,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null || parts == null || parts.isEmpty()) {
+        return;
+      }
+      Method getSubmittedFileName = null;
+      try {
+        getSubmittedFileName =
+            parts.iterator().next().getClass().getMethod("getSubmittedFileName");
+      } catch (Exception ignored) {
+      }
+      if (getSubmittedFileName == null) {
+        return;
+      }
+      List<String> filenames = new ArrayList<>();
+      for (Object part : parts) {
+        try {
+          String name = (String) getSubmittedFileName.invoke(part);
+          if (name != null && !name.isEmpty()) {
+            filenames.add(name);
+          }
+        } catch (Exception ignored) {
+        }
+      }
+      if (filenames.isEmpty()) {
+        return;
+      }
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (callback == null) {
+        return;
+      }
+      Flow<Void> flow = callback.apply(reqCtx, filenames);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (t == null) {
+            t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }

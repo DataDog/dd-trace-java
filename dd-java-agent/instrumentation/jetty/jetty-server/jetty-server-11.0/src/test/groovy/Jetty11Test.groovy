@@ -68,6 +68,11 @@ abstract class Jetty11Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

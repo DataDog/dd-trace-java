@@ -86,6 +86,11 @@ abstract class Jetty10Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testSessionId() {
     true
   }
