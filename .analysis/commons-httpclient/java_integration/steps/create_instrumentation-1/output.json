@@ -1,0 +1,6 @@
+{
+  "success": true,
+  "instrumentation_path": "dd-java-agent/instrumentation/commons-httpclient-2.0",
+  "tests_passing": true,
+  "message": "Successfully created commons-httpclient-2.0 instrumentation. The instrumentation instruments HttpClient.executeMethod() calls with 3 overloads to capture HTTP requests/responses. All tests pass including muzzle verification (versions 2.0-3.1), instrumentation tests, and latestDepTest. The decorator extends HttpClientDecorator with proper span type 'http' and component name 'commons-httpclient'. Header injection is implemented for distributed tracing context propagation."
+}

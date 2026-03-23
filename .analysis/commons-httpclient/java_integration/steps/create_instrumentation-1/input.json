@@ -1,0 +1,7 @@
+{
+  "library_name": "commons-httpclient",
+  "min_version": "2.0",
+  "target_system": "Tracing",
+  "bootstrap": false,
+  "additional_context": "Commons HttpClient 2.0 is the classic Jakarta Commons HTTP client library (org.apache.commons.httpclient package). This is a synchronous HTTP client with well-documented patterns. Instrument the HttpClient.executeMethod() calls to capture HTTP requests/responses. Use HttpClientDecorator as the base decorator. The span type should be 'http' and the component name should be 'commons-httpclient'. Pay attention to header injection for distributed tracing."
+}
