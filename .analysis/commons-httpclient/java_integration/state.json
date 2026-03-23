@@ -1,0 +1,85 @@
+{
+  "workflow": "java_integration",
+  "namespace": "commons-httpclient",
+  "status": "pending",
+  "started_at": "2026-03-23T11:51:40.005138Z",
+  "updated_at": "2026-03-23T12:00:27.131398Z",
+  "completed_at": null,
+  "current_step": "create_instrumentation",
+  "steps": {
+    "create_instrumentation": {
+      "name": "create_instrumentation",
+      "status": "completed",
+      "attempt": 1,
+      "started_at": null,
+      "completed_at": "2026-03-23T12:00:24.824152Z",
+      "input": null,
+      "output": {
+        "success": true,
+        "instrumentation_path": "dd-java-agent/instrumentation/commons-httpclient-2.0",
+        "tests_passing": true,
+        "message": "Successfully created commons-httpclient-2.0 instrumentation. The instrumentation instruments HttpClient.executeMethod() calls with 3 overloads to capture HTTP requests/responses. All tests pass including muzzle verification (versions 2.0-3.1), instrumentation tests, and latestDepTest. The decorator extends HttpClientDecorator with proper span type 'http' and component name 'commons-httpclient'. Header injection is implemented for distributed tracing context propagation."
+      },
+      "error": null,
+      "metrics": {
+        "cost_usd": 2.899397750000001,
+        "duration_seconds": 522.205,
+        "num_turns": 74,
+        "agent_runs": [
+          {
+            "task": "create_instrumentation",
+            "cost_usd": 2.899397750000001,
+            "duration_seconds": 522.205,
+            "num_turns": 74,
+            "is_error": false
+          }
+        ]
+      },
+      "git_commit": "f943a48aa29af838a195c9b6be0c5808b0d824fa",
+      "git_tag": "apm-ai-toolkit/java_integration/commons-httpclient/20260323-115140/create_instrumentation",
+      "files_changed": [
+        ".analysis/commons-httpclient/java_integration/state.json",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/input.json",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/logs/agent-config.json",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/logs/agent-prompt-1774266701.md",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/logs/agent-stream-1774266701.json",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/logs/agent-stream-1774266701.log",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/output.json",
+        ".analysis/commons-httpclient/java_integration/steps/create_instrumentation-1/validation_1.json",
+        ".claude/skills/add-apm-integrations/SKILL.md",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/build.gradle",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/gradle.lockfile",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/CommonsHttpClientDecorator.java",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/CommonsHttpClientInstrumentation.java",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/HeadersInjectAdapter.java",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/HttpHeadersInjectAdapter.java",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/IastHttpMethodBaseInstrumentation.java",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/test/groovy/CommonsHttpClientTest.groovy",
+        "dd-java-agent/instrumentation/commons-httpclient-2.0/src/test/groovy/IastCommonsHttpClientInstrumentationTest.groovy",
+        "dd-java-agent/instrumentation/commons-httpclient/commons-httpclient-2.0/build.gradle",
+        "dd-java-agent/instrumentation/commons-httpclient/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/CommonsHttpClientDecorator.java",
+        "dd-java-agent/instrumentation/commons-httpclient/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/CommonsHttpClientInstrumentation.java",
+        "dd-java-agent/instrumentation/commons-httpclient/commons-httpclient-2.0/src/main/java/datadog/trace/instrumentation/commonshttpclient/HeadersInjectAdapter.java",
+        "dd-java-agent/instrumentation/commons-httpclient/commons-httpclient-2.0/src/test/groovy/CommonsHttpClientTest.groovy"
+      ],
+      "workflow": "java_integration",
+      "parent_step": null,
+      "log_dir": null
+    }
+  },
+  "data": {
+    "integration_dir": "/private/tmp/dd-trace-java-httpclient-clean/.analysis/commons-httpclient/java_integration",
+    "data_dir": "/private/tmp/dd-trace-java-httpclient-clean/.analysis/commons-httpclient/java_integration/data",
+    "repo_root": "/private/tmp/dd-trace-java-httpclient-clean",
+    "create_instrumentation_session_id": "62c7331d-364c-489e-89f2-cdebee52cb1b",
+    "previous_output": null
+  },
+  "artifacts": {},
+  "options": {},
+  "user_prompt": null,
+  "base_branch": null,
+  "total_cost_usd": 2.899397750000001,
+  "total_duration_seconds": 522.205,
+  "parent_workflow": null,
+  "workflow_start_commit": "c00f676bb9211865926d8910a971a1f2adfb1dc0"
+}
