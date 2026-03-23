@@ -23,6 +23,7 @@ import org.moditect.jfrunit.JfrEventTest;
 class AgentTracerSpanCreationMemoryTest {
   private static final String INSTRUMENTATION_NAME = "memory-test";
   private static final CharSequence SPAN_NAME = "span-creation";
+  private static final CharSequence CHILD_SPAN_NAME = "span-creation-child";
 
   @Test
   void startSpanDoesNotAllocateInNoopMode() throws Exception {
@@ -55,7 +56,15 @@ class AgentTracerSpanCreationMemoryTest {
 
   private static void createSpan() {
     AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
-    span.finish();
+    try (AgentScope scope = AgentTracer.activateSpan(span)) {
+      AgentSpan childSpan = AgentTracer.startSpan(INSTRUMENTATION_NAME, CHILD_SPAN_NAME);
+      try (AgentScope childScope = AgentTracer.activateSpan(childSpan)) {
+      } finally {
+        childSpan.finish();
+      }
+    } finally {
+      span.finish();
+    }
   }
 
   private static List<RecordedEvent> readEvents(Recording recording) throws Exception {
