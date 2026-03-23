@@ -1,6 +1,5 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.communication.serialization;
 
-import datadog.communication.serialization.EncodingCache;
 import java.nio.charset.StandardCharsets;
 
 /**

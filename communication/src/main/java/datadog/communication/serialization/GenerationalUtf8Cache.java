@@ -1,6 +1,5 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.communication.serialization;
 
-import datadog.communication.serialization.EncodingCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 
