@@ -444,7 +444,7 @@ class MetricsTest extends InstrumentationSpecification {
     }
 
     @Override
-    void visitAttribute(String key, Object value) {
+    void visitAttribute(int type, String key, Object value) {
       attributes.put(key, value)
     }
 

@@ -4,6 +4,7 @@ import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor;
@@ -35,7 +36,7 @@ public final class OtelMetricStorage {
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
 
-  private static final Map<ClassLoader, BiConsumer<Object, BiConsumer<String, Object>>>
+  private static final Map<ClassLoader, BiConsumer<Object, OtelAttributeVisitor>>
       ATTRIBUTE_READERS = new WeakHashMap<>();
 
   private final OtelInstrumentDescriptor descriptor;
@@ -163,15 +164,15 @@ public final class OtelMetricStorage {
   }
 
   public static void registerAttributeReader(
-      ClassLoader cl, BiConsumer<Object, BiConsumer<String, Object>> reader) {
+      ClassLoader cl, BiConsumer<Object, OtelAttributeVisitor> reader) {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 
   private static void visitAttributes(Object attributes, OtelMetricVisitor visitor) {
     ClassLoader cl = attributes.getClass().getClassLoader();
-    BiConsumer<Object, BiConsumer<String, Object>> reader = ATTRIBUTE_READERS.get(cl);
+    BiConsumer<Object, OtelAttributeVisitor> reader = ATTRIBUTE_READERS.get(cl);
     if (reader != null) {
-      reader.accept(attributes, visitor::visitAttribute);
+      reader.accept(attributes, visitor);
     }
   }
 
