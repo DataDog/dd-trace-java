@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.otel.metrics.export;
 
-import datadog.trace.bootstrap.otel.metrics.data.OtelPoint;
+import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
 
 /**
  * A visitor to visit a metric in an instrumentation scope.
@@ -12,5 +12,5 @@ public interface OtelMetricVisitor {
   void visitAttribute(String key, Object value);
 
   /** Visits a data point in the metric. */
-  void visitPoint(OtelPoint point);
+  void visitPoint(OtlpDataPoint point);
 }
