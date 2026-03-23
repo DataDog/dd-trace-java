@@ -166,9 +166,20 @@ abstract class JedisClientTest extends VersionedNamingTestBase {
       }
     }
   }
+
+  @Override
+  String operation() {
+    return "redis.query"
+  }
+
+  @Override
+  String service() {
+    return Config.get().getServiceName()
+  }
 }
 
 class JedisClientV0Test extends JedisClientTest {
+
   @Override
   int version() {
     return 0
@@ -186,6 +197,7 @@ class JedisClientV0Test extends JedisClientTest {
 }
 
 class JedisClientV1ForkedTest extends JedisClientTest {
+
   @Override
   int version() {
     return 1
@@ -198,6 +210,6 @@ class JedisClientV1ForkedTest extends JedisClientTest {
 
   @Override
   String operation() {
-    return "redis.command"
+    return "redis.query"
   }
 }

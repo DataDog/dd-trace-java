@@ -53,7 +53,6 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
             .and(named("sendCommand"))
             .and(takesArgument(0, named("redis.clients.jedis.Protocol$Command"))),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
-    // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
 
   public static class JedisAdvice {

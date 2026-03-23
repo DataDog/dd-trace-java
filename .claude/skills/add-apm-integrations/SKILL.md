@@ -230,3 +230,57 @@ After the instrumentation is complete (or abandoned), review the full session an
 
 Keep each change minimal and targeted. Do not rewrite sections that worked correctly.
 After editing, confirm to the user which improvements were made to the skill.
+
+## Appendix: Collected review rules
+
+These rules are derived from expert feedback on generated PRs. They serve as a checklist for self-review before finishing. Some overlap with guidance in the steps above; they are collected here for completeness.
+
+### R1: No lambdas in advice classes (error)
+Search for lambda expressions (`->` or `::`) in any file with "Advice" or "Instrumentation" in its name. Advice methods are inlined into bytecode by ByteBuddy, and lambdas create invokedynamic instructions that break when inlined into a different classloader context.
+*Source: mcculls, PR #10579*
+
+### R2: Assign wrapped future back with `@Advice.Return(readOnly=false)` (error)
+In async advice exit methods that wrap futures (CompletableFuture, ListenableFuture, etc.), verify the wrapped result is assigned back to the return value using `@Advice.Return(readOnly=false)`. Do not discard the return of `future.whenComplete`/`thenApply`/etc.
+*Applies to: async instrumentations only. Source: mcculls, PR #10579*
+
+### R3: Single InstrumenterModule per integration (error)
+There should be exactly one class extending `InstrumenterModule` (with `@AutoService(InstrumenterModule.class)`) per module. If the integration needs to instrument multiple classes, list them as separate `Instrumenter` implementations within the same module.
+*Source: mcculls, PR #10579*
+
+### R4: Module name must end with version (error)
+The module directory under `dd-java-agent/instrumentation/` must follow `{library}-{version}` (e.g., `feign-8.0`, `okhttp-3`). Do not use the Maven artifact name (e.g., `feign-core`).
+*Source: mcculls, PR #10579*
+
+### R5: CallDepthThreadLocalMap must be reset on the same thread (error)
+If `CallDepthThreadLocalMap` is used for reentrancy protection, `increment()` and `reset()` must be called on the same thread. In async code paths, callbacks may run on a different thread, so `CallDepthThreadLocalMap` cannot be used across async boundaries.
+*Applies to: async instrumentations only. Source: mcculls, PR #10579*
+
+### R6: Code passes codeNarc checks (warning)
+If there are Groovy test files, avoid common codeNarc violations: unused imports, unnecessary semicolons, missing spaces after keywords. Run `codenarcTest` in addition to `spotlessCheck`.
+*Source: Runs 0, 1*
+
+### R7: Test against minimum supported version, not just latest (warning)
+Compare the `testCompile`/`testImplementation` dependency version in `build.gradle` against the minimum version in the muzzle `pass` directive. If the test uses APIs that only exist in newer versions, it does not actually verify minimum version compatibility.
+*Source: Run 1 (auto-detected)*
+
+### R8: Test extends correct base test class (warning)
+The test superclass should match the integration type:
+- HTTP clients: extend `HttpClientTest`
+- HTTP servers: extend `HttpServerTest`
+- Database clients: extend `DatabaseClientTest`
+- Messaging: use the appropriate messaging base test
+
+If no base test class exists for the type, custom tests are acceptable but should cover span creation, error handling, and tag verification.
+*Source: Run 1 (auto-detected)*
+
+### R9: Disabled base test methods must have justification (warning)
+Methods that override base test class methods to return `false` (e.g., `testRedirects() { return false }`) must have a comment explaining why — what specific library limitation prevents the test from working.
+*Source: Run 1 (auto-detected)*
+
+### R10: Test exercises real library, not just mocks (error)
+The test must instantiate real library objects and make real calls (e.g., a real HTTP client calling a test server). Tests that only use mocks without exercising actual library code do not verify the instrumentation works. Base test classes typically provide real server infrastructure.
+*Source: PR #10317 (Resilience4j)*
+
+### R11: Test compiles and runs against minimum supported version (warning)
+Verify that the test code only uses APIs available in the minimum supported version. If the test uses a newer API (e.g., a static factory method added in a later version), it cannot verify minimum version compatibility. This extends R7 with API-level checking.
+*Source: Run 1 (extends R7)*
