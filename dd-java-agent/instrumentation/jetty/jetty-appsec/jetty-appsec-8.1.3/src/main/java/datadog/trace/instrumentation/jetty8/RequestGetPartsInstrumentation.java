@@ -7,6 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -18,8 +20,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.BiFunction;
 import javax.servlet.ServletException;
+import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -74,6 +81,8 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
             .and(takesArgument(0, String.class))
             .or(named("getParts").and(takesArguments(0))),
         getClass().getName() + "$GetPartsAdvice");
+    transformer.applyAdvice(
+        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
   }
 
   @Override
@@ -191,6 +200,77 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
     static void muzzle(Request req) throws ServletException, IOException {
       req.getParts();
+    }
+  }
+
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Return Collection parts,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      if (t != null || parts == null || parts.isEmpty()) {
+        return;
+      }
+      // Resolve getSubmittedFileName once (Servlet 3.1+; null on Servlet 3.0)
+      Method getSubmittedFileName = null;
+      try {
+        getSubmittedFileName =
+            parts.iterator().next().getClass().getMethod("getSubmittedFileName");
+      } catch (Exception ignored) {
+      }
+      List<String> filenames = new ArrayList<>();
+      for (Object part : parts) {
+        String name = null;
+        // Try Servlet 3.1+ API first (getSubmittedFileName)
+        if (getSubmittedFileName != null) {
+          try {
+            name = (String) getSubmittedFileName.invoke(part);
+          } catch (Exception ignored) {
+          }
+        }
+        // Fallback: parse filename from Content-Disposition header (Servlet 3.0)
+        if (name == null) {
+          String cd = ((Part) part).getHeader("content-disposition");
+          if (cd != null) {
+            for (String tok : cd.split(";")) {
+              tok = tok.trim();
+              if (tok.startsWith("filename=")) {
+                name = tok.substring(9).trim();
+                if (name.startsWith("\"") && name.endsWith("\"")) {
+                  name = name.substring(1, name.length() - 1);
+                }
+                break;
+              }
+            }
+          }
+        }
+        if (name != null && !name.isEmpty()) {
+          filenames.add(name);
+        }
+      }
+      if (filenames.isEmpty()) {
+        return;
+      }
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (callback == null) {
+        return;
+      }
+      Flow<Void> flow = callback.apply(reqCtx, filenames);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (t == null) {
+            t = new BlockingException("Blocked request (multipart file upload)");
+          }
+        }
+      }
     }
   }
 

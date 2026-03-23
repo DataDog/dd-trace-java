@@ -25,6 +25,11 @@ class JettyAsyncHandlerTest extends Jetty11Test implements TestingGenericHttpNam
     false
   }
 
+  @Override
+  boolean testBodyFilenames() {
+    false
+  }
+
   static class ContinuationTestHandler implements Handler {
     @Delegate
     private final Handler delegate
