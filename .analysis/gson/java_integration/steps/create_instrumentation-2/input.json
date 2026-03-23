@@ -1,0 +1,7 @@
+{
+  "library_name": "gson",
+  "min_version": "1.6",
+  "target_system": "Tracing",
+  "bootstrap": false,
+  "additional_context": "Gson is a Java JSON serialization library. This is a non-HTTP instrumentation that tests decorator-only patterns (no client/server communication). Focus on instrumenting serialization/deserialization methods to track JSON processing operations. Use a lightweight decorator that captures the operation type and any relevant metadata. The span type should be 'json' and the component name should be 'gson'."
+}

@@ -1,0 +1,86 @@
+{
+  "workflow": "java_integration",
+  "namespace": "gson",
+  "status": "pending",
+  "started_at": "2026-03-23T11:51:40.005139Z",
+  "updated_at": "2026-03-23T12:03:09.088859Z",
+  "completed_at": null,
+  "current_step": "create_instrumentation",
+  "steps": {
+    "create_instrumentation": {
+      "name": "create_instrumentation",
+      "status": "completed",
+      "attempt": 1,
+      "started_at": null,
+      "completed_at": "2026-03-23T12:03:06.892719Z",
+      "input": null,
+      "output": {
+        "success": true,
+        "instrumentation_path": "dd-java-agent/instrumentation/gson/gson-1.6",
+        "tests_passing": true,
+        "message": "Successfully created Gson instrumentation for dd-trace-java. The instrumentation instruments the com.google.gson.Gson class, tracking both serialization (toJson) and deserialization (fromJson) operations. \n\nCreated files:\n- GsonInstrumentation.java: Main instrumentation class using ForSingleType matcher for com.google.gson.Gson\n- GsonDecorator.java: Decorator extending BaseDecorator with span type 'json' and component 'gson'\n- GsonHelper.java: Helper class to manage CallDepthThreadLocalMap without direct class references\n- GsonTest.groovy: Instrumentation tests extending InstrumentationSpecification\n- build.gradle: Build configuration with muzzle directives for versions [1.6,)\n\nAll verification tasks passed:\n✓ Muzzle validation passed for Gson versions 1.6 through 2.13.2\n✓ Unit tests passed (3 tests: toJson, fromJson, nested calls)\n✓ Latest dependency tests passed\n✓ Code formatting (spotlessCheck) passed\n\nThe instrumentation correctly:\n- Creates spans with operation names 'gson.toJson' and 'gson.fromJson'\n- Sets span type to 'json' and component to 'gson'\n- Uses CallDepthThreadLocalMap to prevent recursive instrumentation\n- Follows dd-trace-java conventions for decorators, advice classes, and helper registration"
+      },
+      "error": null,
+      "metrics": {
+        "cost_usd": 4.542712999999999,
+        "duration_seconds": 684.285,
+        "num_turns": 84,
+        "agent_runs": [
+          {
+            "task": "create_instrumentation",
+            "cost_usd": 4.542712999999999,
+            "duration_seconds": 684.285,
+            "num_turns": 84,
+            "is_error": false
+          }
+        ]
+      },
+      "git_commit": "d8dfb81a5d0e90e0928c8a55f8e4c018acc5f5f0",
+      "git_tag": "apm-ai-toolkit/java_integration/gson/20260323-115140/create_instrumentation",
+      "files_changed": [
+        ".analysis/gson/java_integration/state.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/input.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/logs/agent-config.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/logs/agent-prompt-1774266701.md",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/logs/agent-stream-1774266701.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/logs/agent-stream-1774266701.log",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/output.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-1/validation_1.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-2/input.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-2/logs/agent-config.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-2/logs/agent-prompt-1774266772.md",
+        ".analysis/gson/java_integration/steps/create_instrumentation-2/logs/agent-stream-1774266772.json",
+        ".analysis/gson/java_integration/steps/create_instrumentation-2/logs/agent-stream-1774266772.log",
+        ".claude/skills/add-apm-integrations/SKILL.md",
+        "dd-java-agent/instrumentation/gson-1.6/build.gradle",
+        "dd-java-agent/instrumentation/gson-1.6/gradle.lockfile",
+        "dd-java-agent/instrumentation/gson-1.6/src/main/java/datadog/trace/instrumentation/gson/JsonReaderInstrumentation.java",
+        "dd-java-agent/instrumentation/gson-1.6/src/test/groovy/datadog/trace/instrumentation/gson/JsonReaderInstrumentationTest.groovy",
+        "dd-java-agent/instrumentation/gson/gson-1.6/build.gradle",
+        "dd-java-agent/instrumentation/gson/gson-1.6/src/main/java/datadog/trace/instrumentation/gson/GsonDecorator.java",
+        "dd-java-agent/instrumentation/gson/gson-1.6/src/main/java/datadog/trace/instrumentation/gson/GsonHelper.java",
+        "dd-java-agent/instrumentation/gson/gson-1.6/src/main/java/datadog/trace/instrumentation/gson/GsonInstrumentation.java",
+        "dd-java-agent/instrumentation/gson/gson-1.6/src/test/groovy/datadog/trace/instrumentation/gson/GsonTest.groovy",
+        "settings.gradle.kts"
+      ],
+      "workflow": "java_integration",
+      "parent_step": null,
+      "log_dir": null
+    }
+  },
+  "data": {
+    "integration_dir": "/private/tmp/dd-trace-java-gson-clean/.analysis/gson/java_integration",
+    "data_dir": "/private/tmp/dd-trace-java-gson-clean/.analysis/gson/java_integration/data",
+    "repo_root": "/private/tmp/dd-trace-java-gson-clean",
+    "create_instrumentation_session_id": "3b32091a-7b70-4836-80ce-c3d436dc87ea",
+    "previous_output": null
+  },
+  "artifacts": {},
+  "options": {},
+  "user_prompt": null,
+  "base_branch": null,
+  "total_cost_usd": 4.542712999999999,
+  "total_duration_seconds": 684.285,
+  "parent_workflow": null,
+  "workflow_start_commit": "c00f676bb9211865926d8910a971a1f2adfb1dc0"
+}
