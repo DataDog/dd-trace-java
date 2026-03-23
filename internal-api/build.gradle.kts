@@ -18,13 +18,34 @@ tasks.withType<JavaCompile>().configureEach {
   configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
+fun AbstractCompile.configureCompiler(
+  javaVersionInteger: Int,
+  compatibilityVersion: JavaVersion? = null,
+  unsetReleaseFlagReason: String? = null,
+) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
+}
+
+fun addTestSuite(name: String) {
+  (project.extra["addTestSuite"] as? Closure<*>)?.call(name)
 }
 
 tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
   // sun.* are accessible in JDK8, but maybe not accessible when this task is running
   failOnMissingClasses = false
+}
+
+addTestSuite("memoryTest")
+
+tasks.named<JavaCompile>("compileMemoryTestJava") {
+  configureCompiler(11, JavaVersion.VERSION_11)
+}
+
+tasks.named<Test>("memoryTest") {
+  javaLauncher =
+    javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(11)
+    }
 }
 
 val minimumBranchCoverage by extra(0.7)
@@ -234,7 +255,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
     "datadog.trace.util.TempLocationManager",
     "datadog.trace.util.TempLocationManager.*",
-  )
+  ),
 )
 
 val excludedClassesBranchCoverage by extra(
@@ -247,13 +268,13 @@ val excludedClassesBranchCoverage by extra(
     "datadog.trace.util.TempLocationManager.*",
     // Branches depend on RUM injector state that cannot be reliably controlled in unit tests
     "datadog.trace.api.rum.RumInjectorMetrics",
-  )
+  ),
 )
 
 val excludedClassesInstructionCoverage by extra(
   listOf(
-    "datadog.trace.util.stacktrace.StackWalkerFactory"
-  )
+    "datadog.trace.util.stacktrace.StackWalkerFactory",
+  ),
 )
 
 dependencies {
@@ -276,6 +297,7 @@ dependencies {
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  add("memoryTestImplementation", libs.jfrunit)
 }
 
 jmh {
