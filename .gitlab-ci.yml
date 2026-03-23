@@ -227,7 +227,8 @@ maven-central-pre-release-check:
   #     allow_failure: false
   script:
     - |
-      MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+      MAVEN_CENTRAL_USERNAME="invalid"
+      # MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
       MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
       # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
       # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
