@@ -159,5 +159,7 @@ org.springframework:spring-messaging:5.3.39=latestDepForkedTestCompileClasspath,
 org.springframework:spring-tx:3.1.0.RELEASE=compileClasspath
 org.springframework:spring-tx:4.3.21.RELEASE=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-tx:5.3.39=latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=spotbugsPlugins
