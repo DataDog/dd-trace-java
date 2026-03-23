@@ -14,6 +14,7 @@ import static datadog.trace.api.gateway.Events.HTTP_ROUTE_ID;
 import static datadog.trace.api.gateway.Events.LOGIN_EVENT_ID;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_CONVERTED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_FILES_FILENAMES_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
@@ -360,6 +361,7 @@ public class InstrumentationGateway {
       case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
       case RESPONSE_BODY_ID:
+      case REQUEST_FILES_FILENAMES_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {
               @Override
