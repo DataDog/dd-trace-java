@@ -15,6 +15,15 @@ public final class OtlpConfig {
   public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otlp.metrics.temporality.preference";
 
+  public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
+  public static final String TRACE_OTEL_EXPORTER = "trace.otel.exporter";
+
+  public static final String OTLP_TRACES_ENDPOINT = "otlp.traces.endpoint";
+  public static final String OTLP_TRACES_HEADERS = "otlp.traces.headers";
+  public static final String OTLP_TRACES_PROTOCOL = "otlp.traces.protocol";
+  public static final String OTLP_TRACES_COMPRESSION = "otlp.traces.compression";
+  public static final String OTLP_TRACES_TIMEOUT = "otlp.traces.timeout";
+
   public enum Protocol {
     GRPC,
     HTTP_PROTOBUF,

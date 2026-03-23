@@ -1,17 +1,20 @@
 package datadog.trace.instrumentation.httpclient;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.KEEP;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import java.net.http.HttpHeaders;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import net.bytebuddy.asm.Advice;
 
+@AppliesOn(CONTEXT_TRACKING)
 public class HeadersAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(@Advice.Return(readOnly = false) HttpHeaders headers) {

@@ -138,5 +138,5 @@ org.springframework:spring-web:5.3.18=compileClasspath,productionRuntimeClasspat
 org.springframework:spring-webmvc:5.3.18=compileClasspath,productionRuntimeClasspath,runtimeClasspath,serverFile,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:1.28=compileClasspath,productionRuntimeClasspath,runtimeClasspath,serverFile,testCompileClasspath,testRuntimeClasspath
-tomcat:tomcat-8:8.5.84=serverFile
+tomcat:tomcat-9:9.0.115=serverFile
 empty=annotationProcessor,developmentOnly,providedCompile,spotbugsPlugins,testAnnotationProcessor

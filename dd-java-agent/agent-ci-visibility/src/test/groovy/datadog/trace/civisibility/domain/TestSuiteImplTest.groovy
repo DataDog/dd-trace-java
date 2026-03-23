@@ -84,6 +84,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       linesResolver,
       coverageStoreFactory,
       executionResults,
+      false,
       [],
       SpanTagsPropagator.NOOP_PROPAGATOR
       )
