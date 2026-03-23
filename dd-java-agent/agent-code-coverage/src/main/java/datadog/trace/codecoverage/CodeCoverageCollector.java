@@ -1,9 +1,9 @@
 package datadog.trace.codecoverage;
 
+import datadog.trace.coverage.LinesCoverage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,14 +21,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Periodically collects code coverage probe data, resolves it to covered source lines using
- * JaCoCo's analysis pipeline, and sends the results via a {@link CodeCoverageSender}.
+ * JaCoCo's analysis pipeline, and sends the results via a {@link CodeCoverageLcovSender}.
  */
 public final class CodeCoverageCollector {
 
   private static final Logger log = LoggerFactory.getLogger(CodeCoverageCollector.class);
 
   private final CodeCoverageTransformer transformer;
-  private final CodeCoverageSender sender;
+  private final CodeCoverageLcovSender sender;
   private final int intervalSeconds;
   private final String explicitClasspath;
   private volatile ScheduledExecutorService scheduler;
@@ -41,7 +41,7 @@ public final class CodeCoverageCollector {
    */
   public CodeCoverageCollector(
       CodeCoverageTransformer transformer,
-      CodeCoverageSender sender,
+      CodeCoverageLcovSender sender,
       int intervalSeconds,
       String explicitClasspath) {
     this.transformer = transformer;
@@ -97,25 +97,28 @@ public final class CodeCoverageCollector {
         }
       }
 
-      // 4. Build coverage map: source file -> covered line numbers
-      Map<String, BitSet> coverage = new HashMap<>();
+      // 4. Build coverage map: source file -> lines coverage
+      Map<String, LinesCoverage> coverage = new HashMap<>();
       for (IClassCoverage cc : builder.getClasses()) {
         if (cc.getSourceFileName() == null) {
           continue;
         }
         String sourceFile = cc.getPackageName() + "/" + cc.getSourceFileName();
-        BitSet lines = coverage.computeIfAbsent(sourceFile, k -> new BitSet());
+        LinesCoverage lc = coverage.computeIfAbsent(sourceFile, k -> new LinesCoverage());
         for (int line = cc.getFirstLine(); line <= cc.getLastLine(); line++) {
           int status = cc.getLine(line).getStatus();
-          if (status == ICounter.PARTLY_COVERED || status == ICounter.FULLY_COVERED) {
-            lines.set(line);
+          if (status != ICounter.EMPTY) {
+            lc.executableLines.set(line);
+            if (status == ICounter.PARTLY_COVERED || status == ICounter.FULLY_COVERED) {
+              lc.coveredLines.set(line);
+            }
           }
         }
       }
 
       // 5. Send if there is data
       if (!coverage.isEmpty()) {
-        sender.send(coverage);
+        sender.upload(coverage);
       }
     } catch (Exception e) {
       log.debug("Error during code coverage collection", e);

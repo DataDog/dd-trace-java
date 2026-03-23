@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.report;
+package datadog.trace.coverage;
 
 import java.io.IOException;
 import java.io.StringWriter;

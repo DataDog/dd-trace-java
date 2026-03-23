@@ -1,11 +1,10 @@
-package datadog.trace.civisibility.coverage.report
+package datadog.trace.coverage
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.BackendApi
 import datadog.communication.IntakeApi
 import datadog.communication.http.HttpRetryPolicy
 import datadog.communication.http.OkHttpUtils
-import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.intake.Intake
 import datadog.trace.test.util.MultipartRequestParser
 import okhttp3.HttpUrl
@@ -70,8 +69,7 @@ class CoverageReportUploaderTest extends Specification {
   def "test upload coverage report"() {
     setup:
     def backendApi = givenIntakeApi()
-    def metricCollector = Stub(CiVisibilityMetricCollector)
-    def uploader = new CoverageReportUploader(backendApi, [(CI_TAG_KEY):CI_TAG_VALUE], metricCollector)
+    def uploader = new CoverageReportUploader(backendApi, [(CI_TAG_KEY):CI_TAG_VALUE], null)
     def report = new ByteArrayInputStream(COVERAGE_REPORT_BODY.getBytes())
 
     expect:

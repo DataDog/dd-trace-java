@@ -16,6 +16,8 @@ dependencies {
   implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
 
   implementation project(':internal-api')
+  implementation project(':communication')
+  implementation project(':utils:coverage-utils')
 
   testImplementation project(':dd-java-agent:testing')
 }

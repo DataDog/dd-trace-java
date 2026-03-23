@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.coverage.report;
+package datadog.trace.coverage;
 
 import java.util.BitSet;
 

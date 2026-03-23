@@ -164,6 +164,7 @@ include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
+  ":utils:coverage-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
   ":utils:logging-utils",

@@ -708,7 +708,7 @@ public class Agent {
       }
 
       if (codeCoverageTransformer != null) {
-        startCodeCoverageCollector(codeCoverageTransformer);
+        startCodeCoverageCollector(codeCoverageTransformer, sco);
       }
     }
 
@@ -1154,12 +1154,13 @@ public class Agent {
     }
   }
 
-  private static void startCodeCoverageCollector(Object transformer) {
+  private static void startCodeCoverageCollector(Object transformer, Object sco) {
     try {
       final Class<?> systemClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.codecoverage.CodeCoverageSystem");
-      final Method startCollectorMethod = systemClass.getMethod("startCollector", Object.class);
-      startCollectorMethod.invoke(null, transformer);
+      final Method startCollectorMethod =
+          systemClass.getMethod("startCollector", Object.class, Object.class);
+      startCollectorMethod.invoke(null, transformer, sco);
     } catch (final Throwable e) {
       log.warn("Not starting Code Coverage collector", e);
     }
