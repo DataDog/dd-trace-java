@@ -2,8 +2,15 @@ package datadog.trace.bootstrap.otel.metrics.export;
 
 import datadog.trace.bootstrap.otel.metrics.data.OtelPoint;
 
-/** A visitor to visit a metric in an instrumentation scope. */
+/**
+ * A visitor to visit a metric in an instrumentation scope.
+ *
+ * <p>Methods must be called in the following order: ( visitAttribute* visitPoint )*
+ */
 public interface OtelMetricVisitor {
+  /** Visits an attribute of the upcoming data point. */
+  void visitAttribute(String key, Object value);
+
   /** Visits a data point in the metric. */
-  void visitPoint(Object attributes, OtelPoint point);
+  void visitPoint(OtelPoint point);
 }
