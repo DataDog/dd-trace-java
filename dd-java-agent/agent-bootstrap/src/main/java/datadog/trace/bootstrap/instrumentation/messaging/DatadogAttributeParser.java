@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.messaging;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
@@ -21,9 +22,10 @@ public final class DatadogAttributeParser {
       return;
     }
     try {
-      if (acceptJsonProperty(classifier, json, "x-datadog-trace-id")) {
+      if (acceptTraceIdProperty(classifier, json)) {
         acceptJsonProperty(classifier, json, "x-datadog-parent-id");
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
+        acceptJsonProperty(classifier, json, "x-datadog-tags");
       }
       if (Config.get().isDataStreamsEnabled()) {
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
@@ -73,5 +75,39 @@ public final class DatadogAttributeParser {
       }
     }
     return false;
+  }
+
+  private static boolean acceptTraceIdProperty(
+      AgentPropagation.KeyClassifier classifier, String json) {
+    int keyStart = json.indexOf("x-datadog-trace-id");
+    if (keyStart > 0) {
+      int separator = json.indexOf(':', keyStart + "x-datadog-trace-id".length());
+      if (separator > 0) {
+        int valueStart = json.indexOf('"', separator + 1);
+        if (valueStart > 0) {
+          int valueEnd = json.indexOf('"', valueStart + 1);
+          if (valueEnd > 0) {
+            String traceId = json.substring(valueStart + 1, valueEnd);
+            return classifier.accept(
+                "x-datadog-trace-id", normalizeTraceIdForDatadogExtraction(traceId));
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private static String normalizeTraceIdForDatadogExtraction(String traceId) {
+    try {
+      DDTraceId parsed = DDTraceId.from(traceId);
+      return Long.toUnsignedString(parsed.toLong());
+    } catch (NumberFormatException ignored) {
+    }
+    try {
+      DDTraceId parsed = DDTraceId.fromHex(traceId);
+      return Long.toUnsignedString(parsed.toLong());
+    } catch (NumberFormatException ignored) {
+    }
+    return traceId;
   }
 }

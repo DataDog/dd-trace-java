@@ -1,10 +1,11 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.SETTER;
 
@@ -16,8 +17,6 @@ import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import datadog.context.Context;
-import datadog.context.propagation.Propagator;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -43,14 +42,15 @@ public class SqsInterceptor extends RequestHandler2 {
 
       String queueUrl = smRequest.getQueueUrl();
       if (queueUrl == null) return request;
+      if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
+        return request;
+      }
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-      Context context = newContext(request, queueUrl);
       // making a copy of the MessageAttributes before modifying them because they can be stored in
       // a kind of ImmutableMap
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(smRequest.getMessageAttributes());
-      dsmPropagator.inject(context, messageAttributes, SETTER);
+      injectTraceContext(messageAttributes, request, queueUrl);
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
       smRequest.setMessageAttributes(messageAttributes);
@@ -59,13 +59,14 @@ public class SqsInterceptor extends RequestHandler2 {
 
       String queueUrl = smbRequest.getQueueUrl();
       if (queueUrl == null) return request;
+      if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
+        return request;
+      }
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-      Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.getMessageAttributes());
-        dsmPropagator.inject(context, messageAttributes, SETTER);
+        injectTraceContext(messageAttributes, request, queueUrl);
         entry.setMessageAttributes(messageAttributes);
       }
     } else if (request instanceof ReceiveMessageRequest) {
@@ -81,10 +82,37 @@ public class SqsInterceptor extends RequestHandler2 {
     return request;
   }
 
+  private void injectTraceContext(
+      Map<String, MessageAttributeValue> messageAttributes,
+      AmazonWebServiceRequest request,
+      String queueUrl) {
+    if (messageAttributes.size() >= 10 || messageAttributes.containsKey(DATADOG_KEY)) {
+      return;
+    }
+
+    StringBuilder jsonBuilder = new StringBuilder();
+    jsonBuilder.append('{');
+    defaultPropagator().inject(newContext(request, queueUrl), jsonBuilder, SETTER);
+    if (jsonBuilder.length() == 1) {
+      return;
+    }
+    jsonBuilder.setLength(jsonBuilder.length() - 1);
+    jsonBuilder.append('}');
+    messageAttributes.put(
+        DATADOG_KEY,
+        new MessageAttributeValue()
+            .withDataType("String")
+            .withStringValue(jsonBuilder.toString()));
+  }
+
   private Context newContext(AmazonWebServiceRequest request, String queueUrl) {
     AgentSpan span = newSpan(request);
-    DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
-    return span.with(dsmContext);
+    Context context = span;
+    if (traceConfig().isDataStreamsEnabled()) {
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(queueUrl));
+      context = context.with(dsmContext);
+    }
+    return context;
   }
 
   private AgentSpan newSpan(AmazonWebServiceRequest request) {

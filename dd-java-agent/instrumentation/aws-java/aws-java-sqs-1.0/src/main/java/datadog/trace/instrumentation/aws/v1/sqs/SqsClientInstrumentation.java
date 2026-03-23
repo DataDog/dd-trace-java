@@ -52,17 +52,19 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
   public static class HandlerChainAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
-      if (Config.get().isDataStreamsEnabled()) {
-        for (RequestHandler2 interceptor : handlers) {
-          if (interceptor instanceof SqsInterceptor) {
-            return; // list already has our interceptor, return to builder
-          }
-        }
-        handlers.add(
-            new SqsInterceptor(
-                InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+      if (!Config.get().isDataStreamsEnabled()
+          && !Config.get().isSqsInjectDatadogAttributeEnabled()) {
+        return;
       }
+      for (RequestHandler2 interceptor : handlers) {
+        if (interceptor instanceof SqsInterceptor) {
+          return; // list already has our interceptor, return to builder
+        }
+      }
+      handlers.add(
+          new SqsInterceptor(
+              InstrumentationContext.get(
+                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
     }
   }
 }
