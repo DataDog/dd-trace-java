@@ -2,26 +2,27 @@ package datadog.trace.codecoverage;
 
 import datadog.trace.coverage.LinesCoverage;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.jacoco.core.analysis.Analyzer;
-import org.jacoco.core.analysis.CoverageBuilder;
-import org.jacoco.core.analysis.IClassCoverage;
-import org.jacoco.core.analysis.ICounter;
+import org.jacoco.core.data.ExecutionData;
 import org.jacoco.core.data.ExecutionDataStore;
 import org.jacoco.core.data.SessionInfoStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Periodically collects code coverage probe data, resolves it to covered source lines using
- * JaCoCo's analysis pipeline, and sends the results via a {@link CodeCoverageLcovSender}.
+ * Periodically collects code coverage probe data, resolves it to covered source lines using a
+ * cached probe-to-line mapping, and sends the results via a {@link CodeCoverageLcovSender}.
+ *
+ * <p>On the first collection cycle (or when new classes appear), a classpath scan builds the
+ * cache. Subsequent cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code
+ * Analyzer} pass is needed.
  */
 public final class CodeCoverageCollector {
 
@@ -31,6 +32,7 @@ public final class CodeCoverageCollector {
   private final CodeCoverageLcovSender sender;
   private final int intervalSeconds;
   private final String explicitClasspath;
+  private final ProbeMappingCache probeCache = new ProbeMappingCache();
   private volatile ScheduledExecutorService scheduler;
 
   /**
@@ -73,7 +75,7 @@ public final class CodeCoverageCollector {
     }
   }
 
-  /** Performs a single collection cycle: collect probes, analyze, and send. */
+  /** Performs a single collection cycle: collect probes, resolve via cache, and send. */
   void collect() {
     try {
       // 1. Collect and reset probes
@@ -81,35 +83,37 @@ public final class CodeCoverageCollector {
       SessionInfoStore sessionStore = new SessionInfoStore();
       transformer.collectAndReset(execStore, sessionStore);
 
-      // 2. Resolve classpath entries
-      List<File> classpathEntries = resolveClasspath();
-
-      // 3. Analyze: map probes to source lines using original class files
-      CoverageBuilder builder = new CoverageBuilder();
-      Analyzer analyzer = new Analyzer(execStore, builder);
-      for (File entry : classpathEntries) {
-        if (entry.exists()) {
-          try {
-            analyzer.analyzeAll(entry);
-          } catch (IOException e) {
-            log.debug("Failed to analyze classpath entry: {}", entry, e);
-          }
+      // 2. Separate cache hits from misses
+      Collection<ExecutionData> allEntries = execStore.getContents();
+      List<ExecutionData> cacheMisses = new ArrayList<>();
+      for (ExecutionData ed : allEntries) {
+        if (probeCache.get(ed.getId()) == null) {
+          cacheMisses.add(ed);
         }
       }
 
-      // 4. Build coverage map: source file -> lines coverage
+      // 3. Build cache entries for misses (scans classpath)
+      if (!cacheMisses.isEmpty()) {
+        List<File> classpathEntries = resolveClasspath();
+        probeCache.buildMissing(cacheMisses, classpathEntries);
+        log.debug("Built cache entries for {} new classes", cacheMisses.size());
+      }
+
+      // 4. Build coverage from cache
       Map<String, LinesCoverage> coverage = new HashMap<>();
-      for (IClassCoverage cc : builder.getClasses()) {
-        if (cc.getSourceFileName() == null) {
-          continue;
+      for (ExecutionData ed : allEntries) {
+        ClassProbeMapping mapping = probeCache.get(ed.getId());
+        if (mapping == null || mapping.sourceFile == null) {
+          continue; // no mapping available
         }
-        String sourceFile = cc.getPackageName() + "/" + cc.getSourceFileName();
-        LinesCoverage lc = coverage.computeIfAbsent(sourceFile, k -> new LinesCoverage());
-        for (int line = cc.getFirstLine(); line <= cc.getLastLine(); line++) {
-          int status = cc.getLine(line).getStatus();
-          if (status != ICounter.EMPTY) {
-            lc.executableLines.set(line);
-            if (status == ICounter.PARTLY_COVERED || status == ICounter.FULLY_COVERED) {
+
+        LinesCoverage lc = coverage.computeIfAbsent(mapping.sourceFile, k -> new LinesCoverage());
+        lc.executableLines.or(mapping.executableLines);
+
+        boolean[] probes = ed.getProbes();
+        for (int p = 0; p < probes.length && p < mapping.probeToLines.length; p++) {
+          if (probes[p]) {
+            for (int line : mapping.probeToLines[p]) {
               lc.coveredLines.set(line);
             }
           }
