@@ -117,17 +117,76 @@ public class BodyParserHelpers {
   private static MultipartFormData<?> handleMultipartFormData(MultipartFormData<?> data) {
     scala.collection.immutable.Map<String, Seq<String>> mpfd = data.asFormUrlEncoded();
 
-    if (mpfd == null || mpfd.isEmpty()) {
-      return data;
+    if (mpfd != null && !mpfd.isEmpty()) {
+      try {
+        Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
+        handleArbitraryPostData(conv, "multipartFormData");
+      } catch (Exception e) {
+        handleException(e, "Error handling result of multipartFormData BodyParser");
+      }
     }
 
-    try {
-      Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
-      handleArbitraryPostData(conv, "multipartFormData");
-    } catch (Exception e) {
-      handleException(e, "Error handling result of multipartFormData BodyParser");
+    Seq<?> files = data.files();
+    if (files != null && !files.isEmpty()) {
+      try {
+        handleMultipartFilenames(files);
+      } catch (Exception e) {
+        handleException(e, "Error handling multipartFormData filenames");
+      }
     }
+
     return data;
+  }
+
+  private static void handleMultipartFilenames(Seq<?> files) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return;
+    }
+    RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+      return;
+    }
+
+    List<String> filenames = new ArrayList<>();
+    Iterator<?> iterator = files.iterator();
+    while (iterator.hasNext()) {
+      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+      String filename = part.filename();
+      if (filename != null && !filename.isEmpty()) {
+        filenames.add(filename);
+      }
+    }
+
+    if (filenames.isEmpty()) {
+      return;
+    }
+
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+    if (callback == null) {
+      return;
+    }
+    executeFilenamesCallback(reqCtx, callback, filenames);
+  }
+
+  private static void executeFilenamesCallback(
+      RequestContext reqCtx,
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback,
+      List<String> filenames) {
+    Flow<Void> flow = callback.apply(reqCtx, filenames);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        if (success) {
+          throw new BlockingException("Blocked request (multipart file upload)");
+        }
+      }
+    }
   }
 
   public static Function1<JsValue, JsValue> getHandleJsonF() {
