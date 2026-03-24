@@ -1,6 +1,7 @@
 package datadog.trace.codecoverage;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
@@ -51,8 +52,11 @@ final class ClassProbeMappingBuilder {
     }
 
     if (executableLines.isEmpty()) {
+      // No executable lines — return mapping with empty (not null) arrays for each probe
+      int[][] emptyProbeToLines = new int[probeCount][];
+      Arrays.fill(emptyProbeToLines, new int[0]);
       return new ClassProbeMapping(
-          classId, className, sourceFile, executableLines, new int[probeCount][]);
+          classId, className, sourceFile, executableLines, emptyProbeToLines);
     }
 
     // 2. Build per-probe line mapping
