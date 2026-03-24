@@ -809,6 +809,8 @@ aggregate_test_counts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
