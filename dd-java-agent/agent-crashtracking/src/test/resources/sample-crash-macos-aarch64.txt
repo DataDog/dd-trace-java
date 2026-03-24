@@ -140,7 +140,7 @@ x17=0x0000000100a17cb0 points into unknown readable memory: 0x00000000ffffffff |
 x18=0x0 is null
 x19=0x000000016feee180 is pointing into the stack for thread: 0x0000000100a153f0
 x20=0x000000016feee198 is pointing into the stack for thread: 0x0000000100a153f0
-x21=0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib at 0x0000000105efc000
+x21=0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib at 0x0000000105efc000
 x22=0x00000ff0007cbc5d is pointing into metadata
 x23=0x000000006353d1f8 is an unknown value
 x24=0x000000016feee248 is pointing into the stack for thread: 0x0000000100a153f0
@@ -802,11 +802,11 @@ Metaspace Usage History (0 events):
 No events
 
 Dll operation events (5 events):
-Event: 0.013 Loaded shared library /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libjava.dylib
-Event: 0.089 Loaded shared library /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libnio.dylib
-Event: 0.090 Loaded shared library /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libjimage.dylib
-Event: 0.099 Loaded shared library /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libnet.dylib
-Event: 0.350 Loaded shared library /Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libzip.dylib
+Event: 0.013 Loaded shared library /Users/USER/.local/share/mise/installs/java/25.0.2/lib/libjava.dylib
+Event: 0.089 Loaded shared library /Users/USER/.local/share/mise/installs/java/25.0.2/lib/libnio.dylib
+Event: 0.090 Loaded shared library /Users/USER/.local/share/mise/installs/java/25.0.2/lib/libjimage.dylib
+Event: 0.099 Loaded shared library /Users/USER/.local/share/mise/installs/java/25.0.2/lib/libnet.dylib
+Event: 0.350 Loaded shared library /Users/USER/.local/share/mise/installs/java/25.0.2/lib/libzip.dylib
 
 Deoptimization events (20 events):
 Event: 0.438 Thread 0x0000000100a153f0 Uncommon trap: trap_request=0xffffff45 fr.pc=0x00000001172d1a38 relative=0x0000000000000078
@@ -944,7 +944,7 @@ Event: 0.096 Thread 0x0000000100a153f0 Thread added: 0x0000000768914800
 
 
 Dynamic libraries:
-0x00000001001e0000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libjli.dylib
+0x00000001001e0000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libjli.dylib
 0x000000019f2ab000 	/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices
 0x0000000189b18000 	/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics
 0x0000000185c53000 	/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText
@@ -1363,12 +1363,12 @@ Dynamic libraries:
 0x00000002820bc000 	/usr/lib/swift/libswiftSpatial.dylib
 0x0000000280e3b000 	/usr/lib/libSpatial.dylib
 0x0000000280775000 	/System/Library/SubFrameworks/UIUtilities.framework/Versions/A/UIUtilities
-0x0000000105efc000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib
-0x0000000100208000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libjimage.dylib
-0x000000010028c000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libjava.dylib
-0x00000001004c8000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libnio.dylib
-0x0000000100854000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libnet.dylib
-0x0000000105080000 	/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/lib/libzip.dylib
+0x0000000105efc000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib
+0x0000000100208000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libjimage.dylib
+0x000000010028c000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libjava.dylib
+0x00000001004c8000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libnio.dylib
+0x0000000100854000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libnet.dylib
+0x0000000105080000 	/Users/USER/.local/share/mise/installs/java/25.0.2/lib/libzip.dylib
 
 JVMTI agents: none
 
@@ -1420,8 +1420,8 @@ OS_NAME="Darwin"
 SOURCE=".:git:405a5699ebd0"
 
 Environment Variables:
-JAVA_HOME=/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2
-PATH=/Users/brice.dutheil/.local/share/mise/installs/java/25.0.2/bin:/Users/brice.dutheil/.npm/_npx/a88cf5ea522c16cf/node_modules/.bin:/Users/brice.dutheil/go/src/github.com/DataDog/dd-trace-java/node_modules/.bin:/Users/brice.dutheil/go/src/github.com/DataDog/node_modules/.bin:/Users/brice.dutheil/go/src/github.com/node_modules/.bin:/Users/brice.dutheil/go/src/node_modules/.bin:/Users/brice.dutheil/go/node_modules/.bin:/Users/brice.dutheil/node_modules/.bin:/Users/node_modules/.bin:/node_modules/.bin:/opt/homebrew/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/Users/brice.dutheil/.rbenv/shims:/Users/brice.dutheil/.cargo/bin:/Users/brice.dutheil/bin:/Users/brice.dutheil/.local/bin:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/usr/local/MacGPG2/bin:/Applications/Privileges.app/Contents/MacOS:/usr/local/munki:/Users/brice.dutheil/.cargo/bin:/Users/brice.dutheil/Library/Application Support/JetBrains/Toolbox/scripts:/Users/brice.dutheil/.orbstack/bin:/Users/brice.dutheil/.local/bin:/Users/brice.dutheil/.local/bin
+JAVA_HOME=/Users/USER/.local/share/mise/installs/java/25.0.2
+PATH=/Users/USER/.local/share/mise/installs/java/25.0.2/bin:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin
 SHELL=/bin/zsh
 LANG=C.UTF-8
 LC_ALL=en_US.UTF-8
