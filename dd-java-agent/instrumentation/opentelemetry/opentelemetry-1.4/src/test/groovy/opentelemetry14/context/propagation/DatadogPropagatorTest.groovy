@@ -37,6 +37,9 @@ class DatadogPropagatorTest extends AgentPropagatorTest {
     if (traceId.length() == 32) {
       tags+= '_dd.p.tid='+ traceId.substring(0, 16)
     }
+    if (sampling == UNSET) {
+      tags+= '_dd.p.ksr=1'
+    }
     assert headers['x-datadog-tags'] == tags.join(',')
     assert headers['x-datadog-sampling-priority'] == samplingPriority
   }

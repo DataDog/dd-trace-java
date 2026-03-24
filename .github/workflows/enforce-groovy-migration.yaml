@@ -4,6 +4,7 @@ on:
     types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
       - master
+      - 'release/v*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

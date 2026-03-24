@@ -110,6 +110,10 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
                 sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
+
+    if (executionSettings.isConfigurationError()) {
+      setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
+    }
   }
 
   @ParametersAreNonnullByDefault

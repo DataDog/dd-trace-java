@@ -647,6 +647,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, At
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
     if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
+      if (samplingMechanism == SamplingMechanism.AGENT_RATE
+          || samplingMechanism == SamplingMechanism.LOCAL_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_ADAPTIVE_RULE) {
+        context.getPropagationTags().updateKnuthSamplingRate(sampleRate);
+      }
     }
     return this;
   }
