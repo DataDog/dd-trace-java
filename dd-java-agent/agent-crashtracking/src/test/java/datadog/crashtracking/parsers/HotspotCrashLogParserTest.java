@@ -84,40 +84,16 @@ public class HotspotCrashLogParserTest {
   }
 
   @TableTest({
-    "scenario      | filename                         | expectedArch | expectedBitness | expectedOsType | expectedVersion             ",
-    "RHEL amd64    | sample-crash-for-telemetry.txt   | amd64        | 64-bit          | Linux          | 4.18.0-425.10.1.el8_7.x86_64",
-    "Ubuntu amd64  | sample-crash-for-telemetry-2.txt | amd64        | 64-bit          | Linux          | 5.15.0-1064-aws             ",
-    "macOS aarch64 | sample_oom.txt                   | aarch64      | 64-bit          | Mac OS         | 15.7.1                      "
+    "scenario      | filename                        ",
+    "RHEL amd64    | sample-crash-for-telemetry.txt  ",
+    "Ubuntu amd64  | sample-crash-for-telemetry-2.txt",
+    "macOS aarch64 | sample_oom.txt                  ",
+    "macOS JDK 8   | sample-crash-for-telemetry-3.txt"
   })
-  public void testOsInfoExtraction(
-      String filename,
-      String expectedArch,
-      String expectedBitness,
-      String expectedOsType,
-      String expectedVersion)
-      throws Exception {
+  public void testOsInfoFromSystemProperties(String filename) throws Exception {
     final CrashLog crashLog =
         new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), readFileAsString(filename));
     assertNotNull(crashLog.osInfo);
-    assertEquals(expectedArch, crashLog.osInfo.architecture);
-    assertEquals(expectedBitness, crashLog.osInfo.bitness);
-    assertEquals(expectedOsType, crashLog.osInfo.osType);
-    assertEquals(expectedVersion, crashLog.osInfo.version);
-  }
-
-  @Test
-  public void testOsInfoExtractionMacOsJdk8() throws Exception {
-    // crash-3: macOS JDK 8 — version falls back to OSInfo.current() since Darwin kernel
-    // version != macOS user-facing version
-    final CrashLog crashLog =
-        new HotspotCrashLogParser()
-            .parse(
-                UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry-3.txt"));
-    assertNotNull(crashLog.osInfo);
-    assertEquals("aarch64", crashLog.osInfo.architecture);
-    assertEquals("64-bit", crashLog.osInfo.bitness);
-    assertEquals("Mac OS", crashLog.osInfo.osType);
-    assertNotNull(crashLog.osInfo.version); // falls back to OSInfo.current().version
   }
 
   private String readFileAsString(String resource) throws IOException {

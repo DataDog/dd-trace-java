@@ -76,7 +76,6 @@ public final class HotspotCrashLogParser {
   private static final Pattern PLUS_SPLITTER = Pattern.compile("\\+");
   private static final Pattern SPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
-  private static final Pattern SIGNAL_PARSER = Pattern.compile("\\s*(\\w+) \\((\\w+)\\).*");
   // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
   //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
   private static final Pattern SIGINFO_PARSER =
@@ -99,54 +98,6 @@ public final class HotspotCrashLogParser {
   // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
-  private static final Pattern PLATFORM_ARCH_PATTERN =
-      Pattern.compile("\\b(linux|bsd|windows|aix)-(\\w+)\\b", Pattern.CASE_INSENSITIVE);
-  private static final Pattern MACOS_VERSION_PATTERN = Pattern.compile("\\bmacOS\\s+([\\d.]+)");
-
-  // os_info fields accumulated during parse, overwritten by more authoritative sources
-  private String osType = null;
-  private String osVersion = null;
-  private String architecture = null;
-  private String bitness = null;
-  private boolean inOsBlock = false;
-
-  private void parsePlatformInfo(String line) {
-    Matcher m = PLATFORM_ARCH_PATTERN.matcher(line);
-    if (m.find()) {
-      String platform = m.group(1).toLowerCase(Locale.ROOT);
-      architecture = m.group(2);
-      if ("linux".equals(platform)) {
-        osType = "Linux";
-      } else if ("bsd".equals(platform)) {
-        osType = "Mac OS";
-      }
-    }
-    if (line.contains("64-Bit")) {
-      bitness = "64-bit";
-    } else if (line.contains("32-Bit")) {
-      bitness = "32-bit";
-    }
-  }
-
-  private void parseUnameContent(String content) {
-    String[] tokens = SPACE_SPLITTER.split(content.trim());
-    if (tokens.length == 0) {
-      return;
-    }
-    String unameName = tokens[0];
-    if ("Linux".equalsIgnoreCase(unameName)) {
-      osType = "Linux";
-      if (tokens.length > 1) {
-        osVersion = tokens[1];
-      }
-    } else if ("Darwin".equalsIgnoreCase(unameName)) {
-      osType = "Mac OS";
-      // Darwin kernel version != macOS user-facing version; leave osVersion to be set elsewhere
-    }
-    if (tokens.length > 1) {
-      architecture = tokens[tokens.length - 1];
-    }
-  }
 
   private StackFrame parseLine(String line) {
     if (line == null || line.isEmpty()) {
@@ -321,9 +272,6 @@ public final class HotspotCrashLogParser {
             // break out of the message block
             state = State.HEADER;
           } else {
-            if (line.startsWith("# Java VM:")) {
-              parsePlatformInfo(line);
-            }
             if (oomMessage == null
                 && (sigInfo == null || "INVALID".equals(sigInfo.name))
                 && !"#".equals(line)) {
@@ -354,12 +302,6 @@ public final class HotspotCrashLogParser {
           } else if (line.contains("Time: ")) {
             int idx = line.lastIndexOf(" elapsed time: ");
             datetime = dateTimeToISO(idx > -1 ? line.substring(6, idx) : line.substring(6));
-          } else if (line.startsWith("Host:")) {
-            Matcher macOsMatcher = MACOS_VERSION_PATTERN.matcher(line);
-            if (macOsMatcher.find()) {
-              osVersion = macOsMatcher.group(1);
-              osType = "Mac OS";
-            }
           }
           break;
         case THREAD:
@@ -414,8 +356,6 @@ public final class HotspotCrashLogParser {
             state = State.DYNAMIC_LIBRARIES;
           } else if (line.contains("S Y S T E M")) {
             state = State.SYSTEM;
-          } else if (line.startsWith("vm_info:")) {
-            parsePlatformInfo(line);
           } else if (line.equals("END.")) {
             state = State.DONE;
           }
@@ -439,28 +379,6 @@ public final class HotspotCrashLogParser {
         case SYSTEM:
           if (line.equals("END.")) {
             state = State.DONE;
-          } else if (line.startsWith("OS:")) {
-            String remainder = line.substring(3);
-            int unameIdx = remainder.indexOf("uname:");
-            if (unameIdx >= 0) {
-              // JDK 8 macOS style: "OS:Bsduname:Darwin 23.6.0 ... arm64"
-              parseUnameContent(remainder.substring(unameIdx + 6).trim());
-            } else {
-              inOsBlock = true;
-            }
-          } else if (inOsBlock) {
-            if (line.startsWith("uname:")) {
-              inOsBlock = false;
-              parseUnameContent(
-                  (line.startsWith("uname: ") ? line.substring(7) : line.substring(6)).trim());
-            } else if (line.isEmpty()) {
-              inOsBlock = false;
-            }
-          } else if (line.startsWith("uname:")) {
-            parseUnameContent(
-                (line.startsWith("uname: ") ? line.substring(7) : line.substring(6)).trim());
-          } else if (line.startsWith("vm_info:")) {
-            parsePlatformInfo(line);
           } else if (datetime == null && datetimeRaw == null && line.startsWith("time: ")) {
             // JDK 8 fallback: no SUMMARY section, time is split across two lines here
             datetimeRaw = line.substring(6).trim();
@@ -529,13 +447,6 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
-    OSInfo fallback = OSInfo.current();
-    OSInfo osInfo =
-        new OSInfo(
-            architecture != null ? architecture : fallback.architecture,
-            bitness != null ? bitness : fallback.bitness,
-            osType != null ? osType : fallback.osType,
-            osVersion != null ? osVersion : fallback.version);
     Experimental experimental =
         (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
     return new CrashLog(
@@ -544,7 +455,7 @@ public final class HotspotCrashLogParser {
         datetime,
         error,
         metadata,
-        osInfo,
+        OSInfo.current(),
         procInfo,
         sigInfo,
         "1.0",

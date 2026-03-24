@@ -36,7 +36,6 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>TITLE - Contains dump event type and timestamp
- *   <li>GPINFO - General information including OS level and CPU architecture
  *   <li>ENVINFO - Environment info including process ID
  *   <li>THREADS - Thread information and stack traces
  * </ul>
@@ -59,7 +58,6 @@ public final class J9JavacoreParser {
   // Section markers
   private static final String SECTION_MARKER = "0SECTION";
   private static final String SECTION_TITLE = "TITLE";
-  private static final String SECTION_GPINFO = "GPINFO";
   private static final String SECTION_ENVINFO = "ENVINFO";
   private static final String SECTION_THREADS = "THREADS";
 
@@ -80,13 +78,6 @@ public final class J9JavacoreParser {
   private static final Pattern NATIVE_STACK_PATTERN = Pattern.compile("4XENATIVESTACK\\s+(.+)");
   private static final Pattern EXCEPTION_DETAIL_PATTERN =
       Pattern.compile("1TISIGINFO.*[Dd]etail\\s+\"(.+?)\".*");
-  private static final Pattern OS_LEVEL_PATTERN =
-      Pattern.compile("2XHOSLEVEL\\s+OS Level\\s*:\\s*(.+)");
-  private static final Pattern CPU_ARCH_PATTERN =
-      Pattern.compile("3XHCPUARCH\\s+Architecture\\s*:\\s*(\\w+)");
-  private static final Pattern JAVA_VERSION_BITNESS_PATTERN =
-      Pattern.compile("1CIJAVAVERSION\\s+.*-(\\d+)\\s*$");
-
   // Date time formatter for J9 format: YYYY/MM/DD at HH:MM:SS
   private static final DateTimeFormatter J9_DATETIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ROOT);
@@ -94,7 +85,6 @@ public final class J9JavacoreParser {
   enum Section {
     NONE,
     TITLE,
-    GPINFO,
     ENVINFO,
     THREADS,
     OTHER
@@ -113,10 +103,6 @@ public final class J9JavacoreParser {
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
-    String j9OsType = null;
-    String j9OsVersion = null;
-    String j9Architecture = null;
-    String j9Bitness = null;
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
@@ -154,34 +140,11 @@ public final class J9JavacoreParser {
           }
           break;
 
-        case GPINFO:
-          Matcher osLevelMatcher = OS_LEVEL_PATTERN.matcher(line);
-          if (osLevelMatcher.matches()) {
-            String osLevel = osLevelMatcher.group(1).trim();
-            int spaceIdx = osLevel.indexOf(' ');
-            if (spaceIdx > 0) {
-              j9OsType = osLevel.substring(0, spaceIdx);
-              j9OsVersion = osLevel.substring(spaceIdx + 1);
-            } else {
-              j9OsType = osLevel;
-            }
-            break;
-          }
-          Matcher cpuArchMatcher = CPU_ARCH_PATTERN.matcher(line);
-          if (cpuArchMatcher.matches()) {
-            j9Architecture = cpuArchMatcher.group(1);
-          }
-          break;
-
         case ENVINFO:
           // Extract process ID
           Matcher pidMatcher = PID_PATTERN.matcher(line);
           if (pidMatcher.matches()) {
             pid = pidMatcher.group(1);
-          }
-          Matcher bitsizeMatcher = JAVA_VERSION_BITNESS_PATTERN.matcher(line);
-          if (bitsizeMatcher.matches()) {
-            j9Bitness = bitsizeMatcher.group(1) + "-bit";
           }
           break;
 
@@ -294,16 +257,9 @@ public final class J9JavacoreParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
-    OSInfo fallback = OSInfo.current();
-    OSInfo osInfo =
-        new OSInfo(
-            j9Architecture != null ? j9Architecture : fallback.architecture,
-            j9Bitness != null ? j9Bitness : fallback.bitness,
-            j9OsType != null ? j9OsType : fallback.osType,
-            j9OsVersion != null ? j9OsVersion : fallback.version);
 
     return new CrashLog(
-        uuid, incomplete, datetime, error, metadata, osInfo, procInfo, sigInfo, "1.0");
+        uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
   }
 
   private static Integer safelyParseInt(String value) {
@@ -320,8 +276,6 @@ public final class J9JavacoreParser {
   private static Section detectSection(String line) {
     if (line.contains(SECTION_TITLE)) {
       return Section.TITLE;
-    } else if (line.contains(SECTION_GPINFO)) {
-      return Section.GPINFO;
     } else if (line.contains(SECTION_ENVINFO)) {
       return Section.ENVINFO;
     } else if (line.contains(SECTION_THREADS)) {
