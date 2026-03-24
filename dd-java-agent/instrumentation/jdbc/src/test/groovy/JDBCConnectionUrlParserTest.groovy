@@ -32,6 +32,7 @@ class JDBCConnectionUrlParserTest extends InstrumentationSpecification {
     ""             | _
     "jdbc:"        | _
     "jdbc::"       | _
+    "jdbc://"      | _
     "bogus:string" | _
   }
 
@@ -209,6 +210,8 @@ class JDBCConnectionUrlParserTest extends InstrumentationSpecification {
     "jdbc:sybase:Tds:dbhostname:2638/dbname"                                                                                                                                                                                                    | null     | "sybase"     | "tds"         | null     | "dbhostname"                                                          | 2638    | null                                 | "dbname"
     // unknown DB type
     "jdbc:testdb://myhost:9999/testdatabase" | null | "testdb" | null | null | "myhost" | 9999 | null | "testdatabase"
+    // host missing
+    "jdbc:testdb://" | null | "testdb" | null | null | null | null | null | null
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }
 }

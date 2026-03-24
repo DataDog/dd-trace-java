@@ -12,6 +12,7 @@ public final class DollarVariable24Helper {
   private static final Logger log = LoggerFactory.getLogger(DollarVariable24Helper.class);
 
   private static final Field AUTO_ESCAPE = prepareAutoEscape();
+  private static final Field ESCAPED_EXPRESSION = prepareEscapedExpression();
 
   private static Field prepareAutoEscape() {
     Field autoEscape = null;
@@ -23,6 +24,17 @@ public final class DollarVariable24Helper {
       return null;
     }
     return autoEscape;
+  }
+
+  private static Field prepareEscapedExpression() {
+    try {
+      Field escapedExpression = DollarVariable.class.getDeclaredField("escapedExpression");
+      escapedExpression.setAccessible(true);
+      return escapedExpression;
+    } catch (Throwable e) {
+      log.debug("Failed to get DollarVariable escapedExpression", e);
+      return null;
+    }
   }
 
   public static boolean fetchAutoEscape(Object dollarVariable) {
@@ -39,6 +51,15 @@ public final class DollarVariable24Helper {
   public static String fetchCharSec(Object object, Environment environment) {
     if (!(object instanceof DollarVariable)) {
       return null;
+    }
+    if (ESCAPED_EXPRESSION != null) {
+      try {
+        if (ESCAPED_EXPRESSION.get(object) instanceof BuiltInForLegacyEscaping) {
+          return null;
+        }
+      } catch (IllegalAccessException e) {
+        throw new UndeclaredThrowableException(e);
+      }
     }
     try {
       return (String) ((DollarVariable) object).calculateInterpolatedStringOrMarkup(environment);

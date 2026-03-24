@@ -1,8 +1,9 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope;
-import datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor;
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.util.Strings;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
@@ -23,6 +24,15 @@ public final class OtelMeterProvider implements MeterProvider {
   /** Meter shims, indexed by instrumentation scope. */
   private final Map<OtelInstrumentationScope, OtelMeter> meters = new ConcurrentHashMap<>();
 
+  private OtelMeterProvider() {
+    // register attribute reader for class-loader where this provider is being used/injected
+    OtelMetricStorage.registerAttributeReader(
+        Attributes.class.getClassLoader(),
+        (attributes, consumer) ->
+            ((Attributes) attributes)
+                .forEach((attribute, value) -> consumer.accept(attribute.getKey(), value)));
+  }
+
   @Override
   public Meter get(String instrumentationScopeName) {
     return getMeterShim(instrumentationScopeName, null, null);
@@ -31,10 +41,6 @@ public final class OtelMeterProvider implements MeterProvider {
   @Override
   public MeterBuilder meterBuilder(String instrumentationScopeName) {
     return new OtelMeterBuilder(this, instrumentationScopeName);
-  }
-
-  public void collectMetrics(OtelMetricsVisitor visitor) {
-    meters.forEach((scope, meter) -> meter.collect(visitor.visitMeter(scope)));
   }
 
   OtelMeter getMeterShim(

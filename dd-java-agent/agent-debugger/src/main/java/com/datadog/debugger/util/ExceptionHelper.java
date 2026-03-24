@@ -1,6 +1,6 @@
 package com.datadog.debugger.util;
 
-import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.logging.RatelimitedLogger;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
