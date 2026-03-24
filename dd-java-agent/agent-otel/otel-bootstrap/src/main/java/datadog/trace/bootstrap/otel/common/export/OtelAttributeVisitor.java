@@ -12,5 +12,12 @@ public interface OtelAttributeVisitor {
   int LONG_ARRAY = 6; // AttributeType.LONG_ARRAY
   int DOUBLE_ARRAY = 7; // AttributeType.DOUBLE_ARRAY
 
+  /**
+   * Visits an attribute.
+   *
+   * @param type the attribute type
+   * @param key the attribute key
+   * @param value the attribute value
+   */
   void visitAttribute(int type, String key, Object value);
 }

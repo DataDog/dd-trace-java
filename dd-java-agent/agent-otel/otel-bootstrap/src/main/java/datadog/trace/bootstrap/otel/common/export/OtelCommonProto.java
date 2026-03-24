@@ -148,6 +148,8 @@ public final class OtelCommonProto {
       case OtelAttributeVisitor.DOUBLE_ARRAY:
         writeDoubleArrayAttribute(buf, keyUtf8, (List<Double>) value);
         break;
+      default:
+        throw new IllegalArgumentException("Unknown attribute type: " + type);
     }
   }
 
