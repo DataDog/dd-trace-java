@@ -6,6 +6,7 @@ import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.util.List;
 
 /**
@@ -97,6 +98,24 @@ public final class OtelCommonProto {
 
   public static void writeTag(StreamingBuffer buf, int fieldNum, int wireType) {
     writeVarInt(buf, fieldNum << 3 | wireType);
+  }
+
+  public static void writeInstrumentationScope(
+      StreamingBuffer buf, OtelInstrumentationScope scope) {
+    byte[] scopeNameUtf8 = scope.getName().getUtf8Bytes();
+    int scopeSize = 1 + sizeVarInt(scopeNameUtf8.length) + scopeNameUtf8.length;
+    byte[] scopeVersionUtf8 = null;
+    if (scope.getVersion() != null) {
+      scopeVersionUtf8 = scope.getVersion().getUtf8Bytes();
+      scopeSize += 1 + sizeVarInt(scopeVersionUtf8.length) + scopeVersionUtf8.length;
+    }
+    writeVarInt(buf, scopeSize);
+    writeTag(buf, 1, LEN_WIRE_TYPE);
+    writeString(buf, scopeNameUtf8);
+    if (scopeVersionUtf8 != null) {
+      writeTag(buf, 2, LEN_WIRE_TYPE);
+      writeString(buf, scopeVersionUtf8);
+    }
   }
 
   @SuppressWarnings("unchecked")

@@ -15,21 +15,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.communication.serialization.GrowableBuffer;
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for {@link OtelCommonProto#writeAttribute}.
+ * Tests for {@link OtelCommonProto#writeAttribute} and {@link
+ * OtelCommonProto#writeInstrumentationScope}.
  *
- * <p>Each test creates a {@link GrowableBuffer}, calls {@code writeAttribute} with a given type,
- * key, and value, then extracts the byte array and verifies its content against the OpenTelemetry
- * {@code KeyValue} protobuf encoding defined in {@code opentelemetry/proto/common/v1/common.proto}.
+ * <p>Each test creates a {@link GrowableBuffer}, calls the method under test, then extracts the
+ * byte array and verifies its content against the OpenTelemetry protobuf encoding defined in {@code
+ * opentelemetry/proto/common/v1/common.proto}.
  *
  * <p>Relevant proto field numbers:
  *
  * <pre>
+ *   InstrumentationScope { string name = 1; string version = 2; }
  *   KeyValue   { string key = 1; AnyValue value = 2; }
  *   AnyValue   { string string_value = 1; bool bool_value = 2; int64 int_value = 3;
  *                double double_value = 4; ArrayValue array_value = 5; }
@@ -47,6 +50,26 @@ class OtelCommonProtoTest {
     byte[] bytes = new byte[slice.remaining()];
     slice.get(bytes);
     return bytes;
+  }
+
+  private static byte[] encodeScope(OtelInstrumentationScope scope) {
+    GrowableBuffer buf = new GrowableBuffer(256);
+    OtelCommonProto.writeInstrumentationScope(buf, scope);
+    ByteBuffer slice = buf.slice();
+    byte[] bytes = new byte[slice.remaining()];
+    slice.get(bytes);
+    return bytes;
+  }
+
+  /**
+   * {@code writeInstrumentationScope} prepends the {@code InstrumentationScope} body with its byte
+   * size as a varint. Remove that prefix and return a {@link CodedInputStream} over the body.
+   */
+  private static CodedInputStream instrumentationScopeStream(byte[] bytes) throws IOException {
+    CodedInputStream outer = CodedInputStream.newInstance(bytes);
+    int scopeSize = outer.readRawVarint32();
+    int varintSize = bytes.length - scopeSize;
+    return CodedInputStream.newInstance(Arrays.copyOfRange(bytes, varintSize, bytes.length));
   }
 
   /**
@@ -101,6 +124,39 @@ class OtelCommonProtoTest {
     assertEquals(1, WireFormat.getTagFieldNumber(tag), "ArrayValue.values is field 1");
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
     return arr.readBytes().newCodedInput();
+  }
+
+  // ── instrumentation scope tests ───────────────────────────────────────────
+
+  @Test
+  void testInstrumentationScopeWithVersion() throws IOException {
+    byte[] bytes = encodeScope(new OtelInstrumentationScope("io.opentelemetry", "1.2.3", null));
+    CodedInputStream scope = instrumentationScopeStream(bytes);
+
+    int tag = scope.readTag();
+    assertEquals(1, WireFormat.getTagFieldNumber(tag), "InstrumentationScope.name is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+    assertEquals("io.opentelemetry", scope.readString());
+
+    tag = scope.readTag();
+    assertEquals(2, WireFormat.getTagFieldNumber(tag), "InstrumentationScope.version is field 2");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+    assertEquals("1.2.3", scope.readString());
+
+    assertTrue(scope.isAtEnd());
+  }
+
+  @Test
+  void testInstrumentationScopeWithNullVersion() throws IOException {
+    byte[] bytes = encodeScope(new OtelInstrumentationScope("io.opentelemetry", null, null));
+    CodedInputStream scope = instrumentationScopeStream(bytes);
+
+    int tag = scope.readTag();
+    assertEquals(1, WireFormat.getTagFieldNumber(tag), "InstrumentationScope.name is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+    assertEquals("io.opentelemetry", scope.readString());
+
+    assertTrue(scope.isAtEnd(), "version field must be absent when null");
   }
 
   // ── scalar attribute tests ────────────────────────────────────────────────
