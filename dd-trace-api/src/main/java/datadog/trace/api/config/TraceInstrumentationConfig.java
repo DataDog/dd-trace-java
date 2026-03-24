@@ -12,7 +12,6 @@ public final class TraceInstrumentationConfig {
   public static final String CODE_ORIGIN_FOR_SPANS_ENABLED = "code.origin.for.spans.enabled";
   public static final String CODE_ORIGIN_MAX_USER_FRAMES = "code.origin.max.user.frames";
   public static final String TRACE_ENABLED = "trace.enabled";
-  public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
 
   public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
@@ -200,6 +199,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT =
       "trace.resource.renaming.always.simplified.endpoint";
+
+  public static final String LEGACY_CONTEXT_MANAGER_ENABLED = "legacy.context-manager.enabled";
 
   private TraceInstrumentationConfig() {}
 }

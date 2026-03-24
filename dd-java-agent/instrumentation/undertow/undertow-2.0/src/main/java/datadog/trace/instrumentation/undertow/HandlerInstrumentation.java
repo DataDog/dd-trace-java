@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.undertow;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.TRACE_SEGMENT;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
+import static datadog.trace.instrumentation.undertow.UndertowDecorator.PARENT_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -18,6 +21,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -41,7 +45,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("executeRootHandler"))
             .and(takesArguments(2))
@@ -49,6 +53,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(1, named("io.undertow.server.HttpServerExchange")))
             .and(isStatic())
             .and(isPublic()),
+        getClass().getName() + "$ContextTrackingAdvice",
         getClass().getName() + "$ExecuteRootHandlerAdvice");
   }
 
@@ -65,6 +70,26 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".IgnoreSendAttribute",
       packageName + ".UndertowBlockResponseFunction",
     };
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void extractParent(
+        @Advice.Argument(1) final HttpServerExchange exchange,
+        @Advice.Local("parentScope") ContextScope parentScope) {
+      if (exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION) != null) {
+        return; // async re-dispatch: parent context already extracted
+      }
+      final Context parentContext = DECORATE.extract(exchange);
+      exchange.putAttachment(PARENT_CONTEXT_KEY, parentContext);
+      parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
+      if (parentScope != null) parentScope.close();
+    }
   }
 
   public static class ExecuteRootHandlerAdvice {
@@ -94,7 +119,8 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         return;
       }
 
-      final Context parentContext = DECORATE.extract(exchange);
+      Context parentContext = exchange.getAttachment(PARENT_CONTEXT_KEY);
+      if (parentContext == null) parentContext = getRootContext();
       final Context context = DECORATE.startSpan(exchange, parentContext);
       scope = context.attach();
       final AgentSpan span = spanFromContext(context);

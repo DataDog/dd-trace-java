@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -53,6 +54,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
+  private final boolean configurationError;
   private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
   private final SpanTagsPropagator tagsPropagator;
@@ -75,6 +77,7 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      boolean configurationError,
       @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
@@ -92,6 +95,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
+    this.configurationError = configurationError;
     this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
@@ -130,6 +134,10 @@ public class TestSuiteImpl implements DDTestSuite {
     }
 
     testDecorator.afterStart(span);
+
+    if (configurationError) {
+      span.setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
+    }
 
     if (!parallelized) {
       activateSpanWithoutScope(span);
@@ -264,6 +272,7 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
+        configurationError,
         capabilities,
         tagsPropagator::propagateStatus);
   }

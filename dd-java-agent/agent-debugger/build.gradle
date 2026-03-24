@@ -32,20 +32,21 @@ excludedClassesCoverage += [
 
 dependencies {
   // main dependencies
-  implementation project(':utils:container-utils')
-  implementation libs.slf4j
-  implementation libs.bundles.asm
-  implementation project(':internal-api')
-  implementation project(':communication')
-  implementation project(':products:metrics:metrics-lib')
-  compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-java-agent:agent-builder')
+  compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-trace-core')
-  implementation project(':dd-java-agent:agent-debugger:debugger-el')
+  implementation project(':communication')
   implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
-  implementation libs.okhttp
+  implementation project(':dd-java-agent:agent-debugger:debugger-el')
+  implementation project(':internal-api')
+  implementation project(':products:metrics:metrics-lib')
+  implementation project(':utils:container-utils')
+  implementation project(':utils:logging-utils')
+  implementation libs.bundles.asm
   implementation libs.dogstatsd
   implementation libs.moshi
+  implementation libs.okhttp
+  implementation libs.slf4j
 
   testImplementation libs.asm.util
   testImplementation libs.bundles.junit5
@@ -67,7 +68,7 @@ dependencies {
 
   testRuntimeOnly group: 'org.scala-lang', name: 'scala-compiler', version: libs.versions.scala213.get()
   testRuntimeOnly group: 'antlr', name: 'antlr', version: '2.7.7'
-  testRuntimeOnly group: 'org.springframework', name: 'spring-web', version: '6.0.0'
+  testRuntimeOnly group: 'org.springframework', name: 'spring-web', version: '6.1.0'
 }
 
 tasks.named("shadowJar", ShadowJar) {

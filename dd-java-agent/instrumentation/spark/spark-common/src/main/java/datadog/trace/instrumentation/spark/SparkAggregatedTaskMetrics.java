@@ -1,17 +1,25 @@
 package datadog.trace.instrumentation.spark;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import datadog.metrics.api.Histogram;
+import datadog.metrics.api.HistogramWithSum;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import org.apache.spark.TaskFailedReason;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.SparkListenerTaskEnd;
+import org.apache.spark.sql.execution.metric.SQLMetricInfo;
+import org.apache.spark.util.AccumulatorV2;
 
 class SparkAggregatedTaskMetrics {
   private static final double HISTOGRAM_RELATIVE_ACCURACY = 1 / 32.0;
   private static final int HISTOGRAM_MAX_NUM_BINS = 512;
+  private static final int MAX_ACCUMULATOR_SIZE = 5000;
   private final boolean isSparkTaskHistogramEnabled = Config.get().isSparkTaskHistogramEnabled();
 
   private long executorDeserializeTime = 0L;
@@ -59,13 +67,17 @@ class SparkAggregatedTaskMetrics {
   private Histogram shuffleWriteBytesHistogram;
   private Histogram diskBytesSpilledHistogram;
 
+  // Used for Spark SQL Plan metrics ONLY, don't put in regular span for now
+  private Map<Long, HistogramWithSum> externalAccumulableHistograms;
+
   public SparkAggregatedTaskMetrics() {}
 
   public SparkAggregatedTaskMetrics(long availableExecutorTime) {
     this.previousAvailableExecutorTime = availableExecutorTime;
   }
 
-  public void addTaskMetrics(SparkListenerTaskEnd taskEnd) {
+  public void addTaskMetrics(
+      SparkListenerTaskEnd taskEnd, List<AccumulatorV2> externalAccumulators) {
     taskCompletedCount += 1;
 
     if (taskEnd.taskInfo().attemptNumber() > 0) {
@@ -127,6 +139,32 @@ class SparkAggregatedTaskMetrics {
                 shuffleWriteBytesHistogram, taskMetrics.shuffleWriteMetrics().bytesWritten());
         diskBytesSpilledHistogram =
             lazyHistogramAccept(diskBytesSpilledHistogram, taskMetrics.diskBytesSpilled());
+
+        // TODO (CY): Should we also look at TaskInfo accumulable update values as a backup? Is that
+        // only needed for SHS?
+        if (externalAccumulators != null && !externalAccumulators.isEmpty()) {
+          if (externalAccumulableHistograms == null) {
+            externalAccumulableHistograms = new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
+          }
+
+          externalAccumulators.forEach(
+              acc -> {
+                HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
+                if (hist == null) {
+                  hist =
+                      Histogram.newHistogramWithSum(
+                          HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+                }
+
+                try {
+                  // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
+                  // versions
+                  hist.accept(((Number) acc.value()).doubleValue());
+                  externalAccumulableHistograms.put(acc.id(), hist);
+                } catch (ClassCastException ignored) {
+                }
+              });
+        }
       }
     }
   }
@@ -274,6 +312,22 @@ class SparkAggregatedTaskMetrics {
     }
 
     return hist;
+  }
+
+  // Used to put external accum metrics to JSON for Spark SQL plans
+  public void externalAccumToJson(JsonGenerator generator, SQLMetricInfo info) throws IOException {
+    if (externalAccumulableHistograms != null) {
+      HistogramWithSum hist = externalAccumulableHistograms.get(info.accumulatorId());
+      String name = info.name();
+
+      if (name != null && hist != null) {
+        generator.writeStartObject();
+        generator.writeStringField(name, histogramToBase64(hist));
+        generator.writeNumberField("sum", hist.getSum());
+        generator.writeStringField("type", info.metricType());
+        generator.writeEndObject();
+      }
+    }
   }
 
   public static long computeTaskRunTime(TaskMetrics metrics) {
