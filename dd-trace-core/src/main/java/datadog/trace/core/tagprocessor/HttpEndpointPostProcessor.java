@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import java.util.List;
 import org.slf4j.Logger;
@@ -56,7 +57,7 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;

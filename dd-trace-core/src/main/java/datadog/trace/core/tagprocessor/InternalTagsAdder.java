@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import java.util.List;
@@ -21,7 +21,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
     if (spanContext == null || ddService == null) {
       return;
     }

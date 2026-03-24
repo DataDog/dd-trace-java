@@ -2,9 +2,8 @@ package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
-import java.util.List;
 import java.util.function.Supplier;
 
 public final class RemoteHostnameAdder extends TagsPostProcessor {
@@ -16,7 +15,7 @@ public final class RemoteHostnameAdder extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
     if (spanContext.getSpanId() == spanContext.getRootSpanId()) {
       unsafeTags.put(DDTags.TRACER_HOST, hostnameSupplier.get());
     }

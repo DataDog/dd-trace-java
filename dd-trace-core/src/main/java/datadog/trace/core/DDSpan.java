@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   static DDSpan create(
@@ -759,12 +759,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processServiceTags() {
-    context.earlyProcessTags(links);
+    context.earlyProcessTags(this);
   }
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, this);
   }
 
   @Override
@@ -876,6 +876,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public TraceConfig traceConfig() {
     return context.getTraceCollector().getTraceConfig();
+  }
+  
+  @Override
+  public List<? extends AgentSpanLink> getLinks() {
+	return this.links;
   }
 
   @Override

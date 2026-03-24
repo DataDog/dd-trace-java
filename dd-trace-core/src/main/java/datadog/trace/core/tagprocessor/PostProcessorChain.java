@@ -1,7 +1,7 @@
 package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import java.util.List;
 import java.util.Objects;
@@ -16,7 +16,7 @@ public final class PostProcessorChain extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
     for (final TagsPostProcessor tagsPostProcessor : chain) {
       tagsPostProcessor.processTags(unsafeTags, spanContext, spanLinks);
     }

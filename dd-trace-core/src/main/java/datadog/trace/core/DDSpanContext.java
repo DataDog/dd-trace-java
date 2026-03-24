@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
@@ -1087,19 +1088,19 @@ public class DDSpanContext
     }
   }
 
-  public void earlyProcessTags(List<AgentSpanLink> links) {
+  public void earlyProcessTags(SpanLinkAccessor links) {
     synchronized (unsafeTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
     }
   }
 
   public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+      final MetadataConsumer consumer, int longRunningVersion, SpanLinkAccessor links) {
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
 
-      String linksTag = DDSpanLink.toTag(links);
+      String linksTag = DDSpanLink.toTag(links.getLinks());
       if (linksTag != null) {
         unsafeTags.put(SPAN_LINKS, linksTag);
       }
