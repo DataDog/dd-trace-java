@@ -118,5 +118,7 @@ org.springframework:spring-core:4.0.0.RELEASE=compileClasspath,runtimeClasspath,
 org.springframework:spring-expression:4.0.0.RELEASE=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-web:4.0.0.RELEASE=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-webmvc:4.0.0.RELEASE=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=annotationProcessor,shadow,spotbugsPlugins,testAnnotationProcessor

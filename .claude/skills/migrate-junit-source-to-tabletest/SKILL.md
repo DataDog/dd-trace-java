@@ -11,11 +11,6 @@ Process (do in this order):
 4) Write each modified file once in full using Write (no incremental per-test edits).
 5) Run module tests once and verify "BUILD SUCCESSFUL". If failed, inspect JUnit XML report.
 
-Dependency:
-- If missing, add:
-  - Groovy: testImplementation libs.tabletest
-  - Kotlin: testImplementation(libs.tabletest)
-
 Import: `import org.tabletest.junit.TableTest;`
 
 JDK 8 rules:
@@ -34,6 +29,7 @@ Table formatting rules (mandatory):
 - Use '|' as delimiter.
 - Align columns with spaces so pipes line up vertically.
 - Prefer single quotes for strings requiring quotes (e.g., 'a|b', '[]', '{}', ' ').
+- Use value sets (`{a, b, c}`) instead of matrix-style repetition when only one dimension varies across otherwise-identical rows.
 
 Conversions:
 A) @CsvSource
@@ -42,7 +38,8 @@ A) @CsvSource
 - If delimiter is ',' (default): replace ',' with '|' in rows.
 
 B) @ValueSource
-- Convert to @TableTest with header from parameter name.
+- Keep single-parameter tests on `@ValueSource` (and `@NullSource` when null cases are needed).
+- Otherwise convert to @TableTest with header from parameter name.
 - Each value becomes one row.
 - Add "scenario" column using common sense for name.
 
@@ -59,6 +56,11 @@ C) @MethodSource (convert only if values are representable as strings)
 - Blank cell = null (non-primitive).
 - '' = empty string.
 - For String params that start with '[' or '{', quote to avoid collection parsing (prefer '[]'/'{}').
+
+D) @TypeConverter
+- Use `@TypeConverter` for symbolic constants used by migrated table rows (e.g. `Long.MAX_VALUE`, `DDSpanId.MAX`).
+- Prefer explicit one-case-one-return mappings.
+- Prefer shared converter utilities (e.g. in `utils/test-utils`) when reuse across modules is likely.
 
 Scenario handling:
 - If MethodSource includes a leading description string OR @ParameterizedTest(name=...) uses {0}, convert that to a scenario column and remove that parameter from method signature.

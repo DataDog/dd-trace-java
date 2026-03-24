@@ -544,6 +544,16 @@ public final class CrashUploader {
             writer.name("si_signo_human_readable").value(payload.sigInfo.name);
             writer.name("si_signo").value(payload.sigInfo.number);
           }
+          if (payload.sigInfo.action != null) {
+            writer.name("si_code").value(payload.sigInfo.code);
+            writer.name("si_code_human_readable").value(payload.sigInfo.action);
+          }
+          if (payload.sigInfo.pid != null) {
+            writer.name("si_pid").value(payload.sigInfo.pid);
+          }
+          if (payload.sigInfo.uid != null) {
+            writer.name("si_uid").value(payload.sigInfo.uid);
+          }
           writer.endObject();
         }
 

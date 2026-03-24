@@ -32,10 +32,6 @@ When converting Groovy code to Java code, make sure that:
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
 
 TableTest usage
-  Dependency, if missing add:
-    - Groovy: testImplementation libs.tabletest
-    - Kotlin: testImplementation(libs.tabletest)
-
   Import: `import org.tabletest.junit.TableTest;`
 
   JDK 8 rules:
