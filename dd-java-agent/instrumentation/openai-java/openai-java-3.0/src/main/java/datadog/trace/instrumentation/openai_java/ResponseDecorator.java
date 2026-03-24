@@ -156,7 +156,7 @@ public class ResponseDecorator {
           return toolDefinitions;
         }
       }
-    } catch (Throwable ignored) {
+    } catch (Exception ignored) {
       // fall back to raw JSON if typed extraction is unavailable or fails
     }
 
