@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.LO
 import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.STRING;
 import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.STRING_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
@@ -19,7 +18,10 @@ import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for {@link OtelCommonProto#writeAttribute} and {@link
@@ -161,9 +163,10 @@ class OtelCommonProtoTest {
 
   // ── scalar attribute tests ────────────────────────────────────────────────
 
-  @Test
-  void testStringAttribute() throws IOException {
-    byte[] bytes = encode(STRING, "str-key", "hello");
+  @ParameterizedTest
+  @ValueSource(strings = {"hello", "", "héllo", "日本語", "emoji 🎉"})
+  void testStringAttribute(String value) throws IOException {
+    byte[] bytes = encode(STRING, "str-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("str-key", readKeyField(kv));
@@ -172,12 +175,13 @@ class OtelCommonProtoTest {
     int tag = av.readTag();
     assertEquals(1, WireFormat.getTagFieldNumber(tag), "AnyValue.string_value is field 1");
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-    assertEquals("hello", av.readString());
+    assertEquals(value, av.readString());
   }
 
-  @Test
-  void testBooleanAttributeTrue() throws IOException {
-    byte[] bytes = encode(BOOLEAN, "bool-key", true);
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void testBooleanAttribute(boolean value) throws IOException {
+    byte[] bytes = encode(BOOLEAN, "bool-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("bool-key", readKeyField(kv));
@@ -186,26 +190,13 @@ class OtelCommonProtoTest {
     int tag = av.readTag();
     assertEquals(2, WireFormat.getTagFieldNumber(tag), "AnyValue.bool_value is field 2");
     assertEquals(WireFormat.WIRETYPE_VARINT, WireFormat.getTagWireType(tag));
-    assertTrue(av.readBool());
+    assertEquals(value, av.readBool());
   }
 
-  @Test
-  void testBooleanAttributeFalse() throws IOException {
-    byte[] bytes = encode(BOOLEAN, "bool-key", false);
-    CodedInputStream kv = keyValueStream(bytes);
-
-    assertEquals("bool-key", readKeyField(kv));
-
-    CodedInputStream av = readAnyValueField(kv);
-    int tag = av.readTag();
-    assertEquals(2, WireFormat.getTagFieldNumber(tag), "AnyValue.bool_value is field 2");
-    assertEquals(WireFormat.WIRETYPE_VARINT, WireFormat.getTagWireType(tag));
-    assertFalse(av.readBool());
-  }
-
-  @Test
-  void testLongAttribute() throws IOException {
-    byte[] bytes = encode(LONG, "long-key", 42L);
+  @ParameterizedTest
+  @ValueSource(longs = {0L, 1L, -1L, 42L, Long.MIN_VALUE, Long.MAX_VALUE})
+  void testLongAttribute(long value) throws IOException {
+    byte[] bytes = encode(LONG, "long-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("long-key", readKeyField(kv));
@@ -214,12 +205,24 @@ class OtelCommonProtoTest {
     int tag = av.readTag();
     assertEquals(3, WireFormat.getTagFieldNumber(tag), "AnyValue.int_value is field 3");
     assertEquals(WireFormat.WIRETYPE_VARINT, WireFormat.getTagWireType(tag));
-    assertEquals(42L, av.readInt64());
+    assertEquals(value, av.readInt64());
   }
 
-  @Test
-  void testDoubleAttribute() throws IOException {
-    byte[] bytes = encode(DOUBLE, "dbl-key", 3.14);
+  @ParameterizedTest
+  @ValueSource(
+      doubles = {
+        0.0,
+        1.0,
+        -1.5,
+        3.14,
+        Double.MIN_VALUE,
+        Double.MAX_VALUE,
+        Double.NaN,
+        Double.POSITIVE_INFINITY,
+        Double.NEGATIVE_INFINITY
+      })
+  void testDoubleAttribute(double value) throws IOException {
+    byte[] bytes = encode(DOUBLE, "dbl-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("dbl-key", readKeyField(kv));
@@ -228,14 +231,27 @@ class OtelCommonProtoTest {
     int tag = av.readTag();
     assertEquals(4, WireFormat.getTagFieldNumber(tag), "AnyValue.double_value is field 4");
     assertEquals(WireFormat.WIRETYPE_FIXED64, WireFormat.getTagWireType(tag));
-    assertEquals(3.14, av.readDouble(), 0.0);
+    // use raw bits to correctly handle NaN and negative zero
+    assertEquals(Double.doubleToRawLongBits(value), Double.doubleToRawLongBits(av.readDouble()));
   }
 
   // ── array attribute tests ─────────────────────────────────────────────────
 
   @Test
+  void testEmptyStringArrayAttribute() throws IOException {
+    byte[] bytes = encode(STRING_ARRAY, "arr-str", Collections.emptyList());
+    CodedInputStream kv = keyValueStream(bytes);
+
+    assertEquals("arr-str", readKeyField(kv));
+
+    CodedInputStream av = readAnyValueField(kv);
+    CodedInputStream arr = readArrayValueField(av);
+    assertTrue(arr.isAtEnd());
+  }
+
+  @Test
   void testStringArrayAttribute() throws IOException {
-    byte[] bytes = encode(STRING_ARRAY, "arr-str", Arrays.asList("alpha", "beta", "gamma"));
+    byte[] bytes = encode(STRING_ARRAY, "arr-str", Arrays.asList("alpha", "héllo", "日本語"));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-str", readKeyField(kv));
@@ -243,13 +259,25 @@ class OtelCommonProtoTest {
     CodedInputStream av = readAnyValueField(kv);
     CodedInputStream arr = readArrayValueField(av);
 
-    for (String expected : new String[] {"alpha", "beta", "gamma"}) {
+    for (String expected : new String[] {"alpha", "héllo", "日本語"}) {
       CodedInputStream elem = readArrayElement(arr);
       int tag = elem.readTag();
       assertEquals(1, WireFormat.getTagFieldNumber(tag), "AnyValue.string_value is field 1");
       assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
       assertEquals(expected, elem.readString());
     }
+    assertTrue(arr.isAtEnd());
+  }
+
+  @Test
+  void testEmptyBooleanArrayAttribute() throws IOException {
+    byte[] bytes = encode(BOOLEAN_ARRAY, "arr-bool", Collections.emptyList());
+    CodedInputStream kv = keyValueStream(bytes);
+
+    assertEquals("arr-bool", readKeyField(kv));
+
+    CodedInputStream av = readAnyValueField(kv);
+    CodedInputStream arr = readArrayValueField(av);
     assertTrue(arr.isAtEnd());
   }
 
@@ -274,8 +302,21 @@ class OtelCommonProtoTest {
   }
 
   @Test
+  void testEmptyLongArrayAttribute() throws IOException {
+    byte[] bytes = encode(LONG_ARRAY, "arr-long", Collections.emptyList());
+    CodedInputStream kv = keyValueStream(bytes);
+
+    assertEquals("arr-long", readKeyField(kv));
+
+    CodedInputStream av = readAnyValueField(kv);
+    CodedInputStream arr = readArrayValueField(av);
+    assertTrue(arr.isAtEnd());
+  }
+
+  @Test
   void testLongArrayAttribute() throws IOException {
-    byte[] bytes = encode(LONG_ARRAY, "arr-long", Arrays.asList(10L, 20L, 30L));
+    byte[] bytes =
+        encode(LONG_ARRAY, "arr-long", Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-long", readKeyField(kv));
@@ -283,7 +324,7 @@ class OtelCommonProtoTest {
     CodedInputStream av = readAnyValueField(kv);
     CodedInputStream arr = readArrayValueField(av);
 
-    for (long expected : new long[] {10L, 20L, 30L}) {
+    for (long expected : new long[] {0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE}) {
       CodedInputStream elem = readArrayElement(arr);
       int tag = elem.readTag();
       assertEquals(3, WireFormat.getTagFieldNumber(tag), "AnyValue.int_value is field 3");
@@ -294,8 +335,24 @@ class OtelCommonProtoTest {
   }
 
   @Test
+  void testEmptyDoubleArrayAttribute() throws IOException {
+    byte[] bytes = encode(DOUBLE_ARRAY, "arr-dbl", Collections.emptyList());
+    CodedInputStream kv = keyValueStream(bytes);
+
+    assertEquals("arr-dbl", readKeyField(kv));
+
+    CodedInputStream av = readAnyValueField(kv);
+    CodedInputStream arr = readArrayValueField(av);
+    assertTrue(arr.isAtEnd());
+  }
+
+  @Test
   void testDoubleArrayAttribute() throws IOException {
-    byte[] bytes = encode(DOUBLE_ARRAY, "arr-dbl", Arrays.asList(1.1, 2.2, 3.3));
+    byte[] bytes =
+        encode(
+            DOUBLE_ARRAY,
+            "arr-dbl",
+            Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-dbl", readKeyField(kv));
@@ -303,12 +360,14 @@ class OtelCommonProtoTest {
     CodedInputStream av = readAnyValueField(kv);
     CodedInputStream arr = readArrayValueField(av);
 
-    for (double expected : new double[] {1.1, 2.2, 3.3}) {
+    for (double expected : new double[] {0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY}) {
       CodedInputStream elem = readArrayElement(arr);
       int tag = elem.readTag();
       assertEquals(4, WireFormat.getTagFieldNumber(tag), "AnyValue.double_value is field 4");
       assertEquals(WireFormat.WIRETYPE_FIXED64, WireFormat.getTagWireType(tag));
-      assertEquals(expected, elem.readDouble(), 0.0);
+      // use raw bits to correctly handle NaN and negative zero
+      assertEquals(
+          Double.doubleToRawLongBits(expected), Double.doubleToRawLongBits(elem.readDouble()));
     }
     assertTrue(arr.isAtEnd());
   }
