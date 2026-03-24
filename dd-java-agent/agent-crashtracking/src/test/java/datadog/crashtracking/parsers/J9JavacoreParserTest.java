@@ -63,6 +63,13 @@ public class J9JavacoreParserTest {
 
     // Check native frames are present
     assertTrue(crashLog.error.stack.frames.length >= 4); // 3 java + native frames
+
+    // OS info extracted from GPINFO/ENVINFO sections
+    assertNotNull(crashLog.osInfo);
+    assertEquals("amd64", crashLog.osInfo.architecture);
+    assertEquals("64-bit", crashLog.osInfo.bitness);
+    assertEquals("Linux", crashLog.osInfo.osType);
+    assertEquals("5.15.0-generic", crashLog.osInfo.version);
   }
 
   @Test
@@ -102,6 +109,13 @@ public class J9JavacoreParserTest {
       }
     }
     assertTrue(foundGrow, "Expected ArrayList.grow in stack trace");
+
+    // OS info extracted from GPINFO/ENVINFO sections
+    assertNotNull(crashLog.osInfo);
+    assertEquals("amd64", crashLog.osInfo.architecture);
+    assertEquals("64-bit", crashLog.osInfo.bitness);
+    assertEquals("Linux", crashLog.osInfo.osType);
+    assertEquals("5.15.0-generic", crashLog.osInfo.version);
   }
 
   @Test

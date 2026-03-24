@@ -80,6 +80,12 @@ public final class J9JavacoreParser {
   private static final Pattern NATIVE_STACK_PATTERN = Pattern.compile("4XENATIVESTACK\\s+(.+)");
   private static final Pattern EXCEPTION_DETAIL_PATTERN =
       Pattern.compile("1TISIGINFO.*[Dd]etail\\s+\"(.+?)\".*");
+  private static final Pattern OS_LEVEL_PATTERN =
+      Pattern.compile("2XHOSLEVEL\\s+OS Level\\s*:\\s*(.+)");
+  private static final Pattern CPU_ARCH_PATTERN =
+      Pattern.compile("3XHCPUARCH\\s+Architecture\\s*:\\s*(\\w+)");
+  private static final Pattern JAVA_VERSION_BITNESS_PATTERN =
+      Pattern.compile("1CIJAVAVERSION\\s+.*-(\\d+)\\s*$");
 
   // Date time formatter for J9 format: YYYY/MM/DD at HH:MM:SS
   private static final DateTimeFormatter J9_DATETIME_FORMATTER =
@@ -107,6 +113,10 @@ public final class J9JavacoreParser {
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
+    String j9OsType = null;
+    String j9OsVersion = null;
+    String j9Architecture = null;
+    String j9Bitness = null;
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
@@ -145,9 +155,22 @@ public final class J9JavacoreParser {
           break;
 
         case GPINFO:
-          // OS level and CPU architecture are available in GPINFO section but currently
-          // not extracted since OSInfo.current() is used for the crash report.
-          // If needed in the future, parse 2XHOSLEVEL and 3XHCPUARCH tags here.
+          Matcher osLevelMatcher = OS_LEVEL_PATTERN.matcher(line);
+          if (osLevelMatcher.matches()) {
+            String osLevel = osLevelMatcher.group(1).trim();
+            int spaceIdx = osLevel.indexOf(' ');
+            if (spaceIdx > 0) {
+              j9OsType = osLevel.substring(0, spaceIdx);
+              j9OsVersion = osLevel.substring(spaceIdx + 1);
+            } else {
+              j9OsType = osLevel;
+            }
+            break;
+          }
+          Matcher cpuArchMatcher = CPU_ARCH_PATTERN.matcher(line);
+          if (cpuArchMatcher.matches()) {
+            j9Architecture = cpuArchMatcher.group(1);
+          }
           break;
 
         case ENVINFO:
@@ -155,6 +178,10 @@ public final class J9JavacoreParser {
           Matcher pidMatcher = PID_PATTERN.matcher(line);
           if (pidMatcher.matches()) {
             pid = pidMatcher.group(1);
+          }
+          Matcher bitsizeMatcher = JAVA_VERSION_BITNESS_PATTERN.matcher(line);
+          if (bitsizeMatcher.matches()) {
+            j9Bitness = bitsizeMatcher.group(1) + "-bit";
           }
           break;
 
@@ -267,9 +294,16 @@ public final class J9JavacoreParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    OSInfo fallback = OSInfo.current();
+    OSInfo osInfo =
+        new OSInfo(
+            j9Architecture != null ? j9Architecture : fallback.architecture,
+            j9Bitness != null ? j9Bitness : fallback.bitness,
+            j9OsType != null ? j9OsType : fallback.osType,
+            j9OsVersion != null ? j9OsVersion : fallback.version);
 
     return new CrashLog(
-        uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
+        uuid, incomplete, datetime, error, metadata, osInfo, procInfo, sigInfo, "1.0");
   }
 
   private static Integer safelyParseInt(String value) {
