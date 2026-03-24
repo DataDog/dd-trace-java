@@ -809,7 +809,10 @@ aggregate_test_counts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *set_datadog_api_keys
     - .gitlab/aggregate_test_counts.sh
