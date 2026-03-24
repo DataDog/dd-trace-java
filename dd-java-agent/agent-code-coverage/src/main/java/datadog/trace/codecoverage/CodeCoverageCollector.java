@@ -1,5 +1,6 @@
 package datadog.trace.codecoverage;
 
+import datadog.trace.coverage.CoverageKey;
 import datadog.trace.coverage.LinesCoverage;
 import java.io.File;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Periodically collects code coverage probe data, resolves it to covered source lines using a
- * cached probe-to-line mapping, and sends the results via a {@link CodeCoverageLcovSender}.
+ * cached probe-to-line mapping, and sends the results via a {@link CodeCoverageSender}.
  *
  * <p>On the first collection cycle (or when new classes appear), a classpath scan builds the
  * cache. Subsequent cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code
@@ -29,7 +30,7 @@ public final class CodeCoverageCollector {
   private static final Logger log = LoggerFactory.getLogger(CodeCoverageCollector.class);
 
   private final CodeCoverageTransformer transformer;
-  private final CodeCoverageLcovSender sender;
+  private final CodeCoverageSender sender;
   private final int intervalSeconds;
   private final String explicitClasspath;
   private final ProbeMappingCache probeCache = new ProbeMappingCache();
@@ -43,7 +44,7 @@ public final class CodeCoverageCollector {
    */
   public CodeCoverageCollector(
       CodeCoverageTransformer transformer,
-      CodeCoverageLcovSender sender,
+      CodeCoverageSender sender,
       int intervalSeconds,
       String explicitClasspath) {
     this.transformer = transformer;
@@ -100,14 +101,15 @@ public final class CodeCoverageCollector {
       }
 
       // 4. Build coverage from cache
-      Map<String, LinesCoverage> coverage = new HashMap<>();
+      Map<CoverageKey, LinesCoverage> coverage = new HashMap<>();
       for (ExecutionData ed : allEntries) {
         ClassProbeMapping mapping = probeCache.get(ed.getId());
-        if (mapping == null || mapping.sourceFile == null) {
+        if (mapping == null || mapping.className == null) {
           continue; // no mapping available
         }
 
-        LinesCoverage lc = coverage.computeIfAbsent(mapping.sourceFile, k -> new LinesCoverage());
+        CoverageKey key = new CoverageKey(mapping.sourceFile, mapping.className);
+        LinesCoverage lc = coverage.computeIfAbsent(key, k -> new LinesCoverage());
         lc.executableLines.or(mapping.executableLines);
 
         boolean[] probes = ed.getProbes();

@@ -4,11 +4,13 @@ import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.api.intake.Intake;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.coverage.CoverageReportUploader;
 import java.lang.instrument.Instrumentation;
 import java.util.HashMap;
@@ -85,8 +87,14 @@ public final class CodeCoverageSystem {
       return;
     }
 
+    tags.put(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    String env = config.getEnv();
+    if (env != null && !env.isEmpty()) {
+      tags.put(Tags.ENV, env);
+    }
+
     CoverageReportUploader uploader = new CoverageReportUploader(backendApi, tags, null);
-    CodeCoverageLcovSender sender = new CodeCoverageLcovSender(uploader);
+    CodeCoverageSender sender = new CodeCoverageSender(uploader);
 
     CodeCoverageCollector collector =
         new CodeCoverageCollector(

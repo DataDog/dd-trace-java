@@ -8,13 +8,19 @@ import java.util.BitSet;
  */
 final class ClassProbeMapping {
   final long classId;
-  final String sourceFile; // "package/SourceFile.java"
+  final String className; // "com/example/MyClass"
+  final String sourceFile; // "SourceFile.java"
   final BitSet executableLines;
   final int[][] probeToLines; // probeToLines[probeId] = sorted line numbers
 
   ClassProbeMapping(
-      long classId, String sourceFile, BitSet executableLines, int[][] probeToLines) {
+      long classId,
+      String className,
+      String sourceFile,
+      BitSet executableLines,
+      int[][] probeToLines) {
     this.classId = classId;
+    this.className = className;
     this.sourceFile = sourceFile;
     this.executableLines = executableLines;
     this.probeToLines = probeToLines;

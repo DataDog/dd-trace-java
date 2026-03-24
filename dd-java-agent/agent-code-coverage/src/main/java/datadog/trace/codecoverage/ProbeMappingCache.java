@@ -72,7 +72,8 @@ final class ProbeMappingCache {
     // Mark them in the cache with a sentinel so we don't rescan for them.
     for (Map.Entry<Long, ExecutionData> e : needed.entrySet()) {
       cache.put(
-          e.getKey(), new ClassProbeMapping(e.getKey(), null, new BitSet(), new int[0][]));
+          e.getKey(),
+              new ClassProbeMapping(e.getKey(), null, null, new BitSet(), new int[0][]));
       log.debug(
           "Class {} (id {}) not found on classpath; skipping",
           e.getValue().getName(),

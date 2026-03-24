@@ -41,9 +41,7 @@ final class ClassProbeMappingBuilder {
       Analyzer analyzer = new Analyzer(store, builder);
       analyzer.analyzeClass(classBytes, className);
       for (IClassCoverage cc : builder.getClasses()) {
-        if (cc.getSourceFileName() != null) {
-          sourceFile = cc.getPackageName() + "/" + cc.getSourceFileName();
-        }
+        sourceFile = cc.getSourceFileName();
         for (int line = cc.getFirstLine(); line <= cc.getLastLine(); line++) {
           if (cc.getLine(line).getStatus() != ICounter.EMPTY) {
             executableLines.set(line);
@@ -52,9 +50,9 @@ final class ClassProbeMappingBuilder {
       }
     }
 
-    if (sourceFile == null) {
-      // No source info -- create a mapping with no lines
-      return new ClassProbeMapping(classId, null, executableLines, new int[probeCount][]);
+    if (executableLines.isEmpty()) {
+      return new ClassProbeMapping(
+          classId, className, sourceFile, executableLines, new int[probeCount][]);
     }
 
     // 2. Build per-probe line mapping
@@ -84,7 +82,7 @@ final class ClassProbeMappingBuilder {
       probeToLines[probeId] = bitSetToArray(coveredByProbe);
     }
 
-    return new ClassProbeMapping(classId, sourceFile, executableLines, probeToLines);
+    return new ClassProbeMapping(classId, className, sourceFile, executableLines, probeToLines);
   }
 
   private static int[] bitSetToArray(BitSet bs) {
