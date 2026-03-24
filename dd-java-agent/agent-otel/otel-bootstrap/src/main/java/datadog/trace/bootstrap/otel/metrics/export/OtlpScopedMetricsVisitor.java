@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.otel.metrics.export;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 
 /** A visitor to visit metrics produced by an instrumentation scope. */
-public interface OtelScopedMetricsVisitor {
+public interface OtlpScopedMetricsVisitor {
   /** Visits a metric in the instrumentation scope. */
-  OtelMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor);
+  OtlpMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor);
 }

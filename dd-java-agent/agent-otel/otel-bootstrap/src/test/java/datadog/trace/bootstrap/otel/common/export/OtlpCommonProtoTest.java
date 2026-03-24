@@ -1,13 +1,13 @@
 package datadog.trace.bootstrap.otel.common.export;
 
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.BOOLEAN_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.DOUBLE_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.LONG_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor.STRING_ARRAY;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.BOOLEAN;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.BOOLEAN_ARRAY;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.DOUBLE;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.DOUBLE_ARRAY;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.LONG;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.LONG_ARRAY;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,8 +24,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests for {@link OtelCommonProto#writeAttribute} and {@link
- * OtelCommonProto#writeInstrumentationScope}.
+ * Tests for {@link OtlpCommonProto#writeAttribute} and {@link
+ * OtlpCommonProto#writeInstrumentationScope}.
  *
  * <p>Each test creates a {@link GrowableBuffer}, calls the method under test, then extracts the
  * byte array and verifies its content against the OpenTelemetry protobuf encoding defined in {@code
@@ -41,13 +41,13 @@ import org.junit.jupiter.params.provider.ValueSource;
  *   ArrayValue { repeated AnyValue values = 1; }
  * </pre>
  */
-class OtelCommonProtoTest {
+class OtlpCommonProtoTest {
 
   // ── encoding helpers ──────────────────────────────────────────────────────
 
   private static byte[] encode(int type, String key, Object value) {
     GrowableBuffer buf = new GrowableBuffer(256);
-    OtelCommonProto.writeAttribute(buf, type, key, value);
+    OtlpCommonProto.writeAttribute(buf, type, key, value);
     ByteBuffer slice = buf.slice();
     byte[] bytes = new byte[slice.remaining()];
     slice.get(bytes);
@@ -56,7 +56,7 @@ class OtelCommonProtoTest {
 
   private static byte[] encodeScope(OtelInstrumentationScope scope) {
     GrowableBuffer buf = new GrowableBuffer(256);
-    OtelCommonProto.writeInstrumentationScope(buf, scope);
+    OtlpCommonProto.writeInstrumentationScope(buf, scope);
     ByteBuffer slice = buf.slice();
     byte[] bytes = new byte[slice.remaining()];
     slice.get(bytes);

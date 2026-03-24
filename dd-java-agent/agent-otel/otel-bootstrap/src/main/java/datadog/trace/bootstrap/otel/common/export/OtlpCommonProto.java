@@ -14,8 +14,8 @@ import java.util.List;
  *
  * <p>Embedded message sizes are precomputed to avoid the need for temporary buffers.
  */
-public final class OtelCommonProto {
-  private OtelCommonProto() {}
+public final class OtlpCommonProto {
+  private OtlpCommonProto() {}
 
   // wire types supported in protobuf v3
   public static final int VARINT_WIRE_TYPE = 0;
@@ -122,30 +122,30 @@ public final class OtelCommonProto {
   public static void writeAttribute(StreamingBuffer buf, int type, String key, Object value) {
     byte[] keyUtf8 = keyUtf8(key);
     switch (type) {
-      case OtelAttributeVisitor.STRING:
+      case OtlpAttributeVisitor.STRING:
         writeStringAttribute(buf, keyUtf8, valueUtf8((String) value));
         break;
-      case OtelAttributeVisitor.BOOLEAN:
+      case OtlpAttributeVisitor.BOOLEAN:
         writeBooleanAttribute(buf, keyUtf8, (boolean) value);
         break;
-      case OtelAttributeVisitor.LONG:
+      case OtlpAttributeVisitor.LONG:
         writeLongAttribute(buf, keyUtf8, (long) value);
         break;
-      case OtelAttributeVisitor.DOUBLE:
+      case OtlpAttributeVisitor.DOUBLE:
         writeDoubleAttribute(buf, keyUtf8, (double) value);
         break;
-      case OtelAttributeVisitor.STRING_ARRAY:
+      case OtlpAttributeVisitor.STRING_ARRAY:
         byte[][] valueUtf8s =
-            ((List<String>) value).stream().map(OtelCommonProto::valueUtf8).toArray(byte[][]::new);
+            ((List<String>) value).stream().map(OtlpCommonProto::valueUtf8).toArray(byte[][]::new);
         writeStringArrayAttribute(buf, keyUtf8, valueUtf8s);
         break;
-      case OtelAttributeVisitor.BOOLEAN_ARRAY:
+      case OtlpAttributeVisitor.BOOLEAN_ARRAY:
         writeBooleanArrayAttribute(buf, keyUtf8, (List<Boolean>) value);
         break;
-      case OtelAttributeVisitor.LONG_ARRAY:
+      case OtlpAttributeVisitor.LONG_ARRAY:
         writeLongArrayAttribute(buf, keyUtf8, (List<Long>) value);
         break;
-      case OtelAttributeVisitor.DOUBLE_ARRAY:
+      case OtlpAttributeVisitor.DOUBLE_ARRAY:
         writeDoubleArrayAttribute(buf, keyUtf8, (List<Double>) value);
         break;
       default:

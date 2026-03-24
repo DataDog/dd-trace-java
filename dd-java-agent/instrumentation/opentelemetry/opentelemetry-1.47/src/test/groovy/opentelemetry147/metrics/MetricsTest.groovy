@@ -11,9 +11,9 @@ import datadog.trace.bootstrap.otel.metrics.data.OtlpHistogramPoint
 import datadog.trace.bootstrap.otel.metrics.data.OtlpLongPoint
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry
 import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricsVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtelScopedMetricsVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtlpScopedMetricsVisitor
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.Attributes
 import spock.lang.Shared
@@ -426,19 +426,19 @@ class MetricsTest extends InstrumentationSpecification {
     noopCallback.close()
   }
 
-  class MeterReader implements OtelMetricsVisitor, OtelScopedMetricsVisitor, OtelMetricVisitor {
+  class MeterReader implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
     def scopeName
     def instrumentName
     def attributes = [:]
 
     @Override
-    OtelScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
+    OtlpScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
       scopeName = scope.name
       return this
     }
 
     @Override
-    OtelMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
+    OtlpMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
       instrumentName = descriptor.name
       return this
     }

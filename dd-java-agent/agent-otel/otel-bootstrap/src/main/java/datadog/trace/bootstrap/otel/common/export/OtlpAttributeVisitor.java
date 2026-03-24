@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.otel.common.export;
 
 /** A visitor to visit OpenTelemetry attributes. */
-public interface OtelAttributeVisitor {
+public interface OtlpAttributeVisitor {
 
   int STRING = 0; // AttributeType.STRING
   int BOOLEAN = 1; // AttributeType.BOOLEAN

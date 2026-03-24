@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.otel.metrics.export;
 
-import datadog.trace.bootstrap.otel.common.export.OtelAttributeVisitor;
+import datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
 
 /**
@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
  *
  * <p>Methods must be called in the following order: ( visitAttribute* visitPoint )*
  */
-public interface OtelMetricVisitor extends OtelAttributeVisitor {
+public interface OtlpMetricVisitor extends OtlpAttributeVisitor {
   /** Visits an attribute of the upcoming data point. */
   void visitAttribute(int type, String key, Object value);
 
