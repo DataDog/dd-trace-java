@@ -194,7 +194,8 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
         TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
         TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
         TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr));
+        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr),
+        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, Boolean::logicalOr));
   }
 
   @Override

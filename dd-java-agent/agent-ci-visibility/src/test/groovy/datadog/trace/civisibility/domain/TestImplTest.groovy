@@ -141,6 +141,7 @@ class TestImplTest extends SpanWriterTest {
       codeowners,
       coverageStoreFactory,
       executionResults,
+      false,
       libraryCapabilities,
       SpanTagsPropagator.NOOP_PROPAGATOR
       )

@@ -210,16 +210,63 @@ class AIGuardInternalTests extends DDSpecification {
       error.action == suite.action
       error.reason == suite.reason
       error.tags == suite.tags
+      error.sds == []
     } else {
       error == null
       eval.action == suite.action
       eval.reason == suite.reason
       eval.tags == suite.tags
+      eval.sds == []
     }
     assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
     where:
     suite << TestSuite.build()
+  }
+
+  void 'test evaluate block defaults to remote is_blocking_enabled'() {
+    given:
+    def request
+    final call = Mock(Call) {
+      execute() >> {
+        return mockResponse(
+          request,
+          200,
+          [data: [attributes: [action: 'DENY', reason: 'Nope', tags: ['deny_everything'], is_blocking_enabled: remoteBlocking]]]
+          )
+      }
+    }
+    final client = Mock(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    when:
+    Throwable error = null
+    AIGuard.Evaluation eval = null
+    try {
+      eval = aiguard.evaluate(TOOL_CALL, options)
+    } catch (Throwable e) {
+      error = e
+    }
+
+    then:
+    if (shouldBlock) {
+      error instanceof AIGuard.AIGuardAbortError
+      error.action == DENY
+    } else {
+      error == null
+      eval.action == DENY
+    }
+
+    where:
+    options                            | remoteBlocking | shouldBlock
+    AIGuard.Options.DEFAULT            | true           | true
+    AIGuard.Options.DEFAULT            | false          | false
+    new AIGuard.Options().block(false) | true           | false
   }
 
   void 'test evaluate with API errors'() {
@@ -366,7 +413,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -374,6 +421,7 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     receivedMeta.sds == sdsFindings
+    result.sds == sdsFindings
   }
 
   void 'test evaluate with empty sds findings'() {
@@ -382,7 +430,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -390,9 +438,31 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     !receivedMeta.containsKey('sds')
+    result.sds == (sdsFindings ?: [])
 
     where:
     sdsFindings << [null, []]
+  }
+
+  void 'test evaluate with sds findings in abort error'() {
+    given:
+    final sdsFindings = [
+      [
+        rule_display_name: 'Credit Card Number',
+        rule_tag: 'credit_card',
+        category: 'pii',
+        matched_text: '4111111111111111',
+        location: [start_index: 10, end_index_exclusive: 26, path: 'messages[0].content[0].text']
+      ]
+    ]
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ABORT', reason: 'PII detected', tags: ['pii'], sds_findings: sdsFindings, is_blocking_enabled: true]]])
+
+    when:
+    aiguard.evaluate(PROMPT, new AIGuard.Options().block(true))
+
+    then:
+    final error = thrown(AIGuard.AIGuardAbortError)
+    error.sds == sdsFindings
   }
 
   void 'test missing tool name'() {

@@ -1,9 +1,8 @@
 plugins {
-  groovy
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.2.1"
+  id("com.diffplug.spotless") version "8.4.0"
 }
 
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
@@ -72,7 +71,6 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
-  implementation(localGroovy())
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
 
@@ -109,7 +107,7 @@ testing {
       }
       targets.configureEach {
         testTask.configure {
-          enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
+          enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
         }
       }
     }

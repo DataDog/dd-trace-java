@@ -4,8 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 
-class NoOpHistogram implements Histogram {
-  public static final Histogram INSTANCE = new NoOpHistogram();
+class NoOpHistogram implements HistogramWithSum {
+  public static final HistogramWithSum INSTANCE = new NoOpHistogram();
 
   @Override
   public double getCount() {

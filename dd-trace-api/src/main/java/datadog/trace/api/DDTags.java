@@ -77,6 +77,7 @@ public class DDTags {
   public static final String LIBRARY_VERSION_TAG_KEY = "library_version";
   public static final String CI_ENV_VARS = "_dd.ci.env_vars";
   public static final String CI_ITR_TESTS_SKIPPED = "_dd.ci.itr.tests_skipped";
+  public static final String CI_LIBRARY_CONFIGURATION_ERROR = "_dd.ci.library_configuration_error";
   public static final String TEST_IS_USER_PROVIDED_SERVICE = "_dd.test.is_user_provided_service";
   public static final String TEST_HAS_FAILED_TEST_REPLAY = "_dd.test.has_failed_test_replay";
   public static final String MEASURED = "_dd.measured";

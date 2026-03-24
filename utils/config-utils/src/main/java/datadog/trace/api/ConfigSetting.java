@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
+
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -51,7 +53,7 @@ public final class ConfigSetting {
   }
 
   public String normalizedKey() {
-    return key.toLowerCase().replace(".", "_");
+    return propertyNameToEnvironmentVariableName(key);
   }
 
   public String stringValue() {

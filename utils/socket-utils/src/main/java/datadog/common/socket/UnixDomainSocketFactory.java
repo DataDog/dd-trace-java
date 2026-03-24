@@ -3,8 +3,8 @@ package datadog.common.socket;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
