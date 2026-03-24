@@ -52,5 +52,4 @@ java.lang.reflect.Field#setDouble(java.lang.Object,double)
 java.lang.invoke.MethodHandles.Lookup#unreflectSetter(java.lang.reflect.Field)
 
 # avoid Java deserialization entrypoint
-@defaultMessage Avoid using ObjectInputStream.readObject(). If necessary, override with @SuppressForbidden.
 java.io.ObjectInputStream#readObject()
