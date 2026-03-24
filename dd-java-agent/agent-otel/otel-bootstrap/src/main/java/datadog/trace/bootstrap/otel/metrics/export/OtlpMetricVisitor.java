@@ -6,12 +6,12 @@ import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
 /**
  * A visitor to visit a metric in an instrumentation scope.
  *
- * <p>Methods must be called in the following order: ( visitAttribute* visitPoint )*
+ * <p>Methods must be called in the following order: ( visitAttribute* visitDataPoint )*
  */
 public interface OtlpMetricVisitor extends OtlpAttributeVisitor {
   /** Visits an attribute of the upcoming data point. */
   void visitAttribute(int type, String key, Object value);
 
   /** Visits a data point in the metric. */
-  void visitPoint(OtlpDataPoint point);
+  void visitDataPoint(OtlpDataPoint point);
 }

@@ -183,7 +183,7 @@ public final class OtelMetricStorage {
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
             visitAttributes(attributes, visitor);
-            visitor.visitPoint(aggregator.collect());
+            visitor.visitDataPoint(aggregator.collect());
           }
         });
   }
@@ -218,7 +218,7 @@ public final class OtelMetricStorage {
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
             visitAttributes(attributes, visitor);
-            visitor.visitPoint(aggregator.collectAndReset());
+            visitor.visitDataPoint(aggregator.collectAndReset());
           }
         });
 

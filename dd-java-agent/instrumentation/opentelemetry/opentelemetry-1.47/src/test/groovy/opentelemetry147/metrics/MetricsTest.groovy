@@ -449,7 +449,7 @@ class MetricsTest extends InstrumentationSpecification {
     }
 
     @Override
-    void visitPoint(OtlpDataPoint point) {
+    void visitDataPoint(OtlpDataPoint point) {
       def key = scopeName + ':' + instrumentName
       if (!attributes.isEmpty()) {
         key = key + '@' + attributes
