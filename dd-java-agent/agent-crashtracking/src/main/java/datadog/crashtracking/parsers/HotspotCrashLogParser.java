@@ -76,9 +76,12 @@ public final class HotspotCrashLogParser {
   private static final Pattern SPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
   private static final Pattern SIGNAL_PARSER = Pattern.compile("\\s*(\\w+) \\((\\w+)\\).*");
+  // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
+  //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
   private static final Pattern SIGINFO_PARSER =
       Pattern.compile(
-          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+si_addr:\\s+(0x[0-9a-fA-F]+)");
+          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
+              + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))");
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
   // Matches register entries like:
@@ -306,9 +309,8 @@ public final class HotspotCrashLogParser {
           break;
         case STACKTRACE:
           if (line.startsWith("siginfo:")) {
-            // spotless:off
-            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000070
-            // spotless:on
+            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x70
+            // siginfo: si_signo: 11 (SIGSEGV), si_code: 0 (SI_USER), si_pid: 554848, si_uid: 1000
             final Matcher siginfoMatcher = SIGINFO_PARSER.matcher(line);
             if (siginfoMatcher.matches()) {
               Integer number = safelyParseInt(siginfoMatcher.group(1));
@@ -316,7 +318,9 @@ public final class HotspotCrashLogParser {
               Integer siCode = safelyParseInt(siginfoMatcher.group(3));
               String sigAction = siginfoMatcher.group(4);
               String address = siginfoMatcher.group(5);
-              sigInfo = new SigInfo(number, name, siCode, sigAction, address);
+              Integer siPid = safelyParseInt(siginfoMatcher.group(6));
+              Integer siUid = safelyParseInt(siginfoMatcher.group(7));
+              sigInfo = new SigInfo(number, name, siCode, sigAction, address, siPid, siUid);
             }
           } else if (line.startsWith("Registers:")) {
             registers = new LinkedHashMap<>();

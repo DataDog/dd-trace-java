@@ -132,7 +132,7 @@ class HistogramsTest extends DDSpecification {
 
   def "test explicit bin boundaries #iterationIndex"() {
     setup:
-    def histogram = DDSketchHistograms.FACTORY.newHistogram(boundaries)
+    def histogram = DDSketchHistograms.FACTORY.newHistogramWithSum(boundaries)
     def values = [
       Double.NEGATIVE_INFINITY,
       -Double.MAX_VALUE,
@@ -170,7 +170,7 @@ class HistogramsTest extends DDSpecification {
 
   def "test invalid bin boundaries are reported #iterationIndex"() {
     when:
-    DDSketchHistograms.FACTORY.newHistogram(boundaries)
+    DDSketchHistograms.FACTORY.newHistogramWithSum(boundaries)
 
     then:
     def e = thrown IllegalArgumentException
@@ -185,6 +185,26 @@ class HistogramsTest extends DDSpecification {
     [Double.POSITIVE_INFINITY] | "invalid bucket boundary: +Infinity"
     [1d, 2d, 3d, 3d, 4d, 5d]   | "Bucket boundaries must be in increasing order: 3.0 >= 3.0"
     [1d, 2d, 3d, 4d, 3d]       | "Bucket boundaries must be in increasing order: 4.0 >= 3.0"
+  }
+
+  def "test explicit sum statistics"() {
+    setup:
+    def histogram = DDSketchHistograms.FACTORY.newHistogramWithSum([])
+    def values = [0d, 1d, 11d, 20d, 25d]
+
+    when: "add values to sketch"
+    for (long value : values) {
+      histogram.accept(value)
+    }
+
+    then: "report sum"
+    histogram.getSum() == 57d
+
+    when:
+    histogram.clear()
+
+    then: "sum reset on clear"
+    histogram.getSum() == 0d
   }
 
   def validateQuantiles(def histogram, long[] data, double relativeAccuracy) {

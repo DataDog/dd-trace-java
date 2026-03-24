@@ -38,7 +38,30 @@ public class ExecutionSettings {
           Collections.emptyList(),
           Collections.emptyList(),
           Collections.emptyList(),
-          LineDiff.EMPTY);
+          LineDiff.EMPTY,
+          false);
+
+  public static final ExecutionSettings REQUEST_ERROR =
+      new ExecutionSettings(
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          EarlyFlakeDetectionSettings.DEFAULT,
+          TestManagementSettings.DEFAULT,
+          null,
+          Collections.emptyMap(),
+          Collections.emptyMap(),
+          null,
+          null,
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          LineDiff.EMPTY,
+          true);
 
   private final boolean itrEnabled;
   private final boolean codeCoverageEnabled;
@@ -55,6 +78,7 @@ public class ExecutionSettings {
   @Nonnull private final Map<TestFQN, Integer> testSettings;
   @Nonnull private final Map<TestSetting, Integer> settingsCount;
   @Nonnull private final Diff pullRequestDiff;
+  private final boolean configurationError;
 
   public ExecutionSettings(
       boolean itrEnabled,
@@ -74,7 +98,8 @@ public class ExecutionSettings {
       @Nonnull Collection<TestFQN> quarantinedTests,
       @Nonnull Collection<TestFQN> disabledTests,
       @Nonnull Collection<TestFQN> attemptToFixTests,
-      @Nonnull Diff pullRequestDiff) {
+      @Nonnull Diff pullRequestDiff,
+      boolean configurationError) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -88,6 +113,7 @@ public class ExecutionSettings {
     this.skippableTests = skippableTests;
     this.skippableTestsCoverage = skippableTestsCoverage;
     this.pullRequestDiff = pullRequestDiff;
+    this.configurationError = configurationError;
 
     testSettings = new HashMap<>();
     if (flakyTests != null) {
@@ -127,7 +153,8 @@ public class ExecutionSettings {
       @Nonnull Map<String, BitSet> skippableTestsCoverage,
       @Nonnull Map<TestFQN, Integer> testSettings,
       @Nonnull EnumMap<TestSetting, Integer> settingsCount,
-      @Nonnull Diff pullRequestDiff) {
+      @Nonnull Diff pullRequestDiff,
+      boolean configurationError) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -143,6 +170,7 @@ public class ExecutionSettings {
     this.testSettings = testSettings;
     this.settingsCount = settingsCount;
     this.pullRequestDiff = pullRequestDiff;
+    this.configurationError = configurationError;
   }
 
   /**
@@ -249,6 +277,10 @@ public class ExecutionSettings {
     return pullRequestDiff;
   }
 
+  public boolean isConfigurationError() {
+    return configurationError;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -272,7 +304,8 @@ public class ExecutionSettings {
         && Objects.equals(skippableTestsCoverage, that.skippableTestsCoverage)
         && Objects.equals(testSettings, that.testSettings)
         && Objects.equals(settingsCount, that.settingsCount)
-        && Objects.equals(pullRequestDiff, that.pullRequestDiff);
+        && Objects.equals(pullRequestDiff, that.pullRequestDiff)
+        && configurationError == that.configurationError;
   }
 
   @Override
@@ -292,7 +325,8 @@ public class ExecutionSettings {
         skippableTestsCoverage,
         testSettings,
         settingsCount,
-        pullRequestDiff);
+        pullRequestDiff,
+        configurationError);
   }
 
   public static class Serializer {
@@ -304,6 +338,7 @@ public class ExecutionSettings {
     private static final int IMPACTED_TESTS_DETECTION_ENABLED_FLAG = 16;
     private static final int CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG = 32;
     private static final int FAILED_TEST_REPLAY_ENABLED_FLAG = 64;
+    private static final int CONFIGURATION_ERROR_FLAG = 128;
 
     public static ByteBuffer serialize(ExecutionSettings settings) {
       datadog.trace.civisibility.ipc.serialization.Serializer s =
@@ -321,7 +356,8 @@ public class ExecutionSettings {
                   | (settings.codeCoverageReportUploadEnabled
                       ? CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG
                       : 0)
-                  | (settings.failedTestReplayEnabled ? FAILED_TEST_REPLAY_ENABLED_FLAG : 0));
+                  | (settings.failedTestReplayEnabled ? FAILED_TEST_REPLAY_ENABLED_FLAG : 0)
+                  | (settings.configurationError ? CONFIGURATION_ERROR_FLAG : 0));
       s.write(flags);
 
       EarlyFlakeDetectionSettings.Serializer.serialize(s, settings.earlyFlakeDetectionSettings);
@@ -363,6 +399,7 @@ public class ExecutionSettings {
       boolean codeCoverageReportUploadEnabled =
           (flags & CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG) != 0;
       boolean failedTestReplayEnabled = (flags & FAILED_TEST_REPLAY_ENABLED_FLAG) != 0;
+      boolean configurationError = (flags & CONFIGURATION_ERROR_FLAG) != 0;
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettings.Serializer.deserialize(buffer);
@@ -414,7 +451,8 @@ public class ExecutionSettings {
           skippableTestsCoverage,
           testSettings,
           settingsCount,
-          diff);
+          diff,
+          configurationError);
     }
   }
 }

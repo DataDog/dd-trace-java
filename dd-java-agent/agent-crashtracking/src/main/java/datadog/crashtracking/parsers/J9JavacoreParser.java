@@ -330,7 +330,7 @@ public final class J9JavacoreParser {
         signalNumber = parseEventCode(eventCode);
     }
 
-    return new SigInfo(signalNumber, signalName, null, null, null);
+    return new SigInfo(signalNumber, signalName, null, null, null, null, null);
   }
 
   private int parseEventCode(String eventCode) {

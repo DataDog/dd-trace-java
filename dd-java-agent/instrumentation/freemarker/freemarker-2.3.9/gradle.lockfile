@@ -121,5 +121,7 @@ org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=buildTimeInstrumentationPlugin,muzzleTooling,runtimeClasspath,testRuntimeClasspath,version2_3_23TestRuntimeClasspath
 org.spockframework:spock-bom:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath,version2_3_23TestCompileClasspath,version2_3_23TestRuntimeClasspath
 org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath,version2_3_23TestCompileClasspath,version2_3_23TestRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath,version2_3_23TestCompileClasspath,version2_3_23TestRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath,version2_3_23TestCompileClasspath,version2_3_23TestRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=spotbugsPlugins

@@ -429,6 +429,7 @@ class MetricsTest extends InstrumentationSpecification {
   class MeterReader implements OtelMetricsVisitor, OtelScopedMetricsVisitor, OtelMetricVisitor {
     def scopeName
     def instrumentName
+    def attributes = [:]
 
     @Override
     OtelScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
@@ -443,10 +444,16 @@ class MetricsTest extends InstrumentationSpecification {
     }
 
     @Override
-    void visitPoint(Object attributes, OtelPoint point) {
+    void visitAttribute(String key, Object value) {
+      attributes.put(key, value)
+    }
+
+    @Override
+    void visitPoint(OtelPoint point) {
       def key = scopeName + ':' + instrumentName
       if (!attributes.isEmpty()) {
-        key = key + '@' + attributes.asMap()
+        key = key + '@' + attributes
+        attributes.clear()
       }
       switch (point.class) {
         case OtelLongPoint:

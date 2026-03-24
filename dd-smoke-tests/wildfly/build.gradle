@@ -2,13 +2,13 @@ ext {
   serverName = 'wildfly'
   //serverModule = 'servlet'
   serverModule = 'wildfly'
-  serverVersion = '15.0.0.Final'
+  serverVersion = '26.1.3.Final'
   serverExtension = 'zip'
 }
 
 repositories {
   ivy {
-    url = 'https://download.jboss.org/'
+    url = 'https://github.com/wildfly/wildfly/releases/download/'
     // Restrict this repository to WildFly distribution artifacts only.
     // Without this filter, Gradle may probe this host for unrelated dependencies
     // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
@@ -16,9 +16,9 @@ repositories {
       includeGroup 'wildfly'
     }
     patternLayout {
-      // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
-      // we download the full EE profile and not the servlet minimal one
-      artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
+      // GitHub release assets are published under /<version>/wildfly-<version>.zip
+      // while the dependency coordinates keep the "wildfly" group/module.
+      artifact '/[revision]/[module]-[revision].[ext]'
     }
     metadataSources {
       it.artifact()
@@ -42,8 +42,8 @@ configurations {
 }
 
 dependencies {
-  // uses the ivy repository url to download the wildfly servlet zip
-  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
+  // Uses the ivy repository url to download the WildFly server zip.
+  // organisation = serverName, module = serverModule, revision = serverVersion, ext = serverExtension
   serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
   testImplementation project(':dd-smoke-tests')
