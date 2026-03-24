@@ -1,10 +1,7 @@
 package datadog.trace.common.sampling;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,12 +13,10 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
 
 class ParentBasedAlwaysOnSamplerTest {
 
@@ -84,17 +79,15 @@ class ParentBasedAlwaysOnSamplerTest {
     }
   }
 
-  static Stream<Arguments> childSpanInheritsSamplingDecisionFromRemoteParentArguments() {
-    return Stream.of(
-        Arguments.arguments("sampler keep", SAMPLER_KEEP),
-        Arguments.arguments("sampler drop", SAMPLER_DROP),
-        Arguments.arguments("user keep", USER_KEEP),
-        Arguments.arguments("user drop", USER_DROP));
-  }
-
-  @ParameterizedTest(name = "child span inherits sampling decision from remote parent: {0}")
-  @MethodSource("childSpanInheritsSamplingDecisionFromRemoteParentArguments")
-  void childSpanInheritsSamplingDecisionFromRemoteParent(String scenario, int parentPriority) {
+  @TableTest({
+    "scenario     | parentPriority",
+    "sampler keep | 1             ",
+    "sampler drop | 0             ",
+    "user keep    | 2             ",
+    "user drop    | -1            "
+  })
+  @ParameterizedTest(name = "child span inherits sampling decision from remote parent [{index}]")
+  void childSpanInheritsSamplingDecisionFromRemoteParent(int parentPriority) {
     ParentBasedAlwaysOnSampler sampler = new ParentBasedAlwaysOnSampler();
     CoreTracer tracer = buildTracer(sampler);
 
