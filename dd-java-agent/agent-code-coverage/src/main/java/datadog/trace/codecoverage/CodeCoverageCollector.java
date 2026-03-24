@@ -104,7 +104,7 @@ public final class CodeCoverageCollector {
       Map<CoverageKey, LinesCoverage> coverage = new HashMap<>();
       for (ExecutionData ed : allEntries) {
         ClassProbeMapping mapping = probeCache.get(ed.getId());
-        if (mapping == null || mapping.className == null) {
+        if (mapping == null || mapping.className == null || mapping.sourceFile == null) {
           continue; // no mapping available
         }
 

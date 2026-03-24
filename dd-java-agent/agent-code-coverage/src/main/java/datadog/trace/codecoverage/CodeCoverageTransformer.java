@@ -19,6 +19,8 @@ import org.jacoco.core.instr.Instrumenter;
 import org.jacoco.core.runtime.IRuntime;
 import org.jacoco.core.runtime.InjectedClassRuntime;
 import org.jacoco.core.runtime.RuntimeData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link ClassFileTransformer} that uses JaCoCo's {@link Instrumenter} to insert boolean probes
@@ -28,6 +30,8 @@ import org.jacoco.core.runtime.RuntimeData;
  * bytes (CRC64 must match the {@code .class} files on disk for analysis to work).
  */
 public final class CodeCoverageTransformer implements ClassFileTransformer {
+
+  private static final Logger log = LoggerFactory.getLogger(CodeCoverageTransformer.class);
 
   private final RuntimeData runtimeData;
   private final Instrumenter instrumenter;
@@ -119,6 +123,7 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     try {
       return instrumenter.instrument(classfileBuffer, className);
     } catch (Exception e) {
+      log.debug("Failed to instrument class {}", className, e);
       return null;
     }
   }
