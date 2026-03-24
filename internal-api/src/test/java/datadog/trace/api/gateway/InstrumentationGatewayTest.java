@@ -328,8 +328,7 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.httpRoute()).accept(null, null);
     ss.registerCallback(events.requestFilesFilenames(), throwback);
     assertEquals(
-        Flow.ResultFlow.empty(),
-        cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
+        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
     assertEquals(Events.MAX_EVENTS, throwback.count);
   }
 
