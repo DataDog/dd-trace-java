@@ -23,12 +23,12 @@ class PostProcessorChainTest extends DDSpecification {
       }
 
     def chain = new PostProcessorChain(processor1, processor2)
-    
+
     def links = []
     def tags = TagMap.fromMap(["key1": "overwrite", "key3": "unchanged"])
 
     when:
-    chain.processTags(tags, null, {link -> links.add(link)});
+    chain.processTags(tags, null, {link -> links.add(link)})
 
     then:
     assert tags == ["key1": "processor2", "key2": "processor1", "key3": "unchanged"]
@@ -54,7 +54,7 @@ class PostProcessorChainTest extends DDSpecification {
       }
 
     def chain = new PostProcessorChain(processor1, processor2)
-    
+
     def links = []
     def tags = TagMap.fromMap(["test": "test"])
 

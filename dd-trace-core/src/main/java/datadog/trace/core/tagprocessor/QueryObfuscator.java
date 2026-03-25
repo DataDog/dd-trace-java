@@ -5,11 +5,10 @@ import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

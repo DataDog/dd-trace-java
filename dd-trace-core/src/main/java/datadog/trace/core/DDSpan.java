@@ -883,10 +883,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, At
   public TraceConfig traceConfig() {
     return context.getTraceCollector().getTraceConfig();
   }
-  
+
   @Override
   public List<? extends AgentSpanLink> getLinks() {
-	return this.links;
+    return this.links;
   }
 
   @Override

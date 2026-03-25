@@ -6,10 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

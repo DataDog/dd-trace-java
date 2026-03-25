@@ -7,7 +7,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.telemetry.LogCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.util.JsonStreamParser;

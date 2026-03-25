@@ -4,10 +4,9 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
-import java.util.List;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {

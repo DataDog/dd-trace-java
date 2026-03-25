@@ -18,7 +18,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface AgentSpan
-    extends MutableSpan, WritableSpanLinks, ImplicitContextKeyed, Context, IGSpanInfo, WithAgentSpan {
+    extends MutableSpan,
+        WritableSpanLinks,
+        ImplicitContextKeyed,
+        Context,
+        IGSpanInfo,
+        WithAgentSpan {
 
   /**
    * Extracts the span from context.

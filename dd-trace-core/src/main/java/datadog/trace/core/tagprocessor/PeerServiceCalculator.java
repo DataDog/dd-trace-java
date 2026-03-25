@@ -5,10 +5,9 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
 import datadog.trace.core.DDSpanContext;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
