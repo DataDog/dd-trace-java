@@ -6,14 +6,14 @@ import datadog.opentelemetry.shim.metrics.OtelMeterProvider
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor
-import datadog.trace.bootstrap.otel.metrics.data.OtelDoublePoint
-import datadog.trace.bootstrap.otel.metrics.data.OtelHistogramPoint
-import datadog.trace.bootstrap.otel.metrics.data.OtelLongPoint
+import datadog.trace.bootstrap.otel.metrics.data.OtlpDoublePoint
+import datadog.trace.bootstrap.otel.metrics.data.OtlpHistogramPoint
+import datadog.trace.bootstrap.otel.metrics.data.OtlpLongPoint
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry
-import datadog.trace.bootstrap.otel.metrics.data.OtelPoint
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricsVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtelScopedMetricsVisitor
+import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint
+import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsVisitor
+import datadog.trace.bootstrap.otel.metrics.export.OtlpScopedMetricsVisitor
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.common.Attributes
 import spock.lang.Shared
@@ -426,37 +426,44 @@ class MetricsTest extends InstrumentationSpecification {
     noopCallback.close()
   }
 
-  class MeterReader implements OtelMetricsVisitor, OtelScopedMetricsVisitor, OtelMetricVisitor {
+  class MeterReader implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
     def scopeName
     def instrumentName
+    def attributes = [:]
 
     @Override
-    OtelScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
+    OtlpScopedMetricsVisitor visitScopedMetrics(OtelInstrumentationScope scope) {
       scopeName = scope.name
       return this
     }
 
     @Override
-    OtelMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
+    OtlpMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
       instrumentName = descriptor.name
       return this
     }
 
     @Override
-    void visitPoint(Object attributes, OtelPoint point) {
+    void visitAttribute(int type, String key, Object value) {
+      attributes.put(key, value)
+    }
+
+    @Override
+    void visitDataPoint(OtlpDataPoint point) {
       def key = scopeName + ':' + instrumentName
       if (!attributes.isEmpty()) {
-        key = key + '@' + attributes.asMap()
+        key = key + '@' + attributes
+        attributes.clear()
       }
       switch (point.class) {
-        case OtelLongPoint:
-        points.put(key, (point as OtelLongPoint).value)
+        case OtlpLongPoint:
+        points.put(key, (point as OtlpLongPoint).value)
         break
-        case OtelDoublePoint:
-        points.put(key, (point as OtelDoublePoint).value)
+        case OtlpDoublePoint:
+        points.put(key, (point as OtlpDoublePoint).value)
         break
-        case OtelHistogramPoint:
-        OtelHistogramPoint h = point as OtelHistogramPoint
+        case OtlpHistogramPoint:
+        OtlpHistogramPoint h = point as OtlpHistogramPoint
         points.put(key, [h.count, h.bucketBoundaries, h.bucketCounts, h.sum])
         break
       }

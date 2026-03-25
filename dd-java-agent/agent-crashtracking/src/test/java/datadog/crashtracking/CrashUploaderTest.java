@@ -3,7 +3,6 @@ package datadog.crashtracking;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_EVP_SUBDOMAIN;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_TELEMETRY_API_VERSION;
 import static datadog.crashtracking.CrashUploader.TELEMETRY_API_VERSION;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -217,7 +216,7 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
 
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
@@ -333,7 +332,7 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
 
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
