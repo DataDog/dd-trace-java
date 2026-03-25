@@ -18,6 +18,11 @@ import java.util.concurrent.TimeUnit
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
+  @Override
+  String operation() {
+    "apache-httpclient.request"
+  }
+
   @Shared
   def client = HttpClients.custom()
   .setConnectionManager(new BasicHttpClientConnectionManager())

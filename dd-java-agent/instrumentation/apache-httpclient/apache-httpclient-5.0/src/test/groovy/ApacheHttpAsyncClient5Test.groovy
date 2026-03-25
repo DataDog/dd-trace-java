@@ -58,6 +58,10 @@ abstract class ApacheHttpAsyncClient5Test<T extends HttpRequest> extends HttpCli
 }
 
 class ApacheHttpAsyncClient5NamingV0Test extends ApacheHttpAsyncClient5Test implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "apache-httpclient.request"
+  }
 }
 
 class ApacheHttpAsyncClient5NamingV1ForkedTest extends ApacheHttpAsyncClient5Test implements TestingGenericHttpNamingConventions.ClientV1 {

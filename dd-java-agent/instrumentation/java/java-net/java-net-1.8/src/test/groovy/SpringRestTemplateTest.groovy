@@ -64,6 +64,10 @@ abstract class SpringRestTemplateTest extends HttpClientTest {
 }
 
 class SpringRestTemplateV0ForkedTest extends SpringRestTemplateTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "http-url-connection.request"
+  }
 }
 
 class SpringRestTemplateV1ForkedTest extends SpringRestTemplateTest implements TestingGenericHttpNamingConventions.ClientV1 {

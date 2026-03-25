@@ -77,6 +77,10 @@ abstract class CommonsHttpClientTest extends HttpClientTest {
 }
 
 class CommonsHttpClientV0ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "commons-http-client.request"
+  }
 }
 
 class CommonsHttpClientV1ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
