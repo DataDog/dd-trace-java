@@ -71,13 +71,12 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
             if (!scope.contains(name)) {
               return super.loadClass(name, resolve);
             }
-            InputStream resourceStream =
-                agentLoader.getResourceAsStream(name.replace('.', '/') + ".class");
-            if (resourceStream == null) {
-              throw new ClassNotFoundException(name);
-            }
             byte[] bytes;
-            try {
+            try (InputStream resourceStream =
+                agentLoader.getResourceAsStream(name.replace('.', '/') + ".class")) {
+              if (resourceStream == null) {
+                throw new ClassNotFoundException(name);
+              }
               bytes = readAllBytes(resourceStream);
             } catch (IOException e) {
               throw new RuntimeException(e);
