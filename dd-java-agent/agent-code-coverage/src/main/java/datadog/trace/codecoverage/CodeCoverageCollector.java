@@ -1,15 +1,16 @@
 package datadog.trace.codecoverage;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.CODE_COVERAGE;
+
 import datadog.trace.coverage.CoverageKey;
 import datadog.trace.coverage.LinesCoverage;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.jacoco.core.data.ExecutionData;
 import org.jacoco.core.data.ExecutionDataStore;
@@ -34,7 +35,7 @@ public final class CodeCoverageCollector {
   private final int intervalSeconds;
   private final String explicitClasspath;
   private final ProbeMappingCache probeCache = new ProbeMappingCache();
-  private volatile ScheduledExecutorService scheduler;
+  private final AgentTaskScheduler scheduler = new AgentTaskScheduler(CODE_COVERAGE);
 
   /**
    * @param transformer the transformer that holds runtime probe data
@@ -55,25 +56,15 @@ public final class CodeCoverageCollector {
 
   /** Starts the periodic collection scheduler. */
   public void start() {
-    scheduler =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread t = new Thread(r, "dd-code-coverage");
-              t.setDaemon(true);
-              return t;
-            });
-    scheduler.scheduleAtFixedRate(this::collect, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
+    scheduler.scheduleAtFixedRate(
+        this::collect, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
     log.debug(
-        "Code coverage collector started with interval of {} seconds",
-        intervalSeconds);
+        "Code coverage collector started with interval of {} seconds", intervalSeconds);
   }
 
   /** Stops the periodic collection scheduler. */
   public void stop() {
-    ScheduledExecutorService s = scheduler;
-    if (s != null) {
-      s.shutdownNow();
-    }
+    scheduler.shutdown(5, TimeUnit.SECONDS);
   }
 
   /** Performs a single collection cycle: collect probes, resolve via cache, and send. */
