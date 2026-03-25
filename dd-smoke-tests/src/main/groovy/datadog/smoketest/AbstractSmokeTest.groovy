@@ -102,13 +102,13 @@ abstract class AbstractSmokeTest extends ProcessManager {
         }""")
       }
       prefix("/v0.4/traces") {
-        this.handleTrace(V0_4, request, response)
+        handleTrace(V0_4, request, response)
       }
       prefix("/v0.5/traces") {
-        this.handleTrace(V0_5, request, response)
+        handleTrace(V0_5, request, response)
       }
       prefix("/v1.0/traces") {
-        this.handleTrace(V1_0, request, response)
+        handleTrace(V1_0, request, response)
       }
       prefix("/v0.6/stats") {
         response.status(200).send()
