@@ -52,6 +52,42 @@ public class HotspotCrashLogParserTest {
     assertEquals(0, crashLog.error.stack.frames.length);
   }
 
+  /** macOS aarch64 uses lowercase register names: x0-x28, fp, lr, sp, pc, cpsr */
+  @Test
+  public void testRegisterParsingMacosAarch64() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
+
+    assertNotNull(crashLog.experimental, "experimental field should be populated");
+    assertNotNull(crashLog.experimental.ucontext, "ucontext should be populated");
+    assertEquals("0x0000000000000c55", crashLog.experimental.ucontext.get("x0"));
+    assertEquals("0x0000000000000000", crashLog.experimental.ucontext.get("x2"));
+    assertEquals("0x000000016feee210", crashLog.experimental.ucontext.get("fp"));
+    assertEquals("0x0000000116d0c970", crashLog.experimental.ucontext.get("lr"));
+    assertEquals("0x000000016feee0f0", crashLog.experimental.ucontext.get("sp"));
+    assertEquals("0x000000010f8ac794", crashLog.experimental.ucontext.get("pc"));
+    assertEquals("0x0000000060001000", crashLog.experimental.ucontext.get("cpsr"));
+  }
+
+  /** Linux aarch64 uses uppercase register names: R0-R30 */
+  @Test
+  public void testRegisterParsingLinuxAarch64() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
+
+    assertNotNull(crashLog.experimental, "experimental field should be populated");
+    assertNotNull(crashLog.experimental.ucontext, "ucontext should be populated");
+    assertEquals("0x0000000000000000", crashLog.experimental.ucontext.get("R0"));
+    assertEquals("0x0000000000000001", crashLog.experimental.ucontext.get("R1"));
+    assertEquals("0x0000ffff9efa168c", crashLog.experimental.ucontext.get("R30"));
+    // "Register to memory mapping:" section must NOT be included
+    assertEquals(31, crashLog.experimental.ucontext.size(), "R0-R30 = 31 registers");
+  }
+
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(

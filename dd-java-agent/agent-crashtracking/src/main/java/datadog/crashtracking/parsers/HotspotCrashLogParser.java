@@ -7,6 +7,7 @@ import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.ErrorData;
+import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
@@ -21,11 +22,25 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Parser for HotSpot JVM fatal error logs ({@code hs_err_pidNNN.log}).
+ *
+ * <p>The log is parsed using a linear state machine that mirrors the deterministic section order
+ * emitted by {@code VMError::report()} in HotSpot. The section order is fixed for a given platform
+ * but differs across OS/CPU combinations.
+ *
+ * <p>If an early sentinel line is absent (e.g. {@code "Native frames:"} is missing because the JVM
+ * crashed before producing a stack), the state machine will not advance past {@code THREAD} state
+ * and subsequent sections such as {@code siginfo} and registers will be silently skipped. The
+ * resulting {@link datadog.crashtracking.dto.CrashLog} will be marked {@code incomplete}.
+ */
 public final class HotspotCrashLogParser {
   private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
@@ -45,6 +60,7 @@ public final class HotspotCrashLogParser {
     SUMMARY,
     THREAD,
     STACKTRACE,
+    REGISTERS,
     SEEK_DYNAMIC_LIBRARIES,
     DYNAMIC_LIBRARIES,
     DONE
@@ -60,11 +76,28 @@ public final class HotspotCrashLogParser {
   private static final Pattern SPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
   private static final Pattern SIGNAL_PARSER = Pattern.compile("\\s*(\\w+) \\((\\w+)\\).*");
+  // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
+  //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
   private static final Pattern SIGINFO_PARSER =
       Pattern.compile(
-          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+si_addr:\\s+(0x[0-9a-fA-F]+)");
+          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
+              + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))");
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
+  // Matches register entries like:
+  // * RAX=0x..., R8 =0x..., TRAPNO=0x... (x86-64)
+  // * R0=0x..., R30=0x... (Linux aarch64)
+  // * x0=0x..., fp=0x..., lr=0x..., sp=0x..., pc=0x... (macOS aarch64)
+  // Note that register formatting varies by platform, the JVM crash handler can emit one or four
+  // per line.
+  private static final Pattern REGISTER_ENTRY_PARSER =
+      Pattern.compile("([A-Za-z][A-Za-z0-9]*)\\s*=\\s*(0x[0-9a-fA-F]+)");
+  // Used for the REGISTERS-state exit condition only: the register name must start the line
+  // (after optional whitespace). This prevents lines like "Top of Stack: (sp=0x...)" and
+  // "Instructions: (pc=0x...)" from being mistaken for register entries by REGISTER_ENTRY_PARSER's
+  // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
+  private static final Pattern REGISTER_LINE_START =
+      Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
 
   private StackFrame parseLine(String line) {
     if (line == null || line.isEmpty()) {
@@ -84,10 +117,10 @@ public final class HotspotCrashLogParser {
     switch (firstChar) {
       case 'J':
         {
-          // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @
-          // 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
-          // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20
-          // bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // spotless:off
+          // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
+          // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // spotless:on
           String[] parts = SPACE_SPLITTER.split(line);
           if (parts.length > 3) {
             functionName = parts[3];
@@ -221,6 +254,7 @@ public final class HotspotCrashLogParser {
     String datetime = null;
     boolean incomplete = false;
     String oomMessage = null;
+    Map<String, String> registers = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -275,8 +309,8 @@ public final class HotspotCrashLogParser {
           break;
         case STACKTRACE:
           if (line.startsWith("siginfo:")) {
-            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr:
-            // 0x0000000000000070
+            // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x70
+            // siginfo: si_signo: 11 (SIGSEGV), si_code: 0 (SI_USER), si_pid: 554848, si_uid: 1000
             final Matcher siginfoMatcher = SIGINFO_PARSER.matcher(line);
             if (siginfoMatcher.matches()) {
               Integer number = safelyParseInt(siginfoMatcher.group(1));
@@ -284,8 +318,13 @@ public final class HotspotCrashLogParser {
               Integer siCode = safelyParseInt(siginfoMatcher.group(3));
               String sigAction = siginfoMatcher.group(4);
               String address = siginfoMatcher.group(5);
-              sigInfo = new SigInfo(number, name, siCode, sigAction, address);
+              Integer siPid = safelyParseInt(siginfoMatcher.group(6));
+              Integer siUid = safelyParseInt(siginfoMatcher.group(7));
+              sigInfo = new SigInfo(number, name, siCode, sigAction, address, siPid, siUid);
             }
+          } else if (line.startsWith("Registers:")) {
+            registers = new LinkedHashMap<>();
+            state = State.REGISTERS;
           } else if (line.contains("P R O C E S S")) {
             state = State.SEEK_DYNAMIC_LIBRARIES;
           } else {
@@ -293,6 +332,17 @@ public final class HotspotCrashLogParser {
             final StackFrame frame = parseLine(line);
             if (frame != null) {
               frames.add(frame);
+            }
+          }
+          break;
+        case REGISTERS:
+          if (!line.isEmpty() && !REGISTER_LINE_START.matcher(line).find()) {
+            // non-empty line that does not start with a register entry signals end of section
+            state = State.STACKTRACE;
+          } else {
+            final Matcher m = REGISTER_ENTRY_PARSER.matcher(line);
+            while (m.find()) {
+              registers.put(m.group(1), m.group(2));
             }
           }
           break;
@@ -382,8 +432,19 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    Experimental experimental =
+        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
     return new CrashLog(
-        uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
+        uuid,
+        incomplete,
+        datetime,
+        error,
+        metadata,
+        OSInfo.current(),
+        procInfo,
+        sigInfo,
+        "1.0",
+        experimental);
   }
 
   static String dateTimeToISO(String datetime) {

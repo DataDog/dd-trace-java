@@ -11,7 +11,7 @@ final class OtelDoubleSum extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelDoublePoint(reset ? total.sumThenReset() : total.sum());
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpDoublePoint(reset ? total.sumThenReset() : total.sum());
   }
 }
