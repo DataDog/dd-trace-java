@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -690,18 +689,7 @@ public class DDSpanContext
     if (pathwayContext == null) {
       return;
     }
-
-    // This is purposely not thread safe
-    // The code randomly chooses between the two PathwayContexts.
-    // If there is a race, then that's okay
-    if (this.pathwayContext.isStarted()) {
-      // Randomly select between keeping the current context (0) or replacing (1)
-      if (ThreadLocalRandom.current().nextInt(2) == 1) {
-        this.pathwayContext = pathwayContext;
-      }
-    } else {
-      this.pathwayContext = pathwayContext;
-    }
+    this.pathwayContext = pathwayContext;
   }
 
   public CoreTracer getTracer() {
