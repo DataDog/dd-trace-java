@@ -22,6 +22,8 @@ import com.openai.models.responses.ResponseFunctionToolCall
 import com.openai.models.responses.ResponseIncludable
 import com.openai.models.responses.ResponseInputItem
 import com.openai.models.responses.ResponsePrompt
+import com.openai.models.responses.CustomTool
+import com.openai.models.responses.ToolChoiceCustom
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.LlmObsConfig
@@ -332,6 +334,35 @@ He hopes to pursue a career in software engineering after graduating.""")
     } else {
       ResponseCreateParams.builder()
       .prompt(prompt)
+      .build()
+    }
+  }
+
+  ResponseCreateParams responseCreateParamsWithCustomToolCall(boolean json) {
+    def customTool = CustomTool.builder()
+    .name("custom_weather")
+    .description("Return weather for a location")
+    .formatText()
+    .build()
+
+    def toolChoice = ToolChoiceCustom.builder()
+    .name("custom_weather")
+    .type(JsonValue.from("custom"))
+    .build()
+
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-5")
+      .input("Use the custom_weather tool to answer: What's the weather in Boston?")
+      .addTool(customTool)
+      .toolChoice(toolChoice)
+      .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_5)
+      .input("Use the custom_weather tool to answer: What's the weather in Boston?")
+      .addTool(customTool)
+      .toolChoice(toolChoice)
       .build()
     }
   }

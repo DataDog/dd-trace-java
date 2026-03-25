@@ -205,7 +205,7 @@ class ResponseServiceTest extends OpenAiTest {
     expect:
     List<LLMObs.LLMMessage> inputTags = []
     Map<String, Object> metadata = [:]
-    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags, null, metadata)
+    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags, null, metadata, false, true)
     and:
     metadata.stream == true
     inputTags.size() == 3
@@ -243,6 +243,24 @@ class ResponseServiceTest extends OpenAiTest {
 
     where:
     params << [responseCreateParamsWithPromptTracking(false), responseCreateParamsWithPromptTracking(true)]
+  }
+
+  def "create response with custom tool call"() {
+    Response resp = runUnderTrace("parent") {
+      openAiClient.responses().create(params)
+    }
+
+    expect:
+    resp != null
+    and:
+    List<LLMObs.LLMMessage> outputTags = []
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-5", String, null, null, outputTags, metadata)
+    and:
+    !outputTags.isEmpty()
+
+    where:
+    params << [responseCreateParamsWithCustomToolCall(false), responseCreateParamsWithCustomToolCall(true)]
   }
 
   def "create response error sets model_name and placeholder output"() {
@@ -317,7 +335,8 @@ class ResponseServiceTest extends OpenAiTest {
   Object inputTagsOut,
   List outputTagsOut,
   Map<String, Object> metadataOut,
-  boolean expectPromptTag = false) {
+  boolean expectPromptTag = false,
+  boolean expectRateLimitTags = false) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
