@@ -2,7 +2,7 @@ package datadog.trace.core.tagprocessor
 
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks
 import datadog.trace.core.DDSpanContext
 import datadog.trace.api.endpoint.EndpointResolver
 import spock.lang.Specification
@@ -16,7 +16,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     def endpointResolver = new EndpointResolver(true, false)
     def processor = new HttpEndpointPostProcessor(endpointResolver)
     def mockContext = Mock(DDSpanContext)
-    def mockSpanLinks = Mock(WritableSpanLinks)
+    def mockSpanLinks = Mock(AppendableSpanLinks)
     def tags = TagMap.fromMap([
       (Tags.HTTP_METHOD): "GET",
       (Tags.HTTP_ROUTE): "/greeting",
@@ -37,7 +37,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     def endpointResolver = new EndpointResolver(true, false)
     def processor = new HttpEndpointPostProcessor(endpointResolver)
     def mockContext = Mock(DDSpanContext)
-    def mockSpanLinks = Mock(WritableSpanLinks)
+    def mockSpanLinks = Mock(AppendableSpanLinks)
     def tags = TagMap.fromMap([
       (Tags.HTTP_METHOD): "GET",
       (Tags.HTTP_ROUTE): "*",  // catch-all — ineligible per RFC-1051
@@ -57,7 +57,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     def endpointResolver = new EndpointResolver(true, false)
     def processor = new HttpEndpointPostProcessor(endpointResolver)
     def mockContext = Mock(DDSpanContext)
-    def mockSpanLinks = Mock(WritableSpanLinks)
+    def mockSpanLinks = Mock(AppendableSpanLinks)
     def tags = TagMap.fromMap([
       "db.statement": "SELECT * FROM users"
     ])
@@ -75,7 +75,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     def endpointResolver = new EndpointResolver(false, false)
     def processor = new HttpEndpointPostProcessor(endpointResolver)
     def mockContext = Mock(DDSpanContext)
-    def mockSpanLinks = Mock(WritableSpanLinks)
+    def mockSpanLinks = Mock(AppendableSpanLinks)
     def tags = TagMap.fromMap([
       (Tags.HTTP_METHOD): "GET",
       (Tags.HTTP_ROUTE): "/greeting"
@@ -94,7 +94,7 @@ class HttpEndpointPostProcessorTest extends Specification {
     def endpointResolver = new EndpointResolver(true, true)
     def processor = new HttpEndpointPostProcessor(endpointResolver)
     def mockContext = Mock(DDSpanContext)
-    def mockSpanLinks = Mock(WritableSpanLinks)
+    def mockSpanLinks = Mock(AppendableSpanLinks)
     def tags = TagMap.fromMap([
       (Tags.HTTP_METHOD): "GET",
       (Tags.HTTP_ROUTE): "/greeting",

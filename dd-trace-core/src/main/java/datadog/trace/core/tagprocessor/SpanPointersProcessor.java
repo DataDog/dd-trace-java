@@ -15,7 +15,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +38,7 @@ public class SpanPointersProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     // DQH - TODO - There's a lot room to optimize this using TagMap's capabilities
     AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
     if (s3Link != null) {

@@ -1,7 +1,7 @@
 package datadog.trace.core.tagprocessor
 
 import datadog.trace.api.TagMap
-import datadog.trace.bootstrap.instrumentation.api.WritableSpanLinks
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 
@@ -10,14 +10,14 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
+        void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
           unsafeTags.put("key1", "processor1")
           unsafeTags.put("key2", "processor1")
         }
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
+        void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
           unsafeTags.put("key1", "processor2")
         }
       }
@@ -39,14 +39,14 @@ class PostProcessorChainTest extends DDSpecification {
     setup:
     def processor1 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
+        void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
           unsafeTags.clear()
           unsafeTags.put("my", "tag")
         }
       }
     def processor2 = new TagsPostProcessor() {
         @Override
-        void processTags(TagMap unsafeTags, DDSpanContext spanContext, WritableSpanLinks spanLinks) {
+        void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
           if (unsafeTags.containsKey("test")) {
             unsafeTags.put("found", "true")
           }

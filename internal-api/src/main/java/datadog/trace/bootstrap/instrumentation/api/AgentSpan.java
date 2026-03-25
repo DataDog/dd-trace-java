@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 
 public interface AgentSpan
     extends MutableSpan,
-        WritableSpanLinks,
+        AppendableSpanLinks,
         ImplicitContextKeyed,
         Context,
         IGSpanInfo,
