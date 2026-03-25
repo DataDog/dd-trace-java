@@ -271,20 +271,18 @@ public final class HotspotCrashLogParser {
           if (line.toLowerCase().contains("core dump")) {
             // break out of the message block
             state = State.HEADER;
-          } else {
-            if (oomMessage == null
-                && (sigInfo == null || "INVALID".equals(sigInfo.name))
-                && !"#".equals(line)) {
-              // note: some jvm might use INVALID to represent a OOM crash too.
-              final int oomIdx = line.indexOf(OOM_MARKER);
-              if (oomIdx > 0) {
-                oomMessage = line.substring(oomIdx + OOM_MARKER.length());
-              } else {
-                int pidIdx = line.indexOf("pid=");
-                if (pidIdx > -1) {
-                  int endIdx = line.indexOf(',', pidIdx);
-                  pid = line.substring(pidIdx + 4, endIdx);
-                }
+          } else if (oomMessage == null
+              && (sigInfo == null || "INVALID".equals(sigInfo.name))
+              && !"#".equals(line)) {
+            // note: some jvm might use INVALID to represent a OOM crash too.
+            final int oomIdx = line.indexOf(OOM_MARKER);
+            if (oomIdx > 0) {
+              oomMessage = line.substring(oomIdx + OOM_MARKER.length());
+            } else {
+              int pidIdx = line.indexOf("pid=");
+              if (pidIdx > -1) {
+                int endIdx = line.indexOf(',', pidIdx);
+                pid = line.substring(pidIdx + 4, endIdx);
               }
             }
           }
@@ -396,6 +394,7 @@ public final class HotspotCrashLogParser {
       }
     }
 
+    // SEEK_DYNAMIC_LIBRARIES and SYSTEM sections are late enough that all critical data is captured
     if (state != State.DONE && state != State.SEEK_DYNAMIC_LIBRARIES && state != State.SYSTEM) {
       // incomplete crash log
       incomplete = true;
@@ -444,6 +443,8 @@ public final class HotspotCrashLogParser {
 
     ErrorData error =
         new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+    // We can not really extract the full metadata and os info from the crash log
+    // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
