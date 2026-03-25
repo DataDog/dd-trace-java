@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class J9JavacoreParserTest {
 
@@ -65,6 +66,26 @@ public class J9JavacoreParserTest {
     assertTrue(crashLog.error.stack.frames.length >= 4); // 3 java + native frames
 
     assertNotNull(crashLog.osInfo);
+  }
+
+  @TableTest({
+    "scenario            | resource                          | pcRegister | spRegister",
+    "IBM J9 8 (amd64)    | sample-ibmj9-8-javacore-gpf.txt   | RIP        | RSP       ",
+    "OpenJ9 11 (aarch64) | sample-openj9-11-javacore-gpf.txt | PC         | SP        "
+  })
+  public void testParseRealGpfCrash(String resource, String pcRegister, String spRegister)
+      throws Exception {
+    final CrashLog crashLog =
+        new J9JavacoreParser().parse(UUID.randomUUID().toString(), readFileAsString(resource));
+
+    assertFalse(crashLog.incomplete);
+    assertEquals("SIGSEGV", crashLog.sigInfo.name);
+    assertEquals(11, crashLog.sigInfo.number);
+
+    assertNotNull(crashLog.experimental);
+    assertFalse(crashLog.experimental.ucontext.isEmpty());
+    assertTrue(crashLog.experimental.ucontext.containsKey(pcRegister));
+    assertTrue(crashLog.experimental.ucontext.containsKey(spRegister));
   }
 
   @Test

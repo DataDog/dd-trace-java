@@ -7,6 +7,7 @@ import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.ErrorData;
+import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
@@ -21,8 +22,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +39,7 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>TITLE - Contains dump event type and timestamp
+ *   <li>GPINFO - General information including OS level and CPU architecture
  *   <li>ENVINFO - Environment info including process ID
  *   <li>THREADS - Thread information and stack traces
  * </ul>
@@ -58,6 +62,7 @@ public final class J9JavacoreParser {
   // Section markers
   private static final String SECTION_MARKER = "0SECTION";
   private static final String SECTION_TITLE = "TITLE";
+  private static final String SECTION_GPINFO = "GPINFO";
   private static final String SECTION_ENVINFO = "ENVINFO";
   private static final String SECTION_THREADS = "THREADS";
 
@@ -78,6 +83,11 @@ public final class J9JavacoreParser {
   private static final Pattern NATIVE_STACK_PATTERN = Pattern.compile("4XENATIVESTACK\\s+(.+)");
   private static final Pattern EXCEPTION_DETAIL_PATTERN =
       Pattern.compile("1TISIGINFO.*[Dd]etail\\s+\"(.+?)\".*");
+  // Matches register entries in J9 GPINFO section, e.g.:
+  // 2XHREGISTER      RDI: 0000000000000001  (x86-64)
+  // 2XHREGISTER      R29: 0000FFFF990CDB50  (aarch64)
+  private static final Pattern REGISTER_ENTRY_PARSER =
+      Pattern.compile("([A-Za-z][A-Za-z0-9]*)\\s*:\\s*([0-9a-fA-F]+)");
   // Date time formatter for J9 format: YYYY/MM/DD at HH:MM:SS
   private static final DateTimeFormatter J9_DATETIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ROOT);
@@ -85,6 +95,7 @@ public final class J9JavacoreParser {
   enum Section {
     NONE,
     TITLE,
+    GPINFO,
     ENVINFO,
     THREADS,
     OTHER
@@ -103,6 +114,8 @@ public final class J9JavacoreParser {
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
+
+    Map<String, String> registers = null;
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
@@ -137,6 +150,17 @@ public final class J9JavacoreParser {
           Matcher dtMatcher = DATETIME_PATTERN.matcher(line);
           if (dtMatcher.matches()) {
             datetime = parseDateTime(dtMatcher.group(1), dtMatcher.group(2));
+          }
+          break;
+
+        case GPINFO:
+          if (line.startsWith("1XHREGISTERS")) {
+            registers = new LinkedHashMap<>();
+          } else if (registers != null && line.startsWith("2XHREGISTER")) {
+            final Matcher m = REGISTER_ENTRY_PARSER.matcher(line);
+            while (m.find()) {
+              registers.put(m.group(1), "0x" + m.group(2));
+            }
           }
           break;
 
@@ -257,9 +281,20 @@ public final class J9JavacoreParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    Experimental experimental =
+        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
 
     return new CrashLog(
-        uuid, incomplete, datetime, error, metadata, OSInfo.current(), procInfo, sigInfo, "1.0");
+        uuid,
+        incomplete,
+        datetime,
+        error,
+        metadata,
+        OSInfo.current(),
+        procInfo,
+        sigInfo,
+        "1.0",
+        experimental);
   }
 
   private static Integer safelyParseInt(String value) {
@@ -276,6 +311,8 @@ public final class J9JavacoreParser {
   private static Section detectSection(String line) {
     if (line.contains(SECTION_TITLE)) {
       return Section.TITLE;
+    } else if (line.contains(SECTION_GPINFO)) {
+      return Section.GPINFO;
     } else if (line.contains(SECTION_ENVINFO)) {
       return Section.ENVINFO;
     } else if (line.contains(SECTION_THREADS)) {
