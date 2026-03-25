@@ -36,7 +36,6 @@ import java.util.regex.Pattern;
  *
  * <ul>
  *   <li>TITLE - Contains dump event type and timestamp
- *   <li>GPINFO - General information including OS level and CPU architecture
  *   <li>ENVINFO - Environment info including process ID
  *   <li>THREADS - Thread information and stack traces
  * </ul>
@@ -59,7 +58,6 @@ public final class J9JavacoreParser {
   // Section markers
   private static final String SECTION_MARKER = "0SECTION";
   private static final String SECTION_TITLE = "TITLE";
-  private static final String SECTION_GPINFO = "GPINFO";
   private static final String SECTION_ENVINFO = "ENVINFO";
   private static final String SECTION_THREADS = "THREADS";
 
@@ -80,7 +78,6 @@ public final class J9JavacoreParser {
   private static final Pattern NATIVE_STACK_PATTERN = Pattern.compile("4XENATIVESTACK\\s+(.+)");
   private static final Pattern EXCEPTION_DETAIL_PATTERN =
       Pattern.compile("1TISIGINFO.*[Dd]etail\\s+\"(.+?)\".*");
-
   // Date time formatter for J9 format: YYYY/MM/DD at HH:MM:SS
   private static final DateTimeFormatter J9_DATETIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ROOT);
@@ -88,7 +85,6 @@ public final class J9JavacoreParser {
   enum Section {
     NONE,
     TITLE,
-    GPINFO,
     ENVINFO,
     THREADS,
     OTHER
@@ -142,12 +138,6 @@ public final class J9JavacoreParser {
           if (dtMatcher.matches()) {
             datetime = parseDateTime(dtMatcher.group(1), dtMatcher.group(2));
           }
-          break;
-
-        case GPINFO:
-          // OS level and CPU architecture are available in GPINFO section but currently
-          // not extracted since OSInfo.current() is used for the crash report.
-          // If needed in the future, parse 2XHOSLEVEL and 3XHCPUARCH tags here.
           break;
 
         case ENVINFO:
@@ -286,8 +276,6 @@ public final class J9JavacoreParser {
   private static Section detectSection(String line) {
     if (line.contains(SECTION_TITLE)) {
       return Section.TITLE;
-    } else if (line.contains(SECTION_GPINFO)) {
-      return Section.GPINFO;
     } else if (line.contains(SECTION_ENVINFO)) {
       return Section.ENVINFO;
     } else if (line.contains(SECTION_THREADS)) {

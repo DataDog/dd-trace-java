@@ -63,6 +63,8 @@ public class J9JavacoreParserTest {
 
     // Check native frames are present
     assertTrue(crashLog.error.stack.frames.length >= 4); // 3 java + native frames
+
+    assertNotNull(crashLog.osInfo);
   }
 
   @Test
@@ -102,6 +104,8 @@ public class J9JavacoreParserTest {
       }
     }
     assertTrue(foundGrow, "Expected ArrayList.grow in stack trace");
+
+    assertNotNull(crashLog.osInfo);
   }
 
   @Test
