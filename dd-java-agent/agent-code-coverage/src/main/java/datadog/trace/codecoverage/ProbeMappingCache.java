@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,14 +34,12 @@ final class ProbeMappingCache {
   }
 
   /**
-   * Populates cache entries for all classes in {@code missingClasses} by scanning the given
-   * classpath entries. Each classpath entry is a jar or directory.
-   *
-   * <p>For each class file found, computes CRC64 and checks if it matches any missing class. If
-   * so, builds a ClassProbeMapping and adds it to the cache.
+   * Populates cache entries for all classes in {@code missingClasses}. First attempts targeted
+   * lookup via the context classloader's {@code getResourceAsStream} (O(1) per class). Any classes
+   * that can't be resolved this way fall back to a full classpath scan.
    *
    * @param missingClasses execution data entries that have no cached mapping
-   * @param classpathEntries jars/directories to scan for class files
+   * @param classpathEntries jars/directories to scan as fallback
    */
   void buildMissing(Collection<ExecutionData> missingClasses, List<File> classpathEntries) {
     // Build a lookup: classId -> ExecutionData for the missing entries
@@ -49,6 +48,94 @@ final class ProbeMappingCache {
       needed.put(ed.getId(), ed);
     }
 
+    // Phase 1: targeted classloader lookup (fast path)
+    resolveViaClassloader(needed);
+
+    // Phase 2: fall back to classpath scan for anything still unresolved
+    if (!needed.isEmpty()) {
+      resolveViaClasspathScan(needed, classpathEntries);
+    }
+
+    // Any remaining entries couldn't be found anywhere.
+    // Mark them with a sentinel so we don't retry on subsequent cycles.
+    for (Map.Entry<Long, ExecutionData> e : needed.entrySet()) {
+      cache.put(
+          e.getKey(),
+          new ClassProbeMapping(e.getKey(), null, null, new BitSet(), new int[0][]));
+      log.debug(
+          "Class {} (id {}) not found on classpath; skipping",
+          e.getValue().getName(),
+          Long.toHexString(e.getKey()));
+    }
+  }
+
+  /**
+   * Attempts to resolve missing classes via the context classloader's resource lookup. This is O(1)
+   * per class — the classloader already knows where each class file lives. CRC64 is verified after
+   * reading to ensure the bytes match what JaCoCo instrumented.
+   */
+  private void resolveViaClassloader(Map<Long, ExecutionData> needed) {
+    // Try the system classloader (application classpath) first, then the context classloader.
+    // The dd-code-coverage thread inherits the agent's context classloader, which typically
+    // can't find application classes. The system classloader is the standard app classloader.
+    ClassLoader systemCl = ClassLoader.getSystemClassLoader();
+    ClassLoader contextCl = Thread.currentThread().getContextClassLoader();
+
+    // Iterate over a copy since we modify 'needed' during iteration
+    for (ExecutionData ed : new ArrayList<>(needed.values())) {
+      String resource = ed.getName() + ".class";
+      InputStream is = findResource(resource, systemCl, contextCl);
+      if (is == null) {
+        continue; // not found via any classloader — will try classpath scan
+      }
+      try (InputStream stream = is) {
+        byte[] bytes = readAllBytes(stream);
+        long crc = CRC64.classId(bytes);
+        if (crc != ed.getId()) {
+          // CRC64 mismatch — classloader returned different bytes than what was instrumented.
+          // Fall through to classpath scan.
+          log.debug(
+              "CRC64 mismatch for {} via classloader (expected {}, got {}); will try classpath scan",
+              ed.getName(),
+              Long.toHexString(ed.getId()),
+              Long.toHexString(crc));
+          continue;
+        }
+        ClassProbeMapping mapping =
+            ClassProbeMappingBuilder.build(
+                ed.getId(), ed.getName(), ed.getProbes().length, bytes);
+        cache.put(ed.getId(), mapping);
+        needed.remove(ed.getId());
+      } catch (Exception e) {
+        log.debug("Failed to resolve class {} via classloader", ed.getName(), e);
+      }
+    }
+  }
+
+  /**
+   * Tries to find a class resource using the given classloaders, returning the first non-null
+   * InputStream. Returns null if no classloader can find the resource.
+   */
+  private static InputStream findResource(
+      String resource, ClassLoader... classLoaders) {
+    for (ClassLoader cl : classLoaders) {
+      if (cl == null) {
+        continue;
+      }
+      InputStream is = cl.getResourceAsStream(resource);
+      if (is != null) {
+        return is;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Falls back to scanning classpath jars/directories for classes that couldn't be resolved via the
+   * classloader.
+   */
+  private void resolveViaClasspathScan(
+      Map<Long, ExecutionData> needed, List<File> classpathEntries) {
     for (File entry : classpathEntries) {
       if (needed.isEmpty()) {
         break;
@@ -66,18 +153,6 @@ final class ProbeMappingCache {
       } catch (IOException e) {
         log.debug("Failed to scan classpath entry for cache building: {}", entry, e);
       }
-    }
-
-    // Any remaining entries in 'needed' couldn't be found on the classpath.
-    // Mark them in the cache with a sentinel so we don't rescan for them.
-    for (Map.Entry<Long, ExecutionData> e : needed.entrySet()) {
-      cache.put(
-          e.getKey(),
-              new ClassProbeMapping(e.getKey(), null, null, new BitSet(), new int[0][]));
-      log.debug(
-          "Class {} (id {}) not found on classpath; skipping",
-          e.getValue().getName(),
-          Long.toHexString(e.getKey()));
     }
   }
 
