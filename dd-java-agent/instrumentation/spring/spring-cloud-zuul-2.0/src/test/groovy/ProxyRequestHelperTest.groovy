@@ -83,7 +83,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
         //zuul
         serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
-        serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
+        serverSpan(it, "apache-httpclient.request", DDSpanTypes.HTTP_CLIENT)
       }
       //spring application
       trace (2) {
@@ -113,19 +113,19 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
         sortSpansByStart()
         serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER)
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
-        serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
+        serverSpan(it, "apache-httpclient.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (3) {
         sortSpansByStart()
         serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(0)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
-        serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
+        serverSpan(it, "apache-httpclient.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (3) {
         sortSpansByStart()
         serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(1)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
-        serverSpan(it, "http.request", DDSpanTypes.HTTP_CLIENT)
+        serverSpan(it, "apache-httpclient.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (2) {
         sortSpansByStart()

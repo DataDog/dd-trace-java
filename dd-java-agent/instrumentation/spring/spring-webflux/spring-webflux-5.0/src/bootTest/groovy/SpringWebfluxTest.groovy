@@ -67,7 +67,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       def traceParent
       sortSpansByStart()
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url))
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(2) {
@@ -149,7 +149,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url))
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
@@ -245,7 +245,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url))
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
       }
       trace(3) {
@@ -293,7 +293,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url), 404, true)
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 404, true)
       }
       trace(2) {
@@ -350,7 +350,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "POST", URI.create(url), 202)
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "POST", URI.create(url), 202)
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "POST", URI.create(url), 202)
       }
       trace(3) {
@@ -416,7 +416,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url), 500)
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
       }
       trace(2) {
@@ -506,7 +506,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
 
       trace(2) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 307)
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url), 307)
         traceParent1 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 307)
       }
 
@@ -553,7 +553,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       }
       trace(2) {
         sortSpansByStart()
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(finalUrl))
+        clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(finalUrl))
         traceParent2 = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(finalUrl))
       }
       trace(2) {
@@ -614,7 +614,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
       responses.eachWithIndex { def response, int i ->
         def traceParent
         trace(2) {
-          clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url))
+          clientSpan(it, null, "spring-webflux-client.request", "spring-webflux-client", "GET", URI.create(url))
           traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url))
         }
         trace(2) {
