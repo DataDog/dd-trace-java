@@ -13,6 +13,10 @@ abstract class GoogleHttpClientTest extends AbstractGoogleHttpClientTest {
 
 @Timeout(5)
 class GoogleHttpClientV0ForkedTest extends GoogleHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "google-http-client.request"
+  }
 }
 
 @Timeout(5)

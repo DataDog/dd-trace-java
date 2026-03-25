@@ -4,7 +4,12 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import spock.lang.Timeout
 
 @Timeout(5)
-class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0{
+class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {
+
+  @Override
+  String operation() {
+    "http-url-connection.request"
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

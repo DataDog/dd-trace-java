@@ -17,6 +17,11 @@ import java.util.concurrent.TimeUnit
 @Timeout(5)
 class ApacheHttpClientResponseHandlerTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
+  @Override
+  String operation() {
+    "apache-httpclient.request"
+  }
+
   @Shared
   def client = HttpClients.custom()
   .setConnectionManager(new BasicHttpClientConnectionManager())

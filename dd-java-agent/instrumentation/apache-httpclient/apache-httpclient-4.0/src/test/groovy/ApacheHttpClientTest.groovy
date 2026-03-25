@@ -14,6 +14,12 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+
+  @Override
+  String operation() {
+    "apache-httpclient.request"
+  }
+
   @Shared
   def client = new DefaultHttpClient()
 
