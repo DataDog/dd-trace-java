@@ -7,6 +7,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -380,6 +381,19 @@ public final class Events<D> {
   @SuppressWarnings("unchecked")
   public EventType<BiFunction<RequestContext, Long, Flow<Boolean>>> httpClientSampling() {
     return (EventType<BiFunction<RequestContext, Long, Flow<Boolean>>>) HTTP_CLIENT_SAMPLING;
+  }
+
+  static final int REQUEST_FILES_FILENAMES_ID = 30;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_FILES_FILENAMES =
+      new ET<>("request.body.filenames", REQUEST_FILES_FILENAMES_ID);
+
+  /** Filenames of files uploaded in a multipart/form-data request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, List<String>, Flow<Void>>> requestFilesFilenames() {
+    return (EventType<BiFunction<RequestContext, List<String>, Flow<Void>>>)
+        REQUEST_FILES_FILENAMES;
   }
 
   static final int MAX_EVENTS = nextId.get();

@@ -63,6 +63,7 @@ public final class HotspotCrashLogParser {
     REGISTERS,
     SEEK_DYNAMIC_LIBRARIES,
     DYNAMIC_LIBRARIES,
+    SYSTEM,
     DONE
   }
 
@@ -75,7 +76,6 @@ public final class HotspotCrashLogParser {
   private static final Pattern PLUS_SPLITTER = Pattern.compile("\\+");
   private static final Pattern SPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
-  private static final Pattern SIGNAL_PARSER = Pattern.compile("\\s*(\\w+) \\((\\w+)\\).*");
   // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
   //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
   private static final Pattern SIGINFO_PARSER =
@@ -252,6 +252,7 @@ public final class HotspotCrashLogParser {
     String pid = null;
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
+    String datetimeRaw = null;
     boolean incomplete = false;
     String oomMessage = null;
     Map<String, String> registers = null;
@@ -270,9 +271,9 @@ public final class HotspotCrashLogParser {
           if (line.toLowerCase().contains("core dump")) {
             // break out of the message block
             state = State.HEADER;
-          } else if ((oomMessage == null
+          } else if (oomMessage == null
               && (sigInfo == null || "INVALID".equals(sigInfo.name))
-              && !"#".equals(line))) {
+              && !"#".equals(line)) {
             // note: some jvm might use INVALID to represent a OOM crash too.
             final int oomIdx = line.indexOf(OOM_MARKER);
             if (oomIdx > 0) {
@@ -309,8 +310,10 @@ public final class HotspotCrashLogParser {
           break;
         case STACKTRACE:
           if (line.startsWith("siginfo:")) {
+            // spotless:off
             // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x70
             // siginfo: si_signo: 11 (SIGSEGV), si_code: 0 (SI_USER), si_pid: 554848, si_uid: 1000
+            // spotless:on
             final Matcher siginfoMatcher = SIGINFO_PARSER.matcher(line);
             if (siginfoMatcher.matches()) {
               Integer number = safelyParseInt(siginfoMatcher.group(1));
@@ -349,13 +352,15 @@ public final class HotspotCrashLogParser {
         case SEEK_DYNAMIC_LIBRARIES:
           if (line.startsWith("Dynamic libraries:")) {
             state = State.DYNAMIC_LIBRARIES;
+          } else if (line.contains("S Y S T E M")) {
+            state = State.SYSTEM;
           } else if (line.equals("END.")) {
             state = State.DONE;
           }
           break;
         case DYNAMIC_LIBRARIES:
           if (line.isEmpty()) {
-            state = State.DONE;
+            state = State.SEEK_DYNAMIC_LIBRARIES;
           }
           final Matcher matcher = DYNAMIC_LIBS_PATH_PARSER.matcher(line);
           if (matcher.matches()) {
@@ -369,6 +374,16 @@ public final class HotspotCrashLogParser {
             }
           }
           break;
+        case SYSTEM:
+          if (line.equals("END.")) {
+            state = State.DONE;
+          } else if (datetime == null && datetimeRaw == null && line.startsWith("time: ")) {
+            // JDK 8 fallback: no SUMMARY section, time is split across two lines here
+            datetimeRaw = line.substring(6).trim();
+          } else if (datetime == null && datetimeRaw != null && line.startsWith("timezone: ")) {
+            datetime = dateTimeToISO(datetimeRaw + " " + line.substring(10).trim());
+          }
+          break;
         case DONE:
           // skip
           buildIdCollector.awaitCollectionDone(5);
@@ -379,7 +394,8 @@ public final class HotspotCrashLogParser {
       }
     }
 
-    if (state != State.DONE) {
+    // SEEK_DYNAMIC_LIBRARIES and SYSTEM sections are late enough that all critical data is captured
+    if (state != State.DONE && state != State.SEEK_DYNAMIC_LIBRARIES && state != State.SYSTEM) {
       // incomplete crash log
       incomplete = true;
     }

@@ -13,7 +13,7 @@ public final class CrashLog {
   public static final JsonAdapter<CrashLog> ADAPTER;
 
   static {
-    Moshi moshi = new Moshi.Builder().add(new SemanticVersion.SemanticVersionAdapter()).build();
+    Moshi moshi = new Moshi.Builder().build();
     ADAPTER = moshi.adapter(CrashLog.class);
   }
 
