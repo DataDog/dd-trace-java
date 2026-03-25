@@ -156,7 +156,7 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -421,7 +421,7 @@ class LegacyAws2ClientForkedTest extends InstrumentationSpecification {
         }
         (1..4).each {
           span {
-            operationName "http.request"
+            operationName "apache-httpclient.request"
             resourceName "GET /somebucket/somekey"
             spanType DDSpanTypes.HTTP_CLIENT
             errored true
