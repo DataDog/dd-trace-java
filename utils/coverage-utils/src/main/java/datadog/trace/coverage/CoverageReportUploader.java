@@ -24,25 +24,25 @@ import okio.BufferedSink;
 public class CoverageReportUploader {
 
   private final BackendApi backendApi;
-  private final Map<String, String> tags;
+  private final Map<String, ?> tags;
   @Nullable private final OkHttpUtils.CustomListener requestListener;
-  private final JsonAdapter<Map<String, String>> eventAdapter;
+  private final JsonAdapter<Map<String, ?>> eventAdapter;
 
   public CoverageReportUploader(
       BackendApi backendApi,
-      Map<String, String> tags,
+      Map<String, ?> tags,
       @Nullable OkHttpUtils.CustomListener requestListener) {
     this.backendApi = backendApi;
     this.tags = tags;
     this.requestListener = requestListener;
 
     Moshi moshi = new Moshi.Builder().build();
-    Type type = Types.newParameterizedType(Map.class, String.class, String.class);
+    Type type = Types.newParameterizedType(Map.class, String.class, Object.class);
     eventAdapter = moshi.adapter(type);
   }
 
   public void upload(String format, InputStream reportStream) throws IOException {
-    Map<String, String> event = new HashMap<>(tags);
+    Map<String, Object> event = new HashMap<>(tags);
     event.put("format", format);
     event.put("type", "coverage_report");
     String eventJson = eventAdapter.toJson(event);

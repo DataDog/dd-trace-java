@@ -10,9 +10,9 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.api.intake.Intake;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.coverage.CoverageReportUploader;
 import java.lang.instrument.Instrumentation;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -68,7 +68,7 @@ public final class CodeCoverageSystem {
     Config config = Config.get();
 
     // Build event tags from git info
-    Map<String, String> tags = buildGitTags();
+    Map<String, Object> tags = buildGitTags();
     if (!tags.containsKey("git.commit.sha")) {
       log.warn(
           "DD_GIT_COMMIT_SHA is not set; "
@@ -90,7 +90,11 @@ public final class CodeCoverageSystem {
     tags.put(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
     String env = config.getEnv();
     if (env != null && !env.isEmpty()) {
-      tags.put(Tags.ENV, env);
+      tags.put("runtime.env", env);
+    }
+    String serviceName = config.getServiceName();
+    if (serviceName != null && !serviceName.isEmpty()) {
+      tags.put("report.flags", Collections.singletonList("service:" + serviceName));
     }
 
     CoverageReportUploader uploader = new CoverageReportUploader(backendApi, tags, null);
@@ -105,8 +109,8 @@ public final class CodeCoverageSystem {
     collector.start();
   }
 
-  private static Map<String, String> buildGitTags() {
-    Map<String, String> tags = new HashMap<>();
+  private static Map<String, Object> buildGitTags() {
+    Map<String, Object> tags = new HashMap<>();
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
     CommitInfo commit = gitInfo.getCommit();
     if (commit != null && commit.getSha() != null) {
