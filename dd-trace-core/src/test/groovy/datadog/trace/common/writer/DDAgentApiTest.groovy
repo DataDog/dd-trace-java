@@ -458,19 +458,10 @@ class DDAgentApiTest extends DDCoreSpecification {
     Traces traceCapture = new Traces()
     def packer = new MsgPackWriter(new FlushingBuffer(1 << 20, traceCapture))
 
-    TraceMapper traceMapper
-    switch (agentVersion) {
-      case "v1.0/traces":
-        traceMapper = new TraceMapperV1()
-        break
-
-      case "v0.5/traces":
-        traceMapper = new TraceMapperV0_5()
-        break
-
-      default:
-        traceMapper = new TraceMapperV0_4()
-    }
+    TraceMapper traceMapper = [
+      "v1.0/traces": new TraceMapperV1(),
+      "v0.5/traces": new TraceMapperV0_5(),
+    ].get(agentVersion, new TraceMapperV0_4())
 
     for (trace in traces) {
       packer.format(trace, traceMapper)

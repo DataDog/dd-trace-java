@@ -1,5 +1,7 @@
 package datadog.trace.common.writer
 
+import static java.util.Collections.emptyList
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -166,7 +168,7 @@ class TraceGenerator {
     int samplingPriority,
     int statusCode,
     CharSequence origin,
-    List<AgentSpanLink> spanLinks = Collections.emptyList()) {
+    List<AgentSpanLink> spanLinks = emptyList()) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -182,7 +184,7 @@ class TraceGenerator {
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, samplingPriority, measured, topLevel,
         statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0,
-        ProcessTags.tagsForSerialization, spanLinks == null ? Collections.emptyList() : spanLinks)
+        ProcessTags.tagsForSerialization, spanLinks == null ? emptyList() : spanLinks)
       this.httpStatusCode = (short) statusCode
     }
 
