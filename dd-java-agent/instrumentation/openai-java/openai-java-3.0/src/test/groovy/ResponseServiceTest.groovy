@@ -1,11 +1,14 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace
 
+import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.http.AsyncStreamResponse
 import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
+import com.openai.credential.BearerTokenCredential
 import com.openai.models.responses.Response
 import com.openai.models.responses.ResponseStreamEvent
+import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -219,9 +222,69 @@ class ResponseServiceTest extends OpenAiTest {
     responseCreateParams << [responseCreateParamsWithToolInput(false), responseCreateParamsWithToolInput(true)]
   }
 
-  private void assertResponseTrace(boolean isStreaming, String reqModel, String respModel, Map reasoning) {
-    assertResponseTrace(isStreaming, reqModel, respModel, reasoning, null, null, null)
+  def "create response error sets model_name and placeholder output"() {
+    setup:
+    def errorBackend = TestHttpServer.httpServer {
+      handlers {
+        prefix("/v1/") {
+          response.status(500).send('{"error":{"message":"Internal server error","type":"server_error"}}')
+        }
+      }
+    }
+    def errorClient = OpenAIOkHttpClient.builder()
+    .baseUrl("${errorBackend.address.toURL()}/v1")
+    .credential(BearerTokenCredential.create(""))
+    .maxRetries(0)
+    .build()
+
+    when:
+    runUnderTrace("parent") {
+      try {
+        errorClient.responses().create(responseCreateParams(false))
+      } catch (Exception ignored) {}
+    }
+
+    then:
+    List<LLMObs.LLMMessage> outputMessages = []
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span(0) {
+          operationName "parent"
+          parent()
+          errored false
+        }
+        span(1) {
+          operationName "openai.request"
+          resourceName "createResponse"
+          childOf span(0)
+          errored true
+          spanType DDSpanTypes.LLMOBS
+          tags(false) {
+            "_ml_obs_tag.model_name" "gpt-3.5-turbo"
+            "_ml_obs_tag.output" List
+            def out = tag("_ml_obs_tag.output")
+            if (out instanceof List) outputMessages.addAll(out)
+          }
+        }
+        span(2) {
+          operationName "okhttp.request"
+          resourceName "POST /v1/responses"
+          childOf span(1)
+          errored false
+          spanType "http"
+        }
+      }
+    }
+    and:
+    outputMessages.size() == 1
+    outputMessages[0].role == ""
+    outputMessages[0].content == ""
+
+    cleanup:
+    errorBackend.close()
   }
+
 
   private void assertResponseTrace(
   boolean isStreaming,
