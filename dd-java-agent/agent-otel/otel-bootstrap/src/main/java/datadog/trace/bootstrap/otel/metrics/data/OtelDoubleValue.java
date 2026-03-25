@@ -9,7 +9,7 @@ final class OtelDoubleValue extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelDoublePoint(value);
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpDoublePoint(value);
   }
 }
