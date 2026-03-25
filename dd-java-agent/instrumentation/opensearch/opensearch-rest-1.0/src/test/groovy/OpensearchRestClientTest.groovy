@@ -105,7 +105,7 @@ class OpensearchRestClientTest extends InstrumentationSpecification {
         span {
           serviceName "opensearch"
           resourceName "GET /_cluster/health"
-          operationName "http.request"
+          operationName "apache-httpasyncclient.request"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {

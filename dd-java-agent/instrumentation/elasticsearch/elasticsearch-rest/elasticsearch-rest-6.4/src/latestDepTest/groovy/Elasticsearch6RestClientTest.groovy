@@ -101,7 +101,7 @@ class Elasticsearch6RestClientTest extends InstrumentationSpecification {
         span {
           serviceName "elasticsearch"
           resourceName "GET _cluster/health"
-          operationName "http.request"
+          operationName "apache-httpasyncclient.request"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           tags {
