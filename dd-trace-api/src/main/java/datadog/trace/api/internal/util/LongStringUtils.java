@@ -1,7 +1,5 @@
 package datadog.trace.api.internal.util;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
-
 import java.util.Arrays;
 
 /**
@@ -130,14 +128,14 @@ public class LongStringUtils {
         String.format("String value %s exceeds range of unsigned long.", s));
   }
 
-  private static final byte[] HEX_DIGITS = {
+  private static final char[] HEX_DIGITS = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
   };
 
   public static String toHexStringPadded(long id, int size) {
-    byte[] bytes = allocatePaddedHexStringBytes(size);
-    fillStringBytesWithPaddedHexId(id, 0, bytes.length, bytes);
-    return new String(bytes, US_ASCII);
+    char[] chars = allocatePaddedHexStringChars(size);
+    fillStringCharsWithPaddedHexId(id, 0, chars.length, chars);
+    return new String(chars);
   }
 
   public static String toHexStringPadded(long highOrderBits, long lowOrderBits, int size) {
@@ -145,27 +143,27 @@ public class LongStringUtils {
       // Fallback to only one id formatting
       return toHexStringPadded(lowOrderBits, size);
     }
-    byte[] bytes = allocatePaddedHexStringBytes(size);
-    fillStringBytesWithPaddedHexId(highOrderBits, 0, 16, bytes);
-    fillStringBytesWithPaddedHexId(lowOrderBits, 16, 16, bytes);
-    return new String(bytes, US_ASCII);
+    char[] chars = allocatePaddedHexStringChars(size);
+    fillStringCharsWithPaddedHexId(highOrderBits, 0, 16, chars);
+    fillStringCharsWithPaddedHexId(lowOrderBits, 16, 16, chars);
+    return new String(chars);
   }
 
-  private static byte[] allocatePaddedHexStringBytes(int size) {
+  private static char[] allocatePaddedHexStringChars(int size) {
     if (size > 16) {
       size = 32;
     } else if (size < 16) {
       size = 16;
     }
-    return new byte[size];
+    return new char[size];
   }
 
-  private static void fillStringBytesWithPaddedHexId(long id, int index, int size, byte[] bytes) {
+  private static void fillStringCharsWithPaddedHexId(long id, int index, int size, char[] chars) {
     int nibbleCount = Long.numberOfLeadingZeros(id) >>> 2;
-    Arrays.fill(bytes, index, index + (size - 16) + nibbleCount, (byte) '0');
+    Arrays.fill(chars, index, index + (size - 16) + nibbleCount, '0');
     for (int i = 0; i < 16 - nibbleCount; i++) {
       int b = (int) (id & 0xF);
-      bytes[index + size - 1 - i] = HEX_DIGITS[b];
+      chars[index + size - 1 - i] = HEX_DIGITS[b];
       id >>>= 4;
     }
   }
