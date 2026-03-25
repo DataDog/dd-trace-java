@@ -21,6 +21,7 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
       try {
         while (!serverSocket.isClosed()) {
           Socket clientSocket = serverSocket.accept()
+          clientSocket.setSoLinger(true, 0) // Make clientSocket close immediately.
           clientSocket.close()
         }
       } catch (IOException ignored) {
