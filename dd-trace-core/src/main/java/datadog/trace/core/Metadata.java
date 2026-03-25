@@ -1,11 +1,11 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static java.util.Collections.emptyList;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +48,7 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
-    this.spanLinks = spanLinks == null ? Collections.emptyList() : spanLinks;
+    this.spanLinks = spanLinks == null ? emptyList() : spanLinks;
   }
 
   public UTF8BytesString getHttpStatusCode() {

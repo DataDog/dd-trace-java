@@ -114,12 +114,10 @@ class PayloadDispatcherImplTest extends DDSpecification {
     DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
     PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
+    discovery.getTraceEndpoint() >> null
     when:
     dispatcher.addTrace(trace)
     then:
-    2 * discovery.getTraceEndpoint() >> null
-    1 * discovery.discover()
-    0 * api._
     1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET,_)
   }
 

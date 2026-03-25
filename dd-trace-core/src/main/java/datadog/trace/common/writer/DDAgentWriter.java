@@ -109,10 +109,6 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder traceAgentProtocolVersion(String traceAgentProtocolVersion) {
-      return traceAgentProtocolVersion(ProtocolVersion.fromConfigValue(traceAgentProtocolVersion));
-    }
-
     public DDAgentWriterBuilder metricsReportingEnabled(boolean metricsReportingEnabled) {
       this.metricsReportingEnabled = metricsReportingEnabled;
       return this;
