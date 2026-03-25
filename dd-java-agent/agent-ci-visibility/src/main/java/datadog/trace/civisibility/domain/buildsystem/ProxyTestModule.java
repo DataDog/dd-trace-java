@@ -212,7 +212,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         linesResolver,
         coverageStoreFactory,
         executionResults,
-        executionStrategy.getExecutionSettings().isConfigurationError(),
+        executionStrategy.getExecutionSettings().getConfigurationErrors(),
         capabilities,
         this::propagateTestFrameworkData);
   }
