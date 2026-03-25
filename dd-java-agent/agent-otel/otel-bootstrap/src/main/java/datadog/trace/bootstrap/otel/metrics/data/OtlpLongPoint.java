@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
-public final class OtelLongPoint extends OtelPoint {
+public final class OtlpLongPoint extends OtlpDataPoint {
   public final long value;
 
-  OtelLongPoint(long value) {
+  OtlpLongPoint(long value) {
     this.value = value;
   }
 }

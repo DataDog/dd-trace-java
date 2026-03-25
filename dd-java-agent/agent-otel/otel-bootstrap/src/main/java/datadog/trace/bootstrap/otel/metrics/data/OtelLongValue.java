@@ -9,7 +9,7 @@ final class OtelLongValue extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelLongPoint(value);
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpLongPoint(value);
   }
 }
