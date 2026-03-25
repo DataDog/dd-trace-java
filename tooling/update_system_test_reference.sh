@@ -11,10 +11,8 @@ if [ -z "${BRANCH:-}" ]; then
     echo "BRANCH is not set. Defaulting to 'main'."
 fi
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-GITHUB_TARGET="$REPO_ROOT/.github/workflows/run-system-tests.yaml"
-GITLAB_TARGET="$REPO_ROOT/.gitlab-ci.yml"
+GITHUB_TARGET=".github/workflows/run-system-tests.yaml"
+GITLAB_TARGET=".gitlab-ci.yml"
 GITHUB_PATTERN_1='(\s*system-tests\.yml@)(\S+)(\s+# system tests.*)' # pattern to update the "system-tests.yml@" reference
 GITHUB_PATTERN_2='(\s*ref: )(\S+)(\s+# system tests.*)' # pattern to update the "ref:" reference
 GITLAB_PATTERN='(\s*SYSTEM_TESTS_REF:\s*)(\S+)(\s+# system tests.*)' # pattern to update the GitLab SYSTEM_TESTS_REF variable
