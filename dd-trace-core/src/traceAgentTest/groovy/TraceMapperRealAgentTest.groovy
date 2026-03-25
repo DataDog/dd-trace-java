@@ -1,6 +1,7 @@
 import static TraceGenerator.generateRandomTraces
 import static datadog.trace.api.ProtocolVersion.V0_4
 import static datadog.trace.api.ProtocolVersion.V0_5
+import static datadog.trace.api.ProtocolVersion.V1_0
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
@@ -17,30 +18,22 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 
 class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
-
+  HttpUrl agentUrl
   OkHttpClient client
   MonitoringImpl monitoring
-  DDAgentFeaturesDiscovery v05Discovery
-  DDAgentFeaturesDiscovery v04Discovery
-  DDAgentApi v05Api
-  DDAgentApi v04Api
 
   def setup() {
-    def agentUrl = HttpUrl.parse(Config.get().getAgentUrl())
-
+    agentUrl = HttpUrl.parse(Config.get().getAgentUrl())
     client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
     monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
-
-    v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
-    v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_4, true)
-    v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
-    v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
   }
 
   def "send random traces"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(v05 ? v05Discovery : v04Discovery), v05 ? v05Api : v04Api, healthMetrics, monitoring)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocol, true)
+    DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, false)
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
     for (List<CoreSpan> trace : traces) {
@@ -56,38 +49,54 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     0 * _
 
     where:
-    bufferSize | traceCount | lowCardinality | v05
-    10 << 10   | 0          | true           | true
-    10 << 10   | 1          | true           | true
-    30 << 10   | 1          | true           | true
-    30 << 10   | 2          | true           | true
-    10 << 10   | 0          | false          | true
-    10 << 10   | 1          | false          | true
-    30 << 10   | 1          | false          | true
-    30 << 10   | 2          | false          | true
-    100 << 10  | 0          | true           | true
-    100 << 10  | 1          | true           | true
-    100 << 10  | 10         | true           | true
-    100 << 10  | 100        | true           | true
-    100 << 10  | 0          | false          | true
-    100 << 10  | 1          | false          | true
-    100 << 10  | 10         | false          | true
-    100 << 10  | 100        | false          | true
-    10 << 10   | 0          | true           | false
-    10 << 10   | 1          | true           | false
-    30 << 10   | 1          | true           | false
-    30 << 10   | 2          | true           | false
-    10 << 10   | 0          | false          | false
-    10 << 10   | 1          | false          | false
-    30 << 10   | 1          | false          | false
-    30 << 10   | 2          | false          | false
-    100 << 10  | 0          | true           | false
-    100 << 10  | 1          | true           | false
-    100 << 10  | 10         | true           | false
-    100 << 10  | 100        | true           | false
-    100 << 10  | 0          | false          | false
-    100 << 10  | 1          | false          | false
-    100 << 10  | 10         | false          | false
-    100 << 10  | 100        | false          | false
+    bufferSize | traceCount | lowCardinality | protocol
+    10 << 10   | 0          | true           | V1_0
+    10 << 10   | 1          | true           | V1_0
+    30 << 10   | 1          | true           | V1_0
+    30 << 10   | 2          | true           | V1_0
+    10 << 10   | 0          | false          | V1_0
+    10 << 10   | 1          | false          | V1_0
+    30 << 10   | 1          | false          | V1_0
+    30 << 10   | 2          | false          | V1_0
+    100 << 10  | 0          | true           | V1_0
+    100 << 10  | 1          | true           | V1_0
+    100 << 10  | 10         | true           | V1_0
+    100 << 10  | 100        | true           | V1_0
+    100 << 10  | 0          | false          | V1_0
+    100 << 10  | 1          | false          | V1_0
+    100 << 10  | 10         | false          | V1_0
+    100 << 10  | 100        | false          | V1_0
+    10 << 10   | 0          | true           | V0_5
+    10 << 10   | 1          | true           | V0_5
+    30 << 10   | 1          | true           | V0_5
+    30 << 10   | 2          | true           | V0_5
+    10 << 10   | 0          | false          | V0_5
+    10 << 10   | 1          | false          | V0_5
+    30 << 10   | 1          | false          | V0_5
+    30 << 10   | 2          | false          | V0_5
+    100 << 10  | 0          | true           | V0_5
+    100 << 10  | 1          | true           | V0_5
+    100 << 10  | 10         | true           | V0_5
+    100 << 10  | 100        | true           | V0_5
+    100 << 10  | 0          | false          | V0_5
+    100 << 10  | 1          | false          | V0_5
+    100 << 10  | 10         | false          | V0_5
+    100 << 10  | 100        | false          | V0_5
+    10 << 10   | 0          | true           | V0_4
+    10 << 10   | 1          | true           | V0_4
+    30 << 10   | 1          | true           | V0_4
+    30 << 10   | 2          | true           | V0_4
+    10 << 10   | 0          | false          | V0_4
+    10 << 10   | 1          | false          | V0_4
+    30 << 10   | 1          | false          | V0_4
+    30 << 10   | 2          | false          | V0_4
+    100 << 10  | 0          | true           | V0_4
+    100 << 10  | 1          | true           | V0_4
+    100 << 10  | 10         | true           | V0_4
+    100 << 10  | 100        | true           | V0_4
+    100 << 10  | 0          | false          | V0_4
+    100 << 10  | 1          | false          | V0_4
+    100 << 10  | 10         | false          | V0_4
+    100 << 10  | 100        | false          | V0_4
   }
 }
