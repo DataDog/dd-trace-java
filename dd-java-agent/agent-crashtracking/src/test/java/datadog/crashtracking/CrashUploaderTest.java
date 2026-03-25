@@ -174,6 +174,7 @@ public class CrashUploaderTest {
     assertTrue(tags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(tags.contains(TraceUtils.normalizeTag("tracer_version:" + VersionInfo.VERSION)));
     assertTrue(tags.contains("language_name:jvm"));
+    assertTrue(tags.contains("runtime_version:"));
     assertTrue(tags.contains("runtime_vendor:"));
     assertTrue(tags.contains("runtime_name:"));
     assertEquals(expected, event.get("payload").get(0).get("message").asText());
@@ -228,6 +229,7 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("service:")); // has the service
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash_ping:true"));
+    assertTrue(ddtags.contains("runtime_version:"));
     assertTrue(ddtags.contains("runtime_vendor:"));
     assertTrue(ddtags.contains("runtime_name:"));
 
@@ -346,6 +348,7 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("service:")); // has the service
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash:true"));
+    assertTrue(ddtags.contains("runtime_version:"));
     assertTrue(ddtags.contains("runtime_vendor:"));
     assertTrue(ddtags.contains("runtime_name:"));
 

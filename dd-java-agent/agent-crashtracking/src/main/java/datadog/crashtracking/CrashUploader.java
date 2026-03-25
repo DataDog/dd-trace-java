@@ -612,6 +612,10 @@ public final class CrashUploader {
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
     tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags.append(",")
         .append("runtime_vendor:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
     tags.append(",")
@@ -629,6 +633,10 @@ public final class CrashUploader {
     tags.append(",")
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
     tags.append(",")
         .append("runtime_vendor:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
