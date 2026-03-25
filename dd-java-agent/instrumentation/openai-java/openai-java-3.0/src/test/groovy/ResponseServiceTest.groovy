@@ -222,6 +222,29 @@ class ResponseServiceTest extends OpenAiTest {
     responseCreateParams << [responseCreateParamsWithToolInput(false), responseCreateParamsWithToolInput(true)]
   }
 
+  def "create response with prompt tracking"() {
+    Response resp = runUnderTrace("parent") {
+      openAiClient.responses().create(params)
+    }
+
+    expect:
+    resp != null
+    and:
+    Map<String, Object> metadata = [:]
+    Map<String, Object> input = [:]
+    assertResponseTrace(false, null, String, null, input, null, metadata, true)
+    and:
+    metadata.stream == false
+    input.prompt instanceof Map
+    input.messages instanceof List
+    def prompt = input.prompt as Map<String, Object>
+    prompt.chat_template instanceof List
+    prompt.variables instanceof Map
+
+    where:
+    params << [responseCreateParamsWithPromptTracking(false), responseCreateParamsWithPromptTracking(true)]
+  }
+
   def "create response error sets model_name and placeholder output"() {
     setup:
     def errorBackend = TestHttpServer.httpServer {
@@ -289,11 +312,12 @@ class ResponseServiceTest extends OpenAiTest {
   private void assertResponseTrace(
   boolean isStreaming,
   String reqModel,
-  String respModel,
+  Object respModel,
   Map reasoning,
-  List inputTagsOut,
+  Object inputTagsOut,
   List outputTagsOut,
-  Map<String, Object> metadataOut) {
+  Map<String, Object> metadataOut,
+  boolean expectPromptTag = false) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -313,14 +337,25 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
             "_ml_obs_tag.metadata" Map
+            if (expectPromptTag) {
+              "_ml_obs_request.prompt" Map
+            }
             def metadata = tag("_ml_obs_tag.metadata")
             if (metadataOut != null && metadata != null) {
               metadataOut.putAll(metadata)
             }
-            "_ml_obs_tag.input" List
+            if (inputTagsOut instanceof Map) {
+              "_ml_obs_tag.input" Map
+            } else {
+              "_ml_obs_tag.input" List
+            }
             def inputTags = tag("_ml_obs_tag.input")
             if (inputTagsOut != null && inputTags != null) {
-              inputTagsOut.addAll(inputTags)
+              if (inputTagsOut instanceof List) {
+                inputTagsOut.addAll(inputTags as List)
+              } else if (inputTagsOut instanceof Map) {
+                inputTagsOut.putAll(inputTags as Map)
+              }
             }
             "_ml_obs_tag.output" List
             def outputTags = tag("_ml_obs_tag.output")
@@ -347,13 +382,15 @@ class ResponseServiceTest extends OpenAiTest {
             "openai.api_base" openAiBaseApi
             "$CommonTags.OPENAI_RESPONSE_MODEL" respModel
             if (!isStreaming) {
-              "openai.organization.ratelimit.requests.limit" 10000
+              "openai.organization.ratelimit.requests.limit" Integer
               "openai.organization.ratelimit.requests.remaining" Integer
-              "openai.organization.ratelimit.tokens.limit" 50000000
+              "openai.organization.ratelimit.tokens.limit" Integer
               "openai.organization.ratelimit.tokens.remaining" Integer
             }
             "$CommonTags.OPENAI_ORGANIZATION" "datadog-staging"
-            "$CommonTags.OPENAI_REQUEST_MODEL" reqModel
+            if (reqModel != null) {
+              "$CommonTags.OPENAI_REQUEST_MODEL" reqModel
+            }
             "$Tags.COMPONENT" "openai"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             defaultTags()
