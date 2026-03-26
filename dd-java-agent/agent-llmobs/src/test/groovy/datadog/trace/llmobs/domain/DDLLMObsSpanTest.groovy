@@ -402,6 +402,17 @@ class DDLLMObsSpanTest  extends DDSpecification{
     null          | "has_session_id:0"
   }
 
+  def "global dd_tags are included in LLMObs span tags"() {
+    setup:
+    injectSysConfig("trace.global.tags", "team:backend,owner:ml-platform")
+    def test = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "test-span")
+
+    expect:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
+  }
+
   private LLMObsSpan llmObsSpan(String kind, name) {
     llmObsSpan(kind, name, null)
   }
