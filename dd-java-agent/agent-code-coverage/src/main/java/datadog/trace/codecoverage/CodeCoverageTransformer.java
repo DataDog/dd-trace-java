@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.lang.ref.WeakReference;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 import org.jacoco.core.data.ExecutionDataReader;
@@ -39,7 +41,25 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
   private final RuntimeData runtimeData;
   private final Instrumenter instrumenter;
   private final Predicate<String> filter;
-  private final ConcurrentLinkedQueue<String> newlyInstrumented = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<NewClass> newlyInstrumented = new ConcurrentLinkedQueue<>();
+
+  /** Lightweight pair of CRC64 class ID and VM class name, queued at transform time. */
+  static final class NewClass {
+    final long classId;
+    final String className;
+
+    NewClass(long classId, String className) {
+      this.classId = classId;
+      this.className = className;
+    }
+  }
+
+  /**
+   * Maps CRC64 class ID to the defining ClassLoader recorded at transform time. Uses weak
+   * references so classloaders can be garbage-collected when their classes are unloaded.
+   */
+  private final ConcurrentHashMap<Long, WeakReference<ClassLoader>> classLoadersByClassId =
+      new ConcurrentHashMap<>();
 
   /**
    * Initializes the JaCoCo runtime and instrumenter.
@@ -174,7 +194,9 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     }
     try {
       byte[] instrumented = instrumenter.instrument(classfileBuffer, className);
-      newlyInstrumented.add(className);
+      long classId = org.jacoco.core.internal.data.CRC64.classId(classfileBuffer);
+      classLoadersByClassId.put(classId, new WeakReference<>(loader));
+      newlyInstrumented.add(new NewClass(classId, className));
       return instrumented;
     } catch (Exception e) {
       log.debug("Failed to instrument class {}", className, e);
@@ -183,14 +205,24 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
   }
 
   /**
-   * Drains and returns the list of class names that have been instrumented since the last call.
-   * Each class name is in VM internal format (e.g. {@code com/example/MyClass}).
+   * Returns the defining ClassLoader recorded at transform time for the given CRC64 class ID, or
+   * null if the class was not instrumented by this transformer or if the classloader has been
+   * garbage-collected.
    */
-  public List<String> drainNewClasses() {
-    List<String> result = new ArrayList<>();
-    String name;
-    while ((name = newlyInstrumented.poll()) != null) {
-      result.add(name);
+  public ClassLoader getDefiningClassLoader(long classId) {
+    WeakReference<ClassLoader> ref = classLoadersByClassId.get(classId);
+    return (ref != null) ? ref.get() : null;
+  }
+
+  /**
+   * Drains and returns the list of classes that have been instrumented since the last call. Each
+   * entry contains the CRC64 class ID and the VM-format class name.
+   */
+  public List<NewClass> drainNewClasses() {
+    List<NewClass> result = new ArrayList<>();
+    NewClass entry;
+    while ((entry = newlyInstrumented.poll()) != null) {
+      result.add(entry);
     }
     return result;
   }

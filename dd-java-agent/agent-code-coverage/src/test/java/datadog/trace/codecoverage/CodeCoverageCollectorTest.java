@@ -67,9 +67,9 @@ class CodeCoverageCollectorTest {
         new CodeCoverageCollector(
             (store, session) -> store.put(new ExecutionData(classId, className, probes)),
             Collections::emptyList,
+            id -> null,
             uploads::add,
-            60,
-            null);
+            60);
 
     collector.collect();
 
@@ -84,17 +84,15 @@ class CodeCoverageCollectorTest {
 
   @Test
   void newClassWithoutHits_reportsExecutableLinesOnly() {
-    String className = SampleClassB.class.getName().replace('.', '/');
-
     List<Map<CoverageKey, LinesCoverage>> uploads = new ArrayList<>();
 
     CodeCoverageCollector collector =
         new CodeCoverageCollector(
             (store, session) -> {},
-            () -> Collections.singletonList(className),
+            () -> Collections.singletonList(newClass(SampleClassB.class)),
+            id -> null,
             uploads::add,
-            60,
-            null);
+            60);
 
     collector.collect();
 
@@ -122,10 +120,10 @@ class CodeCoverageCollectorTest {
     CodeCoverageCollector collector =
         new CodeCoverageCollector(
             (store, session) -> store.put(new ExecutionData(classId, className, probes)),
-            () -> Collections.singletonList(className),
+            () -> Collections.singletonList(newClass(SampleClassA.class)),
+            id -> null,
             uploads::add,
-            60,
-            null);
+            60);
 
     collector.collect();
 
@@ -140,7 +138,7 @@ class CodeCoverageCollectorTest {
 
     CodeCoverageCollector collector =
         new CodeCoverageCollector(
-            (store, session) -> {}, Collections::emptyList, uploads::add, 60, null);
+            (store, session) -> {}, Collections::emptyList, id -> null, uploads::add, 60);
 
     collector.collect();
 
@@ -149,8 +147,8 @@ class CodeCoverageCollectorTest {
 
   @Test
   void drainedClassNotReReported() {
-    String className = SampleClassB.class.getName().replace('.', '/');
     AtomicInteger drainCallCount = new AtomicInteger(0);
+    CodeCoverageTransformer.NewClass nc = newClass(SampleClassB.class);
 
     List<Map<CoverageKey, LinesCoverage>> uploads = new ArrayList<>();
 
@@ -159,13 +157,13 @@ class CodeCoverageCollectorTest {
             (store, session) -> {},
             () -> {
               if (drainCallCount.getAndIncrement() == 0) {
-                return Collections.singletonList(className);
+                return Collections.singletonList(nc);
               }
               return Collections.emptyList();
             },
+            id -> null,
             uploads::add,
-            60,
-            null);
+            60);
 
     // First cycle: should report the class
     collector.collect();
@@ -183,7 +181,7 @@ class CodeCoverageCollectorTest {
     String hitClassName = SampleClassA.class.getName().replace('.', '/');
     int hitProbeCount = countProbes(hitClassBytes);
 
-    String noHitClassName = SampleClassB.class.getName().replace('.', '/');
+    CodeCoverageTransformer.NewClass noHitNc = newClass(SampleClassB.class);
 
     boolean[] probes = new boolean[hitProbeCount];
     Arrays.fill(probes, true);
@@ -193,10 +191,10 @@ class CodeCoverageCollectorTest {
     CodeCoverageCollector collector =
         new CodeCoverageCollector(
             (store, session) -> store.put(new ExecutionData(hitClassId, hitClassName, probes)),
-            () -> Arrays.asList(hitClassName, noHitClassName),
+            () -> Arrays.asList(newClass(SampleClassA.class), noHitNc),
+            id -> null,
             uploads::add,
-            60,
-            null);
+            60);
 
     collector.collect();
 
@@ -209,7 +207,7 @@ class CodeCoverageCollectorTest {
     for (Map.Entry<CoverageKey, LinesCoverage> entry : coverage.entrySet()) {
       if (entry.getKey().className.equals(hitClassName)) {
         hitLc = entry.getValue();
-      } else if (entry.getKey().className.equals(noHitClassName)) {
+      } else if (entry.getKey().className.equals(noHitNc.className)) {
         noHitLc = entry.getValue();
       }
     }
@@ -243,6 +241,12 @@ class CodeCoverageCollectorTest {
   }
 
   // ===== Helpers =====
+
+  private static CodeCoverageTransformer.NewClass newClass(Class<?> clazz) {
+    byte[] bytes = bytecodeFor(clazz);
+    return new CodeCoverageTransformer.NewClass(
+        CRC64.classId(bytes), clazz.getName().replace('.', '/'));
+  }
 
   private static byte[] bytecodeFor(Class<?> clazz) {
     String resource = clazz.getName().replace('.', '/') + ".class";

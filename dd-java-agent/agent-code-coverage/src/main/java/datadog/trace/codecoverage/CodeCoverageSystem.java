@@ -101,10 +101,7 @@ public final class CodeCoverageSystem {
 
     CodeCoverageCollector collector =
         new CodeCoverageCollector(
-            transformer,
-            sender,
-            config.getCodeCoverageReportIntervalSeconds(),
-            config.getCodeCoverageClasspath());
+            transformer, sender, config.getCodeCoverageReportIntervalSeconds());
     collector.start();
   }
 

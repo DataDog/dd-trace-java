@@ -5,10 +5,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.CODE_COVERAGE;
 import datadog.trace.coverage.CoverageKey;
 import datadog.trace.coverage.LinesCoverage;
 import datadog.trace.util.AgentTaskScheduler;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -19,11 +15,11 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 import org.jacoco.core.data.ExecutionData;
 import org.jacoco.core.data.ExecutionDataStore;
 import org.jacoco.core.data.SessionInfoStore;
-import org.jacoco.core.internal.data.CRC64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +27,10 @@ import org.slf4j.LoggerFactory;
  * Periodically collects code coverage probe data, resolves it to covered source lines using a
  * cached probe-to-line mapping, and sends the results via a {@link CodeCoverageSender}.
  *
- * <p>On the first collection cycle (or when new classes appear), a classpath scan builds the cache.
- * Subsequent cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code Analyzer}
- * pass is needed.
+ * <p>On the first collection cycle (or when new classes appear), cache entries are built by
+ * resolving class bytes through the defining ClassLoader recorded at transform time. Subsequent
+ * cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code Analyzer} pass is
+ * needed.
  *
  * <p>Newly instrumented classes that have not yet received any probe hits are also reported (with
  * executable lines but empty covered lines) so the backend can compute accurate total coverage.
@@ -43,44 +40,40 @@ public final class CodeCoverageCollector {
   private static final Logger log = LoggerFactory.getLogger(CodeCoverageCollector.class);
 
   private final BiConsumer<ExecutionDataStore, SessionInfoStore> collectAndResetFn;
-  private final Supplier<List<String>> drainNewClassesFn;
+  private final Supplier<List<CodeCoverageTransformer.NewClass>> drainNewClassesFn;
+  private final LongFunction<ClassLoader> classLoaderLookup;
   private final Consumer<Map<CoverageKey, LinesCoverage>> uploadFn;
   private final int intervalSeconds;
-  private final String explicitClasspath;
   private final ProbeMappingCache probeCache = new ProbeMappingCache();
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(CODE_COVERAGE);
 
   /**
-   * @param transformer the transformer that holds runtime probe data
+   * @param transformer the transformer that holds runtime probe data and classloader origins
    * @param sender the sender to deliver coverage results to
    * @param intervalSeconds interval between collection cycles
-   * @param explicitClasspath explicit classpath override (nullable; if null, auto-detected)
    */
   public CodeCoverageCollector(
-      CodeCoverageTransformer transformer,
-      CodeCoverageSender sender,
-      int intervalSeconds,
-      String explicitClasspath) {
+      CodeCoverageTransformer transformer, CodeCoverageSender sender, int intervalSeconds) {
     this(
         transformer::collectAndReset,
         transformer::drainNewClasses,
+        transformer::getDefiningClassLoader,
         sender::upload,
-        intervalSeconds,
-        explicitClasspath);
+        intervalSeconds);
   }
 
   /** Package-private constructor for testing. */
   CodeCoverageCollector(
       BiConsumer<ExecutionDataStore, SessionInfoStore> collectAndResetFn,
-      Supplier<List<String>> drainNewClassesFn,
+      Supplier<List<CodeCoverageTransformer.NewClass>> drainNewClassesFn,
+      LongFunction<ClassLoader> classLoaderLookup,
       Consumer<Map<CoverageKey, LinesCoverage>> uploadFn,
-      int intervalSeconds,
-      String explicitClasspath) {
+      int intervalSeconds) {
     this.collectAndResetFn = collectAndResetFn;
     this.drainNewClassesFn = drainNewClassesFn;
+    this.classLoaderLookup = classLoaderLookup;
     this.uploadFn = uploadFn;
     this.intervalSeconds = intervalSeconds;
-    this.explicitClasspath = explicitClasspath;
   }
 
   /** Starts the periodic collection scheduler. */
@@ -112,10 +105,9 @@ public final class CodeCoverageCollector {
         }
       }
 
-      // 3. Build cache entries for misses (scans classpath)
+      // 3. Build cache entries for misses via recorded classloader
       if (!cacheMisses.isEmpty()) {
-        List<File> classpathEntries = resolveClasspath();
-        probeCache.buildMissing(cacheMisses, classpathEntries);
+        probeCache.buildMissing(cacheMisses, classLoaderLookup);
         log.debug("Built cache entries for {} new classes", cacheMisses.size());
       }
 
@@ -144,18 +136,18 @@ public final class CodeCoverageCollector {
       }
 
       // 5. Report newly instrumented classes that had no hits this cycle
-      List<String> newClasses = drainNewClassesFn.get();
-      for (String className : newClasses) {
-        if (hitClassNames.contains(className)) {
+      List<CodeCoverageTransformer.NewClass> newClasses = drainNewClassesFn.get();
+      for (CodeCoverageTransformer.NewClass nc : newClasses) {
+        if (hitClassNames.contains(nc.className)) {
           continue; // already covered by hit data above
         }
-        byte[] classBytes = resolveClassBytes(className);
+        byte[] classBytes =
+            ProbeMappingCache.resolveClassBytes(nc.className, nc.classId, classLoaderLookup);
         if (classBytes == null) {
           continue;
         }
-        long classId = CRC64.classId(classBytes);
         ClassProbeMapping mapping =
-            ClassProbeMappingBuilder.buildBaseline(classId, className, classBytes);
+            ClassProbeMappingBuilder.buildBaseline(nc.classId, nc.className, classBytes);
         if (mapping == null || mapping.sourceFile == null) {
           continue;
         }
@@ -174,60 +166,5 @@ public final class CodeCoverageCollector {
     } catch (Exception e) {
       log.debug("Error during code coverage collection", e);
     }
-  }
-
-  /**
-   * Resolves classpath entries to analyze. If an explicit classpath is configured, it takes
-   * precedence. Otherwise, falls back to {@code java.class.path} system property.
-   */
-  private List<File> resolveClasspath() {
-    String cp;
-    if (explicitClasspath != null && !explicitClasspath.isEmpty()) {
-      cp = explicitClasspath;
-    } else {
-      cp = System.getProperty("java.class.path");
-    }
-    List<File> entries = new ArrayList<>();
-    if (cp != null && !cp.isEmpty()) {
-      for (String path : cp.split(File.pathSeparator)) {
-        String trimmed = path.trim();
-        if (!trimmed.isEmpty()) {
-          entries.add(new File(trimmed));
-        }
-      }
-    }
-    return entries;
-  }
-
-  /** Resolves class bytes via system and context classloaders. Returns null if not found. */
-  private static byte[] resolveClassBytes(String className) {
-    String resource = className + ".class";
-    ClassLoader systemCl = ClassLoader.getSystemClassLoader();
-    ClassLoader contextCl = Thread.currentThread().getContextClassLoader();
-    for (ClassLoader cl : new ClassLoader[] {systemCl, contextCl}) {
-      if (cl == null) {
-        continue;
-      }
-      InputStream is = cl.getResourceAsStream(resource);
-      if (is == null) {
-        continue;
-      }
-      try (InputStream stream = is) {
-        return readAllBytes(stream);
-      } catch (IOException e) {
-        // try next classloader
-      }
-    }
-    return null;
-  }
-
-  private static byte[] readAllBytes(InputStream is) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    byte[] buf = new byte[4096];
-    int r;
-    while ((r = is.read(buf)) != -1) {
-      out.write(buf, 0, r);
-    }
-    return out.toByteArray();
   }
 }
