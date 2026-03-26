@@ -103,6 +103,63 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     this.instrumenter = new Instrumenter(runtime);
   }
 
+  /** Recursively adds the given class and all its declared inner classes to the scope set. */
+  private static void addToScopeWithInnerClasses(Class<?> clazz, Set<String> scope) {
+    scope.add(clazz.getName());
+    for (Class<?> inner : clazz.getDeclaredClasses()) {
+      addToScopeWithInnerClasses(inner, scope);
+    }
+  }
+
+  /** Reads all bytes from an input stream. */
+  private static byte[] readAllBytes(InputStream is) throws IOException {
+    byte[] buf = new byte[1024];
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    int r;
+    while ((r = is.read(buf)) != -1) {
+      out.write(buf, 0, r);
+    }
+    return out.toByteArray();
+  }
+
+  /**
+   * Opens the package of {@code classInPackage} to the unnamed module of {@code targetLoader}.
+   *
+   * <p>This uses {@code Instrumentation.redefineModule} reflectively (same approach as JaCoCo's
+   * {@code AgentModule.openPackage}).
+   */
+  private static void openPackage(
+      Instrumentation inst, Class<?> classInPackage, ClassLoader targetLoader) throws Exception {
+    // module of the package to open (e.g. java.base for java.lang)
+    Object module = Class.class.getMethod("getModule").invoke(classInPackage);
+
+    // unnamed module of the isolated classloader
+    Object unnamedModule = ClassLoader.class.getMethod("getUnnamedModule").invoke(targetLoader);
+
+    Class<?> moduleClass = Class.forName("java.lang.Module");
+
+    // Instrumentation.redefineModule(Module, Set, Map, Map<String, Set<Module>>, Set, Map)
+    Instrumentation.class
+        .getMethod(
+            "redefineModule",
+            moduleClass,
+            Set.class,
+            Map.class,
+            Map.class,
+            Set.class,
+            Map.class)
+        .invoke(
+            inst,
+            module, // module to modify
+            Collections.emptySet(), // extraReads
+            Collections.emptyMap(), // extraExports
+            Collections.singletonMap(
+                classInPackage.getPackage().getName(),
+                Collections.singleton(unnamedModule)), // extraOpens
+            Collections.emptySet(), // extraUses
+            Collections.emptyMap()); // extraProvides
+  }
+
   @Override
   public byte[] transform(
       ClassLoader loader,
@@ -158,60 +215,4 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     }
   }
 
-  /**
-   * Opens the package of {@code classInPackage} to the unnamed module of {@code targetLoader}.
-   *
-   * <p>This uses {@code Instrumentation.redefineModule} reflectively (same approach as JaCoCo's
-   * {@code AgentModule.openPackage}).
-   */
-  private static void openPackage(
-      Instrumentation inst, Class<?> classInPackage, ClassLoader targetLoader) throws Exception {
-    // module of the package to open (e.g. java.base for java.lang)
-    Object module = Class.class.getMethod("getModule").invoke(classInPackage);
-
-    // unnamed module of the isolated classloader
-    Object unnamedModule = ClassLoader.class.getMethod("getUnnamedModule").invoke(targetLoader);
-
-    Class<?> moduleClass = Class.forName("java.lang.Module");
-
-    // Instrumentation.redefineModule(Module, Set, Map, Map<String, Set<Module>>, Set, Map)
-    Instrumentation.class
-        .getMethod(
-            "redefineModule",
-            moduleClass,
-            Set.class,
-            Map.class,
-            Map.class,
-            Set.class,
-            Map.class)
-        .invoke(
-            inst,
-            module, // module to modify
-            Collections.emptySet(), // extraReads
-            Collections.emptyMap(), // extraExports
-            Collections.singletonMap(
-                classInPackage.getPackage().getName(),
-                Collections.singleton(unnamedModule)), // extraOpens
-            Collections.emptySet(), // extraUses
-            Collections.emptyMap()); // extraProvides
-  }
-
-  /** Recursively adds the given class and all its declared inner classes to the scope set. */
-  private static void addToScopeWithInnerClasses(Class<?> clazz, Set<String> scope) {
-    scope.add(clazz.getName());
-    for (Class<?> inner : clazz.getDeclaredClasses()) {
-      addToScopeWithInnerClasses(inner, scope);
-    }
-  }
-
-  /** Reads all bytes from an input stream. */
-  private static byte[] readAllBytes(InputStream is) throws IOException {
-    byte[] buf = new byte[1024];
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    int r;
-    while ((r = is.read(buf)) != -1) {
-      out.write(buf, 0, r);
-    }
-    return out.toByteArray();
-  }
 }
