@@ -12,7 +12,7 @@ class SpanPointersProcessorTest extends DDSpecification{
   def "SpanPointersProcessor adds correct link with basic values"() {
     given:
     def processor = new SpanPointersProcessor()
-    def uunsafeTags = TagMap.fromMap([
+    def unsafeTags = TagMap.fromMap([
       (InstrumentationTags.AWS_BUCKET_NAME): "some-bucket",
       (InstrumentationTags.AWS_OBJECT_KEY) : "some-key.data",
       "s3.eTag"                            : "ab12ef34"
