@@ -294,7 +294,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLA
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
-import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_CLASSPATH;
 import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_EXCLUDES;
 import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_INCLUDES;
 import static datadog.trace.api.config.CodeCoverageConfig.CODE_COVERAGE_REPORT_INTERVAL_SECONDS;
@@ -1255,7 +1254,6 @@ public class Config {
   private final String[] codeCoverageIncludes;
   private final String[] codeCoverageExcludes;
   private final int codeCoverageReportIntervalSeconds;
-  private final String codeCoverageClasspath;
 
   private final boolean dataJobsOpenLineageEnabled;
   private final boolean dataJobsOpenLineageTimeoutEnabled;
@@ -2837,7 +2835,6 @@ public class Config {
     }
     codeCoverageReportIntervalSeconds =
         configProvider.getInteger(CODE_COVERAGE_REPORT_INTERVAL_SECONDS, 900);
-    codeCoverageClasspath = configProvider.getString(CODE_COVERAGE_CLASSPATH);
 
     dataJobsOpenLineageEnabled =
         configProvider.getBoolean(
@@ -4710,10 +4707,6 @@ public class Config {
 
   public int getCodeCoverageReportIntervalSeconds() {
     return codeCoverageReportIntervalSeconds;
-  }
-
-  public String getCodeCoverageClasspath() {
-    return codeCoverageClasspath;
   }
 
   public int getCwsTlsRefresh() {
