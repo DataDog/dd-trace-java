@@ -40,13 +40,6 @@ public final class TagsPostProcessorFactory {
           processors.add(ptp);
         }
       }
-      // today we only have aws as config key however we could have span pointers for different
-      // integrations.
-      // At that moment we should run the postprocessor for all the spans (and filter by component
-      // to skip non-interesting ones)
-      if (Config.get().isAddSpanPointers("aws")) {
-        processors.add(new SpanPointersProcessor());
-      }
       processors.add(new IntegrationAdder());
       processors.add(new ServiceNameSourceAdder());
       return new PostProcessorChain(

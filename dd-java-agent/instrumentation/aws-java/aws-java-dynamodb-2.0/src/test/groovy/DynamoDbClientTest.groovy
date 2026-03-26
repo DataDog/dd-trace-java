@@ -3,7 +3,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
-import datadog.trace.core.tagprocessor.SpanPointersProcessor
+import datadog.trace.bootstrap.instrumentation.api.SpanPointerUtils
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -193,11 +193,11 @@ class DynamoDbClientTest extends InstrumentationSpecification {
           spanType DDSpanTypes.HTTP_CLIENT
           links {
             link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               // First 32 chars of SHA256("dynamodb-one-key-table|id|test-id-1||")
               .put("ptr.hash", "ca8daaa857b00545ed5186a915cf1ab5")
-              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .put("link.kind", SpanPointerUtils.LINK_KIND)
               .build())
           }
           tags {
@@ -295,11 +295,11 @@ class DynamoDbClientTest extends InstrumentationSpecification {
           spanType DDSpanTypes.HTTP_CLIENT
           links {
             link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|customer-123|sortKey|order-456")
               .put("ptr.hash", "90922c7899a82ea34406fdcdfb95161e")
-              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .put("link.kind", SpanPointerUtils.LINK_KIND)
               .build())
           }
           tags {
@@ -383,11 +383,11 @@ class DynamoDbClientTest extends InstrumentationSpecification {
           spanType DDSpanTypes.HTTP_CLIENT
           links {
             link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               // First 32 chars of SHA256("dynamodb-one-key-table|id|delete-test-id||")
               .put("ptr.hash", "65031164be5e929fddd274a02cba3f9f")
-              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .put("link.kind", SpanPointerUtils.LINK_KIND)
               .build())
           }
           tags {
@@ -482,11 +482,11 @@ class DynamoDbClientTest extends InstrumentationSpecification {
           spanType DDSpanTypes.HTTP_CLIENT
           links {
             link(DDTraceId.ZERO, 0, SpanLink.DEFAULT_FLAGS, SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.DYNAMODB_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.DYNAMODB_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               // First 32 chars of SHA256("dynamodb-two-key-table|primaryKey|user-789|sortKey|profile")
               .put("ptr.hash", "e5ce1148208c6f88041c73ceb9bbbf3a")
-              .put("link.kind", SpanPointersProcessor.LINK_KIND)
+              .put("link.kind", SpanPointerUtils.LINK_KIND)
               .build())
           }
           tags {

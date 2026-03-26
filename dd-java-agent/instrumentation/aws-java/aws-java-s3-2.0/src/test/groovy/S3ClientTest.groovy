@@ -3,7 +3,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
-import datadog.trace.core.tagprocessor.SpanPointersProcessor
+import datadog.trace.bootstrap.instrumentation.api.SpanPointerUtils
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -75,10 +75,10 @@ class S3ClientTest extends InstrumentationSpecification {
           links {
             link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
               SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               .put("ptr.hash","6d1a2fe194c6579187408f827f942be3")
-              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+              .put("link.kind",SpanPointerUtils.LINK_KIND).build())
           }
           tags {
             defaultTags()
@@ -134,10 +134,10 @@ class S3ClientTest extends InstrumentationSpecification {
           links {
             link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
               SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               .put("ptr.hash","6d1a2fe194c6579187408f827f942be3")
-              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+              .put("link.kind",SpanPointerUtils.LINK_KIND).build())
           }
           tags {
             defaultTags()
@@ -168,10 +168,10 @@ class S3ClientTest extends InstrumentationSpecification {
           links {
             link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
               SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               .put("ptr.hash","1542053ce6d393c424b1374bac1fc0c5")
-              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+              .put("link.kind",SpanPointerUtils.LINK_KIND).build())
           }
           tags {
             defaultTags()
@@ -348,10 +348,10 @@ class S3ClientTest extends InstrumentationSpecification {
           links {
             link(DDTraceId.ZERO, (long)0, SpanLink.DEFAULT_FLAGS,
               SpanAttributes.builder()
-              .put("ptr.kind", SpanPointersProcessor.S3_PTR_KIND)
-              .put("ptr.dir", SpanPointersProcessor.DOWN_DIRECTION)
+              .put("ptr.kind", SpanPointerUtils.S3_PTR_KIND)
+              .put("ptr.dir", SpanPointerUtils.DOWN_DIRECTION)
               .put("ptr.hash","422412aa6b472a7194f3e24f4b12b4a6")
-              .put("link.kind",SpanPointersProcessor.LINK_KIND).build())
+              .put("link.kind",SpanPointerUtils.LINK_KIND).build())
           }
           tags {
             defaultTags()
