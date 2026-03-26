@@ -4,8 +4,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfiguration;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = MultipartAutoConfiguration.class)
 public class SpringbootApplication {
 
   public static void main(final String[] args) {
