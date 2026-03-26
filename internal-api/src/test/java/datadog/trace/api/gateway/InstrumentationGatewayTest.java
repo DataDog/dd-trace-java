@@ -236,6 +236,10 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.shellCmd()).apply(null, null);
     ss.registerCallback(events.httpRoute(), callback);
     cbp.getCallback(events.httpRoute()).accept(null, null);
+    ss.registerCallback(events.requestFilesFilenames(), callback);
+    assertEquals(
+        Flow.Action.Noop.INSTANCE,
+        cbp.getCallback(events.requestFilesFilenames()).apply(null, null).getAction());
     assertEquals(Events.MAX_EVENTS, callback.count);
   }
 
@@ -322,6 +326,9 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.shellCmd()).apply(null, null);
     ss.registerCallback(events.httpRoute(), throwback);
     cbp.getCallback(events.httpRoute()).accept(null, null);
+    ss.registerCallback(events.requestFilesFilenames(), throwback);
+    assertEquals(
+        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
     assertEquals(Events.MAX_EVENTS, throwback.count);
   }
 
