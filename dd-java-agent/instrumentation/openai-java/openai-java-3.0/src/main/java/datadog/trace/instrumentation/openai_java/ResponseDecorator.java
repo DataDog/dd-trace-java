@@ -807,35 +807,96 @@ public class ResponseDecorator {
   }
 
   private Optional<Map<String, Object>> extractPromptFromParams(ResponseCreateParams params) {
-    Optional<ResponsePrompt> promptOpt = params.prompt();
-    if (!promptOpt.isPresent()) {
-      return Optional.empty();
+    Optional<ResponsePrompt> typedPromptOpt = params._prompt().asKnown();
+    if (typedPromptOpt.isPresent()) {
+      Optional<Map<String, Object>> extractedPrompt = extractPrompt(typedPromptOpt.get());
+      if (extractedPrompt.isPresent()) {
+        return extractedPrompt;
+      }
     }
 
-    ResponsePrompt prompt = promptOpt.get();
+    try {
+      Optional<JsonValue> rawPromptOpt = params._prompt().asUnknown();
+      if (!rawPromptOpt.isPresent()) {
+        return Optional.empty();
+      }
+
+      Optional<Map<String, JsonValue>> rawPromptObjOpt = rawPromptOpt.get().asObject();
+      if (!rawPromptObjOpt.isPresent()) {
+        return Optional.empty();
+      }
+
+      return extractPrompt(rawPromptObjOpt.get());
+    } catch (Exception ignored) {
+      return Optional.empty();
+    }
+  }
+
+  private Optional<Map<String, Object>> extractPrompt(ResponsePrompt prompt) {
     Map<String, Object> promptMap = new LinkedHashMap<>();
 
-    String id = prompt.id();
+    String id = prompt._id().asString().orElse(null);
     if (id != null && !id.isEmpty()) {
       promptMap.put("id", id);
     }
-    prompt.version().ifPresent(version -> promptMap.put("version", version));
-    prompt
-        .variables()
-        .ifPresent(
-            variables -> {
-              Map<String, Object> normalized = normalizePromptVariables(variables);
-              if (!normalized.isEmpty()) {
-                promptMap.put("variables", normalized);
-              }
-            });
+    prompt._version().asString().ifPresent(version -> promptMap.put("version", version));
+
+    Optional<ResponsePrompt.Variables> typedVariablesOpt = prompt._variables().asKnown();
+    if (typedVariablesOpt.isPresent()) {
+      Map<String, Object> normalized = normalizePromptVariables(typedVariablesOpt.get());
+      if (!normalized.isEmpty()) {
+        promptMap.put("variables", normalized);
+      }
+    } else {
+      Optional<JsonValue> rawVariablesOpt = prompt._variables().asUnknown();
+      if (rawVariablesOpt.isPresent()) {
+        Optional<Map<String, JsonValue>> rawVariablesObjOpt = rawVariablesOpt.get().asObject();
+        if (rawVariablesObjOpt.isPresent()) {
+          Map<String, Object> normalized = normalizePromptVariables(rawVariablesObjOpt.get());
+          if (!normalized.isEmpty()) {
+            promptMap.put("variables", normalized);
+          }
+        }
+      }
+    }
+
+    return promptMap.isEmpty() ? Optional.empty() : Optional.of(promptMap);
+  }
+
+  private Optional<Map<String, Object>> extractPrompt(Map<String, JsonValue> promptObj) {
+    Map<String, Object> promptMap = new LinkedHashMap<>();
+
+    String id = getJsonString(promptObj.get("id"));
+    if (id != null && !id.isEmpty()) {
+      promptMap.put("id", id);
+    }
+
+    String version = getJsonString(promptObj.get("version"));
+    if (version != null && !version.isEmpty()) {
+      promptMap.put("version", version);
+    }
+
+    JsonValue variablesValue = promptObj.get("variables");
+    if (variablesValue != null) {
+      Optional<Map<String, JsonValue>> variablesObjOpt = variablesValue.asObject();
+      if (variablesObjOpt.isPresent()) {
+        Map<String, Object> normalized = normalizePromptVariables(variablesObjOpt.get());
+        if (!normalized.isEmpty()) {
+          promptMap.put("variables", normalized);
+        }
+      }
+    }
 
     return promptMap.isEmpty() ? Optional.empty() : Optional.of(promptMap);
   }
 
   private Map<String, Object> normalizePromptVariables(ResponsePrompt.Variables variables) {
+    return normalizePromptVariables(variables._additionalProperties());
+  }
+
+  private Map<String, Object> normalizePromptVariables(Map<String, JsonValue> variables) {
     Map<String, Object> normalized = new LinkedHashMap<>();
-    for (Map.Entry<String, JsonValue> entry : variables._additionalProperties().entrySet()) {
+    for (Map.Entry<String, JsonValue> entry : variables.entrySet()) {
       Object value = normalizePromptVariable(entry.getValue());
       if (value != null) {
         normalized.put(entry.getKey(), value);

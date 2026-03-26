@@ -314,24 +314,35 @@ He hopes to pursue a career in software engineering after graduating.""")
   }
 
   ResponseCreateParams responseCreateParamsWithPromptTracking(boolean json) {
-    def variables = ResponsePrompt.Variables.builder()
-    .putAdditionalProperty("user_message", JsonValue.from([type: "input_text", text: "Analyze these images and document"]))
-    .putAdditionalProperty("user_image_1", JsonValue.from([type: "input_image", image_url: "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"]))
-    .putAdditionalProperty("user_file", JsonValue.from([type: "input_file", file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf"]))
-    .putAdditionalProperty("user_image_2", JsonValue.from([type: "input_image", file_id: "file-BCuhT1HQ24kmtsuuzF1mh2"]))
-    .build()
-
-    def prompt = ResponsePrompt.builder()
-    .id("pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0")
-    .version("2")
-    .variables(variables)
-    .build()
-
     if (json) {
+      def rawPrompt = JsonValue.from([
+        id: "pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0",
+        variables: [
+          user_message: [type: "input_text", text: "Analyze these images and document"],
+          user_image_1: [type: "input_image", image_url: "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"],
+          user_file: [type: "input_file", file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf"],
+          user_image_2: [type: "input_image", file_id: "file-BCuhT1HQ24kmtsuuzF1mh2"],
+        ],
+        version: "2",
+      ])
+
       ResponseCreateParams.builder()
-      .prompt(prompt)
+      .prompt(rawPrompt)
       .build()
     } else {
+      def variables = ResponsePrompt.Variables.builder()
+      .putAdditionalProperty("user_message", JsonValue.from([type: "input_text", text: "Analyze these images and document"]))
+      .putAdditionalProperty("user_image_1", JsonValue.from([type: "input_image", image_url: "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"]))
+      .putAdditionalProperty("user_file", JsonValue.from([type: "input_file", file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf"]))
+      .putAdditionalProperty("user_image_2", JsonValue.from([type: "input_image", file_id: "file-BCuhT1HQ24kmtsuuzF1mh2"]))
+      .build()
+
+      def prompt = ResponsePrompt.builder()
+      .id("pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0")
+      .version("2")
+      .variables(variables)
+      .build()
+
       ResponseCreateParams.builder()
       .prompt(prompt)
       .build()

@@ -205,7 +205,7 @@ class ResponseServiceTest extends OpenAiTest {
     expect:
     List<LLMObs.LLMMessage> inputTags = []
     Map<String, Object> metadata = [:]
-    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags, null, metadata, false, true)
+    assertResponseTrace(true, "gpt-4.1", "gpt-4.1-2025-04-14", null, inputTags, null, metadata, false)
     and:
     metadata.stream == true
     inputTags.size() == 3
@@ -305,7 +305,9 @@ class ResponseServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_name" "gpt-3.5-turbo"
             "_ml_obs_tag.output" List
             def out = tag("_ml_obs_tag.output")
-            if (out instanceof List) outputMessages.addAll(out)
+            if (out instanceof List) {
+              outputMessages.addAll(out)
+            }
           }
         }
         span(2) {
@@ -335,8 +337,7 @@ class ResponseServiceTest extends OpenAiTest {
   Object inputTagsOut,
   List outputTagsOut,
   Map<String, Object> metadataOut,
-  boolean expectPromptTag = false,
-  boolean expectRateLimitTags = false) {
+  boolean expectPromptTag = false) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
