@@ -403,8 +403,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("shard-matching-flag")
             .targetingKey("specific-key-that-matches-shard")
-            .result(
-                new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
+            .result(new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
         new TestCase<>("default")
             .flag("future-allocation-flag")
             .targetingKey("user-123")

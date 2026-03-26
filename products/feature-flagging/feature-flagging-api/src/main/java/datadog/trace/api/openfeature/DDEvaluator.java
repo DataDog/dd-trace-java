@@ -137,7 +137,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               }
               if (allShardsMatch) {
                 return resolveVariant(
-                    target, key, defaultValue, flag, split.variationKey, allocation, split, context);
+                    target,
+                    key,
+                    defaultValue,
+                    flag,
+                    split.variationKey,
+                    allocation,
+                    split,
+                    context);
               }
             }
           }
@@ -356,9 +363,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .reason(
                 !isEmpty(allocation.rules)
                     ? Reason.TARGETING_MATCH.name()
-                    : !isEmpty(split.shards)
-                        ? Reason.SPLIT.name()
-                        : Reason.STATIC.name())
+                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();
