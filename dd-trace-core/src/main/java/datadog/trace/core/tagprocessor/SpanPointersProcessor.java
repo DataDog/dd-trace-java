@@ -13,9 +13,9 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
-import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.Strings;
 import java.nio.charset.StandardCharsets;

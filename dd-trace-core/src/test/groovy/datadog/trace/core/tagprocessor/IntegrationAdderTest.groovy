@@ -12,7 +12,7 @@ class IntegrationAdderTest extends DDSpecification {
 
     when:
     def unsafeTags = TagMap.fromMap(["_dd.integration": "bad"])
-	calculator.processTags(unsafeTags, spanContext, {link -> })
+    calculator.processTags(unsafeTags, spanContext, {link -> })
 
     then:
     1 * spanContext.getIntegrationName() >> (isSet ? "test" : null)

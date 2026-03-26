@@ -81,14 +81,13 @@ class PayloadTagsProcessorTest extends DDSpecification {
       "tag1": 1,
       "payload": new PayloadTagsData([] as PathAndValue[])
     ]
-    
+
     when:
-	def unsafeTags = TagMap.fromMap(spanTags)
-	ptp.processTags(unsafeTags, null, {link -> })
+    def unsafeTags = TagMap.fromMap(spanTags)
+    ptp.processTags(unsafeTags, null, {link -> })
 
     then:
     unsafeTags == ["foo": "bar", "tag1": 1]
-    
   }
 
   static PathAndValue pv(PathCursor path, Object value) {
@@ -115,7 +114,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(spanTags)
     ptp.processTags(unsafeTags, null, {link -> })
-    
+
     then:
     unsafeTags == ["foo": "bar", "tag1": 1, "payload.tag1": 0]
   }
@@ -136,7 +135,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link -> })
-    
+
     then:
     unsafeTags == [
       "payload.tag1": 11,
@@ -158,7 +157,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "payload.tag7": unknownValue.toString(),
@@ -179,7 +178,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.j3.0": "1",
@@ -228,7 +227,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       'dd.a'                    : 33,
@@ -248,7 +247,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.key": invalidJson,
@@ -278,7 +277,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.j1.foo": "bar",
@@ -296,7 +295,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
 
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.v.inner.a": 1.15d,
@@ -320,9 +319,9 @@ class PayloadTagsProcessorTest extends DDSpecification {
     def st = spanTags("p", [pv(pc().push("key"), new ByteArrayInputStream(invalidJson.bytes)),])
 
     when:
-	def unsafeTags = TagMap.fromMap(st)
+    def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.key": "<binary>",
@@ -346,7 +345,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.j3.0": "redacted",
@@ -373,7 +372,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     unsafeTags == [
       "p.j3.0": "redacted",
@@ -396,7 +395,7 @@ class PayloadTagsProcessorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(st)
     ptp.processTags(unsafeTags, null, {link -> })
-    
+
     then:
     unsafeTags == [
       "p.j3.0": "redacted",

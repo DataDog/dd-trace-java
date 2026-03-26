@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import javax.annotation.Nullable;
 

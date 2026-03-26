@@ -16,7 +16,7 @@ class PeerServiceCalculatorTest extends DDSpecification {
     when:
     def unsafeTags = TagMap.fromMap(tags)
     calculator.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     // tags are not modified
     assert unsafeTags == tags
@@ -34,10 +34,10 @@ class PeerServiceCalculatorTest extends DDSpecification {
   def "schema v1: test peer service default logic and precursors"() {
     setup:
     def calculator = new PeerServiceCalculator(new NamingSchemaV1().peerService(), Collections.emptyMap())
-    
+
     when:
     tags.put(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-    
+
     def unsafeTags = TagMap.fromMap(tags)
     calculator.processTags(unsafeTags, null, {link ->})
 
@@ -61,11 +61,11 @@ class PeerServiceCalculatorTest extends DDSpecification {
     setup:
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
-    
+
     when:
     def unsafeTags = TagMap.fromMap(["span.kind": "client", "peer.hostname": "test"])
     calculator.processTags(unsafeTags, null, {link ->})
-    
+
     then:
     assert unsafeTags.get(Tags.PEER_SERVICE) == "test"
   }
@@ -78,9 +78,9 @@ class PeerServiceCalculatorTest extends DDSpecification {
     when:
     def tags = ["span.kind": kind, "peer.hostname": "test"]
     def unsafeTags = TagMap.fromMap(tags)
-    
+
     calculator.processTags(unsafeTags, null, {link -> })
-    
+
     then:
     assert unsafeTags.containsKey(Tags.PEER_SERVICE) == calculate
 
