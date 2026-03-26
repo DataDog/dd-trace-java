@@ -78,12 +78,11 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
             .and(isDeclaredBy(named("org.apache.spark.scheduler.LiveListenerBus"))),
         AbstractSparkInstrumentation.class.getName() + "$LiveListenerBusAdvice");
 
-    // SparkSession.sql(String) and SparkSession.table(String) — catch AnalysisException failures
-    // that fire before SparkListenerSQLExecutionStart and are invisible to the listener bus
+    // SparkSession.sql(String, ...) and SparkSession.table(String) — catch AnalysisException
+    // failures that fire before SparkListenerSQLExecutionStart and are invisible to the listener bus
     transformer.applyAdvice(
         isMethod()
             .and(named("sql").or(named("table")))
-            .and(takesArguments(1))
             .and(takesArgument(0, String.class))
             .and(isDeclaredBy(named("org.apache.spark.sql.SparkSession"))),
         AbstractSparkInstrumentation.class.getName() + "$SparkSqlFailureAdvice");
@@ -143,17 +142,16 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   }
 
   public static class SparkSqlFailureAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(0) String identifier, @Advice.Local("sqlIdentifier") String stored) {
-      stored = identifier;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void exit(
-        @Advice.Thrown Throwable throwable, @Advice.Local("sqlIdentifier") String identifier) {
+        @Advice.Argument(0) String sqlText, @Advice.Thrown Throwable throwable) {
+      System.err.println(
+          "[DD-TRACE-DEBUG] SparkSqlFailureAdvice.exit: throwable="
+              + throwable
+              + " listener="
+              + AbstractDatadogSparkListener.listener);
       if (throwable == null || AbstractDatadogSparkListener.listener == null) return;
-      AbstractDatadogSparkListener.listener.onSqlFailure(identifier, throwable);
+      AbstractDatadogSparkListener.listener.onSqlFailure(sqlText, throwable);
     }
   }
 

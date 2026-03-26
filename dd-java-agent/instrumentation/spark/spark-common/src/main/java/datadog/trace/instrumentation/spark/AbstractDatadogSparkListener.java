@@ -145,6 +145,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private long availableExecutorTime = 0;
 
   private volatile boolean applicationEnded = false;
+  private java.lang.ref.WeakReference<Throwable> lastSqlFailure =
+      new java.lang.ref.WeakReference<>(null);
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -1055,6 +1057,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public synchronized void onSqlFailure(String sqlText, Throwable throwable) {
     if (isRunningOnDatabricks) return;
     if (applicationEnded) return;
+    if (throwable == lastSqlFailure.get()) return;
+    lastSqlFailure = new java.lang.ref.WeakReference<>(throwable);
 
     initApplicationSpanIfNotInitialized();
 
