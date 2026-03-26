@@ -16,9 +16,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
-import org.jacoco.core.data.ExecutionDataReader;
+import org.jacoco.core.data.ExecutionData;
 import org.jacoco.core.data.ExecutionDataStore;
-import org.jacoco.core.data.ExecutionDataWriter;
+import org.jacoco.core.data.IExecutionDataVisitor;
 import org.jacoco.core.data.SessionInfoStore;
 import org.jacoco.core.instr.Instrumenter;
 import org.jacoco.core.runtime.IRuntime;
@@ -230,31 +230,23 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
   /**
    * Collects current probe data and resets all probes to {@code false}.
    *
-   * <p>Uses a serialize/deserialize round-trip to capture probe values before reset. This is
-   * necessary because {@code RuntimeData.collect()} passes references to the live {@code boolean[]}
-   * probe arrays to the visitor. If we passed an {@code ExecutionDataStore} directly, it would
-   * store references to the same arrays that {@code reset()} then zeroes out — destroying the
-   * collected data. The byte-stream approach (same as JaCoCo's own {@code
-   * Agent.getExecutionData()}) captures probe values into the stream before the reset runs.
+   * <p>{@code RuntimeData.collect()} passes references to live {@code boolean[]} probe arrays to
+   * the visitor and then resets them when requested. To keep the snapshot intact, clone the arrays
+   * before forwarding them to the target store. This preserves the existing JaCoCo
+   * serialize/deserialize semantics without the extra byte buffer round-trip.
    *
    * @param target store to receive the execution data
    * @param sessionTarget store to receive session info
    */
   public void collectAndReset(ExecutionDataStore target, SessionInfoStore sessionTarget) {
-    try {
-      // Serialize probe data to bytes (captures values before reset)
-      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-      ExecutionDataWriter writer = new ExecutionDataWriter(buffer);
-      runtimeData.collect(writer, writer, true);
+    runtimeData.collect(snapshotExecutionData(target), sessionTarget, true);
+  }
 
-      // Deserialize into the target stores
-      ExecutionDataReader reader =
-          new ExecutionDataReader(new java.io.ByteArrayInputStream(buffer.toByteArray()));
-      reader.setExecutionDataVisitor(target);
-      reader.setSessionInfoVisitor(sessionTarget);
-      reader.read();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to collect coverage data", e);
-    }
+  static IExecutionDataVisitor snapshotExecutionData(ExecutionDataStore target) {
+    return data -> {
+      if (data.hasHits()) {
+        target.put(new ExecutionData(data.getId(), data.getName(), data.getProbes().clone()));
+      }
+    };
   }
 }
