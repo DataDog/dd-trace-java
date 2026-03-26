@@ -1255,6 +1255,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
     }
+    for (DDSpan span : writtenTrace) {
+      profilingContextIntegration.onSpanFinished(span);
+    }
   }
 
   private List<DDSpan> interceptCompleteTrace(SpanList originalTrace) {
