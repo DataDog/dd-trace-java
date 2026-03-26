@@ -119,12 +119,17 @@ public final class OtlpCommonProto {
   }
 
   public static byte[] recordMessage(GrowableBuffer buf, int fieldNum) {
+    return recordMessage(buf, fieldNum, 0);
+  }
+
+  public static byte[] recordMessage(GrowableBuffer buf, int fieldNum, int remainingBytes) {
     try {
       ByteBuffer data = buf.flip();
       int dataSize = data.remaining();
-      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(dataSize) + dataSize);
+      int expectedSize = dataSize + remainingBytes;
+      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(expectedSize) + dataSize);
       writeTag(message, fieldNum, LEN_WIRE_TYPE);
-      writeVarInt(message, dataSize);
+      writeVarInt(message, expectedSize);
       message.put(data);
       return message.array();
     } finally {
