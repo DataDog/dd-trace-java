@@ -18,7 +18,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -41,6 +40,11 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.liberty20.PartHelper"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getParts")).and(isPublic()).and(takesArguments(0)),
@@ -57,41 +61,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      List<String> filenames = new ArrayList<>();
-      for (Object part : parts) {
-        String name = null;
-        // Try Servlet 3.1+ API first (getSubmittedFileName)
-        try {
-          name = (String) part.getClass().getMethod("getSubmittedFileName").invoke(part);
-        } catch (Exception ignored) {
-        }
-        // Fallback: parse filename from Content-Disposition header (Servlet 3.0)
-        if (name == null) {
-          try {
-            String cd =
-                (String)
-                    part.getClass()
-                        .getMethod("getHeader", String.class)
-                        .invoke(part, "content-disposition");
-            if (cd != null) {
-              for (String tok : cd.split(";")) {
-                tok = tok.trim();
-                if (tok.startsWith("filename=")) {
-                  name = tok.substring(9).trim();
-                  if (name.startsWith("\"") && name.endsWith("\"")) {
-                    name = name.substring(1, name.length() - 1);
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (Exception ignored) {
-          }
-        }
-        if (name != null && !name.isEmpty()) {
-          filenames.add(name);
-        }
-      }
+      List<String> filenames = PartHelper.extractFilenames(parts);
       if (filenames.isEmpty()) {
         return;
       }
