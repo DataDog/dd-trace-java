@@ -178,7 +178,7 @@ public class ResponseDecorator {
         }
       }
       return toolDefinitions;
-    } catch (Throwable ignored) {
+    } catch (Exception ignored) {
       return Collections.emptyList();
     }
   }
