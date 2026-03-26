@@ -106,7 +106,19 @@ class OtlpResourceProtoTest {
                 VERSION,
                 "2.0.0",
                 TAGS,
-                "region:eu-west"),
+                "region:eu-west,"
+                    + "service:ignored-service,"
+                    + "env:ignored-env,"
+                    + "version:ignored-version,"
+                    + "SERVICE:ignored-service,"
+                    + "ENV:ignored-env,"
+                    + "VERSION:ignored-version,"
+                    + "service.name:ignored-service,"
+                    + "deployment.environment.name:ignored-env,"
+                    + "service.version:ignored-version,"
+                    + "SERVICE.NAME:ignored-service,"
+                    + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
+                    + "SERVICE.VERSION:ignored-version"),
             attrs(
                 "service.name", "my-service",
                 "deployment.environment.name", "staging",

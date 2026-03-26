@@ -106,6 +106,10 @@ public final class OtlpCommonProto {
     writeString(buf, value.getBytes(UTF_8));
   }
 
+  public static int sizeTag(int fieldNum) {
+    return sizeVarInt(fieldNum << 3);
+  }
+
   public static void writeTag(ByteBuffer buf, int fieldNum, int wireType) {
     writeVarInt(buf, fieldNum << 3 | wireType);
   }
@@ -118,7 +122,7 @@ public final class OtlpCommonProto {
     try {
       ByteBuffer data = buf.flip();
       int dataSize = data.remaining();
-      ByteBuffer message = ByteBuffer.allocate(1 + sizeVarInt(dataSize) + dataSize);
+      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(dataSize) + dataSize);
       writeTag(message, fieldNum, LEN_WIRE_TYPE);
       writeVarInt(message, dataSize);
       message.put(data);
