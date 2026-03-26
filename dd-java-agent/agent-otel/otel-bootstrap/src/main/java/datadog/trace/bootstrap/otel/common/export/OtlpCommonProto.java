@@ -127,7 +127,8 @@ public final class OtlpCommonProto {
       ByteBuffer data = buf.flip();
       int dataSize = data.remaining();
       int expectedSize = dataSize + remainingBytes;
-      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(expectedSize) + dataSize);
+      ByteBuffer message =
+          ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(expectedSize) + dataSize);
       writeTag(message, fieldNum, LEN_WIRE_TYPE);
       writeVarInt(message, expectedSize);
       message.put(data);
