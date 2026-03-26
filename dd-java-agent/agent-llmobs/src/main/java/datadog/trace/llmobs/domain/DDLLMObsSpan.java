@@ -1,6 +1,7 @@
 package datadog.trace.llmobs.domain;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
@@ -71,6 +72,11 @@ public class DDLLMObsSpan implements LLMObsSpan {
             .withSpanType(DDSpanTypes.LLMOBS);
 
     span = spanBuilder.start();
+
+    // set global dd_tags as base layer so UST and span-level tags can override them
+    for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
+      span.setTag(LLMOBS_TAG_PREFIX + entry.getKey(), entry.getValue());
+    }
 
     // set UST (unified service tags, env, service, version)
     span.setTag(ENV, wellKnownTags.getEnv());
