@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -39,7 +40,9 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       "org.apache.spark.util.Utils",
       "org.apache.spark.util.SparkClassUtils",
       "org.apache.spark.scheduler.LiveListenerBus",
-      "org.apache.spark.sql.execution.SparkPlanInfo$"
+      "org.apache.spark.sql.execution.SparkPlanInfo$",
+      "org.apache.spark.sql.SparkSession",
+      "org.apache.spark.sql.DataFrameReader"
     };
   }
 
@@ -74,6 +77,23 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
             .and(takesArgument(0, named("org.apache.spark.scheduler.SparkListenerInterface")))
             .and(isDeclaredBy(named("org.apache.spark.scheduler.LiveListenerBus"))),
         AbstractSparkInstrumentation.class.getName() + "$LiveListenerBusAdvice");
+
+    // SparkSession.sql(String) and SparkSession.table(String) — catch AnalysisException failures
+    // that fire before SparkListenerSQLExecutionStart and are invisible to the listener bus
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("sql").or(named("table")))
+            .and(takesArguments(1))
+            .and(takesArgument(0, String.class))
+            .and(isDeclaredBy(named("org.apache.spark.sql.SparkSession"))),
+        AbstractSparkInstrumentation.class.getName() + "$SparkSqlFailureAdvice");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("table"))
+            .and(takesArguments(1))
+            .and(takesArgument(0, String.class))
+            .and(isDeclaredBy(named("org.apache.spark.sql.DataFrameReader"))),
+        AbstractSparkInstrumentation.class.getName() + "$SparkSqlFailureAdvice");
   }
 
   public static class PrepareSubmitEnvAdvice {
@@ -119,6 +139,21 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), null, exitCode, msg);
       }
+    }
+  }
+
+  public static class SparkSqlFailureAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void enter(
+        @Advice.Argument(0) String identifier, @Advice.Local("sqlIdentifier") String stored) {
+      stored = identifier;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(
+        @Advice.Thrown Throwable throwable, @Advice.Local("sqlIdentifier") String identifier) {
+      if (throwable == null || AbstractDatadogSparkListener.listener == null) return;
+      AbstractDatadogSparkListener.listener.onSqlFailure(identifier, throwable);
     }
   }
 

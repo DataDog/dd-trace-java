@@ -1052,6 +1052,31 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
   }
 
+  public synchronized void onSqlFailure(String sqlText, Throwable throwable) {
+    if (isRunningOnDatabricks) return;
+    if (applicationEnded) return;
+
+    initApplicationSpanIfNotInitialized();
+
+    AgentSpan sqlSpan =
+        buildSparkSpan("spark.sql", null)
+            .withTag(DDTags.RESOURCE_NAME, sqlText)
+            .withTag("description", sqlText)
+            .asChildOf(applicationSpan.context())
+            .start();
+
+    sqlSpan.setError(true);
+    sqlSpan.setTag(DDTags.ERROR_TYPE, throwable.getClass().getName());
+    sqlSpan.setTag(DDTags.ERROR_MSG, throwable.getMessage());
+
+    java.io.StringWriter sw = new java.io.StringWriter();
+    throwable.printStackTrace(new java.io.PrintWriter(sw));
+    sqlSpan.setTag(DDTags.ERROR_STACK, sw.toString());
+
+    setDataJobsSamplingPriority(sqlSpan);
+    sqlSpan.finish();
+  }
+
   private void setDataJobsSamplingPriority(AgentSpan span) {
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
   }
