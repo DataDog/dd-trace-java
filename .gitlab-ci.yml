@@ -1071,7 +1071,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_REF: main # system tests are pinned on release branches only
+    SYSTEM_TESTS_REF: "alexeyk/replay-for-ssi-test-appsec" # TODO revert after failing GitLab tests will be fixed
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:
