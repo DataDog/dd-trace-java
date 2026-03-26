@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
+import java.util.Map;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -91,6 +92,11 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan afterStart(AgentSpan span) {
     if (llmObsEnabled) {
+      // set global dd_tags as base layer so UST and span-level tags can override them
+      for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
+        span.setTag(CommonTags.TAG_PREFIX + entry.getKey(), entry.getValue());
+      }
+
       // set UST (unified service tags, env, service, version)
       span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
       span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
