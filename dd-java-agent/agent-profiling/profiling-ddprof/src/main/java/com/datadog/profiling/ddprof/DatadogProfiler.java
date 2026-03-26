@@ -332,13 +332,19 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
-    if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
+  public void recordTraceRoot(
+      long rootSpanId, long parentSpanId, long startTicks, String endpoint, String operation) {
+    if (!profiler.recordTraceRoot(
+        rootSpanId, parentSpanId, startTicks, endpoint, operation, MAX_NUM_ENDPOINTS)) {
       log.debug(
           "Endpoint event not written because more than {} distinct endpoints have been encountered."
               + " This avoids excessive memory overhead.",
           MAX_NUM_ENDPOINTS);
     }
+  }
+
+  public long getCurrentTicks() {
+    return profiler.getCurrentTicks();
   }
 
   public int operationNameOffset() {
@@ -453,6 +459,34 @@ public final class DatadogProfiler {
 
   boolean shouldRecordQueueTimeEvent(long startMillis) {
     return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+  }
+
+  void recordTaskBlockEvent(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
+    if (profiler != null) {
+      long endTicks = profiler.getCurrentTicks();
+      profiler.recordTaskBlock(startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+    }
+  }
+
+  public void recordSpanNodeEvent(
+      long spanId,
+      long parentSpanId,
+      long rootSpanId,
+      long startNanos,
+      long durationNanos,
+      int encodedOperation,
+      int encodedResource) {
+    if (profiler != null) {
+      profiler.recordSpanNode(
+          spanId,
+          parentSpanId,
+          rootSpanId,
+          startNanos,
+          durationNanos,
+          encodedOperation,
+          encodedResource);
+    }
   }
 
   void recordQueueTimeEvent(
