@@ -89,12 +89,15 @@ public interface ParameterCollector {
 
     @Override
     public void addPart(Object part) {
-      String filename = getFilename(part);
-      if (filename != null && !filename.isEmpty()) {
-        if (filenames == null) {
-          filenames = new ArrayList<>();
+      try {
+        String filename = getFilename(part);
+        if (filename != null && !filename.isEmpty()) {
+          if (filenames == null) {
+            filenames = new ArrayList<>();
+          }
+          filenames.add(filename);
         }
-        filenames.add(filename);
+      } catch (Throwable ignored) {
       }
     }
 
