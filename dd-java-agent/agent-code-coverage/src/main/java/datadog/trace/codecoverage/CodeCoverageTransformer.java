@@ -66,8 +66,7 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     ClassLoader isolatedLoader =
         new ClassLoader(agentLoader) {
           @Override
-          protected Class<?> loadClass(String name, boolean resolve)
-              throws ClassNotFoundException {
+          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
             if (!scope.contains(name)) {
               return super.loadClass(name, resolve);
             }
@@ -92,12 +91,11 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     // Load InjectedClassRuntime in the isolated module
     @SuppressWarnings("unchecked")
     Class<InjectedClassRuntime> rtClass =
-        (Class<InjectedClassRuntime>) isolatedLoader.loadClass(InjectedClassRuntime.class.getName());
+        (Class<InjectedClassRuntime>)
+            isolatedLoader.loadClass(InjectedClassRuntime.class.getName());
 
     IRuntime runtime =
-        rtClass
-            .getConstructor(Class.class, String.class)
-            .newInstance(Object.class, "$DDCov");
+        rtClass.getConstructor(Class.class, String.class).newInstance(Object.class, "$DDCov");
 
     runtime.startup(runtimeData);
     this.instrumenter = new Instrumenter(runtime);
@@ -141,13 +139,7 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
     // Instrumentation.redefineModule(Module, Set, Map, Map<String, Set<Module>>, Set, Map)
     Instrumentation.class
         .getMethod(
-            "redefineModule",
-            moduleClass,
-            Set.class,
-            Map.class,
-            Map.class,
-            Set.class,
-            Map.class)
+            "redefineModule", moduleClass, Set.class, Map.class, Map.class, Set.class, Map.class)
         .invoke(
             inst,
             module, // module to modify
@@ -189,10 +181,10 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
    *
    * <p>Uses a serialize/deserialize round-trip to capture probe values before reset. This is
    * necessary because {@code RuntimeData.collect()} passes references to the live {@code boolean[]}
-   * probe arrays to the visitor. If we passed an {@code ExecutionDataStore} directly, it would store
-   * references to the same arrays that {@code reset()} then zeroes out — destroying the collected
-   * data. The byte-stream approach (same as JaCoCo's own {@code Agent.getExecutionData()}) captures
-   * probe values into the stream before the reset runs.
+   * probe arrays to the visitor. If we passed an {@code ExecutionDataStore} directly, it would
+   * store references to the same arrays that {@code reset()} then zeroes out — destroying the
+   * collected data. The byte-stream approach (same as JaCoCo's own {@code
+   * Agent.getExecutionData()}) captures probe values into the stream before the reset runs.
    *
    * @param target store to receive the execution data
    * @param sessionTarget store to receive session info
@@ -214,5 +206,4 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
       throw new RuntimeException("Failed to collect coverage data", e);
     }
   }
-
 }

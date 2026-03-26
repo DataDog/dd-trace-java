@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
  * Periodically collects code coverage probe data, resolves it to covered source lines using a
  * cached probe-to-line mapping, and sends the results via a {@link CodeCoverageSender}.
  *
- * <p>On the first collection cycle (or when new classes appear), a classpath scan builds the
- * cache. Subsequent cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code
- * Analyzer} pass is needed.
+ * <p>On the first collection cycle (or when new classes appear), a classpath scan builds the cache.
+ * Subsequent cycles simply iterate boolean probe arrays and set bits -- no JaCoCo {@code Analyzer}
+ * pass is needed.
  */
 public final class CodeCoverageCollector {
 
@@ -58,8 +58,7 @@ public final class CodeCoverageCollector {
   public void start() {
     scheduler.scheduleAtFixedRate(
         this::collect, intervalSeconds, intervalSeconds, TimeUnit.SECONDS);
-    log.debug(
-        "Code coverage collector started with interval of {} seconds", intervalSeconds);
+    log.debug("Code coverage collector started with interval of {} seconds", intervalSeconds);
   }
 
   /** Stops the periodic collection scheduler. */

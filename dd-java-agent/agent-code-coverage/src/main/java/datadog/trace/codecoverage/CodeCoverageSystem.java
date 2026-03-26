@@ -77,8 +77,7 @@ public final class CodeCoverageSystem {
     }
 
     // Create BackendApi for coverage uploads
-    BackendApiFactory factory =
-        new BackendApiFactory(config, (SharedCommunicationObjects) scoObj);
+    BackendApiFactory factory = new BackendApiFactory(config, (SharedCommunicationObjects) scoObj);
     BackendApi backendApi = factory.createBackendApi(Intake.CI_INTAKE);
     if (backendApi == null) {
       log.warn(

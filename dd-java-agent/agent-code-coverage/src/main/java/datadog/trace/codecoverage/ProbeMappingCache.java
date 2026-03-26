@@ -60,8 +60,7 @@ final class ProbeMappingCache {
     // Mark them with a sentinel so we don't retry on subsequent cycles.
     for (Map.Entry<Long, ExecutionData> e : needed.entrySet()) {
       cache.put(
-          e.getKey(),
-          new ClassProbeMapping(e.getKey(), null, null, new BitSet(), new int[0][]));
+          e.getKey(), new ClassProbeMapping(e.getKey(), null, null, new BitSet(), new int[0][]));
       log.debug(
           "Class {} (id {}) not found on classpath; skipping",
           e.getValue().getName(),
@@ -102,8 +101,7 @@ final class ProbeMappingCache {
           continue;
         }
         ClassProbeMapping mapping =
-            ClassProbeMappingBuilder.build(
-                ed.getId(), ed.getName(), ed.getProbes().length, bytes);
+            ClassProbeMappingBuilder.build(ed.getId(), ed.getName(), ed.getProbes().length, bytes);
         cache.put(ed.getId(), mapping);
         needed.remove(ed.getId());
       } catch (Exception e) {
@@ -116,8 +114,7 @@ final class ProbeMappingCache {
    * Tries to find a class resource using the given classloaders, returning the first non-null
    * InputStream. Returns null if no classloader can find the resource.
    */
-  private static InputStream findResource(
-      String resource, ClassLoader... classLoaders) {
+  private static InputStream findResource(String resource, ClassLoader... classLoaders) {
     for (ClassLoader cl : classLoaders) {
       if (cl == null) {
         continue;

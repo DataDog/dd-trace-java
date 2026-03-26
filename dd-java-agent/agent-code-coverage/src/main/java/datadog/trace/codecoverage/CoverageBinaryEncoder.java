@@ -8,9 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Map;
 
-/**
- * Encodes coverage data into the Coverage Binary Protocol v1
- */
+/** Encodes coverage data into the Coverage Binary Protocol v1 */
 public final class CoverageBinaryEncoder {
 
   private static final int VERSION = 1;
@@ -31,8 +29,7 @@ public final class CoverageBinaryEncoder {
     writeString(key.sourceFile, out);
     writeString(key.className, out);
 
-    int maxLine =
-        Math.max(lines.executableLines.length(), lines.coveredLines.length()) - 1;
+    int maxLine = Math.max(lines.executableLines.length(), lines.coveredLines.length()) - 1;
     if (maxLine < 0) {
       writeUvarint(0, out);
       return;
