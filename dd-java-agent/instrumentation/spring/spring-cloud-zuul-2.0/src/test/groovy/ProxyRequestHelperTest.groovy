@@ -119,7 +119,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
         sortSpansByStart()
         serverSpan(it, operation(), DDSpanTypes.HTTP_SERVER, trace(0)[2])
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
-        serverSpan(it, "apache-httpclient.request", DDSpanTypes.HTTP_CLIENT)
+        serverSpan(it, "http-url-connection.request", DDSpanTypes.HTTP_CLIENT)
       }
       trace (3) {
         sortSpansByStart()
