@@ -217,7 +217,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             // no .targetingKey() -- null by default
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         // Null targeting key on sharded flag must return TARGETING_KEY_MISSING
         new TestCase<>("default")
             .flag("shard-flag")
@@ -444,8 +444,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("shard-matching-flag")
             .targetingKey("specific-key-that-matches-shard")
-            .result(
-                new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
+            .result(new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
         new TestCase<>("default")
             .flag("future-allocation-flag")
             .targetingKey("user-123")
