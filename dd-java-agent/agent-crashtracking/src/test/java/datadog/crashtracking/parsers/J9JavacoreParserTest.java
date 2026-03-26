@@ -69,9 +69,9 @@ public class J9JavacoreParserTest {
   }
 
   @TableTest({
-    "scenario            | resource                          | pcRegister | spRegister",
-    "IBM J9 8 (amd64)    | sample-ibmj9-8-javacore-gpf.txt   | RIP        | RSP       ",
-    "OpenJ9 11 (aarch64) | sample-openj9-11-javacore-gpf.txt | PC         | SP        "
+      "scenario            | resource                          | pcRegister | spRegister",
+      "IBM J9 8 (amd64)    | sample-ibmj9-8-javacore-gpf.txt   | RIP        | RSP       ",
+      "OpenJ9 11 (aarch64) | sample-openj9-11-javacore-gpf.txt | PC         | SP        "
   })
   public void testParseRealGpfCrash(String resource, String pcRegister, String spRegister)
       throws Exception {

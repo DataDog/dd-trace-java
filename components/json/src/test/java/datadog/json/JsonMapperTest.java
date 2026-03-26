@@ -24,12 +24,12 @@ import org.tabletest.junit.TableTest;
 
 class JsonMapperTest {
   @TableTest({
-    "Scenario       | Input                              | Expected                                               ",
-    "null input     |                                    | '{}'                                                   ",
-    "empty map      | [:]                                | '{}'                                                   ",
-    "single entry   | [key1: value1]                     | '{\"key1\":\"value1\"}'                                ",
-    "two entries    | [key1: value1, key2: value2]       | '{\"key1\":\"value1\",\"key2\":\"value2\"}'            ",
-    "quoted entries | [key1: va\"lu\"e1, ke\"y2: value2] | '{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}'"
+      "Scenario       | Input                              | Expected                                               ",
+      "null input     |                                    | '{}'                                                   ",
+      "empty map      | [:]                                | '{}'                                                   ",
+      "single entry   | [key1: value1]                     | '{\"key1\":\"value1\"}'                                ",
+      "two entries    | [key1: value1, key2: value2]       | '{\"key1\":\"value1\",\"key2\":\"value2\"}'            ",
+      "quoted entries | [key1: va\"lu\"e1, ke\"y2: value2] | '{\"key1\":\"va\\\"lu\\\"e1\",\"ke\\\"y2\":\"value2\"}'"
   })
   @ParameterizedTest(name = "test mapping to JSON object: {0}")
   @MethodSource("testMappingToJsonObjectArguments")
@@ -94,12 +94,12 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario      | Input                | Expected                         ",
-    "null input    |                      | '[]'                             ",
-    "empty list    | []                   | '[]'                             ",
-    "single value  | [value1]             | '[\"value1\"]'                   ",
-    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
-    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
+      "Scenario      | Input                | Expected                         ",
+      "null input    |                      | '[]'                             ",
+      "empty list    | []                   | '[]'                             ",
+      "single value  | [value1]             | '[\"value1\"]'                   ",
+      "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+      "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
   })
   @ParameterizedTest(name = "test mapping iterable to JSON array: {0}")
   void testMappingIterableToJsonArray(List<String> input, String expected) throws IOException {
@@ -111,12 +111,12 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario       | Input                | Expected                         ",
-    "null input     |                      | '[]'                             ",
-    "empty array    | []                   | '[]'                             ",
-    "single element | [value1]             | '[\"value1\"]'                   ",
-    "two elements   | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
-    "escaped quotes | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
+      "Scenario       | Input                | Expected                         ",
+      "null input     |                      | '[]'                             ",
+      "empty array    | []                   | '[]'                             ",
+      "single element | [value1]             | '[\"value1\"]'                   ",
+      "two elements   | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+      "escaped quotes | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
   })
   @ParameterizedTest(name = "test mapping array to JSON array: {0}")
   void testMappingArrayToJsonArray(String ignoredScenario, String[] input, String expected)
@@ -137,14 +137,14 @@ class JsonMapperTest {
   }
 
   @TableTest({
-    "Scenario     | input | expected ",
-    "null value   |       | ''       ",
-    "empty string | ''    | ''       ",
-    "\\b          | '\b'  | '\"\\b\"'",
-    "\\t          | '\t'  | '\"\\t\"'",
-    "\\f          | '\f'  | '\"\\f\"'",
-    "a            | 'a'   | '\"a\"'  ",
-    "/            | '/'   | '\"\\/\"'"
+      "Scenario     | input | expected ",
+      "null value   |       | ''       ",
+      "empty string | ''    | ''       ",
+      "\\b          | '\b'  | '\"\\b\"'",
+      "\\t          | '\t'  | '\"\\t\"'",
+      "\\f          | '\f'  | '\"\\f\"'",
+      "a            | 'a'   | '\"a\"'  ",
+      "/            | '/'   | '\"\\/\"'"
   })
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonStringArguments")
