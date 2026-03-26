@@ -6,10 +6,13 @@ import java.io.InputStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 import org.jacoco.core.data.ExecutionDataReader;
 import org.jacoco.core.data.ExecutionDataStore;
@@ -36,6 +39,7 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
   private final RuntimeData runtimeData;
   private final Instrumenter instrumenter;
   private final Predicate<String> filter;
+  private final ConcurrentLinkedQueue<String> newlyInstrumented = new ConcurrentLinkedQueue<>();
 
   /**
    * Initializes the JaCoCo runtime and instrumenter.
@@ -169,11 +173,26 @@ public final class CodeCoverageTransformer implements ClassFileTransformer {
       return null;
     }
     try {
-      return instrumenter.instrument(classfileBuffer, className);
+      byte[] instrumented = instrumenter.instrument(classfileBuffer, className);
+      newlyInstrumented.add(className);
+      return instrumented;
     } catch (Exception e) {
       log.debug("Failed to instrument class {}", className, e);
       return null;
     }
+  }
+
+  /**
+   * Drains and returns the list of class names that have been instrumented since the last call.
+   * Each class name is in VM internal format (e.g. {@code com/example/MyClass}).
+   */
+  public List<String> drainNewClasses() {
+    List<String> result = new ArrayList<>();
+    String name;
+    while ((name = newlyInstrumented.poll()) != null) {
+      result.add(name);
+    }
+    return result;
   }
 
   /**

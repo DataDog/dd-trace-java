@@ -36,6 +36,25 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
  */
 final class ClassProbeMappingBuilder {
 
+  /**
+   * Builds a lightweight {@link ClassProbeMapping} containing only the source file and executable
+   * lines (no per-probe line mapping). Used for reporting classes that have been instrumented but
+   * have not yet received any probe hits.
+   */
+  static ClassProbeMapping buildBaseline(long classId, String className, byte[] classBytes) {
+    BitSet executableLines = filteredExecutableLines(classBytes);
+    if (executableLines == null) {
+      return null;
+    }
+    // Get the source file name via the probes adapter (lightweight, no Analyzer overhead)
+    ClassReader reader = InstrSupport.classReaderFor(classBytes);
+    ProbeMappingVisitor visitor = new ProbeMappingVisitor();
+    ClassProbesAdapter adapter = new ClassProbesAdapter(visitor, false);
+    reader.accept(adapter, 0);
+    return new ClassProbeMapping(
+        classId, className, visitor.sourceFile, executableLines, new int[0][]);
+  }
+
   static ClassProbeMapping build(
       long classId, String className, int probeCount, byte[] classBytes) {
     // Single-pass: build probe-to-lines mapping via predecessor chains
