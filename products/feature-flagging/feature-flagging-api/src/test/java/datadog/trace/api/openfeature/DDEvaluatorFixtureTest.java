@@ -56,8 +56,10 @@ class DDEvaluatorFixtureTest {
   private static ServerConfiguration loadServerConfig() throws IOException {
     JsonAdapter<ServerConfiguration> adapter = MOSHI.adapter(ServerConfiguration.class);
     try (InputStream is =
-        DDEvaluatorFixtureTest.class.getClassLoader().getResourceAsStream("ufc-config.json")) {
-      assertNotNull(is, "ufc-config.json not found in resources");
+        DDEvaluatorFixtureTest.class
+            .getClassLoader()
+            .getResourceAsStream("ffe-system-test-data/ufc-config.json")) {
+      assertNotNull(is, "ffe-system-test-data/ufc-config.json not found in resources");
       BufferedSource source = Okio.buffer(Okio.source(is));
       return adapter.fromJson(source);
     }
@@ -65,8 +67,10 @@ class DDEvaluatorFixtureTest {
 
   private static File[] getCaseFiles() {
     java.net.URL url =
-        DDEvaluatorFixtureTest.class.getClassLoader().getResource("evaluation-cases");
-    assertNotNull(url, "evaluation-cases directory not found in resources");
+        DDEvaluatorFixtureTest.class
+            .getClassLoader()
+            .getResource("ffe-system-test-data/evaluation-cases");
+    assertNotNull(url, "ffe-system-test-data/evaluation-cases directory not found in resources");
     File dir = new File(url.getFile());
     return dir.listFiles((d, name) -> name.endsWith(".json"));
   }

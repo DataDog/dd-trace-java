@@ -1,3 +1,7 @@
 [submodule "dd-java-agent/agent-jmxfetch/integrations-core"]
 	path = dd-java-agent/agent-jmxfetch/integrations-core
 	url = https://github.com/DataDog/integrations-core.git
+[submodule "products/feature-flagging/feature-flagging-api/src/test/resources/ffe-system-test-data"]
+	path = products/feature-flagging/feature-flagging-api/src/test/resources/ffe-system-test-data
+	url = git@github.com:DataDog/ffe-system-test-data.git
+	branch = main
