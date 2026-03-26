@@ -373,6 +373,11 @@ public class DDSpanContext
   }
 
   @Override
+  public long getParentSpanId() {
+    return parentId;
+  }
+
+  @Override
   public int getEncodedOperationName() {
     return encodedOperationName;
   }

@@ -9,6 +9,11 @@ public interface ProfilerContext {
    */
   long getRootSpanId();
 
+  /**
+   * @return the span id of the parent span, or 0 if this is the root
+   */
+  long getParentSpanId();
+
   int getEncodedOperationName();
 
   CharSequence getOperationName();
