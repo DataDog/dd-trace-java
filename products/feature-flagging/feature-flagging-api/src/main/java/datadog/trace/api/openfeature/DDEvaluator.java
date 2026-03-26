@@ -125,7 +125,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           for (final Split split : allocation.splits) {
             if (isEmpty(split.shards)) {
               return resolveVariant(
-                  target, key, defaultValue, flag, split.variationKey, allocation, context);
+                  target, key, defaultValue, flag, split.variationKey, allocation, split, context);
             } else {
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
@@ -137,7 +137,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               }
               if (allShardsMatch) {
                 return resolveVariant(
-                    target, key, defaultValue, flag, split.variationKey, allocation, context);
+                    target, key, defaultValue, flag, split.variationKey, allocation, split, context);
               }
             }
           }
@@ -333,6 +333,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Flag flag,
       final String variationKey,
       final Allocation allocation,
+      final Split split,
       final EvaluationContext context) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
@@ -352,7 +353,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mapValue(target, variant.value))
-            .reason(Reason.TARGETING_MATCH.name())
+            .reason(
+                !isEmpty(allocation.rules)
+                    ? Reason.TARGETING_MATCH.name()
+                    : !isEmpty(split.shards)
+                        ? Reason.SPLIT.name()
+                        : Reason.STATIC.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();

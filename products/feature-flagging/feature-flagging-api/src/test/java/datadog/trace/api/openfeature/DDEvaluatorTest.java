@@ -5,6 +5,8 @@ import static dev.openfeature.sdk.ErrorCode.TARGETING_KEY_MISSING;
 import static dev.openfeature.sdk.Reason.DEFAULT;
 import static dev.openfeature.sdk.Reason.DISABLED;
 import static dev.openfeature.sdk.Reason.ERROR;
+import static dev.openfeature.sdk.Reason.SPLIT;
+import static dev.openfeature.sdk.Reason.STATIC;
 import static dev.openfeature.sdk.Reason.TARGETING_MATCH;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -217,7 +219,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             .targetingKey("")
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         new TestCase<>("default")
             .flag("non-existent-flag")
             .targetingKey("user-123")
@@ -229,15 +231,15 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             .targetingKey("user-123")
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         new TestCase<>(false)
             .flag("boolean-flag")
             .targetingKey("user-123")
-            .result(new Result<>(true).reason(TARGETING_MATCH.name()).variant("enabled")),
+            .result(new Result<>(true).reason(STATIC.name()).variant("enabled")),
         new TestCase<>(0)
             .flag("integer-flag")
             .targetingKey("user-123")
-            .result(new Result<>(42).reason(TARGETING_MATCH.name()).variant("forty-two")),
+            .result(new Result<>(42).reason(STATIC.name()).variant("forty-two")),
         new TestCase<>("default")
             .flag("rule-based-flag")
             .targetingKey("user-premium")
@@ -247,7 +249,7 @@ public class DDEvaluatorTest {
             .flag("rule-based-flag")
             .targetingKey("user-basic")
             .context("email", "john@gmail.com")
-            .result(new Result<>("basic").reason(TARGETING_MATCH.name()).variant("basic")),
+            .result(new Result<>("basic").reason(STATIC.name()).variant("basic")),
         new TestCase<>("default")
             .flag("numeric-rule-flag")
             .targetingKey("user-vip")
@@ -273,11 +275,11 @@ public class DDEvaluatorTest {
             .result(
                 new Result<>("default")
                     // Result depends on shard calculation - either match or default
-                    .reason(TARGETING_MATCH.name(), DEFAULT.name())),
+                    .reason(SPLIT.name(), DEFAULT.name())),
         new TestCase<>(0)
             .flag("string-number-flag")
             .targetingKey("user-123")
-            .result(new Result<>(123).reason(TARGETING_MATCH.name()).variant("string-num")),
+            .result(new Result<>(123).reason(STATIC.name()).variant("string-num")),
         new TestCase<>("default")
             .flag("broken-flag")
             .targetingKey("user-123")
@@ -328,7 +330,7 @@ public class DDEvaluatorTest {
             .targetingKey("user-123")
             .result(
                 new Result<>("tracked-value")
-                    .reason(TARGETING_MATCH.name())
+                    .reason(STATIC.name())
                     .variant("tracked")
                     .flagMetadata("allocationKey", "exposure-alloc")
                     .flagMetadata("doLog", true)),
@@ -402,7 +404,7 @@ public class DDEvaluatorTest {
             .flag("shard-matching-flag")
             .targetingKey("specific-key-that-matches-shard")
             .result(
-                new Result<>("shard-matched").reason(TARGETING_MATCH.name()).variant("matched")),
+                new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
         new TestCase<>("default")
             .flag("future-allocation-flag")
             .targetingKey("user-123")
