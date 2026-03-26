@@ -134,19 +134,19 @@ public final class OtlpCommonProto {
 
   public static void writeInstrumentationScope(
       StreamingBuffer buf, OtelInstrumentationScope scope) {
-    byte[] scopeNameUtf8 = scope.getName().getUtf8Bytes();
-    int scopeSize = 1 + sizeVarInt(scopeNameUtf8.length) + scopeNameUtf8.length;
-    byte[] scopeVersionUtf8 = null;
+    byte[] nameUtf8 = scope.getName().getUtf8Bytes();
+    int scopeSize = 1 + sizeVarInt(nameUtf8.length) + nameUtf8.length;
+    byte[] versionUtf8 = null;
     if (scope.getVersion() != null) {
-      scopeVersionUtf8 = scope.getVersion().getUtf8Bytes();
-      scopeSize += 1 + sizeVarInt(scopeVersionUtf8.length) + scopeVersionUtf8.length;
+      versionUtf8 = scope.getVersion().getUtf8Bytes();
+      scopeSize += 1 + sizeVarInt(versionUtf8.length) + versionUtf8.length;
     }
     writeVarInt(buf, scopeSize);
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeString(buf, scopeNameUtf8);
-    if (scopeVersionUtf8 != null) {
+    writeString(buf, nameUtf8);
+    if (versionUtf8 != null) {
       writeTag(buf, 2, LEN_WIRE_TYPE);
-      writeString(buf, scopeVersionUtf8);
+      writeString(buf, versionUtf8);
     }
   }
 
