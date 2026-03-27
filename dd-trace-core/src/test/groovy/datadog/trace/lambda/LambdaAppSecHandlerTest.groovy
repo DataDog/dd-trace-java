@@ -111,7 +111,7 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
     when:
     LambdaAppSecHandler.processRequestStart(event)
     event.reset()
-    def content = new String(event.readAllBytes(), StandardCharsets.UTF_8)
+    def content = new String(event.bytes, StandardCharsets.UTF_8)
 
     then:
     content == jsonData
