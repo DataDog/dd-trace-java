@@ -3,7 +3,6 @@ package datadog.crashtracking;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_EVP_SUBDOMAIN;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_TELEMETRY_API_VERSION;
 import static datadog.crashtracking.CrashUploader.TELEMETRY_API_VERSION;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -174,6 +173,9 @@ public class CrashUploaderTest {
     assertTrue(tags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(tags.contains(TraceUtils.normalizeTag("tracer_version:" + VersionInfo.VERSION)));
     assertTrue(tags.contains("language_name:jvm"));
+    assertTrue(tags.contains("runtime_version:"));
+    assertTrue(tags.contains("runtime_vendor:"));
+    assertTrue(tags.contains("runtime_name:"));
     assertEquals(expected, event.get("payload").get(0).get("message").asText());
     assertCommonPayload(event);
   }
@@ -217,7 +219,7 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
 
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
@@ -226,6 +228,9 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("service:")); // has the service
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash_ping:true"));
+    assertTrue(ddtags.contains("runtime_version:"));
+    assertTrue(ddtags.contains("runtime_vendor:"));
+    assertTrue(ddtags.contains("runtime_name:"));
 
     // assert platform independent equality
     assertEquals(
@@ -333,7 +338,7 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertDoesNotThrow(() -> Long.parseLong((String) osInfo.get("bitness"))); // 32 or 64 typically
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
 
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
@@ -342,6 +347,9 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("service:")); // has the service
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash:true"));
+    assertTrue(ddtags.contains("runtime_version:"));
+    assertTrue(ddtags.contains("runtime_vendor:"));
+    assertTrue(ddtags.contains("runtime_name:"));
 
     // assert platform independent equality
     assertEquals(

@@ -18,12 +18,12 @@ abstract class OtelAggregator {
     empty = false;
   }
 
-  final OtelPoint collect() {
+  final OtlpDataPoint collect() {
     return doCollect(false);
   }
 
-  final OtelPoint collectAndReset() {
-    OtelPoint point = doCollect(true);
+  final OtlpDataPoint collectAndReset() {
+    OtlpDataPoint point = doCollect(true);
     empty = true;
     return point;
   }
@@ -36,5 +36,5 @@ abstract class OtelAggregator {
     throw new UnsupportedOperationException();
   }
 
-  abstract OtelPoint doCollect(boolean reset);
+  abstract OtlpDataPoint doCollect(boolean reset);
 }
