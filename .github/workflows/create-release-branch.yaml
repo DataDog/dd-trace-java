@@ -119,7 +119,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml
+          git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml .gitlab-ci.yml
           echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
       - name: Push changes
