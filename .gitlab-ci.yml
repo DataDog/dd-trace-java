@@ -622,7 +622,7 @@ muzzle-dep-report:
   tags: [ "windows-v2:2025" ]
   needs: []
   variables:
-    GIT_STRATEGY: clone
+    GIT_STRATEGY: none
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
     SKIP_BUILDSCAN: "true"
@@ -639,7 +639,7 @@ muzzle-dep-report:
       $jdkArchiveVersion = $env:WINDOWS_JDK_VERSION.Replace("+", "_")
       $jdkZip = Join-Path $env:TEMP "temurin-jdk-$jdkArchiveVersion-windows-x64.zip"
       $jdkExtract = Join-Path $toolsDir "jdk-extract"
-      $jdkHome = Join-Path $toolsDir $env:WINDOWS_JDK_DIR
+      $jdkHome = Join-Path $toolsDir "jdk-21"
       $jdkUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdkArchiveVersion.zip"
 
       New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
@@ -651,6 +651,18 @@ muzzle-dep-report:
 
       git --version
       git config --global --add safe.directory $env:CI_PROJECT_DIR
+      if (-not (Test-Path ".git")) {
+        git init .
+        git remote add origin $env:CI_REPOSITORY_URL
+      } else {
+        git remote remove origin 2>$null
+        git remote add origin $env:CI_REPOSITORY_URL
+      }
+      git config core.longpaths true
+      git fetch --depth 1 origin $env:CI_COMMIT_SHA
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      git checkout --force --detach FETCH_HEAD
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       @(
         "DD_SERVICE",
         "DD_ENTITY_ID",
