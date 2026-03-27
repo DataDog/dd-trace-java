@@ -11,32 +11,30 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {
-  private final String ddService;
-  private final TagMap.Entry ddServiceEntry;
+  private final TagMap.Entry baseServiceEntry;
   private final TagMap.Entry versionEntry;
 
   public InternalTagsAdder(@Nullable final String ddService, @Nullable final String version) {
-    this.ddService = ddService;
-    this.ddServiceEntry =
+    this.baseServiceEntry =
         ddService != null
             ? TagMap.Entry.create(DDTags.BASE_SERVICE, UTF8BytesString.create(ddService))
             : null;
     this.versionEntry =
         version != null && !version.isEmpty()
-            ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
+        	? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
             : null;
   }
 
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
-    if (spanContext == null || ddService == null) {
+    if (spanContext == null || baseServiceEntry == null) {
       return;
     }
 
-    if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
+    if (!baseServiceEntry.stringValue().equalsIgnoreCase(spanContext.getServiceName())) {
       // service name !=  DD_SERVICE
-      unsafeTags.set(ddServiceEntry);
+      unsafeTags.set(baseServiceEntry);
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set
