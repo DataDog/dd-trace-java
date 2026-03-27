@@ -3,10 +3,12 @@ package datadog.trace.bootstrap.otel.common.export;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -41,6 +43,14 @@ public final class OtlpCommonProto {
 
   public static int sizeVarInt(long value) {
     return 1 + (63 - Long.numberOfLeadingZeros(value)) / 7;
+  }
+
+  public static void writeVarInt(ByteBuffer buf, int value) {
+    for (int i = 1, len = sizeVarInt(value); i < len; i++) {
+      buf.put((byte) ((value & 0x7f) | 0x80));
+      value >>>= 7;
+    }
+    buf.put((byte) value);
   }
 
   public static void writeVarInt(StreamingBuffer buf, int value) {
@@ -96,8 +106,30 @@ public final class OtlpCommonProto {
     writeString(buf, value.getBytes(UTF_8));
   }
 
+  public static int sizeTag(int fieldNum) {
+    return sizeVarInt(fieldNum << 3);
+  }
+
+  public static void writeTag(ByteBuffer buf, int fieldNum, int wireType) {
+    writeVarInt(buf, fieldNum << 3 | wireType);
+  }
+
   public static void writeTag(StreamingBuffer buf, int fieldNum, int wireType) {
     writeVarInt(buf, fieldNum << 3 | wireType);
+  }
+
+  public static byte[] recordMessage(GrowableBuffer buf, int fieldNum) {
+    try {
+      ByteBuffer data = buf.flip();
+      int dataSize = data.remaining();
+      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(dataSize) + dataSize);
+      writeTag(message, fieldNum, LEN_WIRE_TYPE);
+      writeVarInt(message, dataSize);
+      message.put(data);
+      return message.array();
+    } finally {
+      buf.reset();
+    }
   }
 
   public static void writeInstrumentationScope(
