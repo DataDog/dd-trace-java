@@ -1306,14 +1306,6 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
       }
     } : null
 
-    def mockQueryParamsCallback = callbacks.onQueryParams ? Mock(BiFunction) {
-      apply(_ as RequestContext, _ as Map) >> {
-        RequestContext ctx, Map params ->
-        callbacks.onQueryParams(params)
-        return new Flow.ResultFlow<>(null)
-      }
-    } : null
-
     def mockBodyCallback = callbacks.onBody ? Mock(BiFunction) {
       apply(_ as RequestContext, _ as Object) >> {
         RequestContext ctx, Object body ->
