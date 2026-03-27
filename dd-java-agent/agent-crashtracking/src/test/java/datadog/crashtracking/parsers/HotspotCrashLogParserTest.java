@@ -100,7 +100,8 @@ public class HotspotCrashLogParserTest {
   public void testFrameTypesFromHotspotStack() throws Exception {
     final CrashLog crashLog =
         new HotspotCrashLogParser()
-            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
 
     assertEquals("vm", crashLog.error.stack.frames[0].frameType);
     assertEquals("native", crashLog.error.stack.frames[3].frameType);
@@ -123,7 +124,8 @@ public class HotspotCrashLogParserTest {
     assertEquals("newEntry+0x68", crashLog.error.stack.frames[0].function);
     assertEquals("native", crashLog.error.stack.frames[0].frameType);
     assertEquals("ZIP_GetEntry2+0xec", crashLog.error.stack.frames[1].function);
-    assertEquals("Java_java_util_zip_ZipFile_getEntry+0xa8", crashLog.error.stack.frames[2].function);
+    assertEquals(
+        "Java_java_util_zip_ZipFile_getEntry+0xa8", crashLog.error.stack.frames[2].function);
     assertEquals("native", crashLog.error.stack.frames[2].frameType);
     assertEquals("java.util.zip.ZipFile.getEntry(J[BZ)J", crashLog.error.stack.frames[3].function);
     assertEquals("compiled", crashLog.error.stack.frames[3].frameType);
@@ -132,9 +134,7 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x94", crashLog.error.stack.frames[3].relativeAddress);
 
     // Java frames
-    assertEquals(
-        "java.util.zip.ZipFile.getEntry(J[BZ)J",
-        crashLog.error.stack.frames[4].function);
+    assertEquals("java.util.zip.ZipFile.getEntry(J[BZ)J", crashLog.error.stack.frames[4].function);
     assertEquals("compiled", crashLog.error.stack.frames[4].frameType);
     assertEquals("0x00000001091a1f58", crashLog.error.stack.frames[4].ip);
     assertEquals("0x00000001091a1ec0", crashLog.error.stack.frames[4].symbolAddress);
@@ -153,6 +153,21 @@ public class HotspotCrashLogParserTest {
     assertEquals("interpreted", crashLog.error.stack.frames[8].frameType);
     assertEquals("~StubRoutines::call_stub", crashLog.error.stack.frames[9].function);
     assertEquals("stub", crashLog.error.stack.frames[9].frameType);
+  }
+
+  @TableTest({
+    "scenario                 | line                                                                                                                   | expected                          ",
+    "quoted java thread       | Current thread (0x0000000caff48000):  JavaThread \"zip-reader-0\" daemon [_thread_in_native, id=18947, stack(0x1,0x2)] | JavaThread \"zip-reader-0\" daemon",
+    "quoted vm thread         | Current thread (0x00007ffff044d000):  VMThread \"VM Thread\" [stack: 0x1,0x2] [id=24738]                               | VMThread \"VM Thread\"            ",
+    "unquoted redacted thread | Current thread (0x00007f36cd96cc80):  JavaThread REDACT_THIS daemon [_thread_in_vm, id=2169438, stack(0x1,0x2)]        | JavaThread REDACT_THIS daemon     ",
+    "gc thread                | Current thread (0x00007f5108060000):  GCTaskThread [stack: 0x00007f510c0d5000,0x00007f510c1d5000] [id=205546]          | GCTaskThread                      ",
+    "concurrent gc thread     | Current thread (0x00007fd41d508800):  ConcurrentGCThread [stack: 0x00007fd3a5cfd000,0x00007fd3a5dfe000] [id=9965]      | ConcurrentGCThread                ",
+    "native thread marker     | Current thread is native thread                                                                                        | null                              "
+  })
+  public void testParseCurrentThreadName(String line, String expected) {
+    assertEquals(
+        "null".equals(expected) ? null : expected,
+        HotspotCrashLogParser.parseCurrentThreadName(line));
   }
 
   private String readFileAsString(String resource) throws IOException {

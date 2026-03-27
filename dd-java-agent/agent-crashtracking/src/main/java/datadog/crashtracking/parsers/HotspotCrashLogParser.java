@@ -103,10 +103,14 @@ public final class HotspotCrashLogParser {
 
   // HotSpot crash logs encode the execution kind in the first column of each frame line.
   // Source references:
-  // JDK 8: https://github.com/openjdk/jdk8u/blob/73c9c6bcd062196cbebc4d9f22b13d2e20a14f98/hotspot/src/share/vm/runtime/frame.cpp#L710-L724
-  // JDK 11: https://github.com/openjdk/jdk11u/blob/970d6cf491a55fd6ab98ec3f449c13a58633078a/src/hotspot/share/runtime/frame.cpp#L647-L662
-  // JDK 25: https://github.com/openjdk/jdk25u/blob/2fe611a2a3386d097f636c15bd4d396a82dc695e/src/hotspot/share/runtime/frame.cpp#L652-L666
-  // Mainline: https://github.com/openjdk/jdk/blob/53c864a881d2183d3664a6a5a56480bd99fffe45/src/hotspot/share/runtime/frame.cpp#L647-L661
+  // JDK 8:
+  // https://github.com/openjdk/jdk8u/blob/73c9c6bcd062196cbebc4d9f22b13d2e20a14f98/hotspot/src/share/vm/runtime/frame.cpp#L710-L724
+  // JDK 11:
+  // https://github.com/openjdk/jdk11u/blob/970d6cf491a55fd6ab98ec3f449c13a58633078a/src/hotspot/share/runtime/frame.cpp#L647-L662
+  // JDK 25:
+  // https://github.com/openjdk/jdk25u/blob/2fe611a2a3386d097f636c15bd4d396a82dc695e/src/hotspot/share/runtime/frame.cpp#L652-L666
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/53c864a881d2183d3664a6a5a56480bd99fffe45/src/hotspot/share/runtime/frame.cpp#L647-L661
   // Note: the marker set changes across JDK lines. In particular, "A" appears in some HotSpot
   // versions but not all, so this mapping is best-effort rather than a stable cross-version enum.
   private static String hotspotFrameType(char marker) {
@@ -307,9 +311,30 @@ public final class HotspotCrashLogParser {
     return filename.substring(0, prefixLen) + filename.substring(end);
   }
 
+  static String parseCurrentThreadName(String line) {
+    if (line == null || !line.startsWith("Current thread ")) {
+      return null;
+    }
+    final int separator = line.indexOf(':');
+    if (separator < 0) {
+      return null;
+    }
+
+    String threadDescriptor = line.substring(separator + 1).trim();
+    final int metadataStart = threadDescriptor.indexOf('[');
+    if (metadataStart >= 0) {
+      threadDescriptor = threadDescriptor.substring(0, metadataStart).trim();
+    }
+    if (threadDescriptor.isEmpty()) {
+      return null;
+    }
+    return threadDescriptor;
+  }
+
   public CrashLog parse(String uuid, String crashLog) {
     SigInfo sigInfo = null;
     String pid = null;
+    String threadName = null;
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
     String datetimeRaw = null;
@@ -363,6 +388,9 @@ public final class HotspotCrashLogParser {
           }
           break;
         case THREAD:
+          if (threadName == null) {
+            threadName = parseCurrentThreadName(line);
+          }
           // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
           if (line.startsWith("Native frames: ")) {
             state = State.STACKTRACE;
@@ -508,7 +536,8 @@ public final class HotspotCrashLogParser {
     }
 
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+        new ErrorData(
+            kind, message, threadName, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);

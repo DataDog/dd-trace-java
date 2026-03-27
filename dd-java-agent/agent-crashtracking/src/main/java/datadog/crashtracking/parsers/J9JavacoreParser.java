@@ -111,6 +111,7 @@ public final class J9JavacoreParser {
     String exceptionDetail = null;
     String pid = null;
     String datetime = null;
+    String currentThreadName = null;
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
@@ -183,6 +184,7 @@ public final class J9JavacoreParser {
           if (inCurrentThread && line.startsWith("3XMTHREADINFO")) {
             Matcher threadMatcher = THREAD_INFO_PATTERN.matcher(line);
             if (threadMatcher.matches()) {
+              currentThreadName = threadMatcher.group(1);
               collectingStack = true;
             }
             continue;
@@ -280,7 +282,11 @@ public final class J9JavacoreParser {
     }
 
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+        new ErrorData(
+            kind,
+            message,
+            currentThreadName,
+            new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;

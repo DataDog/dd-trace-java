@@ -48,6 +48,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("SIGSEGV", crashLog.error.kind);
     assertEquals("Process terminated by signal SIGSEGV", crashLog.error.message);
+    assertEquals("main", crashLog.error.threadName);
 
     // Stack trace
     assertNotNull(crashLog.error.stack);
@@ -106,6 +107,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("OutOfMemory", crashLog.error.kind);
     assertTrue(crashLog.error.message.contains("OutOfMemory"));
+    assertEquals("worker-thread-1", crashLog.error.threadName);
 
     // Process info
     assertNotNull(crashLog.procInfo);
@@ -183,6 +185,7 @@ public class J9JavacoreParserTest {
     assertEquals("SIGABRT", crashLog.sigInfo.name);
     assertEquals(6, crashLog.sigInfo.number);
     assertEquals(99999, crashLog.procInfo.pid);
+    assertEquals("abort-thread", crashLog.error.threadName);
   }
 
   @Test
