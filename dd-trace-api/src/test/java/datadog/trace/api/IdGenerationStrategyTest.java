@@ -18,9 +18,9 @@ import org.tabletest.junit.TableTest;
 class IdGenerationStrategyTest {
 
   @TableTest({
-      "scenario           | traceId128BitGenerationEnabled | strategyName                       ",
-      "strategies-64-bit  | false                          | {RANDOM, SEQUENTIAL, SECURE_RANDOM}",
-      "strategies-128-bit | true                           | {RANDOM, SEQUENTIAL, SECURE_RANDOM}"
+    "scenario           | traceId128BitGenerationEnabled | strategyName                       ",
+    "strategies-64-bit  | false                          | {RANDOM, SEQUENTIAL, SECURE_RANDOM}",
+    "strategies-128-bit | true                           | {RANDOM, SEQUENTIAL, SECURE_RANDOM}"
   })
   @ParameterizedTest(name = "generate id with {1} and {0} bits")
   void generateIdWithStrategyAndBitSize(
