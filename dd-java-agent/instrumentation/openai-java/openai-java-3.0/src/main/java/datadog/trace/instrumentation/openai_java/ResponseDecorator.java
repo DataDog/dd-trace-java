@@ -242,22 +242,27 @@ public class ResponseDecorator {
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
     if (item.isEasyInputMessage()) {
       EasyInputMessage message = item.asEasyInputMessage();
-      String role =
-          message._role().asKnown().map(EasyInputMessage.Role::asString).orElse("unknown");
+      Optional<String> role = message._role().asKnown().map(EasyInputMessage.Role::asString);
+      if (!role.isPresent()) {
+        return null;
+      }
       String content = extractEasyInputMessageContent(message);
       if (content == null || content.isEmpty()) {
         return null;
       }
-      return LLMObs.LLMMessage.from(role, content);
+      return LLMObs.LLMMessage.from(role.get(), content);
     } else if (item.isMessage()) {
       ResponseInputItem.Message message = item.asMessage();
-      String role =
-          message._role().asKnown().map(ResponseInputItem.Message.Role::asString).orElse("unknown");
+      Optional<String> role =
+          message._role().asKnown().map(ResponseInputItem.Message.Role::asString);
+      if (!role.isPresent()) {
+        return null;
+      }
       String content = extractInputMessageContent(message);
       if (content == null || content.isEmpty()) {
         return null;
       }
-      return LLMObs.LLMMessage.from(role, content);
+      return LLMObs.LLMMessage.from(role.get(), content);
     }
 
     Optional<ResponseFunctionToolCall> functionCallOpt = item.functionCall();

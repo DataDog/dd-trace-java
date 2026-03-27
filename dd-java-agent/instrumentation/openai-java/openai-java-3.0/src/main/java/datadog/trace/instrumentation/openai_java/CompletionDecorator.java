@@ -162,11 +162,6 @@ public class CompletionDecorator {
   }
 
   private Optional<String> extractPromptText(CompletionCreateParams params) {
-    Optional<String> promptText =
-        params._prompt().asKnown().flatMap(CompletionCreateParams.Prompt::string);
-    if (promptText.isPresent()) {
-      return promptText;
-    }
-    return params._prompt().asUnknown().flatMap(v -> v.asString());
+    return params._prompt().asKnown().flatMap(CompletionCreateParams.Prompt::string);
   }
 }

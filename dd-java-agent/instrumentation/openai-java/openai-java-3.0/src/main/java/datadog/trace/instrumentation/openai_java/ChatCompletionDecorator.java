@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -61,6 +62,7 @@ public class ChatCompletionDecorator {
         CommonTags.INPUT,
         params.messages().stream()
             .map(ChatCompletionDecorator::llmMessage)
+            .filter(Objects::nonNull)
             .collect(Collectors.toList()));
 
     Map<String, Object> metadata = new HashMap<>();
@@ -177,25 +179,19 @@ public class ChatCompletionDecorator {
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletionMessageParam m) {
-    String role = "unknown";
-    String content = null;
     if (m.isAssistant()) {
-      role = "assistant";
-      content = m.asAssistant().content().map(v -> v.text().orElse(null)).orElse(null);
+      return LLMObs.LLMMessage.from(
+          "assistant", m.asAssistant().content().map(v -> v.text().orElse(null)).orElse(null));
     } else if (m.isDeveloper()) {
-      role = "developer";
-      content = m.asDeveloper().content().text().orElse(null);
+      return LLMObs.LLMMessage.from("developer", m.asDeveloper().content().text().orElse(null));
     } else if (m.isSystem()) {
-      role = "system";
-      content = m.asSystem().content().text().orElse(null);
+      return LLMObs.LLMMessage.from("system", m.asSystem().content().text().orElse(null));
     } else if (m.isTool()) {
-      role = "tool";
-      content = m.asTool().content().text().orElse(null);
+      return LLMObs.LLMMessage.from("tool", m.asTool().content().text().orElse(null));
     } else if (m.isUser()) {
-      role = "user";
-      content = m.asUser().content().text().orElse(null);
+      return LLMObs.LLMMessage.from("user", m.asUser().content().text().orElse(null));
     }
-    return LLMObs.LLMMessage.from(role, content);
+    return null;
   }
 
   public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
@@ -210,6 +206,7 @@ public class ChatCompletionDecorator {
     List<LLMObs.LLMMessage> output =
         completion._choices().asKnown().orElse(Collections.emptyList()).stream()
             .map(ChatCompletionDecorator::llmMessage)
+            .filter(Objects::nonNull)
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
@@ -231,12 +228,15 @@ public class ChatCompletionDecorator {
   private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
     Optional<ChatCompletionMessage> msgOpt = choice._message().asKnown();
     if (!msgOpt.isPresent()) {
-      return LLMObs.LLMMessage.from("unknown", "");
+      return null;
     }
 
     ChatCompletionMessage msg = msgOpt.get();
-    Optional<?> roleOpt = msg._role().asString();
-    String role = roleOpt.isPresent() ? String.valueOf(roleOpt.get()) : "unknown";
+    Optional<String> roleOpt = msg._role().asString();
+    if (!roleOpt.isPresent()) {
+      return null;
+    }
+    String role = roleOpt.get();
     String content = msg._content().asString().orElse("");
 
     List<ChatCompletionMessageToolCall> toolCallsOpt =
