@@ -271,6 +271,8 @@ public final class J9JavacoreParser {
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       } else {
         enrichedFrames.add(frame);
@@ -401,7 +403,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function, null, null, null, null, null);
+    return new StackFrame(file, line, function, null, null, null, null, null, null, null);
   }
 
   /**
@@ -463,7 +465,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, null, function, "native", null, null, null, relAddress);
+    return new StackFrame(file, null, function, "native", null, null, null, null, null, relAddress);
   }
 
   private String parseDateTime(String datePart, String timePart) {

@@ -127,12 +127,18 @@ public class HotspotCrashLogParserTest {
     assertEquals("native", crashLog.error.stack.frames[2].frameType);
     assertEquals("java.util.zip.ZipFile.getEntry(J[BZ)J", crashLog.error.stack.frames[3].function);
     assertEquals("compiled", crashLog.error.stack.frames[3].frameType);
+    assertEquals("0x00000001091a1f54", crashLog.error.stack.frames[3].ip);
+    assertEquals("0x00000001091a1ec0", crashLog.error.stack.frames[3].symbolAddress);
+    assertEquals("0x94", crashLog.error.stack.frames[3].relativeAddress);
 
     // Java frames
     assertEquals(
         "java.util.zip.ZipFile.getEntry(J[BZ)J",
         crashLog.error.stack.frames[4].function);
     assertEquals("compiled", crashLog.error.stack.frames[4].frameType);
+    assertEquals("0x00000001091a1f58", crashLog.error.stack.frames[4].ip);
+    assertEquals("0x00000001091a1ec0", crashLog.error.stack.frames[4].symbolAddress);
+    assertEquals("0x98", crashLog.error.stack.frames[4].relativeAddress);
     assertEquals(
         "java.util.zip.ZipFile.getEntry(Ljava/lang/String;)Ljava/util/zip/ZipEntry;",
         crashLog.error.stack.frames[5].function);

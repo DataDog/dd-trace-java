@@ -98,6 +98,8 @@ public final class HotspotCrashLogParser {
   // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
+  private static final Pattern COMPILED_JAVA_ADDRESS_PARSER =
+      Pattern.compile("@\\s+(0x[0-9a-fA-F]+)\\s+\\[(0x[0-9a-fA-F]+)\\+(0x[0-9a-fA-F]+)\\]");
 
   // HotSpot crash logs encode the execution kind in the first column of each frame line.
   // Source references:
@@ -134,7 +136,9 @@ public final class HotspotCrashLogParser {
     String functionName = null;
     Integer functionLine = null;
     String filename = null;
+    String ip = null;
     String relAddress = null;
+    String symbolAddress = null;
     char firstChar = line.charAt(0);
     String frameType = hotspotFrameType(firstChar);
     if (line.length() > 1 && !Character.isSpaceChar(line.charAt(1))) {
@@ -170,6 +174,13 @@ public final class HotspotCrashLogParser {
             }
           } else if (parts.length > 3 && !parts[3].startsWith("(")) {
             functionName = parts[3];
+          }
+
+          Matcher matcher = COMPILED_JAVA_ADDRESS_PARSER.matcher(line);
+          if (matcher.find()) {
+            ip = matcher.group(1);
+            symbolAddress = matcher.group(2);
+            relAddress = matcher.group(3);
           }
           break;
         }
@@ -250,6 +261,8 @@ public final class HotspotCrashLogParser {
           null,
           null,
           null,
+          ip,
+          symbolAddress,
           relAddress);
     }
     return null;
@@ -475,6 +488,8 @@ public final class HotspotCrashLogParser {
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       } else {
         enrichedFrames.add(
@@ -486,6 +501,8 @@ public final class HotspotCrashLogParser {
                 null,
                 null,
                 null,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       }
     }
