@@ -30,6 +30,11 @@ public class LLMObsSystem {
       return;
     }
 
+    if (!config.isTraceEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: tracing is disabled");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();
