@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeIn
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeString;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeTag;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeVarInt;
-import static datadog.trace.bootstrap.otel.common.export.OtlpResourceProto.writeResourceMessage;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.Config;
@@ -32,17 +31,6 @@ public final class OtlpMetricsProto {
       CUMULATIVE.equals(Config.get().getOtlpMetricsTemporalityPreference())
           ? AGGREGATION_TEMPORALITY_CUMULATIVE
           : AGGREGATION_TEMPORALITY_DELTA;
-
-  /**
-   * Records the first part of a resource metrics message where we know its nested scoped metrics
-   * messages will follow in one or more byte-arrays that add up to the given number of remaining
-   * bytes.
-   */
-  public static byte[] recordResourceMetricsMessage(GrowableBuffer buf, int remainingBytes) {
-    writeResourceMessage(buf);
-
-    return recordMessage(buf, 1, remainingBytes);
-  }
 
   /**
    * Records the first part of a scoped metrics message where we know its nested metric messages

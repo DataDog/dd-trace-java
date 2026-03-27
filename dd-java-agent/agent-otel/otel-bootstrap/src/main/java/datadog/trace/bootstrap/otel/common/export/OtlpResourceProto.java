@@ -18,7 +18,7 @@ import java.util.Set;
 public final class OtlpResourceProto {
   private OtlpResourceProto() {}
 
-  private static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
+  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
 
   private static final Set<String> IGNORED_GLOBAL_TAGS =
       new HashSet<>(
@@ -29,11 +29,6 @@ public final class OtlpResourceProto {
               "service.name",
               "deployment.environment.name",
               "service.version"));
-
-  /** Writes the resource message in protobuf format to the given buffer. */
-  public static void writeResourceMessage(StreamingBuffer buf) {
-    buf.put(RESOURCE_MESSAGE);
-  }
 
   static byte[] buildResourceMessage(Config config) {
     GrowableBuffer buf = new GrowableBuffer(512);

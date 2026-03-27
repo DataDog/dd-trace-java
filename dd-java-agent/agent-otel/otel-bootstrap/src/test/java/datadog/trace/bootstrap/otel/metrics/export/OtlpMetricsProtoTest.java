@@ -556,23 +556,50 @@ class OtlpMetricsProtoTest {
     assertTrue(md.isAtEnd(), "expected exactly one ResourceMetrics");
 
     // ── parse ResourceMetrics ──────────────────────────────────────────────
-    // Fields: resource=1 (skip), scope_metrics=2 (repeated)
+    // Fields: resource=1, scope_metrics=2 (repeated)
+    boolean resourceFound = false;
     int scopeIdx = 0;
     while (!rm.isAtEnd()) {
       int rmTag = rm.readTag();
       int rmField = WireFormat.getTagFieldNumber(rmTag);
       if (rmField == 1) {
-        rm.skipField(rmTag); // skip Resource — covered by OtlpResourceProtoTest
+        verifyResource(rm.readBytes().newCodedInput());
+        resourceFound = true;
         continue;
       }
       assertEquals(2, rmField, "ResourceMetrics.scope_metrics is field 2");
       assertTrue(scopeIdx < nonEmptyScopes.size(), "more ScopeMetrics than expected");
       verifyScopeMetrics(rm.readBytes().newCodedInput(), nonEmptyScopes.get(scopeIdx++));
     }
+    assertTrue(resourceFound, "Resource message must be present in ResourceMetrics");
     assertEquals(nonEmptyScopes.size(), scopeIdx, "scope count mismatch in case: " + caseName);
   }
 
   // ── verification helpers ──────────────────────────────────────────────────
+
+  /**
+   * Parses a {@code Resource} message body and asserts it contains a {@code service.name}
+   * attribute. The value is not verified as it depends on the runtime environment.
+   *
+   * <pre>
+   *   Resource { repeated KeyValue attributes = 1; }
+   * </pre>
+   */
+  private static void verifyResource(CodedInputStream res) throws IOException {
+    boolean foundServiceName = false;
+    while (!res.isAtEnd()) {
+      int tag = res.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 1) { // attributes (repeated KeyValue)
+        String key = readKeyValueKey(res.readBytes().newCodedInput());
+        if ("service.name".equals(key)) {
+          foundServiceName = true;
+        }
+      } else {
+        res.skipField(tag);
+      }
+    }
+    assertTrue(foundServiceName, "Resource must contain a 'service.name' attribute");
+  }
 
   /**
    * Parses a {@code ScopeMetrics} message body and asserts its content matches {@code expected}.

@@ -2,15 +2,16 @@ package datadog.trace.bootstrap.otel.metrics.export;
 
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.LEN_WIRE_TYPE;
+import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.recordMessage;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeAttribute;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeI64;
 import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeTag;
+import static datadog.trace.bootstrap.otel.common.export.OtlpResourceProto.RESOURCE_MESSAGE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_GAUGE;
 import static datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsProto.recordDataPointMessage;
 import static datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsProto.recordMetricMessage;
-import static datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsProto.recordResourceMetricsMessage;
 import static datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsProto.recordScopedMetricsMessage;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -138,10 +139,14 @@ public final class OtlpMetricsCollector
       return OtlpMetricsPayload.EMPTY;
     }
 
-    // add resource metrics message prefix to complete the chunked payload
-    byte[] resourcePrefix = recordResourceMetricsMessage(buf, payloadBytes);
-    payloadChunks.addFirst(resourcePrefix);
-    payloadBytes += resourcePrefix.length;
+    // prepend the canned resource chunk
+    payloadChunks.addFirst(RESOURCE_MESSAGE);
+    payloadBytes += RESOURCE_MESSAGE.length;
+
+    // finally prepend the total length of all collected chunks
+    byte[] prefix = recordMessage(buf, 1, payloadBytes);
+    payloadChunks.addFirst(prefix);
+    payloadBytes += prefix.length;
 
     return new OtlpMetricsPayload(payloadChunks, payloadBytes);
   }
