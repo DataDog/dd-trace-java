@@ -21,7 +21,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
             : null;
     this.versionEntry =
         version != null && !version.isEmpty()
-        	? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
+            ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
             : null;
   }
 
