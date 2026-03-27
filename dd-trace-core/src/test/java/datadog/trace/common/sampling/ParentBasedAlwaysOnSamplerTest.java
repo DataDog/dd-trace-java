@@ -80,11 +80,11 @@ class ParentBasedAlwaysOnSamplerTest {
   }
 
   @TableTest({
-      "scenario     | parentPriority",
-      "sampler keep | 1             ",
-      "sampler drop | 0             ",
-      "user keep    | 2             ",
-      "user drop    | -1            "
+    "scenario     | parentPriority",
+    "sampler keep | 1             ",
+    "sampler drop | 0             ",
+    "user keep    | 2             ",
+    "user drop    | -1            "
   })
   @ParameterizedTest(name = "child span inherits sampling decision from remote parent [{index}]")
   void childSpanInheritsSamplingDecisionFromRemoteParent(int parentPriority) {
