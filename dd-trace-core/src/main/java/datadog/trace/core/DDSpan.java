@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, AttachableWrapper {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   static DDSpan create(
@@ -884,8 +884,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, At
     return context.getTraceCollector().getTraceConfig();
   }
 
-  @Override
-  public List<? extends AgentSpanLink> getLinks() {
+  List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
@@ -908,8 +907,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, SpanLinkAccessor, At
     // so just add to the list
 
     // If links still points to EMPTY inside the synchronized block, then construct a new
-    // CopyOnWriteArrayList
-    // containing the newly added link
+    // CopyOnWriteArrayList containing the newly added link
 
     List<AgentSpanLink> links = this.links;
     if (links != EMPTY) {
