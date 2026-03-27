@@ -99,6 +99,33 @@ public final class HotspotCrashLogParser {
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
 
+  // HotSpot crash logs encode the execution kind in the first column of each frame line.
+  // Source references:
+  // JDK 8: https://github.com/openjdk/jdk8u/blob/73c9c6bcd062196cbebc4d9f22b13d2e20a14f98/hotspot/src/share/vm/runtime/frame.cpp#L710-L724
+  // JDK 11: https://github.com/openjdk/jdk11u/blob/970d6cf491a55fd6ab98ec3f449c13a58633078a/src/hotspot/share/runtime/frame.cpp#L647-L662
+  // JDK 25: https://github.com/openjdk/jdk25u/blob/2fe611a2a3386d097f636c15bd4d396a82dc695e/src/hotspot/share/runtime/frame.cpp#L652-L666
+  // Mainline: https://github.com/openjdk/jdk/blob/53c864a881d2183d3664a6a5a56480bd99fffe45/src/hotspot/share/runtime/frame.cpp#L647-L661
+  // Note: the marker set changes across JDK lines. In particular, "A" appears in some HotSpot
+  // versions but not all, so this mapping is best-effort rather than a stable cross-version enum.
+  private static String hotspotFrameType(char marker) {
+    switch (marker) {
+      case 'J':
+        return "compiled";
+      case 'A': // exists in JDK 11
+        return "aot_compiled";
+      case 'j':
+        return "interpreted";
+      case 'V':
+        return "vm";
+      case 'v':
+        return "stub";
+      case 'C':
+        return "native";
+      default:
+        return null;
+    }
+  }
+
   private StackFrame parseLine(String line) {
     if (line == null || line.isEmpty()) {
       return null;
@@ -109,6 +136,7 @@ public final class HotspotCrashLogParser {
     String filename = null;
     String relAddress = null;
     char firstChar = line.charAt(0);
+    String frameType = hotspotFrameType(firstChar);
     if (line.length() > 1 && !Character.isSpaceChar(line.charAt(1))) {
       // We can find entries like this in between the frames
       // Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
@@ -116,6 +144,7 @@ public final class HotspotCrashLogParser {
     }
     switch (firstChar) {
       case 'J':
+      case 'A':
         {
           // spotless:off
           // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
@@ -200,6 +229,7 @@ public final class HotspotCrashLogParser {
           filename,
           functionLine,
           stripCompilerAnnotations(functionName),
+          frameType,
           null,
           null,
           null,
@@ -424,6 +454,7 @@ public final class HotspotCrashLogParser {
                 normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
+                frame.frameType,
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
@@ -434,6 +465,7 @@ public final class HotspotCrashLogParser {
                 normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
+                frame.frameType,
                 null,
                 null,
                 null,

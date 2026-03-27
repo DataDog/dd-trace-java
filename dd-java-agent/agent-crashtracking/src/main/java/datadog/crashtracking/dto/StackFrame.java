@@ -10,6 +10,9 @@ public final class StackFrame {
   public final Integer line;
   public final String function;
 
+  @Json(name = "type")
+  public final String frameType;
+
   @Json(name = "build_id")
   public final String buildId;
 
@@ -26,6 +29,7 @@ public final class StackFrame {
       String path,
       Integer line,
       String function,
+      String frameType,
       String buildId,
       BuildInfo.BuildIdType buildIdType,
       BuildInfo.FileType fileType,
@@ -33,6 +37,7 @@ public final class StackFrame {
     this.path = path;
     this.line = line;
     this.function = function;
+    this.frameType = frameType;
     this.buildId = buildId;
     this.buildIdType = buildIdType;
     this.fileType = fileType;
@@ -51,6 +56,7 @@ public final class StackFrame {
     return Objects.equals(path, that.path)
         && Objects.equals(line, that.line)
         && Objects.equals(function, that.function)
+        && Objects.equals(frameType, that.frameType)
         && Objects.equals(buildId, that.buildId)
         && buildIdType == that.buildIdType
         && fileType == that.fileType
@@ -59,6 +65,7 @@ public final class StackFrame {
 
   @Override
   public int hashCode() {
-    return Objects.hash(path, line, function, buildId, buildIdType, fileType, relativeAddress);
+    return Objects.hash(
+        path, line, function, frameType, buildId, buildIdType, fileType, relativeAddress);
   }
 }

@@ -96,6 +96,20 @@ public class HotspotCrashLogParserTest {
     assertNotNull(crashLog.osInfo);
   }
 
+  @Test
+  public void testFrameTypesFromHotspotStack() throws Exception {
+    final CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
+
+    assertEquals("vm", crashLog.error.stack.frames[0].frameType);
+    assertEquals("native", crashLog.error.stack.frames[3].frameType);
+    assertEquals("stub", crashLog.error.stack.frames[15].frameType);
+    assertEquals("compiled", crashLog.error.stack.frames[16].frameType);
+    assertEquals("compiled", crashLog.error.stack.frames[17].frameType);
+    assertEquals("interpreted", crashLog.error.stack.frames[66].frameType);
+  }
+
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(

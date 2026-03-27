@@ -267,6 +267,7 @@ public final class J9JavacoreParser {
                 frame.path,
                 frame.line,
                 frame.function,
+                frame.frameType,
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
@@ -400,7 +401,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function, null, null, null, null);
+    return new StackFrame(file, line, function, null, null, null, null, null);
   }
 
   /**
@@ -462,7 +463,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, null, function, null, null, null, relAddress);
+    return new StackFrame(file, null, function, "native", null, null, null, relAddress);
   }
 
   private String parseDateTime(String datePart, String timePart) {
