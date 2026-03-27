@@ -1095,10 +1095,11 @@ public class DDSpanContext
 
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
-	// NOTE: The span is passed for the sole purpose of allowing updating & reading of the span links
-	// This is a compromise to avoid...
-	// - creating an extra wrapper object that would create significant allocation
-	// - implementing an interface to read the spans that require making the read method public
+    // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
+    // links
+    // This is a compromise to avoid...
+    // - creating an extra wrapper object that would create significant allocation
+    // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
