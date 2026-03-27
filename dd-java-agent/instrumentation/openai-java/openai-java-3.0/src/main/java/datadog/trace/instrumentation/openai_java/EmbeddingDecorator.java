@@ -28,7 +28,7 @@ public class EmbeddingDecorator {
     if (params == null) {
       return;
     }
-    Optional<String> modelName = params.model()._value().asString();
+    Optional<String> modelName = extractEmbeddingModelName(params);
     modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     if (!llmObsEnabled) {
@@ -43,24 +43,23 @@ public class EmbeddingDecorator {
     span.setTag(CommonTags.INPUT, embeddingDocuments(params.input()));
 
     Map<String, Object> metadata = new HashMap<>();
-    Optional<String> encodingFormat = params.encodingFormat().flatMap(v -> v._value().asString());
+    Optional<String> encodingFormat = extractEncodingFormat(params);
     encodingFormat.ifPresent(v -> metadata.put("encoding_format", v));
     params.dimensions().ifPresent(v -> metadata.put("dimensions", v));
     span.setTag(CommonTags.METADATA, metadata);
   }
 
   private List<LLMObs.Document> embeddingDocuments(EmbeddingCreateParams.Input input) {
-    List<String> inputs = Collections.emptyList();
-    if (input.isString()) {
-      inputs = Collections.singletonList(input.asString());
-    } else if (input.isArrayOfStrings()) {
-      inputs = input.asArrayOfStrings();
-    }
+    List<String> inputs =
+        input
+            .string()
+            .map(Collections::singletonList)
+            .orElseGet(() -> input.arrayOfStrings().orElse(Collections.emptyList()));
     return inputs.stream().map(LLMObs.Document::from).collect(Collectors.toList());
   }
 
   public void withCreateEmbeddingResponse(AgentSpan span, CreateEmbeddingResponse response) {
-    String modelName = response.model();
+    String modelName = response._model().asString().orElse(null);
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
@@ -68,17 +67,42 @@ public class EmbeddingDecorator {
       return;
     }
 
-    if (!response.data().isEmpty()) {
-      int embeddingCount = response.data().size();
-      Embedding firstEmbedding = response.data().get(0);
-      int embeddingSize = firstEmbedding.embedding().size();
+    List<Embedding> data = response._data().asKnown().orElse(Collections.emptyList());
+    if (!data.isEmpty()) {
+      int embeddingCount = data.size();
+      Embedding firstEmbedding = data.get(0);
+      int embeddingSize =
+          firstEmbedding._embedding().asKnown().orElse(Collections.emptyList()).size();
       span.setTag(
           CommonTags.OUTPUT,
           String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
 
-    CreateEmbeddingResponse.Usage usage = response.usage();
-    span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
-    span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+    response
+        ._usage()
+        .asKnown()
+        .ifPresent(
+            usage -> {
+              usage
+                  ._promptTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+              usage
+                  ._totalTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
+            });
+  }
+
+  private Optional<String> extractEmbeddingModelName(EmbeddingCreateParams params) {
+    Optional<String> modelName =
+        params._model().asKnown().flatMap(model -> model._value().asString());
+    return modelName.isPresent() ? modelName : params._model().asString();
+  }
+
+  private Optional<String> extractEncodingFormat(EmbeddingCreateParams params) {
+    Optional<String> encodingFormat =
+        params._encodingFormat().asKnown().flatMap(format -> format._value().asString());
+    return encodingFormat.isPresent() ? encodingFormat : params._encodingFormat().asString();
   }
 }

@@ -41,7 +41,7 @@ public class ChatCompletionDecorator {
     if (params == null) {
       return;
     }
-    Optional<String> modelName = params.model()._value().asString();
+    Optional<String> modelName = extractChatModelName(params);
     modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     if (!llmObsEnabled) {
@@ -101,10 +101,16 @@ public class ChatCompletionDecorator {
               }
             });
 
-    List<ChatCompletionTool> tools = params.tools().orElse(Collections.emptyList());
+    List<ChatCompletionTool> tools = params._tools().asKnown().orElse(Collections.emptyList());
     if (!tools.isEmpty()) {
       span.setTag(CommonTags.TOOL_DEFINITIONS, extractToolDefinitions(tools));
     }
+  }
+
+  private Optional<String> extractChatModelName(ChatCompletionCreateParams params) {
+    Optional<String> modelName =
+        params._model().asKnown().flatMap(model -> model._value().asString());
+    return modelName.isPresent() ? modelName : params._model().asString();
   }
 
   private List<Map<String, Object>> extractToolDefinitions(List<ChatCompletionTool> tools) {
@@ -193,7 +199,7 @@ public class ChatCompletionDecorator {
   }
 
   public void withChatCompletion(AgentSpan span, ChatCompletion completion) {
-    String modelName = completion.model();
+    String modelName = completion._model().asString().orElse(null);
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
@@ -202,13 +208,14 @@ public class ChatCompletionDecorator {
     }
 
     List<LLMObs.LLMMessage> output =
-        completion.choices().stream()
+        completion._choices().asKnown().orElse(Collections.emptyList()).stream()
             .map(ChatCompletionDecorator::llmMessage)
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
     completion
-        .usage()
+        ._usage()
+        .asKnown()
         .ifPresent(
             usage -> {
               span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
@@ -222,18 +229,21 @@ public class ChatCompletionDecorator {
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
-    ChatCompletionMessage msg = choice.message();
-    Optional<?> roleOpt = msg._role().asString();
-    String role = "unknown";
-    if (roleOpt.isPresent()) {
-      role = String.valueOf(roleOpt.get());
+    Optional<ChatCompletionMessage> msgOpt = choice._message().asKnown();
+    if (!msgOpt.isPresent()) {
+      return LLMObs.LLMMessage.from("unknown", "");
     }
-    String content = msg.content().orElse("");
 
-    Optional<List<ChatCompletionMessageToolCall>> toolCallsOpt = msg.toolCalls();
-    if (toolCallsOpt.isPresent() && !toolCallsOpt.get().isEmpty()) {
+    ChatCompletionMessage msg = msgOpt.get();
+    Optional<?> roleOpt = msg._role().asString();
+    String role = roleOpt.isPresent() ? String.valueOf(roleOpt.get()) : "unknown";
+    String content = msg._content().asString().orElse("");
+
+    List<ChatCompletionMessageToolCall> toolCallsOpt =
+        msg._toolCalls().asKnown().orElse(Collections.emptyList());
+    if (!toolCallsOpt.isEmpty()) {
       List<LLMObs.ToolCall> toolCalls = new ArrayList<>();
-      for (ChatCompletionMessageToolCall toolCall : toolCallsOpt.get()) {
+      for (ChatCompletionMessageToolCall toolCall : toolCallsOpt) {
         LLMObs.ToolCall llmObsToolCall = ToolCallExtractor.getToolCall(toolCall);
         if (llmObsToolCall != null) {
           toolCalls.add(llmObsToolCall);

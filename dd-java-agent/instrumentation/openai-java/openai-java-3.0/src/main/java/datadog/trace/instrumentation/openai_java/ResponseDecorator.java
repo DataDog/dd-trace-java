@@ -17,7 +17,6 @@ import com.openai.models.responses.ResponseInputContent;
 import com.openai.models.responses.ResponseInputItem;
 import com.openai.models.responses.ResponseOutputItem;
 import com.openai.models.responses.ResponseOutputMessage;
-import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
@@ -73,7 +72,8 @@ public class ResponseDecorator {
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
     params
-        .instructions()
+        ._instructions()
+        .asString()
         .ifPresent(
             instructions -> {
               inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
@@ -87,11 +87,11 @@ public class ResponseDecorator {
     Optional<ResponseCreateParams.Input> inputOpt = params._input().asKnown();
     if (inputOpt.isPresent()) {
       ResponseCreateParams.Input input = inputOpt.get();
-      if (input.isText()) {
-        inputMessages.add(LLMObs.LLMMessage.from("user", input.asText()));
-      } else if (input.isResponse()) {
-        List<ResponseInputItem> inputItems = input.asResponse();
-        for (ResponseInputItem item : inputItems) {
+      Optional<String> inputText = input.text();
+      if (inputText.isPresent()) {
+        inputMessages.add(LLMObs.LLMMessage.from("user", inputText.get()));
+      } else {
+        for (ResponseInputItem item : input.response().orElse(Collections.emptyList())) {
           LLMObs.LLMMessage message = extractInputItemMessage(item);
           if (message != null) {
             inputMessages.add(message);
@@ -103,22 +103,17 @@ public class ResponseDecorator {
     // Handle raw list input (when SDK can't parse into known types)
     // This path is tested by "create streaming response with raw json tool input test"
     if (inputMessages.isEmpty()) {
-      try {
-        Optional<JsonValue> rawValueOpt = params._input().asUnknown();
-        if (rawValueOpt.isPresent()) {
-          JsonValue rawValue = rawValueOpt.get();
-          Optional<List<JsonValue>> rawListOpt = rawValue.asArray();
-          if (rawListOpt.isPresent()) {
-            for (JsonValue item : rawListOpt.get()) {
-              LLMObs.LLMMessage message = extractMessageFromRawJson(item);
-              if (message != null) {
-                inputMessages.add(message);
-              }
+      Optional<JsonValue> rawValueOpt = params._input().asUnknown();
+      if (rawValueOpt.isPresent()) {
+        Optional<List<JsonValue>> rawListOpt = rawValueOpt.get().asArray();
+        if (rawListOpt.isPresent()) {
+          for (JsonValue item : rawListOpt.get()) {
+            LLMObs.LLMMessage message = extractMessageFromRawJson(item);
+            if (message != null) {
+              inputMessages.add(message);
             }
           }
         }
-      } catch (Exception e) {
-        // Ignore parsing errors for raw input
       }
     }
 
@@ -139,48 +134,40 @@ public class ResponseDecorator {
   }
 
   private List<Map<String, Object>> extractToolDefinitionsFromParams(ResponseCreateParams params) {
-    try {
-      Optional<List<Tool>> toolsOpt = params.tools();
-      if (toolsOpt.isPresent()) {
-        List<Map<String, Object>> toolDefinitions = new ArrayList<>();
-        for (Tool tool : toolsOpt.get()) {
-          if (!tool.isFunction()) {
-            continue;
-          }
-          Map<String, Object> toolDef = extractFunctionToolDefinition(tool.asFunction());
-          if (toolDef != null) {
-            toolDefinitions.add(toolDef);
-          }
-        }
-        if (!toolDefinitions.isEmpty()) {
-          return toolDefinitions;
-        }
-      }
-    } catch (Exception ignored) {
-      // fall back to raw JSON if typed extraction is unavailable or fails
-    }
-
-    try {
-      Optional<JsonValue> rawToolsOpt = params._tools().asUnknown();
-      if (!rawToolsOpt.isPresent()) {
-        return Collections.emptyList();
-      }
-      Optional<List<JsonValue>> rawToolListOpt = rawToolsOpt.get().asArray();
-      if (!rawToolListOpt.isPresent()) {
-        return Collections.emptyList();
-      }
-
+    Optional<List<Tool>> toolsOpt = params._tools().asKnown();
+    if (toolsOpt.isPresent()) {
       List<Map<String, Object>> toolDefinitions = new ArrayList<>();
-      for (JsonValue rawTool : rawToolListOpt.get()) {
-        Map<String, Object> toolDef = extractFunctionToolDefinition(rawTool);
+      for (Tool tool : toolsOpt.get()) {
+        if (!tool.isFunction()) {
+          continue;
+        }
+        Map<String, Object> toolDef = extractFunctionToolDefinition(tool.asFunction());
         if (toolDef != null) {
           toolDefinitions.add(toolDef);
         }
       }
-      return toolDefinitions;
-    } catch (Exception ignored) {
+      if (!toolDefinitions.isEmpty()) {
+        return toolDefinitions;
+      }
+    }
+
+    Optional<JsonValue> rawToolsOpt = params._tools().asUnknown();
+    if (!rawToolsOpt.isPresent()) {
       return Collections.emptyList();
     }
+    Optional<List<JsonValue>> rawToolListOpt = rawToolsOpt.get().asArray();
+    if (!rawToolListOpt.isPresent()) {
+      return Collections.emptyList();
+    }
+
+    List<Map<String, Object>> toolDefinitions = new ArrayList<>();
+    for (JsonValue rawTool : rawToolListOpt.get()) {
+      Map<String, Object> toolDef = extractFunctionToolDefinition(rawTool);
+      if (toolDef != null) {
+        toolDefinitions.add(toolDef);
+      }
+    }
+    return toolDefinitions;
   }
 
   private Map<String, Object> extractFunctionToolDefinition(FunctionTool functionTool) {
@@ -255,7 +242,8 @@ public class ResponseDecorator {
   private LLMObs.LLMMessage extractInputItemMessage(ResponseInputItem item) {
     if (item.isEasyInputMessage()) {
       EasyInputMessage message = item.asEasyInputMessage();
-      String role = message.role().asString();
+      String role =
+          message._role().asKnown().map(EasyInputMessage.Role::asString).orElse("unknown");
       String content = extractEasyInputMessageContent(message);
       if (content == null || content.isEmpty()) {
         return null;
@@ -263,22 +251,29 @@ public class ResponseDecorator {
       return LLMObs.LLMMessage.from(role, content);
     } else if (item.isMessage()) {
       ResponseInputItem.Message message = item.asMessage();
-      String role = message.role().asString();
+      String role =
+          message._role().asKnown().map(ResponseInputItem.Message.Role::asString).orElse("unknown");
       String content = extractInputMessageContent(message);
       if (content == null || content.isEmpty()) {
         return null;
       }
       return LLMObs.LLMMessage.from(role, content);
-    } else if (item.isFunctionCall()) {
+    }
+
+    Optional<ResponseFunctionToolCall> functionCallOpt = item.functionCall();
+    if (functionCallOpt.isPresent()) {
       // Function call is mapped to assistant message with tool_calls
-      ResponseFunctionToolCall functionCall = item.asFunctionCall();
+      ResponseFunctionToolCall functionCall = functionCallOpt.get();
       LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(functionCall);
       if (toolCall != null) {
         List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
         return LLMObs.LLMMessage.from("assistant", null, toolCalls);
       }
-    } else if (item.isFunctionCallOutput()) {
-      ResponseInputItem.FunctionCallOutput output = item.asFunctionCallOutput();
+    }
+
+    Optional<ResponseInputItem.FunctionCallOutput> functionCallOutput = item.functionCallOutput();
+    if (functionCallOutput.isPresent()) {
+      ResponseInputItem.FunctionCallOutput output = functionCallOutput.get();
       String callId = output.callId();
       String result = FunctionCallOutputExtractor.getOutputAsString(output);
       LLMObs.ToolResult toolResult =
@@ -290,23 +285,28 @@ public class ResponseDecorator {
   }
 
   private String extractEasyInputMessageContent(EasyInputMessage message) {
-    if (message.content().isTextInput()) {
-      String content = message.content().asTextInput();
+    Optional<EasyInputMessage.Content> contentValue = message._content().asKnown();
+    if (!contentValue.isPresent()) {
+      return null;
+    }
+
+    EasyInputMessage.Content contentValueTyped = contentValue.get();
+    Optional<String> textInput = contentValueTyped.textInput();
+    if (textInput.isPresent()) {
+      String content = textInput.get();
       return content == null || content.isEmpty() ? null : content;
     }
 
-    if (message.content().isResponseInputMessageContentList()) {
-      StringBuilder contentBuilder = new StringBuilder();
-      for (ResponseInputContent content : message.content().asResponseInputMessageContentList()) {
-        String contentPart = extractInputContentText(content);
-        if (contentPart != null) {
-          contentBuilder.append(contentPart);
-        }
+    StringBuilder contentBuilder = new StringBuilder();
+    for (ResponseInputContent content :
+        contentValueTyped.responseInputMessageContentList().orElse(Collections.emptyList())) {
+      String contentPart = extractInputContentText(content);
+      if (contentPart != null) {
+        contentBuilder.append(contentPart);
       }
-      String result = contentBuilder.toString();
-      return result.isEmpty() ? null : result;
     }
-    return null;
+    String result = contentBuilder.toString();
+    return result.isEmpty() ? null : result;
   }
 
   private LLMObs.LLMMessage extractMessageFromRawJson(JsonValue jsonValue) {
@@ -429,26 +429,23 @@ public class ResponseDecorator {
   }
 
   private String extractInputContentText(ResponseInputContent content) {
-    if (content.isInputText()) {
-      return content.asInputText().text();
+    Optional<String> inputText = content.inputText().map(v -> v.text());
+    if (inputText.isPresent()) {
+      return inputText.get();
     }
-    if (content.isInputImage()) {
-      return content
-          .asInputImage()
-          .imageUrl()
-          .orElse(content.asInputImage().fileId().orElse(IMAGE_FALLBACK_MARKER));
+
+    Optional<String> inputImage =
+        content
+            .inputImage()
+            .map(v -> v.imageUrl().orElse(v.fileId().orElse(IMAGE_FALLBACK_MARKER)));
+    if (inputImage.isPresent()) {
+      return inputImage.get();
     }
-    if (content.isInputFile()) {
-      return content
-          .asInputFile()
-          .fileUrl()
-          .orElse(
-              content
-                  .asInputFile()
-                  .fileId()
-                  .orElse(content.asInputFile().filename().orElse(FILE_FALLBACK_MARKER)));
-    }
-    return null;
+
+    return content
+        .inputFile()
+        .map(v -> v.fileUrl().orElse(v.fileId().orElse(v.filename().orElse(FILE_FALLBACK_MARKER))))
+        .orElse(null);
   }
 
   private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
@@ -513,7 +510,8 @@ public class ResponseDecorator {
       return;
     }
 
-    List<LLMObs.LLMMessage> outputMessages = extractResponseOutputMessages(response.output());
+    List<LLMObs.LLMMessage> outputMessages =
+        extractResponseOutputMessages(response._output().asKnown().orElse(Collections.emptyList()));
     if (!outputMessages.isEmpty()) {
       span.setTag(CommonTags.OUTPUT, outputMessages);
     }
@@ -531,46 +529,58 @@ public class ResponseDecorator {
     response.temperature().ifPresent(v -> metadata.put("temperature", v));
     response.topP().ifPresent(v -> metadata.put("top_p", v));
 
-    Response.ToolChoice toolChoice = response.toolChoice();
-    if (toolChoice.isOptions()) {
-      metadata.put("tool_choice", toolChoice.asOptions()._value().asString().orElse(null));
-    } else if (toolChoice.isTypes()) {
-      metadata.put("tool_choice", toolChoice.asTypes().type().toString().toLowerCase());
-    } else if (toolChoice.isFunction()) {
-      metadata.put("tool_choice", "function");
-    }
+    response
+        ._toolChoice()
+        .asKnown()
+        .ifPresent(
+            toolChoice -> {
+              toolChoice
+                  .options()
+                  .flatMap(v -> v._value().asString())
+                  .ifPresent(v -> metadata.put("tool_choice", v));
+              if (!metadata.containsKey("tool_choice")) {
+                toolChoice
+                    .types()
+                    .map(v -> v.type().toString().toLowerCase())
+                    .ifPresent(v -> metadata.put("tool_choice", v));
+              }
+              if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
+                metadata.put("tool_choice", "function");
+              }
+            });
 
     response
-        .truncation()
-        .ifPresent(
-            (Response.Truncation t) ->
-                metadata.put("truncation", t._value().asString().orElse(null)));
+        ._truncation()
+        .asKnown()
+        .flatMap(t -> t._value().asString())
+        .ifPresent(v -> metadata.put("truncation", v));
 
     Map<String, Object> textMap = new HashMap<>();
     response
-        .text()
+        ._text()
+        .asKnown()
         .ifPresent(
             textConfig -> {
               textConfig
-                  .format()
+                  ._format()
+                  .asKnown()
                   .ifPresent(
                       format -> {
                         Map<String, String> formatMap = new HashMap<>();
-                        if (format.isText()) {
+                        if (format.text().isPresent()) {
                           formatMap.put("type", "text");
-                        } else if (format.isJsonSchema()) {
+                        } else if (format.jsonSchema().isPresent()) {
                           formatMap.put("type", "json_schema");
-                        } else if (format.isJsonObject()) {
+                        } else if (format.jsonObject().isPresent()) {
                           formatMap.put("type", "json_object");
                         }
                         textMap.put("format", formatMap);
                       });
               textConfig
-                  .verbosity()
-                  .ifPresent(
-                      verbosity -> {
-                        textMap.put("verbosity", verbosity.asString());
-                      });
+                  ._verbosity()
+                  .asKnown()
+                  .flatMap(verbosity -> verbosity._value().asString())
+                  .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
             });
     if (!textMap.isEmpty()) {
       metadata.put("text", textMap);
@@ -581,7 +591,8 @@ public class ResponseDecorator {
     span.setTag(CommonTags.METADATA, metadata);
 
     response
-        .usage()
+        ._usage()
+        .asKnown()
         .ifPresent(
             usage -> {
               span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
@@ -674,22 +685,25 @@ public class ResponseDecorator {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
 
     response
-        .instructions()
+        ._instructions()
+        .asKnown()
         .ifPresent(
             instructions -> {
-              if (instructions.isInputItemList()) {
-                for (ResponseInputItem item : instructions.asInputItemList()) {
-                  LLMObs.LLMMessage message = extractInputItemMessage(item);
-                  if (message != null) {
-                    messages.add(message);
-                  }
-                }
-              } else if (instructions.isString()) {
-                String text = instructions.asString();
-                if (text != null && !text.isEmpty()) {
-                  messages.add(LLMObs.LLMMessage.from("system", text));
+              for (ResponseInputItem item :
+                  instructions.inputItemList().orElse(Collections.emptyList())) {
+                LLMObs.LLMMessage message = extractInputItemMessage(item);
+                if (message != null) {
+                  messages.add(message);
                 }
               }
+              instructions
+                  .string()
+                  .ifPresent(
+                      text -> {
+                        if (text != null && !text.isEmpty()) {
+                          messages.add(LLMObs.LLMMessage.from("system", text));
+                        }
+                      });
             });
 
     // Fallback for SDK union parsing mismatches: parse raw instructions payload.
@@ -815,21 +829,17 @@ public class ResponseDecorator {
       }
     }
 
-    try {
-      Optional<JsonValue> rawPromptOpt = params._prompt().asUnknown();
-      if (!rawPromptOpt.isPresent()) {
-        return Optional.empty();
-      }
-
-      Optional<Map<String, JsonValue>> rawPromptObjOpt = rawPromptOpt.get().asObject();
-      if (!rawPromptObjOpt.isPresent()) {
-        return Optional.empty();
-      }
-
-      return extractPrompt(rawPromptObjOpt.get());
-    } catch (Exception ignored) {
+    Optional<JsonValue> rawPromptOpt = params._prompt().asUnknown();
+    if (!rawPromptOpt.isPresent()) {
       return Optional.empty();
     }
+
+    Optional<Map<String, JsonValue>> rawPromptObjOpt = rawPromptOpt.get().asObject();
+    if (!rawPromptObjOpt.isPresent()) {
+      return Optional.empty();
+    }
+
+    return extractPrompt(rawPromptObjOpt.get());
   }
 
   private Optional<Map<String, Object>> extractPrompt(ResponsePrompt prompt) {
@@ -964,22 +974,31 @@ public class ResponseDecorator {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
 
     for (ResponseOutputItem item : output) {
-      if (item.isFunctionCall()) {
-        ResponseFunctionToolCall functionCall = item.asFunctionCall();
+      Optional<ResponseFunctionToolCall> functionCallOpt = item.functionCall();
+      if (functionCallOpt.isPresent()) {
+        ResponseFunctionToolCall functionCall = functionCallOpt.get();
         LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(functionCall);
         if (toolCall != null) {
           List<LLMObs.ToolCall> toolCalls = Collections.singletonList(toolCall);
           messages.add(LLMObs.LLMMessage.from("assistant", null, toolCalls));
         }
-      } else if (item.isCustomToolCall()) {
-        ResponseCustomToolCall customToolCall = item.asCustomToolCall();
+        continue;
+      }
+
+      Optional<ResponseCustomToolCall> customToolCallOpt = item.customToolCall();
+      if (customToolCallOpt.isPresent()) {
+        ResponseCustomToolCall customToolCall = customToolCallOpt.get();
         LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(customToolCall);
         if (toolCall != null) {
           messages.add(
               LLMObs.LLMMessage.from("assistant", null, Collections.singletonList(toolCall)));
         }
-      } else if (item.isMcpCall()) {
-        ResponseOutputItem.McpCall mcpCall = item.asMcpCall();
+        continue;
+      }
+
+      Optional<ResponseOutputItem.McpCall> mcpCallOpt = item.mcpCall();
+      if (mcpCallOpt.isPresent()) {
+        ResponseOutputItem.McpCall mcpCall = mcpCallOpt.get();
         LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(mcpCall);
         List<LLMObs.ToolCall> toolCalls =
             toolCall == null ? null : Collections.singletonList(toolCall);
@@ -988,21 +1007,32 @@ public class ResponseDecorator {
             LLMObs.ToolResult.from(mcpCall.name(), "mcp_tool_result", mcpCall.id(), outputText);
         List<LLMObs.ToolResult> toolResults = Collections.singletonList(toolResult);
         messages.add(LLMObs.LLMMessage.from("assistant", null, toolCalls, toolResults));
-      } else if (item.isMessage()) {
-        ResponseOutputMessage message = item.asMessage();
+        continue;
+      }
+
+      Optional<ResponseOutputMessage> messageOpt = item.message();
+      if (messageOpt.isPresent()) {
+        ResponseOutputMessage message = messageOpt.get();
         String textContent = extractMessageContent(message);
         Optional<String> roleOpt = message._role().asString();
         String role = roleOpt.orElse("assistant");
         messages.add(LLMObs.LLMMessage.from(role, textContent));
-      } else if (item.isReasoning()) {
-        ResponseReasoningItem reasoning = item.asReasoning();
+        continue;
+      }
+
+      Optional<ResponseReasoningItem> reasoningOpt = item.reasoning();
+      if (reasoningOpt.isPresent()) {
+        ResponseReasoningItem reasoning = reasoningOpt.get();
         try (JsonWriter writer = new JsonWriter()) {
           writer.beginObject();
 
-          String summaryText = null;
-          if (!reasoning.summary().isEmpty()) {
-            summaryText = reasoning.summary().get(0).text();
-          }
+          String summaryText =
+              reasoning
+                  ._summary()
+                  .asKnown()
+                  .filter(summary -> !summary.isEmpty())
+                  .flatMap(summary -> summary.get(0)._text().asString())
+                  .orElse(null);
           writer.name("summary");
           if (summaryText != null && !summaryText.isEmpty()) {
             writer.value(summaryText);
@@ -1011,13 +1041,14 @@ public class ResponseDecorator {
           }
 
           writer.name("encrypted_content");
-          if (reasoning.encryptedContent().isPresent()) {
-            writer.value(reasoning.encryptedContent().get());
+          Optional<String> encryptedContent = reasoning._encryptedContent().asString();
+          if (encryptedContent.isPresent()) {
+            writer.value(encryptedContent.get());
           } else {
             writer.nullValue();
           }
 
-          String id = reasoning.id();
+          String id = reasoning._id().asString().orElse(null);
           writer.name("id").value(id == null ? "" : id);
 
           writer.endObject();
@@ -1031,11 +1062,9 @@ public class ResponseDecorator {
 
   private String extractMessageContent(ResponseOutputMessage message) {
     StringBuilder contentBuilder = new StringBuilder();
-    for (ResponseOutputMessage.Content content : message.content()) {
-      if (content.isOutputText()) {
-        ResponseOutputText outputText = content.asOutputText();
-        contentBuilder.append(outputText.text());
-      }
+    for (ResponseOutputMessage.Content content :
+        message._content().asKnown().orElse(Collections.emptyList())) {
+      content.outputText().ifPresent(outputText -> contentBuilder.append(outputText.text()));
     }
     String result = contentBuilder.toString();
     return result.isEmpty() ? null : result;

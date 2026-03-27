@@ -27,8 +27,7 @@ public class CompletionDecorator {
     if (params == null) {
       return;
     }
-
-    Optional<String> modelName = params.model()._value().asString();
+    Optional<String> modelName = extractCompletionModelName(params);
     modelName.ifPresent(str -> span.setTag(CommonTags.OPENAI_REQUEST_MODEL, str));
 
     if (!llmObsEnabled) {
@@ -43,9 +42,7 @@ public class CompletionDecorator {
         });
 
     span.setTag(CommonTags.SPAN_KIND, Tags.LLMOBS_LLM_SPAN_KIND);
-    params
-        .prompt()
-        .flatMap(p -> p.string())
+    extractPromptText(params)
         .ifPresent(
             input ->
                 span.setTag(
@@ -67,7 +64,7 @@ public class CompletionDecorator {
   }
 
   public void withCompletion(AgentSpan span, Completion completion) {
-    String modelName = completion.model();
+    String modelName = completion._model().asString().orElse(null);
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
@@ -76,18 +73,28 @@ public class CompletionDecorator {
     }
 
     List<LLMObs.LLMMessage> output =
-        completion.choices().stream()
-            .map(v -> LLMObs.LLMMessage.from("", v.text()))
+        completion._choices().asKnown().orElse(Collections.emptyList()).stream()
+            .map(v -> LLMObs.LLMMessage.from("", v._text().asString().orElse(null)))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
 
     completion
-        .usage()
+        ._usage()
+        .asKnown()
         .ifPresent(
             usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+              usage
+                  ._promptTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+              usage
+                  ._completionTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
+              usage
+                  ._totalTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
             });
   }
 
@@ -97,7 +104,7 @@ public class CompletionDecorator {
     }
 
     Completion firstCompletion = completions.get(0);
-    String modelName = firstCompletion.model();
+    String modelName = firstCompletion._model().asString().orElse(null);
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
@@ -108,13 +115,15 @@ public class CompletionDecorator {
     Map<Long, StringBuilder> textByChoiceIndex = new HashMap<>();
     for (Completion completion : completions) {
       completion
-          .choices()
+          ._choices()
+          .asKnown()
+          .orElse(Collections.emptyList())
           .forEach(
               choice -> {
-                long index = choice.index();
+                long index = choice._index().asKnown().orElse(0L);
                 textByChoiceIndex
                     .computeIfAbsent(index, k -> new StringBuilder())
-                    .append(choice.text());
+                    .append(choice._text().asString().orElse(""));
               });
     }
 
@@ -127,12 +136,37 @@ public class CompletionDecorator {
 
     Completion lastCompletion = completions.get(completions.size() - 1);
     lastCompletion
-        .usage()
+        ._usage()
+        .asKnown()
         .ifPresent(
             usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+              usage
+                  ._promptTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
+              usage
+                  ._completionTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
+              usage
+                  ._totalTokens()
+                  .asKnown()
+                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
             });
+  }
+
+  private Optional<String> extractCompletionModelName(CompletionCreateParams params) {
+    Optional<String> modelName =
+        params._model().asKnown().flatMap(model -> model._value().asString());
+    return modelName.isPresent() ? modelName : params._model().asString();
+  }
+
+  private Optional<String> extractPromptText(CompletionCreateParams params) {
+    Optional<String> promptText =
+        params._prompt().asKnown().flatMap(CompletionCreateParams.Prompt::string);
+    if (promptText.isPresent()) {
+      return promptText;
+    }
+    return params._prompt().asUnknown().flatMap(v -> v.asString());
   }
 }
