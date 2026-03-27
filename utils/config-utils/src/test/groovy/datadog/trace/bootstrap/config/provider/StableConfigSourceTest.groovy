@@ -29,6 +29,7 @@ class StableConfigSourceTest extends DDSpecification {
     expect:
     config.getKeys().size() == 0
     config.getConfigId() == null
+    !config.isLoaded()
   }
 
   def "test empty file"() {
@@ -94,6 +95,40 @@ apm_configuration_rules:
     stableCfg.getConfigId() == "12345"
     stableCfg.getKeys().size() == 0
     Files.delete(filePath)
+  }
+
+  def "test isLoaded with valid file"() {
+    given:
+    Path filePath = Files.createTempFile("testFile_", ".yaml")
+    def yamlContent = """
+config_id: "12345"
+apm_configuration_default:
+  DD_SERVICE: test-service
+"""
+    Files.write(filePath, yamlContent.getBytes())
+
+    when:
+    StableConfigSource config = new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG)
+
+    then:
+    config.isLoaded()
+
+    cleanup:
+    Files.delete(filePath)
+  }
+
+  def "test getStableConfigFileStatus"() {
+    when:
+    def status = provider.getStableConfigFileStatus()
+
+    then:
+    status == expected
+
+    where:
+    provider                                                                                                | expected
+    new ConfigProvider(new StableConfigSource("/nonexistent/local.yaml", ConfigOrigin.LOCAL_STABLE_CONFIG),
+      new StableConfigSource("/nonexistent/fleet.yaml", ConfigOrigin.FLEET_STABLE_CONFIG))                  | "no stable config file present"
+    new ConfigProvider(new SystemPropertiesConfigSource())                                                   | "no stable config file present"
   }
 
   def "test file valid format"() {
