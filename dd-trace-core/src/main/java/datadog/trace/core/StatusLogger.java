@@ -136,6 +136,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isHealthMetricsEnabled());
     writer.name("configuration_file");
     writer.value(config.getConfigFileStatus());
+    writer.name("application_monitoring_yaml");
+    writer.value(config.getStableConfigFileStatus());
     writer.name("runtime_id");
     writer.value(config.getRuntimeId());
     writer.name("logging_settings");

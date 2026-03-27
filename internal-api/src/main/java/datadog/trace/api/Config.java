@@ -1231,6 +1231,7 @@ public class Config {
 
   private final boolean startupLogsEnabled;
   private final String configFileStatus;
+  private final String stableConfigFileStatus;
 
   private final IdGenerationStrategy idGenerationStrategy;
 
@@ -1366,6 +1367,7 @@ public class Config {
     this.configProvider = configProvider;
     this.instrumenterConfig = instrumenterConfig;
     configFileStatus = configProvider.getConfigFileStatus();
+    stableConfigFileStatus = configProvider.getStableConfigFileStatus();
     runtimeIdEnabled =
         configProvider.getBoolean(RUNTIME_ID_ENABLED, true, RUNTIME_METRICS_RUNTIME_ID_ENABLED);
     runtimeVersion = SystemProperties.getOrDefault("java.version", "unknown");
@@ -4729,6 +4731,10 @@ public class Config {
 
   public String getConfigFileStatus() {
     return configFileStatus;
+  }
+
+  public String getStableConfigFileStatus() {
+    return stableConfigFileStatus;
   }
 
   public IdGenerationStrategy getIdGenerationStrategy() {

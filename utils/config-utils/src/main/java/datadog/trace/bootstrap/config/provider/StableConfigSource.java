@@ -79,6 +79,10 @@ public final class StableConfigSource extends ConfigProvider.Source {
     return this.config.getConfigId();
   }
 
+  public boolean isLoaded() {
+    return this.config != StableConfig.EMPTY;
+  }
+
   public static class StableConfig {
     public static final StableConfig EMPTY = new StableConfig(null, Collections.emptyMap());
     private final Map<String, Object> apmConfiguration;

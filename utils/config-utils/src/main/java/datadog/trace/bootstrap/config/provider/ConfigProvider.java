@@ -61,6 +61,30 @@ public final class ConfigProvider {
     return "no config file present";
   }
 
+  public String getStableConfigFileStatus() {
+    boolean localFound = false;
+    boolean fleetFound = false;
+    for (ConfigProvider.Source source : sources) {
+      if (source instanceof StableConfigSource) {
+        StableConfigSource stableSource = (StableConfigSource) source;
+        if (stableSource.origin() == ConfigOrigin.LOCAL_STABLE_CONFIG && stableSource.isLoaded()) {
+          localFound = true;
+        } else if (stableSource.origin() == ConfigOrigin.FLEET_STABLE_CONFIG
+            && stableSource.isLoaded()) {
+          fleetFound = true;
+        }
+      }
+    }
+    if (localFound && fleetFound) {
+      return "local and fleet";
+    } else if (localFound) {
+      return "local";
+    } else if (fleetFound) {
+      return "fleet";
+    }
+    return "no stable config file present";
+  }
+
   // Gets a string value when there is no default value.
   public String getString(String key) {
     return getString(key, null);
