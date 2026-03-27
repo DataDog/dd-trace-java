@@ -58,7 +58,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
         @Advice.Return Collection<?> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || parts == null || parts.isEmpty()) {
+      if (t != null) {
         return;
       }
       List<String> filenames = PartHelper.extractFilenames(parts);

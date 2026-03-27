@@ -3,11 +3,15 @@ package datadog.trace.instrumentation.liberty20;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class PartHelper {
 
   public static List<String> extractFilenames(Collection<?> parts) {
+    if (parts == null || parts.isEmpty()) {
+      return Collections.emptyList();
+    }
     Class<?> partClass = parts.iterator().next().getClass();
     Method getSubmittedFileName = resolveMethod(partClass, "getSubmittedFileName");
     Method getHeader = resolveMethod(partClass, "getHeader", String.class);
