@@ -29,6 +29,9 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+  WINDOWS_JDK_VERSION: "21.0.9+10" # keep pinned to a Temurin 21 GA patch release and bump periodically
+  WINDOWS_BOOTSTRAP_CACHE_POLICY: pull
+  WINDOWS_DEPENDENCY_CACHE_POLICY: pull
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
@@ -346,6 +349,19 @@ populate_dep_cache:
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
 
+populate_dep_cache_windows:
+  extends: .windows_base_test_job
+  when: manual
+  allow_failure: true
+  variables:
+    WINDOWS_BOOTSTRAP_CACHE_POLICY: pull-push
+    WINDOWS_DEPENDENCY_CACHE_POLICY: push
+  script:
+    - |
+      $ErrorActionPreference = "Stop"
+      .\gradlew.bat :baseTest -PskipTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
@@ -571,6 +587,116 @@ muzzle-dep-report:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
+.windows_test_cache:
+  cache:
+    - key: "windows-jdk-temurin-${WINDOWS_JDK_VERSION}-x64"
+      paths:
+        - .tools/jdk-21/
+      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
+      unprotect: true
+    - key:
+        files:
+          - gradle/wrapper/gradle-wrapper.properties
+        prefix: "windows-gradle-wrapper"
+      paths:
+        - .gradle/wrapper/
+      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
+      unprotect: true
+    - key:
+        files:
+          - settings.gradle.kts
+          - "**/gradle.lockfile"
+        prefix: "windows-base-deps-jdk21"
+      fallback_keys:
+        - "windows-base-deps-jdk21-default"
+      paths:
+        - .gradle/caches/
+        - .gradle/notifications/
+        - .mvn/caches/
+      policy: $WINDOWS_DEPENDENCY_CACHE_POLICY
+      unprotect: true
+
+.windows_base_test_job:
+  extends: .windows_test_cache
+  stage: tests
+  tags: [ "windows-v2:2025" ]
+  needs: []
+  variables:
+    GIT_STRATEGY: clone
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
+    SKIP_BUILDSCAN: "true"
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  before_script:
+    - |
+      $ErrorActionPreference = "Stop"
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+      $toolsDir = Join-Path $env:CI_PROJECT_DIR ".tools"
+      $tmpDir = Join-Path $env:CI_PROJECT_DIR ".tmp"
+      $tmpDirJava = $tmpDir.Replace("\", "/")
+      $jdkArchiveVersion = $env:WINDOWS_JDK_VERSION.Replace("+", "_")
+      $jdkZip = Join-Path $env:TEMP "temurin-jdk-$jdkArchiveVersion-windows-x64.zip"
+      $jdkExtract = Join-Path $toolsDir "jdk-extract"
+      $jdkHome = Join-Path $toolsDir "jdk-21"
+      $jdkUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdkArchiveVersion.zip"
+
+      New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
+      try {
+        New-Item -ItemType Directory -Force -Path "C:\tmp" | Out-Null
+      } catch {
+        Write-Host "Unable to create C:\tmp: $($_.Exception.Message)"
+      }
+
+      git --version
+      git config --global --add safe.directory $env:CI_PROJECT_DIR
+      @(
+        "DD_SERVICE",
+        "DD_ENTITY_ID",
+        "DD_SITE",
+        "DD_ENV",
+        "DD_DATACENTER",
+        "DD_PARTITION",
+        "DD_CLOUDPROVIDER"
+      ) | ForEach-Object {
+        if (Test-Path "Env:$_") {
+          Remove-Item "Env:$_"
+        }
+      }
+
+      if (-not (Test-Path (Join-Path $jdkHome "bin\java.exe"))) {
+        if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
+        (New-Object System.Net.WebClient).DownloadFile($jdkUrl, $jdkZip)
+        Expand-Archive -Path $jdkZip -DestinationPath $jdkExtract -Force
+        if (Test-Path $jdkHome) { Remove-Item $jdkHome -Recurse -Force }
+        $expandedJdkDir = Get-ChildItem $jdkExtract -Directory | Select-Object -First 1
+        Move-Item $expandedJdkDir.FullName $jdkHome
+        Remove-Item $jdkZip -Force
+        Remove-Item $jdkExtract -Recurse -Force
+      }
+
+      $env:JAVA_HOME = $jdkHome
+      $env:JAVA_21_HOME = $jdkHome
+      $env:Path = "$($env:JAVA_HOME)\bin;$env:Path"
+      $env:GRADLE_USER_HOME = Join-Path $env:CI_PROJECT_DIR ".gradle"
+      $env:ORG_GRADLE_PROJECT_mavenRepositoryProxy = $env:MAVEN_REPOSITORY_PROXY
+      $env:ORG_GRADLE_PROJECT_gradlePluginProxy = $env:GRADLE_PLUGIN_PROXY
+
+      if ($env:MAVEN_REPOSITORY_PROXY) {
+        (Get-Content ".mvn\wrapper\maven-wrapper.properties") `
+          -replace "https://repo.maven.apache.org/maven2/", $env:MAVEN_REPOSITORY_PROXY `
+          | Set-Content ".mvn\wrapper\maven-wrapper.properties" -Encoding ASCII
+      }
+
+      Add-Content gradle.properties "org.gradle.java.installations.auto-detect=false" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.java.installations.auto-download=false" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_21_HOME" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.jvmargs=-Xms1g -Xmx4g -Djava.util.prefs.userRoot=$tmpDirJava/java-prefs -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -XX:ErrorFile=$tmpDirJava/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$tmpDirJava" -Encoding ASCII
+
+      java -version
+      .\gradlew.bat --version
+
 .test_job:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
@@ -687,6 +813,29 @@ test_base:
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
+
+test_base_windows21:
+  extends: .windows_base_test_job
+  when: manual
+  allow_failure: true
+  script:
+    - |
+      $ErrorActionPreference = "Stop"
+      .\gradlew.bat :baseTest -PskipFlakyTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4 --continue
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  artifacts:
+    when: always
+    paths:
+      - workspace/**/build/test-results/**
+      - workspace/**/build/reports/tests/**
+      - buildSrc/build/test-results/**
+      - buildSrc/build/reports/tests/**
+      - .gradle/daemon/*/*.out.log
+      - .tmp/**
+    reports:
+      junit:
+        - workspace/**/build/test-results/**/*.xml
+        - buildSrc/build/test-results/**/*.xml
 
 test_inst:
   extends: .test_job_with_test_agent
