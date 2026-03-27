@@ -30,6 +30,7 @@ variables:
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   WINDOWS_JDK_VERSION: "21.0.9+10" # keep pinned to a Temurin 21 GA patch release and bump periodically
+  WINDOWS_JDK_DIR: "jdk-21" # local directory name for the JDK; update alongside WINDOWS_JDK_VERSION major
   WINDOWS_BOOTSTRAP_CACHE_POLICY: pull
   WINDOWS_DEPENDENCY_CACHE_POLICY: pull
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
@@ -358,7 +359,6 @@ populate_dep_cache_windows:
     WINDOWS_DEPENDENCY_CACHE_POLICY: push
   script:
     - |
-      $ErrorActionPreference = "Stop"
       .\gradlew.bat :baseTest -PskipTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -591,7 +591,7 @@ muzzle-dep-report:
   cache:
     - key: "windows-jdk-temurin-${WINDOWS_JDK_VERSION}-x64"
       paths:
-        - .tools/jdk-21/
+        - .tools/${WINDOWS_JDK_DIR}/
       policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
       unprotect: true
     - key:
@@ -639,7 +639,7 @@ muzzle-dep-report:
       $jdkArchiveVersion = $env:WINDOWS_JDK_VERSION.Replace("+", "_")
       $jdkZip = Join-Path $env:TEMP "temurin-jdk-$jdkArchiveVersion-windows-x64.zip"
       $jdkExtract = Join-Path $toolsDir "jdk-extract"
-      $jdkHome = Join-Path $toolsDir "jdk-21"
+      $jdkHome = Join-Path $toolsDir $env:WINDOWS_JDK_DIR
       $jdkUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdkArchiveVersion.zip"
 
       New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
@@ -820,7 +820,6 @@ test_base_windows21:
   allow_failure: true
   script:
     - |
-      $ErrorActionPreference = "Stop"
       .\gradlew.bat :baseTest -PskipFlakyTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4 --continue
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   artifacts:
