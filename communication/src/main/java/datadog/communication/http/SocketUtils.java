@@ -1,4 +1,4 @@
-package datadog.common.socket;
+package datadog.communication.http;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_SOCKET_PATH;
 

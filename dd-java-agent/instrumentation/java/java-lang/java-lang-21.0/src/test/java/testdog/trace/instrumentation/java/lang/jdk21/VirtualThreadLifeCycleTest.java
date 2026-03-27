@@ -1,0 +1,174 @@
+package testdog.trace.instrumentation.java.lang.jdk21;
+
+import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.Trace;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/** Test context tracking through {@code VirtualThread} lifecycle - park/unpark (remount) cycles. */
+public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
+  private static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+  @DisplayName("test context restored after virtual thread remounts")
+  @Test
+  void testContextRestoredAfterVirtualThreadRemount() {
+    int remountCount = 5;
+    String[] spanId = new String[1];
+    String[] spanIdBeforeUnmount = new String[1];
+    String[] spanIdsAfterRemount = new String[remountCount];
+
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      public void run() {
+        spanId[0] = GlobalTracer.get().getSpanId();
+
+        Thread thread =
+            Thread.startVirtualThread(
+                () -> {
+                  spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
+                  for (int remount = 0; remount < remountCount; remount++) {
+                    tryUnmount();
+                    spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
+                  }
+                });
+        try {
+          thread.join(TIMEOUT);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }.run();
+
+    assertEquals(
+        spanId[0],
+        spanIdBeforeUnmount[0],
+        "context should be inherited from the parent execution unit");
+    for (int i = 0; i < remountCount; i++) {
+      assertEquals(
+          spanId[0],
+          spanIdsAfterRemount[i],
+          "context should be restored after virtual thread remounts");
+    }
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  @DisplayName("test context restored as implicit parent span after remount")
+  @Test
+  void testContextRestoredAsImplicitParentSpanAfterRemount() {
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      public void run() {
+        Thread thread =
+            Thread.startVirtualThread(
+                () -> {
+                  tryUnmount();
+                  // Runnable to create child span, not async related
+                  new Runnable() {
+                    @Override
+                    @Trace(operationName = "child")
+                    public void run() {}
+                  }.run();
+                });
+        try {
+          thread.join(TIMEOUT);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        blockUntilChildSpansFinished(1);
+      }
+    }.run();
+
+    assertTraces(
+        trace(
+            span().root().operationName("parent"),
+            span().childOfPrevious().operationName("child")));
+  }
+
+  @DisplayName("test concurrent virtual threads with remount")
+  @Test
+  void testConcurrentVirtualThreadsWithRemount() {
+    int threadCount = 5;
+    String[] spanId = new String[1];
+    String[] spanIdsAfterRemount = new String[threadCount];
+
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      public void run() {
+        spanId[0] = CorrelationIdentifier.getSpanId();
+
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+          int index = i;
+          threads.add(
+              Thread.startVirtualThread(
+                  () -> {
+                    tryUnmount();
+                    spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
+                  }));
+        }
+
+        for (Thread thread : threads) {
+          try {
+            thread.join(TIMEOUT);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    }.run();
+
+    for (int i = 0; i < threadCount; i++) {
+      assertEquals(
+          spanId[0],
+          spanIdsAfterRemount[i],
+          "context should be restored after virtual thread #" + i + "remounts");
+    }
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  @DisplayName("test no context virtual thread remount")
+  @Test
+  void testNoContextVirtualThreadRemount() throws InterruptedException {
+    AtomicReference<String> spanIdBeforeUnmount = new AtomicReference<>();
+    AtomicReference<String> spanIdAfterRemount = new AtomicReference<>();
+
+    Thread.startVirtualThread(
+            () -> {
+              spanIdBeforeUnmount.set(CorrelationIdentifier.getSpanId());
+              tryUnmount();
+              spanIdAfterRemount.set(CorrelationIdentifier.getSpanId());
+            })
+        .join(TIMEOUT);
+
+    assertEquals(
+        "0", spanIdBeforeUnmount.get(), "there should be no active context before unmount");
+    assertEquals("0", spanIdAfterRemount.get(), "there should be no active context after remount");
+  }
+
+  private static void tryUnmount() {
+    try {
+      // Multiple sleeps to expect triggering repeated park/unpark cycles.
+      // This is not guaranteed to work, but there is no API to force mount/unmount.
+      for (int i = 0; i < 5; i++) {
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+}
