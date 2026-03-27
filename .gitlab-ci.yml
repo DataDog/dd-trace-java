@@ -29,8 +29,10 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  WINDOWS_JDK_VERSION: "21.0.9+10" # keep pinned to a Temurin 21 GA patch release and bump periodically
-  WINDOWS_JDK_DIR: "jdk-21" # local directory name for the JDK; update alongside WINDOWS_JDK_VERSION major
+  WINDOWS_JDK8_VERSION: "8u472-b08" # keep pinned to Temurin GA patch releases and bump periodically
+  WINDOWS_JDK11_VERSION: "11.0.29+7"
+  WINDOWS_JDK17_VERSION: "17.0.17+10"
+  WINDOWS_JDK21_VERSION: "21.0.9+10"
   WINDOWS_BOOTSTRAP_CACHE_POLICY: pull
   WINDOWS_DEPENDENCY_CACHE_POLICY: pull
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
@@ -589,9 +591,12 @@ muzzle-dep-report:
 
 .windows_test_cache:
   cache:
-    - key: "windows-jdk-temurin-${WINDOWS_JDK_VERSION}-x64"
+    - key: "windows-jdks-temurin-${WINDOWS_JDK8_VERSION}-${WINDOWS_JDK11_VERSION}-${WINDOWS_JDK17_VERSION}-${WINDOWS_JDK21_VERSION}-x64"
       paths:
-        - .tools/${WINDOWS_JDK_DIR}/
+        - .tools/jdk-8/
+        - .tools/jdk-11/
+        - .tools/jdk-17/
+        - .tools/jdk-21/
       policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
       unprotect: true
     - key:
@@ -636,11 +641,14 @@ muzzle-dep-report:
       $toolsDir = Join-Path $env:CI_PROJECT_DIR ".tools"
       $tmpDir = Join-Path $env:CI_PROJECT_DIR ".tmp"
       $tmpDirJava = $tmpDir.Replace("\", "/")
-      $jdkArchiveVersion = $env:WINDOWS_JDK_VERSION.Replace("+", "_")
-      $jdkZip = Join-Path $env:TEMP "temurin-jdk-$jdkArchiveVersion-windows-x64.zip"
-      $jdkExtract = Join-Path $toolsDir "jdk-extract"
-      $jdkHome = Join-Path $toolsDir "jdk-21"
-      $jdkUrl = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdkArchiveVersion.zip"
+      $jdk8ArchiveVersion = $env:WINDOWS_JDK8_VERSION.Replace("-", "")
+      $jdk11ArchiveVersion = $env:WINDOWS_JDK11_VERSION.Replace("+", "_")
+      $jdk17ArchiveVersion = $env:WINDOWS_JDK17_VERSION.Replace("+", "_")
+      $jdk21ArchiveVersion = $env:WINDOWS_JDK21_VERSION.Replace("+", "_")
+      $jdk8Home = Join-Path $toolsDir "jdk-8"
+      $jdk11Home = Join-Path $toolsDir "jdk-11"
+      $jdk17Home = Join-Path $toolsDir "jdk-17"
+      $jdk21Home = Join-Path $toolsDir "jdk-21"
 
       New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
       try {
@@ -677,19 +685,31 @@ muzzle-dep-report:
         }
       }
 
-      if (-not (Test-Path (Join-Path $jdkHome "bin\java.exe"))) {
-        if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
-        (New-Object System.Net.WebClient).DownloadFile($jdkUrl, $jdkZip)
-        Expand-Archive -Path $jdkZip -DestinationPath $jdkExtract -Force
-        if (Test-Path $jdkHome) { Remove-Item $jdkHome -Recurse -Force }
-        $expandedJdkDir = Get-ChildItem $jdkExtract -Directory | Select-Object -First 1
-        Move-Item $expandedJdkDir.FullName $jdkHome
-        Remove-Item $jdkZip -Force
-        Remove-Item $jdkExtract -Recurse -Force
+      function Install-TemurinJdk([string]$jdkHome, [string]$jdkUrl, [string]$zipName) {
+        $jdkZip = Join-Path $env:TEMP $zipName
+        $jdkExtract = "$jdkHome-extract"
+        if (-not (Test-Path (Join-Path $jdkHome "bin\java.exe"))) {
+          if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
+          (New-Object System.Net.WebClient).DownloadFile($jdkUrl, $jdkZip)
+          Expand-Archive -Path $jdkZip -DestinationPath $jdkExtract -Force
+          if (Test-Path $jdkHome) { Remove-Item $jdkHome -Recurse -Force }
+          $expandedJdkDir = Get-ChildItem $jdkExtract -Directory | Select-Object -First 1
+          Move-Item $expandedJdkDir.FullName $jdkHome
+          Remove-Item $jdkZip -Force
+          Remove-Item $jdkExtract -Recurse -Force
+        }
       }
 
-      $env:JAVA_HOME = $jdkHome
-      $env:JAVA_21_HOME = $jdkHome
+      Install-TemurinJdk $jdk8Home "https://github.com/adoptium/temurin8-binaries/releases/download/jdk$($env:WINDOWS_JDK8_VERSION)/OpenJDK8U-jdk_x64_windows_hotspot_$jdk8ArchiveVersion.zip" "temurin-jdk-$jdk8ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk11Home "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-$($env:WINDOWS_JDK11_VERSION)/OpenJDK11U-jdk_x64_windows_hotspot_$jdk11ArchiveVersion.zip" "temurin-jdk-$jdk11ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk17Home "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-$($env:WINDOWS_JDK17_VERSION)/OpenJDK17U-jdk_x64_windows_hotspot_$jdk17ArchiveVersion.zip" "temurin-jdk-$jdk17ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk21Home "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK21_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdk21ArchiveVersion.zip" "temurin-jdk-$jdk21ArchiveVersion-windows-x64.zip"
+
+      $env:JAVA_HOME = $jdk21Home
+      $env:JAVA_8_HOME = $jdk8Home
+      $env:JAVA_11_HOME = $jdk11Home
+      $env:JAVA_17_HOME = $jdk17Home
+      $env:JAVA_21_HOME = $jdk21Home
       $env:Path = "$($env:JAVA_HOME)\bin;$env:Path"
       $env:GRADLE_USER_HOME = Join-Path $env:CI_PROJECT_DIR ".gradle"
       $env:ORG_GRADLE_PROJECT_mavenRepositoryProxy = $env:MAVEN_REPOSITORY_PROXY
@@ -703,9 +723,12 @@ muzzle-dep-report:
 
       Add-Content gradle.properties "org.gradle.java.installations.auto-detect=false" -Encoding ASCII
       Add-Content gradle.properties "org.gradle.java.installations.auto-download=false" -Encoding ASCII
-      Add-Content gradle.properties "org.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_21_HOME" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_8_HOME,JAVA_11_HOME,JAVA_17_HOME,JAVA_21_HOME" -Encoding ASCII
       Add-Content gradle.properties "org.gradle.jvmargs=-Xms1g -Xmx4g -Djava.util.prefs.userRoot=$tmpDirJava/java-prefs -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -XX:ErrorFile=$tmpDirJava/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$tmpDirJava" -Encoding ASCII
 
+      & "$env:JAVA_8_HOME\bin\java.exe" -version
+      & "$env:JAVA_11_HOME\bin\java.exe" -version
+      & "$env:JAVA_17_HOME\bin\java.exe" -version
       java -version
       .\gradlew.bat --version
 
