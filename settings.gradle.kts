@@ -342,6 +342,8 @@ include(
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-7.3",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-transport:elasticsearch-transport-common",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-common",
+  ":dd-java-agent:instrumentation:feign:feign-8.0",
+  ":dd-java-agent:instrumentation:feign:feign-10.8",
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",

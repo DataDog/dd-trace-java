@@ -1,0 +1,24 @@
+muzzle {
+  pass {
+    group = "io.github.openfeign"
+    module = "feign-core"
+    versions = "[10.8,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.github.openfeign', name: 'feign-core', version: '10.8'
+
+  testImplementation group: 'io.github.openfeign', name: 'feign-core', version: '10.8'
+  testImplementation group: 'io.github.openfeign', name: 'feign-okhttp', version: '10.8'
+  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.9'
+
+  latestDepTestImplementation group: 'io.github.openfeign', name: 'feign-core', version: '+'
+  latestDepTestImplementation group: 'io.github.openfeign', name: 'feign-okhttp', version: '+'
+  latestDepTestImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '+'
+}
