@@ -37,15 +37,28 @@ class JvmOtlpRuntimeMetricsTest extends InstrumentationSpecification {
     then:
     // OtelInstrumentDescriptor.name is UTF8BytesString, convert to String for comparison
     def names = collector.metricNames.collect { it.toString() }
+    // Memory
     "jvm.memory.used" in names
     "jvm.memory.committed" in names
-    "jvm.thread.count" in names
-    "jvm.class.loaded" in names
-    "jvm.cpu.count" in names
+    "jvm.memory.limit" in names
+    "jvm.memory.init" in names
+    // Buffers
+    "jvm.buffer.memory.used" in names
+    "jvm.buffer.memory.limit" in names
+    "jvm.buffer.count" in names
+    // GC
     "jvm.gc.duration" in names
     "jvm.gc.count" in names
+    // Threads
+    "jvm.thread.count" in names
+    // Classes
+    "jvm.class.loaded" in names
+    "jvm.class.count" in names
     "jvm.class.unloaded" in names
+    // CPU
+    "jvm.cpu.count" in names
     "jvm.cpu.recent_utilization" in names
+    "jvm.system.cpu.utilization" in names
   }
 
   def "jvm.memory.used has heap and non_heap type attributes"() {

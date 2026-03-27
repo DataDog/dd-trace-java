@@ -3,6 +3,7 @@ package datadog.opentelemetry.shim.metrics;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -39,6 +40,7 @@ public final class JvmOtlpRuntimeMetrics {
     try {
       Meter meter = OtelMeterProvider.INSTANCE.get(INSTRUMENTATION_SCOPE);
       registerMemoryMetrics(meter);
+      registerBufferMetrics(meter);
       registerGcMetrics(meter);
       registerThreadMetrics(meter);
       registerClassLoadingMetrics(meter);
@@ -98,6 +100,15 @@ public final class JvmOtlpRuntimeMetrics {
               measurement.record(
                   memoryBean.getNonHeapMemoryUsage().getCommitted(),
                   Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+              for (MemoryPoolMXBean pool : pools) {
+                measurement.record(
+                    pool.getUsage().getCommitted(),
+                    Attributes.of(
+                        AttributeKey.stringKey("jvm.memory.type"),
+                        pool.getType().name().toLowerCase(),
+                        AttributeKey.stringKey("jvm.memory.pool.name"),
+                        pool.getName()));
+              }
             });
 
     // jvm.memory.limit - Measure of max obtainable memory
@@ -118,6 +129,101 @@ public final class JvmOtlpRuntimeMetrics {
                 measurement.record(
                     nonHeapMax,
                     Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+              }
+              for (MemoryPoolMXBean pool : pools) {
+                long max = pool.getUsage().getMax();
+                if (max > 0) {
+                  measurement.record(
+                      max,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.memory.type"),
+                          pool.getType().name().toLowerCase(),
+                          AttributeKey.stringKey("jvm.memory.pool.name"),
+                          pool.getName()));
+                }
+              }
+            });
+
+    // jvm.memory.init - Measure of initial memory requested
+    meter
+        .upDownCounterBuilder("jvm.memory.init")
+        .setDescription("Measure of initial memory requested.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              long heapInit = memoryBean.getHeapMemoryUsage().getInit();
+              if (heapInit > 0) {
+                measurement.record(
+                    heapInit,
+                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+              }
+              long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
+              if (nonHeapInit > 0) {
+                measurement.record(
+                    nonHeapInit,
+                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+              }
+            });
+  }
+
+  /**
+   * jvm.buffer.* - JVM buffer pool metrics (direct, mapped). Maps to: jvm.buffer_pool.* (via
+   * semantic-core)
+   */
+  private static void registerBufferMetrics(Meter meter) {
+    List<BufferPoolMXBean> bufferPools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+
+    // jvm.buffer.memory.used
+    meter
+        .upDownCounterBuilder("jvm.buffer.memory.used")
+        .setDescription("Measure of memory used by buffers.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long used = pool.getMemoryUsed();
+                if (used >= 0) {
+                  measurement.record(
+                      used,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
+                }
+              }
+            });
+
+    // jvm.buffer.memory.limit
+    meter
+        .upDownCounterBuilder("jvm.buffer.memory.limit")
+        .setDescription("Measure of total memory capacity of buffers.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long limit = pool.getTotalCapacity();
+                if (limit >= 0) {
+                  measurement.record(
+                      limit,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
+                }
+              }
+            });
+
+    // jvm.buffer.count
+    meter
+        .upDownCounterBuilder("jvm.buffer.count")
+        .setDescription("Number of buffers in the pool.")
+        .setUnit("{buffer}")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long count = pool.getCount();
+                if (count >= 0) {
+                  measurement.record(
+                      count,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
+                }
               }
             });
   }
@@ -183,10 +289,20 @@ public final class JvmOtlpRuntimeMetrics {
             });
   }
 
-  /** jvm.class.loaded - Number of loaded classes. */
+  /** jvm.class.* - Class loading metrics. */
   private static void registerClassLoadingMetrics(Meter meter) {
     meter
         .upDownCounterBuilder("jvm.class.loaded")
+        .setDescription("Number of classes loaded since JVM start.")
+        .setUnit("{class}")
+        .buildWithCallback(
+            measurement -> {
+              measurement.record(
+                  ManagementFactory.getClassLoadingMXBean().getTotalLoadedClassCount());
+            });
+
+    meter
+        .upDownCounterBuilder("jvm.class.count")
         .setDescription("Number of classes currently loaded.")
         .setUnit("{class}")
         .buildWithCallback(
@@ -236,6 +352,28 @@ public final class JvmOtlpRuntimeMetrics {
         .buildWithCallback(
             measurement -> {
               measurement.record(Runtime.getRuntime().availableProcessors());
+            });
+
+    // jvm.system.cpu.utilization - Recent CPU utilization for the whole system
+    meter
+        .gaugeBuilder("jvm.system.cpu.utilization")
+        .setDescription("Recent CPU utilization for the whole system as reported by the JVM.")
+        .setUnit("1")
+        .buildWithCallback(
+            measurement -> {
+              try {
+                java.lang.management.OperatingSystemMXBean osBean =
+                    ManagementFactory.getOperatingSystemMXBean();
+                if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
+                  double load =
+                      ((com.sun.management.OperatingSystemMXBean) osBean).getSystemCpuLoad();
+                  if (load >= 0) {
+                    measurement.record(load);
+                  }
+                }
+              } catch (Exception e) {
+                // com.sun.management may not be available
+              }
             });
   }
 
