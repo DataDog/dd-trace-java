@@ -17,9 +17,16 @@ public final class GrowableBuffer implements StreamingBuffer {
     this.buffer = ByteBuffer.allocate(initialCapacity);
   }
 
+  /** Flips the buffer and returns a new slice which shares the buffered content. */
   public ByteBuffer slice() {
     buffer.flip();
     return buffer.slice();
+  }
+
+  /** Flips the buffer and returns the buffered content. */
+  public ByteBuffer flip() {
+    buffer.flip();
+    return buffer;
   }
 
   public int messageCount() {
