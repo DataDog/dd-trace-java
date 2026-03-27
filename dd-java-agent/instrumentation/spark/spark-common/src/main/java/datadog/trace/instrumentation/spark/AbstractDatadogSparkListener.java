@@ -569,6 +569,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     } else {
       lastJobFailed = false;
+      lastSqlFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
