@@ -149,9 +149,26 @@ public final class HotspotCrashLogParser {
           // spotless:off
           // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
           // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // J 302  java.util.zip.ZipFile.getEntry(J[BZ)J (0 bytes) @ 0x00007fa287303dce [0x00007fa287303d00+0xce]
           // spotless:on
           String[] parts = SPACE_SPLITTER.split(line);
-          if (parts.length > 3) {
+          int bytesToken = -1;
+          for (int i = 0; i < parts.length - 1; i++) {
+            if (parts[i].startsWith("(") && "bytes)".equals(parts[i + 1])) {
+              bytesToken = i;
+              break;
+            }
+          }
+          if (bytesToken > 1) {
+            String candidate = parts[bytesToken - 1];
+            // Newer JVMs insert a module token before "(NN bytes)".
+            if (candidate.contains("@")) {
+              candidate = parts[bytesToken - 2];
+            }
+            if (!candidate.startsWith("(")) {
+              functionName = candidate;
+            }
+          } else if (parts.length > 3 && !parts[3].startsWith("(")) {
             functionName = parts[3];
           }
           break;

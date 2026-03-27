@@ -110,6 +110,45 @@ public class HotspotCrashLogParserTest {
     assertEquals("interpreted", crashLog.error.stack.frames[66].frameType);
   }
 
+  @Test
+  public void testParsesJdk8CompiledFramesWithoutCompilerLevel() throws Exception {
+    final CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(),
+                readFileAsString("sample-crash-jdk8-zip-getentry.txt"));
+
+    assertEquals(10, crashLog.error.stack.frames.length);
+    // native frames
+    assertEquals("newEntry+0x68", crashLog.error.stack.frames[0].function);
+    assertEquals("native", crashLog.error.stack.frames[0].frameType);
+    assertEquals("ZIP_GetEntry2+0xec", crashLog.error.stack.frames[1].function);
+    assertEquals("Java_java_util_zip_ZipFile_getEntry+0xa8", crashLog.error.stack.frames[2].function);
+    assertEquals("native", crashLog.error.stack.frames[2].frameType);
+    assertEquals("java.util.zip.ZipFile.getEntry(J[BZ)J", crashLog.error.stack.frames[3].function);
+    assertEquals("compiled", crashLog.error.stack.frames[3].frameType);
+
+    // Java frames
+    assertEquals(
+        "java.util.zip.ZipFile.getEntry(J[BZ)J",
+        crashLog.error.stack.frames[4].function);
+    assertEquals("compiled", crashLog.error.stack.frames[4].frameType);
+    assertEquals(
+        "java.util.zip.ZipFile.getEntry(Ljava/lang/String;)Ljava/util/zip/ZipEntry;",
+        crashLog.error.stack.frames[5].function);
+    assertEquals("compiled", crashLog.error.stack.frames[5].frameType);
+    assertEquals(
+        "ZipFileMmapCrashRepro.lambda$main$0(ILjava/util/concurrent/CountDownLatch;Ljava/util/concurrent/atomic/AtomicBoolean;[Ljava/lang/String;Ljava/util/zip/ZipFile;)V",
+        crashLog.error.stack.frames[6].function);
+    assertEquals("interpreted", crashLog.error.stack.frames[6].frameType);
+    assertEquals("ZipFileMmapCrashRepro$$Lambda$1.run()V", crashLog.error.stack.frames[7].function);
+    assertEquals("interpreted", crashLog.error.stack.frames[7].frameType);
+    assertEquals("java.lang.Thread.run()V", crashLog.error.stack.frames[8].function);
+    assertEquals("interpreted", crashLog.error.stack.frames[8].frameType);
+    assertEquals("~StubRoutines::call_stub", crashLog.error.stack.frames[9].function);
+    assertEquals("stub", crashLog.error.stack.frames[9].frameType);
+  }
+
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(
