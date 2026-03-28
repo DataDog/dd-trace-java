@@ -210,9 +210,22 @@ public class DDEvaluatorTest {
 
   private static List<TestCase<?>> evaluateTestCases() {
     return Arrays.asList(
+        // OF spec 3.1.1: targeting key is optional; static flags must evaluate successfully without it
         new TestCase<>("default")
             .flag("simple-string")
+            // no .targetingKey() -- null by default
+            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+        // Null targeting key on sharded flag must return TARGETING_KEY_MISSING
+        new TestCase<>("default")
+            .flag("shard-flag")
+            // no .targetingKey() -- null
             .result(new Result<>("default").reason(ERROR.name()).errorCode(TARGETING_KEY_MISSING)),
+        // Null targeting key on rule-only flag (matching on non-id attribute) must succeed
+        new TestCase<>("default")
+            .flag("country-rule-flag")
+            // no .targetingKey() -- null
+            .context("country", "US")
+            .result(new Result<>("us-value").reason(TARGETING_MATCH.name()).variant("us")),
         // OF.7: Empty string is a valid targeting key - evaluation should proceed as normal
         new TestCase<>("default")
             .flag("simple-string")
@@ -536,6 +549,7 @@ public class DDEvaluatorTest {
     flags.put("not-matches-false-flag", createNotMatchesFalseFlag());
     flags.put("not-one-of-false-flag", createNotOneOfFalseFlag());
     flags.put("null-context-values-flag", createNullContextValuesFlag());
+    flags.put("country-rule-flag", createCountryRuleFlag());
     return new ServerConfiguration(null, null, null, flags);
   }
 
@@ -1192,6 +1206,33 @@ public class DDEvaluatorTest {
 
     return new Flag(
         "null-context-values-flag", true, ValueType.STRING, variants, singletonList(allocation));
+  }
+
+  private Flag createCountryRuleFlag() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("us", new Variant("us", "us-value"));
+    variants.put("global", new Variant("global", "global-value"));
+
+    // Rule: country ONE_OF ["US"] -> us (no shards, so null targeting key is fine)
+    final List<String> usCountries = singletonList("US");
+    final List<ConditionConfiguration> usConditions =
+        singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "country", usCountries));
+    final List<Rule> usRules = singletonList(new Rule(usConditions));
+    final List<Split> usSplits = singletonList(new Split(emptyList(), "us", null));
+    final Allocation usAllocation =
+        new Allocation("us-alloc", usRules, null, null, usSplits, false);
+
+    // Fallback allocation (no rules, no shards)
+    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null));
+    final Allocation globalAllocation =
+        new Allocation("global-alloc", null, null, null, globalSplits, false);
+
+    return new Flag(
+        "country-rule-flag",
+        true,
+        ValueType.STRING,
+        variants,
+        asList(usAllocation, globalAllocation));
   }
 
   private static Map<String, Object> mapOf(final Object... props) {
