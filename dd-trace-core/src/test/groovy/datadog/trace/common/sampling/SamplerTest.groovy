@@ -44,7 +44,20 @@ class SamplerTest extends DDSpecification{
     sampler instanceof AsmStandaloneSampler
   }
 
-  void "test that AsmStandaloneSampler is not selected when apm tracing and asm not enabled"() {
+  void "test that LlmObsStandaloneSampler is selected when apm tracing disabled and llmobs enabled"() {
+    setup:
+    System.setProperty("dd.apm.tracing.enabled", "false")
+    System.setProperty("dd.llmobs.enabled", "true")
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof LlmObsStandaloneSampler
+  }
+
+  void "test that ForcePrioritySampler with SAMPLER_DROP is selected when apm tracing disabled and no other products enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")
     Config config = new Config()
@@ -53,7 +66,7 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    !(sampler instanceof AsmStandaloneSampler)
+    sampler instanceof ForcePrioritySampler
   }
 
   void "test that AsmStandaloneSampler is not selected when apm tracing enabled and asm not enabled"() {

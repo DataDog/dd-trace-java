@@ -22,6 +22,7 @@ public class ProductTraceSource {
   public static final int DSM = 0x04;
   public static final int DJM = 0x08;
   public static final int DBM = 0x10;
+  public static final int LLMOBS = 0x20;
 
   /** Updates the bitfield by setting the bit corresponding to a specific product. */
   public static int updateProduct(int bitfield, int product) {

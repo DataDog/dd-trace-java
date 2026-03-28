@@ -65,10 +65,13 @@ public abstract class TraceCollector implements AgentTraceCollector {
     DDSpan rootSpan = getRootSpan();
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
       // Ignore the force-keep priority in the absence of propagated _dd.p.ts span tag marked for
-      // ASM.
+      // ASM or LLMOBS.
       if ((!Config.get().isApmTracingEnabled()
               && !ProductTraceSource.isProductMarked(
-                  rootSpan.context().getPropagationTags().getTraceSource(), ProductTraceSource.ASM))
+                  rootSpan.context().getPropagationTags().getTraceSource(), ProductTraceSource.ASM)
+              && !ProductTraceSource.isProductMarked(
+                  rootSpan.context().getPropagationTags().getTraceSource(),
+                  ProductTraceSource.LLMOBS))
           || rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }

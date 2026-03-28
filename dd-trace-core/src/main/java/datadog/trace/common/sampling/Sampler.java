@@ -36,9 +36,18 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
-          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
+        if (!config.isApmTracingEnabled()) {
+          if (config.isLlmObsEnabled()) {
+            log.debug(
+                "APM is disabled, but LLMObs is enabled. All LLMObs traces will be kept.");
+            return new LlmObsStandaloneSampler();
+          } else if (isAsmEnabled(config)) {
+            log.debug("APM is disabled, but ASM is enabled. Only 1 trace per minute will be sent.");
+            return new AsmStandaloneSampler(Clock.systemUTC());
+          }
+          // APM disabled and no other products enabled - drop all APM traces
+          log.debug("APM is disabled. All APM traces will be dropped.");
+          return new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
