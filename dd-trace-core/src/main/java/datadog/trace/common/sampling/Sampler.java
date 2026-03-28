@@ -38,8 +38,7 @@ public interface Sampler {
       if (config != null) {
         if (!config.isApmTracingEnabled()) {
           if (config.isLlmObsEnabled()) {
-            log.debug(
-                "APM is disabled, but LLMObs is enabled. All LLMObs traces will be kept.");
+            log.debug("APM is disabled, but LLMObs is enabled. All LLMObs traces will be kept.");
             return new LlmObsStandaloneSampler();
           } else if (isAsmEnabled(config)) {
             log.debug("APM is disabled, but ASM is enabled. Only 1 trace per minute will be sent.");

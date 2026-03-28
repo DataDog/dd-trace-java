@@ -78,7 +78,8 @@ public class Controller {
   @GetMapping("/llmobs/test")
   public String llmobsTest() {
     // Create LLMObs span using public API
-    LLMObsSpan llmSpan = LLMObs.startLLMSpan("llmobs-test-operation", "gpt-4", "openai", null, null);
+    LLMObsSpan llmSpan =
+        LLMObs.startLLMSpan("llmobs-test-operation", "gpt-4", "openai", null, null);
     llmSpan.annotateIO("test input", "test output");
     llmSpan.finish();
 
