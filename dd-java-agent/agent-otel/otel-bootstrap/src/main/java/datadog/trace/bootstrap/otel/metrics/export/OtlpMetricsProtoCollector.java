@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Collects OpenTelemetry metrics and marshalls them into a chunked payload.
+ * Collects OpenTelemetry metrics and marshalls them into a chunked 'metrics.proto' payload.
  *
  * <p>Uses a single temporary buffer to prepare message chunks at different nesting levels. First we
  * chunk all data points for a given metric. Once the metric is complete we add the first part of
@@ -38,11 +38,11 @@ import java.util.function.Consumer;
  * points) to the payload. Once all the metrics data has been chunked we add the enclosing resource
  * metrics message to the start of the payload.
  */
-public final class OtlpMetricsCollector
+public final class OtlpMetricsProtoCollector
     implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
 
-  public static final OtlpMetricsCollector INSTANCE =
-      new OtlpMetricsCollector(SystemTimeSource.INSTANCE);
+  public static final OtlpMetricsProtoCollector INSTANCE =
+      new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
 
   private final GrowableBuffer buf = new GrowableBuffer(512);
 
@@ -64,7 +64,7 @@ public final class OtlpMetricsCollector
   private OtelInstrumentationScope currentScope;
   private OtelInstrumentDescriptor currentMetric;
 
-  public OtlpMetricsCollector(TimeSource timeSource) {
+  public OtlpMetricsProtoCollector(TimeSource timeSource) {
     this.timeSource = timeSource;
     this.endNanos = timeSource.getCurrentTimeNanos();
   }

@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpMetricsProto} via {@link OtlpMetricsCollector#collectMetrics}.
+ * Tests for {@link OtlpMetricsProto} via {@link OtlpMetricsProtoCollector#collectMetrics}.
  *
  * <p>Each test case drives the collector through its visitor API, drains the resulting chunked
  * payload into a contiguous byte array, and then parses it back using protobuf's {@link
@@ -510,7 +510,7 @@ class OtlpMetricsProtoTest {
   void testCollectMetrics(String caseName, List<ScopeSpec> expectedScopes) throws IOException {
     ControllableTimeSource timeSource = new ControllableTimeSource();
     timeSource.set(START_EPOCH_NS); // captured in constructor
-    OtlpMetricsCollector collector = new OtlpMetricsCollector(timeSource);
+    OtlpMetricsProtoCollector collector = new OtlpMetricsProtoCollector(timeSource);
     timeSource.set(END_EPOCH_NS); // captured during collection
     OtlpMetricsPayload payload =
         collector.collectMetrics(
