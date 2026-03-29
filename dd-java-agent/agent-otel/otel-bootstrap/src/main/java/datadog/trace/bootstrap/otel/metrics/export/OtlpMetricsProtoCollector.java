@@ -31,8 +31,12 @@ import java.util.function.Consumer;
 /**
  * Collects OpenTelemetry metrics and marshalls them into a chunked 'metrics.proto' payload.
  *
- * <p>Uses a single temporary buffer to prepare message chunks at different nesting levels. First we
- * chunk all data points for a given metric. Once the metric is complete we add the first part of
+ * <p>This collector is designed to be called by a single thread. To minimize allocations each
+ * collection returns a payload only to be used by the calling thread until the next collection.
+ * (The payload should be copied before passing it onto another thread.)
+ *
+ * <p>We use a single temporary buffer to prepare message chunks at different nesting levels. First
+ * we chunk all data points for a given metric. Once the metric is complete we add the first part of
  * the metric message and its chunked data points to the scoped chunks. Once the scope is complete
  * we add the first part of the scoped metrics message and all its chunks (metric messages and data
  * points) to the payload. Once all the metrics data has been chunked we add the enclosing resource
@@ -52,9 +56,9 @@ public final class OtlpMetricsProtoCollector
   private long endNanos;
 
   // temporary collections of chunks at different nesting levels
-  private Deque<byte[]> payloadChunks;
-  private List<byte[]> scopedChunks;
-  private List<byte[]> matricChunks;
+  private final Deque<byte[]> payloadChunks = new ArrayDeque<>();
+  private final List<byte[]> scopedChunks = new ArrayList<>();
+  private final List<byte[]> metricChunks = new ArrayList<>();
 
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
@@ -69,7 +73,11 @@ public final class OtlpMetricsProtoCollector
     this.endNanos = timeSource.getCurrentTimeNanos();
   }
 
-  /** Collects OpenTelemetry metrics and marshalls them into a chunked payload. */
+  /**
+   * Collects OpenTelemetry metrics and marshalls them into a chunked payload.
+   *
+   * <p>This payload is only valid for the calling thread until the next collection.
+   */
   public OtlpMetricsPayload collectMetrics() {
     return collectMetrics(OtelMetricRegistry.INSTANCE::collectMetrics);
   }
@@ -90,18 +98,17 @@ public final class OtlpMetricsProtoCollector
     startNanos = endNanos;
     endNanos = timeSource.getCurrentTimeNanos();
 
-    payloadChunks = new ArrayDeque<>();
-    scopedChunks = new ArrayList<>();
-    matricChunks = new ArrayList<>();
+    // clear payloadChunks in case it wasn't fully consumed via OtlpMetricsPayload
+    payloadChunks.clear();
   }
 
   /** Cleanup elements used to collect metrics data. */
   private void stop() {
     buf.reset();
 
-    payloadChunks = null;
-    scopedChunks = null;
-    matricChunks = null;
+    // leave payloadChunks in place so it can be consumed via OtlpMetricsPayload
+    scopedChunks.clear();
+    metricChunks.clear();
 
     payloadBytes = 0;
     scopedBytes = 0;
@@ -178,13 +185,13 @@ public final class OtlpMetricsProtoCollector
     if (metricBytes > 0) {
       byte[] metricPrefix = recordMetricMessage(buf, currentMetric, metricBytes);
       scopedChunks.add(metricPrefix);
-      scopedChunks.addAll(matricChunks);
+      scopedChunks.addAll(metricChunks);
       scopedBytes += metricPrefix.length + metricBytes;
     }
 
     // reset temporary elements for next metric
     currentMetric = null;
-    matricChunks.clear();
+    metricChunks.clear();
     metricBytes = 0;
   }
 
@@ -209,7 +216,7 @@ public final class OtlpMetricsProtoCollector
 
     // add complete data point message to the metric chunks
     byte[] pointMessage = recordDataPointMessage(buf, point);
-    matricChunks.add(pointMessage);
+    metricChunks.add(pointMessage);
     metricBytes += pointMessage.length;
   }
 }
