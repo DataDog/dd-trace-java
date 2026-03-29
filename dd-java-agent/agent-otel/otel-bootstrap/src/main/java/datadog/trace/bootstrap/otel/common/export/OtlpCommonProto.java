@@ -70,11 +70,7 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI32(StreamingBuffer buf, int value) {
-    buf.putInt( // convert to little-endian
-        (value & 0xff000000) >>> 24
-            | (value & 0x00ff0000) >>> 8
-            | (value & 0x0000ff00) << 8
-            | (value & 0x000000ff) << 24);
+    buf.putInt(Integer.reverseBytes(value)); // convert to little-endian
   }
 
   public static void writeI32(StreamingBuffer buf, float value) {
@@ -82,15 +78,7 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI64(StreamingBuffer buf, long value) {
-    buf.putLong( // convert to little-endian
-        (value & 0xff00000000000000L) >>> 56
-            | (value & 0x00ff000000000000L) >>> 40
-            | (value & 0x0000ff0000000000L) >>> 24
-            | (value & 0x000000ff00000000L) >>> 8
-            | (value & 0x00000000ff000000L) << 8
-            | (value & 0x0000000000ff0000L) << 24
-            | (value & 0x000000000000ff00L) << 40
-            | (value & 0x00000000000000ffL) << 56);
+    buf.putLong(Long.reverseBytes(value)); // convert to little-endian
   }
 
   public static void writeI64(StreamingBuffer buf, double value) {
