@@ -161,8 +161,11 @@ public final class OtlpCommonProto {
         writeDoubleAttribute(buf, keyUtf8, (double) value);
         break;
       case OtlpAttributeVisitor.STRING_ARRAY:
-        byte[][] valueUtf8s =
-            ((List<String>) value).stream().map(OtlpCommonProto::valueUtf8).toArray(byte[][]::new);
+        List<String> strings = (List<String>) value;
+        byte[][] valueUtf8s = new byte[strings.size()][];
+        for (int i = 0; i < strings.size(); i++) {
+          valueUtf8s[i] = valueUtf8(strings.get(i));
+        }
         writeStringArrayAttribute(buf, keyUtf8, valueUtf8s);
         break;
       case OtlpAttributeVisitor.BOOLEAN_ARRAY:
