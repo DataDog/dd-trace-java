@@ -41,12 +41,17 @@ public class DynamoDbInterceptor implements ExecutionInterceptor {
     }
 
     SdkRequest request = context.request();
+    String tableName = request.getValueForField("TableName", String.class).orElse(null);
+    Map<String, AttributeValue> keys = null;
+
     if (request instanceof UpdateItemRequest) {
-      Map<String, AttributeValue> keys = ((UpdateItemRequest) request).key();
-      DynamoDbUtil.exportTagsWithKnownKeys(span, keys);
+      keys = ((UpdateItemRequest) request).key();
     } else if (request instanceof DeleteItemRequest) {
-      Map<String, AttributeValue> keys = ((DeleteItemRequest) request).key();
-      DynamoDbUtil.exportTagsWithKnownKeys(span, keys);
+      keys = ((DeleteItemRequest) request).key();
+    }
+
+    if (keys != null) {
+      DynamoDbUtil.addSpanPointer(span, tableName, keys);
     }
   }
 }

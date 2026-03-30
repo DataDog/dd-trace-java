@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.aws.v2.s3;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstanceStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPointerUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.interceptor.Context.AfterExecution;
@@ -52,9 +51,9 @@ public class S3Interceptor implements ExecutionInterceptor {
       return;
     }
 
-    // Store eTag as tag, then calculate hash + add span pointers in SpanPointersProcessor.
-    // Bucket and key are already stored as tags in AwsSdkClientDecorator, so need to make redundant
-    // tags.
-    span.setTag(S3_ETAG, eTag);
+    // Get bucket and key from the request to create the span pointer directly
+    String bucket = context.request().getValueForField("Bucket", String.class).orElse(null);
+    String key = context.request().getValueForField("Key", String.class).orElse(null);
+    SpanPointerUtils.addS3SpanPointer(span, bucket, key, eTag);
   }
 }

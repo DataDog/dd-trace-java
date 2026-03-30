@@ -1,11 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.dynamodb;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_1;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_1_VALUE;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2_VALUE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPointerUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,36 +33,42 @@ public class DynamoDbUtil {
   }
 
   /**
-   * Gets primary key/values and exports them as temporary tags on the span so that
-   * SpanPointersProcessor.java can complete the span pointer creation.
+   * Creates a DynamoDB span pointer link from the given primary keys and adds it to the span.
    *
-   * @param span The span to set the temporary tags on
+   * @param span The span to add the pointer link to
+   * @param tableName The DynamoDB table name
    * @param keys The primary key/values to extract from
    */
-  static void exportTagsWithKnownKeys(AgentSpan span, Map<String, AttributeValue> keys) {
-    if (keys == null || keys.isEmpty()) {
+  static void addSpanPointer(AgentSpan span, String tableName, Map<String, AttributeValue> keys) {
+    if (keys == null || keys.isEmpty() || tableName == null) {
       return;
     }
+
+    String primaryKey1Name;
+    String primaryKey1Value;
+    String primaryKey2Name = null;
+    String primaryKey2Value = null;
 
     if (keys.size() == 1) {
       // Single primary key case
       Map.Entry<String, AttributeValue> entry = keys.entrySet().iterator().next();
-      span.setTag(DYNAMO_PRIMARY_KEY_1, entry.getKey());
-      span.setTag(DYNAMO_PRIMARY_KEY_1_VALUE, extractValueAsString(entry.getValue()));
+      primaryKey1Name = entry.getKey();
+      primaryKey1Value = extractValueAsString(entry.getValue());
     } else {
       // Sort keys alphabetically
       List<String> keyNames = new ArrayList<>(keys.keySet());
       Collections.sort(keyNames);
 
       // First key (alphabetically)
-      String primaryKey1Name = keyNames.get(0);
-      span.setTag(DYNAMO_PRIMARY_KEY_1, primaryKey1Name);
-      span.setTag(DYNAMO_PRIMARY_KEY_1_VALUE, extractValueAsString(keys.get(primaryKey1Name)));
+      primaryKey1Name = keyNames.get(0);
+      primaryKey1Value = extractValueAsString(keys.get(primaryKey1Name));
 
       // Second key
-      String primaryKey2Name = keyNames.get(1);
-      span.setTag(DYNAMO_PRIMARY_KEY_2, primaryKey2Name);
-      span.setTag(DYNAMO_PRIMARY_KEY_2_VALUE, extractValueAsString(keys.get(primaryKey2Name)));
+      primaryKey2Name = keyNames.get(1);
+      primaryKey2Value = extractValueAsString(keys.get(primaryKey2Name));
     }
+
+    SpanPointerUtils.addDynamoDbSpanPointer(
+        span, tableName, primaryKey1Name, primaryKey1Value, primaryKey2Name, primaryKey2Value);
   }
 }
