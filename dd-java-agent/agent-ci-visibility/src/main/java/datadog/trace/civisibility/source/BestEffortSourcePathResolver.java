@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.source;
 
+import java.util.Collection;
+import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -21,6 +23,18 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
       }
     }
     return null;
+  }
+
+  @Nonnull
+  @Override
+  public Collection<String> getSourcePaths(@Nonnull Class<?> c) throws SourceResolutionException {
+    for (SourcePathResolver delegate : delegates) {
+      Collection<String> sourcePaths = delegate.getSourcePaths(c);
+      if (!sourcePaths.isEmpty()) {
+        return sourcePaths;
+      }
+    }
+    return Collections.emptyList();
   }
 
   @Nullable

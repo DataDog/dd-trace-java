@@ -10,9 +10,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A store that keeps track of coverage probes allocated for multiple threads. */
 public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implements CoverageStore {
+
+  private static final Logger log = LoggerFactory.getLogger(ConcurrentCoverageStore.class);
 
   private final Thread testThread;
   private final Function<Boolean, T> probesFactory;
@@ -41,6 +45,9 @@ public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implemen
       report = report(testSessionId, testSuiteId, testSpanId, probes.values());
       return report != null && report.isNotEmpty();
     } catch (SourceResolutionException e) {
+      log.warn(
+          "Failed to generate coverage report for test, coverage data will be incomplete: {}",
+          e.getMessage());
       return false;
     }
   }

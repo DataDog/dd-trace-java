@@ -64,15 +64,15 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
 
       Set<String> coveredPaths = set(combinedClasses.size() + combinedNonCodeResources.size());
       for (Class<?> clazz : combinedClasses) {
-        String sourcePath = sourcePathResolver.getSourcePath(clazz);
-        if (sourcePath == null) {
+        Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
+        if (sourcePaths.isEmpty()) {
           log.debug(
               "Skipping coverage reporting for {} because source path could not be determined",
               clazz);
           metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
           continue;
         }
-        coveredPaths.add(sourcePath);
+        coveredPaths.addAll(sourcePaths);
       }
 
       for (String nonCodeResource : combinedNonCodeResources) {

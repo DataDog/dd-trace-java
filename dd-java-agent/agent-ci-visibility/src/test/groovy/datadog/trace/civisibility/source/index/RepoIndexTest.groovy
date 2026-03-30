@@ -21,7 +21,7 @@ class RepoIndexTest extends Specification {
       new RepoIndex.SourceRoot("myClassSourceRoot", Language.GROOVY),
       new RepoIndex.SourceRoot("myOtherClassSourceRoot", Language.GROOVY))
 
-    def repoIndex = new RepoIndex(trie, Collections.emptyList(), sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
     when:
     def serialized = repoIndex.serialize()
@@ -32,9 +32,41 @@ class RepoIndexTest extends Specification {
     deserialized.getSourcePath(RepoIndexSourcePathResolverTest) == "myOtherClassSourceRoot/" + myOtherClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
   }
 
+  def "test serialization and deserialization with duplicate keys"() {
+    given:
+    def myClassName = RepoIndexTest.name
+
+    def trieBuilder = new ClassNameTrie.Builder()
+    trieBuilder.put(myClassName, 0)
+    def trie = trieBuilder.buildTrie()
+
+    def sourceRoots = Arrays.asList(
+      new RepoIndex.SourceRoot("sourceRoot1", Language.GROOVY),
+      new RepoIndex.SourceRoot("sourceRoot2", Language.GROOVY))
+
+    def duplicateKeys = [(myClassName): [
+        "sourceRoot1/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension,
+        "sourceRoot2/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+      ]]
+
+    def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
+
+    when:
+    def serialized = repoIndex.serialize()
+    def deserialized = RepoIndex.deserialize(serialized)
+
+    then:
+    def paths = deserialized.getSourcePaths(RepoIndexTest)
+    paths.size() == 2
+    paths.containsAll([
+      "sourceRoot1/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension,
+      "sourceRoot2/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+    ])
+  }
+
   def "test trying to resolve a duplicate key throws exception"() {
     given:
-    def duplicateKeys = [RepoIndexTest.name]
+    def duplicateKeys = [(RepoIndexTest.name): ["path1.groovy", "path2.groovy"]]
     def repoIndex = new RepoIndex(new ClassNameTrie.Builder().buildTrie(), duplicateKeys, Collections.emptyList(), Collections.emptyList())
 
     when:
@@ -42,5 +74,52 @@ class RepoIndexTest extends Specification {
 
     then:
     thrown SourceResolutionException
+  }
+
+  def "test getSourcePaths returns all paths for duplicate key"() {
+    given:
+    def myClassName = RepoIndexTest.name
+
+    def trieBuilder = new ClassNameTrie.Builder()
+    trieBuilder.put(myClassName, 0)
+    def trie = trieBuilder.buildTrie()
+
+    def sourceRoots = Arrays.asList(
+      new RepoIndex.SourceRoot("debug", Language.GROOVY),
+      new RepoIndex.SourceRoot("release", Language.GROOVY))
+
+    def expectedPath1 = "debug/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+    def expectedPath2 = "release/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+    def duplicateKeys = [(myClassName): [expectedPath1, expectedPath2]]
+
+    def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
+
+    when:
+    def paths = repoIndex.getSourcePaths(RepoIndexTest)
+
+    then:
+    paths.size() == 2
+    paths.containsAll([expectedPath1, expectedPath2])
+  }
+
+  def "test getSourcePaths returns single path for non-duplicate key"() {
+    given:
+    def myClassName = RepoIndexTest.name
+
+    def trieBuilder = new ClassNameTrie.Builder()
+    trieBuilder.put(myClassName, 0)
+    def trie = trieBuilder.buildTrie()
+
+    def sourceRoots = Arrays.asList(
+      new RepoIndex.SourceRoot("src/main/groovy", Language.GROOVY))
+
+    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), sourceRoots, Collections.emptyList())
+
+    when:
+    def paths = repoIndex.getSourcePaths(RepoIndexTest)
+
+    then:
+    paths.size() == 1
+    paths.first() == "src/main/groovy/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
   }
 }

@@ -2,6 +2,8 @@ package datadog.trace.civisibility.source;
 
 import datadog.compiler.utils.CompilerUtils;
 import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -22,6 +24,13 @@ public class CompilerAidedSourcePathResolver implements SourcePathResolver {
     } else {
       return null;
     }
+  }
+
+  @Nonnull
+  @Override
+  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
+    String path = getSourcePath(c);
+    return path != null ? Collections.singletonList(path) : Collections.emptyList();
   }
 
   @Nullable

@@ -12,11 +12,11 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -98,7 +98,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
     private final Map<String, String> trieKeyToPath;
-    private final Collection<String> duplicateTrieKeys;
+    private final Map<String, Integer> trieKeyToSourceRootIdx;
+    private final Map<String, List<Integer>> duplicateSourceRootIndices;
     private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
@@ -116,7 +117,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
       trieKeyToPath = new HashMap<>();
-      duplicateTrieKeys = new HashSet<>();
+      trieKeyToSourceRootIdx = new HashMap<>();
+      duplicateSourceRootIndices = new HashMap<>();
       sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
@@ -178,9 +180,18 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             trieBuilder.put(key, sourceRootIdx);
 
             String existingPath = trieKeyToPath.put(key, file.toString());
+            Integer existingSourceRootIdx = trieKeyToSourceRootIdx.put(key, sourceRootIdx);
             if (existingPath != null) {
               log.debug("Duplicate repo index key: {} - {}", existingPath, file);
-              duplicateTrieKeys.add(key);
+              duplicateSourceRootIndices
+                  .computeIfAbsent(
+                      key,
+                      k -> {
+                        List<Integer> indices = new ArrayList<>();
+                        indices.add(existingSourceRootIdx); // Initialize with original source root
+                        return indices;
+                      })
+                  .add(sourceRootIdx);
             }
           }
         }
@@ -242,8 +253,22 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         roots[e.getValue()] = e.getKey();
       }
 
+      Map<String, List<String>> duplicateTrieKeyPaths = new HashMap<>();
+      for (Map.Entry<String, List<Integer>> entry : duplicateSourceRootIndices.entrySet()) {
+        String key = entry.getKey();
+        List<String> paths = new ArrayList<>();
+        for (int idx : entry.getValue()) {
+          RepoIndex.SourceRoot sr = roots[idx];
+          paths.add(sr.resolveSourcePath(key));
+        }
+        duplicateTrieKeyPaths.put(key, paths);
+      }
+
       return new RepoIndex(
-          trieBuilder.buildTrie(), duplicateTrieKeys, Arrays.asList(roots), packageTree.asList());
+          trieBuilder.buildTrie(),
+          duplicateTrieKeyPaths,
+          Arrays.asList(roots),
+          packageTree.asList());
     }
   }
 
