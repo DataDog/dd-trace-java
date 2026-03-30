@@ -90,11 +90,11 @@ public final class TraceMapperV1 implements TraceMapper {
     writable.startMap(6);
 
     // priority = 1, the sampling priority of the trace
-    encodeField(writable, 1, firstSpanMeta.samplingPriority()); // TODO double check
+    encodeField(writable, 1, firstSpanMeta.samplingPriority());
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
-    encodeField(writable, 2, firstSpan.getOrigin()); // TODO double check
+    encodeField(writable, 2, firstSpan.getOrigin());
     // attributes = 3, a collection of key to value pairs common in all `spans`
-    encodeAttributes(writable, 3, buildChunkAttributes(trace), emptyMap());
+    encodeAttributes(writable, 3, buildChunkAttributes(trace));
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace, firstSpanMeta);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
@@ -192,7 +192,7 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeUnsignedField(writable, 2, link.spanId());
       Map<String, Object> attributes = new LinkedHashMap<>();
       attributes.putAll(link.attributes().asMap());
-      encodeAttributes(writable, 3, attributes, emptyMap());
+      encodeAttributes(writable, 3, attributes);
       encodeField(writable, 4, link.traceState());
       encodeField(writable, 5, link.traceFlags() & 0xFF);
     }
@@ -430,19 +430,12 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeAttributes(
-      Writable writable, int fieldId, Map<String, Object> attrs, Map<String, Object> metaStruct) {
+  private void encodeAttributes(Writable writable, int fieldId, Map<String, Object> attrs) {
     writable.writeInt(fieldId);
-    writable.startArray((attrs.size() + metaStruct.size()) * 3); // Triplets: (key, type, value).
+    writable.startArray(attrs.size() * 3); // Triplets: (key, type, value).
 
     for (Map.Entry<String, Object> attr : attrs.entrySet()) {
       writeAttribute(writable, attr.getKey(), attr.getValue());
-    }
-
-    for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
-      writeStreamingString(writable, metaStructField.getKey());
-      writable.writeInt(VALUE_TYPE_BYTES);
-      writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
     }
   }
 
@@ -587,7 +580,7 @@ public final class TraceMapperV1 implements TraceMapper {
     encodeField(headerWriter, 2, ContainerInfo.get().getContainerId());
 
     // languageName = 3, the string language name of the tracer
-    encodeField(headerWriter, 3, "java"); // TODO: check java or jvm?
+    encodeField(headerWriter, 3, "java");
 
     // languageVersion = 4, the string language version of the tracer
     encodeField(headerWriter, 4, JavaVirtualMachine.getLangVersion());
@@ -611,7 +604,7 @@ public final class TraceMapperV1 implements TraceMapper {
     CharSequence processTags = ProcessTags.getTagsForSerialization();
     Map<String, Object> tags =
         processTags != null ? singletonMap(DDTags.PROCESS_TAGS, processTags) : emptyMap();
-    encodeAttributes(headerWriter, 10, tags, emptyMap());
+    encodeAttributes(headerWriter, 10, tags);
 
     // chunks = 11, a list of trace `chunks`, value is written by PayloadV1
     headerWriter.writeInt(11);
