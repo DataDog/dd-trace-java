@@ -111,6 +111,7 @@ public final class J9JavacoreParser {
     String exceptionDetail = null;
     String pid = null;
     String datetime = null;
+    String currentThreadName = null;
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
@@ -183,6 +184,7 @@ public final class J9JavacoreParser {
           if (inCurrentThread && line.startsWith("3XMTHREADINFO")) {
             Matcher threadMatcher = THREAD_INFO_PATTERN.matcher(line);
             if (threadMatcher.matches()) {
+              currentThreadName = threadMatcher.group(1);
               collectingStack = true;
             }
             continue;
@@ -267,9 +269,12 @@ public final class J9JavacoreParser {
                 frame.path,
                 frame.line,
                 frame.function,
+                frame.frameType,
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       } else {
         enrichedFrames.add(frame);
@@ -277,7 +282,11 @@ public final class J9JavacoreParser {
     }
 
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+        new ErrorData(
+            kind,
+            message,
+            currentThreadName,
+            new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
@@ -381,11 +390,14 @@ public final class J9JavacoreParser {
     // Extract source file and line: method(File.java:123)
     int parenStart = function.lastIndexOf('(');
     int parenEnd = function.lastIndexOf(')');
+    String frameType = "java";
     if (parenStart > 0 && parenEnd > parenStart) {
       String sourceInfo = function.substring(parenStart + 1, parenEnd);
       function = function.substring(0, parenStart);
 
-      if (!"Native Method".equals(sourceInfo)) {
+      if ("Native Method".equals(sourceInfo)) {
+        frameType = "native";
+      } else {
         int colonIdx = sourceInfo.lastIndexOf(':');
         if (colonIdx > 0) {
           file = sourceInfo.substring(0, colonIdx);
@@ -400,7 +412,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function, null, null, null, null);
+    return new StackFrame(file, line, function, frameType, null, null, null, null, null, null);
   }
 
   /**
@@ -462,7 +474,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, null, function, null, null, null, relAddress);
+    return new StackFrame(file, null, function, "native", null, null, null, null, null, relAddress);
   }
 
   private String parseDateTime(String datePart, String timePart) {
