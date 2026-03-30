@@ -13,7 +13,7 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class FFMApiModule extends InstrumenterModule.Tracing {
   public FFMApiModule() {
-    super("java-lang-22");
+    super("ffm-native-tracing", "java-lang-22");
   }
 
   @Override
