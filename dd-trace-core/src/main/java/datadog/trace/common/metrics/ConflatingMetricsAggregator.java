@@ -41,6 +41,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Function<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE_ADDER =
+          key ->
+              Pair.of(
+                  DDCaches.newFixedSizeCache(512),
+                  value -> UTF8BytesString.create(key + ":" + value));
+  private static final DDCache<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      SPAN_DERIVED_PRIMARY_TAGS_CACHE = DDCaches.newFixedSizeCache(64);
+  private static final Function<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      SPAN_DERIVED_PRIMARY_TAGS_CACHE_ADDER =
           key ->
               Pair.of(
                   DDCaches.newFixedSizeCache(512),
@@ -347,6 +358,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()),
+            getAdditionalMetricTags(span),
             httpMethod,
             httpEndpoint,
             grpcStatusCode);
@@ -410,6 +422,35 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return Collections.emptyList();
+  }
+
+  // TODO: This method is very similar to getPeerTags. We can probably consolidate to a helper.
+  private List<UTF8BytesString> getAdditionalMetricTags(CoreSpan<?> span) {
+    Set<String> additionalMetricTags = features.additionalMetricTags();
+    if (additionalMetricTags == null || additionalMetricTags.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<UTF8BytesString> tagValues = new ArrayList<>(additionalMetricTags.size());
+    for (String tagKey : additionalMetricTags) {
+      Object value = span.unsafeGetTag(tagKey);
+      if (value != null) {
+        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+            cacheAndCreator =
+                SPAN_DERIVED_PRIMARY_TAGS_CACHE.computeIfAbsent(
+                    tagKey, SPAN_DERIVED_PRIMARY_TAGS_CACHE_ADDER);
+        tagValues.add(
+            cacheAndCreator
+                .getLeft()
+                .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+      }
+    }
+    if (tagValues.isEmpty()) {
+      return Collections.emptyList();
+    }
+    if (tagValues.size() > 1) {
+      tagValues.sort(Comparator.comparing(UTF8BytesString::toString));
+    }
+    return tagValues;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

@@ -37,6 +37,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_STATE = Strings.sha256(INFO_RESPONSE)
   static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE = loadJsonFile("agent-info-with-peer-tag-back-propagation.json")
   static final String INFO_WITH_PEER_TAG_BACK_PROPAGATION_STATE = Strings.sha256(INFO_WITH_PEER_TAG_BACK_PROPAGATION_RESPONSE)
+  static final String INFO_WITH_ADDITIONAL_METRIC_TAGS_RESPONSE = loadJsonFile("agent-info-with-additional-metric-tags.json")
+  static final String INFO_WITH_ADDITIONAL_METRIC_TAGS_STATE = Strings.sha256(INFO_WITH_ADDITIONAL_METRIC_TAGS_RESPONSE)
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
   static final String INFO_WITH_CLIENT_DROPPING_STATE = Strings.sha256(INFO_WITH_CLIENT_DROPPING_RESPONSE)
   static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
@@ -505,6 +507,20 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     "tablename",
     "topicname"
     )
+  }
+
+  def "test parse /info response with additional-metric-tags"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+
+    when: "/info available with additional-metric-tags"
+    features.discover()
+
+    then:
+    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_ADDITIONAL_METRIC_TAGS_RESPONSE) }
+    features.state() == INFO_WITH_ADDITIONAL_METRIC_TAGS_STATE
+    features.additionalMetricTags() == ["region", "priority"] as Set
   }
 
   def "test metrics disabled for agent version below 7.65"() {

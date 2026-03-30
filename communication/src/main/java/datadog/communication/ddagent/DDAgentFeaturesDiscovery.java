@@ -22,6 +22,7 @@ import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,6 +99,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String version;
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
+    Set<String> additionalMetricTags = emptySet();
     long lastTimeDiscovered;
   }
 
@@ -308,6 +310,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             peer_tags instanceof List
                 ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
                 : emptySet();
+
+        Object span_derived_primary_tags = map.get("span_derived_primary_tags");
+        newState.additionalMetricTags =
+            span_derived_primary_tags instanceof List
+                ? unmodifiableSet(new LinkedHashSet<>((List<String>) span_derived_primary_tags))
+                : emptySet();
       }
       try {
         newState.state = Strings.sha256(response);
@@ -394,6 +402,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public Set<String> peerTags() {
     return discoveryState.peerTags;
+  }
+
+  public Set<String> additionalMetricTags() {
+    return discoveryState.additionalMetricTags;
   }
 
   public String getMetricsEndpoint() {
