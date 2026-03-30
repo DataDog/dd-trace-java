@@ -13,6 +13,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.civisibility.codeowners.NoCodeowners
+import datadog.trace.civisibility.config.ConfigurationErrors
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.NoOpSourcePathResolver
@@ -141,7 +142,7 @@ class TestImplTest extends SpanWriterTest {
       codeowners,
       coverageStoreFactory,
       executionResults,
-      false,
+      ConfigurationErrors.NONE,
       libraryCapabilities,
       SpanTagsPropagator.NOOP_PROPAGATOR
       )
