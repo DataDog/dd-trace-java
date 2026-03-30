@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -190,9 +189,7 @@ public final class TraceMapperV1 implements TraceMapper {
       writable.startMap(5);
       encodeField(writable, 1, link.traceId().to128BitBytes());
       encodeUnsignedField(writable, 2, link.spanId());
-      Map<String, Object> attributes = new LinkedHashMap<>();
-      attributes.putAll(link.attributes().asMap());
-      encodeAttributes(writable, 3, attributes);
+      encodeAttributes(writable, 3, link.attributes().asMap());
       encodeField(writable, 4, link.traceState());
       encodeField(writable, 5, link.traceFlags() & 0xFF);
     }
@@ -430,11 +427,11 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeAttributes(Writable writable, int fieldId, Map<String, Object> attrs) {
+  private void encodeAttributes(Writable writable, int fieldId, Map<String, ?> attrs) {
     writable.writeInt(fieldId);
     writable.startArray(attrs.size() * 3); // Triplets: (key, type, value).
 
-    for (Map.Entry<String, Object> attr : attrs.entrySet()) {
+    for (Map.Entry<String, ?> attr : attrs.entrySet()) {
       writeAttribute(writable, attr.getKey(), attr.getValue());
     }
   }
