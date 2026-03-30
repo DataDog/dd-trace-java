@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.multipart.Attribute;
+import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
 import java.io.IOException;
@@ -98,6 +99,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       RuntimeException exc = null;
 
       Map<String, List<String>> attributes = new LinkedHashMap<>();
+      List<String> filenames = new ArrayList<>();
       for (InterfaceHttpData data : thiz.getBodyHttpDatas()) {
         if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
           String name = data.getName();
@@ -111,6 +113,11 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           } catch (IOException e) {
             exc = new UndeclaredThrowableException(e);
           }
+        } else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
+          String filename = ((FileUpload) data).getFilename();
+          if (filename != null && !filename.isEmpty()) {
+            filenames.add(filename);
+          }
         }
       }
 
@@ -123,6 +130,24 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
         }
         thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
+      }
+
+      if (!filenames.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+            cbp.getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCb != null) {
+          Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
+          Flow.Action filenamesAction = filenamesFlow.getAction();
+          if (thr == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) filenamesAction;
+            BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            }
+            thr = new BlockingException("Blocked request (multipart file upload)");
+          }
+        }
       }
 
       if (exc != null) {

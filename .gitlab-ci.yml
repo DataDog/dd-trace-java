@@ -647,7 +647,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.1
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -809,7 +809,12 @@ aggregate_test_counts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *set_datadog_api_keys
     - .gitlab/aggregate_test_counts.sh
@@ -1066,6 +1071,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
+    SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:

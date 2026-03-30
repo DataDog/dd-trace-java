@@ -11,6 +11,7 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/** Test the {@code VirtualThread} and {@code Thread.Builder} API. */
 public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentationTest {
 
   @DisplayName("test Thread.Builder.OfVirtual.start()")

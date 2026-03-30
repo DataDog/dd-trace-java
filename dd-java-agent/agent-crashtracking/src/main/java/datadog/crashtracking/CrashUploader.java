@@ -525,6 +525,9 @@ public final class CrashUploader {
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
+          if (payload.error.threadName != null) {
+            writer.name("thread_name").value(payload.error.threadName);
+          }
           writer.name("source_type").value("Crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
@@ -571,6 +574,18 @@ public final class CrashUploader {
                       "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
+        // experimental
+        if (payload.experimental != null && payload.experimental.ucontext != null) {
+          writer.name("experimental");
+          writer.beginObject();
+          writer.name("ucontext");
+          writer.beginObject();
+          for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+            writer.name(entry.getKey()).value(entry.getValue());
+          }
+          writer.endObject();
+          writer.endObject();
+        }
         writer.endObject();
       }
       return RequestBody.create(APPLICATION_JSON, buf.readByteString());
@@ -599,6 +614,16 @@ public final class CrashUploader {
     tags.append(",")
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags.append(",")
+        .append("runtime_vendor:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags.append(",")
+        .append("runtime_name:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());
@@ -611,6 +636,16 @@ public final class CrashUploader {
     tags.append(",")
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags.append(",")
+        .append("runtime_vendor:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags.append(",")
+        .append("runtime_name:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());

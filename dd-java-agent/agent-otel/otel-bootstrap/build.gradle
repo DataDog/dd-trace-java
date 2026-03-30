@@ -72,9 +72,11 @@ dependencies {
   // selected bootstrap types shared across multiple OpenTelemetry instrumentations
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: "$otelInstrumentationApiVersion-alpha"
 
-  compileOnly project(':dd-java-agent:agent-bootstrap')
-
+  implementation project(':dd-java-agent:agent-bootstrap')
   implementation project(':utils:logging-utils')
+  implementation project(':communication')
+
+  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
 }
 
 tasks.named("shadowJar", ShadowJar) {

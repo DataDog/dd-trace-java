@@ -24,7 +24,7 @@ final class OtelHistogramSketch extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
+  OtlpDataPoint doCollect(boolean reset) {
     double count;
     List<Double> binBoundaries;
     List<Double> binCounts;
@@ -38,7 +38,7 @@ final class OtelHistogramSketch extends OtelAggregator {
         histogram.clear();
       }
     }
-    return new OtelHistogramPoint(count, binBoundaries, binCounts, sum);
+    return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum);
   }
 
   /** Truncate IEEE-754 floating-point value to 10 bits precision. */

@@ -314,6 +314,26 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.toString().contains("id=-") == false
   }
 
+  def "service name source is propagated from parent to child span"() {
+    setup:
+    def parent = tracer.buildSpan("parentOperation")
+      .withServiceName("fakeService")
+      .start()
+
+    when:
+    def child = tracer.buildSpan("childOperation")
+      .asChildOf(parent.context())
+      .start()
+    def childContext = child.context() as DDSpanContext
+
+    then:
+    childContext.getServiceNameSource() == ServiceNameSources.MANUAL
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
   static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
