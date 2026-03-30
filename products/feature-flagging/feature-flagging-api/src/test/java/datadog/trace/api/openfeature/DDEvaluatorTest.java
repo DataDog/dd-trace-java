@@ -210,7 +210,8 @@ public class DDEvaluatorTest {
 
   private static List<TestCase<?>> evaluateTestCases() {
     return Arrays.asList(
-        // OF spec 3.1.1: targeting key is optional; static flags must evaluate successfully without it
+        // OF spec 3.1.1: targeting key is optional; static flags must evaluate successfully without
+        // it
         new TestCase<>("default")
             .flag("simple-string")
             // no .targetingKey() -- null by default
