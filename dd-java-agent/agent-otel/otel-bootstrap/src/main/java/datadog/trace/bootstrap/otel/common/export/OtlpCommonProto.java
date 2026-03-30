@@ -246,12 +246,10 @@ public final class OtlpCommonProto {
   private static void writeStringArrayAttribute(
       StreamingBuffer buf, byte[] keyUtf8, byte[][] valueUtf8s) {
     int[] elementSizes = new int[valueUtf8s.length];
+    int arraySize = 0;
     for (int i = 0; i < valueUtf8s.length; i++) {
       elementSizes[i] = 1 + sizeVarInt(valueUtf8s[i].length) + valueUtf8s[i].length;
-    }
-    int arraySize = 0;
-    for (int elementSize : elementSizes) {
-      arraySize += 1 + sizeVarInt(elementSize) + elementSize;
+      arraySize += 1 + sizeVarInt(elementSizes[i]) + elementSizes[i];
     }
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
     int keyValueSize =
@@ -299,13 +297,11 @@ public final class OtlpCommonProto {
       StreamingBuffer buf, byte[] keyUtf8, List<Long> values) {
     long[] longValues = new long[values.size()];
     int[] elementSizes = new int[longValues.length];
+    int arraySize = 0;
     for (int i = 0; i < longValues.length; i++) {
       longValues[i] = values.get(i); // avoid repeated unboxing later
       elementSizes[i] = 1 + sizeVarInt(longValues[i]);
-    }
-    int arraySize = 0;
-    for (int elementSize : elementSizes) {
-      arraySize += 1 + sizeVarInt(elementSize) + elementSize;
+      arraySize += 1 + sizeVarInt(elementSizes[i]) + elementSizes[i];
     }
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
     int keyValueSize =
