@@ -354,16 +354,15 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
 
     @Override
     protected InputStream getSourceStream(String path) throws IOException {
-        Collection<String> relativePaths = repoIndex.getSourcePaths(path);
-        if (relativePaths.size() != 1) {
-          LOGGER.debug("Could not resolve source for path {}", path);
-          return null;
-        }
-        String relativePath = relativePaths.iterator().next();
-        String absolutePath =
-            repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
-        return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
-
+      Collection<String> relativePaths = repoIndex.getSourcePaths(path);
+      if (relativePaths.size() != 1) {
+        LOGGER.debug("Could not resolve source for path {}", path);
+        return null;
+      }
+      String relativePath = relativePaths.iterator().next();
+      String absolutePath =
+          repoRoot + (!repoRoot.endsWith(File.separator) ? File.separator : "") + relativePath;
+      return new BufferedInputStream(Files.newInputStream(Paths.get(absolutePath)));
     }
   }
 
@@ -433,7 +432,8 @@ public class JacocoCoverageProcessor implements CoverageProcessor {
         String fileName = sourceFile.getName();
         String pathRelativeToSourceRoot =
             (Strings.isNotBlank(packageName) ? packageName + "/" : "") + fileName;
-        Collection<String> pathsRelativeToIndexRoot = repoIndex.getSourcePaths(pathRelativeToSourceRoot);
+        Collection<String> pathsRelativeToIndexRoot =
+            repoIndex.getSourcePaths(pathRelativeToSourceRoot);
 
         if (pathsRelativeToIndexRoot.size() != 1) {
           LOGGER.debug("Could not resolve source for path {}", pathRelativeToSourceRoot);

@@ -201,7 +201,7 @@ public class ExecutionStrategy {
       if (sourcePaths.size() != 1) {
         return false;
       }
-     String sourcePath = sourcePaths.iterator().next();
+      String sourcePath = sourcePaths.iterator().next();
 
       LinesResolver.Lines lines = getLines(testSourceData.getTestMethod());
       return executionSettings
