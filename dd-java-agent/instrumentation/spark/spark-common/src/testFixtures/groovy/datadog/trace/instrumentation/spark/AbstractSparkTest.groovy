@@ -193,6 +193,37 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     }
   }
 
+  def "sql analysis failure on missing table marks application span as error"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      sparkSession.sql("SELECT * FROM missing_table").show()
+    } catch (Exception ignored) {
+      // Expected: AnalysisException thrown by Catalyst before any Spark job is submitted
+    }
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark SQL Failed"
+          assert span.tags["error.message"] =~ /(?i).*missing_table.*/
+          assert span.tags["error.stack"] =~ /(?s).*AnalysisException.*/
+        }
+      }
+    }
+
+  }
+
   def "capture SparkSubmit.runMain() errors"() {
     setup:
     def sparkSession = SparkSession.builder()
