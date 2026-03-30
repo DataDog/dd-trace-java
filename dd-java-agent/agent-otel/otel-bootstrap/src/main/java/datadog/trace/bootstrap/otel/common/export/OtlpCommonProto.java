@@ -297,9 +297,11 @@ public final class OtlpCommonProto {
 
   private static void writeLongArrayAttribute(
       StreamingBuffer buf, byte[] keyUtf8, List<Long> values) {
-    int[] elementSizes = new int[values.size()];
-    for (int i = 0; i < values.size(); i++) {
-      elementSizes[i] = 1 + sizeVarInt(values.get(i));
+    long[] longValues = new long[values.size()];
+    int[] elementSizes = new int[longValues.length];
+    for (int i = 0; i < longValues.length; i++) {
+      longValues[i] = values.get(i); // avoid repeated unboxing later
+      elementSizes[i] = 1 + sizeVarInt(longValues[i]);
     }
     int arraySize = 0;
     for (int elementSize : elementSizes) {
@@ -320,7 +322,7 @@ public final class OtlpCommonProto {
       writeTag(buf, 1, LEN_WIRE_TYPE);
       writeVarInt(buf, elementSizes[i]);
       writeTag(buf, 3, VARINT_WIRE_TYPE);
-      writeVarInt(buf, values.get(i));
+      writeVarInt(buf, longValues[i]);
     }
   }
 
