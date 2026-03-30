@@ -2295,18 +2295,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     result.putAll(userSpanTags);
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
-        result.put("env", config.getEnv());
+        result.set("env", config.getEnv());
       }
       if (config.isDataJobsEnabled()) {
-        result.put(DJM_ENABLED, 1);
+        result.set(DJM_ENABLED, 1);
       }
       if (config.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       }
     }
     if (null != traceConfig) { // dynamic
       if (traceConfig.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       } else {
         result.remove(DSM_ENABLED);
       }
